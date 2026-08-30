@@ -14,6 +14,7 @@
 你是 AigcForge 项目的高级全栈工程师。本提示词让你**独立、端到端**执行 [防幻觉机制实施方案 v3](docs/plan/anti-hallucination-implementation.md)（阶段 0 + A + B + C + D）。范围真源是那份计划，本提示词是执行手册。开工前必须通读以下文档：
 
 **协议文档**（按顺序，每阶段开工前重读对应部分）：
+
 1. `CLAUDE.md` - 宪法（九荣九耻、四大拒绝、根因收敛、极致减法、改完即审流程）
 2. `AGENTS.md` - 代码风格（import 自导出、Effect 编码、Schema、Testing、V2 Session Core 不变量、分支提交）
 3. `ARCHITECTURE.md` - 架构拓扑（§3 包拓扑 + §4 子系统 + §6 跨层边界）
@@ -23,13 +24,7 @@
 7. `.aigcfroge/skills/protocols/SKILL.md` - 任务路由（跨 core/session + core/tool + core/system-context 簇）
 8. `docs/research/agent/AigcForge-双向链接与防幻觉机制调研.md` §5+§8+§9 - 理论源
 
-**范式参考代码**（读源码，不猜接口）：
-9. `packages/core/src/session/doom-loop.ts` - Service + Layer + runner 集成范式（**阶段 0/A/B 的模板**）
-10. `packages/core/src/session/runner/llm.ts:164-210` - settleTool 函数（挂载点）
-11. `packages/core/src/location-layer.ts:169` - Layer 组合模式
-12. `packages/core/src/system-context/builtins.ts` - SystemContext 降级注入模式
-13. `packages/core/src/session/context-epoch.ts:60-74` - reconcile Updated 分支（零缓存影响证据）
-14. `packages/core/test/doom-loop.test.ts` - TDD 测试范式（testEffect + Layer.mock + configLayer）
+**范式参考代码**（读源码，不猜接口）：9. `packages/core/src/session/doom-loop.ts` - Service + Layer + runner 集成范式（**阶段 0/A/B 的模板**）10. `packages/core/src/session/runner/llm.ts:164-210` - settleTool 函数（挂载点）11. `packages/core/src/location-layer.ts:169` - Layer 组合模式 12. `packages/core/src/system-context/builtins.ts` - SystemContext 降级注入模式 13. `packages/core/src/session/context-epoch.ts:60-74` - reconcile Updated 分支（零缓存影响证据）14. `packages/core/test/doom-loop.test.ts` - TDD 测试范式（testEffect + Layer.mock + configLayer）
 
 ---
 
@@ -119,17 +114,18 @@
 ```
 
 关键约束：
+
 - 引用校验和验证执行**串行**（引用校验先 5s，验证执行后 60s），各自独立超时
 - 兜底用 `Effect.catchTag` 处理已知错误类型，**不用 `Effect.catchAll`**（tool/AGENTS.md：interruption/defect 透传）
 - augment 只追加文本，不改变 `result.type`（text 仍为 text，error 仍为 error）
 
 ### 2.6 DA8 · 纠正过期：TTL 衰减 + 用户纠正豁免
 
-| 来源 | TTL | 拦截参与 | 注入参与 |
-|---|---|---|---|
-| L1 检测器 | 10 轮后退出拦截 | ✅ 10 轮内 | ✅ 直到 FIFO 驱逐 |
-| L2 用户纠正 | 不过期 | ✅ 永久（session 内） | ✅ 直到 FIFO 驱逐 |
-| L3 原文回退 | 5 轮后移除 | ❌ | ✅ 5 轮内 |
+| 来源        | TTL             | 拦截参与              | 注入参与          |
+| ----------- | --------------- | --------------------- | ----------------- |
+| L1 检测器   | 10 轮后退出拦截 | ✅ 10 轮内            | ✅ 直到 FIFO 驱逐 |
+| L2 用户纠正 | 不过期          | ✅ 永久（session 内） | ✅ 直到 FIFO 驱逐 |
+| L3 原文回退 | 5 轮后移除      | ❌                    | ✅ 5 轮内         |
 
 不做验证成功自动清除。
 
@@ -180,29 +176,29 @@ export class Info extends Schema.Class<Info>("ConfigV2.Meta")({
 
 ## 3. 代码锚点（已核实，直接用）
 
-| 能力 | 位置 | 动作 |
-|---|---|---|
-| **doom_loop Service 范式** | `session/doom-loop.ts`（Context.Service + Layer.effect + Ref<Map> + fingerprintOf helper） | **阶段 0/A/B 的模板**，读源码后对齐风格 |
-| **doom_loop runner 集成** | `runner/llm.ts:125`（`yield* DoomLoop.Service`）+ `:164-210`（settleTool 中 doomLoop.check） | 阶段 0/A/B 的挂载点 |
-| **doom_loop Layer 组合** | `location-layer.ts:169`（`DoomLoop.layer.pipe(Layer.provide(services))`） | 新 Layer 按此模式组合 |
-| **doom_loop 测试范式** | `test/doom-loop.test.ts`（testEffect + configLayer + Layer.mock(PermissionV2.Service)） | **所有新测试的模板** |
-| **SystemContext 降级模式** | `system-context/builtins.ts:93-113`（Memory 源 `Effect.serviceOption` 降级） | 阶段 0 correction-facts 源 + 阶段 C reverse-refs 源复用 |
-| **SystemContext reconcile** | `context-epoch.ts:60-74`（Updated 分支返回 stored.baseline 不变，走 ContextUpdated 事件） | 零缓存影响的代码级证据 |
-| **CacheShape 哈希** | `cache/cache-shape.ts:65-69`（capture 只哈希 `[system, baseline]` + tools + rewriteVersion） | 验证缓存影响的依据 |
-| **ContextUpdated -> 消息** | `message-updater.ts:142`（`session.next.context.updated` -> SessionMessage.System） | 纠正注入走消息不进系统提示词 |
-| **entriesForRunner 过滤** | `history.ts:41`（包含 seq > baselineSeq 的 system 消息） | 模型在 messages 中看到 ContextUpdated |
-| **runner turn 循环** | `runner/llm.ts:256-290`（currentStep / intent 分类 / toolMaterialization） | 阶段 0 用户纠正提取插入点（intent 后、toolMaterialization 前） |
-| **settleTool 函数** | `runner/llm.ts:164-210` | 阶段 0/A/B 的挂载扩展点 |
-| **ConfigMeta 现状** | `config/meta.ts`（Memory + DoomLoop Schema classes） | 扩展加 ReferenceCheck/Verifier/ReverseRefs/CorrectionStoreConfig |
-| **Config.Info 挂载** | `config.ts:94`（`meta: ConfigMeta.Info.pipe(Schema.optional)`） | 已有，只需扩展 ConfigMeta.Info |
-| **意图分类** | `agent/meta/intent.ts`（`classify` 返回 IntentCategory） | 阶段 B 触发条件 |
-| **AppProcess** | `process.ts`（`AppProcess.run`） | 阶段 B typecheck 执行 |
-| **Ripgrep** | `ripgrep.ts`（`grep`/`glob`/`find`） | 阶段 A 引用扫描 |
-| **EventV2.define** | `session/event.ts`（如 `SessionEvent.Tool.Failed = EventV2.define({...})`） | 阶段 B verify 事件定义 |
-| **judgeMerge** | `agent/judge.ts` | 阶段 D L1 路由 |
-| **task delegateJudge** | `tool/task.ts:97-102` + `task-driver-fill.ts` | 阶段 D L2 路由 |
-| **测试基座** | `test/lib/effect.ts`（`testEffect` = `it.effect` + `it.live`，**无 it.instance**） | 测试基础设施 |
-| **DB 测试范式** | `test/agent-asset.test.ts:19`（`it.live` + tmpdir + `Layer.succeed(Database.Service, ...)`） | SystemContext 落库测试参考 |
+| 能力                        | 位置                                                                                         | 动作                                                             |
+| --------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **doom_loop Service 范式**  | `session/doom-loop.ts`（Context.Service + Layer.effect + Ref<Map> + fingerprintOf helper）   | **阶段 0/A/B 的模板**，读源码后对齐风格                          |
+| **doom_loop runner 集成**   | `runner/llm.ts:125`（`yield* DoomLoop.Service`）+ `:164-210`（settleTool 中 doomLoop.check） | 阶段 0/A/B 的挂载点                                              |
+| **doom_loop Layer 组合**    | `location-layer.ts:169`（`DoomLoop.layer.pipe(Layer.provide(services))`）                    | 新 Layer 按此模式组合                                            |
+| **doom_loop 测试范式**      | `test/doom-loop.test.ts`（testEffect + configLayer + Layer.mock(PermissionV2.Service)）      | **所有新测试的模板**                                             |
+| **SystemContext 降级模式**  | `system-context/builtins.ts:93-113`（Memory 源 `Effect.serviceOption` 降级）                 | 阶段 0 correction-facts 源 + 阶段 C reverse-refs 源复用          |
+| **SystemContext reconcile** | `context-epoch.ts:60-74`（Updated 分支返回 stored.baseline 不变，走 ContextUpdated 事件）    | 零缓存影响的代码级证据                                           |
+| **CacheShape 哈希**         | `cache/cache-shape.ts:65-69`（capture 只哈希 `[system, baseline]` + tools + rewriteVersion） | 验证缓存影响的依据                                               |
+| **ContextUpdated -> 消息**  | `message-updater.ts:142`（`session.next.context.updated` -> SessionMessage.System）          | 纠正注入走消息不进系统提示词                                     |
+| **entriesForRunner 过滤**   | `history.ts:41`（包含 seq > baselineSeq 的 system 消息）                                     | 模型在 messages 中看到 ContextUpdated                            |
+| **runner turn 循环**        | `runner/llm.ts:256-290`（currentStep / intent 分类 / toolMaterialization）                   | 阶段 0 用户纠正提取插入点（intent 后、toolMaterialization 前）   |
+| **settleTool 函数**         | `runner/llm.ts:164-210`                                                                      | 阶段 0/A/B 的挂载扩展点                                          |
+| **ConfigMeta 现状**         | `config/meta.ts`（Memory + DoomLoop Schema classes）                                         | 扩展加 ReferenceCheck/Verifier/ReverseRefs/CorrectionStoreConfig |
+| **Config.Info 挂载**        | `config.ts:94`（`meta: ConfigMeta.Info.pipe(Schema.optional)`）                              | 已有，只需扩展 ConfigMeta.Info                                   |
+| **意图分类**                | `agent/meta/intent.ts`（`classify` 返回 IntentCategory）                                     | 阶段 B 触发条件                                                  |
+| **AppProcess**              | `process.ts`（`AppProcess.run`）                                                             | 阶段 B typecheck 执行                                            |
+| **Ripgrep**                 | `ripgrep.ts`（`grep`/`glob`/`find`）                                                         | 阶段 A 引用扫描                                                  |
+| **EventV2.define**          | `session/event.ts`（如 `SessionEvent.Tool.Failed = EventV2.define({...})`）                  | 阶段 B verify 事件定义                                           |
+| **judgeMerge**              | `agent/judge.ts`                                                                             | 阶段 D L1 路由                                                   |
+| **task delegateJudge**      | `tool/task.ts:97-102` + `task-driver-fill.ts`                                                | 阶段 D L2 路由                                                   |
+| **测试基座**                | `test/lib/effect.ts`（`testEffect` = `it.effect` + `it.live`，**无 it.instance**）           | 测试基础设施                                                     |
+| **DB 测试范式**             | `test/agent-asset.test.ts:19`（`it.live` + tmpdir + `Layer.succeed(Database.Service, ...)`） | SystemContext 落库测试参考                                       |
 
 ---
 
@@ -381,6 +377,7 @@ packages/core/test/verification-router.test.ts              新建（TDD 红）
 ## 6. 测试规范（必须遵守）
 
 ### 6.1 命令（永不从仓库根跑 test）
+
 ```bash
 bun --cwd packages/core test --timeout 30000
 bun --cwd packages/core typecheck      # tsgo --noEmit
@@ -389,10 +386,10 @@ bun run script/lint-changed.ts         # 增量 lint
 
 ### 6.2 三模式选择（core 测试基座无 it.instance）
 
-| 模式 | 何时用 |
-|---|---|
-| `it.effect` | CorrectionStore 纯逻辑、correction-extractor 模式匹配、Verifier 散文映射、VerificationRouter 路由逻辑、包路径解析纯函数 |
-| `it.live` | **真实 ripgrep**（引用校验器）、**真实子进程 typecheck**（验证执行器）、**真实 DB**（SystemContext 源注入验证）、**真实文件系统**（tmpdir + markdown/import 文件） |
+| 模式        | 何时用                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `it.effect` | CorrectionStore 纯逻辑、correction-extractor 模式匹配、Verifier 散文映射、VerificationRouter 路由逻辑、包路径解析纯函数                                            |
+| `it.live`   | **真实 ripgrep**（引用校验器）、**真实子进程 typecheck**（验证执行器）、**真实 DB**（SystemContext 源注入验证）、**真实文件系统**（tmpdir + markdown/import 文件） |
 
 > core 测试基座 `packages/core/test/lib/effect.ts` 只提供 `it.effect` + `it.live`（无 `it.instance`）。真实 DB 测试用 **`it.live` + 手动 tmpdir + `Layer.succeed(Database.Service, ...)`** 模式（参考 `packages/core/test/agent-asset.test.ts:19`）。
 
@@ -461,6 +458,7 @@ bun run script/lint-changed.ts         # 增量 lint
    - "Keep the System Context algebra in packages/core/src/system-context"（correction-facts.ts 在此目录 ✓）
 6. 命令验证：`bun --cwd packages/core test --timeout 30000` + `bun --cwd packages/core typecheck` + `bun run script/lint-changed.ts`
 7. 输出复查结论：
+
 ```text
 复查结论:
 - 影响文件:
@@ -501,11 +499,11 @@ bun run script/lint-changed.ts         # 增量 lint
 
 ## 使用说明
 
-| 项 | 值 |
-|---|---|
-| 复制范围 | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->` |
-| 新对话 model | 默认（工程执行建议主力模型） |
+| 项             | 值                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 复制范围       | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->`                                                                                            |
+| 新对话 model   | 默认（工程执行建议主力模型）                                                                                                                |
 | 新对话打开文件 | `docs/plan/anti-hallucination-implementation.md`（范围真源）+ 本文件 + 调研文档 `docs/research/agent/AigcForge-双向链接与防幻觉机制调研.md` |
-| 开工顺序 | 通读协议文档 -> 读 doom_loop 范式代码 -> git 切 `anti-hallucination` -> Phase 0A 红测试开始 |
-| 卡住时 | 回报阶段 + 已过/未过测试 + 具体报错，不要绕过（`--no-verify` 禁） |
-| 审批角色 | 执行完成后由审批 agent 按 §10 改完即审 7 步逐 Phase 验收 |
+| 开工顺序       | 通读协议文档 -> 读 doom_loop 范式代码 -> git 切 `anti-hallucination` -> Phase 0A 红测试开始                                                 |
+| 卡住时         | 回报阶段 + 已过/未过测试 + 具体报错，不要绕过（`--no-verify` 禁）                                                                           |
+| 审批角色       | 执行完成后由审批 agent 按 §10 改完即审 7 步逐 Phase 验收                                                                                    |

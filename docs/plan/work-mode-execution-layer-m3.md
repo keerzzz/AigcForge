@@ -16,21 +16,21 @@
 
 初稿（commit `b45edd4c0`）已 Approved，但 D1/D2 基于未核验的渲染管线假设。本版逐文件核验 5 层代码后纠正两处技术误判，Gate 与范围不变：
 
-| 项 | 初稿假设（未核验） | 代码核验结论 | 影响 |
-|---|---|---|---|
-| **D1 拦截点** | "marked 自定义 renderer：code 代码块，language=mermaid 时调 mermaid.render" | marked-shiki v1.2.1 用 `walkTokens` 在 marked renderer 之前把 code token 转成 html token（[marked-shiki/dist/index.js:5-15](../../node_modules/marked-shiki/dist/index.js)）；marked renderer **永远看不到 mermaid code token**。真正拦截点是 marked-shiki 的 `highlight(code, lang)` 回调（[marked.tsx:488](packages/ui/src/context/marked.tsx)） | D1 重写 |
-| **D2 DOMPurify** | "config 已保留 svg/path，SVG 已支持，无需改" | config 仅 `ADD_TAGS: ["svg","path"]`，**无 svg profile**（[markdown-cache.tsx:14](packages/session-ui/src/components/markdown-cache.tsx)）；`SANITIZE_NAMED_PROPS: true`（:15）会给 id 加 `user-content-` 前缀，**打断 Mermaid 内部 `url(#id)` 引用**（箭头标记/渐变消失）；[sanitize-regression.test.tsx:11](packages/session-ui/src/components/sanitize-regression.test.tsx) 显式断言 `<foreignObject>` 被剥 | D2 重写为方案对比 + 推荐 B+ |
-| **渲染流** | "marked.parse(block.src) -> code renderer -> mermaid.render -> SVG -> sanitizeMarkdown" | 非流式（Work 面板路径）下 `stream(text, false)` 返回单 `mode:"full"` 块（[markdown-stream.ts:53](packages/session-ui/src/components/markdown-stream.ts)），marked.parse 处理全文含 mermaid；但 markedShiki walkTokens 先把 mermaid code token 转 html token，**highlight 返回值即最终 HTML**（无 `<pre><code>` 包裹） | §4.1 流程重画 |
+| 项               | 初稿假设（未核验）                                                                      | 代码核验结论                                                                                                                                                                                                                                                                                                                                                                                                   | 影响                        |
+| ---------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| **D1 拦截点**    | "marked 自定义 renderer：code 代码块，language=mermaid 时调 mermaid.render"             | marked-shiki v1.2.1 用 `walkTokens` 在 marked renderer 之前把 code token 转成 html token（[marked-shiki/dist/index.js:5-15](../../node_modules/marked-shiki/dist/index.js)）；marked renderer **永远看不到 mermaid code token**。真正拦截点是 marked-shiki 的 `highlight(code, lang)` 回调（[marked.tsx:488](packages/ui/src/context/marked.tsx)）                                                             | D1 重写                     |
+| **D2 DOMPurify** | "config 已保留 svg/path，SVG 已支持，无需改"                                            | config 仅 `ADD_TAGS: ["svg","path"]`，**无 svg profile**（[markdown-cache.tsx:14](packages/session-ui/src/components/markdown-cache.tsx)）；`SANITIZE_NAMED_PROPS: true`（:15）会给 id 加 `user-content-` 前缀，**打断 Mermaid 内部 `url(#id)` 引用**（箭头标记/渐变消失）；[sanitize-regression.test.tsx:11](packages/session-ui/src/components/sanitize-regression.test.tsx) 显式断言 `<foreignObject>` 被剥 | D2 重写为方案对比 + 推荐 B+ |
+| **渲染流**       | "marked.parse(block.src) -> code renderer -> mermaid.render -> SVG -> sanitizeMarkdown" | 非流式（Work 面板路径）下 `stream(text, false)` 返回单 `mode:"full"` 块（[markdown-stream.ts:53](packages/session-ui/src/components/markdown-stream.ts)），marked.parse 处理全文含 mermaid；但 markedShiki walkTokens 先把 mermaid code token 转 html token，**highlight 返回值即最终 HTML**（无 `<pre><code>` 包裹）                                                                                          | §4.1 流程重画               |
 
 ### 0.2 执行 Gate
 
-| Gate | 条件 | 状态 | 阻塞范围 |
-|---|---|---|---|
-| **G0 范围真源** | [M3 调研报告](work-mode-m3-research.md) Approved（L1 收窄，L2 延后 M3.5） | ✅ 已满足 | 全部 Phase |
-| **G1 依赖就绪** | M1-M2 已合入 main：候选稿=消息正文（M1 D1）+ work-orchestrator SYSTEM_PROMPT 步骤化（M1.5）+ 存为资产（M2，[work-artifact-panel.tsx:199-209](packages/app/src/pages/work-artifact-panel.tsx) 已落地） | ✅ 已满足 | 全部 Phase |
-| **G2 拦截点** | marked-shiki `highlight(code, lang)` 回调（[marked.tsx:488](packages/ui/src/context/marked.tsx)）是 mermaid 语言信息唯一保留点--未知 lang 回退 "text" 前（:494）拦截 | ✅ 已核验 | Phase A |
-| **G3 preset 范围** | PRD/文献综述 guidance 加 Mermaid 示例；视频分镜/行政公文不加（[work-preset.ts](packages/core/src/session/work-preset.ts) 4 预设已核验） | ✅ 已确认 | Phase B |
-| **G4 安全** | Mermaid SVG 无 inline script（CSP `script-src 'self'` 不触发，[ui.ts:12](packages/aigcfroge/src/server/shared/ui.ts)）；方案 B+ 用独立 DOMPurify config sanitize SVG，不动全局 config，无 Security 评审阻塞 | ✅ 已确认 | 无需 Security 评审 |
+| Gate               | 条件                                                                                                                                                                                                        | 状态      | 阻塞范围           |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------ |
+| **G0 范围真源**    | [M3 调研报告](work-mode-m3-research.md) Approved（L1 收窄，L2 延后 M3.5）                                                                                                                                   | ✅ 已满足 | 全部 Phase         |
+| **G1 依赖就绪**    | M1-M2 已合入 main：候选稿=消息正文（M1 D1）+ work-orchestrator SYSTEM_PROMPT 步骤化（M1.5）+ 存为资产（M2，[work-artifact-panel.tsx:199-209](packages/app/src/pages/work-artifact-panel.tsx) 已落地）       | ✅ 已满足 | 全部 Phase         |
+| **G2 拦截点**      | marked-shiki `highlight(code, lang)` 回调（[marked.tsx:488](packages/ui/src/context/marked.tsx)）是 mermaid 语言信息唯一保留点--未知 lang 回退 "text" 前（:494）拦截                                        | ✅ 已核验 | Phase A            |
+| **G3 preset 范围** | PRD/文献综述 guidance 加 Mermaid 示例；视频分镜/行政公文不加（[work-preset.ts](packages/core/src/session/work-preset.ts) 4 预设已核验）                                                                     | ✅ 已确认 | Phase B            |
+| **G4 安全**        | Mermaid SVG 无 inline script（CSP `script-src 'self'` 不触发，[ui.ts:12](packages/aigcfroge/src/server/shared/ui.ts)）；方案 B+ 用独立 DOMPurify config sanitize SVG，不动全局 config，无 Security 评审阻塞 | ✅ 已确认 | 无需 Security 评审 |
 
 **与 M3.5（L2）的边界**：M3 只做 Mermaid 内嵌（SVG，安全）。**不做** iframe sandbox / 独立 HTML 图表 / Chart.js·Vis.js·ECharts / CSP 评审 -- 那是 M3.5 远期范围。
 
@@ -57,11 +57,11 @@ Work 候选稿（Markdown 消息正文）支持 **Mermaid 图表内嵌**：LLM �
 
 ### 1.3 相对 PRD/路线图的收敛
 
-| 原 PRD/路线图 | M3（L1）收敛 |
-|---|---|
-| M3 = DataAnalysis / 图表 HTML 产出（路线图 §3.5 原） | **收窄为 Mermaid 内嵌**（L1）；HTML 图表延后 M3.5 |
-| PRD §5 数据分析师交付"Markdown Data Insights" | Mermaid 在 Data Insights 内嵌数据图表（pie/xychart），仍是 Markdown |
-| 全栈可视化文档的 4 模块（独立 HTML） | 归 M3.5（L2），M3 不做 |
+| 原 PRD/路线图                                        | M3（L1）收敛                                                        |
+| ---------------------------------------------------- | ------------------------------------------------------------------- |
+| M3 = DataAnalysis / 图表 HTML 产出（路线图 §3.5 原） | **收窄为 Mermaid 内嵌**（L1）；HTML 图表延后 M3.5                   |
+| PRD §5 数据分析师交付"Markdown Data Insights"        | Mermaid 在 Data Insights 内嵌数据图表（pie/xychart），仍是 Markdown |
+| 全栈可视化文档的 4 模块（独立 HTML）                 | 归 M3.5（L2），M3 不做                                              |
 
 ---
 
@@ -69,31 +69,31 @@ Work 候选稿（Markdown 消息正文）支持 **Mermaid 图表内嵌**：LLM �
 
 ### 2.1 已就绪基座（5 层代码核验，复用）
 
-| 层 | 能力 | 位置 | 状态 |
-|---|---|---|---|
-| **① Prompt** | work-orchestrator SYSTEM_PROMPT（6 步 + Resume + Constraints + Preset Guidance） | [work-orchestrator.ts:13-44](packages/core/src/agent/prompt/work-orchestrator.ts) | ✅ M1.5 已步骤化；步骤5 "Produce the candidate"（:23）是 Mermaid 指引插入点 |
-| **② Preset** | 4 预设（storyboard-video/write-prd/literature-review/official-document）+ guidance 字段 | [work-preset.ts:5-75](packages/core/src/session/work-preset.ts) | ✅ M1 已实现；M3 加 Mermaid 示例到 PRD/文献综述 guidance |
-| **③ 提取** | findLatestAssistantMarkdown + extractFirstHeading + draftFilename | [work-artifact-extract.ts:7-39](packages/app/src/pages/work-artifact-extract.ts) | ✅ M1/M2 已实现（不变） |
-| **④a 流分块** | `project(prev, text, live)` / `stream(text, live)`：`live=false` -> 单 `mode:"full"` 块（marked.parse 处理全文）；`live=true` -> code token 分离为 `mode:"code"`（走 shiki，不经 marked.parse） | [markdown-stream.ts:52-110](packages/session-ui/src/components/markdown-stream.ts) | ✅ 核验：Work 面板 `live=false`，mermaid 块经 marked.parse |
-| **④b 渲染主循环** | Markdown 组件 createResource async：code 块走 `code()`->shiki worker（:327-341）；非 code 块走 `sanitizeMarkdown(await marked.parse(block.src))`（:352）；`updateBlock` 设 `innerHTML=block.html`（:485）后 `decorate()`（:486）后处理 DOM | [markdown.tsx:278-507](packages/session-ui/src/components/markdown.tsx) | ✅ 核验：mermaid 拦截在 marked.parse 内（markedShiki highlight），sanitize 在 :352 |
-| **④c sanitize** | DOMPurify config：`USE_PROFILES:{html,mathMl}`（无 svg）+ `SANITIZE_NAMED_PROPS:true` + `ADD_TAGS:["svg","path"]` + `ADD_ATTR:["d","viewBox",...]` | [markdown-cache.tsx:13-20](packages/session-ui/src/components/markdown-cache.tsx) | ✅ 核验：**当前 config 会剥 Mermaid SVG 绝大部分元素 + 打断内部引用**，方案 B+ 绕开 |
-| **④d marked 配置** | MarkedProvider（JS parser 路径，无 nativeParser）+ `marked.use({renderer:{link}}, markedKatex, markedShiki)`；markedShiki `async highlight(code, lang)`（:488-505）未知 lang 回退 "text" | [marked.tsx:471-522](packages/ui/src/context/marked.tsx) + [app.tsx:359](packages/app/src/app.tsx) | ✅ 核验：`<MarkedProvider>` 无 nativeParser -> JS 路径；highlight 是 mermaid 拦截点 |
-| **④e marked-shiki** | v1.2.1 `walkTokens`：调 `highlight(code, lang, langArgs)`，返回值 `r` 作 raw HTML（`o = container ? ... : r`，无 container 即 `o=r`），code token -> html token `text:o` | [marked-shiki/dist/index.js:1-17](../../node_modules/marked-shiki/dist/index.js) | ✅ 核验：highlight 返回 SVG/占位符即最终 HTML，无 `<pre><code>` 包裹 |
-| **⑤ CSP** | `script-src 'self' 'wasm-unsafe-eval'`（无 inline script） | [ui.ts:12](packages/aigcfroge/src/server/shared/ui.ts) | ✅ Mermaid SVG 无 script，CSP 不触发 |
-| **⑥ 呈现** | WorkArtifactContent `<Markdown text={candidate()!} />`（无 streaming prop -> 非流式） | [work-artifact-panel.tsx:187](packages/app/src/pages/work-artifact-panel.tsx) | ✅ M1/M2 已实现（不变） |
+| 层                  | 能力                                                                                                                                                                                                                                       | 位置                                                                                               | 状态                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **① Prompt**        | work-orchestrator SYSTEM_PROMPT（6 步 + Resume + Constraints + Preset Guidance）                                                                                                                                                           | [work-orchestrator.ts:13-44](packages/core/src/agent/prompt/work-orchestrator.ts)                  | ✅ M1.5 已步骤化；步骤5 "Produce the candidate"（:23）是 Mermaid 指引插入点         |
+| **② Preset**        | 4 预设（storyboard-video/write-prd/literature-review/official-document）+ guidance 字段                                                                                                                                                    | [work-preset.ts:5-75](packages/core/src/session/work-preset.ts)                                    | ✅ M1 已实现；M3 加 Mermaid 示例到 PRD/文献综述 guidance                            |
+| **③ 提取**          | findLatestAssistantMarkdown + extractFirstHeading + draftFilename                                                                                                                                                                          | [work-artifact-extract.ts:7-39](packages/app/src/pages/work-artifact-extract.ts)                   | ✅ M1/M2 已实现（不变）                                                             |
+| **④a 流分块**       | `project(prev, text, live)` / `stream(text, live)`：`live=false` -> 单 `mode:"full"` 块（marked.parse 处理全文）；`live=true` -> code token 分离为 `mode:"code"`（走 shiki，不经 marked.parse）                                            | [markdown-stream.ts:52-110](packages/session-ui/src/components/markdown-stream.ts)                 | ✅ 核验：Work 面板 `live=false`，mermaid 块经 marked.parse                          |
+| **④b 渲染主循环**   | Markdown 组件 createResource async：code 块走 `code()`->shiki worker（:327-341）；非 code 块走 `sanitizeMarkdown(await marked.parse(block.src))`（:352）；`updateBlock` 设 `innerHTML=block.html`（:485）后 `decorate()`（:486）后处理 DOM | [markdown.tsx:278-507](packages/session-ui/src/components/markdown.tsx)                            | ✅ 核验：mermaid 拦截在 marked.parse 内（markedShiki highlight），sanitize 在 :352  |
+| **④c sanitize**     | DOMPurify config：`USE_PROFILES:{html,mathMl}`（无 svg）+ `SANITIZE_NAMED_PROPS:true` + `ADD_TAGS:["svg","path"]` + `ADD_ATTR:["d","viewBox",...]`                                                                                         | [markdown-cache.tsx:13-20](packages/session-ui/src/components/markdown-cache.tsx)                  | ✅ 核验：**当前 config 会剥 Mermaid SVG 绝大部分元素 + 打断内部引用**，方案 B+ 绕开 |
+| **④d marked 配置**  | MarkedProvider（JS parser 路径，无 nativeParser）+ `marked.use({renderer:{link}}, markedKatex, markedShiki)`；markedShiki `async highlight(code, lang)`（:488-505）未知 lang 回退 "text"                                                   | [marked.tsx:471-522](packages/ui/src/context/marked.tsx) + [app.tsx:359](packages/app/src/app.tsx) | ✅ 核验：`<MarkedProvider>` 无 nativeParser -> JS 路径；highlight 是 mermaid 拦截点 |
+| **④e marked-shiki** | v1.2.1 `walkTokens`：调 `highlight(code, lang, langArgs)`，返回值 `r` 作 raw HTML（`o = container ? ... : r`，无 container 即 `o=r`），code token -> html token `text:o`                                                                   | [marked-shiki/dist/index.js:1-17](../../node_modules/marked-shiki/dist/index.js)                   | ✅ 核验：highlight 返回 SVG/占位符即最终 HTML，无 `<pre><code>` 包裹                |
+| **⑤ CSP**           | `script-src 'self' 'wasm-unsafe-eval'`（无 inline script）                                                                                                                                                                                 | [ui.ts:12](packages/aigcfroge/src/server/shared/ui.ts)                                             | ✅ Mermaid SVG 无 script，CSP 不触发                                                |
+| **⑥ 呈现**          | WorkArtifactContent `<Markdown text={candidate()!} />`（无 streaming prop -> 非流式）                                                                                                                                                      | [work-artifact-panel.tsx:187](packages/app/src/pages/work-artifact-panel.tsx)                      | ✅ M1/M2 已实现（不变）                                                             |
 
 ### 2.2 需新建/修改
 
-| 交付物 | 位置 | 动作 |
-|---|---|---|
-| Mermaid 库依赖 | [session-ui/package.json](packages/session-ui/package.json) | 新增：`mermaid` 依赖（动态 import，不进首屏包） |
-| marked-shiki highlight mermaid 拦截 | [marked.tsx:488](packages/ui/src/context/marked.tsx) | 修改：`highlight` 开头加 `if (lang === "mermaid") return mermaidPlaceholder(code)`（返回占位符 div，不引 mermaid 库） |
-| Mermaid 渲染模块 | `packages/session-ui/src/components/mermaid.ts` | 新增：`getMermaid()`（动态 import + initialize strict）+ `renderMermaidBlocks(html)`（DOMParser 找占位符 -> render -> 独立 sanitize -> 替换）+ `sanitizeMermaidSvg(svg)`（独立 DOMPurify config） |
-| markdown.tsx 接入 renderMermaidBlocks | [markdown.tsx:343-354](packages/session-ui/src/components/markdown.tsx) | 修改：sanitizeMarkdown 后对 cache 命中/未命中两条路径统一 `await renderMermaidBlocks(html)` |
-| work-orchestrator SYSTEM_PROMPT Mermaid 指引 | [work-orchestrator.ts:23](packages/core/src/agent/prompt/work-orchestrator.ts) | 修改：步骤5 Produce 加"文字表达不清时用 Mermaid"通用指引 |
-| PRD preset guidance Mermaid 示例 | [work-preset.ts:30-31](packages/core/src/session/work-preset.ts) | 修改：PRD guidance 加流程/拓扑/甘特示例 |
-| 文献综述 preset guidance Mermaid 示例 | [work-preset.ts:47-48](packages/core/src/session/work-preset.ts) | 修改：文献综述 guidance 加对比/思维导图示例 |
-| i18n（可选） | [en.ts](packages/app/src/i18n/en.ts) + zh.ts + zht.ts | 修改（若需图表加载/错误降级提示文案） |
+| 交付物                                       | 位置                                                                           | 动作                                                                                                                                                                                              |
+| -------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mermaid 库依赖                               | [session-ui/package.json](packages/session-ui/package.json)                    | 新增：`mermaid` 依赖（动态 import，不进首屏包）                                                                                                                                                   |
+| marked-shiki highlight mermaid 拦截          | [marked.tsx:488](packages/ui/src/context/marked.tsx)                           | 修改：`highlight` 开头加 `if (lang === "mermaid") return mermaidPlaceholder(code)`（返回占位符 div，不引 mermaid 库）                                                                             |
+| Mermaid 渲染模块                             | `packages/session-ui/src/components/mermaid.ts`                                | 新增：`getMermaid()`（动态 import + initialize strict）+ `renderMermaidBlocks(html)`（DOMParser 找占位符 -> render -> 独立 sanitize -> 替换）+ `sanitizeMermaidSvg(svg)`（独立 DOMPurify config） |
+| markdown.tsx 接入 renderMermaidBlocks        | [markdown.tsx:343-354](packages/session-ui/src/components/markdown.tsx)        | 修改：sanitizeMarkdown 后对 cache 命中/未命中两条路径统一 `await renderMermaidBlocks(html)`                                                                                                       |
+| work-orchestrator SYSTEM_PROMPT Mermaid 指引 | [work-orchestrator.ts:23](packages/core/src/agent/prompt/work-orchestrator.ts) | 修改：步骤5 Produce 加"文字表达不清时用 Mermaid"通用指引                                                                                                                                          |
+| PRD preset guidance Mermaid 示例             | [work-preset.ts:30-31](packages/core/src/session/work-preset.ts)               | 修改：PRD guidance 加流程/拓扑/甘特示例                                                                                                                                                           |
+| 文献综述 preset guidance Mermaid 示例        | [work-preset.ts:47-48](packages/core/src/session/work-preset.ts)               | 修改：文献综述 guidance 加对比/思维导图示例                                                                                                                                                       |
+| i18n（可选）                                 | [en.ts](packages/app/src/i18n/en.ts) + zh.ts + zht.ts                          | 修改（若需图表加载/错误降级提示文案）                                                                                                                                                             |
 
 ---
 
@@ -145,10 +145,10 @@ async highlight(code, lang) {
 
 **方案对比**：
 
-| 方案 | 做法 | 优点 | 缺点 |
-|---|---|---|---|
-| **A（简单）** | highlight 直接返 SVG；全局 config 加 `svg:true` + `SANITIZE_NAMED_PROPS:false` | 改动小（highlight + 2 行 config） | 全局安全 config 回退（DOM clobbering 保护移除，影响**所有** markdown）；回归测试需改（foreignObject 放行）；SANITIZE_NAMED_PROPS:false 需安全论证 |
-| **B+（推荐）** | highlight 返占位符 div；sanitizeMarkdown 后 `renderMermaidBlocks` 用**独立** DOMPurify config（`svg:true, SANITIZE_NAMED_PROPS:false, FORBID_TAGS:["foreignObject","script"]`）sanitize SVG | 不动全局 config（零回归风险）；独立 config 精确匹配 mermaid 安全需求；foreignObject 显式禁；defense-in-depth（mermaid strict + 独立 sanitize） | 多 ~50 行（mermaid.ts 模块）；mermaid 在 cache 命中时重渲染（技术债，见 §11） |
+| 方案           | 做法                                                                                                                                                                                        | 优点                                                                                                                                           | 缺点                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A（简单）**  | highlight 直接返 SVG；全局 config 加 `svg:true` + `SANITIZE_NAMED_PROPS:false`                                                                                                              | 改动小（highlight + 2 行 config）                                                                                                              | 全局安全 config 回退（DOM clobbering 保护移除，影响**所有** markdown）；回归测试需改（foreignObject 放行）；SANITIZE_NAMED_PROPS:false 需安全论证 |
+| **B+（推荐）** | highlight 返占位符 div；sanitizeMarkdown 后 `renderMermaidBlocks` 用**独立** DOMPurify config（`svg:true, SANITIZE_NAMED_PROPS:false, FORBID_TAGS:["foreignObject","script"]`）sanitize SVG | 不动全局 config（零回归风险）；独立 config 精确匹配 mermaid 安全需求；foreignObject 显式禁；defense-in-depth（mermaid strict + 独立 sanitize） | 多 ~50 行（mermaid.ts 模块）；mermaid 在 cache 命中时重渲染（技术债，见 §11）                                                                     |
 
 **选 B+ 的协议依据**：CLAUDE.md「Security First」+「以破坏架构为耻」。方案 A 为单个功能改动全局安全 config，违反安全门禁隔离原则；方案 B+ 把 mermaid 安全策略隔离到独立 sanitize config，不污染全局。
 
@@ -156,10 +156,10 @@ async highlight(code, lang) {
 
 ```ts
 const mermaidSvgConfig = {
-  USE_PROFILES: { svg: true },              // 放行 SVG 全系元素/属性
-  SANITIZE_NAMED_PROPS: false,              // 保留 id/name，mermaid 内部 url(#id) 引用不断
+  USE_PROFILES: { svg: true }, // 放行 SVG 全系元素/属性
+  SANITIZE_NAMED_PROPS: false, // 保留 id/name，mermaid 内部 url(#id) 引用不断
   FORBID_TAGS: ["foreignObject", "script"], // 显式禁 foreignObject（XSS 向量）+ script
-  FORBID_ATTR: ["onload", "onclick", "onerror"],  // 禁事件处理器
+  FORBID_ATTR: ["onload", "onclick", "onerror"], // 禁事件处理器
 }
 ```
 
@@ -172,8 +172,8 @@ const mermaidSvgConfig = {
 
 **占位符**：`<div data-mermaid="<HTML 转义后的源码>"></div>`
 
-- DOMPurify `USE_PROFILES:{html:true}` 放行 `<div>` + 所有 `data-*` 属性（DOMPurify 默认放行 data-*）
-- `data-mermaid` 属性值经 HTML 转义（`&<>"'`），sanitizeMarkdown 不改 data-* 值
+- DOMPurify `USE_PROFILES:{html:true}` 放行 `<div>` + 所有 `data-*` 属性（DOMPurify 默认放行 data-\*）
+- `data-mermaid` 属性值经 HTML 转义（`&<>"'`），sanitizeMarkdown 不改 data-\* 值
 - 浏览器 DOM 解析自动反转义属性值：`element.getAttribute("data-mermaid")` 返回原始 mermaid 源码
 - 占位符经全局 sanitizeMarkdown 存活 -> `renderMermaidBlocks` 找到 -> 渲染 SVG 替换
 
@@ -181,7 +181,12 @@ const mermaidSvgConfig = {
 
 ```ts
 function mermaidPlaceholder(code: string): string {
-  const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")
+  const escaped = code
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
   return `<div data-mermaid="${escaped}"></div>`
 }
 ```
@@ -190,34 +195,36 @@ function mermaidPlaceholder(code: string): string {
 
 在 [work-orchestrator.ts:23](packages/core/src/agent/prompt/work-orchestrator.ts) 步骤5 "Produce the candidate" 后加通用 Mermaid 指引（不绑特定 preset）：
 
-```
+````
 5. **Produce the candidate**: Write the full Markdown document as your assistant message body following the preset guidance. Do not write it to a file and do not call edit/write tools.
 
    **Use Mermaid diagrams when text alone is unclear** - flowchart for processes, sequenceDiagram for API interactions, gantt for timelines, mindmap for structure, pie/xychart for data, erDiagram for DB schema. Wrap diagrams in ```mermaid fenced code blocks. Only use a diagram when it genuinely clarifies; do not force diagrams into every document.
-```
+````
 
 **通用指引**：教 LLM"文字表达不清时用 Mermaid"，不强制每文档加图表。不改其他步骤（Plan/Execute/Resume 保持 M1.5）。
 
 ### 3.5 D5：preset guidance Mermaid 示例
 
-| preset | Mermaid 示例 | 理由 |
-|---|---|---|
-| PRD（write-prd） | 流程图（业务流程）+ 拓扑（依赖）+ 甘特（排期） | PRD 天然需流程/拓扑/排期图 |
+| preset                        | Mermaid 示例                                         | 理由                           |
+| ----------------------------- | ---------------------------------------------------- | ------------------------------ |
+| PRD（write-prd）              | 流程图（业务流程）+ 拓扑（依赖）+ 甘特（排期）       | PRD 天然需流程/拓扑/排期图     |
 | 文献综述（literature-review） | 思维导图（文献结构）+ 对比用原生表格（不加 mermaid） | 综述需结构图，对比用表格更清晰 |
-| 视频分镜（storyboard-video） | **不加** | 双栏分镜表已够（M1 D1） |
-| 行政公文（official-document） | **不加** | 公文是规范文字，图表无必要 |
+| 视频分镜（storyboard-video）  | **不加**                                             | 双栏分镜表已够（M1 D1）        |
+| 行政公文（official-document） | **不加**                                             | 公文是规范文字，图表无必要     |
 
 **guidance 改造**（[work-preset.ts](packages/core/src/session/work-preset.ts)）：
 
 PRD guidance（:30-31）末尾加：
-```
+
+````
 涉及业务流程时用 ```mermaid flowchart TD 绘制；涉及需求依赖时用 graph 绘制拓扑；涉及排期时用 gantt。仅在文字表达不清时使用，不强制。
-```
+````
 
 文献综述 guidance（:47-48）末尾加：
-```
+
+````
 涉及文献结构时用 ```mermaid mindmap 绘制；文献对比用原生 Markdown 表格（不用 mermaid）。仅在文字表达不清时使用，不强制。
-```
+````
 
 视频分镜/行政公文 guidance **不改**。
 
@@ -225,10 +232,10 @@ PRD guidance（:30-31）末尾加：
 
 **核验**（[markdown-stream.ts:52-85](packages/session-ui/src/components/markdown-stream.ts)）：
 
-| 阶段 | `live` | mermaid 块 mode | 路径 | 显示 |
-|---|---|---|---|---|
-| 流式中（消息未完成） | `true` | `mode:"code"`（[markdown-stream.ts:67-69](packages/session-ui/src/components/markdown-stream.ts)） | `code()` -> shiki worker（[markdown.tsx:327-341](packages/session-ui/src/components/markdown.tsx)），lang "mermaid" 回退 "text" | shiki 代码高亮（源码） |
-| 流式完成/非流式 | `false` | `mode:"full"`（单块，[markdown-stream.ts:53](packages/session-ui/src/components/markdown-stream.ts)） | `marked.parse` -> markedShiki highlight 拦截 -> 占位符 -> sanitizeMarkdown -> renderMermaidBlocks -> SVG | **SVG 图表** |
+| 阶段                 | `live`  | mermaid 块 mode                                                                                       | 路径                                                                                                                            | 显示                   |
+| -------------------- | ------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| 流式中（消息未完成） | `true`  | `mode:"code"`（[markdown-stream.ts:67-69](packages/session-ui/src/components/markdown-stream.ts)）    | `code()` -> shiki worker（[markdown.tsx:327-341](packages/session-ui/src/components/markdown.tsx)），lang "mermaid" 回退 "text" | shiki 代码高亮（源码） |
+| 流式完成/非流式      | `false` | `mode:"full"`（单块，[markdown-stream.ts:53](packages/session-ui/src/components/markdown-stream.ts)） | `marked.parse` -> markedShiki highlight 拦截 -> 占位符 -> sanitizeMarkdown -> renderMermaidBlocks -> SVG                        | **SVG 图表**           |
 
 **Work 面板**（[work-artifact-panel.tsx:187](packages/app/src/pages/work-artifact-panel.tsx)）`<Markdown text={candidate()!} />` 无 `streaming` prop -> `live=false` -> 始终走 SVG 路径。
 
@@ -242,7 +249,7 @@ PRD guidance（:30-31）末尾加：
 
 ### 4.1 Mermaid 渲染流程（代码核验版）
 
-```
+````
 work-orchestrator 生成候选稿（含 ```mermaid 代码块）
   -> findLatestAssistantMarkdown 提取候选稿（M1，不变）
   -> WorkArtifactContent <Markdown text={candidate()!} />（非流式，不变）
@@ -259,7 +266,7 @@ work-orchestrator 生成候选稿（含 ```mermaid 代码块）
        -> block.html = 含 SVG 的最终 HTML
   -> updateBlock: next.innerHTML = block.html（:485）+ decorate（:486，pre 加 copy 按钮，不影响 SVG）
   -> 右栏 Artifact Tab 显示含 SVG 图表的 Markdown
-```
+````
 
 ### 4.2 Mermaid 模块（session-ui/src/components/mermaid.ts，新增）
 
@@ -274,8 +281,8 @@ function getMermaid() {
     mermaidReady = import("mermaid").then((m) => {
       m.default.initialize({
         startOnLoad: false,
-        theme: "base",            // 对齐 v2 token（Phase C 调优，见 §4.4）
-        securityLevel: "strict",  // 禁 mermaid 内 HTML/script（defense-in-depth 第 1 层）
+        theme: "base", // 对齐 v2 token（Phase C 调优，见 §4.4）
+        securityLevel: "strict", // 禁 mermaid 内 HTML/script（defense-in-depth 第 1 层）
       })
       return m.default
     })
@@ -285,8 +292,8 @@ function getMermaid() {
 
 const mermaidSvgConfig = {
   USE_PROFILES: { svg: true },
-  SANITIZE_NAMED_PROPS: false,               // 保留 id，不断 url(#id) 引用
-  FORBID_TAGS: ["foreignObject", "script"],  // 显式禁 foreignObject + script
+  SANITIZE_NAMED_PROPS: false, // 保留 id，不断 url(#id) 引用
+  FORBID_TAGS: ["foreignObject", "script"], // 显式禁 foreignObject + script
   FORBID_ATTR: ["onload", "onclick", "onerror"],
 }
 
@@ -305,7 +312,7 @@ function escapeHtml(text: string): string {
  * 无占位符时直接返回（零开销）。语法错误降级为 <pre><code> 源码（不崩）。
  */
 export async function renderMermaidBlocks(html: string): Promise<string> {
-  if (!html.includes("data-mermaid")) return html  // 快速跳过无 mermaid 的块
+  if (!html.includes("data-mermaid")) return html // 快速跳过无 mermaid 的块
   const mermaid = await getMermaid()
   const doc = new DOMParser().parseFromString(html, "text/html")
   const placeholders = doc.querySelectorAll<HTMLDivElement>("[data-mermaid]")
@@ -326,6 +333,7 @@ export async function renderMermaidBlocks(html: string): Promise<string> {
 ```
 
 **要点**：
+
 - `getMermaid` 动态 import + cached（mermaid.initialize 一次）
 - `securityLevel: "strict"` defense-in-depth 第 1 层（mermaid 自身禁 HTML/script）
 - `sanitizeMermaidSvg` 独立 config defense-in-depth 第 2 层（DOMPurify svg profile，foreignObject/script 显式禁）
@@ -344,12 +352,12 @@ let html: string
 const cached = key ? getCachedMarkdown(key) : undefined
 if (cached?.raw === block.raw) {
   touchCachedMarkdown(key!, cached)
-  html = cached.html  // cache 存的是含占位符的 sanitized HTML
+  html = cached.html // cache 存的是含占位符的 sanitized HTML
 } else {
   html = sanitizeMarkdown(await Promise.resolve(marked.parse(block.src)))
   if (key && hash) touchCachedMarkdown(key, { raw: block.raw, hash, html })
 }
-const finalHtml = await renderMermaidBlocks(html)  // 新增：占位符 -> SVG（cache 命中/未命中都跑）
+const finalHtml = await renderMermaidBlocks(html) // 新增：占位符 -> SVG（cache 命中/未命中都跑）
 return { key: blockKey, mode: block.mode, raw: block.raw, hash: hash ?? "", html: finalHtml }
 ```
 
@@ -367,11 +375,11 @@ m.default.initialize({
   theme: "base",
   themeVariables: {
     // 从 CSS 变量读值（getComputedStyle），映射 mermaid themeVariables
-    primaryColor: "var(--v2-background-bg-accent)",   // 节点填充
-    primaryTextColor: "var(--v2-text-text-base)",      // 节点文字
+    primaryColor: "var(--v2-background-bg-accent)", // 节点填充
+    primaryTextColor: "var(--v2-text-text-base)", // 节点文字
     primaryBorderColor: "var(--v2-border-border-base)", // 节点边框
-    lineColor: "var(--v2-text-text-muted)",             // 连线
-    background: "var(--v2-background-bg-base)",         // 画布背景
+    lineColor: "var(--v2-text-text-muted)", // 连线
+    background: "var(--v2-background-bg-base)", // 画布背景
     // ... 其余 mermaid themeVariables
   },
   securityLevel: "strict",
@@ -401,47 +409,48 @@ m.default.initialize({
 
 ### Phase A - Mermaid 渲染集成（估时 1.5d）
 
-| 步骤 | 内容 |
-|---|---|
-| **红** | 新建 `packages/session-ui/src/components/mermaid.test.ts`（`it.live`，真实 async + happy-dom DOM）：① `renderMermaidBlocks` 对含 `<div data-mermaid="graph TD; A-->B">` 的 HTML -> 输出含 `<svg>` 且**保留 `url(#` 内部引用**（箭头标记不丢）；② 非占位符 HTML 原样返回（`includes` 快速跳过）；③ mermaid 语法错误（如 `graph TD; A->>B->>A` 循环或非法语法）-> 降级 `<pre><code class="language-mermaid">` 不崩；④ `sanitizeMermaidSvg` 剥 `<script>` 和 `<foreignObject>` 但保留 `<g>/<text>/<rect>/<path>` + `id` 属性。新建 `packages/ui/src/context/marked.test.ts`（或扩展现有）：`mermaidPlaceholder("graph TD")` 返回 `<div data-mermaid="graph TD">`（转义验证：含 `"` `<` 的源码正确转义） |
-| **绿** | `bun add mermaid` in session-ui；新建 `mermaid.ts`（getMermaid + renderMermaidBlocks + sanitizeMermaidSvg + escapeHtml，§4.2）；marked.tsx highlight 加 `if (lang === "mermaid") return mermaidPlaceholder(code)`（§3.1）+ 内联 `mermaidPlaceholder`；markdown.tsx :343-354 重构接 `renderMermaidBlocks`（§4.3） |
-| **重构** | 确认 `getMermaid` cached（initialize 一次）；`renderMermaidBlocks` 无 mermaid 时零开销跳过；`mermaidPlaceholder` 转义完整（`&<>"'`）；marked.tsx 的 `mermaidPlaceholder` 与 mermaid.ts 的 `escapeHtml` 若逻辑同则提取共享 helper（跨包：放 session-ui mermaid.ts 导出，ui 包 import--评估依赖方向后定，可能 ui 内联更合理避免 ui 反向依赖 session-ui） |
-| **退出** | `bun --cwd packages/session-ui test --timeout 30000` 绿；`bun --cwd packages/session-ui typecheck` 绿；`bun --cwd packages/ui typecheck` 绿；mermaid 代码块经全链路渲染为 SVG 且内部引用保留 |
+| 步骤     | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **红**   | 新建 `packages/session-ui/src/components/mermaid.test.ts`（`it.live`，真实 async + happy-dom DOM）：① `renderMermaidBlocks` 对含 `<div data-mermaid="graph TD; A-->B">` 的 HTML -> 输出含 `<svg>` 且**保留 `url(#` 内部引用**（箭头标记不丢）；② 非占位符 HTML 原样返回（`includes` 快速跳过）；③ mermaid 语法错误（如 `graph TD; A->>B->>A` 循环或非法语法）-> 降级 `<pre><code class="language-mermaid">` 不崩；④ `sanitizeMermaidSvg` 剥 `<script>` 和 `<foreignObject>` 但保留 `<g>/<text>/<rect>/<path>` + `id` 属性。新建 `packages/ui/src/context/marked.test.ts`（或扩展现有）：`mermaidPlaceholder("graph TD")` 返回 `<div data-mermaid="graph TD">`（转义验证：含 `"` `<` 的源码正确转义） |
+| **绿**   | `bun add mermaid` in session-ui；新建 `mermaid.ts`（getMermaid + renderMermaidBlocks + sanitizeMermaidSvg + escapeHtml，§4.2）；marked.tsx highlight 加 `if (lang === "mermaid") return mermaidPlaceholder(code)`（§3.1）+ 内联 `mermaidPlaceholder`；markdown.tsx :343-354 重构接 `renderMermaidBlocks`（§4.3）                                                                                                                                                                                                                                                                                                                                                                                     |
+| **重构** | 确认 `getMermaid` cached（initialize 一次）；`renderMermaidBlocks` 无 mermaid 时零开销跳过；`mermaidPlaceholder` 转义完整（`&<>"'`）；marked.tsx 的 `mermaidPlaceholder` 与 mermaid.ts 的 `escapeHtml` 若逻辑同则提取共享 helper（跨包：放 session-ui mermaid.ts 导出，ui 包 import--评估依赖方向后定，可能 ui 内联更合理避免 ui 反向依赖 session-ui）                                                                                                                                                                                                                                                                                                                                               |
+| **退出** | `bun --cwd packages/session-ui test --timeout 30000` 绿；`bun --cwd packages/session-ui typecheck` 绿；`bun --cwd packages/ui typecheck` 绿；mermaid 代码块经全链路渲染为 SVG 且内部引用保留                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ### Phase B - SYSTEM_PROMPT + preset guidance（估时 0.5d）
 
-| 步骤 | 内容 |
-|---|---|
-| **红** | 扩展 [work-orchestrator.test.ts](packages/core/test/work-orchestrator.test.ts)：SYSTEM_PROMPT 含 "Mermaid" + "```mermaid" + "when text alone is unclear"（对齐现有 string-contains 断言范式）。扩展 [work-preset.test.ts](packages/core/test/work-preset.test.ts)：write-prd guidance 含 mermaid + flowchart；literature-review guidance 含 mermaid + mindmap；storyboard-video guidance 不含 mermaid；official-document guidance 不含 mermaid |
-| **绿** | work-orchestrator.ts 步骤5 加 Mermaid 指引（§3.4 D4）；work-preset.ts PRD/文献综述 guidance 加 Mermaid 示例（§3.5 D5）；视频分镜/行政公文不改 |
-| **重构** | SYSTEM_PROMPT Mermaid 指引通用（不绑 preset）；guidance 示例精准（PRD 流程/拓扑/甘特，文献 mindmap） |
-| **退出** | `bun --cwd packages/core test --timeout 30000` 绿；`bun --cwd packages/core typecheck` 绿；prompt 结构 + guidance 内容测试通过 |
+| 步骤     | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **红**   | 扩展 [work-orchestrator.test.ts](packages/core/test/work-orchestrator.test.ts)：SYSTEM_PROMPT 含 "Mermaid" + "```mermaid" + "when text alone is unclear"（对齐现有 string-contains 断言范式）。扩展 [work-preset.test.ts](packages/core/test/work-preset.test.ts)：write-prd guidance 含 mermaid + flowchart；literature-review guidance 含 mermaid + mindmap；storyboard-video guidance 不含 mermaid；official-document guidance 不含 mermaid |
+| **绿**   | work-orchestrator.ts 步骤5 加 Mermaid 指引（§3.4 D4）；work-preset.ts PRD/文献综述 guidance 加 Mermaid 示例（§3.5 D5）；视频分镜/行政公文不改                                                                                                                                                                                                                                                                                                  |
+| **重构** | SYSTEM_PROMPT Mermaid 指引通用（不绑 preset）；guidance 示例精准（PRD 流程/拓扑/甘特，文献 mindmap）                                                                                                                                                                                                                                                                                                                                           |
+| **退出** | `bun --cwd packages/core test --timeout 30000` 绿；`bun --cwd packages/core typecheck` 绿；prompt 结构 + guidance 内容测试通过                                                                                                                                                                                                                                                                                                                 |
 
 ### Phase C - 端到端 + 主题对齐 + 打磨（估时 1d）
 
-| 步骤 | 内容 |
-|---|---|
-| **红** | 扩展 `packages/app/e2e/`（Playwright，现有 regression/smoke 目录）spec：Work 选 write-prd 预设 -> 生成候选稿含 ```mermaid 代码块 -> 右栏 Artifact Tab 渲染 `<svg>`（`toBeVisible` 或 `toBeAttached`）；文献综述同理；视频分镜候选稿不含 mermaid（无 `<svg>` from mermaid）。新建 session-ui 集成测试：完整 Markdown（含 mermaid + 普通代码块 + 表格）经 Markdown 组件渲染 -> mermaid 块出 SVG，普通代码块仍 shiki 高亮 |
-| **绿** | 端到端联调；修 mermaid.render 时序（async createResource）、动态 import、主题对齐 v2 token（§4.4）；i18n 补图表加载/错误提示（若需，en/zh/zht parity） |
-| **重构** | mermaid 动态 import 不阻塞首屏（getMermaid cached + 仅 mermaid 块时触发）；主题对齐 v2 token（`--v2-background-bg-base` 等，frontend-theming skill）；M1 候选稿载体/落盘/M2 存为资产无回归验证 |
-| **退出** | 端到端通过；`tsgo -b`（app）+ `tsgo --noEmit`（core/session-ui/ui）+ `bun run lint` + 全包 test 绿；改完即审 7 步 |
+| 步骤     | 内容                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **红**   | 扩展 `packages/app/e2e/`（Playwright，现有 regression/smoke 目录）spec：Work 选 write-prd 预设 -> 生成候选稿含 ```mermaid 代码块 -> 右栏 Artifact Tab 渲染 `<svg>`（`toBeVisible`或`toBeAttached`）；文献综述同理；视频分镜候选稿不含 mermaid（无 `<svg>` from mermaid）。新建 session-ui 集成测试：完整 Markdown（含 mermaid + 普通代码块 + 表格）经 Markdown 组件渲染 -> mermaid 块出 SVG，普通代码块仍 shiki 高亮 |
+| **绿**   | 端到端联调；修 mermaid.render 时序（async createResource）、动态 import、主题对齐 v2 token（§4.4）；i18n 补图表加载/错误提示（若需，en/zh/zht parity）                                                                                                                                                                                                                                                               |
+| **重构** | mermaid 动态 import 不阻塞首屏（getMermaid cached + 仅 mermaid 块时触发）；主题对齐 v2 token（`--v2-background-bg-base` 等，frontend-theming skill）；M1 候选稿载体/落盘/M2 存为资产无回归验证                                                                                                                                                                                                                       |
+| **退出** | 端到端通过；`tsgo -b`（app）+ `tsgo --noEmit`（core/session-ui/ui）+ `bun run lint` + 全包 test 绿；改完即审 7 步                                                                                                                                                                                                                                                                                                    |
 
 ---
 
 ## 6. 关键文件
 
-| 文件 | 动作 | 说明 |
-|---|---|---|
-| [session-ui/package.json](packages/session-ui/package.json) | 修改 | 新增 `mermaid` 依赖 |
-| `packages/session-ui/src/components/mermaid.ts` | 新增 | getMermaid（动态 import + initialize strict）+ renderMermaidBlocks（DOMParser + render + 独立 sanitize）+ sanitizeMermaidSvg + escapeHtml |
-| `packages/session-ui/src/components/mermaid.test.ts` | 新增 | Mermaid 渲染单测（TDD 红测试，it.live 真实 async + DOM） |
-| [markdown.tsx](packages/session-ui/src/components/markdown.tsx) | 修改 | :343-354 重构：sanitizeMarkdown 后统一 `await renderMermaidBlocks(html)`（cache 命中/未命中两路径） |
-| [marked.tsx](packages/ui/src/context/marked.tsx) | 修改 | :488 highlight 加 `if (lang === "mermaid") return mermaidPlaceholder(code)` + 内联 mermaidPlaceholder（不引 mermaid 库） |
-| [work-orchestrator.ts](packages/core/src/agent/prompt/work-orchestrator.ts) | 修改 | :23 步骤5 Produce 加 Mermaid 通用指引 |
-| [work-preset.ts](packages/core/src/session/work-preset.ts) | 修改 | PRD/文献综述 guidance 加 Mermaid 示例 |
-| [en.ts](packages/app/src/i18n/en.ts) + [zh.ts](packages/app/src/i18n/zh.ts) + [zht.ts](packages/app/src/i18n/zht.ts) | 修改（可选） | 图表加载/错误降级提示文案（若需，parity.test.ts 约束三 locale） |
+| 文件                                                                                                                 | 动作         | 说明                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| [session-ui/package.json](packages/session-ui/package.json)                                                          | 修改         | 新增 `mermaid` 依赖                                                                                                                       |
+| `packages/session-ui/src/components/mermaid.ts`                                                                      | 新增         | getMermaid（动态 import + initialize strict）+ renderMermaidBlocks（DOMParser + render + 独立 sanitize）+ sanitizeMermaidSvg + escapeHtml |
+| `packages/session-ui/src/components/mermaid.test.ts`                                                                 | 新增         | Mermaid 渲染单测（TDD 红测试，it.live 真实 async + DOM）                                                                                  |
+| [markdown.tsx](packages/session-ui/src/components/markdown.tsx)                                                      | 修改         | :343-354 重构：sanitizeMarkdown 后统一 `await renderMermaidBlocks(html)`（cache 命中/未命中两路径）                                       |
+| [marked.tsx](packages/ui/src/context/marked.tsx)                                                                     | 修改         | :488 highlight 加 `if (lang === "mermaid") return mermaidPlaceholder(code)` + 内联 mermaidPlaceholder（不引 mermaid 库）                  |
+| [work-orchestrator.ts](packages/core/src/agent/prompt/work-orchestrator.ts)                                          | 修改         | :23 步骤5 Produce 加 Mermaid 通用指引                                                                                                     |
+| [work-preset.ts](packages/core/src/session/work-preset.ts)                                                           | 修改         | PRD/文献综述 guidance 加 Mermaid 示例                                                                                                     |
+| [en.ts](packages/app/src/i18n/en.ts) + [zh.ts](packages/app/src/i18n/zh.ts) + [zht.ts](packages/app/src/i18n/zht.ts) | 修改（可选） | 图表加载/错误降级提示文案（若需，parity.test.ts 约束三 locale）                                                                           |
 
 **不改的文件**（复用 + 验证）：
+
 - [markdown-cache.tsx](packages/session-ui/src/components/markdown-cache.tsx)（全局 DOMPurify config，方案 B+ 不改；sanitize-regression.test.tsx 不改）
 - [markdown-stream.ts](packages/session-ui/src/components/markdown-stream.ts)（流分块，不改）
 - [work-artifact-panel.tsx](packages/app/src/pages/work-artifact-panel.tsx)（M1/M2 候选预览 + 落盘 + 存为资产，不变）
@@ -456,18 +465,18 @@ m.default.initialize({
 
 ### 7.1 新建测试
 
-| 测试文件 | 覆盖 |
-|---|---|
+| 测试文件                                             | 覆盖                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/session-ui/src/components/mermaid.test.ts` | `renderMermaidBlocks`：① 含 `data-mermaid` 占位符 -> SVG（含 `<svg>`，保留 `url(#` 引用）；② 无占位符原样返回（`includes` 跳过）；③ 语法错误降级 `<pre><code>`；④ `sanitizeMermaidSvg` 剥 script/foreignObject，保留 g/text/rect/path + id。用 `it.live`（真实 async + happy-dom DOM，mermaid.render 是 async） |
-| `packages/app/e2e/` spec | Work 选 write-prd -> 候选含 mermaid -> 右栏渲染 `<svg>`；视频分镜不含 mermaid |
+| `packages/app/e2e/` spec                             | Work 选 write-prd -> 候选含 mermaid -> 右栏渲染 `<svg>`；视频分镜不含 mermaid                                                                                                                                                                                                                                   |
 
 ### 7.2 扩展现有测试
 
-| 现有测试 | 扩展 |
-|---|---|
-| [work-orchestrator.test.ts](packages/core/test/work-orchestrator.test.ts) | SYSTEM_PROMPT 含 "Mermaid" + "```mermaid" + "when text alone is unclear"（string-contains 范式） |
-| [work-preset.test.ts](packages/core/test/work-preset.test.ts) | write-prd guidance 含 mermaid/flowchart；literature-review 含 mermaid/mindmap；storyboard-video/official-document 不含 mermaid |
-| [sanitize-regression.test.tsx](packages/session-ui/src/components/sanitize-regression.test.tsx) | **不改**（方案 B+ 不动全局 config，回归测试全保留；新增 mermaid SVG sanitize 测试在 mermaid.test.ts 用独立 config） |
+| 现有测试                                                                                        | 扩展                                                                                                                           |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [work-orchestrator.test.ts](packages/core/test/work-orchestrator.test.ts)                       | SYSTEM_PROMPT 含 "Mermaid" + "```mermaid" + "when text alone is unclear"（string-contains 范式）                               |
+| [work-preset.test.ts](packages/core/test/work-preset.test.ts)                                   | write-prd guidance 含 mermaid/flowchart；literature-review 含 mermaid/mindmap；storyboard-video/official-document 不含 mermaid |
+| [sanitize-regression.test.tsx](packages/session-ui/src/components/sanitize-regression.test.tsx) | **不改**（方案 B+ 不动全局 config，回归测试全保留；新增 mermaid SVG sanitize 测试在 mermaid.test.ts 用独立 config）            |
 
 ### 7.3 命令（CLAUDE.md / AGENTS.md 测试规范，永不从根跑）
 
@@ -518,12 +527,12 @@ bun run lint
 
 ## 9. 估算
 
-| Phase | 估时 |
-|---|---|
-| A Mermaid 渲染集成（marked.tsx 拦截 + mermaid.ts 模块 + markdown.tsx 接入 + 测试） | 1.5d |
-| B SYSTEM_PROMPT + guidance | 0.5d |
-| C 端到端 + 主题对齐 + 打磨 | 1d |
-| **总计** | **3d** |
+| Phase                                                                              | 估时   |
+| ---------------------------------------------------------------------------------- | ------ |
+| A Mermaid 渲染集成（marked.tsx 拦截 + mermaid.ts 模块 + markdown.tsx 接入 + 测试） | 1.5d   |
+| B SYSTEM_PROMPT + guidance                                                         | 0.5d   |
+| C 端到端 + 主题对齐 + 打磨                                                         | 1d     |
+| **总计**                                                                           | **3d** |
 
 （M1.5 7.5d / M2 6.5d；M3 L1 复用 M1-M2 链路 + Mermaid 标准库，范围最小。方案 B+ 比初稿方案 A 多 ~0.5d（独立 sanitize 模块），但消除全局安全 config 风险）
 
@@ -531,29 +540,29 @@ bun run lint
 
 ## 10. 风险与应对
 
-| 风险 | 概率 | 影响 | 应对 |
-|---|---|---|---|
-| mermaid.render async 与 createResource 时序冲突（block.html 返回前 SVG 未就绪） | 低 | 中 | renderMermaidBlocks 在 createResource async 内 await（markdown.tsx:352 已是 async），SVG 就绪后才返回 block.html |
-| DOMPurify 独立 config 的 `svg:true` 仍剥某些 mermaid 元素/属性 | 低 | 中 | Phase A TDD 测试验证 SVG 结构（g/text/rect/path + id）；若被剥扩展 mermaidSvgConfig 的 ADD_TAGS/ADD_ATTR |
-| mermaid 库 ~500KB 增大包体 | 中 | 低 | 动态 import（getMermaid 仅 mermaid 块时触发，不进首屏包） |
-| LLM 过度使用 Mermaid（每文档都加图表） | 中 | 低 | SYSTEM_PROMPT 强约束"仅在文字表达不清时用"；guidance 示例精准 + "不强制" |
-| Mermaid 主题与 v2 token 不一致（light/dark 切换后图表不更新） | 中 | 中 | Phase C themeVariables 映射 v2 token；技术债：主题切换需重新 render 已渲染图表（§11） |
-| 视频分镜/行政公文 LLM 误加 Mermaid | 低 | 低 | guidance 不提 Mermaid；SYSTEM_PROMPT"按 preset guidance"约束 |
-| mermaid.render 生成重复 id 冲突（多图表同页） | 低 | 低 | `crypto.randomUUID()` 生成唯一 render id |
-| cache 命中时 mermaid 重渲染（性能） | 中 | 低 | `html.includes("data-mermaid")` 快速跳过无 mermaid 块；mermaid 块通常少；技术债见 §11 |
-| packages/ui 的 mermaidPlaceholder 与 session-ui 的 escapeHtml 逻辑重复 | 中 | 低 | Phase A 重构时评估：若 ui 内联更合理（避免 ui 反向依赖 session-ui）则各自内联；若可共享则提取 |
+| 风险                                                                            | 概率 | 影响 | 应对                                                                                                             |
+| ------------------------------------------------------------------------------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| mermaid.render async 与 createResource 时序冲突（block.html 返回前 SVG 未就绪） | 低   | 中   | renderMermaidBlocks 在 createResource async 内 await（markdown.tsx:352 已是 async），SVG 就绪后才返回 block.html |
+| DOMPurify 独立 config 的 `svg:true` 仍剥某些 mermaid 元素/属性                  | 低   | 中   | Phase A TDD 测试验证 SVG 结构（g/text/rect/path + id）；若被剥扩展 mermaidSvgConfig 的 ADD_TAGS/ADD_ATTR         |
+| mermaid 库 ~500KB 增大包体                                                      | 中   | 低   | 动态 import（getMermaid 仅 mermaid 块时触发，不进首屏包）                                                        |
+| LLM 过度使用 Mermaid（每文档都加图表）                                          | 中   | 低   | SYSTEM_PROMPT 强约束"仅在文字表达不清时用"；guidance 示例精准 + "不强制"                                         |
+| Mermaid 主题与 v2 token 不一致（light/dark 切换后图表不更新）                   | 中   | 中   | Phase C themeVariables 映射 v2 token；技术债：主题切换需重新 render 已渲染图表（§11）                            |
+| 视频分镜/行政公文 LLM 误加 Mermaid                                              | 低   | 低   | guidance 不提 Mermaid；SYSTEM_PROMPT"按 preset guidance"约束                                                     |
+| mermaid.render 生成重复 id 冲突（多图表同页）                                   | 低   | 低   | `crypto.randomUUID()` 生成唯一 render id                                                                         |
+| cache 命中时 mermaid 重渲染（性能）                                             | 中   | 低   | `html.includes("data-mermaid")` 快速跳过无 mermaid 块；mermaid 块通常少；技术债见 §11                            |
+| packages/ui 的 mermaidPlaceholder 与 session-ui 的 escapeHtml 逻辑重复          | 中   | 低   | Phase A 重构时评估：若 ui 内联更合理（避免 ui 反向依赖 session-ui）则各自内联；若可共享则提取                    |
 
 ---
 
 ## 11. 技术债声明
 
-| 负债 | 风险 | 到期 |
-|---|---|---|
-| L2 独立 HTML 图表延后 M3.5 | 汇报场景（团队全景/数据大屏）暂不支持 | 待产品确认 + CSP 评审后立项 M3.5 |
-| Mermaid 主题用 `theme:"base"` + themeVariables 映射 v2 token（非精确） | 图表配色与 v2 token 可能略有差异；light/dark 切换后已渲染图表不自动更新 | Phase C 调优；后续主题切换时重新 render（需 mermaid 实例 reset + 重渲染可见图表） |
-| Mermaid SVG 不入 markdown cache（renderMermaidBlocks 每次跑） | cache 命中时 mermaid 重渲染（多图表消息略慢） | 可接受（mermaid 块通常少；后续可加 mermaid SVG 结果缓存，key=源码 hash） |
-| mermaidPlaceholder 在 packages/ui 内联（未与 session-ui escapeHtml 归并） | 转义逻辑两处 | Phase A 重构评估；若 ui 不能反向依赖 session-ui 则接受内联 |
-| 流式中 mermaid 显示为 shiki 代码（非 SVG） | 用户流式中看到源码而非图表 | 可接受（对齐 GitHub/GitLab；完成即渲染 SVG） |
+| 负债                                                                      | 风险                                                                    | 到期                                                                              |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| L2 独立 HTML 图表延后 M3.5                                                | 汇报场景（团队全景/数据大屏）暂不支持                                   | 待产品确认 + CSP 评审后立项 M3.5                                                  |
+| Mermaid 主题用 `theme:"base"` + themeVariables 映射 v2 token（非精确）    | 图表配色与 v2 token 可能略有差异；light/dark 切换后已渲染图表不自动更新 | Phase C 调优；后续主题切换时重新 render（需 mermaid 实例 reset + 重渲染可见图表） |
+| Mermaid SVG 不入 markdown cache（renderMermaidBlocks 每次跑）             | cache 命中时 mermaid 重渲染（多图表消息略慢）                           | 可接受（mermaid 块通常少；后续可加 mermaid SVG 结果缓存，key=源码 hash）          |
+| mermaidPlaceholder 在 packages/ui 内联（未与 session-ui escapeHtml 归并） | 转义逻辑两处                                                            | Phase A 重构评估；若 ui 不能反向依赖 session-ui 则接受内联                        |
+| 流式中 mermaid 显示为 shiki 代码（非 SVG）                                | 用户流式中看到源码而非图表                                              | 可接受（对齐 GitHub/GitLab；完成即渲染 SVG）                                      |
 
 ---
 

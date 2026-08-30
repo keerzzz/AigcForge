@@ -5,19 +5,19 @@
 
 ## 1. 改动清单
 
-| 文件 | 摘要 |
-|---|---|
-| `packages/core/test/cli-adapters.test.ts`（新建） | 四适配器 buildArgs / parseResumeHint / parseOutput 纯函数契约（16 用例） |
-| `packages/core/test/cli-timeout.test.ts`（新建） | executeWithTimeout：CLI 缺失 / 超时 / 非零退出 / 正常透传（4 用例，mock spawner） |
-| `packages/core/test/task-driver-fill.test.ts`（新建） | R1 子会话双消息、R2 title、R3 resume 键一致（argv 含 `--resume`）、R4 step 状态机、R5 无 spawner typed error |
-| `packages/core/test/session-task.test.ts`（扩展） | R6 metadata、R7 task_error、R8 缺 cli_target、R9 permission assert 形状、R10 session_task 联动 |
-| `packages/core/src/tool/task-driver.ts` | `SessionFacade.create` 加 `title`；`executeCLI` 返回 `{text, sessionID, status}`，移除 as 强转 |
-| `packages/core/src/session/task-driver-fill.ts` | 子 Session title + 双消息（EventV2 `Prompted` 投影）；resume 键统一为父 Session ID；`CliUnavailableError` typed error；executeCLI 写 `external-cli` step + `updateStep` |
-| `packages/core/src/tool/task.ts` | Output 加 `metadata`；external-cli 分支错误态 / Track B session_task / permission assert `resources:[cli_target]` + metadata |
-| `packages/core/src/meta-agent/service.ts` | `writeStep` 序号改表内 `MAX(seq)+1`（消除模块级计数器） |
-| `packages/core/src/session.ts` | `CreateInput.title` 支持 |
-| `packages/core/src/public/aigcfroge.ts`、`packages/server/src/handlers.ts`、`packages/aigcfroge/src/effect/app-runtime.ts` | 三处组合根显式 provide `EventV2.defaultLayer`（fill 经 EventV2 写子消息，根因一致的同型修复） |
-| `docs/plan/meta-agent-v2-production-closure.md` | 修正与现状不符的完成表述 |
+| 文件                                                                                                                       | 摘要                                                                                                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/test/cli-adapters.test.ts`（新建）                                                                          | 四适配器 buildArgs / parseResumeHint / parseOutput 纯函数契约（16 用例）                                                                                                |
+| `packages/core/test/cli-timeout.test.ts`（新建）                                                                           | executeWithTimeout：CLI 缺失 / 超时 / 非零退出 / 正常透传（4 用例，mock spawner）                                                                                       |
+| `packages/core/test/task-driver-fill.test.ts`（新建）                                                                      | R1 子会话双消息、R2 title、R3 resume 键一致（argv 含 `--resume`）、R4 step 状态机、R5 无 spawner typed error                                                            |
+| `packages/core/test/session-task.test.ts`（扩展）                                                                          | R6 metadata、R7 task_error、R8 缺 cli_target、R9 permission assert 形状、R10 session_task 联动                                                                          |
+| `packages/core/src/tool/task-driver.ts`                                                                                    | `SessionFacade.create` 加 `title`；`executeCLI` 返回 `{text, sessionID, status}`，移除 as 强转                                                                          |
+| `packages/core/src/session/task-driver-fill.ts`                                                                            | 子 Session title + 双消息（EventV2 `Prompted` 投影）；resume 键统一为父 Session ID；`CliUnavailableError` typed error；executeCLI 写 `external-cli` step + `updateStep` |
+| `packages/core/src/tool/task.ts`                                                                                           | Output 加 `metadata`；external-cli 分支错误态 / Track B session_task / permission assert `resources:[cli_target]` + metadata                                            |
+| `packages/core/src/meta-agent/service.ts`                                                                                  | `writeStep` 序号改表内 `MAX(seq)+1`（消除模块级计数器）                                                                                                                 |
+| `packages/core/src/session.ts`                                                                                             | `CreateInput.title` 支持                                                                                                                                                |
+| `packages/core/src/public/aigcfroge.ts`、`packages/server/src/handlers.ts`、`packages/aigcfroge/src/effect/app-runtime.ts` | 三处组合根显式 provide `EventV2.defaultLayer`（fill 经 EventV2 写子消息，根因一致的同型修复）                                                                           |
+| `docs/plan/meta-agent-v2-production-closure.md`                                                                            | 修正与现状不符的完成表述                                                                                                                                                |
 
 ## 2. 红→绿与验证证据
 

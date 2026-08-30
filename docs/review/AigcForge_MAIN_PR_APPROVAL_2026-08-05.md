@@ -7,17 +7,17 @@
 
 ## 一、门禁与验证记录
 
-| 门禁 | 结果 |
-|---|---|
-| typecheck（core/app/aigcfroge/tui/schema） | 全绿 |
-| `bun run lint` | 退出码 0，**8 条 warning**（3 条在新增生产代码 `SessionTask` Class spread 上） |
-| `git diff --check origin/main...main` | **失败**：`docs/prd/work-mode-execution-layer.md` 末尾多余空行 |
-| core 迁移/dag/schedule/session-task | 56 pass |
-| core 服务层 13 文件 | 130 pass |
-| aigcfroge HTTP/agent/tool/mcp 6 文件 | 148 pass |
-| schema 全量 | 39 pass |
-| tui 4 文件 | 17 pass |
-| app 全量 | 620 + 5 pass（前序已核） |
+| 门禁                                       | 结果                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| typecheck（core/app/aigcfroge/tui/schema） | 全绿                                                                           |
+| `bun run lint`                             | 退出码 0，**8 条 warning**（3 条在新增生产代码 `SessionTask` Class spread 上） |
+| `git diff --check origin/main...main`      | **失败**：`docs/prd/work-mode-execution-layer.md` 末尾多余空行                 |
+| core 迁移/dag/schedule/session-task        | 56 pass                                                                        |
+| core 服务层 13 文件                        | 130 pass                                                                       |
+| aigcfroge HTTP/agent/tool/mcp 6 文件       | 148 pass                                                                       |
+| schema 全量                                | 39 pass                                                                        |
+| tui 4 文件                                 | 17 pass                                                                        |
+| app 全量                                   | 620 + 5 pass（前序已核）                                                       |
 
 说明：现成审批报告将 lint warning 归为 "pre-existing" 不准确——其中 3 条位于本次新增的 `SessionTask` Class spread 生产代码。
 

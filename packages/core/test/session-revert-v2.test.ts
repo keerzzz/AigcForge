@@ -45,10 +45,12 @@ describe("V2 SessionRevert", () => {
   it.effect("revert returns session info when session does not exist", () =>
     Effect.gen(function* () {
       const svc = yield* SessionRevert.Service
-      const result = yield* svc.revert({
-        sessionID: SessionV2.ID.make("ses_nonexistent"),
-        messageID: SessionMessage.ID.make("msg_bogus"),
-      }).pipe(Effect.exit)
+      const result = yield* svc
+        .revert({
+          sessionID: SessionV2.ID.make("ses_nonexistent"),
+          messageID: SessionMessage.ID.make("msg_bogus"),
+        })
+        .pipe(Effect.exit)
       expect(Exit.isFailure(result)).toBe(true)
     }),
   )

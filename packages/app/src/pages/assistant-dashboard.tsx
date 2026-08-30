@@ -71,13 +71,22 @@ export function AssistantDashboardMain() {
   const confirmedMemories = createMemo(() => memories().filter((m) => m.status === "confirmed"))
 
   function confirmMemory(id: string) {
-    void serverSDK().client.memory.confirm({ id }).then(() => memoryQuery.refetch()).catch(console.error)
+    void serverSDK()
+      .client.memory.confirm({ id })
+      .then(() => memoryQuery.refetch())
+      .catch(console.error)
   }
   function rejectMemory(id: string) {
-    void serverSDK().client.memory.reject({ id }).then(() => memoryQuery.refetch()).catch(console.error)
+    void serverSDK()
+      .client.memory.reject({ id })
+      .then(() => memoryQuery.refetch())
+      .catch(console.error)
   }
   function removeMemory(id: string) {
-    void serverSDK().client.memory.remove({ id }).then(() => memoryQuery.refetch()).catch(console.error)
+    void serverSDK()
+      .client.memory.remove({ id })
+      .then(() => memoryQuery.refetch())
+      .catch(console.error)
   }
 
   const kbQuery = useQuery(() => ({
@@ -128,8 +137,8 @@ export function AssistantDashboardMain() {
       .catch(console.error)
   }
   function deleteNote(id: string) {
-    void serverSDK().client.kb
-      .remove({ id })
+    void serverSDK()
+      .client.kb.remove({ id })
       .then(() => {
         setEditing(undefined)
         void kbQuery.refetch()
@@ -194,11 +203,17 @@ export function AssistantDashboardMain() {
   }
 
   function cancelReminder(id: string) {
-    void serverSDK().client.schedule.cancel({ id }).then(() => pendingQuery.refetch()).catch(console.error)
+    void serverSDK()
+      .client.schedule.cancel({ id })
+      .then(() => pendingQuery.refetch())
+      .catch(console.error)
   }
 
   function markRead(deliveryKey: string) {
-    void serverSDK().client.delivery.read({ deliveryKey }).then(() => recentQuery.refetch()).catch(console.error)
+    void serverSDK()
+      .client.delivery.read({ deliveryKey })
+      .then(() => recentQuery.refetch())
+      .catch(console.error)
   }
 
   return (
@@ -337,7 +352,9 @@ export function AssistantDashboardMain() {
                     onClick={() => openEditor(note)}
                   >
                     <Icon name="edit" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                    <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">{note.title ?? ""}</span>
+                    <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
+                      {note.title ?? ""}
+                    </span>
                     <span class="shrink-0 text-v2-text-text-faint text-11-regular">{note.format}</span>
                   </button>
                 )}
@@ -350,7 +367,10 @@ export function AssistantDashboardMain() {
         </section>
 
         <section class="flex min-w-0 flex-col gap-3">
-          <Show when={!sessionLoad.isLoading} fallback={<HomeSessionSkeleton label={language.t("assistant.dashboard.title")} />}>
+          <Show
+            when={!sessionLoad.isLoading}
+            fallback={<HomeSessionSkeleton label={language.t("assistant.dashboard.title")} />}
+          >
             <Show when={groups().length > 0}>
               <div class="flex min-w-0 flex-col gap-px">
                 <For each={groups()}>

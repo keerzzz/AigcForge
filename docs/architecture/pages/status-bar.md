@@ -19,6 +19,7 @@ Status Bar 是计划中的全局底部状态栏，固定高度 24px，显示当�
 ## 数据源 (待定义)
 
 实现时需明确每个指标的数据管道：
+
 - Token 指标来自 LLM API 响应的 usage 字段
 - 缓存率来自 prompt_tokens_details
 - 连接状态来自 ServerProvider

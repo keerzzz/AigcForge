@@ -6,9 +6,7 @@ import { SessionTable } from "../session/sql"
 export const WorkflowRunTable = sqliteTable(
   "workflow_run",
   {
-    id: text()
-      .primaryKey()
-      .$type<WorkflowAsset.WorkflowRunID>(),
+    id: text().primaryKey().$type<WorkflowAsset.WorkflowRunID>(),
     session_id: text()
       .notNull()
       .$type<SessionSchema.ID>()
@@ -21,9 +19,7 @@ export const WorkflowRunTable = sqliteTable(
     parent_run_id: text().$type<WorkflowAsset.WorkflowRunID>(),
     root_run_id: text().$type<WorkflowAsset.WorkflowRunID>(),
     retry_of_step_run_id: text().$type<WorkflowAsset.StepRunID>(),
-    status: text()
-      .notNull()
-      .$type<WorkflowAsset.WorkflowRunStatus>(),
+    status: text().notNull().$type<WorkflowAsset.WorkflowRunStatus>(),
     revision: integer().notNull().default(1),
     current_step_id: text(),
     error_category: text().$type<WorkflowAsset.ErrorCategory>(),
@@ -45,18 +41,14 @@ export const WorkflowRunTable = sqliteTable(
 export const WorkflowStepRunTable = sqliteTable(
   "workflow_step_run",
   {
-    id: text()
-      .primaryKey()
-      .$type<WorkflowAsset.StepRunID>(),
+    id: text().primaryKey().$type<WorkflowAsset.StepRunID>(),
     run_id: text()
       .notNull()
       .$type<WorkflowAsset.WorkflowRunID>()
       .references(() => WorkflowRunTable.id, { onDelete: "cascade" }),
     step_id: text().notNull(),
     agent_id: text().notNull(),
-    status: text()
-      .notNull()
-      .$type<WorkflowAsset.StepRunStatus>(),
+    status: text().notNull().$type<WorkflowAsset.StepRunStatus>(),
     attempt: integer().notNull().default(1),
     revision: integer().notNull().default(1),
     task_id: text(),

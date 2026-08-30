@@ -9,8 +9,20 @@ test("full insert flow: table row insert -> popover -> session redirect -> compo
 
   // 模拟 promptAsset list 返回一组资产
   const assets = [
-    { kind: "prompt", name: "code-review-prompt", description: "Review code changes", relativePath: "code-review.md", revision: "a".repeat(64) },
-    { kind: "prompt", name: "commit-message", description: "Generate commit messages", relativePath: "commit.md", revision: "b".repeat(64) },
+    {
+      kind: "prompt",
+      name: "code-review-prompt",
+      description: "Review code changes",
+      relativePath: "code-review.md",
+      revision: "a".repeat(64),
+    },
+    {
+      kind: "prompt",
+      name: "commit-message",
+      description: "Generate commit messages",
+      relativePath: "commit.md",
+      revision: "b".repeat(64),
+    },
   ]
   const promptAssetListBody = { assets, invalid: [] }
 
@@ -82,7 +94,9 @@ test("full insert flow: table row insert -> popover -> session redirect -> compo
 
   // 导航到 chat 首页
   await page.goto("/mode/chat")
-  await expect(page.locator('[data-component="asset-row"]', { hasText: "code-review-prompt" }).first()).toBeVisible({ timeout: 120000 })
+  await expect(page.locator('[data-component="asset-row"]', { hasText: "code-review-prompt" }).first()).toBeVisible({
+    timeout: 120000,
+  })
 
   // 验证 AssetWorkbenchTable 渲染两个资产行
   const assetRows = page.locator('[data-component="asset-row"]')
@@ -118,5 +132,5 @@ test("full insert flow: table row insert -> popover -> session redirect -> compo
 
   // 验证注入效果：composer 中应有模板内容
   // PromptInput 是 contenteditable div，内部应有模板文本
-  await expect(page.locator('[contenteditable]').first()).toBeVisible()
+  await expect(page.locator("[contenteditable]").first()).toBeVisible()
 })

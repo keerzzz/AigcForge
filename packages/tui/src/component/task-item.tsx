@@ -16,9 +16,7 @@ export function TaskItem(props: TaskItemProps) {
   // number-or-literal union) so a non-finite nextRun renders no nextRun text
   // instead of "Invalid Date".
   const nextRunLabel = () =>
-    typeof props.nextRun === "number" && Number.isFinite(props.nextRun)
-      ? formatNextRun(props.nextRun)
-      : undefined
+    typeof props.nextRun === "number" && Number.isFinite(props.nextRun) ? formatNextRun(props.nextRun) : undefined
 
   return (
     <box flexDirection="row" gap={0}>

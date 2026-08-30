@@ -1,6 +1,7 @@
 import path from "path"
 import { describe, expect, test, beforeEach } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
+import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset" // Schema namespace; core PromptAsset uses the unaliased name.
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
@@ -19,10 +20,7 @@ import fs from "fs/promises"
 const FLAG_KEY = "AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"
 
 function locationLayer(dir: string) {
-  return Layer.succeed(
-    Location.Service,
-    Location.Service.of(location({ directory: AbsolutePath.make(dir) })),
-  )
+  return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
 }
 
 function serviceLayer(dir: string) {
@@ -70,7 +68,10 @@ describe("PromptAsset V2 smoke", () => {
 
             // Propose
             const propose = yield* svc.propose({
-              name: "v2-smoke", description: "V2 smoke test", template: "content", relativePath: "",
+              name: "v2-smoke",
+              description: "V2 smoke test",
+              template: "content",
+              relativePath: "",
             } as any)
             expect(propose.exists).toBe(false)
             expect(propose.nameConflict).toBe(false)
@@ -81,7 +82,12 @@ describe("PromptAsset V2 smoke", () => {
 
             // Apply
             const applied = yield* svc.apply({
-              candidate: { name: "v2-smoke", description: "V2 smoke test", template: "content", relativePath: "" } as any,
+              candidate: Schema.decodeUnknownSync(SchemaPromptAsset.Candidate)({
+                name: "v2-smoke",
+                description: "V2 smoke test",
+                template: "content",
+                relativePath: "",
+              }),
               baseRevision: null,
               overwrite: false,
             })
@@ -108,11 +114,9 @@ describe("PromptAsset V2 smoke", () => {
 
         // With flag off, ProposePromptAssetTool.layer is a no-op.
         // The tool layer still composes but no tool gets registered.
-        const toolLayer = Layer.mergeAll(
-          ToolRegistry.layer,
-          ProposePromptAssetTool.layer,
-          serviceLayer(dir),
-        ).pipe(Layer.provide(ToolRegistry.defaultLayer))
+        const toolLayer = Layer.mergeAll(ToolRegistry.layer, ProposePromptAssetTool.layer, serviceLayer(dir)).pipe(
+          Layer.provide(ToolRegistry.defaultLayer),
+        )
 
         await runNow(
           Effect.gen(function* () {
@@ -121,7 +125,10 @@ describe("PromptAsset V2 smoke", () => {
 
             // Propose via service still works (service has no flag gate)
             const propose = yield* svc.propose({
-              name: "off-test", description: "Flag off test", template: "x", relativePath: "",
+              name: "off-test",
+              description: "Flag off test",
+              template: "x",
+              relativePath: "",
             } as any)
             expect(propose.exists).toBe(false)
 
@@ -140,10 +147,9 @@ describe("PromptAsset V2 smoke", () => {
       await withTmp(async (dir) => {
         await fs.mkdir(path.join(dir, ".aigcfroge", "prompts"), { recursive: true })
 
-        const toolLayer = Layer.mergeAll(
-          ToolRegistry.layer,
-          serviceLayer(dir),
-        ).pipe(Layer.provide(ToolRegistry.defaultLayer))
+        const toolLayer = Layer.mergeAll(ToolRegistry.layer, serviceLayer(dir)).pipe(
+          Layer.provide(ToolRegistry.defaultLayer),
+        )
 
         await runNow(
           Effect.gen(function* () {

@@ -16,15 +16,15 @@
 
 ### 0.1 基线事实（本计划撰写时实测，非引用）
 
-| 项 | 实测结果 | 命令 |
-| --- | --- | --- |
-| 分支基线 | `main@eeaec64f2`，与 `origin/main` **零差异**（`rev-list --count origin/main..main` = 0） | `git rev-list --count origin/main..main` |
-| typecheck | core / schema / app / ui / session-ui / aigcfroge / desktop **7 包全 PASS** | `bun --cwd packages/<p> typecheck` |
-| 增量 lint | `Incremental lint passed: no changed JavaScript or TypeScript files` | `LINT_BASE_REF=origin/main bun run script/lint-changed.ts` |
-| 生成 SDK | 生成器可离线复跑，exit 0，`git diff -- packages/sdk` **为空**，无临时残留 | `bun ./packages/sdk/js/script/build.ts` |
-| 协议引用 | **32/32 OK** | `bash .aigcfroge/skills/protocols/scripts/check-refs.sh` |
-| 工作区数 | 17 个 workspace 包（16 × `packages/*` + `packages/sdk/js`） | `ls -d packages/*/package.json packages/sdk/js/package.json \| wc -l` |
-| ADR 下一可用号 | **ADR-22 / 23 / 24**（现存至 ADR-21） | `ls docs/architecture/adr/` |
+| 项             | 实测结果                                                                                  | 命令                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 分支基线       | `main@eeaec64f2`，与 `origin/main` **零差异**（`rev-list --count origin/main..main` = 0） | `git rev-list --count origin/main..main`                              |
+| typecheck      | core / schema / app / ui / session-ui / aigcfroge / desktop **7 包全 PASS**               | `bun --cwd packages/<p> typecheck`                                    |
+| 增量 lint      | `Incremental lint passed: no changed JavaScript or TypeScript files`                      | `LINT_BASE_REF=origin/main bun run script/lint-changed.ts`            |
+| 生成 SDK       | 生成器可离线复跑，exit 0，`git diff -- packages/sdk` **为空**，无临时残留                 | `bun ./packages/sdk/js/script/build.ts`                               |
+| 协议引用       | **32/32 OK**                                                                              | `bash .aigcfroge/skills/protocols/scripts/check-refs.sh`              |
+| 工作区数       | 17 个 workspace 包（16 × `packages/*` + `packages/sdk/js`）                               | `ls -d packages/*/package.json packages/sdk/js/package.json \| wc -l` |
+| ADR 下一可用号 | **ADR-22 / 23 / 24**（现存至 ADR-21）                                                     | `ls docs/architecture/adr/`                                           |
 
 > **基线陷阱提醒**：`script/lint-changed.ts` 默认以**本地** `main` 为 diff 基线（`script/lint-changed.ts:94`）。本分支每次自查都必须显式写 `LINT_BASE_REF=origin/main`，否则在本地累积提交时会扫到 0 个文件并空绿通过。
 
@@ -48,14 +48,14 @@
 
 ### 1.1 目标（按路线图根因 R1/R2/R3/R5 收敛）
 
-| 编号 | 目标 | 对应路线图问题 | 退出条件 |
-| --- | --- | --- | --- |
-| G1 | V2 破坏性路径不再制造不可重放状态 | F1 最小修复 | delete / deleteMessage / rename 三条 V2 路径 fail-closed 或已事件化 |
-| G2 | Session 生命周期只有一个 command owner | F1 健壮演进 · R1 | 调用面无法直写 `SessionTable` / `SessionMessageTable` / `EventTable`；`create → rename → message delete → session delete → ID reuse → replay` 全程等价；孤儿 `parent_id` 计数为 0 |
-| G3 | sidecar 死亡与不确定副作用**可解释** | F2 最小修复 · R2 | 强杀 sidecar 后没有静默挂起；durable inbox 可安全续跑；未知副作用进入显式 `recovery_required` 而非盲重试 |
-| G4 | process owner 身份**有证据** | F4 最小验证 · R3 | Database / EventV2 / SessionExecution / TaskDriver / ApprovalPresence 在 instance/server/global 三面 + 两个 listener 上的实例身份被测试钉住 |
-| G5 | 生产模块不携带测试后门 | F4 · R5 | `SessionExecution` 的 busy 测试 seam 从生产模块移除，改由测试装配注入 |
-| G6 | 文档不再把提案写成已完成 | F7 代码侧 | `CredentialValue` 回到 schema/core owner；`ARCHITECTURE.md` §7 与 `specs/v2/todo.md` 与代码一致 |
+| 编号 | 目标                                   | 对应路线图问题   | 退出条件                                                                                                                                                                          |
+| ---- | -------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1   | V2 破坏性路径不再制造不可重放状态      | F1 最小修复      | delete / deleteMessage / rename 三条 V2 路径 fail-closed 或已事件化                                                                                                               |
+| G2   | Session 生命周期只有一个 command owner | F1 健壮演进 · R1 | 调用面无法直写 `SessionTable` / `SessionMessageTable` / `EventTable`；`create → rename → message delete → session delete → ID reuse → replay` 全程等价；孤儿 `parent_id` 计数为 0 |
+| G3   | sidecar 死亡与不确定副作用**可解释**   | F2 最小修复 · R2 | 强杀 sidecar 后没有静默挂起；durable inbox 可安全续跑；未知副作用进入显式 `recovery_required` 而非盲重试                                                                          |
+| G4   | process owner 身份**有证据**           | F4 最小验证 · R3 | Database / EventV2 / SessionExecution / TaskDriver / ApprovalPresence 在 instance/server/global 三面 + 两个 listener 上的实例身份被测试钉住                                       |
+| G5   | 生产模块不携带测试后门                 | F4 · R5          | `SessionExecution` 的 busy 测试 seam 从生产模块移除，改由测试装配注入                                                                                                             |
+| G6   | 文档不再把提案写成已完成               | F7 代码侧        | `CredentialValue` 回到 schema/core owner；`ARCHITECTURE.md` §7 与 `specs/v2/todo.md` 与代码一致                                                                                   |
 
 ### 1.2 非目标（写清楚，防止范围蔓延）
 
@@ -89,31 +89,31 @@ cd /media/win_data/aigcfroge/.worktrees/v2-ux   && bun install
 
 ### 2.2 包级所有权矩阵（唯一写权限）
 
-| 包 / 路径 | 架构计划（`v2-lifecycle-owner`） | UX 计划（`v2-ux-foundation`） |
-| --- | --- | --- |
-| `packages/core/**` | ✅ 独占 | ⛔ |
-| `packages/schema/**` | ✅ 独占（recovery / lifecycle schema） | ⛔（只读 import，如 `schema/product-mode`） |
-| `packages/aigcfroge/**` | ✅ 独占（handler / server / app-runtime / auth / mcp） | ⛔ |
-| `packages/desktop/**` | ✅ 独占（main 进程 sidecar 监督 + IPC） | ⛔ |
-| `packages/sdk/js/**`（生成物） | ✅ 独占，**只有本计划可跑生成器** | ⛔ 永不跑 `packages/sdk/js/script/build.ts` |
-| `packages/app/**` | ⛔ | ✅ 独占 |
-| `packages/ui/**` | ⛔ | ✅ 独占（含 i18n 字典、v2 token、v2 组件） |
-| `packages/session-ui/**` | ⛔ | ✅ 独占 |
-| `packages/storybook/**` | ⛔ | ✅ 独占 |
-| `packages/llm`、`packages/tui`、`packages/plugin`、vendor 两包 | ⛔ 双方均不动 | ⛔ |
+| 包 / 路径                                                      | 架构计划（`v2-lifecycle-owner`）                       | UX 计划（`v2-ux-foundation`）               |
+| -------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------- |
+| `packages/core/**`                                             | ✅ 独占                                                | ⛔                                          |
+| `packages/schema/**`                                           | ✅ 独占（recovery / lifecycle schema）                 | ⛔（只读 import，如 `schema/product-mode`） |
+| `packages/aigcfroge/**`                                        | ✅ 独占（handler / server / app-runtime / auth / mcp） | ⛔                                          |
+| `packages/desktop/**`                                          | ✅ 独占（main 进程 sidecar 监督 + IPC）                | ⛔                                          |
+| `packages/sdk/js/**`（生成物）                                 | ✅ 独占，**只有本计划可跑生成器**                      | ⛔ 永不跑 `packages/sdk/js/script/build.ts` |
+| `packages/app/**`                                              | ⛔                                                     | ✅ 独占                                     |
+| `packages/ui/**`                                               | ⛔                                                     | ✅ 独占（含 i18n 字典、v2 token、v2 组件）  |
+| `packages/session-ui/**`                                       | ⛔                                                     | ✅ 独占                                     |
+| `packages/storybook/**`                                        | ⛔                                                     | ✅ 独占                                     |
+| `packages/llm`、`packages/tui`、`packages/plugin`、vendor 两包 | ⛔ 双方均不动                                          | ⛔                                          |
 
 ### 2.3 文档所有权矩阵
 
-| 文档 | 架构计划 | UX 计划 | 说明 |
-| --- | --- | --- | --- |
-| `ARCHITECTURE.md` | ✅ 独占（§4.1/§4.3/§7） | ⛔ | §4.10 的 Custom 状态已在批次 0 修正，双方都不用再动 |
-| `DESIGN.md` | ⛔ | ✅ 独占 | §Scope 已在批次 0 修正 |
-| `specs/v2/todo.md` | ✅ 独占 | ⛔ | |
-| `docs/architecture/adr/ADR-22/23/24-*.md` | ✅ 新建文件，天然无冲突 | ⛔ | |
-| `docs/architecture/system-blueprint.md` | ✅ 独占 | ⛔ | |
-| `docs/technical-debt.md` §4 表 | ✅ **只在表体第一行之前插入** | ✅ **只在表体最后一行之后追加** | §4 表体现有 **21 行**，首尾相距远超 git 三方合并所需的 3 行上下文 ⇒ 机械可合并 |
-| `docs/technical-debt.md` 其他节（§0/§1/§2/§3/§5） | ⛔ | ⛔ | 批次 0 已校准；本轮任何一方都不改 |
-| 本计划与并行计划两份 `docs/plan/*.md` | 各自独占自己那份 | 同 | |
+| 文档                                              | 架构计划                      | UX 计划                         | 说明                                                                           |
+| ------------------------------------------------- | ----------------------------- | ------------------------------- | ------------------------------------------------------------------------------ |
+| `ARCHITECTURE.md`                                 | ✅ 独占（§4.1/§4.3/§7）       | ⛔                              | §4.10 的 Custom 状态已在批次 0 修正，双方都不用再动                            |
+| `DESIGN.md`                                       | ⛔                            | ✅ 独占                         | §Scope 已在批次 0 修正                                                         |
+| `specs/v2/todo.md`                                | ✅ 独占                       | ⛔                              |                                                                                |
+| `docs/architecture/adr/ADR-22/23/24-*.md`         | ✅ 新建文件，天然无冲突       | ⛔                              |                                                                                |
+| `docs/architecture/system-blueprint.md`           | ✅ 独占                       | ⛔                              |                                                                                |
+| `docs/technical-debt.md` §4 表                    | ✅ **只在表体第一行之前插入** | ✅ **只在表体最后一行之后追加** | §4 表体现有 **21 行**，首尾相距远超 git 三方合并所需的 3 行上下文 ⇒ 机械可合并 |
+| `docs/technical-debt.md` 其他节（§0/§1/§2/§3/§5） | ⛔                            | ⛔                              | 批次 0 已校准；本轮任何一方都不改                                              |
+| 本计划与并行计划两份 `docs/plan/*.md`             | 各自独占自己那份              | 同                              |                                                                                |
 
 ### 2.4 两条接缝（Seam）：为什么可以先后任意顺序合并
 
@@ -173,11 +173,11 @@ handlers/session.ts        SessionV2.remove              （不经过）        
 
 **三条 V2 函数的实测形态**（`packages/core/src/session.ts`，接口声明 `:232`/`:233`/`:234`）：
 
-| 函数 | 实现行 | 写的表 | 事务 | publish | `Effect.uninterruptible` |
-| --- | --- | --- | --- | --- | --- |
-| `remove` | `:773-779`（DELETE 在 `:778`） | 仅 `SessionTable` | 无 | 无 | 无 |
-| `removeMessage` | `:780-783`（DELETE 在 `:782`） | 仅 `SessionMessageTable` | 无 | 无 | 无 |
-| `setTitle` | `:784-791`（UPDATE 在 `:786-790`） | 仅 `SessionTable.title` | 无 | 无 | 无 |
+| 函数            | 实现行                             | 写的表                   | 事务 | publish | `Effect.uninterruptible` |
+| --------------- | ---------------------------------- | ------------------------ | ---- | ------- | ------------------------ |
+| `remove`        | `:773-779`（DELETE 在 `:778`）     | 仅 `SessionTable`        | 无   | 无      | 无                       |
+| `removeMessage` | `:780-783`（DELETE 在 `:782`）     | 仅 `SessionMessageTable` | 无   | 无      | 无                       |
+| `setTitle`      | `:784-791`（UPDATE 在 `:786-790`） | 仅 `SessionTable.title`  | 无   | 无      | 无                       |
 
 对比：`prompt` / `shell` / `skill` 都包了 `Effect.uninterruptible`（`session.ts:657`/`:687`/`:719`）。
 
@@ -193,13 +193,13 @@ handlers/session.ts        SessionV2.remove              （不经过）        
 
 唯一投影注册点是 `SessionProjector.layer`（`packages/core/src/session/projector.ts:215-463`，全仓 `src/` 无第二处 `events.project(`）。
 
-| 事件 | 投影行 | 动作 |
-| --- | --- | --- |
-| `session.created` | `:219-238` | insert + `onConflictDoNothing().returning()`，无行返回则 `Effect.die(new SessionAlreadyProjected())`（`:228`） |
-| `session.updated` | `:239-246` | `set(sessionRow(info))` 全字段覆盖（含 title） |
-| `session.next.moved` | `:247-262` | 改 directory/path/workspace + `SessionContextEpoch.reset`（`:260`） |
-| `session.deleted` | `:263-265` | `delete(SessionTable)` 一行，仅此 |
-| `message.removed` | `:280-298` | 删 **`MessageTable`**（`:292-296`）+ `applyUsage(..., -1)`（`:288-291`） |
+| 事件                 | 投影行     | 动作                                                                                                           |
+| -------------------- | ---------- | -------------------------------------------------------------------------------------------------------------- |
+| `session.created`    | `:219-238` | insert + `onConflictDoNothing().returning()`，无行返回则 `Effect.die(new SessionAlreadyProjected())`（`:228`） |
+| `session.updated`    | `:239-246` | `set(sessionRow(info))` 全字段覆盖（含 title）                                                                 |
+| `session.next.moved` | `:247-262` | 改 directory/path/workspace + `SessionContextEpoch.reset`（`:260`）                                            |
+| `session.deleted`    | `:263-265` | `delete(SessionTable)` 一行，仅此                                                                              |
+| `message.removed`    | `:280-298` | 删 **`MessageTable`**（`:292-296`）+ `applyUsage(..., -1)`（`:288-291`）                                       |
 
 三个**结构性**缺口：
 
@@ -257,14 +257,14 @@ publish(:425-444)  补 Location(:427-432) + 生成 ID(:435)
 
 全仓 `src/` 内 `tombstone|Tombstone` **零命中**，所以这不是「对齐既有概念」，而是新立语义。两个自洽方案：
 
-| | **方案 P · purge（与 V1 一致）** | **方案 T · 事件流即墓碑（推荐）** |
-| --- | --- | --- |
-| 删除动作 | publish `session.next.deleted` → 投影删行 → **再调 `events.remove(aggregateID)`** 清整条流 | publish `session.next.deleted` → 投影删行；**事件流保留** |
-| 重放等价性 | 平凡成立（无流可重放） | **结构性成立**：重放 `created → … → deleted` 后行必然不存在 |
-| 同 ID 复用 | 允许，新流从 seq 0 起 | **必须拒绝**（typed error）：aggregate 已有终态 `deleted`，再来一个 `created` 会让重放撞上 `SessionAlreadyProjected`（`projector.ts:228`） |
-| 审计 | **丢失**——无任何记录证明该 session 曾存在 | 保留，导出/审计/恢复可用 |
-| 新增 DB 列 | 无 | **无**（墓碑由事件流终态表达，不是 DB 标志位 —— 极致减法） |
-| 代价 | 审计缺口；与「导出/重放/恢复依赖 EventV2」的前提冲突 | `event` 表不再被 session 删除回收，需要独立的保留/清理策略（先例：grant 的 `prune`） |
+|            | **方案 P · purge（与 V1 一致）**                                                           | **方案 T · 事件流即墓碑（推荐）**                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 删除动作   | publish `session.next.deleted` → 投影删行 → **再调 `events.remove(aggregateID)`** 清整条流 | publish `session.next.deleted` → 投影删行；**事件流保留**                                                                                  |
+| 重放等价性 | 平凡成立（无流可重放）                                                                     | **结构性成立**：重放 `created → … → deleted` 后行必然不存在                                                                                |
+| 同 ID 复用 | 允许，新流从 seq 0 起                                                                      | **必须拒绝**（typed error）：aggregate 已有终态 `deleted`，再来一个 `created` 会让重放撞上 `SessionAlreadyProjected`（`projector.ts:228`） |
+| 审计       | **丢失**——无任何记录证明该 session 曾存在                                                  | 保留，导出/审计/恢复可用                                                                                                                   |
+| 新增 DB 列 | 无                                                                                         | **无**（墓碑由事件流终态表达，不是 DB 标志位 —— 极致减法）                                                                                 |
+| 代价       | 审计缺口；与「导出/重放/恢复依赖 EventV2」的前提冲突                                       | `event` 表不再被 session 删除回收，需要独立的保留/清理策略（先例：grant 的 `prune`）                                                       |
 
 **推荐方案 T**，理由：等价性从「靠测试守」变成「靠结构成立」；不新增列；`ID 复用被拒绝` 是比「允许复用」更强、更好测的不变量。**代价必须显式承认**：事件表增长与保留策略成为一条新的、已登记的技术债（§10-1）。
 
@@ -300,12 +300,12 @@ publish(:425-444)  补 Location(:427-432) + 生成 ID(:435)
 
 ### 4.7 方案对冲总表
 
-| | 简单实现（本计划采用） | 健壮架构（不在本计划） |
-| --- | --- | --- |
-| 生命周期 | 单 command owner + 同事务事件/投影 | 同左 + 保留策略/归档/导出契约 |
-| 恢复 | `server-dead` + 启动 sweep + 人工 `recovery_required` | durable attempt + lease + fencing + CAS settlement + 副作用幂等键 |
-| 装配 | identity probe + 移除测试 seam | 唯一 composition root + process/location/session scope 严格分离 |
-| 声明 | **不得**宣称 crash-safe / 自动恢复 | 需产品 SLA 与故障注入矩阵后才可宣称 |
+|          | 简单实现（本计划采用）                                | 健壮架构（不在本计划）                                            |
+| -------- | ----------------------------------------------------- | ----------------------------------------------------------------- |
+| 生命周期 | 单 command owner + 同事务事件/投影                    | 同左 + 保留策略/归档/导出契约                                     |
+| 恢复     | `server-dead` + 启动 sweep + 人工 `recovery_required` | durable attempt + lease + fencing + CAS settlement + 副作用幂等键 |
+| 装配     | identity probe + 移除测试 seam                        | 唯一 composition root + process/location/session scope 严格分离   |
+| 声明     | **不得**宣称 crash-safe / 自动恢复                    | 需产品 SLA 与故障注入矩阵后才可宣称                               |
 
 ---
 
@@ -315,33 +315,33 @@ publish(:425-444)  补 Location(:427-432) + 生成 ID(:435)
 
 ### 批次 A0 · 红线止血（Slice 0，估算 0.5–1 天）
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| A0-1 | 红 | 在 `packages/core/test/session-lifecycle-gate.test.ts` 新建：断言 flag 关闭时 `SessionLifecycle` 的 delete/rename/deleteMessage 返回 `kind: "v2_destructive_disabled"` 的 typed 失败。此刻 owner 还不存在 ⇒ 编译期即红 |
-| A0-2 | 绿 | `packages/core/src/flag/flag.ts` 加 `get AIGCFROGE_V2_DESTRUCTIVE() { return truthy("AIGCFROGE_V2_DESTRUCTIVE") }`（**getter**，对照反例：`AIGCFROGE_V2_RUNTIME` 是 `app-runtime.ts:92` 的模块级 const，测试无法驱动） |
-| A0-3 | 绿 | 新建 `packages/core/src/session/lifecycle.ts` 骨架：`Service` + 三个方法，方法体先只做 flag 门禁 + 委派到现有 `SessionV2` 实现（**此批不改语义**，只是把入口收敛到一个 owner 并加门） |
-| A0-4 | 绿 | `handlers/session.ts` 三个 V2 分支（`:466-471` / `:535-539` / `:957-965`）改调 `SessionLifecycle`；`InvalidRequestError` 带 `kind`（复用既有可选字段，见 §4.4） |
-| A0-5 | 绿 | **能力端点诚实化**：`handlers/experimental.ts:45` 的 `customMode: false` 是硬编码字面量，不读 kill switch；改为 `ProductModePolicy.isCustomModeEnabled()`；`productModes`（`:46`）改由 `ProductMode.ID` 的 literals 派生而非手写数组。同步改 `packages/aigcfroge/test/server/product-mode-compatibility.test.ts:28-38`（它把 `customMode === false` 钉死了），改成按 flag 双向断言 |
-| A0-6 | 绿 | 文档诚实化：`specs/v2/todo.md` Phase 5（`:184-190`）补 flip 的前置验收清单；修正 `docs/plan/meta-agent-v2-production-closure.md:3,18,55` 里「`AIGCFROGE_V2_RUNTIME` 默认 true（`fef78b8`）」的错误声明（**实测默认 false**）；`ARCHITECTURE.md` §7 加入两份 V2 路线图 |
-| A0-7 | 重构 | `CredentialValue` 改 import 方向：`packages/core/src/plugin/provider/aigcfroge.ts:5` 从 `@aigcfroge/sdk/v2/types` 改为 core 自己的 `Credential.Value`（`packages/core/src/credential.ts:19-20`，真源 `packages/schema/src/credential.ts:31-34`）。**不动** plugin 包那两条同类边（`plugin/src/v2/{effect,promise}/integration.ts`），登记为债 |
-| A0-8 | 门禁 | `bun --cwd packages/core test session-lifecycle-gate.test.ts` · `bun --cwd packages/aigcfroge test server/product-mode-compatibility.test.ts` · core+aigcfroge typecheck · `LINT_BASE_REF=origin/main bun run script/lint-changed.ts` |
+| 步   | 类型 | 动作                                                                                                                                                                                                                                                                                                                                                                               |
+| ---- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A0-1 | 红   | 在 `packages/core/test/session-lifecycle-gate.test.ts` 新建：断言 flag 关闭时 `SessionLifecycle` 的 delete/rename/deleteMessage 返回 `kind: "v2_destructive_disabled"` 的 typed 失败。此刻 owner 还不存在 ⇒ 编译期即红                                                                                                                                                             |
+| A0-2 | 绿   | `packages/core/src/flag/flag.ts` 加 `get AIGCFROGE_V2_DESTRUCTIVE() { return truthy("AIGCFROGE_V2_DESTRUCTIVE") }`（**getter**，对照反例：`AIGCFROGE_V2_RUNTIME` 是 `app-runtime.ts:92` 的模块级 const，测试无法驱动）                                                                                                                                                             |
+| A0-3 | 绿   | 新建 `packages/core/src/session/lifecycle.ts` 骨架：`Service` + 三个方法，方法体先只做 flag 门禁 + 委派到现有 `SessionV2` 实现（**此批不改语义**，只是把入口收敛到一个 owner 并加门）                                                                                                                                                                                              |
+| A0-4 | 绿   | `handlers/session.ts` 三个 V2 分支（`:466-471` / `:535-539` / `:957-965`）改调 `SessionLifecycle`；`InvalidRequestError` 带 `kind`（复用既有可选字段，见 §4.4）                                                                                                                                                                                                                    |
+| A0-5 | 绿   | **能力端点诚实化**：`handlers/experimental.ts:45` 的 `customMode: false` 是硬编码字面量，不读 kill switch；改为 `ProductModePolicy.isCustomModeEnabled()`；`productModes`（`:46`）改由 `ProductMode.ID` 的 literals 派生而非手写数组。同步改 `packages/aigcfroge/test/server/product-mode-compatibility.test.ts:28-38`（它把 `customMode === false` 钉死了），改成按 flag 双向断言 |
+| A0-6 | 绿   | 文档诚实化：`specs/v2/todo.md` Phase 5（`:184-190`）补 flip 的前置验收清单；修正 `docs/plan/meta-agent-v2-production-closure.md:3,18,55` 里「`AIGCFROGE_V2_RUNTIME` 默认 true（`fef78b8`）」的错误声明（**实测默认 false**）；`ARCHITECTURE.md` §7 加入两份 V2 路线图                                                                                                              |
+| A0-7 | 重构 | `CredentialValue` 改 import 方向：`packages/core/src/plugin/provider/aigcfroge.ts:5` 从 `@aigcfroge/sdk/v2/types` 改为 core 自己的 `Credential.Value`（`packages/core/src/credential.ts:19-20`，真源 `packages/schema/src/credential.ts:31-34`）。**不动** plugin 包那两条同类边（`plugin/src/v2/{effect,promise}/integration.ts`），登记为债                                      |
+| A0-8 | 门禁 | `bun --cwd packages/core test session-lifecycle-gate.test.ts` · `bun --cwd packages/aigcfroge test server/product-mode-compatibility.test.ts` · core+aigcfroge typecheck · `LINT_BASE_REF=origin/main bun run script/lint-changed.ts`                                                                                                                                              |
 
 > **A0 的价值判据**：批次结束时，`shouldUseV2Runtime` 对 custom 无条件为 true（`product-mode-policy.ts:106-109`）这条**已经打开**的触发面被一道 fail-closed 门挡住，且客户端能靠 `kind` 而非英文子串识别原因。
 
 ### 批次 A1 · Lifecycle 一击必杀（Slice 1，估算 3–5 天，**前置 ADR-22**）
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| A1-1 | 红 | `packages/core/test/session-lifecycle-replay.test.ts`：照 `session-create.test.ts:253-336` 的**跨库 target sqlite + `replayAll`** 模板，写 `create → setTitle → removeMessage → remove → 同 ID 重建 → replay` 全链等价断言。预期红：当前 `remove` 不发事件，target 库重放后 session 行仍在 |
-| A1-2 | 红 | 同文件补孤儿断言：建父子两 session，删父，断言 `store.children(parentID)` 为空且无 `parent_id` 指向已删 ID。预期红（`sql.ts:34` 无 FK） |
-| A1-3 | 红 | 补「同 ID 复用被拒绝」（方案 T）或「同 ID 复用得到干净流」（方案 P）断言，按 ADR-22 落定的方案二选一 |
-| A1-4 | 绿 | `packages/core/src/session/event.ts` 新增三个 durable 定义：`session.next.deleted`、`session.next.renamed`、`session.next.message-removed`（`EventV2.define`，`durable: { version: 1, aggregate: "sessionID" }`），并**同步加入 `DurableDefinitions`**（`session/event.ts:553-585`）—— 漏加会被 `isDurableSessionEvent` 过滤掉，`SyntheticAdmitted` 就是现成的反面教材 |
-| A1-5 | 绿 | `session/projector.ts` 注册三个投影：deleted → `delete(SessionTable)`（复用 `:263-265` 形状）；renamed → 只改 `title` + `time_updated`（**不要**复用 `session.updated` 的全量 `sessionRow` 覆盖）；message-removed → 删 **`SessionMessageTable`**（当前**没有任何** projector 会删这张表）并复用 `applyUsage(db, sessionID, value, -1)`（`projector.ts:94-114`）回冲 token/cost |
-| A1-6 | 绿 | `session/lifecycle.ts` 三个方法改为**只经 `events.publish`**：照 `GrantEvent.publish`（`grant/event.ts:29-50`）的 `(events, update, commit)` 范式，把父子递归清理与 `SessionContextEpoch.reset` 放进 `PublishOptions.commit(seq, tx)`（`event.ts:146`）—— 那是与 durable 事件同事务写本地投影的**唯一合法通道**（`event.ts:328`，且在 seq/event 行落库之前，失败整笔回滚） |
-| A1-7 | 绿 | 递归 child：复用 `SessionStore.children`（`session/store.ts:74-82`，现成读侧，V2 当前零调用）；删除前忙检查复用 `SessionExecution.isActive`（用法见 `session.ts:548`）与 `SessionBusyError`（`session.ts:150-152`） |
-| A1-8 | 绿 | 方案 P 才需要：在 lifecycle 内调 `events.remove(aggregateID)`（`event.ts:519-528`，注意它会把 sequence 复位到 -1）。方案 T 则**不调**，改为在 `create` 路径拒绝已有终态 `deleted` 的 aggregate |
-| A1-9 | 重构 | 从 `SessionV2.Interface`（`session.ts:232-234`）移除三个方法；加 §4.3 的结构门禁测试（扫 `packages/core/src` 禁止直写三张表） |
-| A1-10 | 门禁 | core 全量 `bun --cwd packages/core test --timeout 30000`；aigcfroge `test/server` 子集；两包 typecheck；增量 lint |
+| 步    | 类型 | 动作                                                                                                                                                                                                                                                                                                                                                                            |
+| ----- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1-1  | 红   | `packages/core/test/session-lifecycle-replay.test.ts`：照 `session-create.test.ts:253-336` 的**跨库 target sqlite + `replayAll`** 模板，写 `create → setTitle → removeMessage → remove → 同 ID 重建 → replay` 全链等价断言。预期红：当前 `remove` 不发事件，target 库重放后 session 行仍在                                                                                      |
+| A1-2  | 红   | 同文件补孤儿断言：建父子两 session，删父，断言 `store.children(parentID)` 为空且无 `parent_id` 指向已删 ID。预期红（`sql.ts:34` 无 FK）                                                                                                                                                                                                                                         |
+| A1-3  | 红   | 补「同 ID 复用被拒绝」（方案 T）或「同 ID 复用得到干净流」（方案 P）断言，按 ADR-22 落定的方案二选一                                                                                                                                                                                                                                                                            |
+| A1-4  | 绿   | `packages/core/src/session/event.ts` 新增三个 durable 定义：`session.next.deleted`、`session.next.renamed`、`session.next.message-removed`（`EventV2.define`，`durable: { version: 1, aggregate: "sessionID" }`），并**同步加入 `DurableDefinitions`**（`session/event.ts:553-585`）—— 漏加会被 `isDurableSessionEvent` 过滤掉，`SyntheticAdmitted` 就是现成的反面教材          |
+| A1-5  | 绿   | `session/projector.ts` 注册三个投影：deleted → `delete(SessionTable)`（复用 `:263-265` 形状）；renamed → 只改 `title` + `time_updated`（**不要**复用 `session.updated` 的全量 `sessionRow` 覆盖）；message-removed → 删 **`SessionMessageTable`**（当前**没有任何** projector 会删这张表）并复用 `applyUsage(db, sessionID, value, -1)`（`projector.ts:94-114`）回冲 token/cost |
+| A1-6  | 绿   | `session/lifecycle.ts` 三个方法改为**只经 `events.publish`**：照 `GrantEvent.publish`（`grant/event.ts:29-50`）的 `(events, update, commit)` 范式，把父子递归清理与 `SessionContextEpoch.reset` 放进 `PublishOptions.commit(seq, tx)`（`event.ts:146`）—— 那是与 durable 事件同事务写本地投影的**唯一合法通道**（`event.ts:328`，且在 seq/event 行落库之前，失败整笔回滚）      |
+| A1-7  | 绿   | 递归 child：复用 `SessionStore.children`（`session/store.ts:74-82`，现成读侧，V2 当前零调用）；删除前忙检查复用 `SessionExecution.isActive`（用法见 `session.ts:548`）与 `SessionBusyError`（`session.ts:150-152`）                                                                                                                                                             |
+| A1-8  | 绿   | 方案 P 才需要：在 lifecycle 内调 `events.remove(aggregateID)`（`event.ts:519-528`，注意它会把 sequence 复位到 -1）。方案 T 则**不调**，改为在 `create` 路径拒绝已有终态 `deleted` 的 aggregate                                                                                                                                                                                  |
+| A1-9  | 重构 | 从 `SessionV2.Interface`（`session.ts:232-234`）移除三个方法；加 §4.3 的结构门禁测试（扫 `packages/core/src` 禁止直写三张表）                                                                                                                                                                                                                                                   |
+| A1-10 | 门禁 | core 全量 `bun --cwd packages/core test --timeout 30000`；aigcfroge `test/server` 子集；两包 typecheck；增量 lint                                                                                                                                                                                                                                                               |
 
 ### 批次 A2 · Recovery 边界（Slice 2，估算 4–7 天，**前置 ADR-23**）
 
@@ -350,16 +350,16 @@ publish(:425-444)  补 Location(:427-432) + 生成 ID(:435)
 - **状态与 CAS 模板**：`WorkflowRun.recoverRunning`（`packages/core/src/workflow/workflow-run.ts:1167-1295`）。单事务内二分：**无 running step ⇒ 安全续接**（`dispatching → ready`，清 `time_started/completed`，`:1198-1219` 返回 `safe_dispatch`）；**有 running step ⇒ 冻结**（CAS `.where(and(eq(id), eq(status, current.status), eq(revision, claimedRevision)))` `:1231-1236`，写 `recovery_required` + `revision + 1`，`running → execution_unknown`）。状态枚举在 `packages/schema/src/workflow-asset.ts:31-40` / `:43-54` / `:67-79`，`recovery_required` 已在 `terminalRunStatuses`（`workflow-run.ts:328-334`）中属**不可变终态**。
 - **启动 sweep 模板**：`packages/core/src/session/scheduled-job.ts` 的 `recoverStaleClaims()`（`:203-215`，扫 `TaskTable` 里 `in_progress` 且无调度字段的行 → 走事件 + revision 的 `patch`）+ `arm(now, { recover })`（`:56-61`）+ `daemonLayer` 把 `startupSweep` 交给 `SchedulerCore.daemon`（`:225-235`），且 `daemonNode`（`:236`）**已接入** httpapi app 图（`httpapi/server.ts:338`）。**注意 WorkflowRun 的 `recoverRunning` 是懒触发（drain 循环内 `workflow-runner.ts:527-537`），不是启动 sweep；启动 sweep 只有 ScheduledJob 这一处先例。**
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| A2-1 | 红 | `packages/core/test/session-recovery.test.ts`：durable `session_input` 已 admit 未 drain ⇒ 启动 sweep 后按 prompt ID 去重续跑。预期红：当前**不存在**任何按 session 扫 pending inbox 的启动 sweep（`SessionInputTable` 定义在 `session/sql.ts:178-206`，消费在 `session/input.ts`） |
-| A2-2 | 红 | 同文件：provider 请求可能已发出但未 settlement ⇒ 状态落 `recovery_required` 且**不自动重试**。预期红 |
-| A2-3 | 绿 | `packages/schema` 加 Session 侧恢复状态取值（照 `workflow-asset.ts` 的 `Schema.Literals` 形状），含 `recovery_required` / `unknown_side_effect`；`server-dead` 属**进程级**事实，不入 session 行 |
-| A2-4 | 绿 | Session 侧 sweep：照 `scheduled-job.ts:203-215` 写 `recoverStaleSessions()`，经 `SchedulerCore.daemon` 的 `startupSweep` 接入（复用已在 app 图里的 `daemonNode`，**不新建 daemon**） |
-| A2-5 | 绿 | 副作用分级按路线图 §6.1 表落地：只读工具/边界可证 ⇒ 续跑；文件写入/shell/MCP/Plugin ⇒ 记录未知副作用 + 需人工确认。**不做** lease/fencing/CAS settlement |
-| A2-6 | 绿 | Desktop sidecar 监督（`packages/desktop/src/main/server.ts` + `index.ts`）：当前 `child.once("exit")`（`server.ts:98-103`）只做三件事（置 `exited`、resolve deferred、调 `options.onExit`），而 `index.ts:345` 的 `onExit` **只 `writeLog`**；`health.wait`（`server.ts:163-182`）只在启动期 race 一次、`healthy = true` 即结束，**无持续监控**；`forwardInitializationFailure`（`initialization.ts:3-6`）是**一次性 Deferred**，fail 后不可重置。本步只加「**可观测 + 安全重启**」：`server-dead` 终态 + 复用 `relaunch`（`index.ts:163-168`）。**不做自动 restart 循环**（sidecar 子进程 `start`/`stop` 两条命令都以 `process.exit()` 收尾，`main/sidecar.ts:41-81`，同进程无法二次 start） |
-| A2-7 | 绿 | 主进程 → renderer 的状态推送：**复用**既有两个订阅式先例的形状 —— WSL 的 `wsl-servers-subscribe` / `-get-state` / `-event`（`main/wsl/ipc.ts:26-42,91-95` + `preload/index.ts:17-39`）与 updater 的 `updater-subscribe` / `updater-state`（`main/ipc.ts:60-71`）。当前 renderer **只有** 一次性的 `awaitInitialization()`（`preload/types.ts:18-22`，`renderer/index.tsx:302` 用 `createResource` 消费一次），没有任何 health/status channel。本步只暴露状态，**不画 UI**（UI 归并行计划，见 §2.4 接缝 S2） |
-| A2-8 | 门禁 | core 相关子集 + `bun --cwd packages/desktop typecheck`；**故障注入**：按路线图 §10.1 至少覆盖场景 1/3/4/6（provider 前、settlement 前、`Tool.Called` 后、sidecar 退出而窗口仍在） |
+| 步   | 类型 | 动作                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A2-1 | 红   | `packages/core/test/session-recovery.test.ts`：durable `session_input` 已 admit 未 drain ⇒ 启动 sweep 后按 prompt ID 去重续跑。预期红：当前**不存在**任何按 session 扫 pending inbox 的启动 sweep（`SessionInputTable` 定义在 `session/sql.ts:178-206`，消费在 `session/input.ts`）                                                                                                                                                                                                                                                                                                                                                                                                           |
+| A2-2 | 红   | 同文件：provider 请求可能已发出但未 settlement ⇒ 状态落 `recovery_required` 且**不自动重试**。预期红                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| A2-3 | 绿   | `packages/schema` 加 Session 侧恢复状态取值（照 `workflow-asset.ts` 的 `Schema.Literals` 形状），含 `recovery_required` / `unknown_side_effect`；`server-dead` 属**进程级**事实，不入 session 行                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| A2-4 | 绿   | Session 侧 sweep：照 `scheduled-job.ts:203-215` 写 `recoverStaleSessions()`，经 `SchedulerCore.daemon` 的 `startupSweep` 接入（复用已在 app 图里的 `daemonNode`，**不新建 daemon**）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| A2-5 | 绿   | 副作用分级按路线图 §6.1 表落地：只读工具/边界可证 ⇒ 续跑；文件写入/shell/MCP/Plugin ⇒ 记录未知副作用 + 需人工确认。**不做** lease/fencing/CAS settlement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| A2-6 | 绿   | Desktop sidecar 监督（`packages/desktop/src/main/server.ts` + `index.ts`）：当前 `child.once("exit")`（`server.ts:98-103`）只做三件事（置 `exited`、resolve deferred、调 `options.onExit`），而 `index.ts:345` 的 `onExit` **只 `writeLog`**；`health.wait`（`server.ts:163-182`）只在启动期 race 一次、`healthy = true` 即结束，**无持续监控**；`forwardInitializationFailure`（`initialization.ts:3-6`）是**一次性 Deferred**，fail 后不可重置。本步只加「**可观测 + 安全重启**」：`server-dead` 终态 + 复用 `relaunch`（`index.ts:163-168`）。**不做自动 restart 循环**（sidecar 子进程 `start`/`stop` 两条命令都以 `process.exit()` 收尾，`main/sidecar.ts:41-81`，同进程无法二次 start） |
+| A2-7 | 绿   | 主进程 → renderer 的状态推送：**复用**既有两个订阅式先例的形状 —— WSL 的 `wsl-servers-subscribe` / `-get-state` / `-event`（`main/wsl/ipc.ts:26-42,91-95` + `preload/index.ts:17-39`）与 updater 的 `updater-subscribe` / `updater-state`（`main/ipc.ts:60-71`）。当前 renderer **只有** 一次性的 `awaitInitialization()`（`preload/types.ts:18-22`，`renderer/index.tsx:302` 用 `createResource` 消费一次），没有任何 health/status channel。本步只暴露状态，**不画 UI**（UI 归并行计划，见 §2.4 接缝 S2）                                                                                                                                                                                   |
+| A2-8 | 门禁 | core 相关子集 + `bun --cwd packages/desktop typecheck`；**故障注入**：按路线图 §10.1 至少覆盖场景 1/3/4/6（provider 前、settlement 前、`Tool.Called` 后、sidecar 退出而窗口仍在）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 ### 批次 A3 · Composition identity（Slice 3，估算 3–5 天，**前置 ADR-24**，可与 A2 并行）
 
@@ -367,13 +367,13 @@ publish(:425-444)  补 Location(:427-432) + 生成 ID(:435)
 
 **当前有三张 memoMap**（这是 F4 真正的风险点，不是「装配语言多」）：① 共享模块级（`packages/core/src/effect/memo-map.ts:3`，被 root 1 `app-runtime.ts:253` 与 root 2 `httpapi/server.ts:386` 与 `testEffectShared` 共用）；② **每个 `Server.listen()` 新建一张**（`server/server.ts:148`，注释 `:121-138` 自陈动因是 TaskDriver 的 `Context.Reference` 要求「每个 listener 自成 composition root」）；③ 每个 Location 一张（`location-layer.ts:280` 的 `Layer.fresh`）。同进程既跑 `AppRuntime.runPromise` 又跑 `Server.listen()` 的入口（CLI `serve`/`web`/`acp`、TUI worker）横跨 ①②。
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| A3-1 | 红 | `packages/core/test/composition-identity.test.ts`：照**唯一**现存 identity 探针 `permission-ask-bounds.test.ts:228-260`（手建 `Layer.makeMemoMapUnsafe()` + 两次 `Layer.buildWithMemoMap` + 跨句柄可见性断言）的写法，为 Database / EventV2 / SessionExecution / TaskDriver / ApprovalPresence 五个 owner 各写一条。**先按「必须共享」写死，让不共享的那些转红** |
-| A3-2 | 红 | `packages/aigcfroge/test/server/composition-identity.test.ts`：覆盖 instance/server/global 三面 + 两个 listener。复用 `test/server/httpapi-layer.ts` 的 `httpApiLayer` / `requestInDirectory`，以及 exerciser 的 `runtime()` 单例（`test/server/httpapi-exercise/runtime.ts:20-52` 同时持 `HttpApiApp` + `AppLayer` + 自有 memoMap，`runner.ts:70,116` 的 `buildWithMemoMap` 用法可直接抄） |
-| A3-3 | 绿 | 按 A3-1/A3-2 的红证据**逐个判定**：必须共享的（Database、EventV2、ApprovalPresence —— 后者已在 `httpapi/server.ts:163/:172/:245` 显式 provide 三次，注释 `:168-171` 明说必须是同一个 Layer 对象）修装配；必须按 Location 分离的（ToolRegistry、McpConnection 等）写成断言钉死。**不做**「唯一 composition root」重构 |
-| A3-4 | 绿 | 移除生产测试 seam：`SessionExecution.setBusySeamForTesting`（`session/execution.ts:23`，setter `:25-27`，读点 `:43` 与 `execution/local.ts:35-36`）。**根因**是 `test/server/httpapi-layer.ts` 用 `HttpApiApp.routes` 而**不 provide `AppLayer`**，而 root 2 里 SessionExecution 被 `Layer.provide` 藏在 `v2RuntimeLayer` 内部（`session/v2-runtime.ts:16-19`）、不出现在 route 的输出 context，于是 per-test Layer override 触不到它。修法：给测试装配开一个正规注入点，然后删 seam + 改唯一写点（`test/server/httpapi-custom-composition-upgrade.test.ts:162`/`:165`） |
-| A3-5 | 门禁 | core + aigcfroge 全量 test；三包 typecheck；`bun --cwd packages/aigcfroge test:httpapi`（coverage + auth 两条硬门禁） |
+| 步   | 类型 | 动作                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A3-1 | 红   | `packages/core/test/composition-identity.test.ts`：照**唯一**现存 identity 探针 `permission-ask-bounds.test.ts:228-260`（手建 `Layer.makeMemoMapUnsafe()` + 两次 `Layer.buildWithMemoMap` + 跨句柄可见性断言）的写法，为 Database / EventV2 / SessionExecution / TaskDriver / ApprovalPresence 五个 owner 各写一条。**先按「必须共享」写死，让不共享的那些转红**                                                                                                                                                                                                         |
+| A3-2 | 红   | `packages/aigcfroge/test/server/composition-identity.test.ts`：覆盖 instance/server/global 三面 + 两个 listener。复用 `test/server/httpapi-layer.ts` 的 `httpApiLayer` / `requestInDirectory`，以及 exerciser 的 `runtime()` 单例（`test/server/httpapi-exercise/runtime.ts:20-52` 同时持 `HttpApiApp` + `AppLayer` + 自有 memoMap，`runner.ts:70,116` 的 `buildWithMemoMap` 用法可直接抄）                                                                                                                                                                              |
+| A3-3 | 绿   | 按 A3-1/A3-2 的红证据**逐个判定**：必须共享的（Database、EventV2、ApprovalPresence —— 后者已在 `httpapi/server.ts:163/:172/:245` 显式 provide 三次，注释 `:168-171` 明说必须是同一个 Layer 对象）修装配；必须按 Location 分离的（ToolRegistry、McpConnection 等）写成断言钉死。**不做**「唯一 composition root」重构                                                                                                                                                                                                                                                     |
+| A3-4 | 绿   | 移除生产测试 seam：`SessionExecution.setBusySeamForTesting`（`session/execution.ts:23`，setter `:25-27`，读点 `:43` 与 `execution/local.ts:35-36`）。**根因**是 `test/server/httpapi-layer.ts` 用 `HttpApiApp.routes` 而**不 provide `AppLayer`**，而 root 2 里 SessionExecution 被 `Layer.provide` 藏在 `v2RuntimeLayer` 内部（`session/v2-runtime.ts:16-19`）、不出现在 route 的输出 context，于是 per-test Layer override 触不到它。修法：给测试装配开一个正规注入点，然后删 seam + 改唯一写点（`test/server/httpapi-custom-composition-upgrade.test.ts:162`/`:165`） |
+| A3-5 | 门禁 | core + aigcfroge 全量 test；三包 typecheck；`bun --cwd packages/aigcfroge test:httpapi`（coverage + auth 两条硬门禁）                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ---
 
@@ -381,16 +381,16 @@ publish(:425-444)  补 Location(:427-432) + 生成 ID(:435)
 
 ### 6.1 层级归属
 
-| 要验证的东西 | 层级 | 位置 | 说明 |
-| --- | --- | --- | --- |
-| lifecycle 事务语义、投影结果、重放等价 | 单测（`it.effect`） | `packages/core/test/session-lifecycle-*.test.ts` | 用 `testEffect()`，禁手写 runtime |
-| 跨库重放等价 | 单测 | 同上 | 复用 `session-create.test.ts:253-336` 的独立 target sqlite 模板 |
-| 父子孤儿 | 单测 | 同上 | 复用 `SessionStore.children` |
-| flag 门禁 / `kind` 信号 | 单测 + HTTP | core + `packages/aigcfroge/test/server/` | HTTP 层用 `httpapi-layer.ts` 的 `requestInDirectory`（真起服务） |
-| 恢复 sweep、副作用分级 | 单测（`it.live` 需真实 FS 时） | `packages/core/test/session-recovery.test.ts` | 禁 `Effect.sleep`，用 `pollWithTimeout` |
-| sidecar 死亡可观测 | typecheck + 手工场景 | `packages/desktop` | desktop 无单测（`docs/testing.md` §2），靠 typecheck + 故障注入手工记录 |
-| composition identity | 单测 | core + aigcfroge | 见 §5 A3-1/A3-2 |
-| 端点行为负例 | **必须写进 `test/server/*.test.ts`** | `packages/aigcfroge/test/server/` | **不能只放 exerciser**：`--mode coverage` 从不发请求（`routing.ts:36` 无条件返回 pass），把期望状态改成 `.json(599)` 依然 PASS；`--mode effect` 有 `continue-on-error: true`（`test.yml:83-88`） |
+| 要验证的东西                           | 层级                                 | 位置                                             | 说明                                                                                                                                                                                             |
+| -------------------------------------- | ------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| lifecycle 事务语义、投影结果、重放等价 | 单测（`it.effect`）                  | `packages/core/test/session-lifecycle-*.test.ts` | 用 `testEffect()`，禁手写 runtime                                                                                                                                                                |
+| 跨库重放等价                           | 单测                                 | 同上                                             | 复用 `session-create.test.ts:253-336` 的独立 target sqlite 模板                                                                                                                                  |
+| 父子孤儿                               | 单测                                 | 同上                                             | 复用 `SessionStore.children`                                                                                                                                                                     |
+| flag 门禁 / `kind` 信号                | 单测 + HTTP                          | core + `packages/aigcfroge/test/server/`         | HTTP 层用 `httpapi-layer.ts` 的 `requestInDirectory`（真起服务）                                                                                                                                 |
+| 恢复 sweep、副作用分级                 | 单测（`it.live` 需真实 FS 时）       | `packages/core/test/session-recovery.test.ts`    | 禁 `Effect.sleep`，用 `pollWithTimeout`                                                                                                                                                          |
+| sidecar 死亡可观测                     | typecheck + 手工场景                 | `packages/desktop`                               | desktop 无单测（`docs/testing.md` §2），靠 typecheck + 故障注入手工记录                                                                                                                          |
+| composition identity                   | 单测                                 | core + aigcfroge                                 | 见 §5 A3-1/A3-2                                                                                                                                                                                  |
+| 端点行为负例                           | **必须写进 `test/server/*.test.ts`** | `packages/aigcfroge/test/server/`                | **不能只放 exerciser**：`--mode coverage` 从不发请求（`routing.ts:36` 无条件返回 pass），把期望状态改成 `.json(599)` 依然 PASS；`--mode effect` 有 `continue-on-error: true`（`test.yml:83-88`） |
 
 ### 6.2 命令（每条都要在 PR 里写真实结果，不许写「应该通过」）
 
@@ -423,18 +423,18 @@ bun ./packages/sdk/js/script/build.ts && git diff --stat -- packages/sdk
 
 ### 7.1 新增
 
-| 文件 | 用途 |
-| --- | --- |
-| `docs/architecture/adr/ADR-22-session-lifecycle-semantics.md` | purge vs tombstone、父子递归、ID 复用、事件/投影等价 |
-| `docs/architecture/adr/ADR-23-execution-crash-recovery.md` | recovery_required、外部副作用分级、at-least-once 边界 |
-| `docs/architecture/adr/ADR-24-composition-scopes.md` | process/location/session scope、memoMap 数量、唯一 root 的**目标**（本计划不实施） |
-| `packages/core/src/session/lifecycle.ts` | 唯一 Session lifecycle command owner |
-| `packages/core/test/session-lifecycle-gate.test.ts` | A0 flag 门禁 + `kind` 信号 |
-| `packages/core/test/session-lifecycle-replay.test.ts` | 重放等价 + 孤儿 + ID 复用 |
-| `packages/core/test/session-lifecycle-boundary.test.ts` | §4.3 结构门禁（禁止直写三张表） |
-| `packages/core/test/session-recovery.test.ts` | sweep + 副作用分级 |
-| `packages/core/test/composition-identity.test.ts` | 五个 owner 的 identity probe |
-| `packages/aigcfroge/test/server/composition-identity.test.ts` | 三面 + 两 listener |
+| 文件                                                          | 用途                                                                               |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `docs/architecture/adr/ADR-22-session-lifecycle-semantics.md` | purge vs tombstone、父子递归、ID 复用、事件/投影等价                               |
+| `docs/architecture/adr/ADR-23-execution-crash-recovery.md`    | recovery_required、外部副作用分级、at-least-once 边界                              |
+| `docs/architecture/adr/ADR-24-composition-scopes.md`          | process/location/session scope、memoMap 数量、唯一 root 的**目标**（本计划不实施） |
+| `packages/core/src/session/lifecycle.ts`                      | 唯一 Session lifecycle command owner                                               |
+| `packages/core/test/session-lifecycle-gate.test.ts`           | A0 flag 门禁 + `kind` 信号                                                         |
+| `packages/core/test/session-lifecycle-replay.test.ts`         | 重放等价 + 孤儿 + ID 复用                                                          |
+| `packages/core/test/session-lifecycle-boundary.test.ts`       | §4.3 结构门禁（禁止直写三张表）                                                    |
+| `packages/core/test/session-recovery.test.ts`                 | sweep + 副作用分级                                                                 |
+| `packages/core/test/composition-identity.test.ts`             | 五个 owner 的 identity probe                                                       |
+| `packages/aigcfroge/test/server/composition-identity.test.ts` | 三面 + 两 listener                                                                 |
 
 ### 7.2 修改（**全部落在本计划的所有权范围内**）
 
@@ -449,29 +449,29 @@ bun ./packages/sdk/js/script/build.ts && git diff --stat -- packages/sdk
 
 ## 8. 风险与缓解
 
-| 风险 | 表现 | 缓解 |
-| --- | --- | --- |
-| ADR-22 迟迟不决 | A1 卡住，A0 的门一直开着 | A0 与 A1 拆成两个 PR，A0 先合；门关上后即使 A1 延后也不再产生坏数据 |
-| 方案 T 导致事件表无界增长 | 长期磁盘占用 | §10-1 显式登记债；参考 grant 的 `prune` 形状另立保留策略专项 |
-| 移除 `SessionV2` 三方法破坏未知调用面 | 编译错误在别的包 | 先用 codegraph `impact` 量影响面，再动；`shouldUseV2Runtime` 的 14 个调用点全在 `handlers/session.ts`，面是收敛的 |
-| 恢复语义被误宣传 | 文案出现「自动恢复」 | §0.3 措辞禁令 + PR 模板自检项 |
-| identity probe 结论推翻装配假设 | A3-3 范围膨胀 | A3 只允许「修必须共享的」+「钉死必须分离的」；重构留给 ADR-24 之后的专项 |
-| 与并行 UX 分支冲突 | 合并冲突 | §2.5 三条自检；越界即打回 |
-| 桌面改动无单测兜底 | 回归无拦截 | 故障注入场景手工记录 + `desktop typecheck`；并行计划的 e2e 覆盖 UI 侧 |
+| 风险                                  | 表现                     | 缓解                                                                                                              |
+| ------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| ADR-22 迟迟不决                       | A1 卡住，A0 的门一直开着 | A0 与 A1 拆成两个 PR，A0 先合；门关上后即使 A1 延后也不再产生坏数据                                               |
+| 方案 T 导致事件表无界增长             | 长期磁盘占用             | §10-1 显式登记债；参考 grant 的 `prune` 形状另立保留策略专项                                                      |
+| 移除 `SessionV2` 三方法破坏未知调用面 | 编译错误在别的包         | 先用 codegraph `impact` 量影响面，再动；`shouldUseV2Runtime` 的 14 个调用点全在 `handlers/session.ts`，面是收敛的 |
+| 恢复语义被误宣传                      | 文案出现「自动恢复」     | §0.3 措辞禁令 + PR 模板自检项                                                                                     |
+| identity probe 结论推翻装配假设       | A3-3 范围膨胀            | A3 只允许「修必须共享的」+「钉死必须分离的」；重构留给 ADR-24 之后的专项                                          |
+| 与并行 UX 分支冲突                    | 合并冲突                 | §2.5 三条自检；越界即打回                                                                                         |
+| 桌面改动无单测兜底                    | 回归无拦截               | 故障注入场景手工记录 + `desktop typecheck`；并行计划的 e2e 覆盖 UI 侧                                             |
 
 ---
 
 ## 9. 验收标准与发布门禁映射
 
-| 门禁（路线图 §10） | 本计划的验收证据 | 是否本计划关闭 |
-| --- | --- | --- |
-| 数据一致性 | `create → rename → message delete → session delete → ID reuse → replay` 单测全绿；孤儿计数 0 | ✅ 关闭 |
-| 崩溃恢复 | 场景 1/3/4/6 有记录；未知副作用不自动重放；出现可解释 `recovery_required` | ⚠️ 只关闭「最小诚实恢复」，durable attempt/fencing 仍开放 |
-| Composition | 五个 owner 的 identity probe 全绿；Location 服务不跨域泄漏 | ✅ 关闭「有证据」，不关闭「唯一 root」 |
-| API 迁移 | 不在本计划（Slice 4） | ❌ |
-| 安全 | 不在本计划（Slice 6） | ❌ |
-| 性能 | 不在本计划 | ❌ |
-| 工程 | 受影响包 typecheck/test/lint 全绿；无无关 diff | ✅ |
+| 门禁（路线图 §10） | 本计划的验收证据                                                                             | 是否本计划关闭                                            |
+| ------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 数据一致性         | `create → rename → message delete → session delete → ID reuse → replay` 单测全绿；孤儿计数 0 | ✅ 关闭                                                   |
+| 崩溃恢复           | 场景 1/3/4/6 有记录；未知副作用不自动重放；出现可解释 `recovery_required`                    | ⚠️ 只关闭「最小诚实恢复」，durable attempt/fencing 仍开放 |
+| Composition        | 五个 owner 的 identity probe 全绿；Location 服务不跨域泄漏                                   | ✅ 关闭「有证据」，不关闭「唯一 root」                    |
+| API 迁移           | 不在本计划（Slice 4）                                                                        | ❌                                                        |
+| 安全               | 不在本计划（Slice 6）                                                                        | ❌                                                        |
+| 性能               | 不在本计划                                                                                   | ❌                                                        |
+| 工程               | 受影响包 typecheck/test/lint 全绿；无无关 diff                                               | ✅                                                        |
 
 **本计划完成后仍然阻断的事项**：`AIGCFROGE_V2_RUNTIME` 默认翻转（缺 Slice 4 逐端点矩阵）、企业/合规发行（缺 Slice 6）、"crash-safe / 自动恢复 / encrypted-at-rest" 任何表述。
 
@@ -505,13 +505,13 @@ git commit -m "docs: land V2 roadmaps, two implementation plans, and calibrate s
 
 该提交包含的**事实校准**（均已实测，非引用）：
 
-| 文件 | 原状 | 校准为 |
-| --- | --- | --- |
-| `docs/technical-debt.md` §0/§3 | M3「合入本地 `main`（未推送），待开 PR」 | 已合入 `origin/main`（PR #52/#54/#56/#58/#60；`4278b45f7` 已是 `main` 祖先） |
-| `docs/technical-debt.md` §5 两行 | `workflow-surface`「未提交」、`scoped-grants`「待复审合入」 | 均已合入（后者以 `permission-ask-bounds.test.ts` 存在于 `main` 核实） |
-| `DESIGN.md:4` | scope 含 `packages/enterprise/` 与「`packages/web/` 是 Astro 站点」 | `packages/web/` **不存在**；`packages/enterprise/` **不是** workspace 包（无 `package.json`，仅 1 个被跟踪的遗留文件，不在任何 `tsconfig`/`turbo` 图内） |
-| `ARCHITECTURE.md` §4.10 | 「四值集合仍是当前实现契约」「M0 Phase B 落地前不得视 `custom` 为运行时值」 | `ProductMode.ID` 已是**五值**联合；ADR-17 M0–M3 已合入；运行时由 `AIGCFROGE_CUSTOM_MODE` **opt-in 默认关**门控 |
-| `docs/architecture/system-blueprint.md` §9/§10 | Custom 列为「未实现规划」；§10 声称 **21 包**并列出 `cli`/`function`/`slack`/`web`/`enterprise` 五个不存在的包 | Custom 移出规划；§10 **删除重复拓扑副本**，改为指向 workspace manifest 与 `ARCHITECTURE.md` §3 单一真源（极致减法：删除而非维护第二份） |
+| 文件                                           | 原状                                                                                                           | 校准为                                                                                                                                                   |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/technical-debt.md` §0/§3                 | M3「合入本地 `main`（未推送），待开 PR」                                                                       | 已合入 `origin/main`（PR #52/#54/#56/#58/#60；`4278b45f7` 已是 `main` 祖先）                                                                             |
+| `docs/technical-debt.md` §5 两行               | `workflow-surface`「未提交」、`scoped-grants`「待复审合入」                                                    | 均已合入（后者以 `permission-ask-bounds.test.ts` 存在于 `main` 核实）                                                                                    |
+| `DESIGN.md:4`                                  | scope 含 `packages/enterprise/` 与「`packages/web/` 是 Astro 站点」                                            | `packages/web/` **不存在**；`packages/enterprise/` **不是** workspace 包（无 `package.json`，仅 1 个被跟踪的遗留文件，不在任何 `tsconfig`/`turbo` 图内） |
+| `ARCHITECTURE.md` §4.10                        | 「四值集合仍是当前实现契约」「M0 Phase B 落地前不得视 `custom` 为运行时值」                                    | `ProductMode.ID` 已是**五值**联合；ADR-17 M0–M3 已合入；运行时由 `AIGCFROGE_CUSTOM_MODE` **opt-in 默认关**门控                                           |
+| `docs/architecture/system-blueprint.md` §9/§10 | Custom 列为「未实现规划」；§10 声称 **21 包**并列出 `cli`/`function`/`slack`/`web`/`enterprise` 五个不存在的包 | Custom 移出规划；§10 **删除重复拓扑副本**，改为指向 workspace manifest 与 `ARCHITECTURE.md` §3 单一真源（极致减法：删除而非维护第二份）                  |
 
 > **顺带纠正路线图自身的一处误判**：架构路线图 F7 把包数漂移归给 `ARCHITECTURE.md:68-113`，但实测 `ARCHITECTURE.md` 的「17 包」是**正确**的；真正漂移的是 `system-blueprint.md:139-141` 的「21 包」。已按根因修在后者。
 

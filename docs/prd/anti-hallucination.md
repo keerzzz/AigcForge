@@ -26,15 +26,15 @@
 
 ## 3. 架构前提
 
-| 决策 | 当前状态 | 本 PRD 处理 |
-|---|---|---|
-| doom_loop V2 检测器 | ✅ 已合入 main | 复用其 Service + Layer + runner settleTool 集成模式 |
-| Memory 服务（meta_agent_memory） | ✅ 已合入 main | 跨会话持久记忆，与本 PRD 的 session-scoped 纠正库互补 |
-| SystemContext 管道 | ✅ 已就绪 | 纠正库注入走 update 通道（不破坏前缀缓存） |
-| lifecycle-hooks | ✅ 已注册 | 插件扩展点，内置验证不挂此处（PostToolUseHook 返回 void） |
-| PermissionV2 审批网络 | ✅ 已运行 | HITL 防线已有，不新建通道 |
-| judge 仲裁（judgeMerge） | ✅ 已有 | PGE L1 路由复用 |
-| task 委派（delegateJudge） | ✅ 已有 | PGE L2 路由复用 |
+| 决策                             | 当前状态       | 本 PRD 处理                                               |
+| -------------------------------- | -------------- | --------------------------------------------------------- |
+| doom_loop V2 检测器              | ✅ 已合入 main | 复用其 Service + Layer + runner settleTool 集成模式       |
+| Memory 服务（meta_agent_memory） | ✅ 已合入 main | 跨会话持久记忆，与本 PRD 的 session-scoped 纠正库互补     |
+| SystemContext 管道               | ✅ 已就绪      | 纠正库注入走 update 通道（不破坏前缀缓存）                |
+| lifecycle-hooks                  | ✅ 已注册      | 插件扩展点，内置验证不挂此处（PostToolUseHook 返回 void） |
+| PermissionV2 审批网络            | ✅ 已运行      | HITL 防线已有，不新建通道                                 |
+| judge 仲裁（judgeMerge）         | ✅ 已有        | PGE L1 路由复用                                           |
+| task 委派（delegateJudge）       | ✅ 已有        | PGE L2 路由复用                                           |
 
 ## 4. 目标与非目标
 
@@ -113,13 +113,13 @@
 
 ```ts
 interface CorrectionEntry {
-  key: string           // "function:foo:signature" / "import:module-X"
-  correct: string       // 正确值（注入用）
-  wrong?: string        // 错误值（拦截匹配用，可空）
+  key: string // "function:foo:signature" / "import:module-X"
+  correct: string // 正确值（注入用）
+  wrong?: string // 错误值（拦截匹配用，可空）
   source: "reference-checker" | "verifier" | "user-correction" | "permission-corrected"
-  extractLayer: 1 | 2 | 3  // 提取层级
-  turnCreated: number   // TTL 计算用
-  confirmed?: boolean   // 验证成功标记
+  extractLayer: 1 | 2 | 3 // 提取层级
+  turnCreated: number // TTL 计算用
+  confirmed?: boolean // 验证成功标记
 }
 ```
 
@@ -137,20 +137,20 @@ interface CorrectionEntry {
       "timeout_ms": 60000,
       "max_consecutive_failures": 2,
       "escalation_enabled": false,
-      "escalation_threshold": 2
+      "escalation_threshold": 2,
     },
-    "reverse_refs": { "enabled": false }
-  }
+    "reverse_refs": { "enabled": false },
+  },
 }
 ```
 
 ### 7.3 EventV2 新事件
 
-| 事件类型 | 触发 | 数据 |
-|---|---|---|
-| `session.next.verify.started` | 验证执行器开始 | sessionID, package, command |
-| `session.next.verify.passed` | typecheck 通过 | sessionID, package, duration |
-| `session.next.verify.failed` | typecheck 失败 | sessionID, package, errorSummary, proseMessage |
+| 事件类型                      | 触发           | 数据                                           |
+| ----------------------------- | -------------- | ---------------------------------------------- |
+| `session.next.verify.started` | 验证执行器开始 | sessionID, package, command                    |
+| `session.next.verify.passed`  | typecheck 通过 | sessionID, package, duration                   |
+| `session.next.verify.failed`  | typecheck 失败 | sessionID, package, errorSummary, proseMessage |
 
 ### 7.4 敏感模式黑名单
 
@@ -167,56 +167,56 @@ api[_-]?key\s*[=:]            # API key
 
 ## 8. 安全边界与权限授权
 
-| 边界 | 规则 |
-|---|---|
-| **敏感内容** | 白名单提取（只存技术模式）+ 黑名单拒绝（API key/token/password）+ L3 脱敏（原文扫描）+ 不用 LLM 脱敏 |
-| **拦截力度** | advisory 不 blocking（不阻止工具执行，只追加 warning） |
-| **TTL** | L1 检测器 10 轮后退出拦截；L2 用户纠正不过期；L3 原文 5 轮后移除 |
-| **容量** | FIFO 20 条/session |
-| **会话范围** | Location-scoped + SessionID 键控，父子会话不共享 |
-| **缓存** | 正常轮次零影响（走 update 通道）；compaction 后随 compaction break |
-| **Clean Logs** | 纠正库内容不包含敏感值（机械扫描在写入前完成） |
+| 边界           | 规则                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| **敏感内容**   | 白名单提取（只存技术模式）+ 黑名单拒绝（API key/token/password）+ L3 脱敏（原文扫描）+ 不用 LLM 脱敏 |
+| **拦截力度**   | advisory 不 blocking（不阻止工具执行，只追加 warning）                                               |
+| **TTL**        | L1 检测器 10 轮后退出拦截；L2 用户纠正不过期；L3 原文 5 轮后移除                                     |
+| **容量**       | FIFO 20 条/session                                                                                   |
+| **会话范围**   | Location-scoped + SessionID 键控，父子会话不共享                                                     |
+| **缓存**       | 正常轮次零影响（走 update 通道）；compaction 后随 compaction break                                   |
+| **Clean Logs** | 纠正库内容不包含敏感值（机械扫描在写入前完成）                                                       |
 
 ## 9. 智能体边界
 
-| 机制 | 所有智能体 | 仅元智能体 |
-|---|---|---|
-| CorrectionStore（记录/拦截/注入） | ✅ | - |
-| 引用校验器 | ✅ | - |
-| 验证执行器 | ✅ | - |
-| 反向引用注入 | ✅ | - |
-| PGE L0 机械验证 | ✅ | - |
-| PGE L1 judgeMerge | - | ✅ |
-| PGE L2 delegateJudge | - | ✅ |
+| 机制                              | 所有智能体 | 仅元智能体 |
+| --------------------------------- | ---------- | ---------- |
+| CorrectionStore（记录/拦截/注入） | ✅         | -          |
+| 引用校验器                        | ✅         | -          |
+| 验证执行器                        | ✅         | -          |
+| 反向引用注入                      | ✅         | -          |
+| PGE L0 机械验证                   | ✅         | -          |
+| PGE L1 judgeMerge                 | -          | ✅         |
+| PGE L2 delegateJudge              | -          | ✅         |
 
 ## 10. 里程碑与演进规划
 
-| 阶段 | 内容 | 预估 | 依赖 |
-|---|---|---|---|
-| 0 | CorrectionStore Service + 用户纠正提取 + 敏感安全 | 3-4 天 | 无 |
-| A | 引用完整性校验器 | 2-3 天 | 阶段 0 |
-| B | 验证执行器 + 散文报错 | 5-8 天 | 阶段 0 |
-| C | 反向引用注入 | 3-4 天 | 无（可与 A/B 并行） |
-| D | PGE 动态路由 | 4-6 天 | 阶段 B |
+| 阶段 | 内容                                              | 预估   | 依赖                |
+| ---- | ------------------------------------------------- | ------ | ------------------- |
+| 0    | CorrectionStore Service + 用户纠正提取 + 敏感安全 | 3-4 天 | 无                  |
+| A    | 引用完整性校验器                                  | 2-3 天 | 阶段 0              |
+| B    | 验证执行器 + 散文报错                             | 5-8 天 | 阶段 0              |
+| C    | 反向引用注入                                      | 3-4 天 | 无（可与 A/B 并行） |
+| D    | PGE 动态路由                                      | 4-6 天 | 阶段 B              |
 
 详细实施见 [实施计划 v3](../plan/anti-hallucination-implementation.md)。
 
 ## 11. 成功指标与埋点
 
-| 指标 | 测量方式 | 目标 |
-|---|---|---|
-| 悬空引用检测率 | 引用校验器触发的次数 / 工具调用次数 | 覆盖所有 edit/write/apply_patch/bash 调用 |
-| typecheck 拦截率 | verify.failed 事件 / code_modification turns | 及时发现类型错误 |
-| 纠正重犯率 | advisory 拦截触发次数 / 纠正总数 | 趋势下降（模型逐步内化纠正） |
-| compaction 后纠正存活率 | compaction 后 baseline 含纠正条目数 / compaction 前总数 | 100%（设计保证） |
-| 敏感内容泄漏 | CorrectionStore 中黑名单命中次数 | 0（拒绝存储） |
-| 前缀缓存命中率 | CacheShape 诊断（correction_store enabled vs disabled） | 无差异（设计保证） |
+| 指标                    | 测量方式                                                | 目标                                      |
+| ----------------------- | ------------------------------------------------------- | ----------------------------------------- |
+| 悬空引用检测率          | 引用校验器触发的次数 / 工具调用次数                     | 覆盖所有 edit/write/apply_patch/bash 调用 |
+| typecheck 拦截率        | verify.failed 事件 / code_modification turns            | 及时发现类型错误                          |
+| 纠正重犯率              | advisory 拦截触发次数 / 纠正总数                        | 趋势下降（模型逐步内化纠正）              |
+| compaction 后纠正存活率 | compaction 后 baseline 含纠正条目数 / compaction 前总数 | 100%（设计保证）                          |
+| 敏感内容泄漏            | CorrectionStore 中黑名单命中次数                        | 0（拒绝存储）                             |
+| 前缀缓存命中率          | CacheShape 诊断（correction_store enabled vs disabled） | 无差异（设计保证）                        |
 
 ## 12. 灰度、回滚与监控
 
 - **灰度**：所有机制默认 enabled（除 reverse_refs 和 escalation_enabled 默认 false）。可通过 config 逐项关闭。
 - **回滚**：每项机制独立 config 开关，关闭后零影响（CorrectionStore 不注入、引用校验跳过、验证执行器跳过）。
-- **监控**：EventV2 verify.* 事件 + CacheShape 诊断 + CorrectionStore 容量日志。
+- **监控**：EventV2 verify.\* 事件 + CacheShape 诊断 + CorrectionStore 容量日志。
 
 ## 13. 验收与测试
 
@@ -232,21 +232,21 @@ api[_-]?key\s*[=:]            # API key
 
 ## 14. 开放问题与应对
 
-| 问题 | 当前决策 | 触发重新评估的条件 |
-|---|---|---|
-| L4 模型主动记录工具是否需要 | 暂不实施 | 用户反馈纠正覆盖率不足（L1-L3 覆盖率 < 70%） |
-| 跨会话纠正共享 | 不做 | 委派场景中子会话重复父会话错误成为高频问题 |
-| 散文映射表覆盖范围 | 静态映射表（3 条初始） | 未匹配率 > 30% 时扩展 |
-| advisory 拦截是否升级为 blocking | advisory | 模型忽略 advisory 且重犯率 > 50% 时考虑 |
-| 纠正条目数上限 20 是否足够 | 20 条 FIFO | 长会话中纠正驱逐率 > 20% 时调整 |
+| 问题                             | 当前决策               | 触发重新评估的条件                           |
+| -------------------------------- | ---------------------- | -------------------------------------------- |
+| L4 模型主动记录工具是否需要      | 暂不实施               | 用户反馈纠正覆盖率不足（L1-L3 覆盖率 < 70%） |
+| 跨会话纠正共享                   | 不做                   | 委派场景中子会话重复父会话错误成为高频问题   |
+| 散文映射表覆盖范围               | 静态映射表（3 条初始） | 未匹配率 > 30% 时扩展                        |
+| advisory 拦截是否升级为 blocking | advisory               | 模型忽略 advisory 且重犯率 > 50% 时考虑      |
+| 纠正条目数上限 20 是否足够       | 20 条 FIFO             | 长会话中纠正驱逐率 > 20% 时调整              |
 
 ## 15. 批准 Gate
 
-| Gate | 条件 | 状态 |
-|---|---|---|
-| G0 理论源 | 调研文档 §0-§9 定案 | ✅ |
-| G1 前置计划 | 波次 1a/1b 已合入 main | ✅ |
-| G2 复用确认 | 全部复用现有 Service/Layer/管道 | ✅ |
-| G3 智能体边界 | 阶段 0/A/B/C 全智能体，D 元智能体 | ✅ |
-| G4 安全边界 | 白名单+黑名单+L3 脱敏+不用 LLM 脱敏 | ✅ |
-| G5 缓存影响 | 正常轮次零影响，compaction 随 break | ✅ |
+| Gate          | 条件                                | 状态 |
+| ------------- | ----------------------------------- | ---- |
+| G0 理论源     | 调研文档 §0-§9 定案                 | ✅   |
+| G1 前置计划   | 波次 1a/1b 已合入 main              | ✅   |
+| G2 复用确认   | 全部复用现有 Service/Layer/管道     | ✅   |
+| G3 智能体边界 | 阶段 0/A/B/C 全智能体，D 元智能体   | ✅   |
+| G4 安全边界   | 白名单+黑名单+L3 脱敏+不用 LLM 脱敏 | ✅   |
+| G5 缓存影响   | 正常轮次零影响，compaction 随 break | ✅   |

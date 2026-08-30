@@ -55,6 +55,7 @@ grep -n "queryKey.*mode\|loadSessions" packages/app/src/pages/home.tsx | head -1
 ```
 
 **关键发现**：
+
 - `app.tsx:556` 当前：`<Show when={selected()}><Home /></Show>`
 - `home.tsx:193` queryKey 含 `mode.currentMode` → 切模式触发 session 列表重取
 - `mode-surfaces.tsx:20-23`：`ModeSurface = { Sidebar, RightPanel }` — **没有 `Main` 字段**
@@ -85,6 +86,7 @@ grep -n "queryKey.*mode\|loadSessions" packages/app/src/pages/home.tsx | head -1
 **测试**：`packages/app/test/mode-route.test.tsx`（新增）— `/mode/chat` DOM 含 `data-mode-workspace`，URL 停留 `/mode/chat`；切 `/mode/coding` 时 currentMode 变 "coding" 不 redirect
 
 **实现**：
+
 - `packages/app/src/pages/mode-workspace.tsx`（新建）— 空壳 `<div data-mode-workspace>`
 - `packages/app/src/app.tsx:556` — `<Home />` → `<ModeWorkspace />`
 
@@ -117,11 +119,13 @@ grep -n "queryKey.*mode\|loadSessions" packages/app/src/pages/home.tsx | head -1
 ### Step 4 — slot 不 remount（上提 resource + 替换 Dynamic）
 
 **测试**：
+
 - 切 /mode/chat→/mode/coding→/mode/chat，`createResource` spy 验证 asset.list call count = 1
 - SecondarySidebar slot 组件 onMount 不重新执行
 - RightPanel slot 组件 onMount 不重新执行
 
 **实现**：
+
 - `mode-workspace.tsx`：用 `createContext` 做 provider，持有 asset `createResource`，通过 `createMemo` 按 `mode.currentMode` 惰性触发——只在 chat 时才实际 fetch。slot 内仅消费 context accessor，不自己调 `createResource`
 - `secondary-sidebar.tsx:664`：`<Dynamic>` → render-all + display:none
 - `session-side-panel.tsx:480`：`<Dynamic>` → render-all + display:none
@@ -135,12 +139,14 @@ grep -n "queryKey.*mode\|loadSessions" packages/app/src/pages/home.tsx | head -1
 ### Step 5 — Home 并入 ModeWorkspace + Chat 主区=资产工作台
 
 **测试**：
+
 - `/mode/chat` 主区 = AssetWorkbenchTable（DOM 标识）
 - `HomeModeCards` 已从 DOM 消失
 - `/mode/coding` 主区 = session list（回归不破）
 - ModeSwitcher 是唯一模式入口
 
 **实现**：
+
 1. `mode-surfaces.tsx` — `ModeSurface` 加 `Main: Component` 字段
 2. `MODE_SURFACES` 注册 — `chat: { Sidebar: ChatFeatureSidebar, RightPanel: ChatRightPanel, Main: ChatAssetWorkbenchMain }` / `coding: { Sidebar: HomeProjectColumn, RightPanel: SessionSidePanel, Main: CodingSessionListMain }`
 3. `ModeWorkspace` — render-all + display:none 切换 Sidebar + Main slot
@@ -165,10 +171,12 @@ grep -n "queryKey.*mode\|loadSessions" packages/app/src/pages/home.tsx | head -1
 ### Step 7 — sessionLoad queryKey + queryFn 去 mode
 
 **测试**：
+
 - sessionLoad queryKey 不含 `mode.currentMode`（spy 验证不重取）
 - records memo 切 chat 只显示 chat session、切 coding 只显示 coding session
 
 **实现**：
+
 - `home.tsx:193`（或 `CodingSessionListMain`）— queryKey 去掉 `mode.currentMode`
 - `loadSessions` 调用去掉 `mode` 入参
 - 确认 `records` memo 保留按 mode 过滤逻辑
@@ -189,6 +197,7 @@ bun run lint
 ```
 
 浏览器：
+
 - /mode/chat → AssetWorkbenchTable 主区
 - /mode/coding → session list 主区
 - 模式切换无闪烁

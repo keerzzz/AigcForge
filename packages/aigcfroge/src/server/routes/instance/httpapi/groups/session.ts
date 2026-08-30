@@ -20,7 +20,14 @@ import {
   WorkspaceRoutingQuery,
   WorkspaceRoutingQueryFields,
 } from "../middleware/workspace-routing"
-import { ApiNotFoundError, ConflictError, PermissionNotFoundError, SessionBusyError, InvalidRequestError, UnsupportedProductModeError } from "../errors"
+import {
+  ApiNotFoundError,
+  ConflictError,
+  PermissionNotFoundError,
+  SessionBusyError,
+  InvalidRequestError,
+  UnsupportedProductModeError,
+} from "../errors"
 import { described } from "./metadata"
 import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@aigcfroge/core/provider"
@@ -349,7 +356,8 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "session.create",
             summary: "Create session",
-            description: "Create a new Aigcfroge session for interacting with AI assistants and managing conversations.",
+            description:
+              "Create a new Aigcfroge session for interacting with AI assistants and managing conversations.",
           }),
         ),
         HttpApiEndpoint.delete("remove", SessionPaths.remove, {
@@ -713,7 +721,8 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "session.workflow.cancelStep",
             summary: "Cancel session workflow step",
-            description: "Explicitly cancel a single step run under run and step revision CAS without triggering automatic retry.",
+            description:
+              "Explicitly cancel a single step run under run and step revision CAS without triggering automatic retry.",
           }),
         ),
         HttpApiEndpoint.post("workflowRetryStep", SessionPaths.workflowRetryStep, {

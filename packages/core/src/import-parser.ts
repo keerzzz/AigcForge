@@ -1,17 +1,12 @@
 export * as ImportParser from "./import-parser"
 
 import { Context, Effect, Layer } from "effect"
-import {
-  ImportParser as SchemaImportParser,
-} from "@aigcfroge/schema/import-parser"
+import { ImportParser as SchemaImportParser } from "@aigcfroge/schema/import-parser"
 
 // -- Service interface --
 
 export interface Interface {
-  readonly parse: (
-    input: string,
-    options?: { readonly maxBytes?: number },
-  ) => Effect.Effect<SchemaImportParser.Result>
+  readonly parse: (input: string, options?: { readonly maxBytes?: number }) => Effect.Effect<SchemaImportParser.Result>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ImportParser") {}
@@ -31,7 +26,7 @@ const MAX_CANDIDATE_BYTES = 100_000
  */
 const MAX_BYTES = 200 * 1024
 
-const fencedCodeBlock = /^(`{3,}|~{3,})([^\s\n]*)[^\n]*\n([\s\S]*?)\n?\1/mg
+const fencedCodeBlock = /^(`{3,}|~{3,})([^\s\n]*)[^\n]*\n([\s\S]*?)\n?\1/gm
 
 interface ExtractedBlock {
   readonly lang: string
@@ -152,7 +147,10 @@ function inferKind(lang: string, blockContent: string): string {
     if (/\bkind:\s*workflow\b/.test(content) || /^\s*steps:/m.test(content)) {
       return "workflow"
     }
-    if (/\bkind:\s*plugin\b/.test(content) || (/^\s*name:\s*\S/m.test(content) && (/^\s*hooks:/m.test(content) || /^\s*tools:/m.test(content)))) {
+    if (
+      /\bkind:\s*plugin\b/.test(content) ||
+      (/^\s*name:\s*\S/m.test(content) && (/^\s*hooks:/m.test(content) || /^\s*tools:/m.test(content)))
+    ) {
       return "plugin"
     }
     if (/^\s*triggers:/m.test(content) || /^\s*context:/m.test(content) || /\bkind:\s*skill\b/.test(content)) {
@@ -219,10 +217,7 @@ function inferName(block: ExtractedBlock, index: number): string {
 
 // -- Main parse function --
 
-function parseInput(
-  input: string,
-  options?: { readonly maxBytes?: number },
-): SchemaImportParser.Result {
+function parseInput(input: string, options?: { readonly maxBytes?: number }): SchemaImportParser.Result {
   const maxBytes = options?.maxBytes ?? MAX_BYTES
 
   // 1. Size check
@@ -312,8 +307,7 @@ function parseInput(
       // Reserve room for the " N" suffix BEFORE slicing, else the suffix gets
       // truncated away and the loop never converges on a fresh name.
       let suffix = 2
-      const disambiguatedName = () =>
-        `${safeSliceCodePoints(candidateName, 80 - String(suffix).length - 1)} ${suffix}`
+      const disambiguatedName = () => `${safeSliceCodePoints(candidateName, 80 - String(suffix).length - 1)} ${suffix}`
       let disambiguated = disambiguatedName()
       while (seenNames.has(disambiguated)) {
         suffix++
@@ -333,7 +327,12 @@ function parseInput(
         }),
       )
     } catch (e) {
-      errors.push(new SchemaImportParser.ParseError({ section: `Block ${i + 1}`, reason: e instanceof Error ? e.message : String(e) }))
+      errors.push(
+        new SchemaImportParser.ParseError({
+          section: `Block ${i + 1}`,
+          reason: e instanceof Error ? e.message : String(e),
+        }),
+      )
     }
   }
 
@@ -348,8 +347,9 @@ function parseInput(
 
 export const ImportParserLive = Layer.effect(
   Service,
-  Effect.sync(() => Service.of({
-    parse: (input: string, options?: { readonly maxBytes?: number }) =>
-      Effect.sync(() => parseInput(input, options)),
-  })),
+  Effect.sync(() =>
+    Service.of({
+      parse: (input: string, options?: { readonly maxBytes?: number }) => Effect.sync(() => parseInput(input, options)),
+    }),
+  ),
 )

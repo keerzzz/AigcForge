@@ -63,17 +63,17 @@ describe("MCPAsset", () => {
 
         yield* fs.writeFileString(
           mcpFile,
-          "---\nkind: mcp\nname: \"my-tool\"\ndescription: \"mcp desc\"\ncommand: \"node\"\nargs: [\"server.js\"]\n---\n{}",
+          '---\nkind: mcp\nname: "my-tool"\ndescription: "mcp desc"\ncommand: "node"\nargs: ["server.js"]\n---\n{}',
         )
 
         yield* fs.writeFileString(
           skillFile,
-          "---\nkind: skill\nname: \"my-tool\"\ndescription: \"skill desc\"\ntrigger: \"my-tool\"\nsource: \"echo hi\"\n---\n",
+          '---\nkind: skill\nname: "my-tool"\ndescription: "skill desc"\ntrigger: "my-tool"\nsource: "echo hi"\n---\n',
         )
 
         yield* fs.writeFileString(
           promptFile,
-          "---\nkind: prompt\nname: \"my-tool\"\ndescription: \"prompt desc\"\n---\nHello Prompt",
+          '---\nkind: prompt\nname: "my-tool"\ndescription: "prompt desc"\n---\nHello Prompt',
         )
 
         yield* mcpService.reload()

@@ -216,49 +216,55 @@ const toolsRegister = Layer.effect(
     Effect.succeed(Tools.Service.of({ register: reg.register, registerSession: reg.registerSession })),
   ),
 ).pipe(Layer.provide(registry))
-const taskTool = TaskTool.layer.pipe(Layer.provide(toolsRegister), Layer.provide(config), Layer.provide(EventV2.defaultLayer))
+const taskTool = TaskTool.layer.pipe(
+  Layer.provide(toolsRegister),
+  Layer.provide(config),
+  Layer.provide(EventV2.defaultLayer),
+)
 
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
-const runner = SessionRunnerLLM.layer.pipe(
-  Layer.provide(sessionComposition),
-  Layer.provide(appProcess),
-  Layer.provide(skillV2),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(client),
-  Layer.provide(registry),
-  Layer.provide(models),
-  Layer.provide(systemContext),
-).pipe(
-  Layer.provide(location),
-  Layer.provide(agents),
-  Layer.provide(skillGuidance),
-  Layer.provide(referenceGuidance),
-  Layer.provide(DoomLoop.layer),
-  Layer.provide(CorrectionExtractor.layer),
-  Layer.provide(CorrectionStore.layer),
-  Layer.provide(
-    Verifier.layer.pipe(
-      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
-      Layer.provide(location),
-      Layer.provide(appProcess),
-      Layer.provide(config),
+const runner = SessionRunnerLLM.layer
+  .pipe(
+    Layer.provide(sessionComposition),
+    Layer.provide(appProcess),
+    Layer.provide(skillV2),
+    Layer.provide(Database.defaultLayer),
+    Layer.provide(SessionStore.defaultLayer),
+    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(client),
+    Layer.provide(registry),
+    Layer.provide(models),
+    Layer.provide(systemContext),
+  )
+  .pipe(
+    Layer.provide(location),
+    Layer.provide(agents),
+    Layer.provide(skillGuidance),
+    Layer.provide(referenceGuidance),
+    Layer.provide(DoomLoop.layer),
+    Layer.provide(CorrectionExtractor.layer),
+    Layer.provide(CorrectionStore.layer),
+    Layer.provide(
+      Verifier.layer.pipe(
+        Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
+        Layer.provide(location),
+        Layer.provide(appProcess),
+        Layer.provide(config),
+      ),
     ),
-  ),
-  Layer.provide(
-    ReferenceChecker.layer.pipe(
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(location),
-      Layer.provide(config),
-      Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
-      Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(
+      ReferenceChecker.layer.pipe(
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(location),
+        Layer.provide(config),
+        Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
+        Layer.provide(FSUtil.defaultLayer),
+      ),
     ),
-  ),
-  Layer.provide(config),
-)
+    Layer.provide(config),
+  )
 const execution = Layer.effect(
   SessionExecution.Service,
   Effect.gen(function* () {
@@ -286,19 +292,23 @@ const taskDriverInitializer = Layer.effectDiscard(
   Effect.gen(function* () {
     const sessions = yield* SessionV2.Service
     const background = yield* BackgroundJob.Service
-    yield* TaskDriver.initialize(yield* TaskDriver.installForTesting(sessions, {
-      start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-      wait: (sessionID) =>
-        background.wait({ id: sessionID }).pipe(
-          Effect.map(({ info }) =>
-            info && info.status !== "running"
-              ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
-              : undefined,
-          ),
-        ),
-      cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
-      extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
-    }))
+    yield* TaskDriver.initialize(
+      yield* TaskDriver.installForTesting(sessions, {
+        start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+        wait: (sessionID) =>
+          background
+            .wait({ id: sessionID })
+            .pipe(
+              Effect.map(({ info }) =>
+                info && info.status !== "running"
+                  ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+                  : undefined,
+              ),
+            ),
+        cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+        extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+      }),
+    )
   }),
 )
 const rootServices = Layer.mergeAll(

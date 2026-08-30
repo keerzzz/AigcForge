@@ -67,10 +67,7 @@ function notFound() {
  * the cause, so an upstream error cannot push internals into the response.
  */
 function badGateway(reason: string) {
-  return HttpServerResponse.jsonUnsafe(
-    { error: "Bad Gateway", upstream: UI_UPSTREAM.host, reason },
-    { status: 502 },
-  )
+  return HttpServerResponse.jsonUnsafe({ error: "Bad Gateway", upstream: UI_UPSTREAM.host, reason }, { status: 502 })
 }
 
 function embeddedUIResponse(file: string, body: Uint8Array) {

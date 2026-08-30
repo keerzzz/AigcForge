@@ -26,17 +26,9 @@ Input:
 export const Input = Schema.Struct({
   id: Schedule.ID.annotate({ description: "Reminder id from reminder_create" }),
   content: Schema.optional(
-    Schema.String.pipe(
-      Schema.check(Schema.isMinLength(1)),
-      Schema.check(Schema.isMaxLength(500)),
-    ),
+    Schema.String.pipe(Schema.check(Schema.isMinLength(1)), Schema.check(Schema.isMaxLength(500))),
   ),
-  dueAt: Schema.optional(
-    Schema.Number.pipe(
-      Schema.check(Schema.isInt()),
-      Schema.check(Schema.isGreaterThan(0)),
-    ),
-  ),
+  dueAt: Schema.optional(Schema.Number.pipe(Schema.check(Schema.isInt()), Schema.check(Schema.isGreaterThan(0)))),
   timezone: Schema.optional(IanaTimezone),
 })
 
@@ -83,7 +75,9 @@ export const layer = Layer.effectDiscard(
                   const now = (yield* DateTime.nowAsDate).getTime()
                   if (input.dueAt <= now) {
                     return yield* Effect.fail(
-                      new ToolFailure({ message: "The due time is in the past. Re-confirm the target time with the user." }),
+                      new ToolFailure({
+                        message: "The due time is in the past. Re-confirm the target time with the user.",
+                      }),
                     )
                   }
                 }

@@ -64,9 +64,9 @@ function loadDir(
 
     for (const file of files) {
       const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
-      const raw = yield* fs.readFile(file).pipe(
-        Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-      )
+      const raw = yield* fs
+        .readFile(file)
+        .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
       if (!raw) continue
 
       const text = new TextDecoder().decode(raw)
@@ -149,7 +149,6 @@ export const layer = Layer.effect(
     let invalid = new Map<string, InvalidEntry>()
     const reloadLock = KeyedMutex.makeUnsafe<string>()
 
-
     const reload = Effect.fn("CommandAsset.reload")(function* () {
       yield* reloadLock.withLock("reload")(
         Effect.gen(function* () {
@@ -188,21 +187,19 @@ export const layer = Layer.effect(
     const scope = yield* Scope.Scope
     const eventsOpt = yield* Effect.serviceOption(EventV2.Service)
     if (Option.isSome(eventsOpt)) {
-      yield* eventsOpt.value
-        .subscribe(Watcher.Event.Updated)
-        .pipe(
-          Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".md")),
-          Stream.runForEach(() =>
-            reload().pipe(
-              Effect.catch((error) =>
-                Effect.logWarning("Failed to reload command assets", {
-                  errorTag: "_tag" in error ? error._tag : "filesystem_error",
-                }),
-              ),
+      yield* eventsOpt.value.subscribe(Watcher.Event.Updated).pipe(
+        Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".md")),
+        Stream.runForEach(() =>
+          reload().pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("Failed to reload command assets", {
+                errorTag: "_tag" in error ? error._tag : "filesystem_error",
+              }),
             ),
           ),
-          Effect.forkIn(scope),
-        )
+        ),
+        Effect.forkIn(scope),
+      )
     }
 
     if (Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET && Option.isSome(config)) {

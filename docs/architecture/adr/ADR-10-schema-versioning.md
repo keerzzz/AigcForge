@@ -48,6 +48,7 @@ SQLite does not support DDL transactions. A failed migration is handled by resto
 ### 5. Migration script is the single source of truth
 
 `bun script/migration.ts` generates both:
+
 - Incremental migrations (`packages/core/src/database/migration/`)
 - The full schema snapshot (`packages/core/src/database/schema.gen.ts`)
 

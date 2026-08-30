@@ -9,12 +9,12 @@
 
 ## 1. Executive Summary
 
-| Severity | Count |
-|---|---:|
-| 🔴 CRITICAL | 0 |
-| 🟠 HIGH | 2 |
-| 🟡 MEDIUM | 3 |
-| 🟢 LOW | 5 |
+| Severity    | Count |
+| ----------- | ----: |
+| 🔴 CRITICAL |     0 |
+| 🟠 HIGH     |     2 |
+| 🟡 MEDIUM   |     3 |
+| 🟢 LOW      |     5 |
 
 M2 的骨架质量很高：dock 移除彻底（全仓零残留、revert 的 rolled/lift 完好）、§5.5 边界兜底逐条落实且有测试、E2E 实跑通过（2 passed/18.3s）、全量命令绿（core 1406 / aigcfroge 46 / app 556 pass、lint 0 error、SDK 再生成幂等、migration --check 通过）、V1 读路径与 TUI 消费者零回归。
 
@@ -82,13 +82,13 @@ M2 的骨架质量很高：dock 移除彻底（全仓零残留、revert 的 roll
 
 ## 4. Low Findings
 
-| # | 问题 | 证据 | 处置 |
-|---|---|---|---|
-| LOW-1 | `schema-changelog.md:20` 写 SDK `Task.getTask`，实际生成的是 `Task.get`（`sdk.gen.ts:4727`） | changelog:20 | 随手改 |
-| LOW-2 | `--v2-radius-md` 全仓无定义且无 fallback → panel 圆角静默失效 | index.css 新增 panel 规则 | 加 fallback 或换已定义 token |
-| LOW-3 | i18n 死键 `session.todo.title/collapse/expand/progress`（4 键 × 18 语言文件，唯一消费者是被删的 dock）；新组件 aria-label 硬编码英文模板而未复用 `session.todo.progress` | session-todo-progress.tsx:86 | 删死键 + 复用键 |
-| LOW-4 | E2E 注释声称 "digest link rides outputDigest" 但 UI 无跳转链接；hover 显示 content 未测 | spec.ts:95 | 注释改实或补链接 UI（若链接归 M4 则在 specs 注明分期） |
-| LOW-5 | 本分支新增 2 条 lint warning（`session-todo-progress.tsx:52` no-floating-promises；`session-task-service.test.ts:192` no-misused-spread） | lint 输出 | M3 顺手清理 |
+| #     | 问题                                                                                                                                                                     | 证据                         | 处置                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | ------------------------------------------------------ |
+| LOW-1 | `schema-changelog.md:20` 写 SDK `Task.getTask`，实际生成的是 `Task.get`（`sdk.gen.ts:4727`）                                                                             | changelog:20                 | 随手改                                                 |
+| LOW-2 | `--v2-radius-md` 全仓无定义且无 fallback → panel 圆角静默失效                                                                                                            | index.css 新增 panel 规则    | 加 fallback 或换已定义 token                           |
+| LOW-3 | i18n 死键 `session.todo.title/collapse/expand/progress`（4 键 × 18 语言文件，唯一消费者是被删的 dock）；新组件 aria-label 硬编码英文模板而未复用 `session.todo.progress` | session-todo-progress.tsx:86 | 删死键 + 复用键                                        |
+| LOW-4 | E2E 注释声称 "digest link rides outputDigest" 但 UI 无跳转链接；hover 显示 content 未测                                                                                  | spec.ts:95                   | 注释改实或补链接 UI（若链接归 M4 则在 specs 注明分期） |
+| LOW-5 | 本分支新增 2 条 lint warning（`session-todo-progress.tsx:52` no-floating-promises；`session-task-service.test.ts:192` no-misused-spread）                                | lint 输出                    | M3 顺手清理                                            |
 
 ## 5. 无问题项（实证通过）
 

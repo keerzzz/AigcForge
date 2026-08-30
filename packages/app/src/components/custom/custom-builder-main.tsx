@@ -12,10 +12,10 @@ export function CustomCompositionConfig() {
   const boundSkills = createMemo(() => draft.state.bindings["orchestrator"]?.skills ?? [])
   const boundCommands = createMemo(() => draft.state.bindings["orchestrator"]?.commands ?? [])
   const bindingConsumers = createMemo<Array<[string, CustomDraftBinding]>>(() => {
-    const entries = Object.entries(draft.state.bindings).map(([consumer, binding]) => [
-      consumer,
-      { ...binding, commands: binding.commands ?? [] },
-    ] as [string, CustomDraftBinding])
+    const entries = Object.entries(draft.state.bindings).map(
+      ([consumer, binding]) =>
+        [consumer, { ...binding, commands: binding.commands ?? [] }] as [string, CustomDraftBinding],
+    )
     if (entries.length > 0) return entries
     return [["orchestrator", { prompts: boundPrompts(), skills: boundSkills(), commands: boundCommands() }]]
   })
@@ -59,9 +59,7 @@ export function CustomCompositionConfig() {
               value={draft.state.profilePath ?? ""}
               onInput={(e) => draft.setProfilePath(e.currentTarget.value)}
             />
-            <span class="text-v2-text-text-faint text-11-regular">
-              {language.t("custom.builder.profilePathHelp")}
-            </span>
+            <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.builder.profilePathHelp")}</span>
           </div>
         }
       >
@@ -91,7 +89,9 @@ export function CustomCompositionConfig() {
 
             <Show when={draft.state.agents.length > 1}>
               <div class="flex items-center gap-2 pt-2 border-t border-v2-border-border-base">
-                <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.builder.selectPrimary")}:</span>
+                <span class="text-v2-text-text-faint text-11-regular">
+                  {language.t("custom.builder.selectPrimary")}:
+                </span>
                 <select
                   class="rounded bg-v2-background-bg-layer-03 border border-v2-border-border-base px-2 py-1 text-12-regular text-v2-text-text-base focus:outline-none"
                   value={draft.state.primaryAgent}
@@ -120,12 +120,20 @@ export function CustomCompositionConfig() {
               <div class="min-w-0">
                 <Show
                   when={draft.state.workflow}
-                  fallback={<span class="text-v2-text-text-muted text-12-regular">{language.t("custom.builder.noWorkflow")}</span>}
+                  fallback={
+                    <span class="text-v2-text-text-muted text-12-regular">
+                      {language.t("custom.builder.noWorkflow")}
+                    </span>
+                  }
                 >
                   {(workflow) => (
                     <>
-                      <span class="block truncate font-mono text-v2-text-text-base text-13-medium">{workflow().name ?? workflow().relativePath}</span>
-                      <span class="block truncate text-v2-text-text-faint text-11-regular">{workflow().relativePath}</span>
+                      <span class="block truncate font-mono text-v2-text-text-base text-13-medium">
+                        {workflow().name ?? workflow().relativePath}
+                      </span>
+                      <span class="block truncate text-v2-text-text-faint text-11-regular">
+                        {workflow().relativePath}
+                      </span>
                     </>
                   )}
                 </Show>
@@ -197,100 +205,106 @@ export function CustomCompositionConfig() {
                 <div class="rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
                   <div class="mb-2 flex items-center justify-between gap-2">
                     <span class="font-mono text-v2-text-text-base text-12-medium">{consumer}</span>
-                    <span class="text-v2-text-text-faint text-10-regular">{language.t("custom.builder.consumerBinding")}</span>
+                    <span class="text-v2-text-text-faint text-10-regular">
+                      {language.t("custom.builder.consumerBinding")}
+                    </span>
                   </div>
                   <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {/* Prompts */}
-            <div class="flex flex-col gap-2">
-              <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-                {language.t("custom.sidebar.prompts")} ({binding.prompts.length})
-              </span>
-              <Show
-                when={binding.prompts.length > 0}
-                fallback={
-                  <span class="text-v2-text-text-faint text-11-regular">
-                    {language.t("custom.builder.noBoundPrompts")}
-                  </span>
-                }
-              >
-                <div class="flex flex-wrap gap-1.5">
-                  <For each={binding.prompts}>
-                    {(prompt) => (
-                      <div class="inline-flex items-center gap-1 rounded bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 text-11-regular text-purple-300">
-                        <span>{prompt.name ?? prompt.relativePath}</span>
-                        <button
-                          type="button"
-                          class="hover:text-purple-100"
-                          onClick={() => draft.togglePrompt(consumer, prompt)}
-                        >
-                          <Icon name="close" size="small" />
-                        </button>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </Show>
-            </div>
+                    {/* Prompts */}
+                    <div class="flex flex-col gap-2">
+                      <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+                        {language.t("custom.sidebar.prompts")} ({binding.prompts.length})
+                      </span>
+                      <Show
+                        when={binding.prompts.length > 0}
+                        fallback={
+                          <span class="text-v2-text-text-faint text-11-regular">
+                            {language.t("custom.builder.noBoundPrompts")}
+                          </span>
+                        }
+                      >
+                        <div class="flex flex-wrap gap-1.5">
+                          <For each={binding.prompts}>
+                            {(prompt) => (
+                              <div class="inline-flex items-center gap-1 rounded bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 text-11-regular text-purple-300">
+                                <span>{prompt.name ?? prompt.relativePath}</span>
+                                <button
+                                  type="button"
+                                  class="hover:text-purple-100"
+                                  onClick={() => draft.togglePrompt(consumer, prompt)}
+                                >
+                                  <Icon name="close" size="small" />
+                                </button>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    </div>
 
-            {/* Skills */}
-            <div class="flex flex-col gap-2">
-              <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-                {language.t("custom.sidebar.skills")} ({binding.skills.length})
-              </span>
-              <Show
-                when={binding.skills.length > 0}
-                fallback={
-                  <span class="text-v2-text-text-faint text-11-regular">
-                    {language.t("custom.builder.noBoundSkills")}
-                  </span>
-                }
-              >
-                <div class="flex flex-wrap gap-1.5">
-                  <For each={binding.skills}>
-                    {(skill) => (
-                      <div class="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-11-regular text-emerald-300">
-                        <span>{skill.name ?? skill.relativePath}</span>
-                        <button
-                          type="button"
-                          class="hover:text-emerald-100"
-                          onClick={() => draft.toggleSkill(consumer, skill)}
-                        >
-                          <Icon name="close" size="small" />
-                        </button>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </Show>
-            </div>
-            {/* Commands */}
-            <div class="flex flex-col gap-2">
-              <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-                {language.t("custom.builder.commandBindings")} ({binding.commands.length})
-              </span>
-              <Show
-                when={binding.commands.length > 0}
-                fallback={<span class="text-v2-text-text-faint text-11-regular">{language.t("custom.builder.noBoundCommands")}</span>}
-              >
-                <div class="flex flex-wrap gap-1.5">
-                  <For each={binding.commands}>
-                    {(command) => (
-                      <div class="inline-flex max-w-full items-center gap-1 rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 px-2 py-0.5 text-v2-text-text-base text-11-regular">
-                        <span class="truncate">{command.name ?? command.relativePath}</span>
-                        <button
-                          type="button"
-                          class="shrink-0 text-v2-text-text-muted hover:text-v2-text-text-base focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
-                          aria-label={language.t("common.remove")}
-                          onClick={() => draft.toggleCommand(consumer, command)}
-                        >
-                          <Icon name="close" size="small" />
-                        </button>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </Show>
-            </div>
+                    {/* Skills */}
+                    <div class="flex flex-col gap-2">
+                      <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+                        {language.t("custom.sidebar.skills")} ({binding.skills.length})
+                      </span>
+                      <Show
+                        when={binding.skills.length > 0}
+                        fallback={
+                          <span class="text-v2-text-text-faint text-11-regular">
+                            {language.t("custom.builder.noBoundSkills")}
+                          </span>
+                        }
+                      >
+                        <div class="flex flex-wrap gap-1.5">
+                          <For each={binding.skills}>
+                            {(skill) => (
+                              <div class="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-11-regular text-emerald-300">
+                                <span>{skill.name ?? skill.relativePath}</span>
+                                <button
+                                  type="button"
+                                  class="hover:text-emerald-100"
+                                  onClick={() => draft.toggleSkill(consumer, skill)}
+                                >
+                                  <Icon name="close" size="small" />
+                                </button>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    </div>
+                    {/* Commands */}
+                    <div class="flex flex-col gap-2">
+                      <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+                        {language.t("custom.builder.commandBindings")} ({binding.commands.length})
+                      </span>
+                      <Show
+                        when={binding.commands.length > 0}
+                        fallback={
+                          <span class="text-v2-text-text-faint text-11-regular">
+                            {language.t("custom.builder.noBoundCommands")}
+                          </span>
+                        }
+                      >
+                        <div class="flex flex-wrap gap-1.5">
+                          <For each={binding.commands}>
+                            {(command) => (
+                              <div class="inline-flex max-w-full items-center gap-1 rounded border border-v2-border-border-base bg-v2-background-bg-layer-03 px-2 py-0.5 text-v2-text-text-base text-11-regular">
+                                <span class="truncate">{command.name ?? command.relativePath}</span>
+                                <button
+                                  type="button"
+                                  class="shrink-0 text-v2-text-text-muted hover:text-v2-text-text-base focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
+                                  aria-label={language.t("common.remove")}
+                                  onClick={() => draft.toggleCommand(consumer, command)}
+                                >
+                                  <Icon name="close" size="small" />
+                                </button>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    </div>
                   </div>
                 </div>
               )}

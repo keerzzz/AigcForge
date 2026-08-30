@@ -12,6 +12,7 @@
 在 Custom Mode M1 中，系统实现了单 Agent（`meta` 根会话 + 单个受限执行 Agent）的可恢复运行闭环与快照持久化。M2 目标是推进到多 Agent 与 Workflow DAG 编排。
 
 当前存在的核心技术挑战与事实：
+
 1. `WorkflowAsset.StepDef` 拥有 `next/branches/parallel` 结构，但缺少统一的运行时执行引擎、Durable Run Identity、失败恢复策略与确定性取消语义。
 2. 调度执行必须基于唯一的持久化 Run Owner（SQLite `workflow_run` / `workflow_step_run`），严禁在 Profile 资产、SessionTask 与 Session 实体间三处复制运行状态并靠事件猜测同步。
 3. 根会话必须由 `meta` 统一编排，用户 Agent 仅作为受限执行者运行在 `TaskDriver` 派生的子会话中；根会话始终拥有取消权、最终回答聚合与部分成功裁决权。
@@ -144,13 +145,13 @@ legacy/orphan running after restart -> execution_unknown
 
 1. **端点（5 个，均在实例 HttpApi `session` 组内，走 `Authorization` + `WorkspaceRouting` + `InstanceContext` 中间件）**：
 
-| 方法 | 路径 | operationId | 语义 |
-|---|---|---|---|
-| GET | `/session/{sessionID}/workflow` | `session.workflow.get` | 读取当前 run + 全部 step run（无 run 时返回空投影，200） |
-| POST | `/session/{sessionID}/workflow/run` | `session.workflow.run` | **202**：admit run 并唤醒进程内 owner，不等待执行 |
-| POST | `/session/{sessionID}/workflow/{runID}/cancel` | `session.workflow.cancelRun` | 200：`expectedRunRevision` CAS 下写 `cancelling`、interrupt owner、结算 `cancelled` |
-| POST | `/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel` | `session.workflow.cancelStep` | 200：run + step 双 revision CAS 下取消单个 step，不触发自动重试 |
-| POST | `/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry` | `session.workflow.retryStep` | **202**：按 §2.4 建新 lineage run 并唤醒 owner |
+| 方法 | 路径                                                            | operationId                   | 语义                                                                                |
+| ---- | --------------------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------- |
+| GET  | `/session/{sessionID}/workflow`                                 | `session.workflow.get`        | 读取当前 run + 全部 step run（无 run 时返回空投影，200）                            |
+| POST | `/session/{sessionID}/workflow/run`                             | `session.workflow.run`        | **202**：admit run 并唤醒进程内 owner，不等待执行                                   |
+| POST | `/session/{sessionID}/workflow/{runID}/cancel`                  | `session.workflow.cancelRun`  | 200：`expectedRunRevision` CAS 下写 `cancelling`、interrupt owner、结算 `cancelled` |
+| POST | `/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel` | `session.workflow.cancelStep` | 200：run + step 双 revision CAS 下取消单个 step，不触发自动重试                     |
+| POST | `/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry`  | `session.workflow.retryStep`  | **202**：按 §2.4 建新 lineage run 并唤醒 owner                                      |
 
 2. **无 Workflow 专属 SSE 流**：`workflow.run.updated` 复用既有 `/event` 流，仅作为失效通知（invalidation notice）；客户端收到后重新 `GET .../workflow`，不在客户端推演 frontier 或成功语义。
 3. **错误映射固定**：`RequestConflictError` / `InvalidStateTransitionError` -> 409；run/step 不存在或不属于该 Session -> 404；Snapshot 无 workflow -> 400；custom 能力未协商或 flag 关闭 -> 400 `UnsupportedProductModeError`。
@@ -159,13 +160,13 @@ legacy/orphan running after restart -> execution_unknown
 
 ## 3. 架构影响与五层映射
 
-| 层级 | 职责与变更 |
-|---|---|
-| **L1 Schema** | `Snapshot v2` version union、`WorkflowAsset.StepDef` 扩展（失败策略、分支、重试/超时上限）、`WorkflowRunStatus`、`StepRunStatus`、`ErrorCategory` 固定分类、`BranchOutput`、`validateGraph` |
-| **L2 Core/DB** | 新增 `workflow_run` 与 `workflow_step_run` 表（run 级 `(session_id, request_id)` 唯一索引 + lineage 列）、`WorkflowRun` Service（唯一状态机与 CAS 写入者）、`WorkflowRun.findReadySteps` DB 派生 frontier（在 CAS 下持久化 `pending -> ready` 与未选中分支的 `skipped`，非纯函数）、`WorkflowRunner` 编排循环、`WorkflowExecution` 进程内 owner |
-| **L3 HTTP/SDK** | §2.7 的 5 个端点（status / run 202 / run cancel / step cancel / step retry 202）、typed idempotency 与 revision CAS payload、SDK 客户端类型重新生成 |
-| **L4 App/UI** | Builder DAG 预览、多 Agent 列表、Session 运行态面板（step 进度、取消、重试、部分成功、`workflow.run.updated` 失效刷新） |
-| **L5 Security** | `SessionComposition.assertAgentAllowed` 双层门禁、`TaskDriver.Runtime` 按 composition root 解析、handoff 凭据扫描与裁剪 |
+| 层级            | 职责与变更                                                                                                                                                                                                                                                                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **L1 Schema**   | `Snapshot v2` version union、`WorkflowAsset.StepDef` 扩展（失败策略、分支、重试/超时上限）、`WorkflowRunStatus`、`StepRunStatus`、`ErrorCategory` 固定分类、`BranchOutput`、`validateGraph`                                                                                                                                                     |
+| **L2 Core/DB**  | 新增 `workflow_run` 与 `workflow_step_run` 表（run 级 `(session_id, request_id)` 唯一索引 + lineage 列）、`WorkflowRun` Service（唯一状态机与 CAS 写入者）、`WorkflowRun.findReadySteps` DB 派生 frontier（在 CAS 下持久化 `pending -> ready` 与未选中分支的 `skipped`，非纯函数）、`WorkflowRunner` 编排循环、`WorkflowExecution` 进程内 owner |
+| **L3 HTTP/SDK** | §2.7 的 5 个端点（status / run 202 / run cancel / step cancel / step retry 202）、typed idempotency 与 revision CAS payload、SDK 客户端类型重新生成                                                                                                                                                                                             |
+| **L4 App/UI**   | Builder DAG 预览、多 Agent 列表、Session 运行态面板（step 进度、取消、重试、部分成功、`workflow.run.updated` 失效刷新）                                                                                                                                                                                                                         |
+| **L5 Security** | `SessionComposition.assertAgentAllowed` 双层门禁、`TaskDriver.Runtime` 按 composition root 解析、handoff 凭据扫描与裁剪                                                                                                                                                                                                                         |
 
 ---
 

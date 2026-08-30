@@ -19,9 +19,7 @@ describe("ProductModePolicy & AgentPolicy Governance", () => {
       expect(res).toBe("error:custom")
 
       const chatRes = await Effect.runPromise(
-        ProductModePolicy.assertCreationSupported("chat").pipe(
-          Effect.map(() => "success"),
-        ),
+        ProductModePolicy.assertCreationSupported("chat").pipe(Effect.map(() => "success")),
       )
       expect(chatRes).toBe("success")
       const runtimeRes = await Effect.runPromise(
@@ -85,7 +83,9 @@ describe("ProductModePolicy & AgentPolicy Governance", () => {
     expect(ProductModePolicy.isEventPayloadSupported(customEvent, undefined)).toBe(false)
     expect(ProductModePolicy.isEventPayloadSupported(customEvent, ProductModePolicy.CAPABILITY_CUSTOM_V1)).toBe(true)
     expect(ProductModePolicy.isEventPayloadSupported(customPropEvent, undefined)).toBe(false)
-    expect(ProductModePolicy.isEventPayloadSupported(customPropEvent, ProductModePolicy.CAPABILITY_CUSTOM_V1)).toBe(true)
+    expect(ProductModePolicy.isEventPayloadSupported(customPropEvent, ProductModePolicy.CAPABILITY_CUSTOM_V1)).toBe(
+      true,
+    )
     expect(ProductModePolicy.isEventPayloadSupported({ sessionID: "ses_custom" }, undefined)).toBe(false)
     expect(ProductModePolicy.isCustomCapable("mode/custom")).toBe(false)
     expect(ProductModePolicy.isCustomCapable("custom-mode")).toBe(false)

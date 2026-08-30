@@ -27,10 +27,7 @@ const HIGH_CONFIDENCE_CATEGORIES = new Set<IntentCategory>([
   "workflow",
 ])
 
-const MEDIUM_CONFIDENCE_CATEGORIES = new Set<IntentCategory>([
-  "content_creation",
-  "configuration",
-])
+const MEDIUM_CONFIDENCE_CATEGORIES = new Set<IntentCategory>(["content_creation", "configuration"])
 
 const EXTERNAL_CLI_NAMES = ["claude-code", "gemini", "codex", "opencode"]
 
@@ -116,8 +113,8 @@ export function preRoute(input: string, knownCLIs?: string[]): RouteResult {
 }
 
 /** Effect-wrapped version for V2 runner integration. */
-export const preRouteEffect = Effect.fn("PreRouter.preRoute")(
-  (input: string, knownCLIs?: string[]) => Effect.succeed(preRoute(input, knownCLIs)),
+export const preRouteEffect = Effect.fn("PreRouter.preRoute")((input: string, knownCLIs?: string[]) =>
+  Effect.succeed(preRoute(input, knownCLIs)),
 )
 
 export * as PreRouter from "./prerouter"

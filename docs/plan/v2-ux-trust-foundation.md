@@ -16,27 +16,27 @@
 
 ### 0.1 工程基线（本计划撰写时实测）
 
-| 项 | 实测结果 |
-| --- | --- |
-| 分支基线 | `main@eeaec64f2`，与 `origin/main` 零差异 |
-| typecheck | app / ui / session-ui + core / schema / aigcfroge / desktop **7 包全 PASS** |
+| 项        | 实测结果                                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------- |
+| 分支基线  | `main@eeaec64f2`，与 `origin/main` 零差异                                                                      |
+| typecheck | app / ui / session-ui + core / schema / aigcfroge / desktop **7 包全 PASS**                                    |
 | 增量 lint | `Incremental lint passed: no changed JavaScript or TypeScript files`（命令必须带 `LINT_BASE_REF=origin/main`） |
-| 协议引用 | 32/32 OK |
+| 协议引用  | 32/32 OK                                                                                                       |
 
 ### 0.2 路线图统计的重新扫描（**以本节为准，不以旧快照为准**）
 
 路线图 §3 的数字来自 `2026-08-28 / main@f21cb4be5` 快照。逐文件在 `f21cb4be5` 与 `HEAD` 上分别重算 `var(--` 非 v2 引用，两次结果**完全相同** ⇒ 下列差异全部是**口径差异，不是代码漂移**。
 
-| 项 | 路线图 | 实测 | 判定 |
-| --- | --- | --- | --- |
-| v2 组件 `.tsx`（`packages/ui/src/v2/components`） | 51 | **51**（其中 24 个是 story ⇒ 真正组件 **27**） | ✅ 一致 |
-| v1 组件 `.tsx`（`packages/ui/src/components`） | 68 | **68**（33 story ⇒ 组件 **35**） | ✅ 一致 |
-| 主题 JSON（`packages/ui/src/theme/themes`） | 37 | **37** | ✅ 一致 |
-| 旧 Token 引用 | ui 580 / app 55 / session-ui 266 | **ui 534 / app 100 / session-ui 484**（口径：剔除 `**/styles/**` 定义层与 `*.stories.tsx`） | ❌ 口径不同，**本计划采用实测口径** |
-| App 直接导入旧组件入口的源文件 | 约 60 | **76** | ❌ 偏低 |
-| 旧组件入口的**路径形式** | `@aigcfroge/ui/components/...` | 该形式**在 exports map 里不存在**；真实是 `@aigcfroge/ui/<name>`（`packages/ui/package.json:7-8`：v1 = `"./*": "./src/components/*.tsx"`，v2 = `"./v2/*"`） | ❌ 需更正 |
-| syntax / markdown / diff / input 语义 Token | 视为「缺失，需补齐」 | **四组全部已存在**：syntax 19 + markdown 14 + diff 11 + input 6，位于运行时主题生成层 `packages/ui/src/theme/v2/{syntax-markdown,diff,mapping}.ts` | ❌ **前提错误**，真实缺口见 §3.4 |
-| 11 个状态「统一现有命名」 | 隐含都已存在 | `refreshing` 全仓 **0 次**；`stale` 只作缓存变量名/注释（**无 UI 语义**）；`recovery` 只有 `workflowRuntime.status.recovery_required` 一个枚举值 | ⚠️ 3 个是**净新增**，不是统一 |
+| 项                                                | 路线图                           | 实测                                                                                                                                                        | 判定                                |
+| ------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| v2 组件 `.tsx`（`packages/ui/src/v2/components`） | 51                               | **51**（其中 24 个是 story ⇒ 真正组件 **27**）                                                                                                              | ✅ 一致                             |
+| v1 组件 `.tsx`（`packages/ui/src/components`）    | 68                               | **68**（33 story ⇒ 组件 **35**）                                                                                                                            | ✅ 一致                             |
+| 主题 JSON（`packages/ui/src/theme/themes`）       | 37                               | **37**                                                                                                                                                      | ✅ 一致                             |
+| 旧 Token 引用                                     | ui 580 / app 55 / session-ui 266 | **ui 534 / app 100 / session-ui 484**（口径：剔除 `**/styles/**` 定义层与 `*.stories.tsx`）                                                                 | ❌ 口径不同，**本计划采用实测口径** |
+| App 直接导入旧组件入口的源文件                    | 约 60                            | **76**                                                                                                                                                      | ❌ 偏低                             |
+| 旧组件入口的**路径形式**                          | `@aigcfroge/ui/components/...`   | 该形式**在 exports map 里不存在**；真实是 `@aigcfroge/ui/<name>`（`packages/ui/package.json:7-8`：v1 = `"./*": "./src/components/*.tsx"`，v2 = `"./v2/*"`） | ❌ 需更正                           |
+| syntax / markdown / diff / input 语义 Token       | 视为「缺失，需补齐」             | **四组全部已存在**：syntax 19 + markdown 14 + diff 11 + input 6，位于运行时主题生成层 `packages/ui/src/theme/v2/{syntax-markdown,diff,mapping}.ts`          | ❌ **前提错误**，真实缺口见 §3.4    |
+| 11 个状态「统一现有命名」                         | 隐含都已存在                     | `refreshing` 全仓 **0 次**；`stale` 只作缓存变量名/注释（**无 UI 语义**）；`recovery` 只有 `workflowRuntime.status.recovery_required` 一个枚举值            | ⚠️ 3 个是**净新增**，不是统一       |
 
 **可复现基线命令**（固定这一组口径，写进 PR）：
 
@@ -68,14 +68,14 @@ rg -o '^\s*--color-(v2-[a-z0-9-]+):' -r '$1' packages/ui/src/styles/tailwind/col
 
 ## 1. 目标与非目标
 
-| 编号 | 目标 | 对应路线图 | 退出条件 |
-| --- | --- | --- | --- |
-| G1 | 模式入口的可见性/可用性/不可用原因来自**同一份** capability-aware registry | Phase 0 · 切片 1 | `enabled` / `disabled` / `unknown` 三态可解释；ModeSwitcher、Home 筛选、ModeRoute 不再各自枚举模式 |
-| G2 | 几何冲突用 computed geometry 事实解决 | Phase 1 · 切片 2 | desktop/narrow 无横向溢出；列宽结论有可重复的 e2e 记录；`960px` 死数字被删除且行为等价 |
-| G3 | 11 个状态成为共享语义层 + i18n key | Phase 2 · 切片 3 | 五模式不再各自命名/着色同一状态；每个阻塞状态有原因+影响+下一步 |
-| G4 | Custom 资产列表不再把失败渲染成空 | Phase 2 · 切片 4 | 网络失败、加载中、真空态三者可区分且有重试 |
-| G5 | v1→v2 迁移方法被两条路径证明可复用 | Phase 3 · 切片 5 | 迁移账本成形；试点路径 light/dark + 键盘 + 中英文行为一致；新改动不增加 legacy 引用 |
-| G6 | 形成第一份真实 V2 UX 基线报告 | 切片 6 | §0.2 口径的数字 + 几何记录 + 状态矩阵截图齐备 |
+| 编号 | 目标                                                                       | 对应路线图       | 退出条件                                                                                           |
+| ---- | -------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------- |
+| G1   | 模式入口的可见性/可用性/不可用原因来自**同一份** capability-aware registry | Phase 0 · 切片 1 | `enabled` / `disabled` / `unknown` 三态可解释；ModeSwitcher、Home 筛选、ModeRoute 不再各自枚举模式 |
+| G2   | 几何冲突用 computed geometry 事实解决                                      | Phase 1 · 切片 2 | desktop/narrow 无横向溢出；列宽结论有可重复的 e2e 记录；`960px` 死数字被删除且行为等价             |
+| G3   | 11 个状态成为共享语义层 + i18n key                                         | Phase 2 · 切片 3 | 五模式不再各自命名/着色同一状态；每个阻塞状态有原因+影响+下一步                                    |
+| G4   | Custom 资产列表不再把失败渲染成空                                          | Phase 2 · 切片 4 | 网络失败、加载中、真空态三者可区分且有重试                                                         |
+| G5   | v1→v2 迁移方法被两条路径证明可复用                                         | Phase 3 · 切片 5 | 迁移账本成形；试点路径 light/dark + 键盘 + 中英文行为一致；新改动不增加 legacy 引用                |
+| G6   | 形成第一份真实 V2 UX 基线报告                                              | 切片 6           | §0.2 口径的数字 + 几何记录 + 状态矩阵截图齐备                                                      |
 
 **非目标**：不承诺 legacy Token/组件清零；不做 codemod 全仓替换；不补 e2e 的 dark/i18n/keyboard 矩阵（那是 `docs/technical-debt.md` §4 已登记的独立专项，实测当前 dark 0/18、i18n 0/18、keyboard 2/18，本计划不承担）；不动 `SessionRightPanel` 的窄屏形态（它不在 `/mode/:mode` 链路上，见 §3.3）；不新增服务端端点。
 
@@ -101,29 +101,29 @@ cd /media/win_data/aigcfroge/.worktrees/v2-ux   && bun install
 
 ### 2.2 包级所有权矩阵（唯一写权限）
 
-| 包 / 路径 | 架构计划（`v2-lifecycle-owner`） | UX 计划（`v2-ux-foundation`） |
-| --- | --- | --- |
-| `packages/core/**` | ✅ 独占 | ⛔ |
-| `packages/schema/**` | ✅ 独占 | ⛔（只读 import，如 `schema/product-mode`） |
-| `packages/aigcfroge/**` | ✅ 独占 | ⛔ |
-| `packages/desktop/**` | ✅ 独占 | ⛔ |
-| `packages/sdk/js/**`（生成物） | ✅ 独占，**只有架构计划可跑生成器** | ⛔ 永不跑 `packages/sdk/js/script/build.ts` |
-| `packages/app/**` | ⛔ | ✅ 独占 |
-| `packages/ui/**` | ⛔ | ✅ 独占（含 i18n 字典、v2 token、v2 组件） |
-| `packages/session-ui/**` | ⛔ | ✅ 独占 |
-| `packages/storybook/**` | ⛔ | ✅ 独占 |
-| `packages/llm`、`packages/tui`、`packages/plugin`、vendor 两包 | ⛔ 双方均不动 | ⛔ |
+| 包 / 路径                                                      | 架构计划（`v2-lifecycle-owner`）    | UX 计划（`v2-ux-foundation`）               |
+| -------------------------------------------------------------- | ----------------------------------- | ------------------------------------------- |
+| `packages/core/**`                                             | ✅ 独占                             | ⛔                                          |
+| `packages/schema/**`                                           | ✅ 独占                             | ⛔（只读 import，如 `schema/product-mode`） |
+| `packages/aigcfroge/**`                                        | ✅ 独占                             | ⛔                                          |
+| `packages/desktop/**`                                          | ✅ 独占                             | ⛔                                          |
+| `packages/sdk/js/**`（生成物）                                 | ✅ 独占，**只有架构计划可跑生成器** | ⛔ 永不跑 `packages/sdk/js/script/build.ts` |
+| `packages/app/**`                                              | ⛔                                  | ✅ 独占                                     |
+| `packages/ui/**`                                               | ⛔                                  | ✅ 独占（含 i18n 字典、v2 token、v2 组件）  |
+| `packages/session-ui/**`                                       | ⛔                                  | ✅ 独占                                     |
+| `packages/storybook/**`                                        | ⛔                                  | ✅ 独占                                     |
+| `packages/llm`、`packages/tui`、`packages/plugin`、vendor 两包 | ⛔ 双方均不动                       | ⛔                                          |
 
 ### 2.3 文档所有权矩阵
 
-| 文档 | 架构计划 | UX 计划 |
-| --- | --- | --- |
-| `ARCHITECTURE.md` | ✅ 独占 | ⛔ |
-| `DESIGN.md` | ⛔ | ✅ 独占 |
-| `specs/v2/todo.md` · `system-blueprint.md` · 新建 ADR-22/23/24 | ✅ 独占 | ⛔ |
-| `docs/technical-debt.md` §4 表 | ✅ **只在表体第一行之前插入** | ✅ **只在表体最后一行之后追加** |
-| `docs/technical-debt.md` 其他节 | ⛔ | ⛔ |
-| 两份 `docs/plan/*.md` | 各自独占自己那份 | 同 |
+| 文档                                                           | 架构计划                      | UX 计划                         |
+| -------------------------------------------------------------- | ----------------------------- | ------------------------------- |
+| `ARCHITECTURE.md`                                              | ✅ 独占                       | ⛔                              |
+| `DESIGN.md`                                                    | ⛔                            | ✅ 独占                         |
+| `specs/v2/todo.md` · `system-blueprint.md` · 新建 ADR-22/23/24 | ✅ 独占                       | ⛔                              |
+| `docs/technical-debt.md` §4 表                                 | ✅ **只在表体第一行之前插入** | ✅ **只在表体最后一行之后追加** |
+| `docs/technical-debt.md` 其他节                                | ⛔                            | ⛔                              |
+| 两份 `docs/plan/*.md`                                          | 各自独占自己那份              | 同                              |
 
 §4 表体现有 **21 行**，首尾相距远超 git 三方合并所需的 3 行上下文 ⇒ 机械可合并。
 
@@ -184,25 +184,25 @@ packages/app/src/context/mode.tsx:6-47      MODE_DEFINITIONS（5 项 × 6 字段
 
 `packages/app/src/pages/mode-workspace.tsx` 真实字符串：
 
-| 行 | 元素 | class |
-| --- | --- | --- |
-| `:166` | 网格基础 | `mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8` |
-| `:168` | chat 追加 | ` max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]` |
-| `:170` | work 追加 | ` max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]` ← 与 chat **逐字符相同**（三元冗余） |
-| `:171` | 其余追加 | ` max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]` |
-| `:175` | Sidebar 槽容器 | **无 class**（宽度完全由 280px 轨道决定） |
-| `:188` | Main 槽 | `min-h-0 min-w-0 flex-1 flex flex-col` + `aria-label="Main content"` |
+| 行     | 元素           | class                                                                                                                     |
+| ------ | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `:166` | 网格基础       | `mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8` |
+| `:168` | chat 追加      | ` max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]`                                                                    |
+| `:170` | work 追加      | ` max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]` ← 与 chat **逐字符相同**（三元冗余）                               |
+| `:171` | 其余追加       | ` max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]`                                                                    |
+| `:175` | Sidebar 槽容器 | **无 class**（宽度完全由 280px 轨道决定）                                                                                 |
+| `:188` | Main 槽        | `min-h-0 min-w-0 flex-1 flex flex-col` + `aria-label="Main content"`                                                      |
 
 换算依据：`--spacing: 0.25rem`（`packages/ui/src/styles/tailwind/index.css:12`）、`--breakpoint-lg: 64rem` = 1024px（`:17`）、根字号未被覆盖 ⇒ 1rem = 16px、`box-sizing: border-box` 全局生效（`packages/ui/src/styles/base.css:8-16`）⇒ `max-w` **包含** padding。
 
-| 量 | 值 |
-| --- | --- |
-| `max-w-[1080px]` 边框盒 | 1080 |
-| `lg:px-6` 双侧 | 6 × 4px × 2 = **48** |
-| 可用内容宽 | 1080 − 48 = **1032** |
-| `lg:gap-8` | **32** |
-| chat/work 声明需求 | 280 + 32 + 960 = **1272**（超 240） |
-| chat/work **实解** | 1032 − 280 − 32 = **720** |
+| 量                           | 值                                           |
+| ---------------------------- | -------------------------------------------- |
+| `max-w-[1080px]` 边框盒      | 1080                                         |
+| `lg:px-6` 双侧               | 6 × 4px × 2 = **48**                         |
+| 可用内容宽                   | 1080 − 48 = **1032**                         |
+| `lg:gap-8`                   | **32**                                       |
+| chat/work 声明需求           | 280 + 32 + 960 = **1272**（超 240）          |
+| chat/work **实解**           | 1032 − 280 − 32 = **720**                    |
 | coding/assistant/custom 需求 | 280 + 32 + 720 = **1032** = 可用宽，精确闭合 |
 
 ⇒ **三个分支在任何达到 max-width 的视口下几何完全一致**；`960px` 从未生效。视口阈值：ModeSwitcher `w-16`（`mode-switcher.tsx:37`）64px + 外壳 `m-2` 双侧 16px ⇒ 网格触顶需视口 ≥ **1160px**（e2e 的 1440 满足）。`< lg` 时无 `grid-cols`，退化为单列，且外壳的 `overflow-hidden` 也随 `lg:` 前缀消失。
@@ -254,13 +254,13 @@ packages/app/src/context/mode.tsx:6-47      MODE_DEFINITIONS（5 项 × 6 字段
 
 **另有 5 个「被使用但未定义」的 v2 工具类根，共 9 处样式静默失效**（Tailwind v4 不会为不存在的 theme 变量产出类）：
 
-| 未定义 token 根 | 使用位置 |
-| --- | --- |
-| `v2-border-border-active` | `status-bar.tsx:45,85` · `custom/custom-sidebar.tsx:295,406` · `custom/custom-builder-main.tsx:282` |
-| `v2-border-border-faint` | `session/workflow-runtime-panel.tsx:131,189,219` · `custom/custom-snapshot-panel.tsx:221` |
-| `v2-border-weak` | `approval-center.tsx:319,360` |
-| `v2-background-bg-hover` | `status-bar/status-bar.tsx:126` |
-| `v2-icon-icon-interactive-base` | `secondary-sidebar.tsx:840` |
+| 未定义 token 根                 | 使用位置                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `v2-border-border-active`       | `status-bar.tsx:45,85` · `custom/custom-sidebar.tsx:295,406` · `custom/custom-builder-main.tsx:282` |
+| `v2-border-border-faint`        | `session/workflow-runtime-panel.tsx:131,189,219` · `custom/custom-snapshot-panel.tsx:221`           |
+| `v2-border-weak`                | `approval-center.tsx:319,360`                                                                       |
+| `v2-background-bg-hover`        | `status-bar/status-bar.tsx:126`                                                                     |
+| `v2-icon-icon-interactive-base` | `secondary-sidebar.tsx:840`                                                                         |
 
 注意 `workflow-runtime-panel.tsx:219` 正是 tone = `neutral` 那一支 ⇒ **中性档目前无色**。
 
@@ -283,11 +283,11 @@ packages/app/src/context/mode.tsx:6-47      MODE_DEFINITIONS（5 项 × 6 字段
 
 `ModeDefinition` 扩展为携带 `capability` 语义，`useMode()` 暴露 `availability(mode): "enabled" | "disabled" | "unknown"`。三态判据：
 
-| 态 | 判据 | UI 行为 |
-| --- | --- | --- |
-| `enabled` | 能力端点报该模式可用 | 正常入口 |
-| `disabled` | 能力存在但被策略/配置关闭 | 入口可见但 `aria-disabled` + 说明原因与开启方式，**不静默隐藏** |
-| `unknown` | 端点不可达 / 404 / 旧服务端 | **入口按可用处理**（fail-open），失败在动作时以结构化错误呈现 |
+| 态         | 判据                        | UI 行为                                                         |
+| ---------- | --------------------------- | --------------------------------------------------------------- |
+| `enabled`  | 能力端点报该模式可用        | 正常入口                                                        |
+| `disabled` | 能力存在但被策略/配置关闭   | 入口可见但 `aria-disabled` + 说明原因与开启方式，**不静默隐藏** |
+| `unknown`  | 端点不可达 / 404 / 旧服务端 | **入口按可用处理**（fail-open），失败在动作时以结构化错误呈现   |
 
 **双信号合成规则（针对 custom，过渡期专用）**：`disabled` 仅当「能力端点的 `customMode === false`」**且**「`classifyPlanFailure` 也判定 disabled」时成立；两者不一致 ⇒ 落 `unknown`。
 
@@ -323,25 +323,25 @@ packages/app/src/context/mode.tsx:6-47      MODE_DEFINITIONS（5 项 × 6 字段
 
 ### 4.6 D6：Token 迁移试点的选路（按杠杆排序，不按文件数排序）
 
-| 顺序 | 路径 | 为什么先做 |
-| --- | --- | --- |
-| 1 | **修 5 个未定义 v2 工具类根**（9 处失效样式，7 个文件，§3.5） | 这些是**已经坏了**的样式，不是迁移；包含 tone=neutral 无色这一条 |
-| 2 | **补 Tailwind 暴露**：把 `syntax`/`markdown`/`diff`/`input` 四组已存在的 v2 token 映射进 `packages/ui/src/styles/tailwind/colors.css` | token 已存在（§3.5），只差暴露；v1 侧对应工具类都有，这是断层的直接成因 |
-| 3 | **修 v2 组件自身的 v1 引用**（7 个文件共 38 处：`menu-v2.css` 12 / `accordion-v2.css` 11 / `avatar-v2.css` 5 / `switch-v2.css` 3 / `radio-v2.css` 3 / `tool-error-card-v2.css` 8 / `basic-tool-v2.css` 6） | v2 组件引用 v1 token 是系统内部矛盾，改它不影响任何业务页面 |
-| 4 | **shared 高频路径**：ModeSwitcher + Home 筛选行 | 与 B0/B1 同文件，触面已经打开，边际成本最低 |
-| 5 | **session-ui 路径**：`tool-error-card-v2` 链路 | 已是纯 v2 组件，改的是它的 css 依赖 |
+| 顺序 | 路径                                                                                                                                                                                                       | 为什么先做                                                              |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 1    | **修 5 个未定义 v2 工具类根**（9 处失效样式，7 个文件，§3.5）                                                                                                                                              | 这些是**已经坏了**的样式，不是迁移；包含 tone=neutral 无色这一条        |
+| 2    | **补 Tailwind 暴露**：把 `syntax`/`markdown`/`diff`/`input` 四组已存在的 v2 token 映射进 `packages/ui/src/styles/tailwind/colors.css`                                                                      | token 已存在（§3.5），只差暴露；v1 侧对应工具类都有，这是断层的直接成因 |
+| 3    | **修 v2 组件自身的 v1 引用**（7 个文件共 38 处：`menu-v2.css` 12 / `accordion-v2.css` 11 / `avatar-v2.css` 5 / `switch-v2.css` 3 / `radio-v2.css` 3 / `tool-error-card-v2.css` 8 / `basic-tool-v2.css` 6） | v2 组件引用 v1 token 是系统内部矛盾，改它不影响任何业务页面             |
+| 4    | **shared 高频路径**：ModeSwitcher + Home 筛选行                                                                                                                                                            | 与 B0/B1 同文件，触面已经打开，边际成本最低                             |
+| 5    | **session-ui 路径**：`tool-error-card-v2` 链路                                                                                                                                                             | 已是纯 v2 组件，改的是它的 css 依赖                                     |
 
 **明确不做**：`session-ui/src/components/message-part.css`（158 处 v1 引用，单文件最大热点）与 `ui/src/context/marked.tsx`（64 处）—— 它们要整条 markdown/syntax 渲染链一起迁，属独立切片。
 
 ### 4.7 方案对冲
 
-| | 简单实现（本计划采用） | 健壮架构（不在本计划） |
-| --- | --- | --- |
-| 能力 | 消费已有端点 + 双信号合成 + fail-open | 服务端 typed capability 契约 + 客户端声明式能力协商 |
-| 几何 | e2e computed geometry 断言 + 删死分支 | 容器查询（`@container`）重构，让主列宽度自适应而非视口断点 |
-| 状态 | 词表 + tone + CalloutV2 + 新组件用 `data-status` | 全量迁移既有领域态属性；状态机化 |
-| Token | 5 项按杠杆排序的定点迁移 | 三层 Token 体系全量落地 + codemod |
-| **申报的债** | 既有 `data-state` 领域态未迁；`message-part.css` 未迁；e2e 明暗/三语/键盘矩阵未补；37 主题只抽样 | —— |
+|              | 简单实现（本计划采用）                                                                           | 健壮架构（不在本计划）                                     |
+| ------------ | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| 能力         | 消费已有端点 + 双信号合成 + fail-open                                                            | 服务端 typed capability 契约 + 客户端声明式能力协商        |
+| 几何         | e2e computed geometry 断言 + 删死分支                                                            | 容器查询（`@container`）重构，让主列宽度自适应而非视口断点 |
+| 状态         | 词表 + tone + CalloutV2 + 新组件用 `data-status`                                                 | 全量迁移既有领域态属性；状态机化                           |
+| Token        | 5 项按杠杆排序的定点迁移                                                                         | 三层 Token 体系全量落地 + codemod                          |
+| **申报的债** | 既有 `data-state` 领域态未迁；`message-part.css` 未迁；e2e 明暗/三语/键盘矩阵未补；37 主题只抽样 | ——                                                         |
 
 ---
 
@@ -351,72 +351,72 @@ packages/app/src/context/mode.tsx:6-47      MODE_DEFINITIONS（5 项 × 6 字段
 
 ### 批次 B0 · Capability-aware mode registry（估算 2–3 天）
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| B0-1 | 红 | 扩展 `packages/app/src/context/mode.test.ts`（现成的 registry 契约测试，3 例）：断言每个 `ModeDefinition` 都能解析出 `availability`，且 `resolveAvailability(caps, mode)` 是**纯函数**、对端点缺失返回 `unknown`、对 `customMode:false` + plan 判定 disabled 才返回 `disabled`（§4.1 双信号）。预期红：符号不存在 |
-| B0-2 | 绿 | `packages/app/package.json` 补 `"@aigcfroge/schema": "workspace:*"`（**已有 18 个文件在用但未声明**）。**不要**引入 `@aigcfroge/core` 的 `product-mode-policy`（会经 `core/flag/flag.ts` 在模块求值期读 `process.env`，Web 构建白屏；能力常量的正确来源是 `@aigcfroge/schema/product-mode`） |
-| B0-3 | 绿 | 新建 `packages/app/src/context/capability.ts`：`CapabilityPort` 接口 + `resolveAvailability` 纯函数 + 默认适配器（调**已生成**的 SDK 方法 `client.experimental.capabilities()`，见 `packages/sdk/js/src/v2/gen/sdk.gen.ts:1429`）。端口可注入 ⇒ 单测用假端口，不 mock `globalThis` |
-| B0-4 | 绿 | `mode.tsx`：`ModeDefinition` 加 `capability` 字段；`ModeContext`（`:76-81`）加 `availability(mode)`。保持 `mode.test.ts:24-28` 钉的「6 字段全为 id 机械派生」约定 —— 新字段也必须是可推导或显式常量，不引入隐式魔法 |
-| B0-5 | 绿 | 三个消费点改为读同一真源：`mode-switcher.tsx:39`（加 `aria-disabled` + Tooltip 说明原因，**不隐藏入口**）· `app.tsx:563` 的 `ModeRoute`（`disabled` 时渲染说明页而非 `<Navigate href="/">`）· `home-overview.tsx:345-351`（手写数组改为从 registry 派生，**并把 custom 纳入筛选行** —— `countByMode` 本来就统计它，只是没有入口） |
-| B0-6 | 重构 | `mode-workspace.tsx:16` 的 `ALL_SLOTS` 手写数组改为从 `MODE_DEFINITIONS` 派生（消掉「删改模式不会有编译错误」这个隐患）。顺手删死字段 `descriptionKey`**或**给它接上消费点（二选一，别留着） |
-| B0-7 | 绿 | e2e：`packages/app/e2e/regression/mode-capability.spec.ts`。`mock-server.ts` 需新增 `/experimental/capabilities` 路由（当前未覆盖，会落到兜底 `:146` 返回 `{}`）。三态各一条；`/mode/custom` 的装配抄 `builder-mcp-health.spec.ts:99-140` |
-| B0-8 | 门禁 | `bun --cwd packages/app test:unit` · `bun --cwd packages/app typecheck` · `bun --cwd packages/app test:e2e e2e/regression/mode-capability.spec.ts` · `LINT_BASE_REF=origin/main bun run script/lint-changed.ts` |
+| 步   | 类型 | 动作                                                                                                                                                                                                                                                                                                                              |
+| ---- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B0-1 | 红   | 扩展 `packages/app/src/context/mode.test.ts`（现成的 registry 契约测试，3 例）：断言每个 `ModeDefinition` 都能解析出 `availability`，且 `resolveAvailability(caps, mode)` 是**纯函数**、对端点缺失返回 `unknown`、对 `customMode:false` + plan 判定 disabled 才返回 `disabled`（§4.1 双信号）。预期红：符号不存在                 |
+| B0-2 | 绿   | `packages/app/package.json` 补 `"@aigcfroge/schema": "workspace:*"`（**已有 18 个文件在用但未声明**）。**不要**引入 `@aigcfroge/core` 的 `product-mode-policy`（会经 `core/flag/flag.ts` 在模块求值期读 `process.env`，Web 构建白屏；能力常量的正确来源是 `@aigcfroge/schema/product-mode`）                                      |
+| B0-3 | 绿   | 新建 `packages/app/src/context/capability.ts`：`CapabilityPort` 接口 + `resolveAvailability` 纯函数 + 默认适配器（调**已生成**的 SDK 方法 `client.experimental.capabilities()`，见 `packages/sdk/js/src/v2/gen/sdk.gen.ts:1429`）。端口可注入 ⇒ 单测用假端口，不 mock `globalThis`                                                |
+| B0-4 | 绿   | `mode.tsx`：`ModeDefinition` 加 `capability` 字段；`ModeContext`（`:76-81`）加 `availability(mode)`。保持 `mode.test.ts:24-28` 钉的「6 字段全为 id 机械派生」约定 —— 新字段也必须是可推导或显式常量，不引入隐式魔法                                                                                                               |
+| B0-5 | 绿   | 三个消费点改为读同一真源：`mode-switcher.tsx:39`（加 `aria-disabled` + Tooltip 说明原因，**不隐藏入口**）· `app.tsx:563` 的 `ModeRoute`（`disabled` 时渲染说明页而非 `<Navigate href="/">`）· `home-overview.tsx:345-351`（手写数组改为从 registry 派生，**并把 custom 纳入筛选行** —— `countByMode` 本来就统计它，只是没有入口） |
+| B0-6 | 重构 | `mode-workspace.tsx:16` 的 `ALL_SLOTS` 手写数组改为从 `MODE_DEFINITIONS` 派生（消掉「删改模式不会有编译错误」这个隐患）。顺手删死字段 `descriptionKey`**或**给它接上消费点（二选一，别留着）                                                                                                                                      |
+| B0-7 | 绿   | e2e：`packages/app/e2e/regression/mode-capability.spec.ts`。`mock-server.ts` 需新增 `/experimental/capabilities` 路由（当前未覆盖，会落到兜底 `:146` 返回 `{}`）。三态各一条；`/mode/custom` 的装配抄 `builder-mcp-health.spec.ts:99-140`                                                                                         |
+| B0-8 | 门禁 | `bun --cwd packages/app test:unit` · `bun --cwd packages/app typecheck` · `bun --cwd packages/app test:e2e e2e/regression/mode-capability.spec.ts` · `LINT_BASE_REF=origin/main bun run script/lint-changed.ts`                                                                                                                   |
 
 ### 批次 B1 · Geometry baseline（估算 1.5–2 天，依赖 B0 的入口契约）
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| B1-1 | 绿 | 抽取 `readGeometry` 到 `packages/app/e2e/utils/geometry.ts`（源：`e2e/performance/mode-layout-baseline.spec.ts:39-72`，逐字搬，不改语义） |
-| B1-2 | 红 | 新建 `packages/app/e2e/regression/mode-workspace-geometry.spec.ts`：`modes = 五模式`（**补 custom**）× `viewports = desktop 1440×900 / narrow 640×900`。断言 ① 每个节点 `scrollWidth <= clientWidth`（无横向溢出）② 桌面下三个分支解算出的主列宽**相等**（这条会把 §3.2 的算术钉死）③ 窄屏下导航与主区骨架仍在。预期红：断言②当前会通过而断言①在 narrow 下可能红，先跑一次拿真实结果 |
-| B1-3 | 红 | 补状态维度：loading / error / 长中文标题 / 长英文标题 / 计数变化 / 模式切换后。用 `mock-server.ts` 造这些状态 |
-| B1-4 | 绿 | 按 B1-2/B1-3 的红证据修**溢出**问题（只修溢出，不动 `max-w`） |
-| B1-5 | 重构 | 几何测试全绿后，删 `mode-workspace.tsx:168`/`:170` 的 `960px` 分支（§4.2 第 3 步）。断言②在删除前后必须都绿——这就是「行为等价」的证明 |
-| B1-6 | 门禁 | app typecheck + `test:e2e e2e/regression/mode-workspace-geometry.spec.ts`；把 computed geometry 的实际数值贴进 PR |
+| 步   | 类型 | 动作                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| B1-1 | 绿   | 抽取 `readGeometry` 到 `packages/app/e2e/utils/geometry.ts`（源：`e2e/performance/mode-layout-baseline.spec.ts:39-72`，逐字搬，不改语义）                                                                                                                                                                                                                                            |
+| B1-2 | 红   | 新建 `packages/app/e2e/regression/mode-workspace-geometry.spec.ts`：`modes = 五模式`（**补 custom**）× `viewports = desktop 1440×900 / narrow 640×900`。断言 ① 每个节点 `scrollWidth <= clientWidth`（无横向溢出）② 桌面下三个分支解算出的主列宽**相等**（这条会把 §3.2 的算术钉死）③ 窄屏下导航与主区骨架仍在。预期红：断言②当前会通过而断言①在 narrow 下可能红，先跑一次拿真实结果 |
+| B1-3 | 红   | 补状态维度：loading / error / 长中文标题 / 长英文标题 / 计数变化 / 模式切换后。用 `mock-server.ts` 造这些状态                                                                                                                                                                                                                                                                        |
+| B1-4 | 绿   | 按 B1-2/B1-3 的红证据修**溢出**问题（只修溢出，不动 `max-w`）                                                                                                                                                                                                                                                                                                                        |
+| B1-5 | 重构 | 几何测试全绿后，删 `mode-workspace.tsx:168`/`:170` 的 `960px` 分支（§4.2 第 3 步）。断言②在删除前后必须都绿——这就是「行为等价」的证明                                                                                                                                                                                                                                                |
+| B1-6 | 门禁 | app typecheck + `test:e2e e2e/regression/mode-workspace-geometry.spec.ts`；把 computed geometry 的实际数值贴进 PR                                                                                                                                                                                                                                                                    |
 
 ### 批次 B2 · 状态词汇与错误真实性（估算 3–4 天）
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| B2-1 | 红 | `packages/ui/src/v2/state.test.ts`：11 值词表完整性 + `stateTone` 对每个值有 tone + `stateKey` 生成的 key **在 `ui/src/i18n/en.ts` 里真实存在**（这条会同时守住「加了状态忘了加文案」）。预期红 |
-| B2-2 | 绿 | 新建 `packages/ui/src/v2/state.ts`（词表 + tone + key），tone 实现从 `packages/app/src/pages/session/workflow-runtime-model.ts:174-184` **上提**（§4.4） |
-| B2-3 | 绿 | 文案进 `packages/ui/src/i18n/{en,zh,zht}.ts`（3 个必改），每条表达「状态 + 原因 + 影响 + 下一步」。跑 `bun --cwd packages/ui test src/i18n/parity.test.ts` 确认 zh/zht 双向对齐 |
-| B2-4 | 绿 | 新建 `packages/ui/src/v2/components/callout-v2.tsx` + `callout-v2.css`：`data-component="callout-v2"` + `data-variant`（tone）+ `data-status`（§4.3 裁决）；CSS 只引 `--v2-state-*`（已有 12 个 Tailwind 工具类）；遵循 `:is(伪类, [data-state="..."])` 双写约定（见 `button-v2.css:31,75,81,87` 与 `icon-button-v2.tsx:12-31`） |
-| B2-5 | 绿 | 上提 `SkeletonV2`（源 `packages/app/src/pages/home-shared.tsx:448`，已是 v2 token，3 个消费者跟着改） |
-| B2-6 | 绿 | Storybook：`packages/ui/src/v2/components/callout-v2.stories.tsx` + `skeleton-v2.stories.tsx`。**照现有 27 个 v2 story 的统一约定**：`title: "UI V2/<PascalName>"` + `id: "components-<kebab>-v2"` + `tags: ["autodocs"]` + `docs` 模板六段（Overview / API / Variants and states / Behavior / Accessibility / Theming-tokens），范例见 `badge-v2.stories.tsx`（54 行）与 `button-v2.stories.tsx`。注意 Storybook **不挂 `I18nProvider`**，story 走 en 兜底 |
-| B2-7 | 绿 | 对齐既有表面：Permission / Approval Center / Composer Dock / `session-ui` message parts 的状态表达改用共享词表。**范围限制**：只改「状态命名与着色」，不改交互逻辑 |
-| B2-8 | 门禁 | `bun --cwd packages/ui test` · `bun --cwd packages/session-ui test` · 三包 typecheck · `bun --cwd packages/storybook build`（注意 `docs/technical-debt.md` §3.1 记录过 Storybook 构建 OOM，若复现则按该条处理，**不要**为它改动无关代码） |
+| 步   | 类型 | 动作                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B2-1 | 红   | `packages/ui/src/v2/state.test.ts`：11 值词表完整性 + `stateTone` 对每个值有 tone + `stateKey` 生成的 key **在 `ui/src/i18n/en.ts` 里真实存在**（这条会同时守住「加了状态忘了加文案」）。预期红                                                                                                                                                                                                                                                             |
+| B2-2 | 绿   | 新建 `packages/ui/src/v2/state.ts`（词表 + tone + key），tone 实现从 `packages/app/src/pages/session/workflow-runtime-model.ts:174-184` **上提**（§4.4）                                                                                                                                                                                                                                                                                                    |
+| B2-3 | 绿   | 文案进 `packages/ui/src/i18n/{en,zh,zht}.ts`（3 个必改），每条表达「状态 + 原因 + 影响 + 下一步」。跑 `bun --cwd packages/ui test src/i18n/parity.test.ts` 确认 zh/zht 双向对齐                                                                                                                                                                                                                                                                             |
+| B2-4 | 绿   | 新建 `packages/ui/src/v2/components/callout-v2.tsx` + `callout-v2.css`：`data-component="callout-v2"` + `data-variant`（tone）+ `data-status`（§4.3 裁决）；CSS 只引 `--v2-state-*`（已有 12 个 Tailwind 工具类）；遵循 `:is(伪类, [data-state="..."])` 双写约定（见 `button-v2.css:31,75,81,87` 与 `icon-button-v2.tsx:12-31`）                                                                                                                            |
+| B2-5 | 绿   | 上提 `SkeletonV2`（源 `packages/app/src/pages/home-shared.tsx:448`，已是 v2 token，3 个消费者跟着改）                                                                                                                                                                                                                                                                                                                                                       |
+| B2-6 | 绿   | Storybook：`packages/ui/src/v2/components/callout-v2.stories.tsx` + `skeleton-v2.stories.tsx`。**照现有 27 个 v2 story 的统一约定**：`title: "UI V2/<PascalName>"` + `id: "components-<kebab>-v2"` + `tags: ["autodocs"]` + `docs` 模板六段（Overview / API / Variants and states / Behavior / Accessibility / Theming-tokens），范例见 `badge-v2.stories.tsx`（54 行）与 `button-v2.stories.tsx`。注意 Storybook **不挂 `I18nProvider`**，story 走 en 兜底 |
+| B2-7 | 绿   | 对齐既有表面：Permission / Approval Center / Composer Dock / `session-ui` message parts 的状态表达改用共享词表。**范围限制**：只改「状态命名与着色」，不改交互逻辑                                                                                                                                                                                                                                                                                          |
+| B2-8 | 门禁 | `bun --cwd packages/ui test` · `bun --cwd packages/session-ui test` · 三包 typecheck · `bun --cwd packages/storybook build`（注意 `docs/technical-debt.md` §3.1 记录过 Storybook 构建 OOM，若复现则按该条处理，**不要**为它改动无关代码）                                                                                                                                                                                                                   |
 
 ### 批次 B3 · Custom 错误真实性（估算 1–1.5 天）
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| B3-1 | 红 | 抽纯函数 + 单测：`packages/app/src/components/custom/custom-discovery.ts` 的 `classifyDiscovery(results)` → 每个资产类别独立的 `{ status: "loading" \| "empty" \| "error", items, error? }`。预期红：符号不存在 |
-| B3-2 | 红 | e2e `packages/app/e2e/regression/custom-sidebar-errors.spec.ts`：让 5 个资产端点之一返回 500，断言该类别显示错误 + 重试按钮，且**其余四类不受影响**；再断言加载中不显示「没有」。预期红（当前三层吞噬，见 §3.4） |
-| B3-3 | 绿 | 重写 `custom-sidebar.tsx:30-50`：删掉 5 个 per-call `.catch`（`:34-38`）与外层 `catch {}`（`:48-50`），改为 `Promise.allSettled` + 逐类别状态；渲染消费 `discovered.loading` / `discovered.error`（当前**从未读取**）。空态与错误态分别用 B2 的 `CalloutV2` |
-| B3-4 | 绿 | 修同文件两个真实缺陷：补 `common.all` / `common.refresh` 两个缺失 i18n key（`:175` 按钮当前**无文字**、`:149` `aria-label` **不存在**）；`:295`/`:406` 的未定义 token `outline-v2-border-border-active` 一并在 B4-1 修 |
-| B3-5 | 绿 | 新增反向存在性测试 `packages/app/src/i18n/usage.test.ts`：扫 `packages/app/src` 中 `t("literal")` 的字面量 key，断言都在 `en` 字典里（parity 测不出这类反向缺口，§4.5） |
-| B3-6 | 门禁 | app `test:unit` + typecheck + 两条 e2e；确认 `custom-preview-column.test.ts` 的 6 个既有用例与漂移哨兵仍绿 |
+| 步   | 类型 | 动作                                                                                                                                                                                                                                                        |
+| ---- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B3-1 | 红   | 抽纯函数 + 单测：`packages/app/src/components/custom/custom-discovery.ts` 的 `classifyDiscovery(results)` → 每个资产类别独立的 `{ status: "loading" \| "empty" \| "error", items, error? }`。预期红：符号不存在                                             |
+| B3-2 | 红   | e2e `packages/app/e2e/regression/custom-sidebar-errors.spec.ts`：让 5 个资产端点之一返回 500，断言该类别显示错误 + 重试按钮，且**其余四类不受影响**；再断言加载中不显示「没有」。预期红（当前三层吞噬，见 §3.4）                                            |
+| B3-3 | 绿   | 重写 `custom-sidebar.tsx:30-50`：删掉 5 个 per-call `.catch`（`:34-38`）与外层 `catch {}`（`:48-50`），改为 `Promise.allSettled` + 逐类别状态；渲染消费 `discovered.loading` / `discovered.error`（当前**从未读取**）。空态与错误态分别用 B2 的 `CalloutV2` |
+| B3-4 | 绿   | 修同文件两个真实缺陷：补 `common.all` / `common.refresh` 两个缺失 i18n key（`:175` 按钮当前**无文字**、`:149` `aria-label` **不存在**）；`:295`/`:406` 的未定义 token `outline-v2-border-border-active` 一并在 B4-1 修                                      |
+| B3-5 | 绿   | 新增反向存在性测试 `packages/app/src/i18n/usage.test.ts`：扫 `packages/app/src` 中 `t("literal")` 的字面量 key，断言都在 `en` 字典里（parity 测不出这类反向缺口，§4.5）                                                                                     |
+| B3-6 | 门禁 | app `test:unit` + typecheck + 两条 e2e；确认 `custom-preview-column.test.ts` 的 6 个既有用例与漂移哨兵仍绿                                                                                                                                                  |
 
 ### 批次 B4 · Token 迁移试点（估算 2–3 天）
 
-| 步 | 类型 | 动作 |
-| --- | --- | --- |
-| B4-1 | 绿 | 修 5 个未定义 v2 工具类根（§3.5 表，9 处失效样式）：要么在 `packages/ui/src/styles/tailwind/colors.css` 补映射，要么改用已定义的近义 token。**含 `workflow-runtime-panel.tsx:219` 的 tone=neutral 无色** |
-| B4-2 | 红 | 新建 `packages/ui/src/styles/tailwind/v2-exposure.test.ts`：断言「被使用的 `(text\|bg\|border\|outline\|...)-v2-*` 工具类根」⊆「`colors.css` 已定义的 `--color-v2-*`」。预期红（当前 5 个根未定义），B4-1 后转绿，并**永久防止**再出现同类静默失效 |
-| B4-3 | 绿 | 补 Tailwind 暴露：把 `syntax`(19) / `markdown`(14) / `diff`(11) / `input`(6) 四组**已存在**的 v2 token 映射进 `colors.css`（对照 v1 侧同名工具类已齐备）。注意它们由运行时主题层产出（`packages/ui/src/theme/v2/{syntax-markdown,diff,mapping}.ts`），暴露工具类不改变产出方式 |
-| B4-4 | 重构 | 修 v2 组件自身的 v1 引用（7 文件 38 处，§4.6 第 3 项）。每个文件改完立刻在 Storybook 里对照 light/dark 截图 |
-| B4-5 | 重构 | shared 路径：ModeSwitcher + Home 筛选行（与 B0 同文件）改为纯 v2 token |
-| B4-6 | 绿 | 建**迁移账本** `docs/plan/v2-token-migration-ledger.md`：文件 · 旧引用数 · 目标 Token · 风险 · Owner · 验证命令 · 删除条件。用 §0.2 的可复现命令产出前后数字 |
-| B4-7 | 门禁 | ui / session-ui / app 三包 test + typecheck；`bun --cwd packages/storybook build`；用 §0.2 命令复算三个包的 legacy 计数并记入账本 |
+| 步   | 类型 | 动作                                                                                                                                                                                                                                                                           |
+| ---- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| B4-1 | 绿   | 修 5 个未定义 v2 工具类根（§3.5 表，9 处失效样式）：要么在 `packages/ui/src/styles/tailwind/colors.css` 补映射，要么改用已定义的近义 token。**含 `workflow-runtime-panel.tsx:219` 的 tone=neutral 无色**                                                                       |
+| B4-2 | 红   | 新建 `packages/ui/src/styles/tailwind/v2-exposure.test.ts`：断言「被使用的 `(text\|bg\|border\|outline\|...)-v2-*` 工具类根」⊆「`colors.css` 已定义的 `--color-v2-*`」。预期红（当前 5 个根未定义），B4-1 后转绿，并**永久防止**再出现同类静默失效                             |
+| B4-3 | 绿   | 补 Tailwind 暴露：把 `syntax`(19) / `markdown`(14) / `diff`(11) / `input`(6) 四组**已存在**的 v2 token 映射进 `colors.css`（对照 v1 侧同名工具类已齐备）。注意它们由运行时主题层产出（`packages/ui/src/theme/v2/{syntax-markdown,diff,mapping}.ts`），暴露工具类不改变产出方式 |
+| B4-4 | 重构 | 修 v2 组件自身的 v1 引用（7 文件 38 处，§4.6 第 3 项）。每个文件改完立刻在 Storybook 里对照 light/dark 截图                                                                                                                                                                    |
+| B4-5 | 重构 | shared 路径：ModeSwitcher + Home 筛选行（与 B0 同文件）改为纯 v2 token                                                                                                                                                                                                         |
+| B4-6 | 绿   | 建**迁移账本** `docs/plan/v2-token-migration-ledger.md`：文件 · 旧引用数 · 目标 Token · 风险 · Owner · 验证命令 · 删除条件。用 §0.2 的可复现命令产出前后数字                                                                                                                   |
+| B4-7 | 门禁 | ui / session-ui / app 三包 test + typecheck；`bun --cwd packages/storybook build`；用 §0.2 命令复算三个包的 legacy 计数并记入账本                                                                                                                                              |
 
 ### 批次 B5 · Review gate（估算 0.5–1 天）
 
-| 步 | 动作 |
-| --- | --- |
-| B5-1 | `git diff --stat origin/main...HEAD` + `git diff --check`；跑 §2.5 三条冲突自检 |
-| B5-2 | legacy 趋势：用 §0.2 命令复算 ui/app/session-ui 三个数字与 76 个旧组件入口，记录 delta |
-| B5-3 | 手工矩阵（本切片只覆盖**试点路径**，不承诺全仓）：light/dark 各一遍 · 键盘走查 ModeSwitcher 与 CalloutV2 的重试按钮 · 中英文长文案 · desktop/narrow |
-| B5-4 | 产出 `docs/review/v2-ux-baseline-2026-XX.md`：§0.2 数字 + B1 的 computed geometry 实测值 + 状态矩阵截图 + 未闭环项 |
+| 步   | 动作                                                                                                                                                                                                                                                  |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B5-1 | `git diff --stat origin/main...HEAD` + `git diff --check`；跑 §2.5 三条冲突自检                                                                                                                                                                       |
+| B5-2 | legacy 趋势：用 §0.2 命令复算 ui/app/session-ui 三个数字与 76 个旧组件入口，记录 delta                                                                                                                                                                |
+| B5-3 | 手工矩阵（本切片只覆盖**试点路径**，不承诺全仓）：light/dark 各一遍 · 键盘走查 ModeSwitcher 与 CalloutV2 的重试按钮 · 中英文长文案 · desktop/narrow                                                                                                   |
+| B5-4 | 产出 `docs/review/v2-ux-baseline-2026-XX.md`：§0.2 数字 + B1 的 computed geometry 实测值 + 状态矩阵截图 + 未闭环项                                                                                                                                    |
 | B5-5 | 全量门禁：`bun --cwd packages/app test:unit` · `test:virtualizer` · `bun --cwd packages/ui test` · `bun --cwd packages/session-ui test` · 三包 typecheck · `bun --cwd packages/app test:e2e`（全量 regression）· `bun --cwd packages/storybook build` |
 
 ---
@@ -425,19 +425,19 @@ packages/app/src/context/mode.tsx:6-47      MODE_DEFINITIONS（5 项 × 6 字段
 
 ### 6.1 层级归属（由 §3.6 的能力边界决定，不可换层）
 
-| 要验证的东西 | 层级 | 位置 | 理由 |
-| --- | --- | --- | --- |
-| `resolveAvailability` 三态判定 | 纯函数单测 | `packages/app/src/context/mode.test.ts` | 可注入端口，能真测行为 |
-| `classifyDiscovery` 逐类别状态 | 纯函数单测 | `packages/app/src/components/custom/custom-discovery.test.ts` | 同上 |
-| `stateTone` / `stateKey` / 文案存在性 | 纯函数单测 | `packages/ui/src/v2/state.test.ts` | 同上 |
-| i18n 双向对齐 | 既有门禁 | `packages/{ui,app}/src/i18n/parity.test.ts` | zh/zht 双向 + 占位符 |
-| i18n **反向**存在性（代码用了字典没有） | 新增单测 | `packages/app/src/i18n/usage.test.ts` | parity 测不出，§4.5 |
-| v2 工具类根已定义 | 新增单测 | `packages/ui/src/styles/tailwind/v2-exposure.test.ts` | 防止再出现静默失效样式 |
-| **几何 / overflow / 断点** | **只能 e2e** | `packages/app/e2e/regression/mode-workspace-geometry.spec.ts` | happy-dom 不做布局，`getBoundingClientRect()` 恒 0 |
-| 能力三态的真实渲染 | e2e | `e2e/regression/mode-capability.spec.ts` | app 无 solid-testing-library |
-| 资产失败不伪装成空 | e2e | `e2e/regression/custom-sidebar-errors.spec.ts` | 同上 |
-| 组件已挂载在某路由 | 源码字符串契约（**仅此一种允许**） | 既有 `*.test.tsx` 风格 | 只能断结构，不能代替行为 |
-| 视觉（light/dark、状态矩阵） | Storybook + 手工截图 | `packages/storybook` | 仓库无自动对比度审计 |
+| 要验证的东西                            | 层级                               | 位置                                                          | 理由                                               |
+| --------------------------------------- | ---------------------------------- | ------------------------------------------------------------- | -------------------------------------------------- |
+| `resolveAvailability` 三态判定          | 纯函数单测                         | `packages/app/src/context/mode.test.ts`                       | 可注入端口，能真测行为                             |
+| `classifyDiscovery` 逐类别状态          | 纯函数单测                         | `packages/app/src/components/custom/custom-discovery.test.ts` | 同上                                               |
+| `stateTone` / `stateKey` / 文案存在性   | 纯函数单测                         | `packages/ui/src/v2/state.test.ts`                            | 同上                                               |
+| i18n 双向对齐                           | 既有门禁                           | `packages/{ui,app}/src/i18n/parity.test.ts`                   | zh/zht 双向 + 占位符                               |
+| i18n **反向**存在性（代码用了字典没有） | 新增单测                           | `packages/app/src/i18n/usage.test.ts`                         | parity 测不出，§4.5                                |
+| v2 工具类根已定义                       | 新增单测                           | `packages/ui/src/styles/tailwind/v2-exposure.test.ts`         | 防止再出现静默失效样式                             |
+| **几何 / overflow / 断点**              | **只能 e2e**                       | `packages/app/e2e/regression/mode-workspace-geometry.spec.ts` | happy-dom 不做布局，`getBoundingClientRect()` 恒 0 |
+| 能力三态的真实渲染                      | e2e                                | `e2e/regression/mode-capability.spec.ts`                      | app 无 solid-testing-library                       |
+| 资产失败不伪装成空                      | e2e                                | `e2e/regression/custom-sidebar-errors.spec.ts`                | 同上                                               |
+| 组件已挂载在某路由                      | 源码字符串契约（**仅此一种允许**） | 既有 `*.test.tsx` 风格                                        | 只能断结构，不能代替行为                           |
+| 视觉（light/dark、状态矩阵）            | Storybook + 手工截图               | `packages/storybook`                                          | 仓库无自动对比度审计                               |
 
 ### 6.2 命令
 
@@ -484,29 +484,29 @@ LINT_BASE_REF=origin/main bun run script/lint-changed.ts
 
 ## 8. 风险与缓解
 
-| 风险 | 表现 | 缓解 |
-| --- | --- | --- |
-| 端点硬编码 `false` 导致错误 disabled | 用户开了 flag 仍被挡在入口外 | §4.1 双信号合成 + 不一致时 fail-open；架构分支 A0-5 落地后收敛 |
-| 删 `960px` 被当成视觉改动打回 | Review 质疑 | B1-5 要求删除前后几何断言都绿，PR 里贴 computed 数值 |
-| 状态词汇成为第二套并行体系 | 既有 `data-state` 领域态与新 `data-status` 长期并存 | §4.3 明确只约束新增组件；旧的登记为债并写明触发条件 |
-| Token 迁移扩面失控 | 主题回归 | 按 §4.6 顺序、每项独立提交；明确排除 `message-part.css` 与 `marked.tsx` |
-| Storybook OOM 阻断视觉证据 | 拿不到截图门禁 | 已知既有问题；若复现按 `docs/technical-debt.md` §3.1 处理，不为它改无关代码 |
-| e2e 无 typecheck 兜底 | 新 spec 写错类型不报错 | 新 spec 用 `e2e/utils/` 的类型化 helper；PR 里贴 e2e 真实运行输出 |
-| 与并行架构分支冲突 | 合并冲突 | §2.5 三条自检 |
+| 风险                                 | 表现                                                | 缓解                                                                        |
+| ------------------------------------ | --------------------------------------------------- | --------------------------------------------------------------------------- |
+| 端点硬编码 `false` 导致错误 disabled | 用户开了 flag 仍被挡在入口外                        | §4.1 双信号合成 + 不一致时 fail-open；架构分支 A0-5 落地后收敛              |
+| 删 `960px` 被当成视觉改动打回        | Review 质疑                                         | B1-5 要求删除前后几何断言都绿，PR 里贴 computed 数值                        |
+| 状态词汇成为第二套并行体系           | 既有 `data-state` 领域态与新 `data-status` 长期并存 | §4.3 明确只约束新增组件；旧的登记为债并写明触发条件                         |
+| Token 迁移扩面失控                   | 主题回归                                            | 按 §4.6 顺序、每项独立提交；明确排除 `message-part.css` 与 `marked.tsx`     |
+| Storybook OOM 阻断视觉证据           | 拿不到截图门禁                                      | 已知既有问题；若复现按 `docs/technical-debt.md` §3.1 处理，不为它改无关代码 |
+| e2e 无 typecheck 兜底                | 新 spec 写错类型不报错                              | 新 spec 用 `e2e/utils/` 的类型化 helper；PR 里贴 e2e 真实运行输出           |
+| 与并行架构分支冲突                   | 合并冲突                                            | §2.5 三条自检                                                               |
 
 ---
 
 ## 9. 验收标准（映射路线图 §8 指标）
 
-| 指标 | 本计划的验收证据 | 是否本切片关闭 |
-| --- | --- | --- |
-| 模式入口可信度 | 三态 e2e 全绿；custom 进入首页筛选行；无静默回退 coding（`mode.tsx:90-93` 等三处的行为写成显式断言） | ✅ |
-| 空间稳定性 | desktop/narrow 无横向溢出（e2e 断言）；computed geometry 有可追溯记录；`960px` 死分支已删且等价 | ✅ |
-| 恢复成功率 | 资产失败逐类别可见 + 可重试；输入不丢 | ⚠️ 只关闭资产侧；`recovery` 依赖架构分支投递真实状态 |
-| 审批负担 | 不在本切片 | ❌ |
-| 资产可追溯 | `invalid` / `conflict` / `applied` 进入共享词表并在 Chat/Custom 表面一致 | ⚠️ 词表关闭，全模式对齐留给 Phase 4 |
-| 可访问性 | icon-only 有 label；焦点可见；试点路径键盘走查记录 | ⚠️ 试点路径关闭，全仓矩阵是独立专项 |
-| 迁移健康度 | 账本成形；§0.2 口径的三个数字有 delta 记录；`v2-exposure.test.ts` 永久防止未定义工具类 | ✅ |
+| 指标           | 本计划的验收证据                                                                                     | 是否本切片关闭                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| 模式入口可信度 | 三态 e2e 全绿；custom 进入首页筛选行；无静默回退 coding（`mode.tsx:90-93` 等三处的行为写成显式断言） | ✅                                                   |
+| 空间稳定性     | desktop/narrow 无横向溢出（e2e 断言）；computed geometry 有可追溯记录；`960px` 死分支已删且等价      | ✅                                                   |
+| 恢复成功率     | 资产失败逐类别可见 + 可重试；输入不丢                                                                | ⚠️ 只关闭资产侧；`recovery` 依赖架构分支投递真实状态 |
+| 审批负担       | 不在本切片                                                                                           | ❌                                                   |
+| 资产可追溯     | `invalid` / `conflict` / `applied` 进入共享词表并在 Chat/Custom 表面一致                             | ⚠️ 词表关闭，全模式对齐留给 Phase 4                  |
+| 可访问性       | icon-only 有 label；焦点可见；试点路径键盘走查记录                                                   | ⚠️ 试点路径关闭，全仓矩阵是独立专项                  |
+| 迁移健康度     | 账本成形；§0.2 口径的三个数字有 delta 记录；`v2-exposure.test.ts` 永久防止未定义工具类               | ✅                                                   |
 
 ---
 

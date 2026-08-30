@@ -15,6 +15,7 @@
 M2 只完成了 `prompt`（提示词）单一资产类型的闭环（schema/registry/CRUD/Insert/UI）。其他类型（skill/mcp/command/agent）在 UI 上通过 ChatFeaturePanel 展示了运行时列表（server-sync 数据），但**不具备资产的创建/管理能力**。
 
 M3 目标：
+
 1. **框架泛化**：定义 `AssetKindDef`, `AssetKindRegistry`, `AssetError` 等通用层，使新类型开闸只需注册定义
 2. **全量开闸**：skill / mcp / command / agent 四种类型全部变成真资产（有文件、有注册表、可创建/遍历/插入）
 3. **UI 简化**：ChatFeaturePanel 在 Phase 6（全部 kind 开闸后）自然消亡，所有类型走 AssetWorkbenchTable filter
@@ -77,6 +78,7 @@ M3 目标：
 ```
 
 **关键设计决策**（与 PRD §8.1.1 一致）：
+
 1. 各类型保留现有分散错误类（PromptAsset 的 NotFoundError/NameConflictError 等，Effect tagged-union 惯用法）
 2. `AssetError` 仅作框架层 catch-all（`unknown_kind` 等），不强迁现有实现
 3. `AssetKindDef.S/I` 用 `Schema.Schema.Any` 上界（避免 `any` 逃逸）
@@ -87,26 +89,27 @@ M3 目标：
 
 ## 2. Phase 划分（TDD 每步，已按审查修正）
 
-| Phase | 内容 | 测试所在包 | 包 | 依赖 |
-|-------|------|-----------|-----|------|
-| **1A** | 框架契约：AssetKindId + AssetSummary + AssetError | `packages/schema/test/` | schema | — |
-| **1B** | AssetKindRegistry + AssetSerializer 接口 | `packages/core/test/` | core | 1A |
-| **1C** | PromptAsset 接入框架 + AssetRow 类型泛化 | `packages/core/test/` | core + app | 1B |
-| **2A** | SkillAsset schema + core registry + HTTP handler + API group | `packages/core/test/` | schema + core + aigcfroge | 1C |
-| **2B** | **SkillAsset 数据迁移**（server-sync skill → .aigcfroge/skills/ 文件落地） | `packages/core/test/` | core | 2A |
-| **2C** | SkillAsset SDK 重新生成 + UI 切换（功能树 skill → AssetWorkbench filter，保留 skill 的 ChatFeaturePanel 降级为未开闸占位） | — | sdk/js + app | 2B |
-| **3A** | MCPAsset schema + core + HTTP | — | schema + core + aigcfroge | 2C |
-| **3B** | **MCPAsset 数据迁移** | — | core | 3A |
-| **3C** | MCPAsset SDK + UI 切换 | — | sdk/js + app | 3B |
-| **4A** | CommandAsset schema + core + HTTP | — | 同上 | 3C |
-| **4B** | **CommandAsset 数据迁移** | — | core | 4A |
-| **4C** | CommandAsset SDK + UI 切换 | — | sdk/js + app | 4B |
-| **5A** | AgentAsset schema + core + HTTP | — | 同上 | 4C |
-| **5B** | **AgentAsset 数据迁移** | — | core | 5A |
-| **5C** | AgentAsset SDK + UI 切换 | — | sdk/js + app | 5B |
-| **6** | UI 收尾：删 ChatFeaturePanel（全部 4 kind 已开闸），Insert 通用化 | `packages/app/test/` | app | 5C |
+| Phase  | 内容                                                                                                                       | 测试所在包              | 包                        | 依赖 |
+| ------ | -------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------- | ---- |
+| **1A** | 框架契约：AssetKindId + AssetSummary + AssetError                                                                          | `packages/schema/test/` | schema                    | —    |
+| **1B** | AssetKindRegistry + AssetSerializer 接口                                                                                   | `packages/core/test/`   | core                      | 1A   |
+| **1C** | PromptAsset 接入框架 + AssetRow 类型泛化                                                                                   | `packages/core/test/`   | core + app                | 1B   |
+| **2A** | SkillAsset schema + core registry + HTTP handler + API group                                                               | `packages/core/test/`   | schema + core + aigcfroge | 1C   |
+| **2B** | **SkillAsset 数据迁移**（server-sync skill → .aigcfroge/skills/ 文件落地）                                                 | `packages/core/test/`   | core                      | 2A   |
+| **2C** | SkillAsset SDK 重新生成 + UI 切换（功能树 skill → AssetWorkbench filter，保留 skill 的 ChatFeaturePanel 降级为未开闸占位） | —                       | sdk/js + app              | 2B   |
+| **3A** | MCPAsset schema + core + HTTP                                                                                              | —                       | schema + core + aigcfroge | 2C   |
+| **3B** | **MCPAsset 数据迁移**                                                                                                      | —                       | core                      | 3A   |
+| **3C** | MCPAsset SDK + UI 切换                                                                                                     | —                       | sdk/js + app              | 3B   |
+| **4A** | CommandAsset schema + core + HTTP                                                                                          | —                       | 同上                      | 3C   |
+| **4B** | **CommandAsset 数据迁移**                                                                                                  | —                       | core                      | 4A   |
+| **4C** | CommandAsset SDK + UI 切换                                                                                                 | —                       | sdk/js + app              | 4B   |
+| **5A** | AgentAsset schema + core + HTTP                                                                                            | —                       | 同上                      | 4C   |
+| **5B** | **AgentAsset 数据迁移**                                                                                                    | —                       | core                      | 5A   |
+| **5C** | AgentAsset SDK + UI 切换                                                                                                   | —                       | sdk/js + app              | 5B   |
+| **6**  | UI 收尾：删 ChatFeaturePanel（全部 4 kind 已开闸），Insert 通用化                                                          | `packages/app/test/`    | app                       | 5C   |
 
 **每 Phase 验证关**：
+
 - `bun --cwd packages/<name> typecheck` + `bun --cwd packages/<name> test --timeout 30000` + `bun run lint`
 - 跨 kind 同名不冲突测试（Phase 2A-5A 每个都加）
 - 回归测试：现有 PromptAsset API 零回归
@@ -117,14 +120,15 @@ M3 目标：
 
 ### 3.1 新增文件
 
-| 文件 | 操作 | 说明 |
-|------|------|------|
-| `packages/schema/src/asset.ts` | **新增** | AssetKindId, AssetSummary, AssetError |
-| `packages/schema/test/asset.test.ts` | **新增** | Schema 校验测试 |
+| 文件                                 | 操作     | 说明                                  |
+| ------------------------------------ | -------- | ------------------------------------- |
+| `packages/schema/src/asset.ts`       | **新增** | AssetKindId, AssetSummary, AssetError |
+| `packages/schema/test/asset.test.ts` | **新增** | Schema 校验测试                       |
 
 ### 3.2 AssetKindId + AssetSummary + AssetError
 
 参照 PRD §8.1.1 的签名级草案。关键约束：
+
 - `AssetSummary` 不含 `template`（template 是 per-kind Info 层字段）
 - `AssetError.reason` 枚举含 `unknown_kind`，用于框架层 catch-all
 - 不替换现有 `PromptAsset.Summary` 等（并排共存）
@@ -134,9 +138,7 @@ M3 目标：
 
 import { Schema } from "effect"
 
-export const AssetKindId = Schema.Literal(
-  "prompt", "skill", "mcp", "command", "agent", "workflow",
-)
+export const AssetKindId = Schema.Literal("prompt", "skill", "mcp", "command", "agent", "workflow")
 export type AssetKindId = typeof AssetKindId.Type
 
 export class AssetSummary extends Schema.Class<AssetSummary>("Asset.Summary")({
@@ -180,17 +182,25 @@ import { Asset } from "@aigcfroge/schema/asset"
 describe("AssetSummary", () => {
   test("validates minimal summary", () => {
     const s = Schema.decodeUnknownSync(Asset.Summary)({
-      kind: "prompt", name: "test", description: "",
-      relativePath: "test.md", revision: "a".repeat(64),
+      kind: "prompt",
+      name: "test",
+      description: "",
+      relativePath: "test.md",
+      revision: "a".repeat(64),
     })
     expect(s.kind).toBe("prompt")
   })
 
   test("rejects unknown kind", () => {
-    expect(() => Schema.decodeUnknownSync(Asset.Summary)({
-      kind: "bogus", name: "x", description: "",
-      relativePath: "x.md", revision: "a".repeat(64),
-    })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(Asset.Summary)({
+        kind: "bogus",
+        name: "x",
+        description: "",
+        relativePath: "x.md",
+        revision: "a".repeat(64),
+      }),
+    ).toThrow()
   })
 })
 
@@ -222,9 +232,9 @@ bun --cwd packages/schema typecheck
 
 ### 4.1 新增文件
 
-| 文件 | 操作 |
-|------|------|
-| `packages/core/src/asset-kind.ts` | **新增** |
+| 文件                                    | 操作     |
+| --------------------------------------- | -------- |
+| `packages/core/src/asset-kind.ts`       | **新增** |
 | `packages/core/test/asset-kind.test.ts` | **新增** |
 
 ### 4.2 AssetKindDef 接口
@@ -239,9 +249,7 @@ import { AssetError, AssetKindId } from "@aigcfroge/schema/asset"
 
 // --- AssetKindDef ---
 
-export interface AssetKindDef<
-  K extends AssetKindId = AssetKindId,
-> {
+export interface AssetKindDef<K extends AssetKindId = AssetKindId> {
   readonly id: K
   readonly schema: {
     readonly Summary: Schema.Schema.Any
@@ -258,8 +266,9 @@ export interface AssetKindRegistryInterface {
   readonly list: () => ReadonlyArray<AssetKindId>
 }
 
-export class AssetKindRegistryService
-  extends Context.Service<AssetKindRegistryService, AssetKindRegistryInterface>()("@aigcfroge/v2/AssetKindRegistry") {}
+export class AssetKindRegistryService extends Context.Service<AssetKindRegistryService, AssetKindRegistryInterface>()(
+  "@aigcfroge/v2/AssetKindRegistry",
+) {}
 
 // --- Layer ---
 
@@ -297,24 +306,35 @@ describe("AssetKindRegistry", () => {
   it.effect("registers and resolves a kind", () =>
     Effect.gen(function* () {
       const reg = yield* AssetKindRegistryService
-      yield* reg.register({ id: "skill", schema: { Summary: null as any, Info: null as any }, ownerDir: ".aigcfroge/skills" })
+      yield* reg.register({
+        id: "skill",
+        schema: { Summary: null as any, Info: null as any },
+        ownerDir: ".aigcfroge/skills",
+      })
       const d = yield* reg.resolve("skill")
       expect(d.id).toBe("skill")
-    }))
+    }),
+  )
 
   it.effect("fails with unknown_kind for unregistered", () =>
     Effect.gen(function* () {
       const reg = yield* AssetKindRegistryService
       const result = yield* reg.resolve("bogus").pipe(Effect.flip)
       expect(result).toBeInstanceOf(Error)
-    }))
+    }),
+  )
 
   it.effect("lists registered kinds", () =>
     Effect.gen(function* () {
       const reg = yield* AssetKindRegistryService
-      yield* reg.register({ id: "skill", schema: { Summary: null as any, Info: null as any }, ownerDir: ".aigcfroge/skills" })
+      yield* reg.register({
+        id: "skill",
+        schema: { Summary: null as any, Info: null as any },
+        ownerDir: ".aigcfroge/skills",
+      })
       expect(reg.list()).toContain("skill")
-    }))
+    }),
+  )
 })
 ```
 
@@ -331,11 +351,11 @@ bun --cwd packages/core typecheck
 
 ### 5.1 Core 层
 
-| 文件 | 操作 |
-|------|------|
-| `packages/core/src/asset-kind.ts` | 不改（1B 已完成） |
-| `packages/core/src/prompt-asset.ts` | 不改（PromptAsset 不迁移） |
-| `packages/core/src/constants.ts` | **修改**：加 `SKILLS_DIR`, `MCPS_DIR`, `COMMANDS_DIR`, `AGENTS_DIR` |
+| 文件                                  | 操作                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| `packages/core/src/asset-kind.ts`     | 不改（1B 已完成）                                                     |
+| `packages/core/src/prompt-asset.ts`   | 不改（PromptAsset 不迁移）                                            |
+| `packages/core/src/constants.ts`      | **修改**：加 `SKILLS_DIR`, `MCPS_DIR`, `COMMANDS_DIR`, `AGENTS_DIR`   |
 | `packages/core` (new migration layer) | **新增**：PromptAssetProvider 中注册 prompt kind 到 AssetKindRegistry |
 
 ### 5.2 注册 PromptAsset
@@ -347,7 +367,7 @@ const promptDef: AssetKindDef = {
   schema: { Summary: SchemaPromptAsset.Summary, Info: SchemaPromptAsset.Info },
   ownerDir: PROMPTS_DIR,
 }
-yield* assetKindRegistry.register(promptDef)
+yield * assetKindRegistry.register(promptDef)
 ```
 
 ### 5.3 AssetRow 类型泛化（app 层）
@@ -389,10 +409,13 @@ export type AssetRow = {
 **每个 kind 按以下 3 个子 phase 执行，迁移前置到 UI 之前**（风险 1 修正）：
 
 ### Phase XA：Schema + Core + HTTP + SDK（新增）
+
 ### Phase XB：数据迁移（server-sync → 文件落地）
+
 ### Phase XC：UI 切换（功能树 filter 生效）
 
 **⚠️ 关键约束**：
+
 - XB 的迁移是 XC UI 切换的**前提**——先有文件，再切 UI，否则用户看到空表
 - ChatFeaturePanel **只在 Phase 6 删除**（风险 4 修正）。Phase 2-5 期间，已开闸 kind 走 AssetWorkbench filter，未开闸 kind 保留 ChatFeaturePanel 占位
 - 每个 kind 增加**跨 kind 同名不冲突**测试（风险 5 修正）：skill 的 `my-tool.md` 和 prompt 的 `my-tool.md` 不冲突（不同 ownerDir）
@@ -521,6 +544,7 @@ async function migrateSkills(directory: string) {
 ### 6.6 UI 切换（Phase XC）
 
 每个 kind 开闸后，功能树点击该 kind 时：
+
 - 若 kind 已开闸（AssetKindRegistry.resolve 成功）→ AssetWorkbenchTable filter
 - 若 kind 未开闸 → 保留 ChatFeaturePanel（Phase 6 统一删除）
 
@@ -551,7 +575,8 @@ it.live("skill and prompt can have same name in different ownerDir", () =>
     // 创建 .aigcfroge/skills/my-tool.md 和 .aigcfroge/prompts/my-tool.md
     // 验证 skill.list() 不报 name_conflict
     // 验证 prompt.list() 不报 name_conflict
-  }))
+  }),
+)
 ```
 
 ---
@@ -562,12 +587,12 @@ it.live("skill and prompt can have same name in different ownerDir", () =>
 
 ### 7.1 删除 ChatFeaturePanel
 
-| 文件 | 操作 |
-|------|------|
-| `mode-surfaces.tsx` | **删** `ChatFeaturePanel` 组件 + `export` |
-| `mode-surfaces.tsx` | 清理 `useDialog` import（仅 ChatFeaturePanel 使用） |
-| `home.tsx` | 删 `<Show when={chatFeature()==="prompt"} fallback={<ChatFeaturePanel/>}>`，主区始终 AssetWorkbenchTable |
-| `home.tsx` | 清理 `ChatFeaturePanel` import |
+| 文件                | 操作                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `mode-surfaces.tsx` | **删** `ChatFeaturePanel` 组件 + `export`                                                                |
+| `mode-surfaces.tsx` | 清理 `useDialog` import（仅 ChatFeaturePanel 使用）                                                      |
+| `home.tsx`          | 删 `<Show when={chatFeature()==="prompt"} fallback={<ChatFeaturePanel/>}>`，主区始终 AssetWorkbenchTable |
+| `home.tsx`          | 清理 `ChatFeaturePanel` import                                                                           |
 
 ### 7.2 Insert 流程通用化
 
@@ -587,40 +612,40 @@ it.live("skill and prompt can have same name in different ownerDir", () =>
 
 ## 8. 改动文件清单
 
-| 文件 | Phase | 操作 |
-|------|-------|------|
-| `packages/schema/src/asset.ts` | 1A | **新增** |
-| `packages/schema/test/asset.test.ts` | 1A | **新增** |
-| `packages/schema/src/index.ts` | 1A | **修改** 加 Asset export |
-| `packages/core/src/asset-kind.ts` | 1B | **新增** |
-| `packages/core/test/asset-kind.test.ts` | 1B | **新增** |
-| `packages/core/src/constants.ts` | 1C | **修改** 加 SKILLS_DIR/MCPS_DIR/COMMANDS_DIR/AGENTS_DIR |
-| `packages/app/src/components/chat/asset-workbench.tsx` | 1C | **修改** AssetKind/AssetRow 类型泛化 |
-| `packages/schema/src/skill-asset.ts` | 2A | **新增** |
-| `packages/core/src/skill-asset.ts` | 2A | **新增** |
-| `packages/core/src/skill-asset-service.ts` | 2A | **新增** |
-| `packages/core/test/skill-asset.test.ts` | 2A | **新增** |
-| `packages/aigcfroge/src/.../groups/skill-asset.ts` | 2A | **新增** |
-| `packages/aigcfroge/src/.../handlers/skill-asset.ts` | 2A | **新增** |
-| `packages/aigcfroge/src/.../api.ts` | 2A | **修改** 注册 SkillAsset group |
-| `packages/schema/src/mcp-asset.ts` | 3A | **新增** |
-| `packages/core/src/mcp-asset.ts` | 3A | **新增** |
-| `packages/core/src/mcp-asset-service.ts` | 3A | **新增** |
-| `packages/aigcfroge/src/.../groups/mcp-asset.ts` | 3A | **新增** |
-| `packages/aigcfroge/src/.../handlers/mcp-asset.ts` | 3A | **新增** |
-| `packages/schema/src/command-asset.ts` | 4A | **新增** |
-| `packages/core/src/command-asset.ts` | 4A | **新增** |
-| `packages/core/src/command-asset-service.ts` | 4A | **新增** |
-| `packages/aigcfroge/src/.../groups/command-asset.ts` | 4A | **新增** |
-| `packages/aigcfroge/src/.../handlers/command-asset.ts` | 4A | **新增** |
-| `packages/schema/src/agent-asset.ts` | 5A | **新增** |
-| `packages/core/src/agent-asset.ts` | 5A | **新增** |
-| `packages/core/src/agent-asset-service.ts` | 5A | **新增** |
-| `packages/aigcfroge/src/.../groups/agent-asset.ts` | 5A | **新增** |
-| `packages/aigcfroge/src/.../handlers/agent-asset.ts` | 5A | **新增** |
-| `packages/app/src/components/mode-surfaces.tsx` | 6 | **修改** 删 ChatFeaturePanel |
-| `packages/app/src/pages/home.tsx` | 6 | **修改** 删 ChatFeaturePanel fallback + fetchAllKinds |
-| `packages/app/src/components/chat/asset-session-selector.tsx` | 6 | **修改** Insert 通用化 |
+| 文件                                                          | Phase | 操作                                                    |
+| ------------------------------------------------------------- | ----- | ------------------------------------------------------- |
+| `packages/schema/src/asset.ts`                                | 1A    | **新增**                                                |
+| `packages/schema/test/asset.test.ts`                          | 1A    | **新增**                                                |
+| `packages/schema/src/index.ts`                                | 1A    | **修改** 加 Asset export                                |
+| `packages/core/src/asset-kind.ts`                             | 1B    | **新增**                                                |
+| `packages/core/test/asset-kind.test.ts`                       | 1B    | **新增**                                                |
+| `packages/core/src/constants.ts`                              | 1C    | **修改** 加 SKILLS_DIR/MCPS_DIR/COMMANDS_DIR/AGENTS_DIR |
+| `packages/app/src/components/chat/asset-workbench.tsx`        | 1C    | **修改** AssetKind/AssetRow 类型泛化                    |
+| `packages/schema/src/skill-asset.ts`                          | 2A    | **新增**                                                |
+| `packages/core/src/skill-asset.ts`                            | 2A    | **新增**                                                |
+| `packages/core/src/skill-asset-service.ts`                    | 2A    | **新增**                                                |
+| `packages/core/test/skill-asset.test.ts`                      | 2A    | **新增**                                                |
+| `packages/aigcfroge/src/.../groups/skill-asset.ts`            | 2A    | **新增**                                                |
+| `packages/aigcfroge/src/.../handlers/skill-asset.ts`          | 2A    | **新增**                                                |
+| `packages/aigcfroge/src/.../api.ts`                           | 2A    | **修改** 注册 SkillAsset group                          |
+| `packages/schema/src/mcp-asset.ts`                            | 3A    | **新增**                                                |
+| `packages/core/src/mcp-asset.ts`                              | 3A    | **新增**                                                |
+| `packages/core/src/mcp-asset-service.ts`                      | 3A    | **新增**                                                |
+| `packages/aigcfroge/src/.../groups/mcp-asset.ts`              | 3A    | **新增**                                                |
+| `packages/aigcfroge/src/.../handlers/mcp-asset.ts`            | 3A    | **新增**                                                |
+| `packages/schema/src/command-asset.ts`                        | 4A    | **新增**                                                |
+| `packages/core/src/command-asset.ts`                          | 4A    | **新增**                                                |
+| `packages/core/src/command-asset-service.ts`                  | 4A    | **新增**                                                |
+| `packages/aigcfroge/src/.../groups/command-asset.ts`          | 4A    | **新增**                                                |
+| `packages/aigcfroge/src/.../handlers/command-asset.ts`        | 4A    | **新增**                                                |
+| `packages/schema/src/agent-asset.ts`                          | 5A    | **新增**                                                |
+| `packages/core/src/agent-asset.ts`                            | 5A    | **新增**                                                |
+| `packages/core/src/agent-asset-service.ts`                    | 5A    | **新增**                                                |
+| `packages/aigcfroge/src/.../groups/agent-asset.ts`            | 5A    | **新增**                                                |
+| `packages/aigcfroge/src/.../handlers/agent-asset.ts`          | 5A    | **新增**                                                |
+| `packages/app/src/components/mode-surfaces.tsx`               | 6     | **修改** 删 ChatFeaturePanel                            |
+| `packages/app/src/pages/home.tsx`                             | 6     | **修改** 删 ChatFeaturePanel fallback + fetchAllKinds   |
+| `packages/app/src/components/chat/asset-session-selector.tsx` | 6     | **修改** Insert 通用化                                  |
 
 ---
 
@@ -639,12 +664,12 @@ it.live("skill and prompt can have same name in different ownerDir", () =>
 
 ### 测试规范
 
-| 层 | 测试工具 | 位置 | 模式 |
-|----|---------|------|------|
-| schema | `bun:test` + `Schema.decodeUnknownSync` | `packages/schema/test/` | 纯类型校验 |
-| core | `testEffect(...)` + `it.live(...)` | `packages/core/test/` | Effect service + 文件系统 |
-| aigcfroge | `testEffect(...)` + `Layer.mock` | `packages/aigcfroge/test/` | HTTP handler |
-| app | `bun:test` + `createRoot` | `packages/app/test/` | test strategy A（纯函数+store） |
+| 层        | 测试工具                                | 位置                       | 模式                            |
+| --------- | --------------------------------------- | -------------------------- | ------------------------------- |
+| schema    | `bun:test` + `Schema.decodeUnknownSync` | `packages/schema/test/`    | 纯类型校验                      |
+| core      | `testEffect(...)` + `it.live(...)`      | `packages/core/test/`      | Effect service + 文件系统       |
+| aigcfroge | `testEffect(...)` + `Layer.mock`        | `packages/aigcfroge/test/` | HTTP handler                    |
+| app       | `bun:test` + `createRoot`               | `packages/app/test/`       | test strategy A（纯函数+store） |
 
 ### Effect 编码规范（遵循 AGENTS.md + effect skill）
 
@@ -692,6 +717,7 @@ it.live("skill and prompt can have same name in different ownerDir", () =>
 ### 2026-07-25：五层代码追溯 + 6 风险修正
 
 **追溯路径**：
+
 - L1 `packages/schema/src/prompt-asset.ts` → Name/Description/Revision/Template branded strings, Summary/Info/Frontmatter/InvalidEntry Schema.Class
 - L2 `packages/core/src/prompt-asset.ts` → loadDir (ConfigMarkdown.parseOption → Schema.decodeUnknownSync Frontmatter → Hash.sha256 → assets/invalid map), Service + layer (Location.Service, FSUtil.Service, Watcher)
 - L2 `packages/core/src/prompt-asset-service.ts` → per-kind errors (7 个 TaggedErrorClass), ProposeResult/ApplyInput/DeleteInput, propose/apply/delete transaction, yamlEscape
@@ -705,11 +731,11 @@ it.live("skill and prompt can have same name in different ownerDir", () =>
 
 **发现的风险及修正**：
 
-| # | 风险 | 严重程度 | 修正内容 |
-|---|------|---------|---------|
-| 1 | 数据迁移顺序错误（Phase 7 在 UI 之后） | 🔴 阻断 | 每个 kind 的 migration 前置到 Phase XB，UI 切换后移到 XC |
-| 2 | AssetWorkbenchTable 类型耦合（AssetRow.kind 硬编码 "prompt"） | 🟡 架构 | Phase 1C 增加 AssetKind/AssetRow 类型泛化定义 |
-| 3 | Home 资产 fetch 单源（仅 promptAsset.list） | 🟡 架构 | Phase XC 实现 fetchAllKinds 多源调用 + 合并 |
-| 4 | ChatFeaturePanel 删除时机过早（Phase 2D 就删，未开闸 kind 无显示） | 🔴 阻断 | Phase 6（全部 kind 开闸后）才删除；已开闸的走 AssetWorkbench，未开闸的保留 ChatFeaturePanel |
-| 5 | 缺少跨 kind 同名不冲突测试 | 🟡 TDD | Phase 2A-5A 每个 kind 加跨 kind 同名不冲突测试 |
-| 6 | PRD §8.1.1 一致性：AssetSummary 不含 template | ✅ 已对齐 | 确认 template 仅在 Info 中，Summary/Frontmatter 不含 |
+| #   | 风险                                                               | 严重程度  | 修正内容                                                                                    |
+| --- | ------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------- |
+| 1   | 数据迁移顺序错误（Phase 7 在 UI 之后）                             | 🔴 阻断   | 每个 kind 的 migration 前置到 Phase XB，UI 切换后移到 XC                                    |
+| 2   | AssetWorkbenchTable 类型耦合（AssetRow.kind 硬编码 "prompt"）      | 🟡 架构   | Phase 1C 增加 AssetKind/AssetRow 类型泛化定义                                               |
+| 3   | Home 资产 fetch 单源（仅 promptAsset.list）                        | 🟡 架构   | Phase XC 实现 fetchAllKinds 多源调用 + 合并                                                 |
+| 4   | ChatFeaturePanel 删除时机过早（Phase 2D 就删，未开闸 kind 无显示） | 🔴 阻断   | Phase 6（全部 kind 开闸后）才删除；已开闸的走 AssetWorkbench，未开闸的保留 ChatFeaturePanel |
+| 5   | 缺少跨 kind 同名不冲突测试                                         | 🟡 TDD    | Phase 2A-5A 每个 kind 加跨 kind 同名不冲突测试                                              |
+| 6   | PRD §8.1.1 一致性：AssetSummary 不含 template                      | ✅ 已对齐 | 确认 template 仅在 Info 中，Summary/Frontmatter 不含                                        |

@@ -184,9 +184,7 @@ describe("SessionV2.prompt", () => {
       ])
       expect(
         Array.from(
-          yield* session
-            .events({ sessionID, after: streamed[0].durable?.seq })
-            .pipe(Stream.take(1), Stream.runCollect),
+          yield* session.events({ sessionID, after: streamed[0].durable?.seq }).pipe(Stream.take(1), Stream.runCollect),
         ).map((event) => [event.durable?.seq, event.type]),
       ).toEqual([[1, "session.next.prompt.admitted"]])
     }),
@@ -594,9 +592,7 @@ describe("SessionV2.injectSynthetic", () => {
       const id = SessionMessage.ID.make("msg_synthetic_conflict")
       yield* session.injectSynthetic({ id, sessionID, text: "Original result" })
 
-      const failure = yield* session
-        .injectSynthetic({ id, sessionID, text: "Different result" })
-        .pipe(Effect.flip)
+      const failure = yield* session.injectSynthetic({ id, sessionID, text: "Different result" }).pipe(Effect.flip)
 
       expect(failure).toMatchObject({ _tag: "Session.SyntheticConflictError", sessionID, messageID: id })
       expect(

@@ -36,7 +36,7 @@ describe("classifyPlanFailure", () => {
 
   test("leaves every other failure as a plain error", () => {
     expect(classifyPlanFailure({ status: 500, message: "boom" })).toEqual({ error: "boom" })
-    expect(classifyPlanFailure({ status: 400, message: "Unknown or unsupported product mode \"nope\"" })).toEqual({
+    expect(classifyPlanFailure({ status: 400, message: 'Unknown or unsupported product mode "nope"' })).toEqual({
       error: 'Unknown or unsupported product mode "nope"',
     })
   })

@@ -10,12 +10,7 @@
  */
 
 import { afterEach, describe, expect } from "bun:test"
-import {
-  LLMClient,
-  Model,
-  type LLMEvent,
-  type LLMRequest,
-} from "@aigcfroge/llm"
+import { LLMClient, Model, type LLMEvent, type LLMRequest } from "@aigcfroge/llm"
 import * as OpenAIChat from "@aigcfroge/llm/protocols/openai-chat"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -48,9 +43,7 @@ import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
 import { ConfigMeta } from "../src/config/meta"
 import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
-import {
-  SessionTable,
-} from "@aigcfroge/core/session/sql"
+import { SessionTable } from "@aigcfroge/core/session/sql"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { SystemContext } from "@aigcfroge/core/system-context"
@@ -178,47 +171,49 @@ const skillV2 = Layer.succeed(
   SkillV2.Service.of({ list: () => Effect.succeed([]) } as unknown as SkillV2.Interface),
 )
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
-const runner = SessionRunnerLLM.layer.pipe(
-  Layer.provide(sessionComposition),
-  Layer.provide(appProcess),
-  Layer.provide(skillV2),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(client),
-  Layer.provide(registry),
-  Layer.provide(models),
-  Layer.provide(systemContext),
-).pipe(
-  Layer.provide(location),
-  Layer.provide(agents),
-  Layer.provide(skillGuidance),
-  Layer.provide(referenceGuidance),
-  Layer.provide(DoomLoop.layer),
-  Layer.provide(CorrectionExtractor.layer),
-  Layer.provide(CorrectionStore.layer),
-  Layer.provide(
-    Verifier.layer.pipe(
-      Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
-      Layer.provide(location),
-      Layer.provide(appProcess),
-      Layer.provide(config),
+const runner = SessionRunnerLLM.layer
+  .pipe(
+    Layer.provide(sessionComposition),
+    Layer.provide(appProcess),
+    Layer.provide(skillV2),
+    Layer.provide(Database.defaultLayer),
+    Layer.provide(SessionStore.defaultLayer),
+    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(client),
+    Layer.provide(registry),
+    Layer.provide(models),
+    Layer.provide(systemContext),
+  )
+  .pipe(
+    Layer.provide(location),
+    Layer.provide(agents),
+    Layer.provide(skillGuidance),
+    Layer.provide(referenceGuidance),
+    Layer.provide(DoomLoop.layer),
+    Layer.provide(CorrectionExtractor.layer),
+    Layer.provide(CorrectionStore.layer),
+    Layer.provide(
+      Verifier.layer.pipe(
+        Layer.provide(VerificationRouter.layer.pipe(Layer.provide(config))),
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(EventV2.defaultLayer.pipe(Layer.provide(Database.defaultLayer))),
+        Layer.provide(location),
+        Layer.provide(appProcess),
+        Layer.provide(config),
+      ),
     ),
-  ),
-  Layer.provide(
-    ReferenceChecker.layer.pipe(
-      Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
-      Layer.provide(location),
-      Layer.provide(config),
-      Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
-      Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(
+      ReferenceChecker.layer.pipe(
+        Layer.provide(CorrectionStore.layer.pipe(Layer.provide(config))),
+        Layer.provide(location),
+        Layer.provide(config),
+        Layer.provide(Ripgrep.layer.pipe(Layer.provide(RipgrepBinary.defaultLayer), Layer.provide(appProcess))),
+        Layer.provide(FSUtil.defaultLayer),
+      ),
     ),
-  ),
-  Layer.provide(permission),
-  Layer.provide(config),
-)
+    Layer.provide(permission),
+    Layer.provide(config),
+  )
 
 // ── SessionExecution (following handlers.ts + location-layer.ts pattern) ─
 const execution = Layer.effect(

@@ -53,9 +53,7 @@ export interface Interface {
     sessionID: SessionSchema.ID,
     snapshot: Composition.Snapshot,
   ) => Effect.Effect<void, SnapshotAlreadyExistsError>
-  readonly read: (
-    sessionID: SessionSchema.ID,
-  ) => Effect.Effect<Composition.Snapshot | undefined, SnapshotDecodeError>
+  readonly read: (sessionID: SessionSchema.ID) => Effect.Effect<Composition.Snapshot | undefined, SnapshotDecodeError>
   readonly get: (
     sessionID: SessionSchema.ID,
   ) => Effect.Effect<Composition.Snapshot, SnapshotNotFoundError | SnapshotDecodeError>
@@ -263,9 +261,7 @@ export const layer = Layer.effect(
       }
     })
 
-    const assertDependency = Effect.fn("SessionComposition.assertDependency")(function* (
-      sessionID: SessionSchema.ID,
-    ) {
+    const assertDependency = Effect.fn("SessionComposition.assertDependency")(function* (sessionID: SessionSchema.ID) {
       const snapshot = yield* get(sessionID)
       const missing = (reason: string, details?: string) =>
         new DependencyMissingError({ sessionID, reason, ...(details !== undefined ? { details } : {}) })

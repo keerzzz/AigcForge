@@ -27,7 +27,10 @@ describe("Coding project tree owner (not ModeLocationNewSession)", () => {
 
   test("CodingProjectColumnSidebar does not render ModeLocationNewSession", () => {
     expect(slots).toContain("export function CodingProjectColumnSidebar()")
-    const codingSidebar = slots.slice(slots.indexOf("export function CodingProjectColumnSidebar"), slots.indexOf("export function CodingSessionListMain"))
+    const codingSidebar = slots.slice(
+      slots.indexOf("export function CodingProjectColumnSidebar"),
+      slots.indexOf("export function CodingSessionListMain"),
+    )
     expect(codingSidebar).not.toContain("ModeLocationNewSession")
   })
 
@@ -57,13 +60,16 @@ describe("Chat owns its inline Location + feature tree", () => {
 
   test("ChatFeatureSidebar inlines Location and new/add-project logic", () => {
     expect(chatSidebar).toContain("export function ChatFeatureSidebar()")
-    expect(chatSidebar).toContain("language.t(\"chat.feature.project\")")
+    expect(chatSidebar).toContain('language.t("chat.feature.project")')
     expect(chatSidebar).toContain("launchModeSession")
     expect(chatSidebar).toContain("addProject")
   })
 
   test("ChatFeatureSidebar owns the feature tree and counts, not ModeLocationNewSession", () => {
-    const chatSection = chatSidebar.slice(chatSidebar.indexOf("export function ChatFeatureSidebar"), chatSidebar.indexOf("const MODE_SURFACES"))
+    const chatSection = chatSidebar.slice(
+      chatSidebar.indexOf("export function ChatFeatureSidebar"),
+      chatSidebar.indexOf("const MODE_SURFACES"),
+    )
     expect(chatSection).not.toContain("<ModeLocationNewSession")
     expect(chatSection).toContain("CHAT_FEATURES")
     expect(chatSection).toContain("countFor")

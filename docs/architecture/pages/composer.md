@@ -76,20 +76,20 @@ PromptInput 下的 EditorPanel、AttachmentBar、ControlBar、ShellModeToggle �
 
 ## 4. Context 依赖图
 
-| 层级 | Context | 用途 |
-|------|---------|------|
-| Session级 | usePrompt | 输入状态 (current/clear/restore) |
-| Session级 | useSDK | SessionV2.prompt() API |
-| Session级 | useSync | 服务器数据缓存 |
-| 服务器级 | useLayout | 布局状态、项目列表 |
-| 服务器级 | useLocal | Agent/Model 本地选择 |
-| 服务器级 | useSettings | visibility 控制 (customAgents) |
-| 服务器级 | useServer | 服务器连接 |
-| 全局 | useTabs | Session Tab 管理 |
-| 全局 | useGlobal | sessionPlacement |
-| 全局 | useProviders | 模型 Provider 列表 |
-| 局部 | useDirectoryPicker | 项目目录选择 |
-| 局部 | useSessionKey | Session 路由参数 |
+| 层级      | Context            | 用途                             |
+| --------- | ------------------ | -------------------------------- |
+| Session级 | usePrompt          | 输入状态 (current/clear/restore) |
+| Session级 | useSDK             | SessionV2.prompt() API           |
+| Session级 | useSync            | 服务器数据缓存                   |
+| 服务器级  | useLayout          | 布局状态、项目列表               |
+| 服务器级  | useLocal           | Agent/Model 本地选择             |
+| 服务器级  | useSettings        | visibility 控制 (customAgents)   |
+| 服务器级  | useServer          | 服务器连接                       |
+| 全局      | useTabs            | Session Tab 管理                 |
+| 全局      | useGlobal          | sessionPlacement                 |
+| 全局      | useProviders       | 模型 Provider 列表               |
+| 局部      | useDirectoryPicker | 项目目录选择                     |
+| 局部      | useSessionKey      | Session 路由参数                 |
 
 ---
 
@@ -158,13 +158,13 @@ todos 不阻塞输入。followup 和 revert 由 Session 组件作为 props 注�
 
 ## 7. 错误与边界
 
-| 场景 | 处理 |
-|------|------|
-| 输入为空 | Submit 按钮禁用 |
-| 已有阻塞中断 | 新提交被阻止 |
-| SDK 调用失败 | formatServerError + showToast |
-| 项目未选择 | project selector 提示 |
-| handoff prompt | 跨 Session 保持输入草稿 |
+| 场景           | 处理                          |
+| -------------- | ----------------------------- |
+| 输入为空       | Submit 按钮禁用               |
+| 已有阻塞中断   | 新提交被阻止                  |
+| SDK 调用失败   | formatServerError + showToast |
+| 项目未选择     | project selector 提示         |
+| handoff prompt | 跨 Session 保持输入草稿       |
 
 ---
 
@@ -179,17 +179,17 @@ todos 不阻塞输入。followup 和 revert 由 Session 组件作为 props 注�
 
 ## 9. 上下游文件索引
 
-| 层级 | 文件 |
-|------|------|
-| Session 宿主 | pages/session.tsx |
+| 层级            | 文件                                               |
+| --------------- | -------------------------------------------------- |
+| Session 宿主    | pages/session.tsx                                  |
 | Composer Region | pages/session/composer/session-composer-region.tsx |
-| Composer State | pages/session/composer/session-composer-state.ts |
-| PromptInput | components/prompt-input.tsx |
-| Submit 逻辑 | components/prompt-input/submit.ts |
-| 附件系统 | components/prompt-input/attachments.ts |
-| Question Dock | pages/session/composer/session-question-dock.tsx |
+| Composer State  | pages/session/composer/session-composer-state.ts   |
+| PromptInput     | components/prompt-input.tsx                        |
+| Submit 逻辑     | components/prompt-input/submit.ts                  |
+| 附件系统        | components/prompt-input/attachments.ts             |
+| Question Dock   | pages/session/composer/session-question-dock.tsx   |
 | Permission Dock | pages/session/composer/session-permission-dock.tsx |
-| Followup Dock | pages/session/composer/session-followup-dock.tsx |
-| Revert Dock | pages/session/composer/session-revert-dock.tsx |
-| Todo Dock | pages/session/composer/session-todo-dock.tsx |
-| Handoff | pages/session/handoff.ts |
+| Followup Dock   | pages/session/composer/session-followup-dock.tsx   |
+| Revert Dock     | pages/session/composer/session-revert-dock.tsx     |
+| Todo Dock       | pages/session/composer/session-todo-dock.tsx       |
+| Handoff         | pages/session/handoff.ts                           |

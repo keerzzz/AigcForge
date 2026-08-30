@@ -9,16 +9,16 @@
 
 ## 1. 产品身份
 
-| 维度 | 信息 |
-|---|---|
-| **外部品牌** | Accio (`accio.com` · `accio-ai.com` · `aimode.alibaba.com`) |
-| **内部代号** | `@phoenix/desktop` v0.26.1 |
+| 维度         | 信息                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------ |
+| **外部品牌** | Accio (`accio.com` · `accio-ai.com` · `aimode.alibaba.com`)                          |
+| **内部代号** | `@phoenix/desktop` v0.26.1                                                           |
 | **中文品牌** | **Xuanji（玄机）** — Board Home: "欢迎来到玄机 — 描述你的任务，开始在隔离环境中会话" |
-| **下载通道** | `beta-win` (`work-download.accio-ai.com/package/`) |
-| **技术栈** | Electron (rolldown 打包) + React + TypeScript + Node.js v20.12 |
-| **核心模块** | `@phoenix/agent-runtime` + `@phoenix/llm` + `@ali/accio-adk-ts` (Agent Dev Kit) |
-| **安装器** | Nullsoft NSIS 3.04，227MB |
-| **更新时间** | 2026-07-27 |
+| **下载通道** | `beta-win` (`work-download.accio-ai.com/package/`)                                   |
+| **技术栈**   | Electron (rolldown 打包) + React + TypeScript + Node.js v20.12                       |
+| **核心模块** | `@phoenix/agent-runtime` + `@phoenix/llm` + `@ali/accio-adk-ts` (Agent Dev Kit)      |
+| **安装器**   | Nullsoft NSIS 3.04，227MB                                                            |
+| **更新时间** | 2026-07-27                                                                           |
 
 ---
 
@@ -53,31 +53,32 @@ npx @electron/asar extract app.asar /tmp/accio_asar
 
 ### 3.1 核心模块清单
 
-| 模块 | 文件/路径 | 功能 |
-|---|---|---|
-| **Agent Hub** | `out/renderer/assets/agent-hub-page-*.js` | 智能体中心：我的智能体 + 任务衍生 + 新建 |
-| **Agent 创建向导** | `out/renderer/assets/create-agent-wizard-*.js` | 分步引导式 Agent 创建 |
-| **Agent 管理** | `out/main/chunks/agent-store-*.js` | Agent 持久化存储 |
-| **Agent Skill 管理** | `out/main/chunks/agent-skill-manager-*.js` | Skill per-Agent 安装/启用 |
-| **子 Agent 会话** | `out/main/chunks/subagent-session-store-*.js` | 子 Agent 会话存储 |
-| **内置命令** | `out/main/chunks/builtin-accio-*.js` | 内置工具注册 |
-| **函数工具** | `out/main/chunks/function-tools-*.js` | 动态工具注册 (Plugin 通道) |
-| **Session 工具** | `out/main/chunks/session-tools-*.js` | 会话级工具管理 |
-| **工具注册表** | `out/main/chunks/load-tool-registry-*.js` | 工具加载与注册 |
-| **工具结果清理** | `out/main/chunks/tool-result-cleanup-*.js` | 工具结果生命周期管理 |
-| **团队聊天** | `out/main/chunks/team-chat-*.js`, `team-context-*.js` | 团队协作 + TL 角色 |
-| **浏览器 Relay** | `resources/chrome-extension/accio-browser-relay/` | Chrome CDP 远程控制 |
-| **MCP CLI** | `resources/accio-mcp-cli/accio-mcp.mjs` | MCP 协议客户端 (Bun 运行) |
-| **远程工具** | `resources/remote-tools.json` | 预装依赖下载配置 (Python/Git/Node/Lark) |
-| **跨平台集成** | `out/main/chunks/wecom-*.js`, `weixin-*.js`, `telegram-*.js`, `lark-*.js` | 微信/企微/Telegram/飞书四通道 |
-| **截图** | `out/main/chunks/capture-*.js` | 屏幕/页面捕获 |
-| **Agent 活动岛** | `out/renderer/assets/agent-activity-island-*.js` | Agent 实时状态浮层 |
-| **Workspace** | `out/renderer/assets/workspace-*.js`, `workspace-office-preview-*.js` | 工作区 + Office 预览 |
-| **Worktree** | `out/renderer/assets/worktree-handoff-store-*.js`, `worktree-quiescence-*.js` | Git worktree 管理 |
+| 模块                 | 文件/路径                                                                     | 功能                                     |
+| -------------------- | ----------------------------------------------------------------------------- | ---------------------------------------- |
+| **Agent Hub**        | `out/renderer/assets/agent-hub-page-*.js`                                     | 智能体中心：我的智能体 + 任务衍生 + 新建 |
+| **Agent 创建向导**   | `out/renderer/assets/create-agent-wizard-*.js`                                | 分步引导式 Agent 创建                    |
+| **Agent 管理**       | `out/main/chunks/agent-store-*.js`                                            | Agent 持久化存储                         |
+| **Agent Skill 管理** | `out/main/chunks/agent-skill-manager-*.js`                                    | Skill per-Agent 安装/启用                |
+| **子 Agent 会话**    | `out/main/chunks/subagent-session-store-*.js`                                 | 子 Agent 会话存储                        |
+| **内置命令**         | `out/main/chunks/builtin-accio-*.js`                                          | 内置工具注册                             |
+| **函数工具**         | `out/main/chunks/function-tools-*.js`                                         | 动态工具注册 (Plugin 通道)               |
+| **Session 工具**     | `out/main/chunks/session-tools-*.js`                                          | 会话级工具管理                           |
+| **工具注册表**       | `out/main/chunks/load-tool-registry-*.js`                                     | 工具加载与注册                           |
+| **工具结果清理**     | `out/main/chunks/tool-result-cleanup-*.js`                                    | 工具结果生命周期管理                     |
+| **团队聊天**         | `out/main/chunks/team-chat-*.js`, `team-context-*.js`                         | 团队协作 + TL 角色                       |
+| **浏览器 Relay**     | `resources/chrome-extension/accio-browser-relay/`                             | Chrome CDP 远程控制                      |
+| **MCP CLI**          | `resources/accio-mcp-cli/accio-mcp.mjs`                                       | MCP 协议客户端 (Bun 运行)                |
+| **远程工具**         | `resources/remote-tools.json`                                                 | 预装依赖下载配置 (Python/Git/Node/Lark)  |
+| **跨平台集成**       | `out/main/chunks/wecom-*.js`, `weixin-*.js`, `telegram-*.js`, `lark-*.js`     | 微信/企微/Telegram/飞书四通道            |
+| **截图**             | `out/main/chunks/capture-*.js`                                                | 屏幕/页面捕获                            |
+| **Agent 活动岛**     | `out/renderer/assets/agent-activity-island-*.js`                              | Agent 实时状态浮层                       |
+| **Workspace**        | `out/renderer/assets/workspace-*.js`, `workspace-office-preview-*.js`         | 工作区 + Office 预览                     |
+| **Worktree**         | `out/renderer/assets/worktree-handoff-store-*.js`, `worktree-quiescence-*.js` | Git worktree 管理                        |
 
 ### 3.2 预装依赖
 
 `resources/pre-install/`:
+
 - Node.js v20.12.0 (win-x64)
 - Python 3.12.2 (win-amd64)
 - Portable Git 2.44.0 (64-bit)
@@ -185,12 +186,12 @@ CDP 通道:
 
 ### 4.6 多平台消息通道 — P3 参考
 
-| 平台 | 文件 | 说明 |
-|---|---|---|
-| 微信 | `weixin-*.js` | 个人微信接入 |
-| 企业微信 | `wecom-*.js` | 企业微信接入 |
-| Telegram | `telegram-*.js` | Telegram Bot 接入 |
-| 飞书/Lark | `lark-*.js` + `pre-install/lark-cli` | 飞书命令行 |
+| 平台      | 文件                                 | 说明              |
+| --------- | ------------------------------------ | ----------------- |
+| 微信      | `weixin-*.js`                        | 个人微信接入      |
+| 企业微信  | `wecom-*.js`                         | 企业微信接入      |
+| Telegram  | `telegram-*.js`                      | Telegram Bot 接入 |
+| 飞书/Lark | `lark-*.js` + `pre-install/lark-cli` | 飞书命令行        |
 
 **AigcForge 映射**: 非 Work/Task 范围——Plugin 体系考虑作为消息通道 plugin。
 
@@ -217,6 +218,7 @@ AigcForge 当前:          Accio 当前:
 ### 5.3 删除 Agent 的影响面
 
 删除 Agent 时展示影响：
+
 - N 个会话
 - N 个定时任务
 
@@ -238,6 +240,7 @@ AigcForge 当前:          Accio 当前:
 ```
 
 **关键实现细节**：
+
 - 宽度百分比：`completed/total*100%` + `in_progress/total*100%`，两段在同一 6px 圆角轨道拼接
 - **动画 = 宽度 transition**：`transition-all duration-500 ease-out`（头部紧凑条）/ `transition-[width] duration-300`（面板底部条）——计数变化时宽度平滑生长，无位移段、无节点
 - 状态图标：`check_circle`（全完成/绿）、spinning SVG（进行中+活跃/蓝）、`pause_circle`（进行中/琥珀）、`checklist`（pending/灰）
@@ -250,23 +253,24 @@ AigcForge 当前:          Accio 当前:
 
 ## 6. 对 AigcForge 的借鉴优先级矩阵
 
-| # | 能力 | 优先级 | 适用 Mode | 实施阶段 |
-|---|---|---|---|---|
-| A1 | 任务衍生 (Task Spawn) | **P0** | Chat/Coding/Work/Meta-Agent | M5 |
-| A2 | 定时任务 (ScheduledJob) | **P0** | 全 Mode (含电商) | M3 |
-| A3 | Agent Hub 聚合视图 | **P1** | Chat (主区) | M4 |
-| A4 | Board Home 任务入口 | **P1** | Work（Preset 展开） | M5 |
-| A5 | Skill per-Agent 安装 | **P1** | 全 Mode | 独立 PRD |
-| A6 | Agent Activity Island | **P2** | 全 Mode | 独立 PRD |
-| A7 | Wizard Agent 创建 | **P2** | Chat | 独立 PRD |
-| A8 | Chrome CDP Relay | **P3** | Coding | Plugin 体系 |
-| A9 | 多平台消息通道 | **P3** | Assistant | Plugin 体系 |
+| #   | 能力                    | 优先级 | 适用 Mode                   | 实施阶段    |
+| --- | ----------------------- | ------ | --------------------------- | ----------- |
+| A1  | 任务衍生 (Task Spawn)   | **P0** | Chat/Coding/Work/Meta-Agent | M5          |
+| A2  | 定时任务 (ScheduledJob) | **P0** | 全 Mode (含电商)            | M3          |
+| A3  | Agent Hub 聚合视图      | **P1** | Chat (主区)                 | M4          |
+| A4  | Board Home 任务入口     | **P1** | Work（Preset 展开）         | M5          |
+| A5  | Skill per-Agent 安装    | **P1** | 全 Mode                     | 独立 PRD    |
+| A6  | Agent Activity Island   | **P2** | 全 Mode                     | 独立 PRD    |
+| A7  | Wizard Agent 创建       | **P2** | Chat                        | 独立 PRD    |
+| A8  | Chrome CDP Relay        | **P3** | Coding                      | Plugin 体系 |
+| A9  | 多平台消息通道          | **P3** | Assistant                   | Plugin 体系 |
 
 ---
 
 ## 7. 文件清单（反编译产物索引）
 
 ### 关键主进程文件
+
 ```
 /tmp/accio_asar/out/main/chunks/
   agent-store--ieWDnfM.js              Agent 存储
@@ -289,6 +293,7 @@ AigcForge 当前:          Accio 当前:
 ```
 
 ### 关键渲染进程文件
+
 ```
 /tmp/accio_asar/out/renderer/assets/
   agent-hub-page-pxvqRGry.js           智能体中心页面
@@ -307,6 +312,7 @@ AigcForge 当前:          Accio 当前:
 ```
 
 ### 独立资源
+
 ```
 /tmp/accio_extract/resources/
   app.asar (174MB)                     Electron 应用本体

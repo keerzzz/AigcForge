@@ -8,7 +8,9 @@ import { ShareNext } from "./share-next"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 
 export interface Interface {
-  readonly create: (input?: Session.CreateInput) => Effect.Effect<Session.Info, ProductModePolicy.UnsupportedProductModeError>
+  readonly create: (
+    input?: Session.CreateInput,
+  ) => Effect.Effect<Session.Info, ProductModePolicy.UnsupportedProductModeError>
   readonly share: (sessionID: SessionID) => Effect.Effect<{ url: string }, unknown>
   readonly unshare: (sessionID: SessionID) => Effect.Effect<void, unknown>
 }

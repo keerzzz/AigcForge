@@ -46,7 +46,9 @@ export function ChatWorkspaceProvider(props: ParentProps) {
     setSearch: (value) => setState("search", value),
     setOriginFilter: (origin) => setState("originFilter", origin),
     select: (path) => setState("selectedPath", path),
-    get dirty() { return dirty.value },
+    get dirty() {
+      return dirty.value
+    },
     setDirty: (v) => setDirty("value", v),
   }
 

@@ -15,10 +15,7 @@ import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
 
 function locationLayer(dir: string) {
-  return Layer.succeed(
-    Location.Service,
-    Location.Service.of(location({ directory: AbsolutePath.make(dir) })),
-  )
+  return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
 }
 
 function fullLayer(dir: string) {
@@ -66,9 +63,9 @@ describe("PromptAssetService.propose", () => {
   test("propose returns not-exists for new asset", async () => {
     await withTmp(async (dir) => {
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       const r = await runNow(svc.propose(makeCandidate("new-prompt", "desc", "hello")))
       expect(r.exists).toBe(false)
@@ -80,9 +77,9 @@ describe("PromptAssetService.propose", () => {
     await withTmp(async (dir) => {
       await initAsset(dir, "myprompt")
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       const r = await runNow(svc.propose(makeCandidate("myprompt", "desc", "new")))
       expect(r.exists).toBe(true)
@@ -95,12 +92,16 @@ describe("PromptAssetService.apply creates", () => {
   test("creates a new asset", async () => {
     await withTmp(async (dir) => {
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       const info = await runNow(
-        svc.apply({ candidate: makeCandidate("my-prompt", "My prompt", "Hello world"), baseRevision: null, overwrite: false }),
+        svc.apply({
+          candidate: makeCandidate("my-prompt", "My prompt", "Hello world"),
+          baseRevision: null,
+          overwrite: false,
+        }),
       )
       expect(info.name).toBe("my-prompt")
       expect(info.description).toBe("My prompt")
@@ -134,7 +135,9 @@ describe("PromptAssetService.apply creates", () => {
         }),
       )
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(
           // M1 范式：mock 放在 locationLayer 的 provide 链内（构造时生效）。
           Effect.provide(
             PromptAssetService.locationLayer.pipe(
@@ -150,20 +153,22 @@ describe("PromptAssetService.apply creates", () => {
         ),
       )
       await runNow(
-        svc.apply({ candidate: makeCandidate("m2-telemetry", "desc", "content"), baseRevision: null, overwrite: false }),
+        svc.apply({
+          candidate: makeCandidate("m2-telemetry", "desc", "content"),
+          baseRevision: null,
+          overwrite: false,
+        }),
       )
-      expect(published).toEqual([
-        { type: "work.asset_saved", data: { relativePath: "m2-telemetry.md" } },
-      ])
+      expect(published).toEqual([{ type: "work.asset_saved", data: { relativePath: "m2-telemetry.md" } }])
     })
   })
 
   test("creates with Chinese name", async () => {
     await withTmp(async (dir) => {
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       const info = await runNow(
         svc.apply({ candidate: makeCandidate("提示词", "中文", "你好"), baseRevision: null, overwrite: false }),
@@ -182,39 +187,49 @@ describe("PromptAssetService.apply creates", () => {
         `---\nkind: prompt\nname: "duplicate"\ndescription: "existing"\n---\nold`,
       )
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
 
       const error = await runNow(
-        svc.apply({ candidate: makeCandidate("duplicate", "new", "new"), baseRevision: null, overwrite: false }).pipe(
-          Effect.flip,
-        ),
+        svc
+          .apply({ candidate: makeCandidate("duplicate", "new", "new"), baseRevision: null, overwrite: false })
+          .pipe(Effect.flip),
       )
 
       expect(error).toMatchObject({ _tag: "PromptAssetService.ReadbackMismatch" })
-      expect(await fs.stat(path.join(promptsDir, "duplicate.md")).then(() => true, () => false)).toBe(false)
+      expect(
+        await fs.stat(path.join(promptsDir, "duplicate.md")).then(
+          () => true,
+          () => false,
+        ),
+      ).toBe(false)
     })
   })
 
   test("creates and is retrievable after reload", async () => {
     await withTmp(async (dir) => {
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       await runNow(
         svc.apply({ candidate: makeCandidate("persist", "desc", "data"), baseRevision: null, overwrite: false }),
       )
       const reg = await runNow(
-        Effect.gen(function* () { return yield* PromptAsset.Service }).pipe(
-          Effect.provide(PromptAsset.locationLayer.pipe(
-            Layer.provide(EventV2.defaultLayer),
-            Layer.provide(locationLayer(dir)),
-            Layer.provide(FSUtil.defaultLayer),
-          )), Effect.scoped,
+        Effect.gen(function* () {
+          return yield* PromptAsset.Service
+        }).pipe(
+          Effect.provide(
+            PromptAsset.locationLayer.pipe(
+              Layer.provide(EventV2.defaultLayer),
+              Layer.provide(locationLayer(dir)),
+              Layer.provide(FSUtil.defaultLayer),
+            ),
+          ),
+          Effect.scoped,
         ),
       )
       const list = await runNow(reg.list())
@@ -229,15 +244,19 @@ describe("PromptAssetService.apply overwrite", () => {
     await withTmp(async (dir) => {
       await initAsset(dir, "existing")
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       const propose = await runNow(svc.propose(makeCandidate("existing")))
       expect(propose.exists).toBe(true)
       expect(propose.revision).not.toBeNull()
       const info = await runNow(
-        svc.apply({ candidate: makeCandidate("existing", "updated", "new content"), baseRevision: propose.revision!, overwrite: true }),
+        svc.apply({
+          candidate: makeCandidate("existing", "updated", "new content"),
+          baseRevision: propose.revision!,
+          overwrite: true,
+        }),
       )
       expect(info.description).toBe("updated")
       expect(info.template).toBe("new content")
@@ -248,9 +267,9 @@ describe("PromptAssetService.apply overwrite", () => {
     await withTmp(async (dir) => {
       await initAsset(dir, "locked")
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       // baseRevision=null means "expect new file", but file exists → StaleRevision
       const err = await runNow(
@@ -264,12 +283,14 @@ describe("PromptAssetService.apply overwrite", () => {
     await withTmp(async (dir) => {
       await initAsset(dir, "stale")
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       const err = await runNow(
-        svc.apply({ candidate: makeCandidate("stale"), baseRevision: "bad".repeat(32), overwrite: true }).pipe(Effect.flip),
+        svc
+          .apply({ candidate: makeCandidate("stale"), baseRevision: "bad".repeat(32), overwrite: true })
+          .pipe(Effect.flip),
       )
       expect(err).toMatchObject({ _tag: "PromptAssetService.StaleRevision" })
     })
@@ -278,9 +299,9 @@ describe("PromptAssetService.apply overwrite", () => {
   test("fails StaleRevisionError when new file appears between propose and apply", async () => {
     await withTmp(async (dir) => {
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       // File doesn't exist at propose time
       const propose = await runNow(svc.propose(makeCandidate("surprise")))
@@ -302,9 +323,9 @@ describe("PromptAssetService serializes concurrent writes", () => {
   test("serializes writes to the same target", async () => {
     await withTmp(async (dir) => {
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
 
       const results = await Promise.allSettled([
@@ -319,9 +340,9 @@ describe("PromptAssetService serializes concurrent writes", () => {
   test("allows writes to different targets", async () => {
     await withTmp(async (dir) => {
       const svc = await runNow(
-        Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-          Effect.provide(fullLayer(dir)), Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PromptAssetService.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       const [a, b] = await Promise.all([
         runNow(svc.apply({ candidate: makeCandidate("alpha", "a", "aaa"), baseRevision: null, overwrite: false })),
@@ -345,9 +366,9 @@ describe("PromptAssetService.delete", () => {
 
   async function makeSvc(dir: string) {
     return runNow(
-      Effect.gen(function* () { return yield* PromptAssetService.Service }).pipe(
-        Effect.provide(fullLayer(dir)), Effect.scoped,
-      ),
+      Effect.gen(function* () {
+        return yield* PromptAssetService.Service
+      }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
     )
   }
 
@@ -405,9 +426,7 @@ describe("PromptAssetService.delete", () => {
   test("rejects invalid path (traversal/backslash normalized)", async () => {
     await withTmp(async (dir) => {
       const svc = await makeSvc(dir)
-      const err = await runNow(
-        svc.delete({ relativePath: "../escape.md", baseRevision: null }).pipe(Effect.flip),
-      )
+      const err = await runNow(svc.delete({ relativePath: "../escape.md", baseRevision: null }).pipe(Effect.flip))
       expect(err).toMatchObject({ _tag: "PromptAssetService.InvalidCandidate" })
     })
   })
@@ -428,12 +447,17 @@ describe("PromptAssetService.delete", () => {
       const svc = await makeSvc(dir)
       await runNow(svc.delete({ relativePath: "gone.md", baseRevision: null }))
       const reg = await runNow(
-        Effect.gen(function* () { return yield* PromptAsset.Service }).pipe(
-          Effect.provide(PromptAsset.locationLayer.pipe(
-            Layer.provide(EventV2.defaultLayer),
-            Layer.provide(locationLayer(dir)),
-            Layer.provide(FSUtil.defaultLayer),
-          )), Effect.scoped,
+        Effect.gen(function* () {
+          return yield* PromptAsset.Service
+        }).pipe(
+          Effect.provide(
+            PromptAsset.locationLayer.pipe(
+              Layer.provide(EventV2.defaultLayer),
+              Layer.provide(locationLayer(dir)),
+              Layer.provide(FSUtil.defaultLayer),
+            ),
+          ),
+          Effect.scoped,
         ),
       )
       const list = await runNow(reg.list())

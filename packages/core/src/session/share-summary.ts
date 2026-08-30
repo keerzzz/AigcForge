@@ -72,9 +72,7 @@ export const generateSummary = Effect.fn("SessionShare.generateSummary")(functio
     generation: { maxTokens, temperature: 0.3 },
   })
 
-  const response = yield* llm.generate(request).pipe(
-    Effect.catch(() => Effect.succeed(undefined as unknown as never)),
-  )
+  const response = yield* llm.generate(request).pipe(Effect.catch(() => Effect.succeed(undefined)))
   if (!(response as unknown)) {
     yield* Effect.logWarning("SessionShare.generateSummary: LLM generate failed, using truncation fallback")
     return simpleTruncate(messages, 5)
@@ -87,11 +85,7 @@ export const generateSummary = Effect.fn("SessionShare.generateSummary")(functio
   }
 
   yield* Effect.logDebug(`SessionShare.generateSummary: success, ${text.length} chars`)
-  return [
-    "<session_summary>",
-    text,
-    "</session_summary>",
-  ].join("\n")
+  return ["<session_summary>", text, "</session_summary>"].join("\n")
 })
 
 /** Try each provider's small model and return the first one found. */

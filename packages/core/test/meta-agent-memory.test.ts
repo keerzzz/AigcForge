@@ -76,10 +76,7 @@ const attached = (directory: string) =>
 
 const serviceIn = (directory: string) => {
   const database = Database.layerFromPath(path.join(directory, "memory.sqlite"))
-  const memory = MetaAgentMemory.layer.pipe(
-    Layer.provide(MetaAgentService.layer),
-    Layer.provide(database),
-  )
+  const memory = MetaAgentMemory.layer.pipe(Layer.provide(MetaAgentService.layer), Layer.provide(database))
   return { database, memory }
 }
 
@@ -88,31 +85,31 @@ describe("MetaAgentMemory", () => {
     "records a fact and returns a stable id",
     () =>
       withTmp((directory) =>
-      Effect.gen(function* () {
-        yield* attached(directory)
-        const { memory } = serviceIn(directory)
-        return yield* Effect.gen(function* () {
-          const service = yield* MetaAgentMemory.Service
-          const id = yield* service.record({
-            sessionID,
-            projectID,
-            factCategory: "protocol",
-            content: "Never run tests from the repo root",
-          })
-          expect(id).toBeDefined()
-          const rows = yield* service.query({ projectID })
-          expect(rows.length).toBe(1)
-          expect(rows[0]).toMatchObject({
-            id,
-            projectID,
-            factCategory: "protocol",
-            content: "Never run tests from the repo root",
-          })
-          expect(rows[0].metaAgentID).toBe(MetaAgent.ID.descending("mag_memory_test"))
-          return yield* Effect.void
-        }).pipe(Effect.provide(memory))
-      }),
-    ),
+        Effect.gen(function* () {
+          yield* attached(directory)
+          const { memory } = serviceIn(directory)
+          return yield* Effect.gen(function* () {
+            const service = yield* MetaAgentMemory.Service
+            const id = yield* service.record({
+              sessionID,
+              projectID,
+              factCategory: "protocol",
+              content: "Never run tests from the repo root",
+            })
+            expect(id).toBeDefined()
+            const rows = yield* service.query({ projectID })
+            expect(rows.length).toBe(1)
+            expect(rows[0]).toMatchObject({
+              id,
+              projectID,
+              factCategory: "protocol",
+              content: "Never run tests from the repo root",
+            })
+            expect(rows[0].metaAgentID).toBe(MetaAgent.ID.descending("mag_memory_test"))
+            return yield* Effect.void
+          }).pipe(Effect.provide(memory))
+        }),
+      ),
     // Windows CI runners are slow: a memory-write I/O test flaked at bun's 5s default.
     10_000,
   )
@@ -165,8 +162,18 @@ describe("MetaAgentMemory", () => {
         const { memory } = serviceIn(directory)
         return yield* Effect.gen(function* () {
           const service = yield* MetaAgentMemory.Service
-          yield* service.record({ sessionID, projectID, factCategory: "code_trap", content: "Compaction template must stay private" })
-          yield* service.record({ sessionID, projectID, factCategory: "workflow", content: "Run bun typecheck before push" })
+          yield* service.record({
+            sessionID,
+            projectID,
+            factCategory: "code_trap",
+            content: "Compaction template must stay private",
+          })
+          yield* service.record({
+            sessionID,
+            projectID,
+            factCategory: "workflow",
+            content: "Run bun typecheck before push",
+          })
           const hits = yield* service.search({ projectID, keyword: "typecheck" })
           expect(hits.length).toBe(1)
           expect(hits[0].content).toContain("typecheck")
@@ -186,7 +193,12 @@ describe("MetaAgentMemory", () => {
         return yield* Effect.gen(function* () {
           const service = yield* MetaAgentMemory.Service
           yield* service.record({ sessionID, projectID, factCategory: "api", content: "project-scoped fact" })
-          yield* service.record({ sessionID, projectID: otherProjectID, factCategory: "api", content: "project-scoped fact" })
+          yield* service.record({
+            sessionID,
+            projectID: otherProjectID,
+            factCategory: "api",
+            content: "project-scoped fact",
+          })
           const rows = yield* service.query({ projectID })
           expect(rows.length).toBe(1)
           expect(rows[0].projectID).toBe(projectID)

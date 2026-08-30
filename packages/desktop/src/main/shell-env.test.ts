@@ -52,7 +52,8 @@ describe("shell env", () => {
 describe("loadShellEnvAsync", () => {
   const silent = { log: () => {} }
 
-  test("loads env from a shell that exits 0", async () => {
+  // /bin/sh login-shell probing is posix-only; Windows has no /bin/sh for libuv to spawn.
+  test.skipIf(process.platform === "win32")("loads env from a shell that exits 0", async () => {
     const env = await loadShellEnvAsync("/bin/sh", silent)
 
     expect(env).not.toBeNull()

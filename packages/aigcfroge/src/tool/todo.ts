@@ -51,15 +51,17 @@ export const TodoWriteTool = Tool.define<typeof Parameters, Metadata, Todo.Servi
                 if (error.reason !== "stale_revision") return Effect.die(new Error(error.message))
                 // Mirror core todowrite: hand the model the server's current
                 // list so it can merge its changes and retry.
-                return todo.get(ctx.sessionID).pipe(
-                  Effect.flatMap((current) =>
-                    Effect.die(
-                      new Error(
-                        `${error.message}\nCurrent server-side todo list:\n${JSON.stringify(current, null, 2)}\nMerge your changes into this list and retry.`,
+                return todo
+                  .get(ctx.sessionID)
+                  .pipe(
+                    Effect.flatMap((current) =>
+                      Effect.die(
+                        new Error(
+                          `${error.message}\nCurrent server-side todo list:\n${JSON.stringify(current, null, 2)}\nMerge your changes into this list and retry.`,
+                        ),
                       ),
                     ),
-                  ),
-                )
+                  )
               }),
               Effect.catchTag("SchemaError", () =>
                 Effect.die(

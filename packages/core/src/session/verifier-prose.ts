@@ -13,7 +13,7 @@ export const RULES: ReadonlyArray<Rule> = [
     pattern: /Cannot find module/,
     principle: "Self-export is the global default",
     guidance:
-      "A module exposes a namespace via `export * as Foo from \"./foo\"` at the bottom of the file; consumers import it by name.",
+      'A module exposes a namespace via `export * as Foo from "./foo"` at the bottom of the file; consumers import it by name.',
   },
   {
     pattern: /is not assignable to type/,

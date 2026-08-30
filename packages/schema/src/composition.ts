@@ -69,9 +69,7 @@ export const ConsumerKey = Schema.String.pipe(
   ),
 )
 
-export const Consumer = ConsumerKey.pipe(
-  Schema.brand("Composition.Consumer"),
-)
+export const Consumer = ConsumerKey.pipe(Schema.brand("Composition.Consumer"))
 export type Consumer = typeof Consumer.Type
 
 export class Binding extends Schema.Class<Binding>("Composition.Binding")({
@@ -326,10 +324,7 @@ export class SnapshotDataV2 extends Schema.Class<SnapshotDataV2>("Composition.Sn
   maxConcurrency: Schema.Int.check(
     Schema.isGreaterThanOrEqualTo(1),
     Schema.isLessThanOrEqualTo(WorkflowAsset.MAX_PARALLEL),
-  ).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed(1)),
-    Schema.withConstructorDefault(Effect.succeed(1)),
-  ),
+  ).pipe(Schema.withDecodingDefaultKey(Effect.succeed(1)), Schema.withConstructorDefault(Effect.succeed(1))),
   commands: Schema.Array(CommandInfo).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed([])),
     Schema.withConstructorDefault(Effect.succeed([])),

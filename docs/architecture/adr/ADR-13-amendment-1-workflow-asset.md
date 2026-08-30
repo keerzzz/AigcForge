@@ -24,6 +24,7 @@ engine reads workflow definitions from the same `.aigcfroge/workflows/` director
 otherwise independent of Chat's asset layer.
 
 File-system-level decoupling ensures:
+
 - Chat writes `.yaml` definitions; Work reads them at execution time.
 - No runtime dependency between the two modes for the definition path.
 - Work mode can implement its own execution semantics (step scheduling, state persistence,
@@ -36,4 +37,4 @@ definition ownership. All other clauses of ADR-13 remain in full effect.
 
 ---
 
-*Amendment approved alongside M5 Workflow Asset implementation plan.*
+_Amendment approved alongside M5 Workflow Asset implementation plan._

@@ -109,7 +109,11 @@ describe("CorrectionStore", () => {
         sessionID,
         entry: detectorEntry({ key: "ref:./old.ts", correct: "./new.ts", wrong: "./old.ts" }),
       })
-      const warning = yield* store.check({ sessionID: otherSessionID, toolName: "edit", toolInput: { path: "./old.ts" } })
+      const warning = yield* store.check({
+        sessionID: otherSessionID,
+        toolName: "edit",
+        toolInput: { path: "./old.ts" },
+      })
       expect(warning).toBe("")
     }),
   )

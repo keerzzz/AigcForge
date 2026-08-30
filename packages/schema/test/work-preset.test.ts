@@ -27,15 +27,11 @@ describe("WorkPreset.Preset", () => {
   })
 
   test("rejects unknown category", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, category: "bogus" }),
-    ).toThrow()
+    expect(() => Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, category: "bogus" })).toThrow()
   })
 
   test("rejects unknown outputType", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, outputType: "exe" }),
-    ).toThrow()
+    expect(() => Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, outputType: "exe" })).toThrow()
   })
 
   test("rejects missing required field", () => {
@@ -44,9 +40,7 @@ describe("WorkPreset.Preset", () => {
   })
 
   test("rejects non-boolean guided", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, guided: "yes" }),
-    ).toThrow()
+    expect(() => Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, guided: "yes" })).toThrow()
   })
 
   test("rejects question with non-string prompt", () => {
@@ -60,8 +54,6 @@ describe("WorkPreset.Preset", () => {
 
   test("rejects artifact without filename", () => {
     const { filename: _filename, ...artifact } = validPreset.artifact
-    expect(() =>
-      Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, artifact }),
-    ).toThrow()
+    expect(() => Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, artifact })).toThrow()
   })
 })

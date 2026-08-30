@@ -10,6 +10,8 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { Hash } from "@aigcfroge/core/util/hash"
 import { Composition } from "@aigcfroge/schema/composition"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { SessionComposition } from "@aigcfroge/core/session/composition"
+import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
 import { KBService } from "@aigcfroge/core/session/kb-service"
 import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
@@ -242,6 +244,16 @@ function withContext<A, E>(
                 const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory()) }))
                 const service = yield* ScopedGrantStore.Service.pipe(Effect.provide(layer), Effect.orDie)
                 return yield* service.issue(input).pipe(Effect.orDie)
+              }),
+            ),
+          workflow: (use) =>
+            run(
+              Effect.gen(function* () {
+                const locations = yield* LocationServiceMap
+                const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory()) }))
+                const runService = yield* WorkflowRun.Service.pipe(Effect.provide(layer), Effect.orDie)
+                const composition = yield* SessionComposition.Service.pipe(Effect.provide(layer), Effect.orDie)
+                return yield* use({ run: runService, composition }).pipe(Effect.orDie)
               }),
             ),
           project: () =>

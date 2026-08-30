@@ -10,11 +10,11 @@
 ## 1. Executive Summary
 
 | Severity | Count |
-| --- | ---: |
-| Critical | 0 |
-| High | 2 |
-| Medium | 6 |
-| Low | 2 |
+| -------- | ----: |
+| Critical |     0 |
+| High     |     2 |
+| Medium   |     6 |
+| Low      |     2 |
 
 The M0 implementation is not accepted and must not proceed to M1. The most important M0 invariant is currently false: both legacy and V2 Session creation accept `mode: "custom"` and persist a Session without an immutable composition Snapshot. A real `POST /session` request returned HTTP 200 and created a Custom Session on the legacy path.
 
@@ -176,22 +176,22 @@ Full lint reports 48 warnings, including new warnings in Custom handlers/tests. 
 
 ## 3. Verification Results
 
-| Check | Independent result |
-| --- | --- |
-| Schema tests | 89 pass, 0 fail |
-| Core tests | 1912 pass, 2 skip, 0 fail |
-| AigcForge focused Custom tests | 8 pass, 0 fail |
-| AigcForge full tests | 3199 pass, 22 skip, 1 todo, 1 transient fail; failed ws-pool test passed on immediate isolated rerun |
-| App unit tests | 895 pass, 0 fail |
-| Package typechecks | Schema/Core/AigcForge/App pass |
-| Full typecheck | 15/15 successful |
-| HTTP coverage | 275 pass, 0 fail |
-| HTTP auth | 275 pass, 0 fail |
-| HTTP effect | 274 pass, 1 unrelated task-seed failure |
-| Incremental lint | pass, 49 files / 5253 added lines |
-| Full lint | 2830 files, 0 errors, 48 warnings |
-| Protocol references | 32/32 pass |
-| `git diff --check main` | pass |
+| Check                          | Independent result                                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Schema tests                   | 89 pass, 0 fail                                                                                      |
+| Core tests                     | 1912 pass, 2 skip, 0 fail                                                                            |
+| AigcForge focused Custom tests | 8 pass, 0 fail                                                                                       |
+| AigcForge full tests           | 3199 pass, 22 skip, 1 todo, 1 transient fail; failed ws-pool test passed on immediate isolated rerun |
+| App unit tests                 | 895 pass, 0 fail                                                                                     |
+| Package typechecks             | Schema/Core/AigcForge/App pass                                                                       |
+| Full typecheck                 | 15/15 successful                                                                                     |
+| HTTP coverage                  | 275 pass, 0 fail                                                                                     |
+| HTTP auth                      | 275 pass, 0 fail                                                                                     |
+| HTTP effect                    | 274 pass, 1 unrelated task-seed failure                                                              |
+| Incremental lint               | pass, 49 files / 5253 added lines                                                                    |
+| Full lint                      | 2830 files, 0 errors, 48 warnings                                                                    |
+| Protocol references            | 32/32 pass                                                                                           |
+| `git diff --check main`        | pass                                                                                                 |
 
 The passing tests do not invalidate the findings. Direct adversarial executions demonstrated behavior that the current test suite does not assert: both Session create APIs accept Custom, invalid Profile binding input resolves valid, and Candidate identity fields diverge.
 

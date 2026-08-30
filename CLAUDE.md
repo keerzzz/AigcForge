@@ -44,40 +44,42 @@
 面对多个同现错误或失败时，**不逐个修现象，而是找到它们共享的根因**。收敛的标志是"修一个点，好一片面"。
 
 **收敛三步法**：
+
 1. **归类** — 把所有报错按类型分组（编译错误、运行时 Service not found、超时、环境差异），而不是按文件分组
 2. **找交集** — 每个分组里，追问"这些错误背后的共同前提是什么？"例：10 个不同的 "Service not found" 可能共享同一个 Layer 组合缺口
 3. **一击必杀** — 修复那个共同根因，验证该分组全部消失。如果有新分组冒出来，重复三步
 
 **收敛 vs 不收敛的典型对比**：
 
-| 行为 | 不收敛 | 收敛 |
-|------|--------|------|
-| **多个 Service not found** | 每个缺啥补啥，跑一轮冒新的 | 检查 Layer 组合根，一次修复全部 |
-| **版本检测异常** | 针对现象写兼容代码 | 追溯环境变量污染，清理源头 |
-| **构建挂死** | 加超时参数 | 检查底层依赖（无 timeout 的网络 fetch），修复调用方 |
+| 行为                       | 不收敛                     | 收敛                                                |
+| -------------------------- | -------------------------- | --------------------------------------------------- |
+| **多个 Service not found** | 每个缺啥补啥，跑一轮冒新的 | 检查 Layer 组合根，一次修复全部                     |
+| **版本检测异常**           | 针对现象写兼容代码         | 追溯环境变量污染，清理源头                          |
+| **构建挂死**               | 加超时参数                 | 检查底层依赖（无 timeout 的网络 fetch），修复调用方 |
 
 ### 极致减法和方案对冲
 
 - **极致减法**：修复优先级：**复用 → 删除 → 归并 → 重构 → 新增**。复用归一化是基础，新增即负债，删除即资产。
 - **方案对冲**：面对复杂任务，必须对比“简单实现”与“健壮架构”。如果选择了简单实现，必须显式向用户声明技术债。
+
 ---
 
 ## 项目边界
 
-| 边界                | 规则                                                                                                                                                                                                       |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **测试**            | 只在单个包内跑 `bun test`，永不从根目录跑。命令：`bun --cwd packages/<name> test --timeout 30000`                                                                                                          |
-| **类型检查**        | 使用 `tsgo --noEmit` 而非 `tsc`。日常用单包：`bun --cwd packages/<name> typecheck`；全仓 `bun turbo typecheck` 留给 CI。`app`/`desktop` 用 `tsgo -b`；`script`/`storybook` 无 typecheck 脚本           |
-| **Lint**            | 日常用增量：`bun run script/lint-changed.ts`（只查改动文件新增行）；全量 `bun run lint`（= `oxlint` 全仓 + `lint-changed.ts`）留给 CI。配置见 `.oxlintrc.json`：`typeAware: true` + `suspicious: warn` + 20+ 规则覆写。**基线陷阱**：`lint-changed.ts` 默认以本地 `main` 为 diff 基线（`script/lint-changed.ts:94`），所以在本地 `main` 上累积未推送提交时它扫到 0 个文件、空绿通过；审查这类批次必须显式给基线：`LINT_BASE_REF=origin/main bun run script/lint-changed.ts`                                                                                                   |
-| **Format**          | Prettier：`semi: false, printWidth: 120`，无 pre-commit hook；`.husky/pre-push` 跑 `bun typecheck`，可用 `AIGCFROGE_SKIP_TYPECHECK=1` 跳过                                                                                                         |
-| **模块组织**        | 新代码使用 `export * as Foo from "./foo"` 自导出模式。禁止新增 `export namespace`；已有 namespace 不顺手迁移。Barrel `index.ts` 由各包 `AGENTS.md` 自治（aigcfroge 禁多兄弟，llm 允许 `schema/`/`route/`） |
-| **Effect 编码**     | `Effect.gen(function* () {})` 组合、`Effect.fn("Domain.method")` 命名效果。无 `Effect.fork`/`forkDaemon`，用 `Effect.forkIn(scope)`                                                                        |
-| **Schema**          | 多字段用 `Schema.Class`，单值用 `Schema.brand`，错误用 `Schema.TaggedErrorClass`，defect 用 `Schema.Defect`。优先用 `Effect.void` 而非 `Effect.succeed(undefined)`                                         |
-| **测试同步**        | 禁止 `Effect.sleep(N)` 等待并发 fiber。用 `pollWithTimeout`、`Deferred`、`SessionStatus.Service` 等就绪信号                                                                                                |
-| **测试双端**        | 使用 `testEffect()` 代替手写 runtime。`Layer.mock` 代替手写 stub                                                                                                                                           |
-| **CSS / 主题**      | 所有颜色/间距/圆角引用 CSS 变量，禁止硬编码。新组件优先使用 v2 Token（`--v2-*`）                                                                                                                           |
-| **Subpath imports** | 平台条件导入走 `#sqlite`、`#pty`、`#fff`、`#db`，勿直接写 `.bun.ts`/`.node.ts`                                                                                                                             |
-| **LLM 层**          | 默认 AI SDK 路径。原生 `@aigcfroge/llm` 需 `AIGCFROGE_EXPERIMENTAL_NATIVE_LLM=true`                                                                                                                        |
+| 边界                | 规则                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **测试**            | 只在单个包内跑 `bun test`，永不从根目录跑。命令：`bun --cwd packages/<name> test --timeout 30000`                                                                                                                                                                                                                                                                                                                                                                           |
+| **类型检查**        | 使用 `tsgo --noEmit` 而非 `tsc`。日常用单包：`bun --cwd packages/<name> typecheck`；全仓 `bun turbo typecheck` 留给 CI。`app`/`desktop` 用 `tsgo -b`；`script`/`storybook` 无 typecheck 脚本                                                                                                                                                                                                                                                                                |
+| **Lint**            | 日常用增量：`bun run script/lint-changed.ts`（只查改动文件新增行）；全量 `bun run lint`（= `oxlint` 全仓 + `lint-changed.ts`）留给 CI。配置见 `.oxlintrc.json`：`typeAware: true` + `suspicious: warn` + 20+ 规则覆写。**基线陷阱**：`lint-changed.ts` 默认以本地 `main` 为 diff 基线（`script/lint-changed.ts:94`），所以在本地 `main` 上累积未推送提交时它扫到 0 个文件、空绿通过；审查这类批次必须显式给基线：`LINT_BASE_REF=origin/main bun run script/lint-changed.ts` |
+| **Format**          | Prettier：`semi: false, printWidth: 120`，无 pre-commit hook；`.husky/pre-push` 跑 `bun typecheck`，可用 `AIGCFROGE_SKIP_TYPECHECK=1` 跳过                                                                                                                                                                                                                                                                                                                                  |
+| **模块组织**        | 新代码使用 `export * as Foo from "./foo"` 自导出模式。禁止新增 `export namespace`；已有 namespace 不顺手迁移。Barrel `index.ts` 由各包 `AGENTS.md` 自治（aigcfroge 禁多兄弟，llm 允许 `schema/`/`route/`）                                                                                                                                                                                                                                                                  |
+| **Effect 编码**     | `Effect.gen(function* () {})` 组合、`Effect.fn("Domain.method")` 命名效果。无 `Effect.fork`/`forkDaemon`，用 `Effect.forkIn(scope)`                                                                                                                                                                                                                                                                                                                                         |
+| **Schema**          | 多字段用 `Schema.Class`，单值用 `Schema.brand`，错误用 `Schema.TaggedErrorClass`，defect 用 `Schema.Defect`。优先用 `Effect.void` 而非 `Effect.succeed(undefined)`                                                                                                                                                                                                                                                                                                          |
+| **测试同步**        | 禁止 `Effect.sleep(N)` 等待并发 fiber。用 `pollWithTimeout`、`Deferred`、`SessionStatus.Service` 等就绪信号                                                                                                                                                                                                                                                                                                                                                                 |
+| **测试双端**        | 使用 `testEffect()` 代替手写 runtime。`Layer.mock` 代替手写 stub                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **CSS / 主题**      | 所有颜色/间距/圆角引用 CSS 变量，禁止硬编码。新组件优先使用 v2 Token（`--v2-*`）                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Subpath imports** | 平台条件导入走 `#sqlite`、`#pty`、`#fff`、`#db`，勿直接写 `.bun.ts`/`.node.ts`                                                                                                                                                                                                                                                                                                                                                                                              |
+| **LLM 层**          | 默认 AI SDK 路径。原生 `@aigcfroge/llm` 需 `AIGCFROGE_EXPERIMENTAL_NATIVE_LLM=true`                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ---
 

@@ -91,7 +91,15 @@ describe("aggregateToolActivity", () => {
   })
 
   test("ignores non-completed tool parts", () => {
-    const pending: Part = { id: "p-read", sessionID: "s1", messageID: "m1", type: "tool", callID: "c-read", tool: "read", state: { status: "pending", input: {}, raw: "" } }
+    const pending: Part = {
+      id: "p-read",
+      sessionID: "s1",
+      messageID: "m1",
+      type: "tool",
+      callID: "c-read",
+      tool: "read",
+      state: { status: "pending", input: {}, raw: "" },
+    }
     const activities = aggregateToolActivity([pending])
 
     expect(activities).toHaveLength(0)

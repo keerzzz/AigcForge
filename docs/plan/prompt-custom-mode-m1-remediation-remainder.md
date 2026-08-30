@@ -83,16 +83,16 @@ packages/core/src/tool/AGENTS.md                                 # (仅当你触
 
 ### 2.3 未提交半成品清单(上一代理中断时的工作树)
 
-| 文件 | 状态 | 内容 |
-|---|---|---|
-| `packages/schema/src/composition.ts` | 改,+7 | 新增 `Composition.UpgradeInput`(sessionID 必填 + composition + expectedPlanDigest? + title?) |
-| `packages/core/src/flag/flag.ts` | 改,+3 | 新增 `Flag.AIGCFROGE_CUSTOM_MODE`(truthy getter,跟随既有 Flag 模式) |
-| `packages/core/src/product-mode-policy.ts` | 改,+13 | 新增 `isCustomModeEnabled()`(读 flag,default off)+ `CUSTOM_MODE_DISABLED_MESSAGE`;注释声明仅 HTTP 门禁消费、域层 flag-free |
-| `packages/aigcfroge/.../groups/custom-composition.ts` | 改,+16 | 声明 `POST /custom-composition/upgrade`,payload UpgradeInput,success StartResponse,errors [InvalidRequestError, SessionNotFoundError, SessionBusyError] |
-| `packages/aigcfroge/.../handlers/custom-composition.ts` | 改,+78 | upgrade handler 全量错误映射;plan/start/upgrade 三个端点均已加 flag 门禁(flag off → 400 disabled 消息,先于 capability 检查) |
-| `packages/server/src/handlers/session.ts` | 改,+5 | `session.custom` 加 flag 门禁(先于 capability 检查) |
-| `packages/aigcfroge/test/server/httpapi-custom-composition-upgrade.test.ts` | 新,226 行 | upgrade 端点 4 测试:**3 过 1 挂**——`rejects upgrade while the source session is busy` 失败(busy 场景构造未完成) |
-| `packages/aigcfroge/test/server/scratch-busy.test.ts` | 新,156 行 | 调试 busy 场景的草稿脚手架。**必须折叠进正式测试文件后删除,禁止残留 scratch 文件** |
+| 文件                                                                        | 状态      | 内容                                                                                                                                                    |
+| --------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/schema/src/composition.ts`                                        | 改,+7     | 新增 `Composition.UpgradeInput`(sessionID 必填 + composition + expectedPlanDigest? + title?)                                                            |
+| `packages/core/src/flag/flag.ts`                                            | 改,+3     | 新增 `Flag.AIGCFROGE_CUSTOM_MODE`(truthy getter,跟随既有 Flag 模式)                                                                                     |
+| `packages/core/src/product-mode-policy.ts`                                  | 改,+13    | 新增 `isCustomModeEnabled()`(读 flag,default off)+ `CUSTOM_MODE_DISABLED_MESSAGE`;注释声明仅 HTTP 门禁消费、域层 flag-free                              |
+| `packages/aigcfroge/.../groups/custom-composition.ts`                       | 改,+16    | 声明 `POST /custom-composition/upgrade`,payload UpgradeInput,success StartResponse,errors [InvalidRequestError, SessionNotFoundError, SessionBusyError] |
+| `packages/aigcfroge/.../handlers/custom-composition.ts`                     | 改,+78    | upgrade handler 全量错误映射;plan/start/upgrade 三个端点均已加 flag 门禁(flag off → 400 disabled 消息,先于 capability 检查)                             |
+| `packages/server/src/handlers/session.ts`                                   | 改,+5     | `session.custom` 加 flag 门禁(先于 capability 检查)                                                                                                     |
+| `packages/aigcfroge/test/server/httpapi-custom-composition-upgrade.test.ts` | 新,226 行 | upgrade 端点 4 测试:**3 过 1 挂**——`rejects upgrade while the source session is busy` 失败(busy 场景构造未完成)                                         |
+| `packages/aigcfroge/test/server/scratch-busy.test.ts`                       | 新,156 行 | 调试 busy 场景的草稿脚手架。**必须折叠进正式测试文件后删除,禁止残留 scratch 文件**                                                                      |
 
 半成品**未跑过** typecheck/lint;`health`/`references` 两个只读端点按契约**不加** flag 门禁(历史可读),保持一致即可。
 

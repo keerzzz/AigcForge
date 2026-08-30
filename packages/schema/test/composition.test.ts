@@ -123,9 +123,7 @@ describe("Composition Schema", () => {
           revision: "c".repeat(64),
         },
       ],
-      capabilities: [
-        { id: "product-mode-custom-v1", status: "effective" },
-      ],
+      capabilities: [{ id: "product-mode-custom-v1", status: "effective" }],
       diagnostics: [],
     })
     expect(plan.version).toBe(1)
@@ -163,9 +161,7 @@ describe("Composition Schema", () => {
         description: "Review workflow",
         relativePath: "review-flow.yaml",
         revision: "d".repeat(64),
-        steps: [
-          { id: "step_1", name: "Step 1", agent: "reviewer", failurePolicy: "abort", maxAttempts: 1 },
-        ],
+        steps: [{ id: "step_1", name: "Step 1", agent: "reviewer", failurePolicy: "abort", maxAttempts: 1 }],
       },
       commands: [
         {
@@ -176,13 +172,9 @@ describe("Composition Schema", () => {
           template: "bun run lint --filter {target}",
         },
       ],
-      instructions: [
-        { source: "platform", content: "Platform baseline" },
-      ],
+      instructions: [{ source: "platform", content: "Platform baseline" }],
       skills: [],
-      capabilities: [
-        { id: "product-mode-custom-v1", status: "effective" },
-      ],
+      capabilities: [{ id: "product-mode-custom-v1", status: "effective" }],
       costPreview: {
         estimatedTokens: 12000,
         maxConcurrency: 4,
@@ -204,15 +196,9 @@ describe("Composition Schema", () => {
       createdAt: 10000,
       data: {
         agentID: "reviewer",
-        instructions: [
-          { source: "platform", content: "Platform baseline" },
-        ],
-        prompts: [
-          { relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" },
-        ],
-        skills: [
-          { name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) },
-        ],
+        instructions: [{ source: "platform", content: "Platform baseline" }],
+        prompts: [{ relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" }],
+        skills: [{ name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) }],
         tools: {
           fingerprints: [
             {
@@ -251,9 +237,7 @@ describe("Composition Schema", () => {
           description: "Review workflow",
           relativePath: "review-flow.yaml",
           revision: "d".repeat(64),
-          steps: [
-            { id: "step_1", name: "Step 1", agent: "reviewer", failurePolicy: "abort", maxAttempts: 1 },
-          ],
+          steps: [{ id: "step_1", name: "Step 1", agent: "reviewer", failurePolicy: "abort", maxAttempts: 1 }],
         },
         commands: [
           {
@@ -266,9 +250,7 @@ describe("Composition Schema", () => {
         ],
         bindings: {
           orchestrator: {
-            prompts: [
-              { relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" },
-            ],
+            prompts: [{ relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" }],
             skills: [],
             commands: [
               {
@@ -282,22 +264,14 @@ describe("Composition Schema", () => {
           },
           "agents/reviewer": {
             prompts: [],
-            skills: [
-              { name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) },
-            ],
+            skills: [{ name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) }],
             commands: [],
           },
         },
         maxConcurrency: 4,
-        instructions: [
-          { source: "platform", content: "Platform baseline" },
-        ],
-        prompts: [
-          { relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" },
-        ],
-        skills: [
-          { name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) },
-        ],
+        instructions: [{ source: "platform", content: "Platform baseline" }],
+        prompts: [{ relativePath: "prompt.md", revision: "b".repeat(64), content: "Prompt content" }],
+        skills: [{ name: "review-skill", description: "Desc", relativePath: "skill.md", revision: "c".repeat(64) }],
         tools: {
           fingerprints: [
             {

@@ -58,7 +58,9 @@ export function client<T extends Definition>(target: {
         for (const handler of handlers) {
           try {
             handler(parsed.data)
-          } catch { /* handler error does not affect other handlers */ }
+          } catch {
+            /* handler error does not affect other handlers */
+          }
         }
       }
     }

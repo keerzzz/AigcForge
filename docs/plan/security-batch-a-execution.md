@@ -44,6 +44,7 @@ cd ../..
 ```
 
 验证:
+
 ```bash
 grep '"js-yaml' packages/core/package.json
 # 预期: "js-yaml": "^4.2.0"
@@ -265,6 +266,7 @@ grep -rn "dompurify\|DOMPurify" packages/ui/src/ 2>/dev/null
 ### 3.2 清理根 catalog 死条目 + 升级
 
 根 `package.json` workspace catalog 中存在 `"dompurify": "3.3.1"`，两处消费:
+
 - `packages/session-ui`: 有实际使用 → 升级
 - `packages/ui`: 死依赖 → 删除声明, catalog 中删除条目
 
@@ -321,7 +323,7 @@ describe("sanitize regression", () => {
   })
 
   test("<svg><foreignObject> is stripped", () => {
-    const result = sanitizeMarkdown('<svg><foreignObject><div>bad</div></foreignObject></svg>')
+    const result = sanitizeMarkdown("<svg><foreignObject><div>bad</div></foreignObject></svg>")
     expect(result).not.toContain("<foreignObject>")
   })
 
@@ -335,7 +337,7 @@ describe("sanitize regression", () => {
     expect(result).not.toContain("<evil-el>")
   })
 
-  test("target=\"_blank\" gets noopener noreferrer", () => {
+  test('target="_blank" gets noopener noreferrer', () => {
     const result = sanitizeMarkdown('<a href="https://safe.com" target="_blank">link</a>')
     expect(result).toContain("noopener")
     expect(result).toContain("noreferrer")
@@ -396,10 +398,11 @@ bun install
 // 旧: .use(cors())
 // 新: fail-closed — 未配置白名单时不输出 CORS 头（仅同源访问）
 const allowedOrigins = process.env.AIGCFROGE_ALLOWED_ORIGINS
-const app = new Hono()
-  .use(cors({
+const app = new Hono().use(
+  cors({
     origin: allowedOrigins ? allowedOrigins.split(",") : [],
-  }))
+  }),
+)
 ```
 
 `origin: []` 使 Hono 不输出 `Access-Control-Allow-Origin` 头 → 浏览器仅允许同源。部署时设 `AIGCFROGE_ALLOWED_ORIGINS=https://your-domain.com`。
@@ -438,10 +441,10 @@ git commit -m "fix(enterprise): upgrade hono 4.10.7→4.12.18 + CORS fail-closed
 ```markdown
 ## 已知技术负债
 
-| 负债 | 包 | 风险 | Owner | 到期日 |
-|---|---|---|---|---|
-| nitro@3.0.1-alpha.1 预发布版本 | enterprise | alpha 不应用于生产 | TBD | 2026-08-04 |
-| @ai-sdk/google patch | root patches/ | 功能补丁，上游 3.0.73 未内含 | TBD | 持续监控上游 |
+| 负债                           | 包            | 风险                         | Owner | 到期日       |
+| ------------------------------ | ------------- | ---------------------------- | ----- | ------------ |
+| nitro@3.0.1-alpha.1 预发布版本 | enterprise    | alpha 不应用于生产           | TBD   | 2026-08-04   |
+| @ai-sdk/google patch           | root patches/ | 功能补丁，上游 3.0.73 未内含 | TBD   | 持续监控上游 |
 ```
 
 ```bash
@@ -455,9 +458,10 @@ git commit -m "docs: record nitro-alpha and google-patch known debt with expiry"
 
 **排在最后执行** — 版本跨越大 (20-39 补丁)，需逐个核对 changelog + 处置 patchedDependencies。
 
-### 6.1 从上游 dependencies 提取 @ai-sdk/* 版本（不在 catalog）
+### 6.1 从上游 dependencies 提取 @ai-sdk/\* 版本（不在 catalog）
 
-@ai-sdk/* pin 在两处:
+@ai-sdk/\* pin 在两处:
+
 - `packages/core/package.json:61-80` (dependencies)
 - `packages/aigcfroge/package.json:60-76` (dependencies)
 
@@ -618,15 +622,15 @@ git log opencode/dev -- packages/core/package.json packages/enterprise/package.j
 
 ### 实际执行与计划偏差
 
-| 步骤 | 结果 | 偏差 |
-|---|---|---|
-| Step 1 js-yaml | ✅ 4.3.0 + @types/js-yaml 4.0.9 + 4 处字节上限 + 5 探针 | 探针精简为 5 条（merge key 并入 anchor 用例）；TEST-3 改真嵌套 |
-| Step 2 tar | ✅ overrides 合并至现有块，最终 **7.5.22** | 计划值 7.5.18 仍命中新 advisory GHSA-23hp-3jrh-7fpw（≤7.5.18），收尾时二次提升至 7.5.22 |
-| Step 3 DOMPurify | ✅ 3.3.1→**3.4.6** + happy-dom preload + 7 条 XSS 探针；ui 死依赖已删 | 收尾时尝试 3.4.12 实证与 happy-dom 不兼容（p/a 误剥、foreignObject 误放），回退 3.4.6 并登记 CLAUDE.md 负债（到期 2026-08-27） |
-| Step 4 Hono/CORS | ✅ catalog 最终 **4.12.32** + `"hono": "catalog:"` override 去重；enterprise CORS fail-closed | function Worker 决议不加 CORS（内部服务，反射 origin 扩大攻击面） |
-| Step 5 minimatch | ✅ 仅 aigcfroge 10.0.3→10.2.5（core 已是 10.2.5） | 无 |
-| Step 6 AI SDK | ✅ core+aigcfroge 同步上游 dependencies；xai patch 删除（3.0.102 已内含 PDF 支持，实证） | google patch 保留（上游仍 3.0.73），登记负债 |
-| A4b nitro | ✅ 登记 CLAUDE.md 已知技术负债（到期 2026-08-04） | Owner 待指派 |
+| 步骤             | 结果                                                                                          | 偏差                                                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Step 1 js-yaml   | ✅ 4.3.0 + @types/js-yaml 4.0.9 + 4 处字节上限 + 5 探针                                       | 探针精简为 5 条（merge key 并入 anchor 用例）；TEST-3 改真嵌套                                                                 |
+| Step 2 tar       | ✅ overrides 合并至现有块，最终 **7.5.22**                                                    | 计划值 7.5.18 仍命中新 advisory GHSA-23hp-3jrh-7fpw（≤7.5.18），收尾时二次提升至 7.5.22                                        |
+| Step 3 DOMPurify | ✅ 3.3.1→**3.4.6** + happy-dom preload + 7 条 XSS 探针；ui 死依赖已删                         | 收尾时尝试 3.4.12 实证与 happy-dom 不兼容（p/a 误剥、foreignObject 误放），回退 3.4.6 并登记 CLAUDE.md 负债（到期 2026-08-27） |
+| Step 4 Hono/CORS | ✅ catalog 最终 **4.12.32** + `"hono": "catalog:"` override 去重；enterprise CORS fail-closed | function Worker 决议不加 CORS（内部服务，反射 origin 扩大攻击面）                                                              |
+| Step 5 minimatch | ✅ 仅 aigcfroge 10.0.3→10.2.5（core 已是 10.2.5）                                             | 无                                                                                                                             |
+| Step 6 AI SDK    | ✅ core+aigcfroge 同步上游 dependencies；xai patch 删除（3.0.102 已内含 PDF 支持，实证）      | google patch 保留（上游仍 3.0.73），登记负债                                                                                   |
+| A4b nitro        | ✅ 登记 CLAUDE.md 已知技术负债（到期 2026-08-04）                                             | Owner 待指派                                                                                                                   |
 
 ### 最终验证数字（2026-07-28 实测）
 

@@ -19,7 +19,9 @@ describe("CredentialScanner", () => {
   it.effect("detects bearer token patterns", () =>
     Effect.gen(function* () {
       const scanner = yield* CredentialScanner.Service
-      const result = yield* scanner.scan("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dkWG4ysT1QfT1g")
+      const result = yield* scanner.scan(
+        "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dkWG4ysT1QfT1g",
+      )
       expect(result.hits.length).toBeGreaterThan(0)
       expect(result.hits.some((h) => h.type === "bearer_token")).toBe(true)
     }),
@@ -28,7 +30,9 @@ describe("CredentialScanner", () => {
   it.effect("detects private key patterns", () =>
     Effect.gen(function* () {
       const scanner = yield* CredentialScanner.Service
-      const result = yield* scanner.scan("-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----")
+      const result = yield* scanner.scan(
+        "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----",
+      )
       expect(result.hits.length).toBeGreaterThan(0)
       expect(result.hits[0]?.type).toBe("private_key")
     }),
@@ -56,7 +60,9 @@ describe("CredentialScanner", () => {
   it.effect("no false positives on normal text", () =>
     Effect.gen(function* () {
       const scanner = yield* CredentialScanner.Service
-      const result = yield* scanner.scan("This is a normal message about the project architecture and design decisions.")
+      const result = yield* scanner.scan(
+        "This is a normal message about the project architecture and design decisions.",
+      )
       expect(result.hits.length).toBe(0)
       expect(result.stripped).toBe("This is a normal message about the project architecture and design decisions.")
     }),

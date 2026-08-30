@@ -1,17 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import {
-  registerClaudeMcpServerContributor,
-  buildMcpServersFromRegistry,
-} from "@aigcfroge/core/mcp/contributor"
+import { registerClaudeMcpServerContributor, buildMcpServersFromRegistry } from "@aigcfroge/core/mcp/contributor"
 
 describe("MCP Contributor Registry", () => {
   test("should return empty when no contributors registered", () =>
     Effect.gen(function* () {
       const servers = yield* buildMcpServersFromRegistry()
       expect(servers).toEqual({})
-    }).pipe(Effect.runPromise),
-  )
+    }).pipe(Effect.runPromise))
 
   test("should return servers from single contributor", () => {
     registerClaudeMcpServerContributor(() => ({
@@ -55,13 +51,13 @@ describe("MCP Contributor Registry", () => {
     registerClaudeMcpServerContributor(() => ({
       getMcpServers: () =>
         Effect.succeed({
-          "overlap": { command: "v1", transport: "stdio" as const },
+          overlap: { command: "v1", transport: "stdio" as const },
         }),
     }))
     registerClaudeMcpServerContributor(() => ({
       getMcpServers: () =>
         Effect.succeed({
-          "overlap": { command: "v2", transport: "sse" as const },
+          overlap: { command: "v2", transport: "sse" as const },
         }),
     }))
     return Effect.gen(function* () {

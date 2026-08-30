@@ -5,7 +5,7 @@
   "tasks": {
     "typecheck": {},
     "build": {
-      "dependsOn": [],
+      "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
     "aigcfroge#test": {
@@ -26,6 +26,30 @@
       "outputs": []
     },
     "@aigcfroge/session-ui#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@aigcfroge/desktop#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@aigcfroge/tui#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@aigcfroge/schema#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@aigcfroge/llm#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@aigcfroge/http-recorder#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@aigcfroge/effect-drizzle-sqlite#test": {
       "dependsOn": ["^build"],
       "outputs": []
     }

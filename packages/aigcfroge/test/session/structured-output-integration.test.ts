@@ -10,7 +10,9 @@ import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 // Skip tests if no API key is available
 const hasApiKey = !!process.env.ANTHROPIC_API_KEY
 const it = testEffect(
-  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer).pipe(Layer.provide(CliAdapterRegistry.defaultLayer)).pipe(Layer.provide(Ripgrep.defaultLayer)),
+  Layer.mergeAll(SessionPrompt.defaultLayer, Session.defaultLayer)
+    .pipe(Layer.provide(CliAdapterRegistry.defaultLayer))
+    .pipe(Layer.provide(Ripgrep.defaultLayer)),
 )
 const live = hasApiKey ? it.instance : it.instance.skip
 

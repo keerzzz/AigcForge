@@ -50,14 +50,18 @@ export const make = <E>(options: Options<E>): Effect.Effect<Coordinator<E>, neve
     }
   })
 
-export interface Interface extends Coordinator<WorkflowRunner.WorkflowExecutionError | WorkflowRun.RequestConflictError> {}
+export interface Interface
+  extends Coordinator<WorkflowRunner.WorkflowExecutionError | WorkflowRun.RequestConflictError> {}
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/WorkflowExecution") {}
 
-export const layer = Layer.effect(Service, Effect.gen(function* () {
-  const coordinator = yield* make<WorkflowRunner.WorkflowExecutionError>({
-    admit: () => Effect.die("WorkflowExecution requires a location-scoped admission implementation"),
-    drain: () => Effect.die("WorkflowExecution requires a location-scoped drain implementation"),
-  })
-  return Service.of(coordinator)
-}))
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const coordinator = yield* make<WorkflowRunner.WorkflowExecutionError>({
+      admit: () => Effect.die("WorkflowExecution requires a location-scoped admission implementation"),
+      drain: () => Effect.die("WorkflowExecution requires a location-scoped drain implementation"),
+    })
+    return Service.of(coordinator)
+  }),
+)

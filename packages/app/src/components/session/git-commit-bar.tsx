@@ -63,7 +63,9 @@ export function GitCommitBar(props: {
           variant="contrast"
           class="flex items-center gap-1.5 shrink-0"
         >
-          <span>{props.isCommitting ? language.t("git.commitBar.committing") : language.t("git.commitBar.commit")}</span>
+          <span>
+            {props.isCommitting ? language.t("git.commitBar.committing") : language.t("git.commitBar.commit")}
+          </span>
           <span class="text-[9px] opacity-65 font-mono select-none px-1 py-0.5 rounded bg-white/10">
             {shortcutHint}
           </span>

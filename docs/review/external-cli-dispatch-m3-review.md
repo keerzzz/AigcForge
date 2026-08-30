@@ -6,19 +6,19 @@
 
 ## 1. 改动清单（执行方交付）
 
-| 文件 | 摘要 |
-|---|---|
-| `packages/core/src/config/cli-agent.ts`（新建） | `ConfigCliAgent.Info` schema：command/description/args（`{prompt}`/`{resumeId}` 占位）/output（claude-jsonl、codex-jsonl、plain）/timeout |
-| `packages/core/src/tool/cli-config-adapter.ts`（新建） | `fromConfig(name, info)` 工厂：配置条目物化为标准 `CliAdapter`，output 策略复用既有三种 parser |
-| `packages/core/src/config.ts:66` | V2 `Config.Info` 增 `cli_agents` 可选 Record |
-| `packages/core/src/v1/config/{config.ts:114,migrate.ts:73}` | V1 schema 同步 + V1→V2 migrate 透传 |
-| `packages/core/src/tool/cli-adapter.ts` | 新增 `registerConfigCliAdapters(entries)`：config 条目注册进同一 cell，同名覆盖内置（config > built-in） |
-| `packages/core/src/session/task-driver-fill.ts:75-84` | 组合根接线：注册四个内置适配器后，有 Config.Service 时注册 `cli_agents` 条目（`Effect.catch` 容错） |
-| `packages/aigcfroge/src/agent/meta/adapters/registry.ts` | **registry 收敛**：aigcfroge 侧服务变为 core module cell 的薄 Effect 包装，`@` 列表与 task 工具同一存储，规避 M1 组合根双 registry 陷阱 |
-| `packages/core/src/util/which.ts` | PATH 兜底（解冻 3）：显式空 PATH（GUI 启动）权威不静默替换；无 PATH 时回退 login-shell PATH + 常见 bin 目录（~/.local/bin、/usr/local/bin、/opt/homebrew/bin） |
-| `packages/core/src/tool/cli-timeout.ts` | 支持 adapter.timeout 覆盖默认超时 |
-| 解冻 1/2/3 | 解冻 1（meta prompt 填充）、解冻 3（PATH）落地；解冻 2（server SSE 热更）按方案降级为 composer 重拉并声明技术债 |
-| 测试 | `core/test/cli-config-adapter.test.ts`（7 用例工厂契约）、`core/test/config/cli-agent.test.ts`（5 用例 schema 契约）、`core/test/util/which.test.ts`、`aigcfroge/test/agent/meta/adapters/registry.test.ts` 新增 2 用例（config 合并、config 覆盖内置） |
+| 文件                                                        | 摘要                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/config/cli-agent.ts`（新建）             | `ConfigCliAgent.Info` schema：command/description/args（`{prompt}`/`{resumeId}` 占位）/output（claude-jsonl、codex-jsonl、plain）/timeout                                                                                                               |
+| `packages/core/src/tool/cli-config-adapter.ts`（新建）      | `fromConfig(name, info)` 工厂：配置条目物化为标准 `CliAdapter`，output 策略复用既有三种 parser                                                                                                                                                          |
+| `packages/core/src/config.ts:66`                            | V2 `Config.Info` 增 `cli_agents` 可选 Record                                                                                                                                                                                                            |
+| `packages/core/src/v1/config/{config.ts:114,migrate.ts:73}` | V1 schema 同步 + V1→V2 migrate 透传                                                                                                                                                                                                                     |
+| `packages/core/src/tool/cli-adapter.ts`                     | 新增 `registerConfigCliAdapters(entries)`：config 条目注册进同一 cell，同名覆盖内置（config > built-in）                                                                                                                                                |
+| `packages/core/src/session/task-driver-fill.ts:75-84`       | 组合根接线：注册四个内置适配器后，有 Config.Service 时注册 `cli_agents` 条目（`Effect.catch` 容错）                                                                                                                                                     |
+| `packages/aigcfroge/src/agent/meta/adapters/registry.ts`    | **registry 收敛**：aigcfroge 侧服务变为 core module cell 的薄 Effect 包装，`@` 列表与 task 工具同一存储，规避 M1 组合根双 registry 陷阱                                                                                                                 |
+| `packages/core/src/util/which.ts`                           | PATH 兜底（解冻 3）：显式空 PATH（GUI 启动）权威不静默替换；无 PATH 时回退 login-shell PATH + 常见 bin 目录（~/.local/bin、/usr/local/bin、/opt/homebrew/bin）                                                                                          |
+| `packages/core/src/tool/cli-timeout.ts`                     | 支持 adapter.timeout 覆盖默认超时                                                                                                                                                                                                                       |
+| 解冻 1/2/3                                                  | 解冻 1（meta prompt 填充）、解冻 3（PATH）落地；解冻 2（server SSE 热更）按方案降级为 composer 重拉并声明技术债                                                                                                                                         |
+| 测试                                                        | `core/test/cli-config-adapter.test.ts`（7 用例工厂契约）、`core/test/config/cli-agent.test.ts`（5 用例 schema 契约）、`core/test/util/which.test.ts`、`aigcfroge/test/agent/meta/adapters/registry.test.ts` 新增 2 用例（config 合并、config 覆盖内置） |
 
 ## 2. 审批方修复（4 项，均已验证）
 

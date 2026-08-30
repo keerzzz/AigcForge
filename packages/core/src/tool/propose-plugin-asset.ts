@@ -76,9 +76,7 @@ export function propose(
 
     // 3. Check file exists and get revision
     const targetPath = path.resolve(deps.directory, relativePath)
-    const fileExists = yield* deps.fs.exists(targetPath).pipe(
-      Effect.catch(() => Effect.succeed(false)),
-    )
+    const fileExists = yield* deps.fs.exists(targetPath).pipe(Effect.catch(() => Effect.succeed(false)))
     let revision: string | undefined
     if (fileExists) {
       const bytes = yield* deps.fs.readFile(targetPath).pipe(
@@ -150,11 +148,7 @@ export const layer = Layer.effectDiscard(
           pluginAsset,
           fs,
           directory: location.directory,
-        }).pipe(
-          Effect.catch((err) =>
-            Effect.fail(new ToolFailure({ message: `Proposal failed: ${err.message}` })),
-          ),
-        ),
+        }).pipe(Effect.catch((err) => Effect.fail(new ToolFailure({ message: `Proposal failed: ${err.message}` })))),
       toModelOutput: ({ output }) => [
         {
           type: "text" as const,
@@ -169,8 +163,6 @@ export const layer = Layer.effectDiscard(
       ],
     })
 
-    yield* tools.register({ [name]: tool }).pipe(
-      Effect.catch((err) => Effect.die(err)),
-    )
+    yield* tools.register({ [name]: tool }).pipe(Effect.catch((err) => Effect.die(err)))
   }),
 )

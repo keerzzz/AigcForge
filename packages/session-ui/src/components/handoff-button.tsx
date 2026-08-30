@@ -26,7 +26,9 @@ export function HandoffButton(props: { actions: HandoffAction[] }) {
               border-border-base bg-bg-base hover:bg-bg-soft active:bg-bg-strong
               text-text-base hover:text-text-strong"
           >
-            <span aria-hidden="true" class="text-11 opacity-60">→</span>
+            <span aria-hidden="true" class="text-11 opacity-60">
+              →
+            </span>
             <span>{action.label}</span>
           </button>
         )}

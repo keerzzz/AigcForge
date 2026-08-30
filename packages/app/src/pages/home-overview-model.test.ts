@@ -28,11 +28,7 @@ describe("countByMode", () => {
 
 describe("countByProject", () => {
   test("counts records per project worktree", () => {
-    const records = [
-      { project: { worktree: "/a" } },
-      { project: { worktree: "/a" } },
-      { project: { worktree: "/b" } },
-    ]
+    const records = [{ project: { worktree: "/a" } }, { project: { worktree: "/a" } }, { project: { worktree: "/b" } }]
     const count = countByProject(records)
     expect(count.get("/a")).toBe(2)
     expect(count.get("/b")).toBe(1)

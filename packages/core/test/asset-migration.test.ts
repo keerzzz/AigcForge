@@ -23,10 +23,7 @@ import { location } from "./fixture/location"
 import fs from "fs/promises"
 
 function locationLayer(dir: string) {
-  return Layer.succeed(
-    Location.Service,
-    Location.Service.of(location({ directory: AbsolutePath.make(dir) })),
-  )
+  return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
 }
 
 function skillLayer(dir: string) {
@@ -113,8 +110,18 @@ describe("AssetMigration", () => {
 
   test(".claude wins over .agents on duplicate names", async () => {
     await withTmp(async (dir) => {
-      await writeLegacySkill(dir, ".claude/skills", "dup", `---\nname: dup\ndescription: from claude\n---\n\nClaude body.\n`)
-      await writeLegacySkill(dir, ".agents/skills", "dup", `---\nname: dup\ndescription: from agents\n---\n\nAgents body.\n`)
+      await writeLegacySkill(
+        dir,
+        ".claude/skills",
+        "dup",
+        `---\nname: dup\ndescription: from claude\n---\n\nClaude body.\n`,
+      )
+      await writeLegacySkill(
+        dir,
+        ".agents/skills",
+        "dup",
+        `---\nname: dup\ndescription: from agents\n---\n\nAgents body.\n`,
+      )
 
       const list = await runNow(
         Effect.gen(function* () {

@@ -171,7 +171,6 @@ export function DialogCustomProvider(props: Props) {
           aria-label={language.t("common.goBack")}
         />
       }
-     
     >
       <div class="flex flex-col gap-6 px-2.5 pb-3 overflow-y-auto max-h-[60vh]">
         <div class="px-2.5 flex gap-4 items-center">

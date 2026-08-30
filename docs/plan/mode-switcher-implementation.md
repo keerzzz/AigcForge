@@ -135,31 +135,31 @@ Add a global left-side mode switcher rail (4 modes) and a secondary sidebar
 
 ### Mode Definition
 
-| Order | Mode      | Key        | Icon           | Status   |
-|-------|-----------|------------|----------------|----------|
-| 1      | Chat      | chat       | mode-chat      | PLANNED  |
-| 2      | Coding    | coding     | mode-coding    | ACTIVE   |
-| 3      | Work      | work       | mode-work      | PLANNED  |
-| 4      | Assistant | assistant  | mode-assistant | PLANNED  |
+| Order | Mode      | Key       | Icon           | Status  |
+| ----- | --------- | --------- | -------------- | ------- |
+| 1     | Chat      | chat      | mode-chat      | PLANNED |
+| 2     | Coding    | coding    | mode-coding    | ACTIVE  |
+| 3     | Work      | work      | mode-work      | PLANNED |
+| 4     | Assistant | assistant | mode-assistant | PLANNED |
 
 ---
 
 ## 2. Design Decisions
 
-| # | Decision | Rationale |
-|---|----------|-----------|
-| 1 | Mode not in URL | ADR-09, mode is app state only |
-| 2 | Persistence key: mode-view (Persist.global) | stores currentMode + activeSessionId map |
-| 3 | No secondary sidebar on / and /new-session | Home/draft are independent dashboards |
-| 4 | Reuse SessionItem, SessionSkeleton, sortedRootSessions, displayName | existing standalone components/functions |
-| 5 | Default mode: coding | current project functionality lives here |
-| 6 | Other modes show empty state | Chat/Work/Assistant await meta-agent engine |
-| 7 | base64Encode from @aigcfroge/core/util/encode | no hand-written btoa |
-| 8 | activeSessionId stores {server, sessionId} | needed for full navigation target |
-| 9 | Do NOT import SortableWorkspace/LocalWorkspace | they need WorkspaceSidebarContext + DragDropProvider |
-| 10 | Build workspace rendering inline | follow LocalWorkspace pattern but self-contained |
-| 11 | Session navigation via SessionItem's legacy route | LegacySessionRedirect auto-redirects to new route |
-| 12 | New session: use tabs.newDraft() | starts a draft tab, navigates to /new-session |
+| #   | Decision                                                            | Rationale                                            |
+| --- | ------------------------------------------------------------------- | ---------------------------------------------------- |
+| 1   | Mode not in URL                                                     | ADR-09, mode is app state only                       |
+| 2   | Persistence key: mode-view (Persist.global)                         | stores currentMode + activeSessionId map             |
+| 3   | No secondary sidebar on / and /new-session                          | Home/draft are independent dashboards                |
+| 4   | Reuse SessionItem, SessionSkeleton, sortedRootSessions, displayName | existing standalone components/functions             |
+| 5   | Default mode: coding                                                | current project functionality lives here             |
+| 6   | Other modes show empty state                                        | Chat/Work/Assistant await meta-agent engine          |
+| 7   | base64Encode from @aigcfroge/core/util/encode                       | no hand-written btoa                                 |
+| 8   | activeSessionId stores {server, sessionId}                          | needed for full navigation target                    |
+| 9   | Do NOT import SortableWorkspace/LocalWorkspace                      | they need WorkspaceSidebarContext + DragDropProvider |
+| 10  | Build workspace rendering inline                                    | follow LocalWorkspace pattern but self-contained     |
+| 11  | Session navigation via SessionItem's legacy route                   | LegacySessionRedirect auto-redirects to new route    |
+| 12  | New session: use tabs.newDraft()                                    | starts a draft tab, navigates to /new-session        |
 
 ---
 
@@ -245,16 +245,25 @@ export const { use: useMode, provider: ModeProvider } = createSimpleContext({
       createStore({ currentMode: "coding" as Mode, activeSessionId: {} as ActiveSessionMap }),
     )
     return {
-      get currentMode() { return state.currentMode },
-      setCurrentMode(m: Mode) { setState("currentMode", m) },
-      activeSessionId(m: Mode) { return createMemo(() => state.activeSessionId[m]) },
-      setActiveSessionId(m: Mode, p: ModePlacement) { setState("activeSessionId", m, p) },
+      get currentMode() {
+        return state.currentMode
+      },
+      setCurrentMode(m: Mode) {
+        setState("currentMode", m)
+      },
+      activeSessionId(m: Mode) {
+        return createMemo(() => state.activeSessionId[m])
+      },
+      setActiveSessionId(m: Mode, p: ModePlacement) {
+        setState("activeSessionId", m, p)
+      },
     }
   },
 })
 ```
 
 Protocols:
+
 - No import aliases ✅
 - No star imports ✅
 - const > let ✅
@@ -278,6 +287,7 @@ ARIA: nav aria-label (i18n), aria-pressed, aria-label per button.
 ### 5.1 — Create packages/app/src/components/secondary-sidebar.tsx
 
 **IMPORTS — verified exact paths**:
+
 ```ts
 import { Show, createMemo, For, type Accessor } from "solid-js"
 import { createStore, type SetStoreFunction } from "solid-js/store"
@@ -285,11 +295,11 @@ import { useParams } from "@solidjs/router"
 import type { Session } from "@aigcfroge/sdk/v2/client"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import { Icon } from "@aigcfroge/ui/v2/icon"                    // v2 Icon
-import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"  // v2 IconButton
-import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"           // v2 Button
-import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2"               // v2 Menu
-import { Collapsible } from "@aigcfroge/ui/collapsible"          // v1 Collapsible (layout-only, no CSS issues)
+import { Icon } from "@aigcfroge/ui/v2/icon" // v2 Icon
+import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2" // v2 IconButton
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2" // v2 Button
+import { MenuV2 } from "@aigcfroge/ui/v2/menu-v2" // v2 Menu
+import { Collapsible } from "@aigcfroge/ui/collapsible" // v1 Collapsible (layout-only, no CSS issues)
 import { useLanguage } from "@/context/language"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
@@ -297,7 +307,7 @@ import { ServerConnection, useServer } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useDirectoryPicker } from "@/components/directory-picker" // returns useDirectoryPicker()
 import { useNotification } from "@/context/notification"
-import { useDialog } from "@aigcfroge/ui/context/dialog"         // for dialog.show()
+import { useDialog } from "@aigcfroge/ui/context/dialog" // for dialog.show()
 import { displayName, homeProjectDirectories, sortedRootSessions } from "@/pages/layout/helpers"
 import { SessionItem, SessionSkeleton } from "@/pages/layout/sidebar-items"
 import type { LocalProject } from "@/context/layout"
@@ -333,6 +343,7 @@ DO NOT import: SortableWorkspace, LocalWorkspace, WorkspaceSidebarContext, DragD
 **SEARCH PANEL IMPLEMENTATION**:
 
 Follow the home.tsx `HomeSessionSearch` pattern (lines 844-1048):
+
 - Search input with magnifying-glass prefix
 - Filter: `displayName(p).toLowerCase().includes(query)`
 - Results: role="option" buttons with focus/hover styles
@@ -342,6 +353,7 @@ Follow the home.tsx `HomeSessionSearch` pattern (lines 844-1048):
 **WORKSPACE RENDERING IMPLEMENTATION**:
 
 Follow the `LocalWorkspace` pattern from sidebar-workspace.tsx:443-485, but:
+
 1. Use v2 Collapsible for expand/collapse
 2. Use v2 CSS variables for all styles
 3. Each workspace (directory) gets its own independent session list
@@ -350,6 +362,7 @@ Follow the `LocalWorkspace` pattern from sidebar-workspace.tsx:443-485, but:
 6. `loadMore` per workspace (increment limit + call serverSync().project.loadSessions)
 
 **SessionItem PROPS REQUIRED** (from SessionItemProps, sidebar-items.tsx:73-87):
+
 ```
 session: Session          — required, from sortedRootSessions
 list: Session[]           — required, full session list for this workspace
@@ -392,19 +405,21 @@ routes directly to `/server/:key/session/:id` — zero redirect hops.
 **NAVIGATION FLOW**:
 
 New session: `tabs.newDraft({ server: ServerConnection.key(conn), directory: worktree })`
-  → creates draft tab → auto-navigates to /new-session?draftId=...
+→ creates draft tab → auto-navigates to /new-session?draftId=...
 
 Session click: `navigate(sessionHref(ServerConnection.key(conn), session.id))`
-  → TargetSessionRoute → auto-adds tab → DONE
+→ TargetSessionRoute → auto-adds tab → DONE
 
 **PROJECT HEADER IMPLEMENTATION**:
 
 Follow home.tsx `HomeProjectRow` pattern (lines 759-804):
+
 - Hover-reveal action buttons (opacity-0 → group-hover:opacity-100)
 - MenuV2 with items: New session, Edit, Clear notifications, Close
 - Active state: highlight when current route has a session in this project
 
 **CSS**: All visual values via v2 CSS variables:
+
 - bg-v2-background-bg-base, border-v2-border-border-base
 - text-v2-text-text-base, text-v2-text-text-muted
 - bg-v2-overlay-simple-overlay-hover for hover/focus
@@ -413,6 +428,7 @@ Follow home.tsx `HomeProjectRow` pattern (lines 759-804):
 - rounded-[6px] / rounded-[8px] for consistent corners
 
 **ACCESSIBILITY**:
+
 - Search button: aria-label, aria-expanded
 - Search input: aria-label, role=searchbox
 - Results: role=listbox, each result role=option
@@ -421,6 +437,7 @@ Follow home.tsx `HomeProjectRow` pattern (lines 759-804):
 - Right rail: role=complementary
 
 **STATES to cover**:
+
 - Default: header + project list with workspaces
 - Search open: input + results/empty
 - Loading: SessionSkeleton when sessions loading
@@ -434,6 +451,7 @@ Follow home.tsx `HomeProjectRow` pattern (lines 759-804):
 ### 6.1 — Modify packages/app/src/pages/layout.tsx
 
 **Current structure**:
+
 ```tsx
 import { createEffect, Suspense, type ParentProps } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
@@ -456,6 +474,7 @@ export default function Layout(props: ParentProps) {
 ```
 
 **New structure**:
+
 ```tsx
 import { createEffect, Suspense, type ParentProps, Show } from "solid-js"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
@@ -475,9 +494,13 @@ export default function Layout(props: ParentProps) {
     <ModeProvider>
       <div class="relative ... existing outer classes ...">
         <Titlebar update={update} />
-        <div class="flex-1 min-h-0 min-w-0 flex">       {/* ← new horizontal flex */}
-          <ModeSwitcher />                                {/* ← always 64px */}
-          <Show when={showSecondarySidebar()}>            {/* ← hidden on / and /new-session */}
+        <div class="flex-1 min-h-0 min-w-0 flex">
+          {" "}
+          {/* ← new horizontal flex */}
+          <ModeSwitcher /> {/* ← always 64px */}
+          <Show when={showSecondarySidebar()}>
+            {" "}
+            {/* ← hidden on / and /new-session */}
             <SecondarySidebar />
           </Show>
           <main class="flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col items-start contain-strict">
@@ -502,12 +525,14 @@ export default function Layout(props: ParentProps) {
 ### 7.1 — Modify packages/app/src/pages/home.tsx
 
 **IMPORTS ADD** (at top of file, with other imports):
+
 ```ts
 import { useMode, MODES, type Mode } from "@/context/mode"
 import { sessionHref } from "@/utils/session-route"
 ```
 
 **ADD to Home() component** (after `const mode = useMode()`):
+
 ```ts
 const mode = useMode()
 
@@ -536,9 +561,7 @@ return (
     <div class="shrink-0 px-6 pt-6 lg:pt-12">
       <HomeModeCards mode={mode} language={language} enterMode={enterMode} />
     </div>
-    <div class="mx-auto grid ... existing ...">
-      ...
-    </div>
+    <div class="mx-auto grid ... existing ...">...</div>
   </div>
 )
 ```
@@ -552,14 +575,14 @@ function HomeModeCards(props: {
   enterMode: (m: Mode) => void
 }) {
   const MODE_ICONS: Record<Mode, string> = {
-    chat: "mode-chat", coding: "mode-coding",
-    work: "mode-work", assistant: "mode-assistant",
+    chat: "mode-chat",
+    coding: "mode-coding",
+    work: "mode-work",
+    assistant: "mode-assistant",
   }
   return (
     <div class="flex flex-col gap-3">
-      <h2 class="text-v2-text-text-base [font-weight:600]">
-        {props.language.t("home.modes.title")}
-      </h2>
+      <h2 class="text-v2-text-text-base [font-weight:600]">{props.language.t("home.modes.title")}</h2>
       <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
         <For each={MODES}>
           {(m) => {
@@ -570,20 +593,24 @@ function HomeModeCards(props: {
                 aria-label={props.language.t(`mode.${m}` as const)}
                 class="flex cursor-default items-center gap-2.5 rounded-[8px] border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
                 classList={{
-                  "bg-v2-background-bg-layer-01 border-v2-border-border-muted hover:bg-v2-overlay-simple-overlay-hover": !active(),
+                  "bg-v2-background-bg-layer-01 border-v2-border-border-muted hover:bg-v2-overlay-simple-overlay-hover":
+                    !active(),
                   "bg-v2-background-bg-layer-01 border-v2-border-border-focus": active(),
                 }}
                 onClick={() => props.enterMode(m)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault(); props.enterMode(m)
+                    e.preventDefault()
+                    props.enterMode(m)
                   }
                 }}
               >
                 <IconV2 name={MODE_ICONS[m]} size="large" class="shrink-0 text-v2-icon-icon-base" />
                 <div class="flex min-w-0 flex-col gap-0.5">
                   <span class="text-v2-text-text-base [font-weight:530]">{props.language.t(`mode.${m}`)}</span>
-                  <span class="text-v2-text-text-muted [font-weight:440]">{props.language.t(`mode.${m}.description`)}</span>
+                  <span class="text-v2-text-text-muted [font-weight:440]">
+                    {props.language.t(`mode.${m}.description`)}
+                  </span>
                 </div>
               </button>
             )
@@ -596,6 +623,7 @@ function HomeModeCards(props: {
 ```
 
 **COMPONENT STATES**:
+
 - Default: all 4 cards in 2x2 (desktop) or stack (mobile)
 - Hover: bg-v2-overlay-simple-overlay-hover
 - Active: border-v2-border-border-focus
@@ -606,19 +634,19 @@ function HomeModeCards(props: {
 
 ## 8. Coding Standards (ALL files must follow)
 
-| Check | Rule |
-|-------|------|
-| Imports | Exact paths, no aliases (`foo as bar`), no star imports |
-| Variables | `const` only (no `let` unless reassignment required) |
-| Control flow | Early return, no `else` |
-| Types | No `any`, no `@ts-ignore` (except existing in sidebar-workspace) |
-| CSS | ALL colors/spacing from `--v2-*` CSS variables, never hardcode |
-| Text | ALL user-facing text through `language.t(...)` |
-| Functions | Inline single-use logic, extract only when reused |
-| Arrays | `flatMap`, `filter`, `map` over for loops |
-| Components | Include: default/hover/focus/disabled/loading/empty/error states |
-| ARIA | aria-label, keyboard reachable, focus-visible ring |
-| Exports | No barrel `index.ts` in sibling dirs, no `export namespace` |
+| Check        | Rule                                                             |
+| ------------ | ---------------------------------------------------------------- |
+| Imports      | Exact paths, no aliases (`foo as bar`), no star imports          |
+| Variables    | `const` only (no `let` unless reassignment required)             |
+| Control flow | Early return, no `else`                                          |
+| Types        | No `any`, no `@ts-ignore` (except existing in sidebar-workspace) |
+| CSS          | ALL colors/spacing from `--v2-*` CSS variables, never hardcode   |
+| Text         | ALL user-facing text through `language.t(...)`                   |
+| Functions    | Inline single-use logic, extract only when reused                |
+| Arrays       | `flatMap`, `filter`, `map` over for loops                        |
+| Components   | Include: default/hover/focus/disabled/loading/empty/error states |
+| ARIA         | aria-label, keyboard reachable, focus-visible ring               |
+| Exports      | No barrel `index.ts` in sibling dirs, no `export namespace`      |
 
 ---
 
@@ -648,16 +676,16 @@ bun --cwd packages/ui test --timeout 30000   # must pass
 
 ## 10. File Manifest
 
-| Action | File | Phase |
-|--------|------|-------|
-| MODIFY | packages/ui/src/v2/components/icon.tsx | 0.1 |
-| MODIFY | packages/app/src/i18n/en.ts | 0.2 |
-| MODIFY | packages/app/src/i18n/zh.ts | 0.3 |
-| CREATE | packages/app/src/context/mode.tsx | 1.1 |
-| CREATE | packages/app/src/components/mode-switcher.tsx | 1.2 |
-| CREATE | packages/app/src/components/secondary-sidebar.tsx | 2.1 |
-| MODIFY | packages/app/src/pages/layout.tsx | 3.1 |
-| MODIFY | packages/app/src/pages/home.tsx | 4.1 |
+| Action | File                                              | Phase |
+| ------ | ------------------------------------------------- | ----- |
+| MODIFY | packages/ui/src/v2/components/icon.tsx            | 0.1   |
+| MODIFY | packages/app/src/i18n/en.ts                       | 0.2   |
+| MODIFY | packages/app/src/i18n/zh.ts                       | 0.3   |
+| CREATE | packages/app/src/context/mode.tsx                 | 1.1   |
+| CREATE | packages/app/src/components/mode-switcher.tsx     | 1.2   |
+| CREATE | packages/app/src/components/secondary-sidebar.tsx | 2.1   |
+| MODIFY | packages/app/src/pages/layout.tsx                 | 3.1   |
+| MODIFY | packages/app/src/pages/home.tsx                   | 4.1   |
 
 ---
 
@@ -671,6 +699,7 @@ bun --cwd packages/ui test --timeout 30000   # must pass
 6. **ButtonV2 icon prop is a string name**, not JSX.Element — use `icon="edit"` not `icon={<Icon name="edit" />}`
 7. **IconButtonV2 icon prop is JSX.Element** — use `icon={<Icon name="magnifying-glass" />}`
 8. **ButtonV2.variant does not accept "primary"** — use "neutral" or "ghost"
+
 ---
 
 ## 附录 A：旧代码参考（来自 4fbb42d:layout.tsx）
@@ -678,6 +707,7 @@ bun --cwd packages/ui test --timeout 30000   # must pass
 恢复到 7a4a989 后实施时需要参考以下关键实现：
 
 ### WorkspaceSidebarContext（layout.tsx:1968-1995）
+
 ```
 workspaceExpanded: (directory, local) => store.workspaceExpanded[directory] ?? local
 setWorkspaceExpanded: (directory, value) => setStore("workspaceExpanded", directory, value)
@@ -688,6 +718,7 @@ InlineEditor: createInlineEditorController().InlineEditor
 ```
 
 ### toggleProjectWorkspaces（layout.tsx:1442-1451）
+
 ```
 function toggleProjectWorkspaces(project: LocalProject) {
   const enabled = layout.sidebar.workspaces(project.worktree)()
@@ -696,13 +727,16 @@ function toggleProjectWorkspaces(project: LocalProject) {
   layout.sidebar.toggleWorkspaces(project.worktree)
 }
 ```
+
 → 对应新代码的 state: `layout.sidebar.workspaces(directory)()` + `layout.sidebar.setWorkspaces(directory, value)`
 
 ### SidebarPanel 工作区列表渲染模式
+
 - workspaces 禁用: `LocalWorkspace` + 上方 "New session" 按钮
 - workspaces 启用: `DragDropProvider>DragDropSensors>ConstrainDragXAxis>SortableProvider ids={workspaces()}>For>SortableWorkspace` + 上方 "New workspace" 按钮
 
 ### 关键依赖
+
 - `layout.sidebar.workspaces(directory)` / `layout.sidebar.setWorkspaces(directory, value)` — 工作区开关持久化
 - `createInlineEditorController()` — 提供 `InlineEditor` 组件（WorkspaceHeader 需要）
 - `DragDropProvider + SortableProvider + DragDropSensors + ConstrainDragXAxis` — SortableWorkspace 必需

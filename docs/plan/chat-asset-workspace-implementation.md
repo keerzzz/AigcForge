@@ -17,11 +17,11 @@
 
 ## 2. 实施前置项（进代码前补，对应 App owner P1）
 
-| 项 | 内容 | 产出 |
-|---|---|---|
-| **A1** | per-slot 重构估算：Coding 会话列表从 Home 自绘抽为 slot（sessionLoad/records/groups 数据流迁移）；资产工作台 home 版 vs session 右栏版组件复用边界（§9.5 仅说复用资产 tab，tree/edit/new 按钮是否复用需定） | 组件拆分图 + 复用清单 |
-| **A4** | i18n parity 扩 key：`parity.test.ts` 当前仅查 2 key，promptAsset/assetWorkbench 16 locale fallback en（M1 债务）；扩 `assetWorkbench.*`/`promptAsset.*` 全 18 locale | 扩展的 parity.test.ts |
-| **A5** | 窄屏去硬编码 768px（`chat-right-panel.tsx:65` TODO D6），主区移到资产工作台后窄屏行为变化（主区窄屏全宽，非右栏抽屉）；引用 v2 断点 token（DESIGN.md §Tokens 禁硬编码） | token 引用 + 窄屏行为设计 |
+| 项     | 内容                                                                                                                                                                                                        | 产出                      |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| **A1** | per-slot 重构估算：Coding 会话列表从 Home 自绘抽为 slot（sessionLoad/records/groups 数据流迁移）；资产工作台 home 版 vs session 右栏版组件复用边界（§9.5 仅说复用资产 tab，tree/edit/new 按钮是否复用需定） | 组件拆分图 + 复用清单     |
+| **A4** | i18n parity 扩 key：`parity.test.ts` 当前仅查 2 key，promptAsset/assetWorkbench 16 locale fallback en（M1 债务）；扩 `assetWorkbench.*`/`promptAsset.*` 全 18 locale                                        | 扩展的 parity.test.ts     |
+| **A5** | 窄屏去硬编码 768px（`chat-right-panel.tsx:65` TODO D6），主区移到资产工作台后窄屏行为变化（主区窄屏全宽，非右栏抽屉）；引用 v2 断点 token（DESIGN.md §Tokens 禁硬编码）                                     | token 引用 + 窄屏行为设计 |
 
 ### A1 详情页右栏统一到 SessionSidePanel（per-slot 重构，2026-07-19 决策）
 
@@ -151,16 +151,16 @@
 
 ## 5. 测试矩阵
 
-| 层 | 测试点 | 工具 | 位置 |
-|---|---|---|---|
-| 行为 | 模式切换不闪（slot 不 remount + resource 不重取） | `@solidjs/testing-library` + `createResource` spy | `packages/app/test` |
-| 行为 | URL `/mode/:mode` 可分享、刷新保留 | `@solidjs/router` testing | |
-| 行为 | `setCurrentMode` 响应 params 变（createEffect） | router + mode context mock | |
-| 组件 | `ModeWorkspace` 渲染 slot、主区 typed | `@solidjs/testing-library` | |
-| 数据 | sessionLoad 不重取（queryKey 去模式） | tanstack-query mock | |
-| 集成 | `/mode/chat` -> `/mode/coding` 全链路 | router + testing | |
-| a11y | 键盘 focus / ARIA / 对比度 | 手动 + Storybook a11y addon | |
-| i18n | 18 locale parity（A4） | 扩展 `parity.test.ts` | `packages/app/src/i18n/` |
+| 层   | 测试点                                            | 工具                                              | 位置                     |
+| ---- | ------------------------------------------------- | ------------------------------------------------- | ------------------------ |
+| 行为 | 模式切换不闪（slot 不 remount + resource 不重取） | `@solidjs/testing-library` + `createResource` spy | `packages/app/test`      |
+| 行为 | URL `/mode/:mode` 可分享、刷新保留                | `@solidjs/router` testing                         |                          |
+| 行为 | `setCurrentMode` 响应 params 变（createEffect）   | router + mode context mock                        |                          |
+| 组件 | `ModeWorkspace` 渲染 slot、主区 typed             | `@solidjs/testing-library`                        |                          |
+| 数据 | sessionLoad 不重取（queryKey 去模式）             | tanstack-query mock                               |                          |
+| 集成 | `/mode/chat` -> `/mode/coding` 全链路             | router + testing                                  |                          |
+| a11y | 键盘 focus / ARIA / 对比度                        | 手动 + Storybook a11y addon                       |                          |
+| i18n | 18 locale parity（A4）                            | 扩展 `parity.test.ts`                             | `packages/app/src/i18n/` |
 
 ## 6. 验收标准
 

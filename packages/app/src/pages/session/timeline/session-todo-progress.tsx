@@ -76,8 +76,7 @@ export function SessionTodoProgress(props: {
     const id = props.sessionID()
     const snapshot = id ? serverSync().data.session_task_progress[id] : undefined
     const anchorTask = snapshot ? tasks().find((task) => task.status === "in_progress") : undefined
-    const anchorProgress =
-      snapshot && anchorTask && snapshot.taskID === anchorTask.id ? snapshot.progress : undefined
+    const anchorProgress = snapshot && anchorTask && snapshot.taskID === anchorTask.id ? snapshot.progress : undefined
     return computeTodoProgress(tasks(), anchorProgress)
   })
   const allDone = createMemo(() => progress().total > 0 && progress().done === progress().total)

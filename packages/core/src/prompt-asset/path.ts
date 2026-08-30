@@ -16,10 +16,10 @@ export const SEGMENT_MIN_BYTES = 1
 export const SEGMENT_MAX_BYTES = 240
 export const PATH_MAX_BYTES = 500
 
-export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()(
-  "PromptAsset.PathValidation",
-  { reason: Schema.String, path: Schema.String },
-) {
+export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()("PromptAsset.PathValidation", {
+  reason: Schema.String,
+  path: Schema.String,
+}) {
   override get message() {
     return this.reason
   }
@@ -44,7 +44,8 @@ export function isValidSegment(segment: string): boolean {
 export function validateRelativePath(relativePath: string): string {
   const trimmed = relativePath.trim()
   if (trimmed === "") throw new PathValidationError({ reason: "Path must not be empty", path: relativePath })
-  if (path.isAbsolute(trimmed)) throw new PathValidationError({ reason: "Path must not be absolute", path: relativePath })
+  if (path.isAbsolute(trimmed))
+    throw new PathValidationError({ reason: "Path must not be absolute", path: relativePath })
 
   const normalized = trimmed.replace(/\\/g, "/")
   const segments = normalized.split("/")
@@ -65,7 +66,8 @@ export function validateRelativePath(relativePath: string): string {
 
 export function nameToRelativePath(name: string): string {
   const normalized = name.normalize("NFKC").trim()
-  if (normalized === "") throw new PathValidationError({ reason: "Name must not be empty after normalization", path: name })
+  if (normalized === "")
+    throw new PathValidationError({ reason: "Name must not be empty after normalization", path: name })
   if (!isValidSegment(normalized)) {
     throw new PathValidationError({ reason: `Name is not a valid file segment: ${normalized}`, path: name })
   }

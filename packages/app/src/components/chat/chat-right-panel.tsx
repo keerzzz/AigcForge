@@ -56,16 +56,14 @@ export function ChatRightPanel() {
   const file = useFile()
   const sessionLayout = useSessionLayout()
   const tabs = sessionLayout.tabs
-  const openedFileTabs = createMemo(
-    () => {
-      if (mode.currentMode !== "chat") return []
-      return (
-        tabs()
-          .all()
-          .filter((t) => t.startsWith("file://")) ?? []
-      )
-    },
-  )
+  const openedFileTabs = createMemo(() => {
+    if (mode.currentMode !== "chat") return []
+    return (
+      tabs()
+        .all()
+        .filter((t) => t.startsWith("file://")) ?? []
+    )
+  })
   const contextOpen = createMemo(
     () => mode.currentMode === "chat" && (tabs().active() === "context" || tabs().all().includes("context")),
   )

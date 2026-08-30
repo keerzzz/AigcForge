@@ -183,7 +183,11 @@ export const SessionReview = (props: SessionReviewProps) => {
   const itemsMap = createMemo(() =>
     Object.fromEntries(list(props.diffs).map((diff) => [diff.file, { ...normalize(diff), preloaded: diff.preloaded }])),
   )
-  const files = createMemo(() => list(props.diffs).map((diff) => diff.file).filter(Boolean))
+  const files = createMemo(() =>
+    list(props.diffs)
+      .map((diff) => diff.file)
+      .filter(Boolean),
+  )
   const grouped = createMemo(() => {
     const next = new Map<string, SessionReviewComment[]>()
     for (const comment of props.comments ?? []) {
@@ -351,12 +355,18 @@ export const SessionReview = (props: SessionReviewProps) => {
                 {totalFiles()} {i18n.t(totalFiles() === 1 ? "ui.common.file.one" : "ui.common.file.other")}
               </span>
               <Show when={totalAdditions() > 0}>
-                <span class="px-1.5 py-0.5 rounded text-[var(--v2-state-fg-success)]" style={{ "background-color": "var(--v2-state-bg-success)" }}>
+                <span
+                  class="px-1.5 py-0.5 rounded text-[var(--v2-state-fg-success)]"
+                  style={{ "background-color": "var(--v2-state-bg-success)" }}
+                >
                   +{totalAdditions()}
                 </span>
               </Show>
               <Show when={totalDeletions() > 0}>
-                <span class="px-1.5 py-0.5 rounded text-[var(--v2-state-fg-danger)]" style={{ "background-color": "var(--v2-state-bg-danger)" }}>
+                <span
+                  class="px-1.5 py-0.5 rounded text-[var(--v2-state-fg-danger)]"
+                  style={{ "background-color": "var(--v2-state-bg-danger)" }}
+                >
                   -{totalDeletions()}
                 </span>
               </Show>
@@ -569,12 +579,20 @@ export const SessionReview = (props: SessionReviewProps) => {
                                       </span>
                                     </Match>
                                     <Match when={isDeleted()}>
-                                      <span data-slot="session-review-change" data-type="removed" class="text-11-medium">
+                                      <span
+                                        data-slot="session-review-change"
+                                        data-type="removed"
+                                        class="text-11-medium"
+                                      >
                                         {i18n.t("ui.sessionReview.change.removed")}
                                       </span>
                                     </Match>
                                     <Match when={!!mediaKind()}>
-                                      <span data-slot="session-review-change" data-type="modified" class="text-11-medium">
+                                      <span
+                                        data-slot="session-review-change"
+                                        data-type="modified"
+                                        class="text-11-medium"
+                                      >
                                         {i18n.t("ui.sessionReview.change.modified")}
                                       </span>
                                     </Match>
@@ -582,14 +600,28 @@ export const SessionReview = (props: SessionReviewProps) => {
                                   <Show when={diffCanRender()}>
                                     <div class="flex items-center gap-1.5 shrink-0">
                                       <Show when={diff().additions > 0}>
-                                        <span class="text-11-medium text-[var(--v2-state-fg-success)]">+{diff().additions}</span>
+                                        <span class="text-11-medium text-[var(--v2-state-fg-success)]">
+                                          +{diff().additions}
+                                        </span>
                                       </Show>
                                       <Show when={diff().deletions > 0}>
-                                        <span class="text-11-medium text-[var(--v2-state-fg-danger)]">-{diff().deletions}</span>
+                                        <span class="text-11-medium text-[var(--v2-state-fg-danger)]">
+                                          -{diff().deletions}
+                                        </span>
                                       </Show>
                                       <div class="w-8 h-1 rounded-full bg-surface-base overflow-hidden flex shrink-0">
-                                        <div class="h-full bg-[var(--v2-state-fg-success)]" style={{ width: `${(diff().additions / Math.max(diff().additions + diff().deletions, 1)) * 100}%` }} />
-                                        <div class="h-full bg-[var(--v2-state-fg-danger)]" style={{ width: `${(diff().deletions / Math.max(diff().additions + diff().deletions, 1)) * 100}%` }} />
+                                        <div
+                                          class="h-full bg-[var(--v2-state-fg-success)]"
+                                          style={{
+                                            width: `${(diff().additions / Math.max(diff().additions + diff().deletions, 1)) * 100}%`,
+                                          }}
+                                        />
+                                        <div
+                                          class="h-full bg-[var(--v2-state-fg-danger)]"
+                                          style={{
+                                            width: `${(diff().deletions / Math.max(diff().additions + diff().deletions, 1)) * 100}%`,
+                                          }}
+                                        />
                                       </div>
                                     </div>
                                   </Show>

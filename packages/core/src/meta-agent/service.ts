@@ -48,10 +48,9 @@ export interface Interface {
   }) => Effect.Effect<void>
   readonly detach: (input: { metaID: MetaAgent.ID; sessionID: SessionSchema.ID }) => Effect.Effect<void>
   readonly remove: (id: MetaAgent.ID) => Effect.Effect<void>
-  readonly findBySession: (sessionID: SessionSchema.ID) => Effect.Effect<
-    | { metaID: MetaAgent.ID; sessionID: SessionSchema.ID; role: string }
-    | undefined
-  >
+  readonly findBySession: (
+    sessionID: SessionSchema.ID,
+  ) => Effect.Effect<{ metaID: MetaAgent.ID; sessionID: SessionSchema.ID; role: string } | undefined>
   readonly writeStep: (input: {
     metaAgentSessionID: string
     seq: number
@@ -214,9 +213,7 @@ export const layer = Layer.effect(
       yield* db.delete(MetaAgentTable).where(eq(MetaAgentTable.id, id)).pipe(Effect.orDie)
     })
 
-    const findBySession = Effect.fn("MetaAgentService.findBySession")(function* (
-      sessionID: SessionSchema.ID,
-    ) {
+    const findBySession = Effect.fn("MetaAgentService.findBySession")(function* (sessionID: SessionSchema.ID) {
       const row = yield* db
         .select()
         .from(MetaAgentSessionTable)
@@ -224,7 +221,11 @@ export const layer = Layer.effect(
         .get()
         .pipe(Effect.orDie)
       return row
-        ? { metaID: MetaAgent.ID.make(row.meta_agent_id), sessionID: SessionSchema.ID.make(row.session_id), role: row.role }
+        ? {
+            metaID: MetaAgent.ID.make(row.meta_agent_id),
+            sessionID: SessionSchema.ID.make(row.session_id),
+            role: row.role,
+          }
         : undefined
     })
 
@@ -281,7 +282,19 @@ export const layer = Layer.effect(
         .pipe(Effect.orDie)
     })
 
-    return Service.of({ create, get, list, sessions, stats, attach, detach, remove, findBySession, writeStep, updateStep })
+    return Service.of({
+      create,
+      get,
+      list,
+      sessions,
+      stats,
+      attach,
+      detach,
+      remove,
+      findBySession,
+      writeStep,
+      updateStep,
+    })
   }),
 )
 

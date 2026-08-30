@@ -39,9 +39,7 @@ function SessionFileTabStripExample() {
       >
         <TabsV2.Content value="review">Review tab content</TabsV2.Content>
         <TabsV2.Content value="context">Context tab content</TabsV2.Content>
-        <For each={tabs()}>
-          {(tab) => <TabsV2.Content value={tab}>File: {tab}</TabsV2.Content>}
-        </For>
+        <For each={tabs()}>{(tab) => <TabsV2.Content value={tab}>File: {tab}</TabsV2.Content>}</For>
       </SessionFileTabStrip>
     </TabsV2>
   )

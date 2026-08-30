@@ -81,8 +81,6 @@ export const layer = Layer.effectDiscard(
       ],
     })
 
-    yield* tools.register({ [name]: tool }).pipe(
-      Effect.catch((err) => Effect.die(err)),
-    )
+    yield* tools.register({ [name]: tool }).pipe(Effect.catch((err) => Effect.die(err)))
   }),
 )

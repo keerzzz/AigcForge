@@ -45,10 +45,10 @@ export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteReq
   }
 }
 
-export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>()(
-  "AgentAssetService.WriteFailed",
-  { relativePath: Schema.String, reason: Schema.String },
-) {
+export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>()("AgentAssetService.WriteFailed", {
+  relativePath: Schema.String,
+  reason: Schema.String,
+}) {
   override get message() {
     return `Write failed for ${this.relativePath}: ${this.reason}`
   }
@@ -81,10 +81,9 @@ export class ConcurrentModificationError extends Schema.TaggedErrorClass<Concurr
   }
 }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()(
-  "AgentAssetService.NotFound",
-  { relativePath: Schema.String },
-) {
+export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("AgentAssetService.NotFound", {
+  relativePath: Schema.String,
+}) {
   override get message() {
     return `Not found: ${this.relativePath}`
   }
@@ -142,7 +141,9 @@ export type DeleteError =
   | FSUtil.Error
 
 export interface Interface {
-  readonly propose: (input: SchemaAgentAsset.Candidate) => Effect.Effect<ProposeResult, InvalidCandidateError | FSUtil.Error>
+  readonly propose: (
+    input: SchemaAgentAsset.Candidate,
+  ) => Effect.Effect<ProposeResult, InvalidCandidateError | FSUtil.Error>
   readonly apply: (input: ApplyInput) => Effect.Effect<ApplyResult, ApplyError>
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
@@ -202,9 +203,9 @@ export const locationLayer = Layer.effect(
       const pathConflict = Option.isSome(existingPath) && existingPath.value.name !== input.name
 
       if (fileExists) {
-        const bytes = yield* fs.readFile(target.canonical).pipe(
-          Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-        )
+        const bytes = yield* fs
+          .readFile(target.canonical)
+          .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
         if (!bytes) {
           return {
             relativePath: filename,
@@ -276,44 +277,48 @@ export const locationLayer = Layer.effect(
             const frontmatter = `---\nkind: agent\nname: ${yamlEscape(input.candidate.name)}\ndescription: ${yamlEscape(input.candidate.description)}\n${configLine}---\n`
             const content = frontmatter + input.candidate.source
 
-            yield* fileMutation.writeAtomic({ target, content }).pipe(
-              Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })),
-            )
+            yield* fileMutation
+              .writeAtomic({ target, content })
+              .pipe(Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })))
 
-            const writtenBytes = yield* fs.readFile(target.canonical).pipe(
-              Effect.catch((err) =>
-                Effect.fail(new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` })),
-              ),
-            )
+            const writtenBytes = yield* fs
+              .readFile(target.canonical)
+              .pipe(
+                Effect.catch((err) =>
+                  Effect.fail(
+                    new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` }),
+                  ),
+                ),
+              )
             const writtenRevision = Hash.sha256(Buffer.from(writtenBytes))
 
             const rollback = Effect.fnUntraced(function* () {
-              const nowBytes = yield* fs.readFile(target.canonical).pipe(
-                Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-              )
+              const nowBytes = yield* fs
+                .readFile(target.canonical)
+                .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
               if (!nowBytes || Hash.sha256(Buffer.from(nowBytes)) !== writtenRevision) {
                 return yield* new ConcurrentModificationError({ relativePath })
               }
 
               if (currentBytes !== null) {
-                yield* fileMutation.writeAtomic({ target, content: currentBytes }).pipe(
-                  Effect.mapError(
-                    (error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) }),
-                  ),
-                )
+                yield* fileMutation
+                  .writeAtomic({ target, content: currentBytes })
+                  .pipe(
+                    Effect.mapError(
+                      (error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) }),
+                    ),
+                  )
               } else {
                 yield* fs.remove(target.canonical).pipe(
                   Effect.catchReason("PlatformError", "NotFound", () => Effect.void),
-                  Effect.mapError(
-                    (error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) }),
-                  ),
+                  Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })),
                 )
               }
-              yield* registry.reload().pipe(
-                Effect.mapError(
-                  (error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) }),
-                ),
-              )
+              yield* registry
+                .reload()
+                .pipe(
+                  Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })),
+                )
             })
 
             const readback = yield* registry
@@ -395,18 +400,20 @@ export const locationLayer = Layer.effect(
               Effect.gen(function* () {
                 const nowExists = yield* fs.exists(target.canonical)
                 if (nowExists) {
-                  const nowBytes = yield* fs.readFile(target.canonical).pipe(
-                    Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)),
-                  )
+                  const nowBytes = yield* fs
+                    .readFile(target.canonical)
+                    .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)))
                   if (nowBytes && Hash.sha256(Buffer.from(nowBytes)) !== backupHash) {
                     return yield* new ConcurrentModificationError({ relativePath })
                   }
                 }
-                yield* fileMutation.writeAtomic({ target, content: currentBytes }).pipe(
-                  Effect.mapError(
-                    (error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) }),
-                  ),
-                )
+                yield* fileMutation
+                  .writeAtomic({ target, content: currentBytes })
+                  .pipe(
+                    Effect.mapError(
+                      (error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) }),
+                    ),
+                  )
               })
 
             yield* registry.reload().pipe(

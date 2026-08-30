@@ -25,7 +25,11 @@ describe("Meta-agent e2e", () => {
   })
 
   afterAll(() => {
-    try { rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ok */ }
+    try {
+      rmSync(tmpDir, { recursive: true, force: true })
+    } catch {
+      /* ok */
+    }
   })
 
   it("scanAssets discovers all assets in .aigcfroge/", async () => {
@@ -55,10 +59,7 @@ describe("Meta-agent e2e", () => {
       { kind: "prompt", name: "code-review" },
       { kind: "skill", name: "deploy" },
     ]
-    const filled = MetaPrompt.fillAssetsList(
-      "## Available Assets\n{{ASSETS_LIST}}",
-      assets,
-    )
+    const filled = MetaPrompt.fillAssetsList("## Available Assets\n{{ASSETS_LIST}}", assets)
     expect(filled).toContain("code-review")
     expect(filled).toContain("deploy")
     // Verify the format matches what agent sees
@@ -67,7 +68,7 @@ describe("Meta-agent e2e", () => {
 
   it("full assets list fits within reasonable token budget", async () => {
     const assets = Array.from({ length: 50 }, (_, i) => ({
-      kind: i < 40 ? "prompt" as const : "skill" as const,
+      kind: i < 40 ? ("prompt" as const) : ("skill" as const),
       name: `asset-${i}`,
     }))
     const template = `## Available Assets\n{{ASSETS_LIST}}`

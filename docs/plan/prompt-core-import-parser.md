@@ -60,6 +60,7 @@ grep -n "onImportAsset\|ChatImportDialog" packages/app/src/pages/home.tsx | head
 ```
 
 **关键发现**：
+
 - M7 ImportDialog 当前数据流：`ImportDialog → serializeImport() → wrapImportContent("<untrusted_import>…") → create chat Draft → chat-orchestrator → Agent parse → propose_*`
 - PRD §7.3 要求："解析器属 Core service（Effect），禁止放 App"
 - 所有 schema 类型必须用 `ImportParser.*` 命名空间（遵循 `PromptAsset.*` 约定）
@@ -94,21 +95,21 @@ grep -n "onImportAsset\|ChatImportDialog" packages/app/src/pages/home.tsx | head
 ```ts
 // 遵循项目命名约定 PromptAsset.Summary/PromptAsset.Info 同理
 export class Candidate extends Schema.Class<Candidate>("ImportParser.Candidate")({
-  kind: Schema.String,       // AssetKindId: "prompt"|"command"|"skill"|...
-  name: Schema.String,       // 1..80 code points
-  description: Schema.String,// 0..300 code points
-  template: Schema.String,   // 1..100_000 UTF-8 bytes
+  kind: Schema.String, // AssetKindId: "prompt"|"command"|"skill"|...
+  name: Schema.String, // 1..80 code points
+  description: Schema.String, // 0..300 code points
+  template: Schema.String, // 1..100_000 UTF-8 bytes
 }) {}
 
 export class ParseError extends Schema.Class<ParseError>("ImportParser.ParseError")({
-  section: Schema.String,    // 如 "Block #3"
-  reason: Schema.String,     // 如 "unknown_type"
+  section: Schema.String, // 如 "Block #3"
+  reason: Schema.String, // 如 "unknown_type"
 }) {}
 
 export class Result extends Schema.Class<Result>("ImportParser.Result")({
   candidates: Schema.Array(Candidate),
   warnings: Schema.Array(Schema.String), // 如 "stripped_thinking" — 不含原文
-  errors: Schema.Array(ParseError),      // Schema.Class 不是内联 Struct
+  errors: Schema.Array(ParseError), // Schema.Class 不是内联 Struct
 }) {}
 ```
 
@@ -131,7 +132,7 @@ export class Result extends Schema.Class<Result>("ImportParser.Result")({
 5. 纯文本 → single prompt candidate
 6. `# Heading` → name 从 heading 提取（截断 80）
 7. 空输入 → Result 含 error `empty`
-8. >200KB → ParseError `too_large`
+8. > 200KB → ParseError `too_large`
 9. 多个 code block → 多个 candidates
 10. ` ```yaml ` with `name:`+`tools:`+`hooks:` → plugin kind
 11. ` ```json ` with `mcpServers` → mcp kind；JSON parse 失败 → 降级为纯文本
@@ -147,6 +148,7 @@ interface ImportParserInterface {
 ```
 
 解析逻辑（确定性规则，非 LLM）：
+
 1. 大小检查 — >200KB → `ImportParser.ParseError`
 2. 块分割 — Markdown fenced code blocks（优先级 1）→ YAML `---`（优先级 2）→ 空行（fallback）
 3. JSON 解析 — ` ```json ` block 先尝试 `JSON.parse`；失败降级为纯文本
@@ -156,6 +158,7 @@ interface ImportParserInterface {
 7. 输出 `ImportParser.Result`
 
 **Layer**（参照 PromptAssetService 模式）：
+
 ```ts
 export const ImportParserLive = Layer.effect(
   ImportParser,
@@ -181,18 +184,20 @@ export class ParseError extends Schema.TaggedErrorClass<ParseError>()(
 **实现**：
 
 `packages/aigcfroge/src/server/routes/instance/httpapi/groups/import-parser.ts`（新建，参照 groups/prompt-asset.ts 模式）：
+
 ```ts
-export class ImportParserGroup extends InstanceHttpApi.prefix("/import-asset")
-  .add(HttpApiEndpoint.post("parse", "/parse")
+export class ImportParserGroup extends InstanceHttpApi.prefix("/import-asset").add(
+  HttpApiEndpoint.post("parse", "/parse")
     .setRequest(Schema.Struct({ content: Schema.String }))
-    .setResponse(ImportParser.Result)
-  ) {}
+    .setResponse(ImportParser.Result),
+) {}
 ```
 
 `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/import-parser.ts`（新建，参照 handlers/prompt-asset.ts 模式）：
+
 ```ts
 export const parseHandler = HttpApiBuilder.handle(ImportParserGroup, "parse", (payload) =>
-  ImportParser.pipe(Effect.flatMap(svc => svc.parse(payload.content)))
+  ImportParser.pipe(Effect.flatMap((svc) => svc.parse(payload.content))),
 )
 ```
 
@@ -212,11 +217,13 @@ export const parseHandler = HttpApiBuilder.handle(ImportParserGroup, "parse", (p
 **实现**：
 
 1. SDK regenerate：
+
 ```bash
 ./packages/sdk/js/script/build.ts
 ```
 
 2. ImportDialog 集成（`chat-import-dialog.tsx`）：
+
 ```tsx
 function handleImport() {
   const content = serializeImport(result)
@@ -232,6 +239,7 @@ function handleImport() {
 保留 M7 `onImport` callback 作为 "AI 辅助整理" fallback 按钮。
 
 **验证**：
+
 ```bash
 ./packages/sdk/js/script/build.ts
 bun --cwd packages/sdk/js typecheck
@@ -257,6 +265,7 @@ bun run lint
 ```
 
 浏览器手动验收：
+
 - 粘贴 Markdown code block → Core parser 返回 prompt candidate
 - 导入 YAML 工作流文件 → Core parser 返回 workflow candidate
 - 导入含 `<thinking>` 噪声文本 → 噪声剥离、警告显示
@@ -269,42 +278,42 @@ bun run lint
 
 ### 块分割
 
-| 优先级 | 方式 |
-|--------|------|
-| 1（最高） | Markdown fenced `` ``` `...` ``` `` 或 `~~~...~~~` |
-| 2 | `---` 开头的 YAML document separator |
-| 3（fallback） | `\n\n+` 空行分隔 |
+| 优先级        | 方式                                               |
+| ------------- | -------------------------------------------------- |
+| 1（最高）     | Markdown fenced `` ``` `...` ``` `` 或 `~~~...~~~` |
+| 2             | `---` 开头的 YAML document separator               |
+| 3（fallback） | `\n\n+` 空行分隔                                   |
 
 ### 类型推断
 
-| 特征 | kind | 置信度 |
-|------|------|--------|
-| `` ```yaml `` + `steps:` / `kind: workflow` | `workflow` | high |
-| `` ```yaml `` + `name:`+`tools:`+`hooks:` | `plugin` | high |
-| `` ```yaml `` + `triggers:`/`context:` | `skill` | high |
-| `` ```json `` + `"mcpServers"` | `mcp` | high |
-| `` ```sh ``/`` ```bash `` | `command` | medium |
-| `` ``` ``（无语言标记）或 `` ```md `` | `prompt` | medium |
-| 纯文本（无 code block） | `prompt` | low |
+| 特征                                      | kind       | 置信度 |
+| ----------------------------------------- | ---------- | ------ |
+| ` ```yaml ` + `steps:` / `kind: workflow` | `workflow` | high   |
+| ` ```yaml ` + `name:`+`tools:`+`hooks:`   | `plugin`   | high   |
+| ` ```yaml ` + `triggers:`/`context:`      | `skill`    | high   |
+| ` ```json ` + `"mcpServers"`              | `mcp`      | high   |
+| ` ```sh `/` ```bash `                     | `command`  | medium |
+| ` ``` `（无语言标记）或 ` ```md `         | `prompt`   | medium |
+| 纯文本（无 code block）                   | `prompt`   | low    |
 
 ### 噪声剥离
 
-| 模式 | 处理 | warning |
-|------|------|---------|
-| `<thinking>...</thinking>` / `<thought>...</thought>` | 剥离 | `stripped_thinking` |
-| `User:`/`Assistant:`/`Human:`/`AI:` 行 | 剥离行 | `stripped_conversation` |
-| `<!--`/`/*` metadata 注释 | 剥离 | — |
-| >3 连续空行 | 压缩为 1 | — |
-| 输入 >200KB | error | `too_large` |
+| 模式                                                  | 处理     | warning                 |
+| ----------------------------------------------------- | -------- | ----------------------- |
+| `<thinking>...</thinking>` / `<thought>...</thought>` | 剥离     | `stripped_thinking`     |
+| `User:`/`Assistant:`/`Human:`/`AI:` 行                | 剥离行   | `stripped_conversation` |
+| `<!--`/`/*` metadata 注释                             | 剥离     | —                       |
+| >3 连续空行                                           | 压缩为 1 | —                       |
+| 输入 >200KB                                           | error    | `too_large`             |
 
 ### 名称推断
 
-| 来源 | 示例 |
-|------|------|
-| Markdown heading `# Title` | name = "Title"（截断 80） |
+| 来源                        | 示例                                       |
+| --------------------------- | ------------------------------------------ |
+| Markdown heading `# Title`  | name = "Title"（截断 80）                  |
 | Code block 语言标记后的注释 | ` ```python # Web Scraper` → "Web Scraper" |
-| 首行非空文本 | 截断 80 |
-| 无 | "Imported Asset {N}" |
+| 首行非空文本                | 截断 80                                    |
+| 无                          | "Imported Asset {N}"                       |
 
 ---
 

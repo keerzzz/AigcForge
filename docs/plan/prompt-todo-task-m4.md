@@ -59,11 +59,11 @@ packages/app/e2e/regression/session-scheduled-tasks.spec.ts    M3 E2E（mock-ser
 
 ## 1. 目标与范围（用户已裁决：全量闭环，三件套一件不少）
 
-| 件 | 范围 | 对齐 |
-|---|---|---|
-| ① AgentTaskHub 面板 | 入口 = **标题右侧 dot-grid 更多下拉加"智能体"菜单项 + 弹层**（§5.7 决策，复用 §5.6 模式）；三区结构：我的智能体 + 任务衍生（**占位**，接 M5 task_spawn，本期不接逻辑）+ 新建入口 | 计划 §3.1 A3、§5.3 Layer 4 |
-| ② Agent 视角聚合 | 智能体列表 + 每个 Agent 名下的 task / 定时任务聚合视图 | 计划 §3.2 映射表、§8 M4 |
-| ③ 定时任务完整管理 UI（agent 视角） | 列表 / 新建 / 启停 / 删除（**仅删定时任务**；删除 Agent 已移出 M4——2026-08-03 裁决，见计划 §5.7 保留裁决） | 计划 §3.1 A2、§8 M4（对齐 Accio agent-panel） |
+| 件                                  | 范围                                                                                                                                                                             | 对齐                                          |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| ① AgentTaskHub 面板                 | 入口 = **标题右侧 dot-grid 更多下拉加"智能体"菜单项 + 弹层**（§5.7 决策，复用 §5.6 模式）；三区结构：我的智能体 + 任务衍生（**占位**，接 M5 task_spawn，本期不接逻辑）+ 新建入口 | 计划 §3.1 A3、§5.3 Layer 4                    |
+| ② Agent 视角聚合                    | 智能体列表 + 每个 Agent 名下的 task / 定时任务聚合视图                                                                                                                           | 计划 §3.2 映射表、§8 M4                       |
+| ③ 定时任务完整管理 UI（agent 视角） | 列表 / 新建 / 启停 / 删除（**仅删定时任务**；删除 Agent 已移出 M4——2026-08-03 裁决，见计划 §5.7 保留裁决）                                                                       | 计划 §3.1 A2、§8 M4（对齐 Accio agent-panel） |
 
 **退出条件**：Agent Hub 可用（三件套联调通过 + E2E 全生命周期）。
 
@@ -76,15 +76,18 @@ packages/app/e2e/regression/session-scheduled-tasks.spec.ts    M3 E2E（mock-ser
 wip 分支 commit `1b8c426ac`（`feat(app): AgentTaskHub panel (M4)`）存有前人实现，**先 `git show 1b8c426ac --stat` 盘点**：
 
 **复用（与入口无关，直接回收）**：
+
 - `packages/app/src/pages/session/composer/agent-task-hub-model.ts` + `agent-task-hub-model.test.ts` — 纯函数 model（聚合/选中/状态派生），5 个测试用例断言真实实现
 - `agent-task-hub.tsx` 的**面板内容部分**（agent 列表 / task 列表渲染）
 - hub 相关 i18n keys（en/zh/zht 三语言，在 wip 版 `packages/app/src/i18n/` 中）与 hub CSS 块（`[data-component="agent-task-hub-*"]`，在 wip 版 `index.css`）
 
 **必须重做（§5.7 决策否决的部分）**：
+
 - 入口：wip 实现是 composer 区常显"My agents"按钮（`session-composer-region.tsx` 的 hub 挂载 hunk）——**该 hunk 一律不回收**，改为 §5.6 模式的 dot-grid 菜单项 + 弹层；tsx 面板从"popover 挂 composer 按钮"改为"popover 挂 more 按钮 + pendingHub 延迟打开"
 - 回收后 `grep -rn "agent-task-hub" packages/app/src/pages/session/composer/` 必须零命中（composer 区不留任何 hub 痕迹）
 
 **禁止带入（M5 内容，整包不入）**：
+
 - wip commit `3e4f50f46`（task_spawn tool / dag.ts / spawn 字段迁移）——M5 里程碑资产，M4 一律不碰；`spawned_from`/`depends_on` 列不落于本分支
 
 ---
@@ -122,6 +125,7 @@ wip 分支 commit `1b8c426ac`（`feat(app): AgentTaskHub panel (M4)`）存有前
 **红**：组件测试——dot-grid 下拉出现"智能体"菜单项；点击后弹层打开、渲染 agent 列表。
 
 **绿**：
+
 - `message-timeline.tsx` 的 `DropdownMenu.Content` 加菜单项（仿 :1559-1566 定时任务项），`pendingHub` 延迟打开模式（仿 `pendingScheduled`），弹层锚定 more 按钮
 - tsx 面板改挂新入口；composer 区零改动
 - i18n：三语言 key 对齐（parity 测试必须过）；CSS 复用 wip hub 块 + 既有 token，**每个 token 先 grep `packages/ui` 确认存在**（红线 13）
@@ -134,6 +138,7 @@ wip 分支 commit `1b8c426ac`（`feat(app): AgentTaskHub panel (M4)`）存有前
 **红**：聚合读路径测试——按 agentID 聚合的 task/scheduled job 视图数据正确（含跨 session 同 agent 的聚合、无 agent 的 task 归"未归属"）。
 
 **绿**：
+
 - 先 grep 现有资产再设计（红线：复用 → 新增）：`AgentV2.Service`（`packages/core/src/agent/`）、`agent-asset` handlers（`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/agent-asset.ts`）、session 的 agent 绑定字段
 - task 聚合数据源：`TaskTable.agent_id`（M3 已落列）跨 session 查询——如需新读端点，走 httpapi 管线（group + handler + `Effect.fn` 命名 + 4xx catchTag 模式）+ SDK 再生成（`./packages/sdk/js/script/build.ts`，生成 diff 一并提交）+ schema-changelog 记录
 - model 层做聚合/派生（纯函数，仿 session-scheduled-tasks-model 范式）
@@ -143,6 +148,7 @@ wip 分支 commit `1b8c426ac`（`feat(app): AgentTaskHub panel (M4)`）存有前
 ### Step 4 — 定时任务完整管理 UI（agent 视角）
 
 **红**：
+
 - agent 视角定时任务列表（该 agent 名下全部 session 的 scheduled task）
 - 新建 / 启停 / 删除操作测试（删除对象是定时任务本身；**不做删除 Agent 入口**，已移出 M4）
 - 写回路径测试：启停/删除走 task_schedule 的 pause/resume/remove 语义（M3 已交付，服务端 reconcile 保留式——省略字段不会抹掉调度配置，`task.ts:258-261` 已验证）
@@ -183,12 +189,14 @@ AgentV2 注册 / agent-asset            TaskTable.agent_id（M3 已落列）
 ## 6. 强制规则 + 审批红线（M0-M3 四轮审批的教训，违反即 REJECT）
 
 ### 流程规则
+
 - 每 Step 完成后必须重读协议文件、跑 lint + typecheck + test；测试先红后绿；禁 `--no-verify`
 - 里程碑结束同步 specs + SDK 再生成提交 + 输出报告，**停下等审批**
 - 禁 as any / @ts-ignore / 改无关文件；工具归 `packages/core/src/tool/`（禁写入 V1 退役区 `packages/aigcfroge/src/tool/`）
 - 阻塞问题：先报告现状和已试方案，请求决策，不绕过
 
 ### 审批红线（M0/M1 十条继承 + M2/M3 新增四条）
+
 1. **V1 runtime 兼容**：默认 `AIGCFROGE_V2_RUNTIME=false` 路径零回归；M1-M5 不改 V1（§9.2）
 2. **禁 `Effect.die` 处理预期失败**：业务拒绝用 `Schema.TaggedErrorClass`，HTTP 边界 catchTag 映射 4xx，tool 边界 mapError 保留 message（外层不得覆盖内层）
 3. **Schema.Class 必须实例化**：多字段记录一律 `Schema.Class`，构造点用 `new X({...})`（TaskRecurrence 为已裁决例外，见 schema-changelog）
@@ -212,12 +220,12 @@ AgentV2 注册 / agent-asset            TaskTable.agent_id（M3 已落列）
 
 ## 使用说明
 
-| 项 | 值 |
-|---|---|
-| 复制范围 | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->` |
-| 前置动作 | 确认 `todo-task-m2` 已合入 main 或接受从 m2 切分支（m2 未合入时 m4 基于 m2，m2 合入后 rebase） |
-| 新对话打开文件 | `docs/plan/todo-task-system-upgrade.md`（范围真源，§5.7 入口决策）+ 本文件 |
-| 开工顺序 | 通读 §0 清单 → `git checkout -b todo-task-m4`（基于 todo-task-m2）→ Step 1 资产回收 |
-| 节奏 | 每 Step：红→绿→验证→重读协议→提交；里程碑结束：specs 同步 → 报告 → **等审批** |
-| 卡住时 | 回报阶段 + 已过/未过测试 + 具体报错，不绕过 |
-| 审批 | 由审查 agent 按差异审批流程复核（重点：§6 审批红线 14 条） |
+| 项             | 值                                                                                             |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| 复制范围       | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->`                                               |
+| 前置动作       | 确认 `todo-task-m2` 已合入 main 或接受从 m2 切分支（m2 未合入时 m4 基于 m2，m2 合入后 rebase） |
+| 新对话打开文件 | `docs/plan/todo-task-system-upgrade.md`（范围真源，§5.7 入口决策）+ 本文件                     |
+| 开工顺序       | 通读 §0 清单 → `git checkout -b todo-task-m4`（基于 todo-task-m2）→ Step 1 资产回收            |
+| 节奏           | 每 Step：红→绿→验证→重读协议→提交；里程碑结束：specs 同步 → 报告 → **等审批**                  |
+| 卡住时         | 回报阶段 + 已过/未过测试 + 具体报错，不绕过                                                    |
+| 审批           | 由审查 agent 按差异审批流程复核（重点：§6 审批红线 14 条）                                     |

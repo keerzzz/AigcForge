@@ -22,14 +22,8 @@ const makeLayer = (directory: string) => {
       project: { id: Project.ID.make("test"), directory: AbsolutePath.make(directory) },
     }),
   )
-  const fileLoaderLayer = AgentFileLoader.layer.pipe(
-    Layer.provide(FSUtil.defaultLayer),
-    Layer.provide(locationLayer),
-  )
-  const agentsLayer = AgentV2.fileLayer.pipe(
-    Layer.provide(fileLoaderLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-  )
+  const fileLoaderLayer = AgentFileLoader.layer.pipe(Layer.provide(FSUtil.defaultLayer), Layer.provide(locationLayer))
+  const agentsLayer = AgentV2.fileLayer.pipe(Layer.provide(fileLoaderLayer), Layer.provideMerge(EventV2.defaultLayer))
   return Layer.mergeAll(agentsLayer, locationLayer)
 }
 
@@ -47,7 +41,9 @@ describe("AgentV2 file watcher refresh", () => {
     const agentFile = path.join(agentsDir, "reviewer.agent.md")
     await Bun.write(
       agentFile,
-      ["---", "name: reviewer", "description: Original", "tools:", "  - read", "---", "", "You review code."].join("\n"),
+      ["---", "name: reviewer", "description: Original", "tools:", "  - read", "---", "", "You review code."].join(
+        "\n",
+      ),
     )
 
     const originalCwd = process.cwd()
@@ -65,15 +61,25 @@ describe("AgentV2 file watcher refresh", () => {
           yield* Effect.promise(() =>
             Bun.write(
               agentFile,
-              ["---", "name: reviewer", "description: Updated", "tools:", "  - read", "---", "", "You review code."].join("\n"),
+              [
+                "---",
+                "name: reviewer",
+                "description: Updated",
+                "tools:",
+                "  - read",
+                "---",
+                "",
+                "You review code.",
+              ].join("\n"),
             ),
           )
 
           // Keep an inline subscription alive so the EventV2 typed pubsub is created
           // before the watcher event is published.
-          yield* events
-            .subscribe(Watcher.Event.Updated)
-            .pipe(Stream.runForEach(() => Effect.void), Effect.forkScoped)
+          yield* events.subscribe(Watcher.Event.Updated).pipe(
+            Stream.runForEach(() => Effect.void),
+            Effect.forkScoped,
+          )
           yield* Effect.yieldNow
 
           yield* events.publish(Watcher.Event.Updated, { file: ".claude/agents/reviewer.agent.md", event: "change" })
@@ -110,7 +116,9 @@ describe("AgentV2 file watcher refresh", () => {
     // Start with one existing agent so loadAll has work; the new one is added mid-session.
     await Bun.write(
       path.join(agentsDir, "reviewer.agent.md"),
-      ["---", "name: reviewer", "description: Original", "tools:", "  - read", "---", "", "You review code."].join("\n"),
+      ["---", "name: reviewer", "description: Original", "tools:", "  - read", "---", "", "You review code."].join(
+        "\n",
+      ),
     )
 
     const originalCwd = process.cwd()
@@ -131,15 +139,25 @@ describe("AgentV2 file watcher refresh", () => {
           yield* Effect.promise(() =>
             Bun.write(
               path.join(agentsDir, "optimizer.agent.md"),
-              ["---", "name: optimizer", "description: Optimizes code", "tools:", "  - read", "---", "", "You optimize code."].join("\n"),
+              [
+                "---",
+                "name: optimizer",
+                "description: Optimizes code",
+                "tools:",
+                "  - read",
+                "---",
+                "",
+                "You optimize code.",
+              ].join("\n"),
             ),
           )
 
           // Keep an inline subscription alive so the EventV2 typed pubsub is created
           // before the watcher event is published.
-          yield* events
-            .subscribe(Watcher.Event.Updated)
-            .pipe(Stream.runForEach(() => Effect.void), Effect.forkScoped)
+          yield* events.subscribe(Watcher.Event.Updated).pipe(
+            Stream.runForEach(() => Effect.void),
+            Effect.forkScoped,
+          )
           yield* Effect.yieldNow
 
           // Watcher emits Event.Updated with event "add" for newly created files (watcher.ts:94).

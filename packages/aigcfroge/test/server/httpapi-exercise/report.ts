@@ -61,6 +61,35 @@ export function printResults(results: Result[], missing: string[], extra: Scenar
   )
 }
 
+// Coverage mode reports registration coverage, never behaviour: scenarios do
+// not execute in this mode, so no pass/fail vocabulary may appear here.
+// Behavioural assertions are the job of --mode effect.
+export function printCoverage(selected: Scenario[], missing: string[], extra: Scenario[]) {
+  for (const scenario of selected) {
+    if (scenario.kind === "todo") {
+      console.log(
+        `${color.yellow}TODO${color.reset} ${pad(scenario.method, 6)} ${pad(scenario.path, 48)} ${scenario.name} ${color.dim}${scenario.reason}${color.reset}`,
+      )
+      continue
+    }
+    console.log(
+      `${color.cyan}COVERS${color.reset} ${pad(scenario.method, 6)} ${pad(scenario.path, 48)} ${scenario.name}`,
+    )
+  }
+  if (missing.length > 0) {
+    console.log("\nMissing scenarios")
+    for (const route of missing) console.log(`${color.red}MISS${color.reset} ${route}`)
+  }
+  if (extra.length > 0) {
+    console.log("\nExtra scenarios")
+    for (const scenario of extra)
+      console.log(`${color.yellow}EXTRA${color.reset} ${routeKey(scenario)} ${scenario.name}`)
+  }
+  console.log(
+    `\n${color.dim}coverage covered=${selected.filter((scenario) => scenario.kind === "active").length} todo=${selected.filter((scenario) => scenario.kind === "todo").length} missing=${missing.length} extra=${extra.length}${color.reset}`,
+  )
+}
+
 function routeKey(scenario: Scenario) {
   return `${scenario.method} ${scenario.path}`
 }

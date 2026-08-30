@@ -741,9 +741,7 @@ it.instance("meta is fail-closed: no wildcard allow, unknown actions deny, propo
     const meta = yield* load((svc) => svc.get("meta"))
     expect(meta).toBeDefined()
     const rules = meta!.permission
-    expect(
-      rules.some((rule) => rule.permission === "*" && rule.pattern === "*" && rule.action === "allow"),
-    ).toBe(false)
+    expect(rules.some((rule) => rule.permission === "*" && rule.pattern === "*" && rule.action === "allow")).toBe(false)
     expect(Permission.evaluate("some_future_tool", "*", rules).action).toBe("deny")
     for (const action of ["read", "glob", "grep", "question", "list_assets", "webfetch", "websearch"]) {
       expect(Permission.evaluate(action, "*", rules).action).toBe("allow")

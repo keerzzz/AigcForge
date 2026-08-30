@@ -2,38 +2,41 @@
 
 > 目标：消除 v1 token 依赖，全量切换至 v2 token + v2 组件体系
 > 范围：packages/ui（组件层）→ packages/app（应用层）→ packages/session-ui → packages/core（引擎层）
-> 
+>
 > ⚠ 最终审计日期: 2026-06-30 — 审计了 5 个维度（旧组件TSX/CSS、v2组件API、styles/app/desktop、主题测试/插件），发现关键风险详见下文。
 
 ---
 
 ## 现状快照
 
-| 层级 | v1 color token | v2 token | 说明 |
-|---|---|---|---|
-| **ui/src/components/** (旧组件) | **78 处** | 0 | 53 个文件，44 个组件 |
-| **ui/src/v2/components/** (v2 组件) | 0 | **324 处** | 27 个组件，已纯 v2 |
-| **app/src/** (应用层) | **61 处** (审计修正) | 79 处 | **17 个文件** (审计修正，原记录12) |
-| **session-ui/** | **~40 处** (新发现) | 0 | session-ui/markdown.css, session-turn.css, tool-error-card.css, tool-status-title.css |
-| **theme/resolve.ts** (v1 引擎) | 540 行 | — | 死代码待删 |
-| **theme/context.tsx + loader.ts** | 注入 v1 | 注入 v2 | 双注入 |
-| **desktop/** | 少量 | — | 1 个文件 |
+| 层级                                | v1 color token       | v2 token   | 说明                                                                                  |
+| ----------------------------------- | -------------------- | ---------- | ------------------------------------------------------------------------------------- |
+| **ui/src/components/** (旧组件)     | **78 处**            | 0          | 53 个文件，44 个组件                                                                  |
+| **ui/src/v2/components/** (v2 组件) | 0                    | **324 处** | 27 个组件，已纯 v2                                                                    |
+| **app/src/** (应用层)               | **61 处** (审计修正) | 79 处      | **17 个文件** (审计修正，原记录12)                                                    |
+| **session-ui/**                     | **~40 处** (新发现)  | 0          | session-ui/markdown.css, session-turn.css, tool-error-card.css, tool-status-title.css |
+| **theme/resolve.ts** (v1 引擎)      | 540 行               | —          | 死代码待删                                                                            |
+| **theme/context.tsx + loader.ts**   | 注入 v1              | 注入 v2    | 双注入                                                                                |
+| **desktop/**                        | 少量                 | —          | 1 个文件                                                                              |
 
 ### 审计修正补充
 
 **session-ui 包**（原计划遗漏）：
+
 - `packages/session-ui/src/markdown.css` — 引用 text-strong, font-family-sans, text-interactive-base, syntax-string, border-weaker-base, icon-base 等大量 v1 token
 - `packages/session-ui/src/session-turn.css` — 引用 text-weak, text-on-critical-base, background-stronger 等
 - `packages/session-ui/src/tool-error-card.css` — 引用 surface-critical-base, text-on-critical-base
 - `packages/session-ui/src/tool-status-title.css` — 引用 text-strong
 
 **app 层补充文件**（原计划遗漏）：
+
 - `app/src/components/session-context-tab.tsx` — 引用 syntax-info, syntax-success, syntax-property, syntax-warning, syntax-comment
 - `app/src/components/status-popover.tsx` / `status-popover-body.tsx` — 引用 shadow-lg-border-base
 - `app/src/components/debug-bar.tsx` — 引用 shadow-lg-border-base
 - `app/src/components/help-button.tsx` — 引用 shadow-lg-border-base
 
 **硬编码颜色值待修复**（3 个 CSS 文件）：
+
 - `ui/src/components/switch.css` — `rgba(19, 16, 16, 0.04/0.06/0.08)` (box-shadow)
 - `ui/src/components/text-field.css` — `rgba(19, 16, 16, 0.25/0.08/0.12)` (box-shadow)
 - `ui/src/components/image-preview.css` — `rgba(19, 16, 16, 0.35/0.25/0.2)` (box-shadow)
@@ -42,27 +45,27 @@
 
 审计确认项目**同时运行两套独立的主题系统**：
 
-| | TUI (终端) | UI Desktop (桌面) |
-|---|---|---|
-| 使用方 | tui/包, aigcfroge/cli/run, .aigcfroge/themes/*.json, .aigcfroge/plugins/*.json | packages/ui, packages/app, packages/desktop, packages/session-ui |
-| token 命名 | `backgroundPanel`, `backgroundElement`, `borderActive`, `syntaxString` | `--background-base`, `--text-strong`, `--syntax-string` |
-| 本方案范围 | **不影响**。外部主题文件(plugins/themes)是 TUI 格式，不依赖 UI Desktop v1 | ✅ 本方案的 v1→v2 迁移**不改变 TUI 系统**
+|            | TUI (终端)                                                                     | UI Desktop (桌面)                                                |
+| ---------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| 使用方     | tui/包, aigcfroge/cli/run, .aigcfroge/themes/_.json, .aigcfroge/plugins/_.json | packages/ui, packages/app, packages/desktop, packages/session-ui |
+| token 命名 | `backgroundPanel`, `backgroundElement`, `borderActive`, `syntaxString`         | `--background-base`, `--text-strong`, `--syntax-string`          |
+| 本方案范围 | **不影响**。外部主题文件(plugins/themes)是 TUI 格式，不依赖 UI Desktop v1      | ✅ 本方案的 v1→v2 迁移**不改变 TUI 系统**                        |
 
 ### 组件覆盖矩阵
 
-| 分类 | 组件 | 数量 |
-|---|---|---|
-| **有 v2 替代品 → 直接替换** | accordion, avatar, button, checkbox, dialog, diff-changes, icon-button, inline-input, keybind, radio-group, select, switch, tabs, text-shimmer, toast, tooltip | **16 个** |
-| **无 v2 替代品 → 手工创建** | card, collapsible, context-menu, dock-surface, dropdown-menu, hover-card, list, popover, progress, progress-circle, scroll-view, tag, text-field, text-reveal, file-icon, image-preview, sticky-accordion-header | **17 个** |
-| **样式无关 / 零 v1 引用** | spinner, animated-number, typewriter, text-strikethrough, motion-spring, resize-handle | **6 个**(可直接迁移无需改颜色) |
-| **非组件目录** | icon, logo, app-icon, favicon, provider-icon, font, thinking-heading | **7 个**(CSS 含 v1) |
+| 分类                        | 组件                                                                                                                                                                                                             | 数量                           |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| **有 v2 替代品 → 直接替换** | accordion, avatar, button, checkbox, dialog, diff-changes, icon-button, inline-input, keybind, radio-group, select, switch, tabs, text-shimmer, toast, tooltip                                                   | **16 个**                      |
+| **无 v2 替代品 → 手工创建** | card, collapsible, context-menu, dock-surface, dropdown-menu, hover-card, list, popover, progress, progress-circle, scroll-view, tag, text-field, text-reveal, file-icon, image-preview, sticky-accordion-header | **17 个**                      |
+| **样式无关 / 零 v1 引用**   | spinner, animated-number, typewriter, text-strikethrough, motion-spring, resize-handle                                                                                                                           | **6 个**(可直接迁移无需改颜色) |
+| **非组件目录**              | icon, logo, app-icon, favicon, provider-icon, font, thinking-heading                                                                                                                                             | **7 个**(CSS 含 v1)            |
 
 ### app 导入依赖 (影响面)
 
-| import 路径 | 旧 | v2 |
-|---|---|---|
-| `@aigcfroge/ui/xxx` | 33 个组件被引用 | — |
-| `@aigcfroge/ui/v2/xxx-v2` | — | 12 个 v2 组件被引用 |
+| import 路径               | 旧              | v2                  |
+| ------------------------- | --------------- | ------------------- |
+| `@aigcfroge/ui/xxx`       | 33 个组件被引用 | —                   |
+| `@aigcfroge/ui/v2/xxx-v2` | —               | 12 个 v2 组件被引用 |
 
 ---
 
@@ -86,6 +89,7 @@ foreground (v2-text-text-*, v2-icon-icon-*, ...)
 ```
 
 新类别必须遵守同一模式：
+
 - **semantics 层级**：input、button → 静态映射，放 `mapping.ts`
 - **foreground 层级**：syntax、markdown → 从 primitives 计算，放新文件
 - **混合**：diff 有 bg（semantics）+ text/icon（foreground）
@@ -140,13 +144,13 @@ packages/ui/src/theme/v2/
 
 **关键设计决策**: 不同 hue 在 dark/light 背景下的 luminance 差异巨大，不能统一用 `isDark ? 400 : 600`。以下设计基于实际 WCAG 对比度预计算：
 
-| Hue | Dark 模式步阶 | Light 模式步阶 | 依据 |
-|---|---|---|---|
-| green | 400 | 600 | green luminance 中等，400/600 双方OK |
-| blue/cyan | **200** | **700** | blue luminance 天然低，dark 取 200 保证对比度 |
-| purple | **300** | **600** | purple 同 blue，但略暖，300 处于安全区 |
-| yellow/orange | 400 (or 500) | 600 | yellow luminance 高，对比度天生好 |
-| red | 400 | 600 | red luminance 中等，400/600 安全 |
+| Hue           | Dark 模式步阶 | Light 模式步阶 | 依据                                          |
+| ------------- | ------------- | -------------- | --------------------------------------------- |
+| green         | 400           | 600            | green luminance 中等，400/600 双方OK          |
+| blue/cyan     | **200**       | **700**        | blue luminance 天然低，dark 取 200 保证对比度 |
+| purple        | **300**       | **600**        | purple 同 blue，但略暖，300 处于安全区        |
+| yellow/orange | 400 (or 500)  | 600            | yellow luminance 高，对比度天生好             |
+| red           | 400           | 600            | red luminance 中等，400/600 安全              |
 
 ```ts
 // 引用：primitive ramp + 已解析的 foreground/text token
@@ -168,44 +172,44 @@ export function mapV2Syntax(isDark: boolean): Record<string, V2ColorValue> {
   // 步阶选择规则：blue/cyan/purple 在 dark 模式用 200-300 确保 contrast
   return {
     // 引用语义 foreground token（复用已算好的 text 颜色）
-    "v2-syntax-comment":      ref("v2-text-text-faint"),
-    "v2-syntax-regexp":       ref("v2-text-text-muted"),
-    "v2-syntax-string":       ref(isDark ? "v2-green-400" : "v2-green-600"),
-    "v2-syntax-keyword":      ref(isDark ? "v2-purple-300" : "v2-purple-600"),
-    "v2-syntax-primitive":    ref(isDark ? "v2-blue-200" : "v2-blue-600"),   // blue dark 用 200 ⚠️
-    "v2-syntax-operator":     ref("v2-text-text-muted"),
-    "v2-syntax-variable":     ref("v2-text-text-base"),
-    "v2-syntax-property":     ref(isDark ? "v2-cyan-200" : "v2-cyan-600"),   // cyan dark 用 200 ⚠️
-    "v2-syntax-type":         ref(isDark ? "v2-yellow-500" : "v2-yellow-600"),
-    "v2-syntax-constant":     ref(isDark ? "v2-purple-300" : "v2-purple-600"),
-    "v2-syntax-punctuation":  ref("v2-text-text-muted"),
-    "v2-syntax-object":       ref("v2-text-text-base"),
-    "v2-syntax-success":      ref(isDark ? "v2-green-400" : "v2-green-600"),
-    "v2-syntax-warning":      ref(isDark ? "v2-orange-400" : "v2-orange-600"),
-    "v2-syntax-critical":     ref(isDark ? "v2-red-400" : "v2-red-600"),
-    "v2-syntax-info":         ref(isDark ? "v2-blue-300" : "v2-blue-500"),
-    "v2-syntax-diff-add":     ref(isDark ? "v2-green-400" : "v2-green-500"),
-    "v2-syntax-diff-delete":  ref(isDark ? "v2-red-400" : "v2-red-500"),
-    "v2-syntax-diff-unknown": ref("v2-red-500"),    // 纯 #ff0000 对比度不足且刺眼
+    "v2-syntax-comment": ref("v2-text-text-faint"),
+    "v2-syntax-regexp": ref("v2-text-text-muted"),
+    "v2-syntax-string": ref(isDark ? "v2-green-400" : "v2-green-600"),
+    "v2-syntax-keyword": ref(isDark ? "v2-purple-300" : "v2-purple-600"),
+    "v2-syntax-primitive": ref(isDark ? "v2-blue-200" : "v2-blue-600"), // blue dark 用 200 ⚠️
+    "v2-syntax-operator": ref("v2-text-text-muted"),
+    "v2-syntax-variable": ref("v2-text-text-base"),
+    "v2-syntax-property": ref(isDark ? "v2-cyan-200" : "v2-cyan-600"), // cyan dark 用 200 ⚠️
+    "v2-syntax-type": ref(isDark ? "v2-yellow-500" : "v2-yellow-600"),
+    "v2-syntax-constant": ref(isDark ? "v2-purple-300" : "v2-purple-600"),
+    "v2-syntax-punctuation": ref("v2-text-text-muted"),
+    "v2-syntax-object": ref("v2-text-text-base"),
+    "v2-syntax-success": ref(isDark ? "v2-green-400" : "v2-green-600"),
+    "v2-syntax-warning": ref(isDark ? "v2-orange-400" : "v2-orange-600"),
+    "v2-syntax-critical": ref(isDark ? "v2-red-400" : "v2-red-600"),
+    "v2-syntax-info": ref(isDark ? "v2-blue-300" : "v2-blue-500"),
+    "v2-syntax-diff-add": ref(isDark ? "v2-green-400" : "v2-green-500"),
+    "v2-syntax-diff-delete": ref(isDark ? "v2-red-400" : "v2-red-500"),
+    "v2-syntax-diff-unknown": ref("v2-red-500"), // 纯 #ff0000 对比度不足且刺眼
   }
 }
 
 export function mapV2Markdown(isDark: boolean): Record<string, V2ColorValue> {
   return {
-    "v2-markdown-heading":          ref(isDark ? "v2-blue-200" : "v2-blue-600"),
-    "v2-markdown-text":             ref("v2-text-text-base"),
-    "v2-markdown-link":             ref(isDark ? "v2-blue-300" : "v2-blue-500"),
-    "v2-markdown-link-text":        ref(isDark ? "v2-blue-200" : "v2-blue-400"),
-    "v2-markdown-code":             ref(isDark ? "v2-green-400" : "v2-green-600"),
-    "v2-markdown-block-quote":      ref(isDark ? "v2-yellow-500" : "v2-yellow-600"),
-    "v2-markdown-emph":             ref(isDark ? "v2-yellow-500" : "v2-yellow-600"),
-    "v2-markdown-strong":           ref(isDark ? "v2-orange-500" : "v2-orange-600"),
-    "v2-markdown-horizontal-rule":  ref("v2-border-border-muted"),
-    "v2-markdown-list-item":        ref(isDark ? "v2-blue-300" : "v2-blue-500"),
+    "v2-markdown-heading": ref(isDark ? "v2-blue-200" : "v2-blue-600"),
+    "v2-markdown-text": ref("v2-text-text-base"),
+    "v2-markdown-link": ref(isDark ? "v2-blue-300" : "v2-blue-500"),
+    "v2-markdown-link-text": ref(isDark ? "v2-blue-200" : "v2-blue-400"),
+    "v2-markdown-code": ref(isDark ? "v2-green-400" : "v2-green-600"),
+    "v2-markdown-block-quote": ref(isDark ? "v2-yellow-500" : "v2-yellow-600"),
+    "v2-markdown-emph": ref(isDark ? "v2-yellow-500" : "v2-yellow-600"),
+    "v2-markdown-strong": ref(isDark ? "v2-orange-500" : "v2-orange-600"),
+    "v2-markdown-horizontal-rule": ref("v2-border-border-muted"),
+    "v2-markdown-list-item": ref(isDark ? "v2-blue-300" : "v2-blue-500"),
     "v2-markdown-list-enumeration": ref(isDark ? "v2-blue-200" : "v2-blue-400"),
-    "v2-markdown-image":            ref(isDark ? "v2-blue-300" : "v2-blue-500"),
-    "v2-markdown-image-text":       ref(isDark ? "v2-blue-200" : "v2-blue-400"),
-    "v2-markdown-code-block":       ref("v2-text-text-base"),
+    "v2-markdown-image": ref(isDark ? "v2-blue-300" : "v2-blue-500"),
+    "v2-markdown-image-text": ref(isDark ? "v2-blue-200" : "v2-blue-400"),
+    "v2-markdown-code-block": ref("v2-text-text-base"),
   }
 }
 ```
@@ -215,6 +219,7 @@ v2 的 `generateV2HueScale` 已经根据 seed color 动态生成了 12 阶 hue r
 
 **为什么不能用统一步阶？**
 不同 hue 的 luminance 差异很大。OC-2 主题下 blue-400 (#a2bcff) 的 luminance ≈ 0.48，blue-600 (#3b5cf6) 的 luminance ≈ 0.066。在 dark 背景 (#242424, luminance ≈ 0.015) 上：
+
 - blue-600 对比度 **(0.066+0.05)/(0.015+0.05) = 1.78:1** ❌ 远低于 3:1
 - blue-200 (#d7e2fc) 对比度 ≈ 4:1 ✅
 
@@ -223,6 +228,7 @@ v2 的 `generateV2HueScale` 已经根据 seed color 动态生成了 12 阶 hue r
 ### 0.4 新增 `v2/diff.ts`
 
 Diff token 需要与 state token 有视觉区分，否则用户无法区分"diff 增加"和"操作成功"：
+
 - `v2-state-bg-success` → green-100（最淡，用于成功提示背景）
 - `v2-diff-add-bg` → green-200（深一度，用于代码 diff，需在代码上下文中可见）
 - `v2-state-fg-success` → green-800（深色，用于按钮/标签）
@@ -233,20 +239,20 @@ Diff token 需要与 state token 有视觉区分，否则用户无法区分"diff
 export function mapV2Diff(isDark: boolean): Record<string, V2ColorValue> {
   return {
     // 背面色 (bg) — diff 背景比 state 背景深一度以在代码上下文中可辨
-    "v2-diff-add-bg":          ref(isDark ? "v2-green-1200" : "v2-green-200"),
-    "v2-diff-add-bg-strong":   ref(isDark ? "v2-green-1000" : "v2-green-300"),
-    "v2-diff-delete-bg":       ref(isDark ? "v2-red-1200" : "v2-red-200"),
+    "v2-diff-add-bg": ref(isDark ? "v2-green-1200" : "v2-green-200"),
+    "v2-diff-add-bg-strong": ref(isDark ? "v2-green-1000" : "v2-green-300"),
+    "v2-diff-delete-bg": ref(isDark ? "v2-red-1200" : "v2-red-200"),
     "v2-diff-delete-bg-strong": ref(isDark ? "v2-red-1000" : "v2-red-300"),
-    "v2-diff-unchanged-bg":    ref("v2-background-bg-base"),
+    "v2-diff-unchanged-bg": ref("v2-background-bg-base"),
 
     // 前景色 (text/icon) — 取 ramp 中段，与背景有足够对比
-    "v2-diff-add-text":        ref(isDark ? "v2-green-400" : "v2-green-600"),
-    "v2-diff-delete-text":     ref(isDark ? "v2-red-400" : "v2-red-600"),
-    "v2-diff-add-icon":        ref(isDark ? "v2-green-400" : "v2-green-500"),
-    "v2-diff-delete-icon":     ref(isDark ? "v2-red-400" : "v2-red-500"),
+    "v2-diff-add-text": ref(isDark ? "v2-green-400" : "v2-green-600"),
+    "v2-diff-delete-text": ref(isDark ? "v2-red-400" : "v2-red-600"),
+    "v2-diff-add-icon": ref(isDark ? "v2-green-400" : "v2-green-500"),
+    "v2-diff-delete-icon": ref(isDark ? "v2-red-400" : "v2-red-500"),
 
     // diff hidden (交互式 diff 中"隐藏区域"的背景)
-    "v2-diff-hidden-bg":       ref(isDark ? "v2-alpha-light-4" : "v2-alpha-dark-4"),
+    "v2-diff-hidden-bg": ref(isDark ? "v2-alpha-light-4" : "v2-alpha-dark-4"),
     "v2-diff-hidden-bg-hover": ref(isDark ? "v2-alpha-light-8" : "v2-alpha-dark-8"),
   }
 }
@@ -254,12 +260,12 @@ export function mapV2Diff(isDark: boolean): Record<string, V2ColorValue> {
 
 **与 state 色对比**:
 
-| 用途 | Light 步阶 | Dark 步阶 | 角色 |
-|---|---|---|---|
-| `v2-state-bg-success` | green-100 | green-1200 | 成功提示背景 |
-| `v2-diff-add-bg` | green-**200** | green-**1200** | diff 新增背景（比 state 深一度） |
-| `v2-state-fg-success` | green-800 | green-500 | 成功文字/按钮 |
-| `v2-diff-add-text` | green-**600** | green-**400** | diff 行内文字（与 bg 有对比） |
+| 用途                  | Light 步阶    | Dark 步阶      | 角色                             |
+| --------------------- | ------------- | -------------- | -------------------------------- |
+| `v2-state-bg-success` | green-100     | green-1200     | 成功提示背景                     |
+| `v2-diff-add-bg`      | green-**200** | green-**1200** | diff 新增背景（比 state 深一度） |
+| `v2-state-fg-success` | green-800     | green-500      | 成功文字/按钮                    |
+| `v2-diff-add-text`    | green-**600** | green-**400**  | diff 行内文字（与 bg 有对比）    |
 
 ### 0.5 整合到 `v2/resolve.ts`
 
@@ -280,14 +286,14 @@ export function resolveThemeVariantV2(variant: ThemeVariant, isDark: boolean): R
 
 ### 0.6 token 汇总（新增 40 个）
 
-| 类别 | token 数 | 文件 | 类型 |
-|---|---|---|---|
-| syntax | 18 | `v2/syntax-markdown.ts` | 按 light/dark 切换步阶 |
-| markdown | 14 | `v2/syntax-markdown.ts` | 按 light/dark 切换步阶 |
-| diff | 12 | `v2/diff.ts` | 按 light/dark 切换步阶 |
-| input | 6 | `v2/mapping.ts` | 静态语义引用 |
-| button | 2 | `v2/mapping.ts` | 静态语义引用 |
-| **总计** | **52** | | |
+| 类别     | token 数 | 文件                    | 类型                   |
+| -------- | -------- | ----------------------- | ---------------------- |
+| syntax   | 18       | `v2/syntax-markdown.ts` | 按 light/dark 切换步阶 |
+| markdown | 14       | `v2/syntax-markdown.ts` | 按 light/dark 切换步阶 |
+| diff     | 12       | `v2/diff.ts`            | 按 light/dark 切换步阶 |
+| input    | 6        | `v2/mapping.ts`         | 静态语义引用           |
+| button   | 2        | `v2/mapping.ts`         | 静态语义引用           |
+| **总计** | **52**   |                         |                        |
 
 **产出**: v2 从 52 语义 token → ~104 语义 token，完整覆盖 syntax/markdown/diff/input/button，旧组件迁移时有对应的 v2 token 可用，且全部遵守 primitives 引用模式（非硬编码 hex）
 
@@ -301,24 +307,24 @@ export function resolveThemeVariantV2(variant: ThemeVariant, isDark: boolean): R
 
 ### API 差异对照表（审计发现）
 
-| 组件 | 旧版 API | v2 API | 变更类型 |
-|---|---|---|---|
-| **button** | `variant: "primary"\|"secondary"\|"ghost"` | `variant: "neutral"\|"contrast"\|"ghost"\|"ghost-muted"` | **破坏性** — variant 名全变 |
-| **icon-button** | `variant: "primary"\|"secondary"\|"ghost"`, `icon: IconProps["name"]` (字符串) | `variant: "neutral"\|"contrast"\|"ghost"\|"ghost-muted"`, `icon?: JSX.Element` (临时) | **破坏性** — variant 名 + icon 类型都变 |
-| **checkbox** | `children` (label 内容), `description?: string`, `icon?: JSX.Element` | `label: JSX.Element` (必填), `description?: JSX.Element` | **破坏性** — children → label, description 类型变 |
-| **icon** | `size: "small"\|"normal"\|"medium"\|"large"`, ~106 icons | `size: "small"\|"normal"\|"large"`, ~30 icons | **破坏性** — 移除 medium size, 图标集减少 70% |
-| **switch** | `description?: string` | `description` 移除 | **轻度破坏** |
-| **select** | `triggerStyle`, `triggerVariant`, `triggerProps`, `use remeda` | 移除 trigger 样式 props, 简化 group 逻辑 | **破坏性** |
-| **dialog** | `transition?: boolean`, `useI18n` | 移除 transition, 硬编码 "Close" | **轻度破坏** |
-| **diff-changes** | `variant: "default"\|"bars"` (bars 有 SVG 条图) | 完全移除 `"bars"` variant | **破坏性** |
-| **tabs** | `variant: "normal"\|"alt"\|"pill"\|"settings"` | `variant: "normal"\|"pill"\|"settings"` | **轻度破坏** — 移除 "alt" |
-| **radio-group** | `RadioGroup<T>` (泛型, options 数组, @kobalte/segmented-control) | `RadioGroupV2` + `RadioItemV2` (compound, @kobalte/radio-group) | **完全重写** — 使用模式完全不同 |
-| **toast** | `showPromiseToast`, `ToastProgressTrack/Fill`, `ToastVariant`, `useI18n` | 移除 promise/进度/变体, 硬编码 "Dismiss" | **破坏性** |
-| **tooltip** | `TooltipKeybind` 子组件 | 移除 `TooltipKeybind` | **轻度破坏** |
-| **text-field** | `TextField` (Kobalte, 含 copyable/multiline) | 拆分为 `TextInputV2` + `TextareaV2` + `FieldV2` (三个独立组件) | **完全重写** |
-| **avatar** | 无 `kind` | 添加 `kind?: "user"\|"org"` | 兼容 (可选) |
-| **keybind** | 无 props (children) | `keys: string[]`, `variant?` | **完全重写** |
-| **segmented-control** | 无 (旧版是 RadioGroup 包装了 segmented-control) | `SegmentedControlV2` (custom context 实现) | **新增组件** |
+| 组件                  | 旧版 API                                                                       | v2 API                                                                                | 变更类型                                          |
+| --------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| **button**            | `variant: "primary"\|"secondary"\|"ghost"`                                     | `variant: "neutral"\|"contrast"\|"ghost"\|"ghost-muted"`                              | **破坏性** — variant 名全变                       |
+| **icon-button**       | `variant: "primary"\|"secondary"\|"ghost"`, `icon: IconProps["name"]` (字符串) | `variant: "neutral"\|"contrast"\|"ghost"\|"ghost-muted"`, `icon?: JSX.Element` (临时) | **破坏性** — variant 名 + icon 类型都变           |
+| **checkbox**          | `children` (label 内容), `description?: string`, `icon?: JSX.Element`          | `label: JSX.Element` (必填), `description?: JSX.Element`                              | **破坏性** — children → label, description 类型变 |
+| **icon**              | `size: "small"\|"normal"\|"medium"\|"large"`, ~106 icons                       | `size: "small"\|"normal"\|"large"`, ~30 icons                                         | **破坏性** — 移除 medium size, 图标集减少 70%     |
+| **switch**            | `description?: string`                                                         | `description` 移除                                                                    | **轻度破坏**                                      |
+| **select**            | `triggerStyle`, `triggerVariant`, `triggerProps`, `use remeda`                 | 移除 trigger 样式 props, 简化 group 逻辑                                              | **破坏性**                                        |
+| **dialog**            | `transition?: boolean`, `useI18n`                                              | 移除 transition, 硬编码 "Close"                                                       | **轻度破坏**                                      |
+| **diff-changes**      | `variant: "default"\|"bars"` (bars 有 SVG 条图)                                | 完全移除 `"bars"` variant                                                             | **破坏性**                                        |
+| **tabs**              | `variant: "normal"\|"alt"\|"pill"\|"settings"`                                 | `variant: "normal"\|"pill"\|"settings"`                                               | **轻度破坏** — 移除 "alt"                         |
+| **radio-group**       | `RadioGroup<T>` (泛型, options 数组, @kobalte/segmented-control)               | `RadioGroupV2` + `RadioItemV2` (compound, @kobalte/radio-group)                       | **完全重写** — 使用模式完全不同                   |
+| **toast**             | `showPromiseToast`, `ToastProgressTrack/Fill`, `ToastVariant`, `useI18n`       | 移除 promise/进度/变体, 硬编码 "Dismiss"                                              | **破坏性**                                        |
+| **tooltip**           | `TooltipKeybind` 子组件                                                        | 移除 `TooltipKeybind`                                                                 | **轻度破坏**                                      |
+| **text-field**        | `TextField` (Kobalte, 含 copyable/multiline)                                   | 拆分为 `TextInputV2` + `TextareaV2` + `FieldV2` (三个独立组件)                        | **完全重写**                                      |
+| **avatar**            | 无 `kind`                                                                      | 添加 `kind?: "user"\|"org"`                                                           | 兼容 (可选)                                       |
+| **keybind**           | 无 props (children)                                                            | `keys: string[]`, `variant?`                                                          | **完全重写**                                      |
+| **segmented-control** | 无 (旧版是 RadioGroup 包装了 segmented-control)                                | `SegmentedControlV2` (custom context 实现)                                            | **新增组件**                                      |
 
 ### 替换策略修正
 
@@ -346,13 +352,13 @@ Step 6: bun --cwd packages/ui typecheck + bun --cwd packages/app typecheck
 
 ### 特殊处理
 
-| 组件 | 注意点 |
-|---|---|
-| **avatar** | 旧名 `@aigcfroge/ui/avatar` → 新名 `@aigcfroge/ui/v2/project-avatar-v2` |
-| **radio-group** | 旧名 `@aigcfroge/ui/radio-group` → 新名 `@aigcfroge/ui/v2/radio-v2` |
-| **icon** | 同时存在 old `components/icon.tsx` + v2 `v2/components/icon.tsx`，v2 版已独立，删旧版时确保不误删 |
-| **dialog** | `@aigcfroge/ui/dialog` 是 dialog 组件，`@aigcfroge/ui/context/dialog` 是 context 提供者（**不删**） |
-| **icon-button** | 旧 `components/icon-button.tsx` → `v2/components/icon-button-v2.tsx` |
+| 组件            | 注意点                                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| **avatar**      | 旧名 `@aigcfroge/ui/avatar` → 新名 `@aigcfroge/ui/v2/project-avatar-v2`                             |
+| **radio-group** | 旧名 `@aigcfroge/ui/radio-group` → 新名 `@aigcfroge/ui/v2/radio-v2`                                 |
+| **icon**        | 同时存在 old `components/icon.tsx` + v2 `v2/components/icon.tsx`，v2 版已独立，删旧版时确保不误删   |
+| **dialog**      | `@aigcfroge/ui/dialog` 是 dialog 组件，`@aigcfroge/ui/context/dialog` 是 context 提供者（**不删**） |
+| **icon-button** | 旧 `components/icon-button.tsx` → `v2/components/icon-button-v2.tsx`                                |
 
 ### 替换顺序（按视觉区域分批）
 
@@ -370,9 +376,11 @@ Batch C: 核心交互组件（最后替换，让前两批充分验证）
 ```
 
 **验证**：每完成一个 batch 后：
+
 1. `bun --cwd packages/ui typecheck` + `bun --cwd packages/app typecheck`
 2. 截图对比该 batch 组件在 light + dark 下的表现（迁移前后）
 3. 确认无颜色空白（CSS 变量未定义时会显示透明或浏览器默认色）
+
 ```
 
 ---
@@ -394,6 +402,7 @@ Batch C: 核心交互组件（最后替换，让前两批充分验证）
 ### 创建新 v2 组件的标准流程
 
 ```
+
 1. 在 v2/components/ 创建 xxx-v2.tsx（复制旧逻辑，v1→v2 token 映射替换）
 2. 创建 xxx-v2.css（用 v2 token 替换全部 v1 token）
 3. 创建 xxx-v2.stories.tsx（可选，Storybook 验证）
@@ -401,7 +410,8 @@ Batch C: 核心交互组件（最后替换，让前两批充分验证）
 5. 更新 ui/src/styles/index.css（移除 @import）
 6. 更新 app/src/ 中全部 import 指向 @aigcfroge/ui/v2/xxx-v2
 7. bun typecheck + bun test 验证
-```
+
+````
 
 ### v1→v2 token 映射要点
 
@@ -473,7 +483,7 @@ app/src/ + session-ui/ 中 ~17 个文件的 ~61 处 v1 token 直接引用（不�
 
 ```diff
 - packages/ui/src/theme/resolve.ts  删除
-```
+````
 
 ### 4.2 清理 `color.ts`
 
@@ -528,7 +538,7 @@ generateNeutralScale, mixColors, shift, contrastRatio, blend, lighten, darken, w
 ```json
 {
   "./button": "./src/v2/components/button-v2.tsx",
-  "./dialog": "./src/v2/components/dialog-v2.tsx",
+  "./dialog": "./src/v2/components/dialog-v2.tsx"
   // ...
 }
 ```
@@ -545,6 +555,7 @@ generateNeutralScale, mixColors, shift, contrastRatio, blend, lighten, darken, w
 ```
 
 ---
+
 ## 回滚策略
 
 Phase 1-3 期间，**保留所有旧组件文件直到 Phase 3 全部完成**。切换通过 `packages/ui/package.json` 的 exports 控制：
@@ -559,11 +570,13 @@ Phase 1-3 期间，**保留所有旧组件文件直到 Phase 3 全部完成**。
 ```
 
 如果某个组件迁移后出现视觉回归（颜色异常、对比度不足、交互行为差异）：
+
 1. 立即将 app 中该组件的 import 切回旧版（`@aigcfroge/ui/button-legacy`）
 2. 记录回归原因到 issue
 3. 修复后再重新切换
 
 **注意事项**：
+
 - 旧组件文件在 Phase 3 结束后才能物理删除
 - `rg 'resolveThemeVariant'` 零引用后才可删除 `resolve.ts`
 - 建议在删除 `resolve.ts` 前 `git tag v1-token-system` 以便需要时恢复
@@ -573,6 +586,7 @@ Phase 1-3 期间，**保留所有旧组件文件直到 Phase 3 全部完成**。
 ## 自定义主题兼容性
 
 当前 `.aigcfroge/themes/mytheme.json` 使用 v1 格式（`background`、`text`、`border` 等字段）。迁移后：
+
 - v2 引擎仍然通过 `readPalette()` 兼容 v1 格式的 ThemeVariant（`seeds` 模式）
 - 用户自定义主题 JSON 的 `theme` 字段名需要更新为 `DesktopTheme` 格式（`name`、`id`、`light`、`dark`）
 - 或者在 `desktop-theme.schema.json` 中添加兼容层
@@ -586,11 +600,13 @@ Phase 1-3 期间，**保留所有旧组件文件直到 Phase 3 全部完成**。
 每个 Phase 结束后，必须进行以下验证：
 
 ### 截图对比（人工）
+
 1. 在 light 和 dark 模式下分别截图关键界面
 2. 与迁移前的 baseline 截图对比
 3. 重点关注：对比度、颜色一致性、组件状态（hover/active/focus）表现
 
 ### DESIGN.md 合规检查
+
 ```
 □ 所有新 token 引用 CSS 变量，无硬编码 hex 值
 □ Light + dark 变体都已定义且可切换无感
@@ -601,6 +617,7 @@ Phase 1-3 期间，**保留所有旧组件文件直到 Phase 3 全部完成**。
 ```
 
 ### 组件迁移验证清单（Phase 2 专用）
+
 ```
 每个迁移后的组件逐项检查：
 □ Props API 与旧版兼容（或 app 调用处已更新）
@@ -614,31 +631,30 @@ Phase 1-3 期间，**保留所有旧组件文件直到 Phase 3 全部完成**。
 
 ---
 
-
 ## 风险评估
 
-| 阶段 | 风险 | 缓解措施 |
-|---|---|---|
-| Phase 1 | v2 组件 API 不同导致 app 构建失败 | 替换前用 `rg '@aigcfroge/ui/xxx'` 找出所有调用处，逐一对照 API 差异表更新 props |
-| Phase 1 | 替换后 Storybook 故事不匹配 | 批量替换后跑 `bun typecheck` + 人工抽查 3-5 个关键组件（button、dialog、tabs） |
-| Phase 2 | 新创建的 v2 组件 UI 表现与旧版不同 | 每个新组件创建后对照 Storybook 快照验证 |
-| Phase 3 | app + session-ui 中遗漏 v1 引用，运行时颜色空白 | 用 `rg 'var\(--(surface\|text\|border\|icon\|background\|button\|syntax\|markdown)'` 全局扫一遍收尾 |
-| Phase 4 | 删 resolve.ts 后遗漏引用导致构建失败 | 先 `rg 'resolveThemeVariant'` 确认零引用，再删除；确认 desktop/src/main/windows.ts 和 app/src/components/terminal.tsx 已更新 |
-| 全流程 | CSS 变量名前后不一致导致视觉回归 | 每个 Phase 结束后用 `rg 'var\(--surface-'` 确认 v1 引用归零 |
+| 阶段    | 风险                                            | 缓解措施                                                                                                                     |
+| ------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Phase 1 | v2 组件 API 不同导致 app 构建失败               | 替换前用 `rg '@aigcfroge/ui/xxx'` 找出所有调用处，逐一对照 API 差异表更新 props                                              |
+| Phase 1 | 替换后 Storybook 故事不匹配                     | 批量替换后跑 `bun typecheck` + 人工抽查 3-5 个关键组件（button、dialog、tabs）                                               |
+| Phase 2 | 新创建的 v2 组件 UI 表现与旧版不同              | 每个新组件创建后对照 Storybook 快照验证                                                                                      |
+| Phase 3 | app + session-ui 中遗漏 v1 引用，运行时颜色空白 | 用 `rg 'var\(--(surface\|text\|border\|icon\|background\|button\|syntax\|markdown)'` 全局扫一遍收尾                          |
+| Phase 4 | 删 resolve.ts 后遗漏引用导致构建失败            | 先 `rg 'resolveThemeVariant'` 确认零引用，再删除；确认 desktop/src/main/windows.ts 和 app/src/components/terminal.tsx 已更新 |
+| 全流程  | CSS 变量名前后不一致导致视觉回归                | 每个 Phase 结束后用 `rg 'var\(--surface-'` 确认 v1 引用归零                                                                  |
 
 ---
 
 ## 时间估算
 
-| Phase | 内容 | 工时 |
-|---|---|---|
-| 0 | 扩展 v2 token（syntax/markdown/diff/input/button） | ~3 天 |
-| 1 | 替换 16 个旧组件 + 同步更新 app 调用处 props | ~3 天 |
-| 2 | 创建 17 个新 v2 组件 | ~4 天 |
-| 3 | App + session-ui 层 v1 引用修复（~17 文件, ~61 处） | ~1 天 |
-| 4 | 引擎层清理（resolve.ts/context.tsx/loader.ts） | ~0.5 天 |
-| 5 | 目录收尾 + 验证 | ~0.5 天 |
-| **总计** | | **~12 天** |
+| Phase    | 内容                                                | 工时       |
+| -------- | --------------------------------------------------- | ---------- |
+| 0        | 扩展 v2 token（syntax/markdown/diff/input/button）  | ~3 天      |
+| 1        | 替换 16 个旧组件 + 同步更新 app 调用处 props        | ~3 天      |
+| 2        | 创建 17 个新 v2 组件                                | ~4 天      |
+| 3        | App + session-ui 层 v1 引用修复（~17 文件, ~61 处） | ~1 天      |
+| 4        | 引擎层清理（resolve.ts/context.tsx/loader.ts）      | ~0.5 天    |
+| 5        | 目录收尾 + 验证                                     | ~0.5 天    |
+| **总计** |                                                     | **~12 天** |
 
 ---
 

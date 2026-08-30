@@ -13,8 +13,7 @@ const ShareInput = Schema.Struct({
     description: "The session ID to share content into",
   }),
   scope: Schema.Literals(["reference", "output", "full"]).annotate({
-    description:
-      "What to share: reference (session link), output (last result), full (entire history)",
+    description: "What to share: reference (session link), output (last result), full (entire history)",
   }),
 })
 
@@ -26,9 +25,9 @@ export const make = (sessions: SessionV2.Interface, share: SessionShareV2.Interf
     output: Schema.String,
     execute: (input, context) =>
       Effect.gen(function* () {
-        yield* sessions.get(context.sessionID).pipe(
-          Effect.mapError((error) => new Tool.Failure({ message: `Session not found: ${error.sessionID}` })),
-        )
+        yield* sessions
+          .get(context.sessionID)
+          .pipe(Effect.mapError((error) => new Tool.Failure({ message: `Session not found: ${error.sessionID}` })))
         yield* share
           .share({
             sourceSessionID: SessionV2.ID.make(input.sourceSessionID),

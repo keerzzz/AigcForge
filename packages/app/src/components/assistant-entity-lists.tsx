@@ -155,10 +155,7 @@ export function MemoryInspector(props: {
   )
 }
 
-export function DeliveryList(props: {
-  records: ScheduleDelivery[]
-  onMarkRead: (deliveryKey: string) => void
-}) {
+export function DeliveryList(props: { records: ScheduleDelivery[]; onMarkRead: (deliveryKey: string) => void }) {
   const language = useLanguage()
   return (
     <div class="flex min-w-0 flex-col gap-px">
@@ -166,9 +163,7 @@ export function DeliveryList(props: {
         {(delivery: ScheduleDelivery) => (
           <div class="flex min-w-0 items-center gap-2 py-1">
             <Icon name="status-active" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-            <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-              {delivery.content ?? ""}
-            </span>
+            <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">{delivery.content ?? ""}</span>
             <span class="shrink-0 text-v2-text-text-muted text-11-regular">{formatDueAt(delivery.deliveredAt)}</span>
             <Show when={delivery.caughtUp}>
               <span class="shrink-0 text-v2-text-text-faint text-11-regular">

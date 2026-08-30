@@ -20,21 +20,21 @@
 
 ### 1.1 结论分层
 
-| 层级 | 含义 | 本路线图中的处理 |
-| --- | --- | --- |
-| **已证实** | 由当前代码、文档、内存 SQLite 探针或明确运行行为复核 | 直接进入治理计划；若影响数据一致性或发布承诺则阻断 |
+| 层级         | 含义                                                         | 本路线图中的处理                                   |
+| ------------ | ------------------------------------------------------------ | -------------------------------------------------- |
+| **已证实**   | 由当前代码、文档、内存 SQLite 探针或明确运行行为复核         | 直接进入治理计划；若影响数据一致性或发布承诺则阻断 |
 | **较高概率** | 静态装配图或历史回归显示风险，但尚未由当前运行时身份测试证实 | 先做最小 probe；未证实前不做大规模重构或绝对化定罪 |
-| **待验证** | 需要压力、故障注入、跨平台或真实环境才能判断 | 形成验证项，不把假设写成结论 |
+| **待验证**   | 需要压力、故障注入、跨平台或真实环境才能判断                 | 形成验证项，不把假设写成结论                       |
 
 ### 1.2 发布总裁决
 
-| 发布范围 | 裁决 | 必须满足 |
-| --- | --- | --- |
-| 当前架构方向 | **保留** | Effect、SQLite、EventV2、Session V2 durable admission、Location-scoped Runner 的边界继续演进 |
-| Custom/V2 面向普通用户 | **阻断** | F1 生命周期全绿；sidecar-dead 可恢复；关键 fault injection 有证据 |
-| `AIGCFROGE_V2_RUNTIME=true` 默认开启 | **阻断** | F1–F4 关闭；逐端点 contract matrix 与 owner identity 通过 |
-| 企业 / 合规发行 | **阻断** | F5 Secret Vault 或等价的跨平台静态保护、备份、迁移与降级语义完成 |
-| 显式实验/开发版本 | **可继续，但必须披露** | destructive endpoint 门控；不宣传 crash-safe、自动恢复或 encrypted-at-rest |
+| 发布范围                             | 裁决                   | 必须满足                                                                                     |
+| ------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------- |
+| 当前架构方向                         | **保留**               | Effect、SQLite、EventV2、Session V2 durable admission、Location-scoped Runner 的边界继续演进 |
+| Custom/V2 面向普通用户               | **阻断**               | F1 生命周期全绿；sidecar-dead 可恢复；关键 fault injection 有证据                            |
+| `AIGCFROGE_V2_RUNTIME=true` 默认开启 | **阻断**               | F1–F4 关闭；逐端点 contract matrix 与 owner identity 通过                                    |
+| 企业 / 合规发行                      | **阻断**               | F5 Secret Vault 或等价的跨平台静态保护、备份、迁移与降级语义完成                             |
+| 显式实验/开发版本                    | **可继续，但必须披露** | destructive endpoint 门控；不宣传 crash-safe、自动恢复或 encrypted-at-rest                   |
 
 ---
 
@@ -251,13 +251,13 @@ setTitle：当前投影为 renamed，EventV2 只有 created，重放后回到 fi
 
 ## 4. 共享根因收敛
 
-| 根因 | 关联问题 | 共同前提 | 一击必杀的治理动作 |
-| --- | --- | --- | --- |
-| **R1 · 生命周期 owner 不唯一** | F1 | `SessionTable`、EventV2、Projector 与 parent/child 可被不同入口独立修改 | 统一 lifecycle command；禁止调用面直写 projection/event 表；补重放等价测试 |
-| **R2 · 执行身份不持久** | F2 | durable inbox 已有，但 drain、sidecar、job、status 主要 process-local | 先做 `server-dead` + `recovery_required` 人工恢复边界，再按副作用建设 attempt/lease/fencing |
-| **R3 · 迁移期存在多套真理** | F3、F4、F7 | V1/V2 API、AppLayer/LayerNode、文档/代码同时重复表达系统 | endpoint matrix + 单 composition root + executable inventory |
-| **R4 · 秘密 custody 分裂** | F5 | 三个材料 owner；opaque ref 只解决引用隔离 | 先分级安全目标，再做跨平台 Vault 迁移 |
-| **R5 · 编排面持续吸收职责** | F6 | 功能增长速度超过边界提纯速度 | 复用已有服务，删除/归并优先；不先造 TurnMiddleware |
+| 根因                           | 关联问题   | 共同前提                                                                | 一击必杀的治理动作                                                                          |
+| ------------------------------ | ---------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **R1 · 生命周期 owner 不唯一** | F1         | `SessionTable`、EventV2、Projector 与 parent/child 可被不同入口独立修改 | 统一 lifecycle command；禁止调用面直写 projection/event 表；补重放等价测试                  |
+| **R2 · 执行身份不持久**        | F2         | durable inbox 已有，但 drain、sidecar、job、status 主要 process-local   | 先做 `server-dead` + `recovery_required` 人工恢复边界，再按副作用建设 attempt/lease/fencing |
+| **R3 · 迁移期存在多套真理**    | F3、F4、F7 | V1/V2 API、AppLayer/LayerNode、文档/代码同时重复表达系统                | endpoint matrix + 单 composition root + executable inventory                                |
+| **R4 · 秘密 custody 分裂**     | F5         | 三个材料 owner；opaque ref 只解决引用隔离                               | 先分级安全目标，再做跨平台 Vault 迁移                                                       |
+| **R5 · 编排面持续吸收职责**    | F6         | 功能增长速度超过边界提纯速度                                            | 复用已有服务，删除/归并优先；不先造 TurnMiddleware                                          |
 
 最关键的架构判断：**Event sourcing 本身不是问题，绕开唯一 command owner 才是问题；SQLite 本身也不是问题，没有 durable execution identity 才让崩溃后的“该不该重试”无法回答。**
 
@@ -267,19 +267,19 @@ setTitle：当前投影为 renamed，EventV2 只有 created，重放后回到 fi
 
 迁移矩阵是 Slice 4 的唯一准入材料。以下是当前观察到的初始版本，实施时必须逐端点补齐真实 schema、测试和删除日期。
 
-| 端点/能力 | 当前观察 | 目标 canonical owner | 兼容策略 | 默认切换门槛 |
-| --- | --- | --- | --- | --- |
-| `create` | 当前仍走 V1 | Session V2 admission / canonical SDK | server edge adapter；保持客户端可解释的返回 shape | create、event、projection、replay 等价 |
-| `messages` | 当前仍走 V1 | Session history / V2 read model | 读路径兼容；不让领域服务理解 V1 HTTP shape | 历史选择、权限与分页契约一致 |
-| `prompt` | 当前仍走 V1 | `SessionV2.prompt(...)` durable admission | V1 edge 适配到 V2 输入契约，或保留明确实验标识 | prompt ID 重试、delivery mode、resume 语义全绿 |
-| `prompt_async` | 部分采用 V2 durable admission | V2 admission + advisory wake | 保留 edge compatibility，明确 `resume:false` admit-only | exact retry 与 Session/Prompt/delivery 匹配校验通过 |
-| `command` | 当前仍走 V1 | V2 Session input / command owner | 按命令类型逐批迁移 | 命令输入、权限、取消和恢复契约一致 |
-| `shell` | 当前仍走 V1 | Location-scoped execution + V2 status | 高风险副作用保留显式 gate | side effect 与 settlement 的恢复策略可证 |
-| `delete` / `deleteMessage` | V2 破坏性路径已复现问题 | 唯一 lifecycle owner | 在 Slice 0/1 前禁用或门控 | purge/tombstone、递归 child、event/replay 全绿 |
-| `setTitle` / rename | 目前投影可变但 EventV2 不完整 | lifecycle mutation command | 兼容旧读；写入只能进入事件化 owner | 当前读与 replay 标题一致 |
-| `fork` | 按 mode/flag 分流 | V2 Session lifecycle/fork owner | edge adapter；明确 parent/child 与 snapshot 关系 | parent/child、权限、事件和重放一致 |
-| `permission` | 按 mode/flag 分流 | Permission/Approval canonical owner | 保持 scope/expiry/revocation 的明确语义 | 不把 Project `always` 改名为 Session grant |
-| `summary` | 按 mode/flag 分流 | Session history/context owner | 兼容已存在摘要 shape | reload history 与 durable continuation 一致 |
+| 端点/能力                  | 当前观察                      | 目标 canonical owner                      | 兼容策略                                                | 默认切换门槛                                        |
+| -------------------------- | ----------------------------- | ----------------------------------------- | ------------------------------------------------------- | --------------------------------------------------- |
+| `create`                   | 当前仍走 V1                   | Session V2 admission / canonical SDK      | server edge adapter；保持客户端可解释的返回 shape       | create、event、projection、replay 等价              |
+| `messages`                 | 当前仍走 V1                   | Session history / V2 read model           | 读路径兼容；不让领域服务理解 V1 HTTP shape              | 历史选择、权限与分页契约一致                        |
+| `prompt`                   | 当前仍走 V1                   | `SessionV2.prompt(...)` durable admission | V1 edge 适配到 V2 输入契约，或保留明确实验标识          | prompt ID 重试、delivery mode、resume 语义全绿      |
+| `prompt_async`             | 部分采用 V2 durable admission | V2 admission + advisory wake              | 保留 edge compatibility，明确 `resume:false` admit-only | exact retry 与 Session/Prompt/delivery 匹配校验通过 |
+| `command`                  | 当前仍走 V1                   | V2 Session input / command owner          | 按命令类型逐批迁移                                      | 命令输入、权限、取消和恢复契约一致                  |
+| `shell`                    | 当前仍走 V1                   | Location-scoped execution + V2 status     | 高风险副作用保留显式 gate                               | side effect 与 settlement 的恢复策略可证            |
+| `delete` / `deleteMessage` | V2 破坏性路径已复现问题       | 唯一 lifecycle owner                      | 在 Slice 0/1 前禁用或门控                               | purge/tombstone、递归 child、event/replay 全绿      |
+| `setTitle` / rename        | 目前投影可变但 EventV2 不完整 | lifecycle mutation command                | 兼容旧读；写入只能进入事件化 owner                      | 当前读与 replay 标题一致                            |
+| `fork`                     | 按 mode/flag 分流             | V2 Session lifecycle/fork owner           | edge adapter；明确 parent/child 与 snapshot 关系        | parent/child、权限、事件和重放一致                  |
+| `permission`               | 按 mode/flag 分流             | Permission/Approval canonical owner       | 保持 scope/expiry/revocation 的明确语义                 | 不把 Project `always` 改名为 Session grant          |
+| `summary`                  | 按 mode/flag 分流             | Session history/context owner             | 兼容已存在摘要 shape                                    | reload history 与 durable continuation 一致         |
 
 ### 5.1 矩阵必填字段
 
@@ -309,14 +309,14 @@ removal date for legacy path
 
 第一阶段的目标不是让所有任务自动重跑，而是让系统在不确定时**明确告诉用户发生了什么**：sidecar 是否死亡、哪些输入已 durable admission、哪个 provider turn 可能已发出请求、哪些外部副作用无法证明未发生。
 
-| 工作类别 | 崩溃后的最小策略 | 是否允许无确认自动重试 |
-| --- | --- | --- |
-| durable `session_input` 已提交但尚未 drain | 启动 sweep 后安全继续 drain；按 prompt ID 去重 | 允许，前提是 admission/idempotency 已证实 |
-| provider 请求尚未发出且有可靠边界证据 | 继续 provider turn | 仅在边界证据可靠时允许 |
-| provider 请求可能已发出但结果未 settlement | 标记 `recovery_required`，展示不确定性与下一步 | 不允许盲重试 |
-| 只读工具且执行边界可证 | 依据工具契约恢复 | 需要工具级幂等证据 |
-| 文件写入、shell、MCP、Plugin 等外部副作用 | 记录未知副作用，保留诊断、影响范围与人工确认动作 | 默认不允许 |
-| sidecar 进程死亡 | UI 显示 `server-dead`；安全重启；启动 sweep；恢复可安全工作的输入 | 不以“重启成功”代替任务恢复证明 |
+| 工作类别                                   | 崩溃后的最小策略                                                  | 是否允许无确认自动重试                    |
+| ------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------- |
+| durable `session_input` 已提交但尚未 drain | 启动 sweep 后安全继续 drain；按 prompt ID 去重                    | 允许，前提是 admission/idempotency 已证实 |
+| provider 请求尚未发出且有可靠边界证据      | 继续 provider turn                                                | 仅在边界证据可靠时允许                    |
+| provider 请求可能已发出但结果未 settlement | 标记 `recovery_required`，展示不确定性与下一步                    | 不允许盲重试                              |
+| 只读工具且执行边界可证                     | 依据工具契约恢复                                                  | 需要工具级幂等证据                        |
+| 文件写入、shell、MCP、Plugin 等外部副作用  | 记录未知副作用，保留诊断、影响范围与人工确认动作                  | 默认不允许                                |
+| sidecar 进程死亡                           | UI 显示 `server-dead`；安全重启；启动 sweep；恢复可安全工作的输入 | 不以“重启成功”代替任务恢复证明            |
 
 ### 6.2 健壮恢复目标
 
@@ -337,15 +337,15 @@ removal date for legacy path
 
 估算是架构复审层面的相对量级，不是承诺；每个 Slice 进入开发前仍需按仓库协议建立短分支、ADR/契约和受影响包验证。
 
-| Slice | DRI（建议） | 范围 | 依赖 | 估算 | 退出条件 | 发布影响 |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Slice 0 · 红线止血** | Core Session + App API + Product/Release | 禁用/门控 V2 delete、deleteMessage、rename；修正文档中的错误“已完成”声明 | 无 | 0.5–1 天 | 破坏性路径不再继续制造不可重放状态 | 立即阻断默认 flip |
-| **Slice 1 · Lifecycle 一击必杀** | Core Session/Event/DB + QA | 确定 purge/tombstone；统一 parent/child、event、projection 删除；title/message mutation 事件化；补 replay probe | Slice 0 | 3–5 天 | create→rename→delete/recreate→replay 等价；孤儿数为 0 | F1 关闭前不发布 V2 destructive endpoints |
-| **Slice 2 · Recovery 边界** | Desktop + Core Execution + App UI | `server-dead` UI、startup sweep、unknown side effect 分类；只恢复安全工作 | Slice 1 的状态命名可并行 | 4–7 天 | 强杀 sidecar 后无静默挂起；不盲重跑 shell/file/MCP | 阻断生产级长任务承诺 |
-| **Slice 3 · Composition identity** | Architecture + App Runtime + Core | 为 Database/EventV2/SessionExecution/TaskDriver/ApprovalPresence 加 identity probe；确定唯一 root；移除生产 busy seam | Slice 0；可与 Slice 2 并行 | 3–5 天 | 三条 API surface 共享正确 owner；测试可正规注入 | 阻断多 listener、远程 placement 与 default flip |
-| **Slice 4 · V2 retirement matrix** | App API + SDK + Core + QA | 逐端点记录 owner/schema/adapter/gate；App 改为一个 canonical SDK；删除已完成 shim | F1/F2/F3/F4 | 按端点分批 | flag 切换不改变 wire shape 或数据源语义；legacy 可按端点删除 | 阻断默认 runtime flip |
-| **Slice 5 · Runner 提纯** | Core Session Runner | 抽取 snapshot、settlement、turn assembly、promotion、shell drain 边界；不改行为 | Slice 2–4 的状态/契约稳定 | 3–6 天 | `llm.ts` 缩小；关键不变量测试不降；无新通用框架 | 不阻断当前实验发布；阻断继续堆大职责 |
-| **Slice 6 · Secret Vault 决策** | Security + Product + Core Credential + Desktop | 产品安全等级、OS 后端、迁移/回滚/丢失恢复 ADR | ADR-21 与产品安全分级 | 专项 | 企业版达到 encrypted-at-rest；本地版降级语义明确 | 企业/合规版阻断 |
+| Slice                              | DRI（建议）                                    | 范围                                                                                                                  | 依赖                       | 估算       | 退出条件                                                     | 发布影响                                        |
+| ---------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------- | ---------- | ------------------------------------------------------------ | ----------------------------------------------- |
+| **Slice 0 · 红线止血**             | Core Session + App API + Product/Release       | 禁用/门控 V2 delete、deleteMessage、rename；修正文档中的错误“已完成”声明                                              | 无                         | 0.5–1 天   | 破坏性路径不再继续制造不可重放状态                           | 立即阻断默认 flip                               |
+| **Slice 1 · Lifecycle 一击必杀**   | Core Session/Event/DB + QA                     | 确定 purge/tombstone；统一 parent/child、event、projection 删除；title/message mutation 事件化；补 replay probe       | Slice 0                    | 3–5 天     | create→rename→delete/recreate→replay 等价；孤儿数为 0        | F1 关闭前不发布 V2 destructive endpoints        |
+| **Slice 2 · Recovery 边界**        | Desktop + Core Execution + App UI              | `server-dead` UI、startup sweep、unknown side effect 分类；只恢复安全工作                                             | Slice 1 的状态命名可并行   | 4–7 天     | 强杀 sidecar 后无静默挂起；不盲重跑 shell/file/MCP           | 阻断生产级长任务承诺                            |
+| **Slice 3 · Composition identity** | Architecture + App Runtime + Core              | 为 Database/EventV2/SessionExecution/TaskDriver/ApprovalPresence 加 identity probe；确定唯一 root；移除生产 busy seam | Slice 0；可与 Slice 2 并行 | 3–5 天     | 三条 API surface 共享正确 owner；测试可正规注入              | 阻断多 listener、远程 placement 与 default flip |
+| **Slice 4 · V2 retirement matrix** | App API + SDK + Core + QA                      | 逐端点记录 owner/schema/adapter/gate；App 改为一个 canonical SDK；删除已完成 shim                                     | F1/F2/F3/F4                | 按端点分批 | flag 切换不改变 wire shape 或数据源语义；legacy 可按端点删除 | 阻断默认 runtime flip                           |
+| **Slice 5 · Runner 提纯**          | Core Session Runner                            | 抽取 snapshot、settlement、turn assembly、promotion、shell drain 边界；不改行为                                       | Slice 2–4 的状态/契约稳定  | 3–6 天     | `llm.ts` 缩小；关键不变量测试不降；无新通用框架              | 不阻断当前实验发布；阻断继续堆大职责            |
+| **Slice 6 · Secret Vault 决策**    | Security + Product + Core Credential + Desktop | 产品安全等级、OS 后端、迁移/回滚/丢失恢复 ADR                                                                         | ADR-21 与产品安全分级      | 专项       | 企业版达到 encrypted-at-rest；本地版降级语义明确             | 企业/合规版阻断                                 |
 
 ### 7.1 推荐执行顺序
 
@@ -405,28 +405,28 @@ Slice 2 与 Slice 3 可以在 Slice 1 完成明确的状态命名后并行，但
 
 ## 9. 被否决或尚未成立的方案
 
-| 命题 | 当前裁决 | 原因与正确替代 |
-| --- | --- | --- |
-| SQLite 已构成严重锁瓶颈 | **当前不能成立** | 已有 WAL、NORMAL、`busy_timeout=5000`、64MB cache 与单连接 Semaphore；先做 1/4/16 Session 基准，不凭感觉换数据库 |
-| Event + Projection 必然导致双重真理 | **已收窄** | 正常 durable publish 会把 projector、commit hook、sequence、event 放在同一事务；根因是绕过 publish 的 mutation |
-| 当前一定存在重复 Database 实例 | **较高风险，未证实** | 装配图重叠且历史上发生过，但 Layer identity/memoMap 可能共享；先做 runtime identity probe |
-| ProductMode 污染 Core，应删除 | **否决** | ProductMode 是已接受的一等领域分类；保留 durable classification，约束散落路由判断，把 execution routing 收敛到 policy owner |
-| 必须新增 TurnMiddleware | **否决** | 已有 SessionCompaction、DoomLoop、Verifier、ReferenceChecker、ToolRegistry 等 collaborator；先提纯和复用，重复扩展点出现后再评估 |
-| 所有 sidecar 崩溃工作都应自动重试 | **危险** | Provider、文件、shell、MCP、Plugin 的幂等性不同；安全输入可继续 drain，未知副作用进入 `recovery_required`，高风险动作需要用户确认 |
+| 命题                                | 当前裁决             | 原因与正确替代                                                                                                                    |
+| ----------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| SQLite 已构成严重锁瓶颈             | **当前不能成立**     | 已有 WAL、NORMAL、`busy_timeout=5000`、64MB cache 与单连接 Semaphore；先做 1/4/16 Session 基准，不凭感觉换数据库                  |
+| Event + Projection 必然导致双重真理 | **已收窄**           | 正常 durable publish 会把 projector、commit hook、sequence、event 放在同一事务；根因是绕过 publish 的 mutation                    |
+| 当前一定存在重复 Database 实例      | **较高风险，未证实** | 装配图重叠且历史上发生过，但 Layer identity/memoMap 可能共享；先做 runtime identity probe                                         |
+| ProductMode 污染 Core，应删除       | **否决**             | ProductMode 是已接受的一等领域分类；保留 durable classification，约束散落路由判断，把 execution routing 收敛到 policy owner       |
+| 必须新增 TurnMiddleware             | **否决**             | 已有 SessionCompaction、DoomLoop、Verifier、ReferenceChecker、ToolRegistry 等 collaborator；先提纯和复用，重复扩展点出现后再评估  |
+| 所有 sidecar 崩溃工作都应自动重试   | **危险**             | Provider、文件、shell、MCP、Plugin 的幂等性不同；安全输入可继续 drain，未知副作用进入 `recovery_required`，高风险动作需要用户确认 |
 
 ---
 
 ## 10. 发布门禁
 
-| 门禁 | 验证场景 | 通过标准 | 级别 |
-| --- | --- | --- | --- |
-| 数据一致性 | `create → rename → message delete → session delete → ID reuse → replay` | 投影与事件等价；无 partial replay；无 orphan `parent_id` | **阻断** |
-| 崩溃恢复 | provider 前/中/后、`Tool.Called` 后、side effect 后、settlement 前强杀 | 不重复未知副作用；出现可解释 `recovery_required` | **生产级 V2 阻断** |
-| Composition | Database/EventV2/SessionExecution/TaskDriver/ApprovalPresence identity | 所有 API surface 使用正确的同一 process owner；Location 服务不跨域泄漏 | **阻断 flag flip** |
-| API 迁移 | 逐端点 contract matrix + generated SDK parity | 同一路由只有一个 canonical shape；legacy adapter 可删除 | **阻断 flag flip** |
-| 安全 | Linux/macOS mode、Windows ACL、备份/导出、日志扫描 | 安全等级与降级行为有证据；企业版静态保护满足目标 | **企业版阻断** |
-| 性能 | 1/4/16 Session、事件重放、大历史 | 用 p95/p99、busy 错误、checkpoint 时长与错误率决定 SQLite 是否需要后续动作 | 非阻断，先测 |
-| 工程 | 受影响包 typecheck/test/lint；不从根目录运行 test；git diff/format | 协议门禁全绿；无无关 diff；测试验证实际实现 | **阻断** |
+| 门禁        | 验证场景                                                                | 通过标准                                                                   | 级别               |
+| ----------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------ |
+| 数据一致性  | `create → rename → message delete → session delete → ID reuse → replay` | 投影与事件等价；无 partial replay；无 orphan `parent_id`                   | **阻断**           |
+| 崩溃恢复    | provider 前/中/后、`Tool.Called` 后、side effect 后、settlement 前强杀  | 不重复未知副作用；出现可解释 `recovery_required`                           | **生产级 V2 阻断** |
+| Composition | Database/EventV2/SessionExecution/TaskDriver/ApprovalPresence identity  | 所有 API surface 使用正确的同一 process owner；Location 服务不跨域泄漏     | **阻断 flag flip** |
+| API 迁移    | 逐端点 contract matrix + generated SDK parity                           | 同一路由只有一个 canonical shape；legacy adapter 可删除                    | **阻断 flag flip** |
+| 安全        | Linux/macOS mode、Windows ACL、备份/导出、日志扫描                      | 安全等级与降级行为有证据；企业版静态保护满足目标                           | **企业版阻断**     |
+| 性能        | 1/4/16 Session、事件重放、大历史                                        | 用 p95/p99、busy 错误、checkpoint 时长与错误率决定 SQLite 是否需要后续动作 | 非阻断，先测       |
+| 工程        | 受影响包 typecheck/test/lint；不从根目录运行 test；git diff/format      | 协议门禁全绿；无无关 diff；测试验证实际实现                                | **阻断**           |
 
 ### 10.1 运行时故障注入矩阵
 
@@ -449,13 +449,13 @@ Slice 2 与 Slice 3 可以在 Slice 1 完成明确的状态命名后并行，但
 
 ### 11.1 建议新增或更新的 ADR
 
-| ADR | 主题 | 进入条件 |
-| --- | --- | --- |
-| 建议 ADR：Session lifecycle semantics | purge vs tombstone、父子递归、ID 复用、事件与投影等价 | Slice 0/1 开始前 |
-| 建议 ADR：Execution crash recovery | attempt、lease/fencing、recovery_required、外部副作用与 at-least-once | Slice 2 需要生产级恢复承诺时 |
-| 建议 ADR：Composition scopes | process/location/session scope、唯一 composition root、runtime identity | Slice 3 前 |
-| 建议 ADR：Secret Vault | OS 后端、跨平台降级、迁移、回滚、备份与丢失恢复 | Slice 6 前 |
-| 更新 V2 retirement plan | 逐端点迁移、generated SDK parity、legacy 删除日期 | Slice 4 前 |
+| ADR                                   | 主题                                                                    | 进入条件                     |
+| ------------------------------------- | ----------------------------------------------------------------------- | ---------------------------- |
+| 建议 ADR：Session lifecycle semantics | purge vs tombstone、父子递归、ID 复用、事件与投影等价                   | Slice 0/1 开始前             |
+| 建议 ADR：Execution crash recovery    | attempt、lease/fencing、recovery_required、外部副作用与 at-least-once   | Slice 2 需要生产级恢复承诺时 |
+| 建议 ADR：Composition scopes          | process/location/session scope、唯一 composition root、runtime identity | Slice 3 前                   |
+| 建议 ADR：Secret Vault                | OS 后端、跨平台降级、迁移、回滚、备份与丢失恢复                         | Slice 6 前                   |
+| 更新 V2 retirement plan               | 逐端点迁移、generated SDK parity、legacy 删除日期                       | Slice 4 前                   |
 
 编号由项目维护者按现有 ADR 序列确定，不在路线图中预先占用正式编号。
 

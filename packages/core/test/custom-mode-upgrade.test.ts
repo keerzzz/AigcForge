@@ -136,7 +136,6 @@ const it = testEffect(
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
 
 describe("Custom Mode Upgrade", () => {
-
   it.effect("freezes the new composition into a fresh session and leaves the source untouched", () =>
     Effect.gen(function* () {
       nextFreezeDigest = mockDigest

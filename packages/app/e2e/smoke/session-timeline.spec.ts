@@ -5,6 +5,8 @@ import { trackPageErrors, expectNoSmokeErrors } from "../utils/errors"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { APP_READY_TIMEOUT, expectAppVisible, expectSessionTitle } from "../utils/waits"
 
+const messages: Record<string, (typeof fixture.messages)[keyof typeof fixture.messages]> = fixture.messages
+
 const forbiddenText = ["Load details", "Show earlier steps"]
 
 type SmokeState = {
@@ -145,7 +147,7 @@ test.describe("smoke: session timeline", () => {
     await expectSessionTitle(page, fixture.expected.targetTitle)
     await switchTitlebarSession(page, fixture.sourceID, fixture.expected.sourceTitle)
 
-    const destination = fixture.messages[fixture.targetID].map((message) => message.info.id)
+    const destination = messages[fixture.targetID].map((message) => message.info.id)
     const last = fixture.expected.targetMessageIDs.at(-1)!
     await page.evaluate(
       ({ destination, last }) => {
@@ -186,7 +188,11 @@ test.describe("smoke: session timeline", () => {
               const bottom = root
                 .querySelector<HTMLElement>('[data-timeline-row="bottom-spacer"]')
                 ?.getBoundingClientRect()
-              samples.push({ ids: visible, last: visible.includes(last), bottomError: bottom?.bottom - view.bottom })
+              samples.push({
+                ids: visible,
+                last: visible.includes(last),
+                bottomError: bottom ? bottom.bottom - view.bottom : undefined,
+              })
               if (!firstPaint && visible.includes(last) && Math.abs((bottom?.bottom ?? Infinity) - view.bottom) <= 1) {
                 firstPaint = true
                 root.querySelectorAll<HTMLElement>("[data-timeline-key]").forEach((row) => {
@@ -269,7 +275,7 @@ test.describe("smoke: session timeline", () => {
     await page.goto(`/${base64Encode(fixture.directory)}/session/${fixture.sourceID}`)
     await expectSessionTitle(page, fixture.expected.sourceTitle)
     const last = fixture.expected.targetMessageIDs.at(-1)!
-    const destination = fixture.messages[fixture.targetID].map((message) => message.info.id)
+    const destination = messages[fixture.targetID].map((message) => message.info.id)
     await page.evaluate(
       ({ destination, last }) => {
         const ids = new Set(destination)

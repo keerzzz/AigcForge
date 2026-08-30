@@ -6,17 +6,17 @@
 
 ## 1. 改动清单（执行方交付）
 
-| 文件 | 摘要 |
-|---|---|
-| `packages/core/src/tool/cli-adapter.ts` | `CliAdapter` 扩 `transport?: "jsonl"\|"sdk"\|"acp"`（默认 jsonl，向后兼容）+ 可选 `execute(input)` SDK/ACP 路径 + `SdkPermissionRequest/Handler` 类型 |
-| `packages/core/src/config/cli-agent.ts` | config schema 增 `transport` 字段（jsonl/sdk/acp） |
-| `packages/core/src/tool/claude-code-sdk.ts`（新建） | `makeClaudeCodeSdkAdapter(sdk)`：注入式 SDK seam；`query()` 流式 → DelegationResult；canUseTool → allow/deny 桥；resumeId → `options.resume` |
-| `packages/core/src/tool/codex-sdk.ts`（新建） | `makeCodexSdkAdapter(sdk)`：`startThread`/`resumeThread` → `run()` → finalResponse；`approvalPolicy: "never"` auto-deny |
-| `packages/core/src/session/task-driver-fill.ts` | 注册两个 SDK 适配器（同名覆盖 jsonl 成默认）；`transport==="sdk" && execute` 走 SDK 路径，否则走 `executeWithTimeout` |
-| `packages/aigcfroge/src/agent/meta/adapters/registry.ts` | BUILT_INS 增加两个 SDK 适配器（同一 core cell，无第二 registry） |
-| `packages/core/package.json` + `bun.lock` | `@anthropic-ai/claude-agent-sdk@0.3.220`、`@openai/codex-sdk@0.146.0` |
-| `packages/core/test/cli-sdk-adapters.test.ts`（新建） | 6 用例：流式→DelegationResult、is_error→failed、resumeId 传递、canUseTool 桥、codex run/resumeThread |
-| `packages/core/test/config/cli-agent.test.ts` | +transport schema 用例 |
+| 文件                                                     | 摘要                                                                                                                                                  |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/tool/cli-adapter.ts`                  | `CliAdapter` 扩 `transport?: "jsonl"\|"sdk"\|"acp"`（默认 jsonl，向后兼容）+ 可选 `execute(input)` SDK/ACP 路径 + `SdkPermissionRequest/Handler` 类型 |
+| `packages/core/src/config/cli-agent.ts`                  | config schema 增 `transport` 字段（jsonl/sdk/acp）                                                                                                    |
+| `packages/core/src/tool/claude-code-sdk.ts`（新建）      | `makeClaudeCodeSdkAdapter(sdk)`：注入式 SDK seam；`query()` 流式 → DelegationResult；canUseTool → allow/deny 桥；resumeId → `options.resume`          |
+| `packages/core/src/tool/codex-sdk.ts`（新建）            | `makeCodexSdkAdapter(sdk)`：`startThread`/`resumeThread` → `run()` → finalResponse；`approvalPolicy: "never"` auto-deny                               |
+| `packages/core/src/session/task-driver-fill.ts`          | 注册两个 SDK 适配器（同名覆盖 jsonl 成默认）；`transport==="sdk" && execute` 走 SDK 路径，否则走 `executeWithTimeout`                                 |
+| `packages/aigcfroge/src/agent/meta/adapters/registry.ts` | BUILT_INS 增加两个 SDK 适配器（同一 core cell，无第二 registry）                                                                                      |
+| `packages/core/package.json` + `bun.lock`                | `@anthropic-ai/claude-agent-sdk@0.3.220`、`@openai/codex-sdk@0.146.0`                                                                                 |
+| `packages/core/test/cli-sdk-adapters.test.ts`（新建）    | 6 用例：流式→DelegationResult、is_error→failed、resumeId 传递、canUseTool 桥、codex run/resumeThread                                                  |
+| `packages/core/test/config/cli-agent.test.ts`            | +transport schema 用例                                                                                                                                |
 
 ## 2. 审批方修复（4 项，均已验证）
 

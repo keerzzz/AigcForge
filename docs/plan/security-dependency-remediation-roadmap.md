@@ -8,14 +8,14 @@
 
 ## 上游对照审计结论 (2026-07-28)
 
-| 依赖 | 我们 | 上游 | 判定 |
-|---|---|---|---|
-| js-yaml | ^3.14.0 | **不存在** | 🔴 100% fork 引入 (M7) |
-| dompurify | 3.3.1 | 3.3.1 | 🟡 上游继承, session-ui 为 fork 扩展 |
-| minimatch | 10.0.3 | 10.0.3 | 🟢 完全相同 |
-| nitro | 3.0.1-alpha.1 | 3.0.1-alpha.1 | 🟢 完全相同 |
-| astro | 5.7.13 | 5.7.13 | 🟢 完全相同 |
-| AI SDK 系列 | 3.0.49-82 | 3.0.84-102 | 🔴 **我们落后, 路线图已补** |
+| 依赖        | 我们          | 上游          | 判定                                 |
+| ----------- | ------------- | ------------- | ------------------------------------ |
+| js-yaml     | ^3.14.0       | **不存在**    | 🔴 100% fork 引入 (M7)               |
+| dompurify   | 3.3.1         | 3.3.1         | 🟡 上游继承, session-ui 为 fork 扩展 |
+| minimatch   | 10.0.3        | 10.0.3        | 🟢 完全相同                          |
+| nitro       | 3.0.1-alpha.1 | 3.0.1-alpha.1 | 🟢 完全相同                          |
+| astro       | 5.7.13        | 5.7.13        | 🟢 完全相同                          |
+| AI SDK 系列 | 3.0.49-82     | 3.0.84-102    | 🔴 **我们落后, 路线图已补**          |
 
 无 git 血缘意味着无法 cherry-pick 或 merge 上游提交。所有修复必须在本地实施，但安全升级后应持续监控上游是否也做了同类修复——若是，后续 port 时优先用上游方案替换我们的临时修复。
 
@@ -54,15 +54,15 @@
 
 ### 0.2 攻击面→数据流→Layer→修复对照表
 
-| # | 攻击面 | 数据来源 | 数据流路径 | Layer 边界 | 关键文件 | 漏洞类型 | 批次 |
-|---|---|---|---|---|---|---|---|
-| 1 | 公网 API | HTTP → cors() → Hono | enterprise→Hono→SolidStart | `enterprise/vite.config.ts` Nitro preset | `enterprise/.../[...path].ts:15` | CORS/SSRF | A |
-| 2 | SSR 渲染 | HTTP → Astro SSR → Cloudflare | web→Astro→@astrojs/cloudflare | `web/astro.config.mjs` adapter | `web/astro.config.mjs:16` | Host Header SSRF | B |
-| 3 | XSS 注入 | LLM→marked.parse→DOMPurify→DOM | session-ui→app | `Layer.provide(ui)` 在 app 侧 | `markdown-cache.tsx:37` | XSS/配置污染 | A |
-| 4 | YAML DoS | LLM提议+文件→yaml.load | core→aigcfroge→server | `ProposePluginAsset.layer` | `propose-plugin-asset.ts:116` | 代码执行 | C |
-| 5 | Tarball DoS | npm注册表→Arborist→tar | core→aigcfroge | `Npm.defaultLayer` | `npm.ts:82-100` | DoS | A |
-| 6 | XML DoS | AWS响应→fast-xml-parser | core→aigcfroge | `Provider.defaultLayer` | `@aws-sdk/credential-providers` | DoS | C |
-| 7 | Glob ReDoS | 用户输入→minimatch | core→aigcfroge→tui | `FSUtil.glob` | `glob.ts:32` | ReDoS | A |
+| #   | 攻击面      | 数据来源                       | 数据流路径                    | Layer 边界                               | 关键文件                         | 漏洞类型         | 批次 |
+| --- | ----------- | ------------------------------ | ----------------------------- | ---------------------------------------- | -------------------------------- | ---------------- | ---- |
+| 1   | 公网 API    | HTTP → cors() → Hono           | enterprise→Hono→SolidStart    | `enterprise/vite.config.ts` Nitro preset | `enterprise/.../[...path].ts:15` | CORS/SSRF        | A    |
+| 2   | SSR 渲染    | HTTP → Astro SSR → Cloudflare  | web→Astro→@astrojs/cloudflare | `web/astro.config.mjs` adapter           | `web/astro.config.mjs:16`        | Host Header SSRF | B    |
+| 3   | XSS 注入    | LLM→marked.parse→DOMPurify→DOM | session-ui→app                | `Layer.provide(ui)` 在 app 侧            | `markdown-cache.tsx:37`          | XSS/配置污染     | A    |
+| 4   | YAML DoS    | LLM提议+文件→yaml.load         | core→aigcfroge→server         | `ProposePluginAsset.layer`               | `propose-plugin-asset.ts:116`    | 代码执行         | C    |
+| 5   | Tarball DoS | npm注册表→Arborist→tar         | core→aigcfroge                | `Npm.defaultLayer`                       | `npm.ts:82-100`                  | DoS              | A    |
+| 6   | XML DoS     | AWS响应→fast-xml-parser        | core→aigcfroge                | `Provider.defaultLayer`                  | `@aws-sdk/credential-providers`  | DoS              | C    |
+| 7   | Glob ReDoS  | 用户输入→minimatch             | core→aigcfroge→tui            | `FSUtil.glob`                            | `glob.ts:32`                     | ReDoS            | A    |
 
 ### 0.3 上下游 5 层递进示例（DOMPurify）
 
@@ -113,6 +113,7 @@ L1 来源层  LLM输出(propose_*_asset工具参数content字段)
 > 修复项: A1 js-yaml → A2 tar → A3 DOMPurify → A4 Hono/Nitro → A5 minimatch → A6 AI SDK 同步
 >
 > **执行偏差记录**:
+>
 > - A2 tar 实际升至 **7.5.22**（roadmap 编写后出现新 critical advisory GHSA-23hp-3jrh-7fpw，影响 ≤7.5.18）
 > - A3 dompurify **锁定 3.4.6**：≥3.4.7 与 happy-dom 探针环境不兼容（实证 `<p>`/`<a>` 误剥、`<foreignObject>` 误放），残留 2 moderate 利用前提（IN_PLACE/setConfig/hook 污染）与本仓静态配置用法不匹配，已登记 CLAUDE.md 已知技术负债（到期 2026-08-27）
 > - A4 hono 实际 **4.12.32** 并新增 `"hono": "catalog:"` override 消除传递依赖旧副本；CORS 改为 fail-closed（未配置 `AIGCFROGE_ALLOWED_ORIGINS` 时 `origin: []`）；function Worker 决议**不添加** CORS（内部服务，反射 origin 反而扩大攻击面）
@@ -121,29 +122,31 @@ L1 来源层  LLM输出(propose_*_asset工具参数content字段)
 
 ### A1. js-yaml 3.14.2 → 4.2.0 ⚠️ 最高优先级 — Fork 引入
 
-> 🔴 **100% 自有代码, 无上游补丁可移植。** 上游 opencode 不使用 js-yaml。Chat M7 (plugin-asset / workflow-asset / propose-*-asset) 新增了此依赖和 4 处 `yaml.load()` 调用点。必须本地修复，不可等待上游。
+> 🔴 **100% 自有代码, 无上游补丁可移植。** 上游 opencode 不使用 js-yaml。Chat M7 (plugin-asset / workflow-asset / propose-\*-asset) 新增了此依赖和 4 处 `yaml.load()` 调用点。必须本地修复，不可等待上游。
 
 **严重性**: 4处 `yaml.load()` (非 safeLoad) 直接处理 LLM 输出+用户文件，可被利用实现代码执行。
 
 **调用点审计**:
 
-| 文件 | 行号 | 输入来源 | 数据信任级别 |
-|---|---|---|---|
-| `core/src/tool/propose-plugin-asset.ts` | 116 | `Input.content` — LLM 生成 | **零信任** |
-| `core/src/tool/propose-workflow-asset.ts` | 116 | `Input.content` — LLM 生成 | **零信任** |
-| `core/src/plugin-asset.ts` | 72 | 文件系统 `.plugin.yaml` | 用户控制 |
-| `core/src/workflow-asset.ts` | 70 | 文件系统 `.workflow.yaml` | 用户控制 |
+| 文件                                      | 行号 | 输入来源                   | 数据信任级别 |
+| ----------------------------------------- | ---- | -------------------------- | ------------ |
+| `core/src/tool/propose-plugin-asset.ts`   | 116  | `Input.content` — LLM 生成 | **零信任**   |
+| `core/src/tool/propose-workflow-asset.ts` | 116  | `Input.content` — LLM 生成 | **零信任**   |
+| `core/src/plugin-asset.ts`                | 72   | 文件系统 `.plugin.yaml`    | 用户控制     |
+| `core/src/workflow-asset.ts`              | 70   | 文件系统 `.workflow.yaml`  | 用户控制     |
 
 **Layer 影响追踪**:
+
 ```
 ProposePluginAsset.layer → PluginAsset.defaultLayer → FSUtil.defaultLayer
                                                          → Schema.decodeUnknownSync(Frontmatter)
 ```
+
 yaml.load() 发生在 Schema 验证**之前** — 恶意payload在验证前已经执行。
 
 **TDD 工作流**:
 
-```
+````
 Phase 1: 建立安全回归基线
   □ 创建 core/test/yaml-security.test.ts
   □ 6 个测试探针（在当前 3.14.2 下运行，部分应 FAIL）:
@@ -206,7 +209,7 @@ Phase 4: 验证
 Phase 5: 回退
   □ 若 v4 升级导致现有 YAML 解析失败: overrides js-yaml@3.14.2 + 全局替换 load→safeLoad
   □ v4 迁移可推迟，v3 safeLoad 足以阻断代码执行向量
-```
+````
 
 ```bash
 # 验证命令
@@ -220,6 +223,7 @@ bun --cwd packages/aigcfroge test --timeout 30000 --test-name-pattern="plugin|wo
 ### A2. tar 7.5.16 → 7.5.18
 
 **Layer 追踪**:
+
 ```
 aigcfroge → Npm.defaultLayer → npm.ts → dynamic import("@npmcli/arborist")
                                             → new Arborist({ ignoreScripts: true })
@@ -227,11 +231,15 @@ aigcfroge → Npm.defaultLayer → npm.ts → dynamic import("@npmcli/arborist")
 ```
 
 **关键代码** (`core/src/npm.ts:82-100`):
+
 ```ts
-const { Arborist } = yield* Effect.promise(() => import("@npmcli/arborist"))
+const { Arborist } = yield * Effect.promise(() => import("@npmcli/arborist"))
 const arborist = new Arborist({
-  path: dir, binLinks: true, progress: false,
-  savePrefix: "", ignoreScripts: true,  // ← 阻断安装脚本，不阻断解压DoS
+  path: dir,
+  binLinks: true,
+  progress: false,
+  savePrefix: "",
+  ignoreScripts: true, // ← 阻断安装脚本，不阻断解压DoS
 })
 arborist.reify({ add, save: true, saveType: "prod" })
 ```
@@ -264,6 +272,7 @@ bun --cwd packages/core test --timeout 30000
 ### A3. DOMPurify 3.3.1 → 3.4.6+
 
 **Layer 追踪**:
+
 ```
 app(SolidJS) → session-ui/markdown.tsx → markdown-cache.tsx
                                           → DOMPurify.sanitize(html, config)
@@ -271,6 +280,7 @@ app(SolidJS) → session-ui/markdown.tsx → markdown-cache.tsx
 ```
 
 **当前配置** (`markdown-cache.tsx:12-18`):
+
 ```ts
 const config = {
   USE_PROFILES: { html: true, mathMl: true },
@@ -362,11 +372,11 @@ bun --cwd packages/function build
 
 **决策矩阵**:
 
-| 条件 | 行动 | 时限 |
-|---|---|---|
-| Enterprise 已公开部署 | 迁移到最新 nitro 稳定版 + 验证 SSR | 同批次 A (7/30前) |
-| Enterprise 未公开部署 | 锁定当前 alpha 版本号，记录为已知负债 | 8/4前决策 |
-| 无论何种情况 | 记录负责人 + 到期日期，纳入每周 audit 检查 | 永久 |
+| 条件                  | 行动                                       | 时限              |
+| --------------------- | ------------------------------------------ | ----------------- |
+| Enterprise 已公开部署 | 迁移到最新 nitro 稳定版 + 验证 SSR         | 同批次 A (7/30前) |
+| Enterprise 未公开部署 | 锁定当前 alpha 版本号，记录为已知负债      | 8/4前决策         |
+| 无论何种情况          | 记录负责人 + 到期日期，纳入每周 audit 检查 | 永久              |
 
 **行动**: 在 CLAUDE.md 或项目看板中记录此技术负债，含 owner、到期日、和 reachability rationale。
 
@@ -380,6 +390,7 @@ bun --cwd packages/function build
 ### A5. minimatch 10.0.3 → 10.2.5
 
 **Layer 追踪**:
+
 ```
 core/src/util/glob.ts:32 → minimatch(filepath, pattern, { dot: true })
   ↓ 调用方:
@@ -403,12 +414,12 @@ bun --cwd packages/tui test --timeout 30000
 
 **发现**: 上游 opencode 的 AI SDK 版本已明显领先我们，差距累积将增大后期 port 成本:
 
-| 包 | 我们的版本 | 上游版本 | 差距 |
-|---|---|---|---|
-| `@ai-sdk/openai` | 3.0.53 | 3.0.84 | 31 个补丁版本 |
-| `@ai-sdk/xai` | 3.0.82 | 3.0.102 | 20 个补丁版本 |
-| `@ai-sdk/mistral` | 3.0.27 | 3.0.51 | 24 个补丁版本 |
-| `@ai-sdk/azure` | 3.0.49 | 3.0.88 | 39 个补丁版本 |
+| 包                | 我们的版本 | 上游版本 | 差距          |
+| ----------------- | ---------- | -------- | ------------- |
+| `@ai-sdk/openai`  | 3.0.53     | 3.0.84   | 31 个补丁版本 |
+| `@ai-sdk/xai`     | 3.0.82     | 3.0.102  | 20 个补丁版本 |
+| `@ai-sdk/mistral` | 3.0.27     | 3.0.51   | 24 个补丁版本 |
+| `@ai-sdk/azure`   | 3.0.49     | 3.0.88   | 39 个补丁版本 |
 
 AI SDK 升级通常是低风险的 leaf dependency 变更（不影响 Effect Layer 架构），但 LLM 层本身就是攻击面 (ARCHITECTURE.md §4.9)。上游的升级可能包含安全修复和模型废弃处理。
 
@@ -447,9 +458,10 @@ bun --cwd packages/llm test --timeout 30000
 ### B1. Astro 5.7.13 → 5.15.7+
 
 **当前配置** (`web/astro.config.mjs`):
+
 ```js
 export default defineConfig({
-  output: "server",          // SSR模式，非纯静态
+  output: "server", // SSR模式，非纯静态
   adapter: cloudflare({ imageService: "passthrough" }),
   server: { host: "0.0.0.0" }, // 监听所有接口
 })
@@ -458,6 +470,7 @@ export default defineConfig({
 **Layer**: web 是树外部署单元，无 Effect Layer，仅 Astro 构建链。
 
 **TDD**:
+
 ```
 Phase 1: 升级 astro + @astrojs/cloudflare
 Phase 2: web build → PASS, dev server → 正常, SSR 渲染 → 正常
@@ -511,11 +524,11 @@ stats/server/src/ingest.ts → @aws-sdk/client-firehose
 
 **根因分析（已实证）**: 均非批次 A 引入，分三类：
 
-| 失败用例 | 根因 | 修复方向 | 验证 |
-|---|---|---|---|
-| AssetMigration ×3（imports project-local legacy skills / .claude wins / imports legacy agents） | 测试文件未设置 `AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true`，而实现 `skill-asset.ts:202`/`agent-asset.ts:192` 将迁移 gate 在该 flag 之后；同包 `location-layer.test.ts:6-16` 已有 save/set/restore 范式 | 测试补 flag 设置（照抄 location-layer 范式） | 设置 flag 后 5/5 PASS |
-| LocationServiceMap > isolates location state... | 期望工具清单过时：缺 M7 新增的 `propose_plugin_asset`、`propose_workflow_asset`（diff 精确 +2） | 更新 `location-layer.test.ts:132` 期望清单 | 实际清单仅多这 2 项 |
-| ProjectCopy > requires force to remove a dirty git worktree | 环境 locale 问题：`git.ts:349` 用英文正则 `/contains modified or untracked files|is dirty/i` 解析 git stderr，本机 `LANG=zh_CN.UTF-8` 下 git 2.43 输出中文（"包含修改或未跟踪的文件"）致 `forceRequired=false`；代码层缺陷：git 调用（`git.ts:337`）未固定 `LC_ALL=C` | 代码修复：git spawn 注入 `LC_ALL=C`（优于改测试，根治 locale 依赖） | `LC_ALL=C` 下 PASS |
+| 失败用例                                                                                        | 根因                                                                                                                                                                                                | 修复方向                                                                                                                                                                         | 验证                                                                |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------ |
+| AssetMigration ×3（imports project-local legacy skills / .claude wins / imports legacy agents） | 测试文件未设置 `AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true`，而实现 `skill-asset.ts:202`/`agent-asset.ts:192` 将迁移 gate 在该 flag 之后；同包 `location-layer.test.ts:6-16` 已有 save/set/restore 范式 | 测试补 flag 设置（照抄 location-layer 范式）                                                                                                                                     | 设置 flag 后 5/5 PASS                                               |
+| LocationServiceMap > isolates location state...                                                 | 期望工具清单过时：缺 M7 新增的 `propose_plugin_asset`、`propose_workflow_asset`（diff 精确 +2）                                                                                                     | 更新 `location-layer.test.ts:132` 期望清单                                                                                                                                       | 实际清单仅多这 2 项                                                 |
+| ProjectCopy > requires force to remove a dirty git worktree                                     | 环境 locale 问题：`git.ts:349` 用英文正则 `/contains modified or untracked files                                                                                                                    | is dirty/i`解析 git stderr，本机`LANG=zh_CN.UTF-8`下 git 2.43 输出中文（"包含修改或未跟踪的文件"）致`forceRequired=false`；代码层缺陷：git 调用（`git.ts:337`）未固定 `LC_ALL=C` | 代码修复：git spawn 注入 `LC_ALL=C`（优于改测试，根治 locale 依赖） | `LC_ALL=C` 下 PASS |
 
 另：aigcfroge 包 `tool.write > file permissions > sets file permissions when writing sensitive data` 同为环境性失败（main 基线复现），归入 D1 一并处理。
 
@@ -536,14 +549,14 @@ bun --cwd packages/tui test --timeout 30000   # 目标: ≥182/187（实测总�
 
 ## 批次 E: 常规维护 — 8月11-25日
 
-| 项目 | 优先级 | 处理方式 |
-|---|---|---|
-| Vite 7.1.4 | 中 | dev server漏洞，本地-only风险有限；远程开发时提前 |
-| Turbo 2.8.13→2.9.14+ | 低 | 开发/CI工具 |
-| PostCSS/Sharp | 中 | Web构建链；图片输入可控时提前 |
-| OpenTelemetry/Protobuf | 低 | 资源消耗类 |
-| UUID/Valibot/Diff | 低 | 常规维护 |
-| 48 Prettier基线 | 低 | 独立commit，按包分批避免blame污染 |
+| 项目                   | 优先级 | 处理方式                                          |
+| ---------------------- | ------ | ------------------------------------------------- |
+| Vite 7.1.4             | 中     | dev server漏洞，本地-only风险有限；远程开发时提前 |
+| Turbo 2.8.13→2.9.14+   | 低     | 开发/CI工具                                       |
+| PostCSS/Sharp          | 中     | Web构建链；图片输入可控时提前                     |
+| OpenTelemetry/Protobuf | 低     | 资源消耗类                                        |
+| UUID/Valibot/Diff      | 低     | 常规维护                                          |
+| 48 Prettier基线        | 低     | 独立commit，按包分批避免blame污染                 |
 
 ---
 

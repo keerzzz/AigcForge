@@ -135,7 +135,10 @@ function toolPart(
       ? { files: [patchFile(index, "update"), patchFile(index + 1, index % 2 === 0 ? "add" : "delete")] }
       : tool === "edit" || tool === "write"
         ? {
-            filediff: fileDiff(typeof input.filePath === "string" ? input.filePath : `src/generated/file-${index}.ts`, index),
+            filediff: fileDiff(
+              typeof input.filePath === "string" ? input.filePath : `src/generated/file-${index}.ts`,
+              index,
+            ),
             diff: patch(index, outputLength),
             preview: patch(index + 1, 420),
           }
@@ -270,8 +273,8 @@ const childMessages = Array.from({ length: 4 }, (_, index) => [
 
 function renderable(part: MessagePart) {
   if (part.type === "tool" && part.tool === "todowrite") return false
-  if (part.type === "text") return !!part.text.trim()
-  if (part.type === "reasoning") return !!part.text.trim()
+  if (part.type === "text") return !!part.text?.trim()
+  if (part.type === "reasoning") return !!part.text?.trim()
   return part.type !== "step-start" && part.type !== "step-finish" && part.type !== "patch"
 }
 

@@ -13,7 +13,9 @@ const DESCRIPTION = [
 ].join("\n")
 
 export const Parameters = Schema.Struct({
-  engine: Schema.String.annotate({ description: "Target engine name: build, explore, general, plan, claude-code, gemini" }),
+  engine: Schema.String.annotate({
+    description: "Target engine name: build, explore, general, plan, claude-code, gemini",
+  }),
   task_description: Schema.String.annotate({ description: "Clear description of what the target engine should do" }),
   project: Schema.optional(Schema.String).annotate({ description: "Project root path" }),
   files: Schema.optional(Schema.String).annotate({ description: "Relevant file paths, comma-separated" }),
@@ -39,10 +41,7 @@ export const DelegationProtocolTool = Tool.define(
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (
-        params: Schema.Schema.Type<typeof Parameters>,
-        _ctx: Tool.Context,
-      ) =>
+      execute: (params: Schema.Schema.Type<typeof Parameters>, _ctx: Tool.Context) =>
         Effect.gen(function* () {
           const protocol = MetaContextBuilder.build({
             project: params.project ?? process.cwd(),

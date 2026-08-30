@@ -93,14 +93,11 @@ export const layer = Layer.effectDiscard(
       toModelOutput: ({ output }) => [
         {
           type: "text" as const,
-          text:
-            output.nameConflict
-              ? `A note titled "${output.title}" already exists in scope ${output.scope}. Ask the user whether to update it or choose a different title.`
-              : `Note candidate "${output.title}" is ready for review.` +
-                (output.danglingLinks.length > 0
-                  ? ` Dangling links: ${output.danglingLinks.join(", ")}.`
-                  : "") +
-                " Tell the user to review it; nothing is saved until they confirm.",
+          text: output.nameConflict
+            ? `A note titled "${output.title}" already exists in scope ${output.scope}. Ask the user whether to update it or choose a different title.`
+            : `Note candidate "${output.title}" is ready for review.` +
+              (output.danglingLinks.length > 0 ? ` Dangling links: ${output.danglingLinks.join(", ")}.` : "") +
+              " Tell the user to review it; nothing is saved until they confirm.",
         },
       ],
     })

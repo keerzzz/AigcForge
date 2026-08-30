@@ -76,7 +76,9 @@ describe("CustomProfilePath.validateRelativePath", () => {
   })
 
   test("rejects absolute path", () => {
-    expect(() => CustomProfilePath.validateRelativePath("/etc/test.yaml")).toThrow(CustomProfilePath.PathValidationError)
+    expect(() => CustomProfilePath.validateRelativePath("/etc/test.yaml")).toThrow(
+      CustomProfilePath.PathValidationError,
+    )
   })
 
   test("rejects non-.yaml extension", () => {
@@ -86,7 +88,9 @@ describe("CustomProfilePath.validateRelativePath", () => {
   })
 
   test("rejects path with invalid segments", () => {
-    expect(() => CustomProfilePath.validateRelativePath("../escape.yaml")).toThrow(CustomProfilePath.PathValidationError)
+    expect(() => CustomProfilePath.validateRelativePath("../escape.yaml")).toThrow(
+      CustomProfilePath.PathValidationError,
+    )
     expect(() => CustomProfilePath.validateRelativePath("a/../b.yaml")).toThrow(CustomProfilePath.PathValidationError)
     expect(() => CustomProfilePath.validateRelativePath("a/<bad>.yaml")).toThrow(CustomProfilePath.PathValidationError)
   })

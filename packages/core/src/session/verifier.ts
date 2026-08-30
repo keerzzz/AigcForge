@@ -33,7 +33,11 @@ const settings = (documents: readonly Config.Entry[]) => {
       timeoutMs: current.timeout_ms ?? result.timeoutMs,
       maxConsecutiveFailures: current.max_consecutive_failures ?? result.maxConsecutiveFailures,
     }),
-    { enabled: DEFAULT_ENABLED, timeoutMs: DEFAULT_TIMEOUT_MS, maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES },
+    {
+      enabled: DEFAULT_ENABLED,
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+      maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+    },
   )
 }
 
@@ -115,7 +119,11 @@ export const layer = Layer.effect(
         stdin: "ignore",
       })
       const result = yield* appProcess
-        .run(command, { timeout: Duration.millis(configured.timeoutMs), maxOutputBytes: 512 * 1024, maxErrorBytes: 512 * 1024 })
+        .run(command, {
+          timeout: Duration.millis(configured.timeoutMs),
+          maxOutputBytes: 512 * 1024,
+          maxErrorBytes: 512 * 1024,
+        })
         .pipe(
           Effect.catchTag("AppProcessError", (error) =>
             Effect.succeed({
@@ -129,7 +137,9 @@ export const layer = Layer.effect(
           ),
         )
       const durationMs = Date.now() - startedMillis
-      const output = [result.stdout.toString("utf8"), result.stderr.toString("utf8")].filter((part) => part.length > 0).join("\n")
+      const output = [result.stdout.toString("utf8"), result.stderr.toString("utf8")]
+        .filter((part) => part.length > 0)
+        .join("\n")
       if (result.exitCode === 0) {
         yield* Ref.update(failures, (map) => map.set(input.sessionID, 0))
         yield* router.route({ sessionID: input.sessionID, intent: input.intent, failed: false })

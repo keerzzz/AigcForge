@@ -380,14 +380,14 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       title: language.t("command.session.new"),
       keybind: "mod+shift+s",
       slash: "new",
-        onSelect: () => {
-          if (params.serverKey) {
-            sessionTabs.newDraft({
-              server: requireServerKey(params.serverKey),
-              directory: sdk().directory,
-              mode: mode.currentMode,
-            })
-            return
+      onSelect: () => {
+        if (params.serverKey) {
+          sessionTabs.newDraft({
+            server: requireServerKey(params.serverKey),
+            directory: sdk().directory,
+            mode: mode.currentMode,
+          })
+          return
         }
         navigate(`/${params.dir}/session`)
       },

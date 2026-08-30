@@ -73,7 +73,8 @@ export const defaultConfigLayer = Layer.sync(ConfigService, () =>
       process.env.AIGCFROGE_WEBSEARCH_PROVIDER === "exa" || process.env.AIGCFROGE_WEBSEARCH_PROVIDER === "parallel"
         ? process.env.AIGCFROGE_WEBSEARCH_PROVIDER
         : undefined,
-    enableExa: truthy("AIGCFROGE_EXPERIMENTAL") || truthy("AIGCFROGE_ENABLE_EXA") || truthy("AIGCFROGE_EXPERIMENTAL_EXA"),
+    enableExa:
+      truthy("AIGCFROGE_EXPERIMENTAL") || truthy("AIGCFROGE_ENABLE_EXA") || truthy("AIGCFROGE_EXPERIMENTAL_EXA"),
     enableParallel: truthy("AIGCFROGE_ENABLE_PARALLEL") || truthy("AIGCFROGE_EXPERIMENTAL_PARALLEL"),
     exaApiKey: process.env.EXA_API_KEY,
     parallelApiKey: process.env.PARALLEL_API_KEY,

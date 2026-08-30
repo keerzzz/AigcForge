@@ -120,7 +120,7 @@ test("html candidate renders an iframe with the triple defense and interactive v
   const srcdoc = (await iframe.getAttribute("srcdoc")) ?? ""
   expect(srcdoc).toContain('<meta http-equiv="Content-Security-Policy"')
   expect(srcdoc).toContain("connect-src 'none'")
-  expect(srcdoc).not.toContain('<script src=')
+  expect(srcdoc).not.toContain("<script src=")
 
   // Defense 3: storage polyfill injected so localStorage never throws.
   expect(srcdoc).toContain('Object.defineProperty(window, "localStorage"')

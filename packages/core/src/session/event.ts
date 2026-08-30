@@ -10,7 +10,6 @@ import { Location } from "../location"
 import { SessionMessageID } from "./message-id"
 import { SessionMessage } from "./message"
 
-
 export { FileAttachment }
 
 export const Source = Schema.Struct({
@@ -583,7 +582,15 @@ const DurableDefinitions = [
   Compaction.Started,
   Compaction.Ended,
 ] as const
-const EphemeralDefinitions = [Text.Delta, Tool.Input.Delta, Reasoning.Delta, Compaction.Delta, Compaction.SoftWarning, Compaction.Stuck, Cache.Diagnostic] as const
+const EphemeralDefinitions = [
+  Text.Delta,
+  Tool.Input.Delta,
+  Reasoning.Delta,
+  Compaction.Delta,
+  Compaction.SoftWarning,
+  Compaction.Stuck,
+  Cache.Diagnostic,
+] as const
 
 export const Durable = Schema.Union(DurableDefinitions, { mode: "oneOf" }).pipe(Schema.toTaggedUnion("type"))
 export type DurableEvent = typeof Durable.Type

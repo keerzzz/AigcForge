@@ -20,14 +20,14 @@
 
 ## 2. 机械验证（本审查人独立复跑）
 
-| 检查 | 结果 |
-| --- | --- |
-| 全仓 `bun typecheck` | 15/15 PASS |
-| core 全量 | 1963 pass / 2 skip / 0 fail(242 文件） |
-| app 单元 | PASS（exit 0) |
-| **M0 门禁回归(5 文件 15 用例）** | **14 pass / 1 FAIL** |
-| Phase C/D 新增测试（security 11 + lifecycle 5 + runner 5 + catalog 3) | 24 pass / 0 fail（实跑） |
-| Phase A/B 测试（session-composition 7 + custom-composition-start 8) | 15 pass / 0 fail（实跑） |
+| 检查                                                                  | 结果                                   |
+| --------------------------------------------------------------------- | -------------------------------------- |
+| 全仓 `bun typecheck`                                                  | 15/15 PASS                             |
+| core 全量                                                             | 1963 pass / 2 skip / 0 fail(242 文件） |
+| app 单元                                                              | PASS（exit 0)                          |
+| **M0 门禁回归(5 文件 15 用例）**                                      | **14 pass / 1 FAIL**                   |
+| Phase C/D 新增测试（security 11 + lifecycle 5 + runner 5 + catalog 3) | 24 pass / 0 fail（实跑）               |
+| Phase A/B 测试（session-composition 7 + custom-composition-start 8)   | 15 pass / 0 fail（实跑）               |
 
 分支链拓扑与提交卫生良好（线性、每 Phase 独立提交、未 push 未建 PR——交付纪律确认）。
 

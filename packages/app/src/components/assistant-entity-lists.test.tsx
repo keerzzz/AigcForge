@@ -19,7 +19,7 @@ describe("assistant-entity-lists (shared components, batch 1 G1)", () => {
   test("shared rows keep the dashboard row rendering (count, content, due · timezone, cancel)", () => {
     expect(lists).toContain('language.t("assistant.dashboard.pendingCount"')
     expect(lists).toContain("formatDueAt(reminder.dueAt)")
-    expect(lists).toContain("reminder.timezone ?? \"\"")
+    expect(lists).toContain('reminder.timezone ?? ""')
     expect(lists).toContain("assistant.dashboard.cancelReminder")
     expect(lists).toContain("assistant.dashboard.markRead")
     expect(lists).toContain("assistant.dashboard.caughtUp")
@@ -40,8 +40,8 @@ describe("assistant-entity-lists (shared components, batch 1 G1)", () => {
 
   test("openEntityPanel targets render data-targeted highlights on matching rows", () => {
     expect(lists).toContain("targetId?: string")
-    expect(lists).toContain("data-targeted={reminder.id === props.targetId ? \"\" : undefined}")
-    expect(lists).toContain("data-targeted={memory.id === props.targetId ? \"\" : undefined}")
+    expect(lists).toContain('data-targeted={reminder.id === props.targetId ? "" : undefined}')
+    expect(lists).toContain('data-targeted={memory.id === props.targetId ? "" : undefined}')
   })
 })
 

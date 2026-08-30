@@ -67,9 +67,7 @@ export function SessionFileTabStrip(props: SessionFileTabStripProps) {
           {props.renderLeading()}
           <SessionContextTabTrigger contextOpen={props.contextOpen} onClose={() => props.onClose("context")} />
           <SortableProvider ids={[...props.openedTabs()]}>
-            <For each={props.openedTabs()}>
-              {(tab) => <SortableTab tab={tab} onTabClose={props.onClose} />}
-            </For>
+            <For each={props.openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={props.onClose} />}</For>
           </SortableProvider>
           {props.renderTrailing?.()}
         </TabsV2.List>

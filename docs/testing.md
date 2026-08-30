@@ -16,31 +16,31 @@
 
 ## 1. 测试层级全景
 
-| 层级 | 工具 | 位置 | 说明 |
-|---|---|---|---|
-| 单元测试 | `bun test` | `packages/{core,aigcfroge,schema,llm,ui,session-ui}/**/*.test.ts` | Effect 用 `testEffect()`（见 `packages/core/test/lib/effect.ts`） |
-| App 单元测试 | `bun test` + happydom 探针 | `packages/app/src/**/*.test.tsx` | `--preload ./happydom.ts` |
-| HTTP API 演练 | 自研 `httpapi-exercise.ts` | `packages/aigcfroge/test/server/httpapi-exercise` | 3 种模式（见 §3） |
-| E2E | Playwright | `packages/app/e2e/{regression,smoke}/**/*.spec.ts` | 桌面 + 窄视口 + 明暗 + 三语 |
-| 性能基准 | benchmark.ts + Playwright | `packages/app/e2e/performance/unit` + `playwright.config.ts` | 串行，不设机器相关硬阈值 |
+| 层级          | 工具                       | 位置                                                              | 说明                                                              |
+| ------------- | -------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 单元测试      | `bun test`                 | `packages/{core,aigcfroge,schema,llm,ui,session-ui}/**/*.test.ts` | Effect 用 `testEffect()`（见 `packages/core/test/lib/effect.ts`） |
+| App 单元测试  | `bun test` + happydom 探针 | `packages/app/src/**/*.test.tsx`                                  | `--preload ./happydom.ts`                                         |
+| HTTP API 演练 | 自研 `httpapi-exercise.ts` | `packages/aigcfroge/test/server/httpapi-exercise`                 | 3 种模式（见 §3）                                                 |
+| E2E           | Playwright                 | `packages/app/e2e/{regression,smoke}/**/*.spec.ts`                | 桌面 + 窄视口 + 明暗 + 三语                                       |
+| 性能基准      | benchmark.ts + Playwright  | `packages/app/e2e/performance/unit` + `playwright.config.ts`      | 串行，不设机器相关硬阈值                                          |
 
 ---
 
 ## 2. 包级测试命令
 
-| 包 | 命令 | 备注 |
-|---|---|---|
-| core | `bun --cwd packages/core test --timeout 30000` | 脚本含 `--only-failures` |
-| aigcfroge | `bun --cwd packages/aigcfroge test --timeout 30000` | 脚本含 `--only-failures` |
-| aigcfroge | `bun --cwd packages/aigcfroge test:httpapi` | 独立门禁，见 §3 |
-| app | `bun --cwd packages/app test:unit` | `bun test --only-failures --preload ./happydom.ts ./src` |
-| app | `bun --cwd packages/app test:virtualizer` | `--conditions=browser` solid-virtual |
-| app | `bun --cwd packages/app test:e2e <spec>` | `playwright test`（另有 `:ui` 交互、`:report`） |
-| app | `bun --cwd packages/app test:bench` | `bun test ./e2e/performance/unit && playwright test --config e2e/performance/playwright.config.ts` |
-| schema / llm | `bun --cwd packages/<name> test` | schema 无 timeout 覆盖 |
-| ui / session-ui | `bun --cwd packages/<name> test` | 脚本含 `--only-failures` |
-| effect-drizzle-sqlite | `bun --cwd packages/effect-drizzle-sqlite test --timeout 30000` | vendor 桥接 |
-| desktop / sdk / script / storybook | 无单测 | 靠 typecheck + 其他层覆盖 |
+| 包                                 | 命令                                                            | 备注                                                                                               |
+| ---------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| core                               | `bun --cwd packages/core test --timeout 30000`                  | 脚本含 `--only-failures`                                                                           |
+| aigcfroge                          | `bun --cwd packages/aigcfroge test --timeout 30000`             | 脚本含 `--only-failures`                                                                           |
+| aigcfroge                          | `bun --cwd packages/aigcfroge test:httpapi`                     | 独立门禁，见 §3                                                                                    |
+| app                                | `bun --cwd packages/app test:unit`                              | `bun test --only-failures --preload ./happydom.ts ./src`                                           |
+| app                                | `bun --cwd packages/app test:virtualizer`                       | `--conditions=browser` solid-virtual                                                               |
+| app                                | `bun --cwd packages/app test:e2e <spec>`                        | `playwright test`（另有 `:ui` 交互、`:report`）                                                    |
+| app                                | `bun --cwd packages/app test:bench`                             | `bun test ./e2e/performance/unit && playwright test --config e2e/performance/playwright.config.ts` |
+| schema / llm                       | `bun --cwd packages/<name> test`                                | schema 无 timeout 覆盖                                                                             |
+| ui / session-ui                    | `bun --cwd packages/<name> test`                                | 脚本含 `--only-failures`                                                                           |
+| effect-drizzle-sqlite              | `bun --cwd packages/effect-drizzle-sqlite test --timeout 30000` | vendor 桥接                                                                                        |
+| desktop / sdk / script / storybook | 无单测                                                          | 靠 typecheck + 其他层覆盖                                                                          |
 
 > app 的 `test:unit:watch`：`bun test --watch --preload ./happydom.ts ./src`。
 
@@ -50,11 +50,11 @@
 
 位置：`packages/aigcfroge/test/server/httpapi-exercise/index.ts`，三种模式：
 
-| 模式 | 命令 flag | 门禁性质 |
-|---|---|---|
-| coverage | `--mode coverage --fail-on-missing --fail-on-skip` | **门禁**：路由覆盖缺失即失败 |
-| auth | `--mode auth --fail-on-missing --fail-on-skip` | **门禁**：认证覆盖缺失即失败 |
-| effect | `--mode effect` | **建议性**：main 上有既有 runtime 失败，CI 中 `continue-on-error` |
+| 模式     | 命令 flag                                          | 门禁性质                                                          |
+| -------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| coverage | `--mode coverage --fail-on-missing --fail-on-skip` | **门禁**：路由覆盖缺失即失败                                      |
+| auth     | `--mode auth --fail-on-missing --fail-on-skip`     | **门禁**：认证覆盖缺失即失败                                      |
+| effect   | `--mode effect`                                    | **建议性**：main 上有既有 runtime 失败，CI 中 `continue-on-error` |
 
 CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 
@@ -80,11 +80,11 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 
 ## 6. 三种测试模式（Effect 测试）
 
-| 模式 | 适用 | 能力 |
-|---|---|---|
-| `it.effect` | 纯逻辑 / TestClock / TestConsole | 虚拟时钟、捕获 console |
-| `it.live` | 真实 OS 行为 | 真实文件系统、子进程 |
-| `it.instance` | 集成 | scoped tmpdir + instance，自动清理 |
+| 模式          | 适用                             | 能力                               |
+| ------------- | -------------------------------- | ---------------------------------- |
+| `it.effect`   | 纯逻辑 / TestClock / TestConsole | 虚拟时钟、捕获 console             |
+| `it.live`     | 真实 OS 行为                     | 真实文件系统、子进程               |
+| `it.instance` | 集成                             | scoped tmpdir + instance，自动清理 |
 
 `testEffect(...)` 封装见 `packages/core/test/lib/effect.ts`。夹具 `tmpdir()` 见 `packages/aigcfroge/test/AGENTS.md`（`fixture/fixture.ts`，支持 git 初始化、config 写入、自定义 init/dispose）。
 
@@ -92,15 +92,15 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 
 ## 7. 全仓门禁命令
 
-| 用途 | 命令 |
-|---|---|
-| 全仓类型检查 | `bun typecheck`（= `bun turbo typecheck`） |
-| 全仓单测 | `bun turbo test`（CI 用；本地从包内跑） |
-| 增量 lint | `bun run script/lint-changed.ts`（只查改动文件新增行） |
-| 全量 lint | `bun run lint`（= `oxlint` 全仓 + lint-changed，CI 用） |
-| 协议引用检查 | `bash .aigcfroge/skills/protocols/scripts/check-refs.sh` |
-| 差异检查 | `git diff --check` |
-| App 性能 | `bun --cwd packages/app test:bench` |
+| 用途           | 命令                                                                   |
+| -------------- | ---------------------------------------------------------------------- |
+| 全仓类型检查   | `bun typecheck`（= `bun turbo typecheck`）                             |
+| 全仓单测       | `bun turbo test`（CI 用；本地从包内跑）                                |
+| 增量 lint      | `bun run script/lint-changed.ts`（只查改动文件新增行）                 |
+| 全量 lint      | `bun run lint`（= `oxlint` 全仓 + lint-changed，CI 用）                |
+| 协议引用检查   | `bash .aigcfroge/skills/protocols/scripts/check-refs.sh`               |
+| 差异检查       | `git diff --check`                                                     |
+| App 性能       | `bun --cwd packages/app test:bench`                                    |
 | Storybook 构建 | `bun --cwd packages/storybook build`（收集 app/ui/session-ui stories） |
 
 ### pre-push 钩子
@@ -111,14 +111,14 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 
 ## 8. CI 环节（GitHub Actions）
 
-| Workflow | 触发 | 内容 |
-|---|---|---|
-| `ci.yml` | PR / 分支 | Lint → Typecheck → `bun turbo test` |
-| `test.yml` | PR / dev push | **unit × 2 OS**（linux+windows，40min 上限）+ **e2e × 2 OS** + HttpApi exerciser（coverage/auth 门禁 + effect advisory） |
-| `typecheck.yml` | PR | `bun typecheck` |
-| `storybook.yml` | PR | `bun --cwd packages/storybook build` |
-| `pr-standards.yml` | PR | PR 标题 / 分支命名规范 |
-| `pr-management.yml` 等 | 事件/定时 | PR/issue 治理、beta 同步、发布、nix（非测试环节） |
+| Workflow               | 触发          | 内容                                                                                                                     |
+| ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `ci.yml`               | PR / 分支     | Lint → Typecheck → `bun turbo test`                                                                                      |
+| `test.yml`             | PR / dev push | **unit × 2 OS**（linux+windows，40min 上限）+ **e2e × 2 OS** + HttpApi exerciser（coverage/auth 门禁 + effect advisory） |
+| `typecheck.yml`        | PR            | `bun typecheck`                                                                                                          |
+| `storybook.yml`        | PR            | `bun --cwd packages/storybook build`                                                                                     |
+| `pr-standards.yml`     | PR            | PR 标题 / 分支命名规范                                                                                                   |
+| `pr-management.yml` 等 | 事件/定时     | PR/issue 治理、beta 同步、发布、nix（非测试环节）                                                                        |
 
 CI 注记：
 
@@ -129,11 +129,11 @@ CI 注记：
 
 ## 9. 已知测试相关债（关联 docs/technical-debt.md）
 
-| 债 | 说明 |
-|---|---|
+| 债                   | 说明                                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | app stories 覆盖为零 | `packages/app/src/**/*.stories.tsx` 目前无文件；UI 共享组件新增 story 后才能被 storybook CI 收集（4 模式归一化 Phase 3 计划内） |
-| 性能基准单一 | 仅 session tab switch/flash 场景 |
-| happy-dom 探针限制 | dompurify ≥3.4.7 与探针不兼容，升级前须迁移探针到真实浏览器（见技术债 §4，到期 2026-08-27） |
+| 性能基准单一         | 仅 session tab switch/flash 场景                                                                                                |
+| happy-dom 探针限制   | dompurify ≥3.4.7 与探针不兼容，升级前须迁移探针到真实浏览器（见技术债 §4，到期 2026-08-27）                                     |
 
 ---
 

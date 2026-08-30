@@ -34,14 +34,14 @@ Pick the tool by query shape. The `codegraph` MCP indexes symbols (definitions, 
 
 When the agent (aigcfroge product agent or Claude Code subagent) has `codegraph` MCP connected, prefer it over the matching builtin tool for symbol-shaped queries. Builtin tools come from `packages/aigcfroge/src/tool/registry.ts`; MCP tools inject via `MCP.Service` in `packages/aigcfroge/src/session/tools.ts`.
 
-| Builtin tool | Use `codegraph` instead when | Keep builtin for |
-|---|---|---|
-| `lsp` | call chain (`callers`/`callees`), refactor impact + test-coverage gap (`impact`) | diagnostics, hover |
-| `read` | multi-file verbatim source (`explore`, mind 2/project budget) | single precise line range |
-| `grep` | symbol definition lookup (`search`/`node`) | string literals, regex, magic strings |
-| `glob` | indexed file tree by language/symbol count (`files`) | path glob patterns |
-| `edit`/`write`/`patch` | n/a (codegraph read-only) — run `impact` first to size blast radius | the edit itself |
-| `plan` | `impact` before refactor planning | — |
+| Builtin tool           | Use `codegraph` instead when                                                     | Keep builtin for                      |
+| ---------------------- | -------------------------------------------------------------------------------- | ------------------------------------- |
+| `lsp`                  | call chain (`callers`/`callees`), refactor impact + test-coverage gap (`impact`) | diagnostics, hover                    |
+| `read`                 | multi-file verbatim source (`explore`, mind 2/project budget)                    | single precise line range             |
+| `grep`                 | symbol definition lookup (`search`/`node`)                                       | string literals, regex, magic strings |
+| `glob`                 | indexed file tree by language/symbol count (`files`)                             | path glob patterns                    |
+| `edit`/`write`/`patch` | n/a (codegraph read-only) — run `impact` first to size blast radius              | the edit itself                       |
+| `plan`                 | `impact` before refactor planning                                                | —                                     |
 
 `codegraph` indexes symbols, not every text occurrence — same split as Code Retrieval above.
 
@@ -200,7 +200,7 @@ Enforced across all Effect-touching packages. Detail lives in `.aigcfroge/skills
 ## Type Checking
 
 - For daily development, prefer `bun --cwd packages/<name> typecheck` (single package). Run `bun typecheck` (routes to `bun turbo typecheck`) for full-repo checks in CI or before merging. Never invoke `tsc` directly.
-- Every package's `typecheck` script uses `tsgo --noEmit` (the `@typescript/native-preview` binary). `app` and `desktop` use `tsgo -b` (project-references build) instead of `--noEmit`.
+- Every package's `typecheck` script uses `tsgo --noEmit` (the `@typescript/native-preview` binary). `app` and `desktop` use `tsgo -b` (project-references build) instead of `--noEmit`; `app` additionally runs `tsgo --noEmit -p e2e/tsconfig.json` so the Playwright e2e specs stay typechecked.
 - `script` and `storybook` have no `typecheck` script and are excluded from `bun turbo typecheck`.
 - The `.husky/pre-push` hook runs `bun typecheck` before push; it is not a pre-commit hook. Set `AIGCFROGE_SKIP_TYPECHECK=1` to skip (e.g. for rapid iteration pushes to a feature branch).
 

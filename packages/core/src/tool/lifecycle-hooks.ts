@@ -63,8 +63,4 @@ export const runPreToolUse = (
  * Each hook runs independently: a failure in one does not prevent others from running.
  */
 export const runPostToolUse = (input: PostToolUseInput): Effect.Effect<void> =>
-  Effect.forEach(
-    postToolUseHooks,
-    (entry) => entry.hook(input).pipe(Effect.ignore),
-    { discard: true },
-  )
+  Effect.forEach(postToolUseHooks, (entry) => entry.hook(input).pipe(Effect.ignore), { discard: true })

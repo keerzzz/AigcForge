@@ -54,10 +54,7 @@ export function fillCliList(prompt: string, clis: string[]): string {
  * Accepts an array of { kind, name } objects; kinds and names are sorted alphabetically.
  * Shows "(no assets available)" when the list is empty.
  */
-export function fillAssetsList(
-  prompt: string,
-  assets: ReadonlyArray<{ kind: string; name: string }>,
-): string {
+export function fillAssetsList(prompt: string, assets: ReadonlyArray<{ kind: string; name: string }>): string {
   if (assets.length === 0) {
     return prompt.replace("{{ASSETS_LIST}}", "(no assets available)")
   }

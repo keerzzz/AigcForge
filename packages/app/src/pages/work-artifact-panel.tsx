@@ -237,10 +237,7 @@ export function WorkSessionPanel() {
     tabs().setActive(tab)
   }
   return (
-    <SessionRightPanel
-      size={size}
-      ariaLabel={language.t("work.artifact.tab")}
-    >
+    <SessionRightPanel size={size} ariaLabel={language.t("work.artifact.tab")}>
       <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
         <TabsV2.List class="shrink-0 border-b border-v2-border-border-base">
           <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>

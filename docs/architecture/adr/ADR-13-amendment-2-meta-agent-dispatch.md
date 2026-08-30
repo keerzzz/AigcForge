@@ -30,10 +30,10 @@ To preserve ADR-13 §边界规则 1 ("Chat 创建，Work/Coding 执行：Chat �
 
 The current Chat delegation guarantee is **not** achieved by subagents "inheriting" the parent's permission envelope — no such inheritance exists in the code. The implemented baseline uses two distinct checks on two distinct delegation paths:
 
-| 委派路径 | 拦截点 | 机制 |
-|---|---|---|
-| `execution_type: "subagent"`（默认） | `SessionV2.create` → `ProductModeAgentPolicy.enforcePrimary` | 子会话继承父会话的 `mode`（`packages/core/src/session.ts`：`parent?.mode ?? input.mode ?? Default`）；`checkPrimaryAgent("chat", agent)` 只接受 `meta` 与 `chat-orchestrator`，`build` / `explore` / `general` / `plan` 全部被拒 |
-| `execution_type: "external-cli"` | `TaskDriver.executeCLI` → `ProductModeAgentPolicy.checkCliDelegationAllowed` | 该路径**不创建子会话**，因此永远到不了 `enforcePrimary`；必须由独立的模式检查拦截，否则外部 CLI 会以自身权限写工作区 |
+| 委派路径                             | 拦截点                                                                       | 机制                                                                                                                                                                                                                             |
+| ------------------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `execution_type: "subagent"`（默认） | `SessionV2.create` → `ProductModeAgentPolicy.enforcePrimary`                 | 子会话继承父会话的 `mode`（`packages/core/src/session.ts`：`parent?.mode ?? input.mode ?? Default`）；`checkPrimaryAgent("chat", agent)` 只接受 `meta` 与 `chat-orchestrator`，`build` / `explore` / `general` / `plan` 全部被拒 |
+| `execution_type: "external-cli"`     | `TaskDriver.executeCLI` → `ProductModeAgentPolicy.checkCliDelegationAllowed` | 该路径**不创建子会话**，因此永远到不了 `enforcePrimary`；必须由独立的模式检查拦截，否则外部 CLI 会以自身权限写工作区                                                                                                             |
 
 实现要点与已知约束：
 

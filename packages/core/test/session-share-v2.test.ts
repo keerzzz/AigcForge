@@ -84,11 +84,13 @@ describe("SessionShareV2", () => {
       const target = yield* sessions.create({
         location: { directory: AbsolutePath.make("/tmp/share-fail-tgt") },
       })
-      const result = yield* share.share({
-        sourceSessionID: "ses_nonexistent" as any,
-        targetSessionID: target.id,
-        scope: "reference",
-      }).pipe(Effect.exit)
+      const result = yield* share
+        .share({
+          sourceSessionID: SessionV2.ID.make("ses_nonexistent"),
+          targetSessionID: target.id,
+          scope: "reference",
+        })
+        .pipe(Effect.exit)
       expect(result._tag).toBe("Failure")
     }),
   )

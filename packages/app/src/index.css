@@ -508,7 +508,8 @@
 /* Assistant citation anchor badge: [note title](kb://<id>) surviving sanitization
    is rendered by marked as standard links, styled here as a badge (pure CSS in app layer,
    without touching session-ui shared rendering). kb:// links only appear in assistant answers. */
-a[href^="kb://"] {
+a[href^="kb://"]
+{
   display: inline-block;
   margin: 0 0.125rem;
   padding: 0 0.375rem;

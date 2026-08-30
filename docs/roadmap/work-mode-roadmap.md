@@ -24,14 +24,14 @@
 
 ### 全阶段一览
 
-| 阶段 | 名称 | 范围 | 依赖 | 状态 |
-|---|---|---|---|---|
-| **M0** | 契约层 | Artifact 领域事件、Task 模型对齐、原子写入规范 | Todo M0 (Task Schema) | ✅ 已完成（并入 M1 交付） |
-| **M1** | 文档闭环 | Preset Catalog、澄清、Markdown 只读预览、同名询问、安全落盘 | 无外部依赖（不碰 ProgressLedger） | ✅ 已完成（merge `a041ca617`） |
-| **M1.5** | 进度与恢复 | Progress Ledger 节点 UI、断点恢复 (Resume)、对齐 Context Tab | **Todo M1（Task 模型）** | ✅ 已完成（work-m1.5 分支，实现+审批通过，已合入 main 2026-08-07） |
-| **M2** | 资产沉淀 | 消息级"存为资产"→ Chat 资产工作室 | Chat M3/M7 接口（已就绪） | ✅ 已完成（work-m2 分支，实现+审批通过，已合入 main 2026-08-07） |
-| **M3** | Mermaid 内嵌图表（L1） | Markdown 候选稿支持 Mermaid 图表（流程/拓扑/时序/甘特等 15+ 类型） | 无（Mermaid SVG，无 CSP） | 🔲 待启动 |
-| **M3.5** | 独立 HTML 图表（L2，远期） | 全栈可视化 4 模块 / 数据大屏 | CSP 安全评审 + 产品确认 | 🔲 远期 |
+| 阶段     | 名称                       | 范围                                                               | 依赖                              | 状态                                                               |
+| -------- | -------------------------- | ------------------------------------------------------------------ | --------------------------------- | ------------------------------------------------------------------ |
+| **M0**   | 契约层                     | Artifact 领域事件、Task 模型对齐、原子写入规范                     | Todo M0 (Task Schema)             | ✅ 已完成（并入 M1 交付）                                          |
+| **M1**   | 文档闭环                   | Preset Catalog、澄清、Markdown 只读预览、同名询问、安全落盘        | 无外部依赖（不碰 ProgressLedger） | ✅ 已完成（merge `a041ca617`）                                     |
+| **M1.5** | 进度与恢复                 | Progress Ledger 节点 UI、断点恢复 (Resume)、对齐 Context Tab       | **Todo M1（Task 模型）**          | ✅ 已完成（work-m1.5 分支，实现+审批通过，已合入 main 2026-08-07） |
+| **M2**   | 资产沉淀                   | 消息级"存为资产"→ Chat 资产工作室                                  | Chat M3/M7 接口（已就绪）         | ✅ 已完成（work-m2 分支，实现+审批通过，已合入 main 2026-08-07）   |
+| **M3**   | Mermaid 内嵌图表（L1）     | Markdown 候选稿支持 Mermaid 图表（流程/拓扑/时序/甘特等 15+ 类型） | 无（Mermaid SVG，无 CSP）         | 🔲 待启动                                                          |
+| **M3.5** | 独立 HTML 图表（L2，远期） | 全栈可视化 4 模块 / 数据大屏                                       | CSP 安全评审 + 产品确认           | 🔲 远期                                                            |
 
 ---
 
@@ -53,24 +53,24 @@
 
 ### 2.2 work 分支的禁区（防返工）
 
-| 禁区 | 原因 |
-|---|---|
+| 禁区                                         | 原因                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------ |
 | ❌ 不实现 ProgressLedger 独立 Schema/Service | 交叉裁决：ProgressLedger = Task List 子集，等 Todo M1 的 Task 模型 |
-| ❌ 不实现步骤追踪/断点恢复 | 属 M1.5，依赖 Task 模型 |
-| ❌ 不新建全局 Work 工作区 | ADR-14：Work 产出落用户选择的已有 Location |
-| ❌ 不内嵌富文本/代码编辑器 | PRD §6.2 非目标，修改一律走对话 |
+| ❌ 不实现步骤追踪/断点恢复                   | 属 M1.5，依赖 Task 模型                                            |
+| ❌ 不新建全局 Work 工作区                    | ADR-14：Work 产出落用户选择的已有 Location                         |
+| ❌ 不内嵌富文本/代码编辑器                   | PRD §6.2 非目标，修改一律走对话                                    |
 
 ### 2.3 与 todo 分支的接口边界
 
-| 能力 | 归属 | 说明 |
-|---|---|---|
-| `TaskInfo` Schema | todo 分支 M0 | Work 的 `outputDigest` 字段已列入 Todo 计划 §5.2（M2，原 M1.5 折入） |
-| `SessionTask` Service | todo 分支 M1 | Work M1.5 复用，不新建 |
-| `PATCH /session/{id}/task` 写 API | todo 分支 M1 | Work 可交互 TaskPanel 依赖 |
-| `outputDigest` | todo 分支 M2（原 M1.5 折入） | 与 Work M1.5 同步上线 |
-| 官方 Preset 注册表 | **work 分支 M1** | Work 独有，与 todo 无交集 |
-| work-orchestrator agent | **work 分支 M1** | 类比 chat-orchestrator，Work 专属 |
-| Artifact 投影 | **work 分支 M0/M1** | Work 独有（产出记录），与 todo 无交集 |
+| 能力                              | 归属                         | 说明                                                                 |
+| --------------------------------- | ---------------------------- | -------------------------------------------------------------------- |
+| `TaskInfo` Schema                 | todo 分支 M0                 | Work 的 `outputDigest` 字段已列入 Todo 计划 §5.2（M2，原 M1.5 折入） |
+| `SessionTask` Service             | todo 分支 M1                 | Work M1.5 复用，不新建                                               |
+| `PATCH /session/{id}/task` 写 API | todo 分支 M1                 | Work 可交互 TaskPanel 依赖                                           |
+| `outputDigest`                    | todo 分支 M2（原 M1.5 折入） | 与 Work M1.5 同步上线                                                |
+| 官方 Preset 注册表                | **work 分支 M1**             | Work 独有，与 todo 无交集                                            |
+| work-orchestrator agent           | **work 分支 M1**             | 类比 chat-orchestrator，Work 专属                                    |
+| Artifact 投影                     | **work 分支 M0/M1**          | Work 独有（产出记录），与 todo 无交集                                |
 
 ---
 
@@ -80,12 +80,12 @@
 
 **目标**：定义 Work 的数据契约，与 Todo 分支 Task 模型对齐。
 
-| 交付物 | 说明 | 依赖 |
-|---|---|---|
-| Artifact 领域事件 | `artifact.created` 等（引用不复制正文，ADR-14） | 无 |
-| Artifact Record 契约 | `id/sessionID/kind/title/mediaType/relativePath/status` | 无 |
-| 原子写入规范 | 目标级事务锁 + CAS + 安全回滚（对齐 Chat M1 PromptAssetService 模式） | 无 |
-| Task 模型对齐确认 | 确认 `outputDigest`/`in_progress`/派生值已纳入 Todo 分支 | **Todo M0** |
+| 交付物               | 说明                                                                  | 依赖        |
+| -------------------- | --------------------------------------------------------------------- | ----------- |
+| Artifact 领域事件    | `artifact.created` 等（引用不复制正文，ADR-14）                       | 无          |
+| Artifact Record 契约 | `id/sessionID/kind/title/mediaType/relativePath/status`               | 无          |
+| 原子写入规范         | 目标级事务锁 + CAS + 安全回滚（对齐 Chat M1 PromptAssetService 模式） | 无          |
+| Task 模型对齐确认    | 确认 `outputDigest`/`in_progress`/派生值已纳入 Todo 分支              | **Todo M0** |
 
 **准入**：Schema 评审通过
 **退出**：Artifact 契约 + 原子写入规范落地
@@ -96,15 +96,15 @@
 
 详见 [work-mode-execution-layer-m1.md](work-mode-execution-layer-m1.md)（独立实施计划）。
 
-| 交付物 | 说明 | 依赖 |
-|---|---|---|
-| 官方 Preset Catalog | 硬编码预设库（12 工种 + 5 泛人群），按分类检索 | 无 |
-| work-orchestrator agent | Work 专属执行 agent，澄清 + 生成 | 无 |
-| question tool 接入 | 小白问卷式引导 | 已有（`packages/aigcfroge/src/question/`） |
-| Work Surface UI | ModeWorkspace slot：Preset 卡片（M1）+ 会话历史（M1 收尾 §3.5） | 已有 slot 骨架 |
-| 右栏双 Tab | Context Tab（对齐 Code）+ Artifact Tab（只读预览 + 应用按钮） | 已有 `session-context-tab.tsx` |
-| 同名冲突询问 | LLM 自动询问重命名/覆盖 + Diff 确认 | 无 |
-| 安全落盘 | 原子写入当前 Location + Artifact 投影 | M0 |
+| 交付物                  | 说明                                                            | 依赖                                       |
+| ----------------------- | --------------------------------------------------------------- | ------------------------------------------ |
+| 官方 Preset Catalog     | 硬编码预设库（12 工种 + 5 泛人群），按分类检索                  | 无                                         |
+| work-orchestrator agent | Work 专属执行 agent，澄清 + 生成                                | 无                                         |
+| question tool 接入      | 小白问卷式引导                                                  | 已有（`packages/aigcfroge/src/question/`） |
+| Work Surface UI         | ModeWorkspace slot：Preset 卡片（M1）+ 会话历史（M1 收尾 §3.5） | 已有 slot 骨架                             |
+| 右栏双 Tab              | Context Tab（对齐 Code）+ Artifact Tab（只读预览 + 应用按钮）   | 已有 `session-context-tab.tsx`             |
+| 同名冲突询问            | LLM 自动询问重命名/覆盖 + Diff 确认                             | 无                                         |
+| 安全落盘                | 原子写入当前 Location + Artifact 投影                           | M0                                         |
 
 **准入**：M0 完成
 **退出**：内部 50 次测试达标（PRD §13 M1 准入）
@@ -113,12 +113,12 @@
 
 **目标**：Progress Ledger 节点 UI + 断点恢复。
 
-| 交付物 | 说明 | 依赖 |
-|---|---|---|
-| Progress Ledger UI | 复用 Task 模型渲染步骤进度条 | **Todo M1**（SessionTask Service） |
-| 断点恢复 (Resume) | 从 failed/in_progress 步骤续传 | **Todo M1**（Task status 持久化） |
-| Context Tab 对齐 | 完全对齐 Code 模式 | 已有 `session-context-tab.tsx` |
-| outputDigest | 步骤增量摘要 | **Todo M1.5** |
+| 交付物             | 说明                           | 依赖                               |
+| ------------------ | ------------------------------ | ---------------------------------- |
+| Progress Ledger UI | 复用 Task 模型渲染步骤进度条   | **Todo M1**（SessionTask Service） |
+| 断点恢复 (Resume)  | 从 failed/in_progress 步骤续传 | **Todo M1**（Task status 持久化）  |
+| Context Tab 对齐   | 完全对齐 Code 模式             | 已有 `session-context-tab.tsx`     |
+| outputDigest       | 步骤增量摘要                   | **Todo M1.5**                      |
 
 **退出**：恢复测试 100% 通过（PRD §13 M1.5 准入）
 
@@ -126,11 +126,11 @@
 
 **目标**：消息级"存为资产" → 无缝路由 Chat 资产工作室。
 
-| 交付物 | 说明 | 依赖 |
-|---|---|---|
-| 存为资产按钮 | 产出消息下方，预填数据 | M1 |
-| 路由协议 | Work 产出 → Chat 资产注册（预填 `propose_*_asset` 入参） | Chat M3/M7 接口（已就绪） |
-| 预填数据模型 | 产出 digest → 资产字段映射 | M1 |
+| 交付物       | 说明                                                     | 依赖                      |
+| ------------ | -------------------------------------------------------- | ------------------------- |
+| 存为资产按钮 | 产出消息下方，预填数据                                   | M1                        |
+| 路由协议     | Work 产出 → Chat 资产注册（预填 `propose_*_asset` 入参） | Chat M3/M7 接口（已就绪） |
+| 预填数据模型 | 产出 digest → 资产字段映射                               | M1                        |
 
 **退出**：与 Chat M3/M7 接口对齐，端到端注册成功
 
@@ -138,11 +138,11 @@
 
 **目标**：Markdown 候选稿支持 Mermaid 图表内嵌（```mermaid 代码块 -> SVG），覆盖流程/拓扑/时序/甘特/数据/思维导图等 15+ 类型。
 
-| 交付物 | 说明 | 依赖 |
-|---|---|---|
-| Mermaid 渲染集成 | markdown-cache.tsx 加 Mermaid 库：代码块 -> SVG | 无（Mermaid SVG，无 CSP） |
-| SYSTEM_PROMPT 指引 | work-orchestrator 教 LLM 适合时用 Mermaid | 无 |
-| preset guidance 示例 | PRD/文献综述加 Mermaid 示例 | 无 |
+| 交付物               | 说明                                            | 依赖                      |
+| -------------------- | ----------------------------------------------- | ------------------------- |
+| Mermaid 渲染集成     | markdown-cache.tsx 加 Mermaid 库：代码块 -> SVG | 无（Mermaid SVG，无 CSP） |
+| SYSTEM_PROMPT 指引   | work-orchestrator 教 LLM 适合时用 Mermaid       | 无                        |
+| preset guidance 示例 | PRD/文献综述加 Mermaid 示例                     | 无                        |
 
 **退出**：候选稿含 Mermaid 代码块 -> 右栏预览见图表 + E2E 通过
 
@@ -150,38 +150,37 @@
 
 **目标**：独立 HTML 图表产出（全栈可视化 4 模块 / 数据大屏 / 架构全景）。
 
-| 交付物 | 说明 | 依赖 |
-|---|---|---|
+| 交付物              | 说明                                                       | 依赖         |
+| ------------------- | ---------------------------------------------------------- | ------------ |
 | iframe sandbox 渲染 | 图表 HTML 跨域隔离（allow-scripts 不加 allow-same-origin） | CSP 安全评审 |
-| 图表库选型 | Vis.js（拓扑）/ Chart.js（数据图）/ ECharts | 产品确认 |
-| 图表 preset | 汇报场景 preset（团队全景/数据大屏） | 产品确认 |
+| 图表库选型          | Vis.js（拓扑）/ Chart.js（数据图）/ ECharts                | 产品确认     |
+| 图表 preset         | 汇报场景 preset（团队全景/数据大屏）                       | 产品确认     |
 
 **退出**：CSP 评审通过 + 端到端图表产出
-
 
 ## 4. 依赖矩阵
 
 ### 4.1 与 Todo/Task 计划的交叉
 
-| Work 阶段 | Todo 阶段 | 依赖点 | 合并节奏 |
-|---|---|---|---|
-| M1 | 无直接代码依赖 | 经 M0 对齐确认**间接依赖 Todo M0**（契约评审级：确认 `outputDigest`/`in_progress`/派生值纳入 Task 模型，非代码依赖） | work 分支独立开发，可先合并 |
-| M1.5 | **M1** | SessionTask Service、Task status 持久化、**TaskDriver↔Task 双轨联动**（ProgressLedger 展示委派回写状态，编排进度可观测） | 需 Todo M1 先合并 main |
-| M1.5 | **M1.5** | outputDigest 字段 | 需 Todo M1.5 同步 |
-| M2 | 无 | 不依赖 | 依赖 M1 即可 |
+| Work 阶段 | Todo 阶段      | 依赖点                                                                                                                    | 合并节奏                    |
+| --------- | -------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| M1        | 无直接代码依赖 | 经 M0 对齐确认**间接依赖 Todo M0**（契约评审级：确认 `outputDigest`/`in_progress`/派生值纳入 Task 模型，非代码依赖）      | work 分支独立开发，可先合并 |
+| M1.5      | **M1**         | SessionTask Service、Task status 持久化、**TaskDriver↔Task 双轨联动**（ProgressLedger 展示委派回写状态，编排进度可观测） | 需 Todo M1 先合并 main      |
+| M1.5      | **M1.5**       | outputDigest 字段                                                                                                         | 需 Todo M1.5 同步           |
+| M2        | 无             | 不依赖                                                                                                                    | 依赖 M1 即可                |
 
 ### 4.2 与已完成基础设施的复用
 
-| 已存在 | Work 复用点 |
-|---|---|
-| `mode-workspace-slots.tsx` slot 注册 | Work Main slot（替代 PlaceholderMain） |
-| `mode-surfaces.tsx` MODE_SURFACES 注册表 | Work Sidebar/Main/RightPanel 注册 |
-| `session-context-tab.tsx` (442行, mode-agnostic) | Work 右栏 Context Tab |
-| question tool (`packages/aigcfroge/src/question/`) | 小白问卷式澄清 |
-| chat-orchestrator 模式 | work-orchestrator 类比创建 |
-| Chat M1 PromptAssetService 事务模式 | Work Artifact 原子写入 |
-| `session-capture` 链路 (`session.tsx:1598-1626`) | M2 存为资产路由 |
-| TodoWrite tool | M1 后 TaskWrite 复用（不新建） |
+| 已存在                                             | Work 复用点                            |
+| -------------------------------------------------- | -------------------------------------- |
+| `mode-workspace-slots.tsx` slot 注册               | Work Main slot（替代 PlaceholderMain） |
+| `mode-surfaces.tsx` MODE_SURFACES 注册表           | Work Sidebar/Main/RightPanel 注册      |
+| `session-context-tab.tsx` (442行, mode-agnostic)   | Work 右栏 Context Tab                  |
+| question tool (`packages/aigcfroge/src/question/`) | 小白问卷式澄清                         |
+| chat-orchestrator 模式                             | work-orchestrator 类比创建             |
+| Chat M1 PromptAssetService 事务模式                | Work Artifact 原子写入                 |
+| `session-capture` 链路 (`session.tsx:1598-1626`)   | M2 存为资产路由                        |
+| TodoWrite tool                                     | M1 后 TaskWrite 复用（不新建）         |
 
 ---
 
@@ -201,23 +200,23 @@
 
 ### 关键验收节点
 
-| 节点 | 验收标准 |
-|---|---|
-| **Work M1 完成** | 非编程用户选"视频分镜脚本"→ 答 3-5 个问题 → 右侧预览完整 Markdown → 确认保存到项目目录 |
-| **Work M1.5 完成** | 生成中断 → 进度条显示失败步骤 → 点击 Resume → 从断点续传完成 |
-| **Work M2 完成** | 产出消息点"存为资产"→ Chat 资产工作室出现该资产 → 新会话可复用 |
+| 节点               | 验收标准                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| **Work M1 完成**   | 非编程用户选"视频分镜脚本"→ 答 3-5 个问题 → 右侧预览完整 Markdown → 确认保存到项目目录 |
+| **Work M1.5 完成** | 生成中断 → 进度条显示失败步骤 → 点击 Resume → 从断点续传完成                           |
+| **Work M2 完成**   | 产出消息点"存为资产"→ Chat 资产工作室出现该资产 → 新会话可复用                         |
 
 ---
 
 ## 6. 风险与应对
 
-| 风险 | 概率 | 影响 | 应对 |
-|---|---|---|---|
-| work 分支抢先实现 ProgressLedger | 中 | 高 | §2.2 禁区明确标注 + 合并前 code review 检查 |
-| Todo M1 延迟拖累 Work M1.5 | 中 | 中 | Work M1 独立交付先合并，M1.5 弹性排期 |
-| 官方预设文案质量不足 | 高 | 中 | PRD §14：邀请视频/科研/游戏内测用户共同校准 |
-| 12+5 工种真伪需求偏差 | 中 | 高 | §5 真伪需求矩阵已过产品评审，M1 只落地 3-4 个高置信预设 |
-| 跨 Location 读取权限复杂 | 低 | 中 | 复用 PermissionV2 ask 流程（PRD §11 注记） |
+| 风险                             | 概率 | 影响 | 应对                                                    |
+| -------------------------------- | ---- | ---- | ------------------------------------------------------- |
+| work 分支抢先实现 ProgressLedger | 中   | 高   | §2.2 禁区明确标注 + 合并前 code review 检查             |
+| Todo M1 延迟拖累 Work M1.5       | 中   | 中   | Work M1 独立交付先合并，M1.5 弹性排期                   |
+| 官方预设文案质量不足             | 高   | 中   | PRD §14：邀请视频/科研/游戏内测用户共同校准             |
+| 12+5 工种真伪需求偏差            | 中   | 高   | §5 真伪需求矩阵已过产品评审，M1 只落地 3-4 个高置信预设 |
+| 跨 Location 读取权限复杂         | 低   | 中   | 复用 PermissionV2 ask 流程（PRD §11 注记）              |
 
 ---
 

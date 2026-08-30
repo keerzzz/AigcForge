@@ -14,7 +14,13 @@ import { ChatImportDialog, serializeImport, wrapImportContent } from "@/componen
 import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 import { useMode } from "@/context/mode"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
-import { launchModeSession, openSessionRecord, closeHomeProject, homeProjectDirectories, filterSessionsByMode } from "@/pages/layout/helpers"
+import {
+  launchModeSession,
+  openSessionRecord,
+  closeHomeProject,
+  homeProjectDirectories,
+  filterSessionsByMode,
+} from "@/pages/layout/helpers"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { useQuery } from "@tanstack/solid-query"
@@ -22,8 +28,16 @@ import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { pathKey } from "@/utils/path-key"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { HomeProjectColumn } from "@/pages/coding-project-column"
-import { HOME_SESSION_LIMIT, HomeSessionSearch, HomeSessionRow, HomeSessionGroupHeader, HomeSessionSkeleton,
-  buildHomeSessionRecords, groupSessions, matchesHomeSessionSearch, type HomeSessionRecord,
+import {
+  HOME_SESSION_LIMIT,
+  HomeSessionSearch,
+  HomeSessionRow,
+  HomeSessionGroupHeader,
+  HomeSessionSkeleton,
+  buildHomeSessionRecords,
+  groupSessions,
+  matchesHomeSessionSearch,
+  type HomeSessionRecord,
 } from "@/pages/home-shared"
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
@@ -53,7 +67,8 @@ export function CodingProjectColumnSidebar() {
   const codingSel = useCodingSelection()
 
   const focusedServer = createMemo(
-    () => global.servers.list().find((conn) => ServerConnection.key(conn) === codingSel.selection.server) ?? server.current,
+    () =>
+      global.servers.list().find((conn) => ServerConnection.key(conn) === codingSel.selection.server) ?? server.current,
   )
   const focusedServerCtx = createMemo(() => {
     const conn = focusedServer()
@@ -67,7 +82,13 @@ export function CodingProjectColumnSidebar() {
   }
   function selectProject(conn: ServerConnection.Any, directory: string) {
     const key = ServerConnection.key(conn)
-    if (!global.ensureServerCtx(conn).projects.list().some((p) => p.worktree === directory)) return
+    if (
+      !global
+        .ensureServerCtx(conn)
+        .projects.list()
+        .some((p) => p.worktree === directory)
+    )
+      return
     codingSel.selectProject(key, directory)
   }
   function openNewSession(conn: ServerConnection.Any, dir: string) {
@@ -101,7 +122,12 @@ export function CodingProjectColumnSidebar() {
     })
   }
   function closeProject(conn: ServerConnection.Any, directory: string) {
-    const next = closeHomeProject(codingSel.selection, ServerConnection.key(conn), global.ensureServerCtx(conn).projects, directory)
+    const next = closeHomeProject(
+      codingSel.selection,
+      ServerConnection.key(conn),
+      global.ensureServerCtx(conn).projects,
+      directory,
+    )
     if (next) codingSel.selectProject(next.server, next.directory ?? "")
   }
   function clearNotifications(conn: ServerConnection.Any, project: LocalProject) {
@@ -174,7 +200,8 @@ export function CodingSessionListMain() {
   })
 
   const focusedServer = createMemo(
-    () => global.servers.list().find((conn) => ServerConnection.key(conn) === codingSel.selection.server) ?? server.current,
+    () =>
+      global.servers.list().find((conn) => ServerConnection.key(conn) === codingSel.selection.server) ?? server.current,
   )
   const focusedServerCtx = createMemo(() => {
     const conn = focusedServer()
@@ -360,18 +387,12 @@ export function CodingSessionListMain() {
       />
       <ScrollView class="mt-3 min-h-0 flex-1">
         <div class="pt-3 flex flex-col gap-6">
-          <Show
-            when={!sessionLoad.isLoading}
-            fallback={<HomeSessionSkeleton label={language.t("common.loading")} />}
-          >
+          <Show when={!sessionLoad.isLoading} fallback={<HomeSessionSkeleton label={language.t("common.loading")} />}>
             <Show
               when={groups().length > 0}
               fallback={
                 <div class="flex min-w-0 flex-col gap-4">
-                  <HomeSessionGroupHeader
-                    title={language.t("home.sessions.empty")}
-                    onNewSession={openNewSession}
-                  />
+                  <HomeSessionGroupHeader title={language.t("home.sessions.empty")} onNewSession={openNewSession} />
                 </div>
               }
             >
@@ -475,19 +496,26 @@ export function ChatAssetWorkbenchMain() {
           try {
             switch (row.kind) {
               case "prompt":
-                await sdk.client.promptAsset.delete(shared, { throwOnError: true }); break
+                await sdk.client.promptAsset.delete(shared, { throwOnError: true })
+                break
               case "skill":
-                await sdk.client.skillAsset.delete(shared, { throwOnError: true }); break
+                await sdk.client.skillAsset.delete(shared, { throwOnError: true })
+                break
               case "mcp":
-                await sdk.client.mcpAsset.delete(shared, { throwOnError: true }); break
+                await sdk.client.mcpAsset.delete(shared, { throwOnError: true })
+                break
               case "command":
-                await sdk.client.commandAsset.delete(shared, { throwOnError: true }); break
+                await sdk.client.commandAsset.delete(shared, { throwOnError: true })
+                break
               case "agent":
-                await sdk.client.agentAsset.delete(shared, { throwOnError: true }); break
+                await sdk.client.agentAsset.delete(shared, { throwOnError: true })
+                break
               case "workflow":
-                await sdk.client.workflowAsset.delete(shared, { throwOnError: true }); break
+                await sdk.client.workflowAsset.delete(shared, { throwOnError: true })
+                break
               case "plugin":
-                await sdk.client.pluginAsset.delete(shared, { throwOnError: true }); break
+                await sdk.client.pluginAsset.delete(shared, { throwOnError: true })
+                break
             }
           } catch (err) {
             const message = err instanceof Error ? err.message : undefined
@@ -584,9 +612,7 @@ export function WorkPresetCatalogMain() {
   const sessionLoad = useQuery(() => ({
     queryKey: [ctx()?.sdk.scope, "home", "work-sessions", ...projectDirectories()] as const,
     queryFn: async () => {
-      await Promise.all(
-        projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })),
-      )
+      await Promise.all(projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })))
       return null
     },
   }))
@@ -649,7 +675,11 @@ export function WorkPresetCatalogMain() {
           server: ServerConnection.key(c),
           directory: dir,
           tabs,
-          initialPrompt: workflowLaunch({ name: asset.name, description: asset.description, steps: res.data?.steps ?? [] }),
+          initialPrompt: workflowLaunch({
+            name: asset.name,
+            description: asset.description,
+            steps: res.data?.steps ?? [],
+          }),
           draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
         }),
       )
@@ -758,11 +788,7 @@ export function WorkPresetCatalogMain() {
                 </For>
                 <For each={category.reserved}>
                   {(title) => (
-                    <WorkPresetCard
-                      variant="reserved"
-                      title={title}
-                      footer={language.t("work.preset.comingSoon")}
-                    />
+                    <WorkPresetCard variant="reserved" title={title} footer={language.t("work.preset.comingSoon")} />
                   )}
                 </For>
               </div>

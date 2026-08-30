@@ -10,12 +10,12 @@
 
 ## 1. Executive Summary
 
-| Severity | Count |
-|---|---:|
-| 🔴 CRITICAL | 0 |
-| 🟠 HIGH | 2 |
-| 🟡 MEDIUM | 3 |
-| 🟢 LOW | 1 |
+| Severity    | Count |
+| ----------- | ----: |
+| 🔴 CRITICAL |     0 |
+| 🟠 HIGH     |     2 |
+| 🟡 MEDIUM   |     3 |
+| 🟢 LOW      |     1 |
 
 原审批的并发 append、PATCH WriteInfo、后台 success/failure/cancel settle、跨 Session patch、createdAt、迁移 normalize、taskwrite deny 等主修复均已落地并通过测试。
 
@@ -28,18 +28,18 @@
 
 ## 2. 原审批项闭环矩阵
 
-| 原 Finding | 状态 | 证据 |
-|---|---|---|
-| HIGH-1 双真源无兼容桥 | ⚠️ 部分关闭，引入 V1 默认路径回归与旧工具 ID 丢失 | `session/todo.ts` 转发已实现，但兼容边界不完整 |
-| HIGH-2 并发轨 B 丢任务 | ✅ 关闭 | `SessionTask.append` 单连接事务串行；并发测试通过 |
-| HIGH-3 PATCH 无法最小负载创建 | ✅ 关闭 | payload=`WriteInfo[]`，SDK 生成 `SessionTaskWriteInfo` |
-| HIGH-4 background 不 settle | ✅ 主路径关闭 | Exit 状态机 + success/failure/cancel tests |
-| MEDIUM patch 跨 Session | ✅ 关闭 | scoped UPDATE + scoped SELECT |
-| MEDIUM createdAt 被重置 | ✅ 关闭 | existing `time_created` 被保留 |
-| MEDIUM migration 自由字符串 | ✅ 关闭 | unknown status/priority → pending/medium |
-| MEDIUM taskwrite deny | ✅ 关闭 | V1 subagent permissions + V2 general agent 均补齐 |
-| MEDIUM resume 映射 | ⏳ 合理延期到 M2，但代码注释仍错误 | outputDigest 尚未持久化 |
-| MEDIUM Schema/Effect 协议 | ⚠️ DateTime 已关闭；Schema.Class 仍未关闭 | 当前仍使用 Struct |
+| 原 Finding                    | 状态                                              | 证据                                                   |
+| ----------------------------- | ------------------------------------------------- | ------------------------------------------------------ |
+| HIGH-1 双真源无兼容桥         | ⚠️ 部分关闭，引入 V1 默认路径回归与旧工具 ID 丢失 | `session/todo.ts` 转发已实现，但兼容边界不完整         |
+| HIGH-2 并发轨 B 丢任务        | ✅ 关闭                                           | `SessionTask.append` 单连接事务串行；并发测试通过      |
+| HIGH-3 PATCH 无法最小负载创建 | ✅ 关闭                                           | payload=`WriteInfo[]`，SDK 生成 `SessionTaskWriteInfo` |
+| HIGH-4 background 不 settle   | ✅ 主路径关闭                                     | Exit 状态机 + success/failure/cancel tests             |
+| MEDIUM patch 跨 Session       | ✅ 关闭                                           | scoped UPDATE + scoped SELECT                          |
+| MEDIUM createdAt 被重置       | ✅ 关闭                                           | existing `time_created` 被保留                         |
+| MEDIUM migration 自由字符串   | ✅ 关闭                                           | unknown status/priority → pending/medium               |
+| MEDIUM taskwrite deny         | ✅ 关闭                                           | V1 subagent permissions + V2 general agent 均补齐      |
+| MEDIUM resume 映射            | ⏳ 合理延期到 M2，但代码注释仍错误                | outputDigest 尚未持久化                                |
+| MEDIUM Schema/Effect 协议     | ⚠️ DateTime 已关闭；Schema.Class 仍未关闭         | 当前仍使用 Struct                                      |
 
 ## 3. Blocking Findings
 
@@ -189,22 +189,22 @@ HTTP 测试 `PATCH ... cannot inject another session's id` 实际期望 200，�
 
 ## 7. Verification
 
-| 验证 | 结果 |
-|---|---|
-| Schema/Core/AigcForge/SDK typecheck | ✅ |
-| `bun run lint` | ✅ 0 warnings / 0 errors |
-| Schema 全量测试 | ✅ 39 pass |
-| Core 全量测试 | ✅ 1401 pass |
-| Session HttpApi 定向测试 | ✅ 23 pass |
-| AigcForge task tool 测试 | ✅ 21 pass |
-| subagent permission 测试 | ✅ 6 pass |
-| migration `--check` | ✅ |
-| SDK build/idempotency | ✅ 无差异 |
-| `git diff --check main..HEAD` | ✅ |
-| Schema.Class plain-object decode smoke | ✅ |
-| Schema.Array(Class) decode smoke | ✅ |
-| Schema.Array(Class) HttpApi/OpenAPI smoke | ✅ |
-| 复审兼容临时测试 | ✅ 复现 V1 TodoTable 不可见、legacy update ID 被替换 |
+| 验证                                      | 结果                                                 |
+| ----------------------------------------- | ---------------------------------------------------- |
+| Schema/Core/AigcForge/SDK typecheck       | ✅                                                   |
+| `bun run lint`                            | ✅ 0 warnings / 0 errors                             |
+| Schema 全量测试                           | ✅ 39 pass                                           |
+| Core 全量测试                             | ✅ 1401 pass                                         |
+| Session HttpApi 定向测试                  | ✅ 23 pass                                           |
+| AigcForge task tool 测试                  | ✅ 21 pass                                           |
+| subagent permission 测试                  | ✅ 6 pass                                            |
+| migration `--check`                       | ✅                                                   |
+| SDK build/idempotency                     | ✅ 无差异                                            |
+| `git diff --check main..HEAD`             | ✅                                                   |
+| Schema.Class plain-object decode smoke    | ✅                                                   |
+| Schema.Array(Class) decode smoke          | ✅                                                   |
+| Schema.Array(Class) HttpApi/OpenAPI smoke | ✅                                                   |
+| 复审兼容临时测试                          | ✅ 复现 V1 TodoTable 不可见、legacy update ID 被替换 |
 
 现有测试全部通过，但新增测试仍缺：
 

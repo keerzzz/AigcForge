@@ -88,8 +88,7 @@ describe("project directories and copies endpoints", () => {
         expect(remove.status).toBe(400)
         expect(yield* json<{ name?: string; data: { forceRequired?: boolean; message?: string } }>(remove)).toSatisfy(
           (body: { name?: string; data: { forceRequired?: boolean; message?: string } }) =>
-            body.data?.forceRequired === true ||
-            (body.data?.message !== undefined && body.name === "ProjectCopyError"),
+            body.data?.forceRequired === true || (body.data?.message !== undefined && body.name === "ProjectCopyError"),
         )
 
         const forced = yield* request(test.directory, copies, {

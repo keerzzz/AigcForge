@@ -321,9 +321,9 @@ describe("AgentV2", () => {
 
       const meta = yield* agent.get(AgentV2.ID.make("meta"))
       const permissions = meta!.permissions
-      expect(
-        permissions.some((rule) => rule.action === "*" && rule.resource === "*" && rule.effect === "allow"),
-      ).toBe(false)
+      expect(permissions.some((rule) => rule.action === "*" && rule.resource === "*" && rule.effect === "allow")).toBe(
+        false,
+      )
       expect(PermissionV2.evaluate("some_future_tool", "*", permissions).effect).toBe("deny")
       for (const action of ["read", "glob", "grep", "question", "list_assets", "webfetch", "websearch"]) {
         expect(PermissionV2.evaluate(action, "*", permissions).effect).toBe("allow")

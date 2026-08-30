@@ -12,16 +12,16 @@
 Range 1（前台派生+返回结果）和 Range 2（background 后台委托+synthetic 注入）**已提交**。
 Range 3（V1 task tool 6 项功能对齐）**全部完成**（未提交，在 working tree）：
 
-| 范围 | 任务 | 状态 |
-|---|---|---|
-| batch A | task_id resume + retry + foreground abort + attended | ✅ 完成 |
-| batch A | background extend（task_id 命中运行中 job） | ✅ 完成 |
-| scope 升级 | attended 模式（字段→DB→configured→UI 标识→设置开关） | ✅ 完成 |
-| ⑥ | 后台 abort 级联传播 | ✅ 完成 |
-| ② | external-cli 迁移（CliTimeout 移 core + opencode + 4 适配器 + 去重） | ✅ 完成 |
-| — | 前端设置开关（V1 settings + V2 settings + server config 贯通） | ✅ 完成 |
-| — | 测试（session-task 10 + permission 13，全部通过） | ✅ 完成 |
-| — | V1 适配器代码去重（6 文件改为 re-export core） | ✅ 完成 |
+| 范围       | 任务                                                                 | 状态    |
+| ---------- | -------------------------------------------------------------------- | ------- |
+| batch A    | task_id resume + retry + foreground abort + attended                 | ✅ 完成 |
+| batch A    | background extend（task_id 命中运行中 job）                          | ✅ 完成 |
+| scope 升级 | attended 模式（字段→DB→configured→UI 标识→设置开关）                 | ✅ 完成 |
+| ⑥          | 后台 abort 级联传播                                                  | ✅ 完成 |
+| ②          | external-cli 迁移（CliTimeout 移 core + opencode + 4 适配器 + 去重） | ✅ 完成 |
+| —          | 前端设置开关（V1 settings + V2 settings + server config 贯通）       | ✅ 完成 |
+| —          | 测试（session-task 10 + permission 13，全部通过）                    | ✅ 完成 |
+| —          | V1 适配器代码去重（6 文件改为 re-export core）                       | ✅ 完成 |
 
 **剩余 unplanned**：share + fork 两批未做（待独立排期）。
 
@@ -38,18 +38,18 @@ Range 3（V1 task tool 6 项功能对齐）**全部完成**（未提交，在 wo
 
 **关键成果：V2 task tool 功能对等 V1**
 
-| 功能 | V1 路径 | V2 路径 |
-|---|---|---|
-| 前台派生 | `executeCLI` + `runTask` | `TaskDriver.delegate`（seam）|
-| 后台派发 | `delegateBackground` | `TaskDriver.delegateBackground`（seam）|
-| task_id 续接 | `task_id` → `sessions.get` → 复用 | `task_id` → `SessionV2.create` idempotent |
-| 重试+孤儿清理 | `Effect.retry` + cancel orphan | 同左（DelegateError 判定）|
-| 前台 abort | runner interrupt → fiber cancelled | `Effect.onInterrupt` → `TaskDriver.cancel` |
-| 后台 abort 级联 | —（V1 无等同需求） | `SessionV2.interrupt` cascade `store.children` |
-| attended 模式 | `deriveSubagentSessionPermission`（Ruleset） | `session.attended` 布尔 → `configured` ask→deny |
-| background extend | `task_id` + running → append | `BackgroundJob.extend`（seam）|
-| external-cli | `AdapterRegistry` + `CliTimeout`（aigcfroge） | `TaskDriver.executeCLI` seam + core CliAdapter/CliTimeout |
-| 子会话权限 | Ruleset 合并 | `attended` 布尔（V2 PermissionV2 简化）|
+| 功能              | V1 路径                                       | V2 路径                                                   |
+| ----------------- | --------------------------------------------- | --------------------------------------------------------- |
+| 前台派生          | `executeCLI` + `runTask`                      | `TaskDriver.delegate`（seam）                             |
+| 后台派发          | `delegateBackground`                          | `TaskDriver.delegateBackground`（seam）                   |
+| task_id 续接      | `task_id` → `sessions.get` → 复用             | `task_id` → `SessionV2.create` idempotent                 |
+| 重试+孤儿清理     | `Effect.retry` + cancel orphan                | 同左（DelegateError 判定）                                |
+| 前台 abort        | runner interrupt → fiber cancelled            | `Effect.onInterrupt` → `TaskDriver.cancel`                |
+| 后台 abort 级联   | —（V1 无等同需求）                            | `SessionV2.interrupt` cascade `store.children`            |
+| attended 模式     | `deriveSubagentSessionPermission`（Ruleset）  | `session.attended` 布尔 → `configured` ask→deny           |
+| background extend | `task_id` + running → append                  | `BackgroundJob.extend`（seam）                            |
+| external-cli      | `AdapterRegistry` + `CliTimeout`（aigcfroge） | `TaskDriver.executeCLI` seam + core CliAdapter/CliTimeout |
+| 子会话权限        | Ruleset 合并                                  | `attended` 布尔（V2 PermissionV2 简化）                   |
 
 ### 已验证基线
 
@@ -70,11 +70,13 @@ Range 3（V1 task tool 6 项功能对齐）**全部完成**（未提交，在 wo
 **V1 fork 逻辑**（[aigcfroge/src/session/session.ts:690](../../packages/aigcfroge/src/session/session.ts#L690)）：createNext 新 session → 读投影后 messages/parts → 映射 ID（idMap: 旧 messageID→新）→ 到 messageID 边界停 → updateMessage/updatePart 到新 session，重写 parentID + compaction tail_start_id 引用。
 
 **V2 的核心难点（event-sourced）**：
+
 - `session_message.id` 是全局主键 → fork 必须重写所有 messageID
 - messageID/assistantMessageID 散布在 **~24 个事件类型**的 data 里
 - `replayAll`（[event.ts:472](../../packages/core/src/event.ts#L472)）严格校验：同一 aggregate + seq 严格连续 + aggregateID 从 `data[durable.aggregate]`（sessionID 字段）提取
 
 **两条路线（未决，需用户拍板）**：
+
 - **路 A（事件复制 + replayAll，event-sourced 原生）**：读源 durable 事件 → 重写 sessionID + 重映射所有 messageID → replayAll 到新 aggregate。最贴架构，**但高风险**：24 事件类型 ID 重写遗漏会污染事件存储（难逆转）+ seq/replayAll 严格守卫易踩坑。
 - **路 B（投影层复制，V1 式务实）**：读源投影后 SessionMessage[] → 为新 session 合成线性 Prompted/settled 事件序列。保真度低（丢 delta 细粒度），但 fork 语义只需"模型可见对话历史"续接 prompt，settled 够。风险低（不碰源事件存储）。
 
@@ -88,13 +90,13 @@ Range 3（V1 task tool 6 项功能对齐）**全部完成**（未提交，在 wo
 
 **决策变更**：原计划是把会话同步到外部 `share.example.com`，涉及网络传输、账号认证、第三方数据安全风险。经产品分析后改为**纯本地的 Agent 间上下文分享**：
 
-| 维度 | 原外网方案 | 现内部分享方案 |
-|---|---|---|
-| 数据流向 | 本地 → 外部服务器 | 本地会话 → 本地会话 |
-| 网络依赖 | 需要 | 不需要 |
-| 安全风险 | 高（第三方数据传输） | 无 |
-| 复杂度 | 高（ShareNext + Account + 网络） | 低（EventV2 + injectSynthetic） |
-| 工作量 | 3+ 天 | 1 天 |
+| 维度     | 原外网方案                       | 现内部分享方案                  |
+| -------- | -------------------------------- | ------------------------------- |
+| 数据流向 | 本地 → 外部服务器                | 本地会话 → 本地会话             |
+| 网络依赖 | 需要                             | 不需要                          |
+| 安全风险 | 高（第三方数据传输）             | 无                              |
+| 复杂度   | 高（ShareNext + Account + 网络） | 低（EventV2 + injectSynthetic） |
+| 工作量   | 3+ 天                            | 1 天                            |
 
 **V2 实现**：
 
@@ -111,6 +113,7 @@ Range 3（V1 task tool 6 项功能对齐）**全部完成**（未提交，在 wo
 - **接线**：`packages/server/src/handlers.ts` + `packages/aigcfroge/src/effect/app-runtime.ts`
 
 **V1 遗留**：
+
 - `packages/aigcfroge/src/share/session.ts`（SessionShare）— V1 外网分享，保留到 Phase 5 退役
 - `packages/aigcfroge/src/share/share-next.ts`（ShareNext）— 同上
 - `packages/core/src/share/sql.ts`（SessionShareTable）— V1 分享表，保留到 Phase 5
@@ -127,7 +130,7 @@ Range 3（V1 task tool 6 项功能对齐）**全部完成**（未提交，在 wo
 - SDK: codegen 产物，改后端 schema 后必须 `bun dev generate`（在 packages/aigcfroge）+ `packages/sdk/js/script/build.ts` 重生。**用绝对路径跑**（bash cwd 会漂移）
 - 迁移: `bun script/migration.ts`（packages/core）**自动生成**，禁手写迁移 + schema.gen.ts；无 down；snake_case
 - 上游对比: `/home/keer/Documents/web/opencode-dev`（opencode 品牌，移植需改名）；另有 `/home/keer/Documents/web/cc`（fork 参考）
-- 模块: `export * as Foo from "./foo"` 自导出；Effect.gen + Effect.fn("Domain.method")；禁 Effect.fork（用 forkIn）；yield* new MyError()
+- 模块: `export * as Foo from "./foo"` 自导出；Effect.gen + Effect.fn("Domain.method")；禁 Effect.fork（用 forkIn）；yield\* new MyError()
 
 ## 4. 改完即审流程（每批必走）
 

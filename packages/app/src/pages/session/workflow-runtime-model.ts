@@ -85,11 +85,7 @@ export type WorkflowMutationOutcome =
 
 export interface WorkflowRuntimeAdapter {
   get(sessionID: string): Promise<WorkflowStatusResponse>
-  cancelRun(input: {
-    sessionID: string
-    runID: string
-    expectedRunRevision: number
-  }): Promise<WorkflowMutationOutcome>
+  cancelRun(input: { sessionID: string; runID: string; expectedRunRevision: number }): Promise<WorkflowMutationOutcome>
   cancelStep(input: {
     sessionID: string
     runID: string

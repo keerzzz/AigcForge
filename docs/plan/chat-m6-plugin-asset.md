@@ -2,13 +2,14 @@
 
 > 状态：Approved（修订后，Bridge 为 Effect service）
 > 修订记录：
+>
 > - v1.0 (2026-07-27): 初稿，审批发现 Phase 1D Bridge 架构错误（裸 `node:fs` → Effect `FSUtil.Service`）
 > - v1.1 (2026-07-27): 修订 Bridge 为 Effect service + 4 个次要问题修复
-> 依据：[Chat PRD v4.5](../prd/chat-mode-creation-layer.md)、[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[智能体插件统一管理调研](../../research/agent/智能体插件统一管理调研.md)
-> 前置：M5（WorkflowAsset 开闸）已合并到 main
-> 分支：`m6-plugin-asset`（从 main 切出）
-> 范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/sdk/js` + `packages/app`
-> **本文件为自包含实施手册，可供其他 agent 独立执行。**
+>   依据：[Chat PRD v4.5](../prd/chat-mode-creation-layer.md)、[CLAUDE.md](../../CLAUDE.md)、[AGENTS.md](../../AGENTS.md)、[ARCHITECTURE.md](../../ARCHITECTURE.md)、[智能体插件统一管理调研](../../research/agent/智能体插件统一管理调研.md)
+>   前置：M5（WorkflowAsset 开闸）已合并到 main
+>   分支：`m6-plugin-asset`（从 main 切出）
+>   范围：`packages/schema` + `packages/core` + `packages/aigcfroge` + `packages/sdk/js` + `packages/app`
+>   **本文件为自包含实施手册，可供其他 agent 独立执行。**
 
 ---
 
@@ -20,11 +21,11 @@
 
 现有 6 类资产的语义无法覆盖 Plugin：
 
-| 现有资产 | 语义 | 与 Plugin 的差异 |
-|---------|------|-----------------|
-| mcp | **单一** MCP server 连接（1 文件 = 1 进程） | Plugin = **包**（含多个 tools + hooks + skills + commands） |
-| skill | **单一** 知识注入 | Plugin 的 skill 只是其 bundled 子资产之一 |
-| workflow | **单一** DAG 编排 | Plugin 执行不走 DAG，是工具集合 |
+| 现有资产 | 语义                                        | 与 Plugin 的差异                                            |
+| -------- | ------------------------------------------- | ----------------------------------------------------------- |
+| mcp      | **单一** MCP server 连接（1 文件 = 1 进程） | Plugin = **包**（含多个 tools + hooks + skills + commands） |
+| skill    | **单一** 知识注入                           | Plugin 的 skill 只是其 bundled 子资产之一                   |
+| workflow | **单一** DAG 编排                           | Plugin 执行不走 DAG，是工具集合                             |
 
 ### 0.2 目标
 
@@ -43,27 +44,27 @@
 
 ### 0.4 架构决策
 
-| 问题 | 决策 | 依据 |
-|------|------|------|
-| 独立 kind 还是归并到 MCP | **独立 kind = `"plugin"`** | Plugin = 多工具集成包（含 hooks+skills+commands+mcp）；MCP = 单一 server 连接。用户明确要求不混淆 |
-| 文件格式 | **`.plugin.yaml`**（纯 YAML） | 调研报告的 Dify/Coze 实践；workflow 已用 `.yaml`，扩展名区分 |
-| 存储目录 | `.aigcfroge/plugins/` | 对齐现有 6 类目录结构 |
-| 系统级桥接 | **PluginScanner**（1 个函数，6 个子函数） | 扫描 ~/.claude/、~/.codex/、~/.cursor/、~/.zcode/、~/.kimi-code/ |
-| 桥接展示 | 作为 system origin 注入 Plugin 面板，与 project-level 合并 | M4 的 `systemAssets()` + `mergeAssets()` 模式 |
-| 执行引擎 | 延后 | Work PRD 正稿阶段再建设 |
+| 问题                     | 决策                                                       | 依据                                                                                              |
+| ------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 独立 kind 还是归并到 MCP | **独立 kind = `"plugin"`**                                 | Plugin = 多工具集成包（含 hooks+skills+commands+mcp）；MCP = 单一 server 连接。用户明确要求不混淆 |
+| 文件格式                 | **`.plugin.yaml`**（纯 YAML）                              | 调研报告的 Dify/Coze 实践；workflow 已用 `.yaml`，扩展名区分                                      |
+| 存储目录                 | `.aigcfroge/plugins/`                                      | 对齐现有 6 类目录结构                                                                             |
+| 系统级桥接               | **PluginScanner**（1 个函数，6 个子函数）                  | 扫描 ~/.claude/、~/.codex/、~/.cursor/、~/.zcode/、~/.kimi-code/                                  |
+| 桥接展示                 | 作为 system origin 注入 Plugin 面板，与 project-level 合并 | M4 的 `systemAssets()` + `mergeAssets()` 模式                                                     |
+| 执行引擎                 | 延后                                                       | Work PRD 正稿阶段再建设                                                                           |
 
 ### 0.5 真实数据参考
 
 基于用户机器实际扫描结果：
 
-| 工具 | 插件数量 | 格式 | 示例 |
-|------|---------|------|------|
-| Claude Code | 60+ marketplace | `.claude-plugin/plugin.json` + `.mcp.json` + `commands/` + `skills/` + `hooks/` | code-review, hookify, agent-sdk-dev, gitkraken-hooks |
-| Codex | 60+ curated skills | `skills-curated-cache.json` | aspnet-core, figma, cli-creator, cloudflare-deploy |
-| Codex MCP | 2 servers | `config.toml [mcp_servers]` | pencil, context7 |
-| Cursor | extensions/ | VS Code extension 模型 | remote-containers, remote-ssh |
-| Kimi Code | skills + models | `config.toml` | K3 models, extra_skill_dirs |
-| ZCode | 配置 | `v2/config.json` | bots-model-cache |
+| 工具        | 插件数量           | 格式                                                                            | 示例                                                 |
+| ----------- | ------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Claude Code | 60+ marketplace    | `.claude-plugin/plugin.json` + `.mcp.json` + `commands/` + `skills/` + `hooks/` | code-review, hookify, agent-sdk-dev, gitkraken-hooks |
+| Codex       | 60+ curated skills | `skills-curated-cache.json`                                                     | aspnet-core, figma, cli-creator, cloudflare-deploy   |
+| Codex MCP   | 2 servers          | `config.toml [mcp_servers]`                                                     | pencil, context7                                     |
+| Cursor      | extensions/        | VS Code extension 模型                                                          | remote-containers, remote-ssh                        |
+| Kimi Code   | skills + models    | `config.toml`                                                                   | K3 models, extra_skill_dirs                          |
+| ZCode       | 配置               | `v2/config.json`                                                                | bots-model-cache                                     |
 
 ---
 
@@ -157,8 +158,8 @@ interface BridgeEntry {
   description: string
   source: "claude-code" | "codex" | "cursor" | "zcode" | "kimi-code" | "project"
   category: string
-  originPath: string          // 原始文件绝对路径，调试用
-  format: string               // 原始格式标记
+  originPath: string // 原始文件绝对路径，调试用
+  format: string // 原始格式标记
   bundled: {
     commands: number
     skills: number
@@ -172,6 +173,7 @@ interface BridgeEntry {
 ### 2.3 桥接到系统级资产的展示协议
 
 桥接插件以 `origin: "system"` 注入 `AssetWorkbench` 的行数据。面板显示：
+
 - `kind` 列 = `"plugin"`
 - 名称列前置 `[system]` badge + tooltip 显示来源工具名
 - description 显示插件描述
@@ -181,20 +183,20 @@ interface BridgeEntry {
 
 ## 3. Phase 划分（TDD 每步）
 
-| Phase | 内容 | 测试位置 | 包 | 依赖 |
-|-------|------|---------|-----|------|
-| **0** | Chat PRD §18 Plugin Asset 规格文档 | — | docs | — |
-| **1A** | PluginAsset schema：Frontmatter/Summary/Info/BridgeEntry/InvalidEntry | `packages/schema/test/` | schema | — |
-| **1B** | PluginAsset path 模块 | `packages/core/test/` | core | 1A |
-| **1C** | PluginAsset core Service：loadDir + layer + watch | `packages/core/test/` | core | 1B |
-| **1D** | PluginBridge scanner（系统级） | `packages/core/test/` | core | 1A |
-| **2A** | HTTP API：groups + handlers（list/content/bridged） | `packages/aigcfroge/test/server/` | aigcfroge | 1C, 1D |
-| **2B** | LocationServiceMap 注册 | — | aigcfroge | 2A |
-| **2C** | SDK 重新生成 | — | sdk/js | 2A |
-| **3A** | App：ChatFeatureID + CHAT_FEATURES + 功能树 | `packages/app/test/` | app | 2C |
-| **3B** | App：home.tsx 第 7 路 fetch + bridged 合并 | — | app | 3A |
-| **3C** | App：asset-insert.ts 路径映射 | — | app | 3B |
-| **4** | 集成验证：lint + typecheck + test 全量 | — | 全部 | 3C |
+| Phase  | 内容                                                                  | 测试位置                          | 包        | 依赖   |
+| ------ | --------------------------------------------------------------------- | --------------------------------- | --------- | ------ |
+| **0**  | Chat PRD §18 Plugin Asset 规格文档                                    | —                                 | docs      | —      |
+| **1A** | PluginAsset schema：Frontmatter/Summary/Info/BridgeEntry/InvalidEntry | `packages/schema/test/`           | schema    | —      |
+| **1B** | PluginAsset path 模块                                                 | `packages/core/test/`             | core      | 1A     |
+| **1C** | PluginAsset core Service：loadDir + layer + watch                     | `packages/core/test/`             | core      | 1B     |
+| **1D** | PluginBridge scanner（系统级）                                        | `packages/core/test/`             | core      | 1A     |
+| **2A** | HTTP API：groups + handlers（list/content/bridged）                   | `packages/aigcfroge/test/server/` | aigcfroge | 1C, 1D |
+| **2B** | LocationServiceMap 注册                                               | —                                 | aigcfroge | 2A     |
+| **2C** | SDK 重新生成                                                          | —                                 | sdk/js    | 2A     |
+| **3A** | App：ChatFeatureID + CHAT_FEATURES + 功能树                           | `packages/app/test/`              | app       | 2C     |
+| **3B** | App：home.tsx 第 7 路 fetch + bridged 合并                            | —                                 | app       | 3A     |
+| **3C** | App：asset-insert.ts 路径映射                                         | —                                 | app       | 3B     |
+| **4**  | 集成验证：lint + typecheck + test 全量                                | —                                 | 全部      | 3C     |
 
 ---
 
@@ -420,14 +422,13 @@ describe("PluginAsset.InvalidEntry", () => {
 **更新**：`packages/schema/src/asset.ts` — `AssetKindId` 加 `"plugin"`
 
 ```typescript
-export const AssetKindId = Schema.Literals([
-  "prompt", "skill", "mcp", "command", "agent", "workflow", "plugin",
-])
+export const AssetKindId = Schema.Literals(["prompt", "skill", "mcp", "command", "agent", "workflow", "plugin"])
 ```
 
 **更新**：`packages/schema/src/index.ts` — 追加 `export * as PluginAsset from "./plugin-asset"`
 
 **验证**：
+
 ```bash
 bun --cwd packages/schema test --timeout 30000
 bun --cwd packages/schema typecheck
@@ -438,6 +439,7 @@ bun --cwd packages/schema typecheck
 ### Phase 1B：Path 模块（`packages/core/`）
 
 **TDD**：
+
 ```
 RED  → write test/plugin-asset-path.test.ts
 GREEN → write src/plugin-asset/path.ts
@@ -463,10 +465,10 @@ export const SEGMENT_MIN_BYTES = 1
 export const SEGMENT_MAX_BYTES = 100
 export const PATH_MAX_BYTES = 240
 
-export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()(
-  "PluginAsset.PathValidation",
-  { reason: Schema.String, path: Schema.String },
-) {}
+export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()("PluginAsset.PathValidation", {
+  reason: Schema.String,
+  path: Schema.String,
+}) {}
 
 function utf8Bytes(value: string): number {
   return new TextEncoder().encode(value).length
@@ -486,7 +488,8 @@ export function isValidSegment(segment: string): boolean {
 export function validateRelativePath(relativePath: string): string {
   const trimmed = relativePath.trim()
   if (trimmed === "") throw new PathValidationError({ reason: "Path must not be empty", path: relativePath })
-  if (path.isAbsolute(trimmed)) throw new PathValidationError({ reason: "Path must not be absolute", path: relativePath })
+  if (path.isAbsolute(trimmed))
+    throw new PathValidationError({ reason: "Path must not be absolute", path: relativePath })
   const normalized = trimmed.replace(/\\/g, "/")
   const segments = normalized.split("/")
   for (const segment of segments) {
@@ -538,12 +541,14 @@ export function resolveSafeTarget(
 **测试文件**：`packages/core/test/plugin-asset-path.test.ts`
 
 测试要点（参考 `workflow-asset-path.test.ts` 结构）：
+
 - `isValidSegment`：接受中文名/英文名/数字/连字符，拒绝空格/trailing dot/控制字符/Windows 保留字符/超长
 - `validateRelativePath`：强制 `.plugin.yaml` 扩展名，拒绝空/绝对路径/`..` 穿越
 - `nameToRelativePath`：产生 `.aigcfroge/plugins/<name>.plugin.yaml`，NFKC 归一化
 - `resolveSafeTarget`：路径逃逸防护（含 symlink 重定向检测）
 
 **验证**：
+
 ```bash
 bun --cwd packages/core test plugin-asset-path --timeout 30000
 bun --cwd packages/core typecheck
@@ -554,6 +559,7 @@ bun --cwd packages/core typecheck
 ### Phase 1C：Core Service（`packages/core/`）
 
 **TDD**：
+
 ```
 RED  → write test/plugin-asset-registry.test.ts
 GREEN → write src/plugin-asset.ts + update src/constants.ts
@@ -569,6 +575,7 @@ export const PLUGINS_DIR = ".aigcfroge/plugins"
 **新文件**：`packages/core/src/plugin-asset.ts`
 
 结构与 `workflow-asset.ts` 一致，关键差异：
+
 - `loadDir` 用 `fs.glob("**/*.plugin.yaml", ...)` 而非 `**/*.yaml`（与 workflow 区分）
 - 用 `yaml.load()` 解析（`js-yaml` 已是传递依赖）
 - Info 包含 `bundled` 计数（扫描 YAML 中 hooks/commands/skills/agents 引用算数量，Phase 1 硬编码为 0）
@@ -602,7 +609,11 @@ export interface Info {
   readonly version: string
   readonly category?: string
   readonly author?: { readonly name: string; readonly email?: string }
-  readonly source?: { readonly type: "mcp" | "openapi" | "bundled"; readonly mcp?: { readonly name: string }; readonly openapi?: { readonly url: string } }
+  readonly source?: {
+    readonly type: "mcp" | "openapi" | "bundled"
+    readonly mcp?: { readonly name: string }
+    readonly openapi?: { readonly url: string }
+  }
   readonly hooks: ReadonlyArray<{ readonly event: string; readonly command: string; readonly timeout?: number }>
   readonly revision: string
 }
@@ -636,9 +647,9 @@ function loadDir(
 
     for (const file of files) {
       const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
-      const raw = yield* fs.readFile(file).pipe(
-        Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-      )
+      const raw = yield* fs
+        .readFile(file)
+        .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
       if (!raw) continue
 
       const text = new TextDecoder().decode(raw)
@@ -712,7 +723,9 @@ export const layer = Layer.effect(
       )
     })
 
-    const list = Effect.fn("PluginAsset.list")(function* () { return Array.from(assets.values()) })
+    const list = Effect.fn("PluginAsset.list")(function* () {
+      return Array.from(assets.values())
+    })
     const getByPath = Effect.fn("PluginAsset.getByPath")(function* (p: string) {
       const entry = assets.get(p)
       if (!entry) return yield* new NotFoundError({ relativePath: p })
@@ -722,27 +735,29 @@ export const layer = Layer.effect(
       for (const entry of assets.values()) if (entry.name === name) return entry
       return undefined
     })
-    const listInvalid = Effect.fn("PluginAsset.listInvalid")(function* () { return Array.from(invalid.values()) })
-    const getInvalid = Effect.fn("PluginAsset.getInvalid")(function* (p: string) { return invalid.get(p) })
+    const listInvalid = Effect.fn("PluginAsset.listInvalid")(function* () {
+      return Array.from(invalid.values())
+    })
+    const getInvalid = Effect.fn("PluginAsset.getInvalid")(function* (p: string) {
+      return invalid.get(p)
+    })
 
     const scope = yield* Scope.Scope
     const eventsOpt = yield* Effect.serviceOption(EventV2.Service)
     if (Option.isSome(eventsOpt)) {
-      yield* eventsOpt.value
-        .subscribe(Watcher.Event.Updated)
-        .pipe(
-          Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".plugin.yaml")),
-          Stream.runForEach(() =>
-            reload().pipe(
-              Effect.catch((error) =>
-                Effect.logWarning("Failed to reload plugin assets", {
-                  errorTag: "_tag" in error ? String(error._tag) : "filesystem_error",
-                }),
-              ),
+      yield* eventsOpt.value.subscribe(Watcher.Event.Updated).pipe(
+        Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".plugin.yaml")),
+        Stream.runForEach(() =>
+          reload().pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("Failed to reload plugin assets", {
+                errorTag: "_tag" in error ? String(error._tag) : "filesystem_error",
+              }),
             ),
           ),
-          Effect.forkIn(scope),
-        )
+        ),
+        Effect.forkIn(scope),
+      )
     }
 
     yield* reload().pipe(Effect.orDie)
@@ -756,6 +771,7 @@ export const locationLayer = layer
 **测试文件**：`packages/core/test/plugin-asset-registry.test.ts`
 
 测试要点（参考 `workflow-asset-registry.test.ts` 结构）：
+
 - 空目录 list = []
 - 加载单个 `.plugin.yaml`
 - 加载多个 plugin
@@ -769,6 +785,7 @@ export const locationLayer = layer
 - `listInvalid` reload 修复
 
 **验证**：
+
 ```bash
 bun --cwd packages/core test plugin-asset-registry --timeout 30000
 bun --cwd packages/core typecheck
@@ -781,6 +798,7 @@ bun --cwd packages/core typecheck
 > **审批修订**：原设计用裸 `node:fs` + `for...of`，违反 AGENTS.md §Effect Coding（"Prefer Effect services over raw APIs"）和 §Style Guide（"Prefer functional array methods"）。修订为 `FSUtil.Service` + `Schema.Class` 化 BridgeEntry + `.flatMap`/`Effect.all`。
 
 **TDD**：
+
 ```
 RED  → write test/plugin-bridge.test.ts
 GREEN → write src/plugin-asset/bridge.ts
@@ -826,9 +844,9 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 function scanClaudeCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEntry[]> {
   return Effect.gen(function* () {
     const pattern = path.join(os.homedir(), ".claude", "plugins", "**", ".claude-plugin", "plugin.json")
-    const files = yield* fs.glob(pattern, { absolute: true, include: "file" }).pipe(
-      Effect.catchAll(() => Effect.succeed([] as readonly string[])),
-    )
+    const files = yield* fs
+      .glob(pattern, { absolute: true, include: "file" })
+      .pipe(Effect.catchAll(() => Effect.succeed([] as readonly string[])))
     const entries = yield* Effect.all(
       files.map((file) =>
         Effect.gen(function* () {
@@ -841,15 +859,17 @@ function scanClaudeCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly Bri
           if (!name) return []
           const pluginDir = path.dirname(path.dirname(file)) // 向上两级从 .claude-plugin/plugin.json 到 plugin root
           const bundled = yield* countBundled(fs, pluginDir)
-          return [{
-            name,
-            description,
-            source: "claude-code" as const,
-            category: "",
-            originPath: file,
-            format: "claude-plugin-v1",
-            bundled,
-          }]
+          return [
+            {
+              name,
+              description,
+              source: "claude-code" as const,
+              category: "",
+              originPath: file,
+              format: "claude-plugin-v1",
+              bundled,
+            },
+          ]
         }).pipe(Effect.catchAll(() => Effect.succeed([] as readonly BridgeEntry[]))),
       ),
     )
@@ -902,9 +922,9 @@ function scanCodexMCPServers(fs: FSUtil.Interface): Effect.Effect<readonly Bridg
 function scanCursorPlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEntry[]> {
   return Effect.gen(function* () {
     const pattern = path.join(os.homedir(), ".cursor", "plugins", "local", "**", "package.json")
-    const files = yield* fs.glob(pattern, { absolute: true, include: "file" }).pipe(
-      Effect.catchAll(() => Effect.succeed([] as readonly string[])),
-    )
+    const files = yield* fs
+      .glob(pattern, { absolute: true, include: "file" })
+      .pipe(Effect.catchAll(() => Effect.succeed([] as readonly string[])))
     const entries = yield* Effect.all(
       files.map((file) =>
         Effect.gen(function* () {
@@ -914,15 +934,17 @@ function scanCursorPlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeE
           const pkg = JSON.parse(text) as { name?: string; description?: string }
           const name = pkg.name?.trim()
           if (!name) return []
-          return [{
-            name,
-            description: pkg.description ?? "",
-            source: "cursor" as const,
-            category: "",
-            originPath: file,
-            format: "cursor-ext-v1",
-            bundled: { commands: 0, skills: 0, agents: 0, hooks: 0, mcpServers: 0 },
-          }]
+          return [
+            {
+              name,
+              description: pkg.description ?? "",
+              source: "cursor" as const,
+              category: "",
+              originPath: file,
+              format: "cursor-ext-v1",
+              bundled: { commands: 0, skills: 0, agents: 0, hooks: 0, mcpServers: 0 },
+            },
+          ]
         }).pipe(Effect.catchAll(() => Effect.succeed([] as readonly BridgeEntry[]))),
       ),
     )
@@ -939,15 +961,19 @@ function scanZCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEn
     const data = JSON.parse(text) as Record<string, unknown>
     // ZCode v2 config 含 bots-model-cache，提取 bot/agent 条目
     const count = Object.keys(data).length > 0 ? 1 : 0
-    return count > 0 ? [{
-      name: "zcode-configurations",
-      description: "ZCode v2 configurations and model cache",
-      source: "zcode" as const,
-      category: "",
-      originPath: configPath,
-      format: "zcode-config-v1",
-      bundled: { commands: 0, skills: 0, agents: count, hooks: 0, mcpServers: 0 },
-    }] : []
+    return count > 0
+      ? [
+          {
+            name: "zcode-configurations",
+            description: "ZCode v2 configurations and model cache",
+            source: "zcode" as const,
+            category: "",
+            originPath: configPath,
+            format: "zcode-config-v1",
+            bundled: { commands: 0, skills: 0, agents: count, hooks: 0, mcpServers: 0 },
+          },
+        ]
+      : []
   })
 }
 
@@ -1026,17 +1052,18 @@ export const layer = Layer.effect(
 
 **各子扫描函数实现概要**：
 
-| 扫描器 | Effect 模式 | 关键路径 |
-|--------|-----------|---------|
-| `scanClaudeCodePlugins` | `fs.glob("**/.claude-plugin/plugin.json")` → `fs.readFile` → `JSON.parse` → 提取 name/description/bundled | `~/.claude/plugins/**` |
-| `scanCodexSkills` | `fs.readFile("skills-curated-cache.json")` → `JSON.parse` → 遍历 skills[] | `~/.codex/vendor_imports/` |
-| `scanCodexMCPServers` | `fs.readFile("config.toml")` → regex 提取 `[mcp_servers.X]` | `~/.codex/config.toml` |
-| `scanCursorPlugins` | `fs.glob("**/package.json")` → `fs.readFile` → `JSON.parse` | `~/.cursor/plugins/local/**` |
-| `scanZCodePlugins` | `fs.readFile("v2/config.json")` → `JSON.parse` | `~/.zcode/v2/` |
-| `scanKimiCodePlugins` | `fs.readFile("config.toml")` → regex 提取 models | `~/.kimi-code/config.toml` |
-| `countBundled` | 并行 `Effect.all` glob commands/skills/agents + `.mcp.json` | plugin root 目录 |
+| 扫描器                  | Effect 模式                                                                                               | 关键路径                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `scanClaudeCodePlugins` | `fs.glob("**/.claude-plugin/plugin.json")` → `fs.readFile` → `JSON.parse` → 提取 name/description/bundled | `~/.claude/plugins/**`       |
+| `scanCodexSkills`       | `fs.readFile("skills-curated-cache.json")` → `JSON.parse` → 遍历 skills[]                                 | `~/.codex/vendor_imports/`   |
+| `scanCodexMCPServers`   | `fs.readFile("config.toml")` → regex 提取 `[mcp_servers.X]`                                               | `~/.codex/config.toml`       |
+| `scanCursorPlugins`     | `fs.glob("**/package.json")` → `fs.readFile` → `JSON.parse`                                               | `~/.cursor/plugins/local/**` |
+| `scanZCodePlugins`      | `fs.readFile("v2/config.json")` → `JSON.parse`                                                            | `~/.zcode/v2/`               |
+| `scanKimiCodePlugins`   | `fs.readFile("config.toml")` → regex 提取 models                                                          | `~/.kimi-code/config.toml`   |
+| `countBundled`          | 并行 `Effect.all` glob commands/skills/agents + `.mcp.json`                                               | plugin root 目录             |
 
 **容错原则**（双层）：
+
 - **子函数级**：`fs.glob` / `fs.readFile` 均 `.pipe(Effect.catchAll(() => Effect.succeed(undefined)))`
 - **顶层 `scan`**：每个子函数 `.pipe(Effect.catchAll(() => Effect.succeed([])))`，同类工具内单个文件 fail 不影响其他
 
@@ -1063,10 +1090,9 @@ describe("PluginBridge", () => {
     process.env.AIGCFROGE_TEST_HOME = emptyHome
     try {
       const result = await Effect.runPromise(
-        Effect.gen(function* () { return yield* (yield* PluginBridge.Service).scan() }).pipe(
-          Effect.provide(bridgeLayer()),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* PluginBridge.Service).scan()
+        }).pipe(Effect.provide(bridgeLayer()), Effect.scoped),
       )
       expect(Array.isArray(result)).toBe(true)
     } finally {
@@ -1094,12 +1120,9 @@ describe("PluginBridge", () => {
       process.env.AIGCFROGE_TEST_HOME = tmp.path
       try {
         const result = await Effect.runPromise(
-          Effect.gen(function* () { return yield* (yield* PluginBridge.Service).scan() }).pipe(
-            Effect.provide(
-              PluginBridge.layer.pipe(Layer.provide(FSUtil.defaultLayer))
-            ),
-            Effect.scoped,
-          ),
+          Effect.gen(function* () {
+            return yield* (yield* PluginBridge.Service).scan()
+          }).pipe(Effect.provide(PluginBridge.layer.pipe(Layer.provide(FSUtil.defaultLayer))), Effect.scoped),
         )
         const cc = result.filter((e) => e.source === "claude-code")
         expect(cc.length).toBeGreaterThanOrEqual(1)
@@ -1112,12 +1135,15 @@ describe("PluginBridge", () => {
         process.env.AIGCFROGE_TEST_HOME = prev
         await tmp[Symbol.asyncDispose]()
       }
-    } catch { /* skip on env conflict */ }
+    } catch {
+      /* skip on env conflict */
+    }
   })
 })
 ```
 
 **验证**：
+
 ```bash
 bun --cwd packages/core test plugin-bridge --timeout 30000
 bun --cwd packages/core typecheck
@@ -1128,6 +1154,7 @@ bun --cwd packages/core typecheck
 ### Phase 2A：HTTP API
 
 **TDD**：
+
 ```
 RED  → write test/server/httpapi-plugin-asset.test.ts
 GREEN → write groups/plugin-asset.ts + handlers/plugin-asset.ts
@@ -1137,6 +1164,7 @@ VERIFY → bun test + typecheck
 **新文件**：`packages/aigcfroge/src/server/routes/instance/httpapi/groups/plugin-asset.ts`
 
 结构参考 `workflow-asset.ts`，差异：
+
 - `ListResponse` 增加 `bridged: Schema.Array(Schema.Struct({ name, description, source, category, originPath, format, bundled }))`
 - Group 注册到 `InstanceHttpApi`
 
@@ -1181,9 +1209,9 @@ export const pluginAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "plugin
         Effect.provide(FSUtil.defaultLayer),
         Effect.orDie,
       )
-      const bridged = yield* bridgeService.scan().pipe(
-        Effect.catchAll(() => Effect.succeed([] as readonly PluginBridge["BridgeEntry"][])),
-      )
+      const bridged = yield* bridgeService
+        .scan()
+        .pipe(Effect.catchAll(() => Effect.succeed([] as readonly PluginBridge["BridgeEntry"][])))
 
       return {
         assets: filtered.map((a) =>
@@ -1197,9 +1225,7 @@ export const pluginAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "plugin
             toolCount: (a.hooks?.length ?? 0) + (a.bundled?.commands ?? 0),
           }),
         ),
-        invalid: invalid.map((e) =>
-          Schema.decodeUnknownSync(SchemaPluginAsset.InvalidEntry)(e),
-        ),
+        invalid: invalid.map((e) => Schema.decodeUnknownSync(SchemaPluginAsset.InvalidEntry)(e)),
         bridged,
       }
     })
@@ -1208,9 +1234,9 @@ export const pluginAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "plugin
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const registry = yield* PluginAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const info = yield* registry.getByPath(ctx.query.path).pipe(
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${ctx.query.path}` }))),
-      )
+      const info = yield* registry
+        .getByPath(ctx.query.path)
+        .pipe(Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${ctx.query.path}` }))))
       return Schema.decodeUnknownSync(SchemaPluginAsset.Info)({
         kind: info.kind,
         name: info.name,
@@ -1233,6 +1259,7 @@ export const pluginAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "plugin
 **测试文件**：`packages/aigcfroge/test/server/httpapi-plugin-asset.test.ts`
 
 测试要点（参考 `httpapi-workflow-asset.test.ts` 结构）：
+
 - GET `/plugin-asset` 返回空列表 `{ assets: [], invalid: [], bridged: [] }`
 - GET `/plugin-asset` 包含 invalid entries（`.plugin.yaml` parse 失败 → `parse_error`）
 - GET `/plugin-asset` 返回有效 plugin assets
@@ -1240,6 +1267,7 @@ export const pluginAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "plugin
 - GET `/plugin-asset/content?path=nonexistent` 返回 400
 
 **验证**：
+
 ```bash
 bun --cwd packages/aigcfroge test httpapi-plugin-asset --timeout 30000
 bun --cwd packages/aigcfroge typecheck
@@ -1250,10 +1278,12 @@ bun --cwd packages/aigcfroge typecheck
 ### Phase 2B：LocationServiceMap 注册 + Bridge 层注入
 
 **更新 1**：`packages/aigcfroge/src/server/routes/instance/httpapi/server.ts`
+
 - 导入 `pluginAssetApiGroup`
 - 注册到 `InstanceHttpApi.add()`
 
 **更新 2**：`packages/aigcfroge/src/server/routes/instance/httpapi/api.ts`
+
 - 追加 PluginAsset group 到 `InstanceHttpApi` 的 group 列表
 
 **更新 3**：`packages/core/src/location-layer.ts`
@@ -1281,12 +1311,14 @@ bun --cwd packages/sdk/js run build.ts
 ### Phase 3A：App 功能树 + 类型
 
 **更新**：`packages/app/src/context/chat-feature.tsx`
+
 ```typescript
 export type ChatFeatureID = "prompt" | "skill" | "mcp" | "command" | "agent" | "workflow" | "plugin"
 const FEATURE_IDS: readonly ChatFeatureID[] = ["prompt", "skill", "mcp", "command", "agent", "workflow", "plugin"]
 ```
 
 **更新**：`packages/app/src/components/mode-surfaces.tsx`
+
 ```typescript
 const CHAT_FEATURES = [
   // ... existing 6 entries
@@ -1301,20 +1333,19 @@ const CHAT_FEATURES = [
 **更新**：`packages/app/src/pages/home.tsx`
 
 ```typescript
-const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes, pluginsRes]
-  = await Promise.all([
-    sdk.client.promptAsset.list(),
-    sdk.client.skillAsset.list(),
-    sdk.client.mcpAsset.list(),
-    sdk.client.commandAsset.list(),
-    sdk.client.agentAsset.list(),
-    sdk.client.workflowAsset.list(),
-    sdk.client.pluginAsset.list(),       // ← 第 7 路
-  ])
+const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes, pluginsRes] = await Promise.all([
+  sdk.client.promptAsset.list(),
+  sdk.client.skillAsset.list(),
+  sdk.client.mcpAsset.list(),
+  sdk.client.commandAsset.list(),
+  sdk.client.agentAsset.list(),
+  sdk.client.workflowAsset.list(),
+  sdk.client.pluginAsset.list(), // ← 第 7 路
+])
 
 const pluginAssets = pluginsRes.data?.assets ?? []
 const pluginInvalid = pluginsRes.data?.invalid ?? []
-const bridgedPlugins = pluginsRes.data?.bridged ?? []  // ← 系统级桥接
+const bridgedPlugins = pluginsRes.data?.bridged ?? [] // ← 系统级桥接
 
 // 系统级桥接插件转为 AssetInput（origin: "system"）
 const bridgedPluginInputs: AssetInput[] = bridgedPlugins.map((b) => ({
@@ -1327,12 +1358,20 @@ const bridgedPluginInputs: AssetInput[] = bridgedPlugins.map((b) => ({
 }))
 
 return {
-  assets: [...promptAssets, ...skillAssets, ...mcpAssets, ...cmdAssets,
-           ...agentAssets, ...workflowAssets, ...pluginAssets, ...bridgedPluginInputs],
+  assets: [
+    ...promptAssets,
+    ...skillAssets,
+    ...mcpAssets,
+    ...cmdAssets,
+    ...agentAssets,
+    ...workflowAssets,
+    ...pluginAssets,
+    ...bridgedPluginInputs,
+  ],
   invalid: [
-    ...promptInvalid.map(i => ({ ...i, kind: "prompt" as const })),
+    ...promptInvalid.map((i) => ({ ...i, kind: "prompt" as const })),
     // ... existing mappings ...
-    ...pluginInvalid.map(i => ({ ...i, kind: "plugin" as const })),
+    ...pluginInvalid.map((i) => ({ ...i, kind: "plugin" as const })),
   ],
 }
 ```
@@ -1369,15 +1408,15 @@ export async function listAssets(client: DirectorySDK["client"], kind: AssetKind
 
 ## 5. i18n 键表
 
-| 键 | 用途 | 英文 | 中文 |
-|---|------|------|------|
-| `chat.feature.plugin` | 功能树/面板标题 | Plugin | 插件 |
-| `pluginAsset.panel.title` | 插件面板标题 | Plugins | 插件管理 |
-| `pluginAsset.list.source` | 表格 source 列 | Source | 来源 |
-| `pluginAsset.list.toolCount` | 表格 toolCount 列 | Tools | 工具数 |
-| `pluginAsset.badge.system` | system origin badge tooltip | System plugin (auto-discovered) | 系统插件（自动发现） |
-| `pluginAsset.badge.bridged` | bridged source tooltip | Bridged from {{source}} | 来自 {{source}} 的桥接 |
-| `pluginAsset.panel.noPlugins` | 空状态 | No plugins found | 无插件 |
+| 键                            | 用途                        | 英文                            | 中文                   |
+| ----------------------------- | --------------------------- | ------------------------------- | ---------------------- |
+| `chat.feature.plugin`         | 功能树/面板标题             | Plugin                          | 插件                   |
+| `pluginAsset.panel.title`     | 插件面板标题                | Plugins                         | 插件管理               |
+| `pluginAsset.list.source`     | 表格 source 列              | Source                          | 来源                   |
+| `pluginAsset.list.toolCount`  | 表格 toolCount 列           | Tools                           | 工具数                 |
+| `pluginAsset.badge.system`    | system origin badge tooltip | System plugin (auto-discovered) | 系统插件（自动发现）   |
+| `pluginAsset.badge.bridged`   | bridged source tooltip      | Bridged from {{source}}         | 来自 {{source}} 的桥接 |
+| `pluginAsset.panel.noPlugins` | 空状态                      | No plugins found                | 无插件                 |
 
 ---
 
@@ -1397,13 +1436,13 @@ export async function listAssets(client: DirectorySDK["client"], kind: AssetKind
 
 ### 19.2 完成清单
 
-| 层 | 工作 | 状态 |
-|----|------|------|
-| schema | `PluginAsset` Frontmatter/Summary/Info/BridgeEntry/InvalidEntry | ⬜ |
-| core | `plugin-asset.ts` loadDir/layer/watcher + `bridge.ts` PluginScanner | ⬜ |
-| aigcfroge | HTTP API `GET /plugin-asset` + `/content`（含 bridged） | ⬜ |
-| sdk/js | `PluginAsset` client 类自动生成 | ⬜ |
-| app | home.tsx 第 7 路 fetch + bridged 合并 + asset-insert 映射 | ⬜ |
+| 层        | 工作                                                                | 状态 |
+| --------- | ------------------------------------------------------------------- | ---- |
+| schema    | `PluginAsset` Frontmatter/Summary/Info/BridgeEntry/InvalidEntry     | ⬜   |
+| core      | `plugin-asset.ts` loadDir/layer/watcher + `bridge.ts` PluginScanner | ⬜   |
+| aigcfroge | HTTP API `GET /plugin-asset` + `/content`（含 bridged）             | ⬜   |
+| sdk/js    | `PluginAsset` client 类自动生成                                     | ⬜   |
+| app       | home.tsx 第 7 路 fetch + bridged 合并 + asset-insert 映射           | ⬜   |
 ```
 
 ---

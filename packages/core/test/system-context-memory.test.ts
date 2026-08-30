@@ -58,13 +58,16 @@ const loadBaseline = (directory: string, extra: Layer.Layer<never>) => {
   }).pipe(Effect.provide(Layer.mergeAll(SystemContextRegistry.layer, builtins).pipe(Layer.provide(extra))))
 }
 
-const insertFact = (directory: string, input: {
-  id: string
-  projectID: ProjectV2.ID
-  factCategory: "code_trap" | "protocol" | "api" | "workflow"
-  content: string
-  time: number
-}) =>
+const insertFact = (
+  directory: string,
+  input: {
+    id: string
+    projectID: ProjectV2.ID
+    factCategory: "code_trap" | "protocol" | "api" | "workflow"
+    content: string
+    time: number
+  },
+) =>
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     yield* db
@@ -106,11 +109,16 @@ describe("SystemContext memory source", () => {
           time: 1,
         }).pipe(Effect.provide(database))
 
-        const disabledWithData = yield* loadBaseline(directory, Layer.mergeAll(database, memoryConfig({ enabled: false })))
+        const disabledWithData = yield* loadBaseline(
+          directory,
+          Layer.mergeAll(database, memoryConfig({ enabled: false })),
+        )
         const defaults = yield* loadBaseline(directory, database)
         expect(disabledWithData).toBe(defaults)
         expect(disabledWithData).not.toContain("should not leak")
-        expect(CacheShape.capture(disabledWithData, [], 0).prefixHash).toBe(CacheShape.capture(defaults, [], 0).prefixHash)
+        expect(CacheShape.capture(disabledWithData, [], 0).prefixHash).toBe(
+          CacheShape.capture(defaults, [], 0).prefixHash,
+        )
       }),
     ),
   )
@@ -122,9 +130,27 @@ describe("SystemContext memory source", () => {
         const base = DateTime.toEpochMillis(yield* DateTime.now)
         yield* Effect.all(
           [
-            insertFact(directory, { id: "mem_ctx_1", projectID, factCategory: "api", content: "oldest fact", time: base - 2000 }),
-            insertFact(directory, { id: "mem_ctx_2", projectID, factCategory: "protocol", content: "middle fact", time: base - 1000 }),
-            insertFact(directory, { id: "mem_ctx_3", projectID, factCategory: "workflow", content: "newest fact", time: base }),
+            insertFact(directory, {
+              id: "mem_ctx_1",
+              projectID,
+              factCategory: "api",
+              content: "oldest fact",
+              time: base - 2000,
+            }),
+            insertFact(directory, {
+              id: "mem_ctx_2",
+              projectID,
+              factCategory: "protocol",
+              content: "middle fact",
+              time: base - 1000,
+            }),
+            insertFact(directory, {
+              id: "mem_ctx_3",
+              projectID,
+              factCategory: "workflow",
+              content: "newest fact",
+              time: base,
+            }),
           ].map((effect) => effect.pipe(Effect.provide(database))),
         )
 
@@ -157,7 +183,10 @@ describe("SystemContext memory source", () => {
           ),
         )
 
-        const baseline = yield* loadBaseline(directory, Layer.mergeAll(database, memoryConfig({ enabled: true, top_n: 2 })))
+        const baseline = yield* loadBaseline(
+          directory,
+          Layer.mergeAll(database, memoryConfig({ enabled: true, top_n: 2 })),
+        )
         expect(baseline).toContain("fact 2")
         expect(baseline).toContain("fact 1")
         expect(baseline).not.toContain("fact 0")

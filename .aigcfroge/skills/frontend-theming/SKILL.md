@@ -12,15 +12,15 @@ allowed-tools: Read Edit Write Bash Glob Grep
 
 AigcForge 同时运行 v1 和 v2 两套 token，**新 UI 必须用 v2 token（`--v2-*`）**。v1 用于兼容旧组件，不许在新代码中新增 v1 token 引用。
 
-| | v1 | v2 |
-|---|---|---|
-| 命名示例 | `--surface-base`, `--text-weak` | `--v2-background-bg-base`, `--v2-text-text-muted` |
-| 色阶数量 | 12 阶 (0-11)，`generateScale` | 12 阶 (100-1200)，`generateV2HueScale` |
-| 亮度方向 | 0=暗端，11=亮端 (isDark 时反转) | 100=最亮，1200=最暗 (恒等) |
-| 中性色 | `generateNeutralScale(seed, isDark, ink?)` | `generateV2NeutralScale(neutral, ink, isDark)` |
-| 语义层 | `resolveThemeVariant` 返回平铺 `ResolvedTheme` | `resolveThemeVariantV2` = primitives + semantics + foreground |
-| 引用方式 | 直接 hex (`#xxxxxx`) 或 CSS var | 纯 CSS var 引用（`var(--v2-grey-100)`） |
-| Alpha | `blend(fg, bg, alpha)` 预混合 | `v2-alpha-light-*` / `v2-alpha-dark-*` CSS var |
+|          | v1                                             | v2                                                            |
+| -------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| 命名示例 | `--surface-base`, `--text-weak`                | `--v2-background-bg-base`, `--v2-text-text-muted`             |
+| 色阶数量 | 12 阶 (0-11)，`generateScale`                  | 12 阶 (100-1200)，`generateV2HueScale`                        |
+| 亮度方向 | 0=暗端，11=亮端 (isDark 时反转)                | 100=最亮，1200=最暗 (恒等)                                    |
+| 中性色   | `generateNeutralScale(seed, isDark, ink?)`     | `generateV2NeutralScale(neutral, ink, isDark)`                |
+| 语义层   | `resolveThemeVariant` 返回平铺 `ResolvedTheme` | `resolveThemeVariantV2` = primitives + semantics + foreground |
+| 引用方式 | 直接 hex (`#xxxxxx`) 或 CSS var                | 纯 CSS var 引用（`var(--v2-grey-100)`）                       |
+| Alpha    | `blend(fg, bg, alpha)` 预混合                  | `v2-alpha-light-*` / `v2-alpha-dark-*` CSS var                |
 
 ### 2. Theme 结构只有一种入口格式
 
@@ -141,19 +141,19 @@ applyTheme (loader.ts)       -- 将 token 注入为 :root 的 CSS 变量
 
 ### Token 语义分类
 
-| 前缀 | 用途 | 示例 |
-|---|---|---|
-| `--background-*` | 背景色 | `--background-base`, `--background-strong` |
-| `--surface-*` | 表面色（面板、卡片、浮层） | `--surface-base`, `--surface-raised-base` |
-| `--text-*` | 文字色 | `--text-base`, `--text-weak`, `--text-strong` |
-| `--border-*` | 边框色 | `--border-base`, `--border-hover`, `--border-focus` |
-| `--icon-*` | 图标色 | `--icon-base`, `--icon-hover`, `--icon-brand-base` |
-| `--input-*` | 输入框色 | `--input-base`, `--input-focus`, `--input-disabled` |
-| `--button-*` | 按钮色 | `--button-primary-base` |
-| `--syntax-*` | 语法高亮 | `--syntax-string`, `--syntax-keyword` |
-| `--markdown-*` | Markdown 渲染 | `--markdown-heading`, `--markdown-link` |
-| `--avatar-*` | 头像色 | `--avatar-background-pink`, `--avatar-text-cyan` |
-| `--v2-*` | v2 token 全系 | `--v2-background-bg-base`, `--v2-text-text-muted` |
+| 前缀             | 用途                       | 示例                                                |
+| ---------------- | -------------------------- | --------------------------------------------------- |
+| `--background-*` | 背景色                     | `--background-base`, `--background-strong`          |
+| `--surface-*`    | 表面色（面板、卡片、浮层） | `--surface-base`, `--surface-raised-base`           |
+| `--text-*`       | 文字色                     | `--text-base`, `--text-weak`, `--text-strong`       |
+| `--border-*`     | 边框色                     | `--border-base`, `--border-hover`, `--border-focus` |
+| `--icon-*`       | 图标色                     | `--icon-base`, `--icon-hover`, `--icon-brand-base`  |
+| `--input-*`      | 输入框色                   | `--input-base`, `--input-focus`, `--input-disabled` |
+| `--button-*`     | 按钮色                     | `--button-primary-base`                             |
+| `--syntax-*`     | 语法高亮                   | `--syntax-string`, `--syntax-keyword`               |
+| `--markdown-*`   | Markdown 渲染              | `--markdown-heading`, `--markdown-link`             |
+| `--avatar-*`     | 头像色                     | `--avatar-background-pink`, `--avatar-text-cyan`    |
+| `--v2-*`         | v2 token 全系              | `--v2-background-bg-base`, `--v2-text-text-muted`   |
 
 ### v2 Token 层级
 
@@ -176,39 +176,39 @@ mergeV2Tokens(primitives, semantics, foreground, v2Overrides) → ResolvedV2Them
 
 ### 常用 color.ts 函数
 
-| 函数 | 用途 |
-|---|---|
-| `hexToOklch(hex)` | hex → Oklch 转换 |
-| `oklchToHex(oklch)` | Oklch → hex 转换 |
-| `generateScale(seed, isDark)` | 12 阶色阶（v1） |
-| `generateNeutralScale(seed, isDark, ink?)` | 12 阶中性色阶（v1） |
-| `generateV2HueScale(seed, isDark)` | 12 阶色阶（v2，扩展分布） |
-| `blend(color, bg, alpha)` | 混合颜色 |
-| `mixColors(c1, c2, amount)` | Oklch 插值混合 |
-| `shift(color, {l?, c?, h?})` | Oklch 偏移 |
-| `contrastRatio(fg, bg)` | WCAG 对比度计算 |
-| `fitOklch(oklch)` | 将 Oklch 钳制到 sRGB 色域 |
+| 函数                                       | 用途                      |
+| ------------------------------------------ | ------------------------- |
+| `hexToOklch(hex)`                          | hex → Oklch 转换          |
+| `oklchToHex(oklch)`                        | Oklch → hex 转换          |
+| `generateScale(seed, isDark)`              | 12 阶色阶（v1）           |
+| `generateNeutralScale(seed, isDark, ink?)` | 12 阶中性色阶（v1）       |
+| `generateV2HueScale(seed, isDark)`         | 12 阶色阶（v2，扩展分布） |
+| `blend(color, bg, alpha)`                  | 混合颜色                  |
+| `mixColors(c1, c2, amount)`                | Oklch 插值混合            |
+| `shift(color, {l?, c?, h?})`               | Oklch 偏移                |
+| `contrastRatio(fg, bg)`                    | WCAG 对比度计算           |
+| `fitOklch(oklch)`                          | 将 Oklch 钳制到 sRGB 色域 |
 
 ### 文件位置
 
-| 路径 | 内容 |
-|---|---|
-| `packages/ui/src/theme/types.ts` | DesktopTheme, ThemeVariant, ResolvedTheme, V2ColorValue 等类型 |
-| `packages/ui/src/theme/color.ts` | Oklch 色彩空间工具函数 |
-| `packages/ui/src/theme/resolve.ts` | v1 token 解析引擎 (~200 tokens) |
-| `packages/ui/src/theme/v2/resolve.ts` | v2 token 解析引擎 (primitives + semantics + foreground) |
-| `packages/ui/src/theme/v2/mapping.ts` | v2 语义 token 映射 (light/dark) |
-| `packages/ui/src/theme/v2/foreground.ts` | v2 前景色动态计算 |
-| `packages/ui/src/theme/v2/default-primitives.ts` | v2 默认 primitives (OC-2) |
-| `packages/ui/src/theme/v2/avatar.ts` | v2 头像色 (theme-independent) |
-| `packages/ui/src/theme/context.tsx` | ThemeProvider (SolidJS) |
-| `packages/ui/src/theme/loader.ts` | applyTheme、loadThemeFromUrl |
-| `packages/ui/src/theme/default-themes.ts` | 37 个内置主题注册 |
-| `packages/ui/src/theme/themes/*.json` | 37 个内置主题 JSON 定义 |
-| `packages/ui/src/theme/desktop-theme.schema.json` | 主题 JSON Schema |
-| `packages/ui/src/styles/colors.css` | 基础 CSS 变量 |
-| `.aigcfroge/themes/*.json` | 用户自定义主题 |
-| `.aigcfroge/plugins/*.json` | 主题插件 |
+| 路径                                              | 内容                                                           |
+| ------------------------------------------------- | -------------------------------------------------------------- |
+| `packages/ui/src/theme/types.ts`                  | DesktopTheme, ThemeVariant, ResolvedTheme, V2ColorValue 等类型 |
+| `packages/ui/src/theme/color.ts`                  | Oklch 色彩空间工具函数                                         |
+| `packages/ui/src/theme/resolve.ts`                | v1 token 解析引擎 (~200 tokens)                                |
+| `packages/ui/src/theme/v2/resolve.ts`             | v2 token 解析引擎 (primitives + semantics + foreground)        |
+| `packages/ui/src/theme/v2/mapping.ts`             | v2 语义 token 映射 (light/dark)                                |
+| `packages/ui/src/theme/v2/foreground.ts`          | v2 前景色动态计算                                              |
+| `packages/ui/src/theme/v2/default-primitives.ts`  | v2 默认 primitives (OC-2)                                      |
+| `packages/ui/src/theme/v2/avatar.ts`              | v2 头像色 (theme-independent)                                  |
+| `packages/ui/src/theme/context.tsx`               | ThemeProvider (SolidJS)                                        |
+| `packages/ui/src/theme/loader.ts`                 | applyTheme、loadThemeFromUrl                                   |
+| `packages/ui/src/theme/default-themes.ts`         | 37 个内置主题注册                                              |
+| `packages/ui/src/theme/themes/*.json`             | 37 个内置主题 JSON 定义                                        |
+| `packages/ui/src/theme/desktop-theme.schema.json` | 主题 JSON Schema                                               |
+| `packages/ui/src/styles/colors.css`               | 基础 CSS 变量                                                  |
+| `.aigcfroge/themes/*.json`                        | 用户自定义主题                                                 |
+| `.aigcfroge/plugins/*.json`                       | 主题插件                                                       |
 
 ## Success Criteria
 

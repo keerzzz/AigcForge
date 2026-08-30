@@ -11,13 +11,13 @@
 
 ## 2. 五层影响审查
 
-| 层 | 关键路径 | 结论 |
-|---|---|---|
-| Schema / Tool | `core/src/tool/task.ts`、`config/cli-agent.ts` | `execution_type`、`cli_target`、`task_id`、transport 配置有明确约束；external-cli 输出带 `metadata`。 |
-| Domain / Session | `core/src/session/task-driver-fill.ts`、`tool/task-driver.ts` | 子 Session 创建、提示/结果投影、任务状态回写、取消、resume、权限桥闭环。 |
-| Transport / Infra | SDK、JSONL、ACP、`external_cli_session` | Claude SDK 持久化和 sessionId 闭环；JSONL resume 参数按各 CLI 实际帮助修正；ACP 生命周期受 Scope 管理。 |
-| Application | `aigcfroge` registry / meta prompt / app runtime | CLI 注册表为单一存储；config transport 选择不再被静默吞掉；可用 CLI 动态刷新。 |
-| UI / TUI | `session-ui`、`app` permission dock、`tui` task card | external-cli 徽标、状态、摘要、子 Session 链接和权限描述均有消费方与契约测试。 |
+| 层                | 关键路径                                                      | 结论                                                                                                    |
+| ----------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Schema / Tool     | `core/src/tool/task.ts`、`config/cli-agent.ts`                | `execution_type`、`cli_target`、`task_id`、transport 配置有明确约束；external-cli 输出带 `metadata`。   |
+| Domain / Session  | `core/src/session/task-driver-fill.ts`、`tool/task-driver.ts` | 子 Session 创建、提示/结果投影、任务状态回写、取消、resume、权限桥闭环。                                |
+| Transport / Infra | SDK、JSONL、ACP、`external_cli_session`                       | Claude SDK 持久化和 sessionId 闭环；JSONL resume 参数按各 CLI 实际帮助修正；ACP 生命周期受 Scope 管理。 |
+| Application       | `aigcfroge` registry / meta prompt / app runtime              | CLI 注册表为单一存储；config transport 选择不再被静默吞掉；可用 CLI 动态刷新。                          |
+| UI / TUI          | `session-ui`、`app` permission dock、`tui` task card          | external-cli 徽标、状态、摘要、子 Session 链接和权限描述均有消费方与契约测试。                          |
 
 ## 3. 审查发现与修复
 

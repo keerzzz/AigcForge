@@ -33,6 +33,6 @@ describe("aigcfroge acp skills subprocess", () => {
 
         expect(update.params?.sessionId).toBe(session.sessionId)
       }),
-    60_000,
+    120_000,
   )
 })

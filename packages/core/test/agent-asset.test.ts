@@ -75,27 +75,27 @@ describe("AgentAsset", () => {
 
         yield* fs.writeFileString(
           agentFile,
-          "---\nkind: agent\nname: \"my-tool\"\ndescription: \"agent desc\"\n---\nYou are an agent",
+          '---\nkind: agent\nname: "my-tool"\ndescription: "agent desc"\n---\nYou are an agent',
         )
 
         yield* fs.writeFileString(
           cmdFile,
-          "---\nkind: command\nname: \"my-tool\"\ndescription: \"cmd desc\"\ninvocation: \"/my-tool\"\n---\necho cmd",
+          '---\nkind: command\nname: "my-tool"\ndescription: "cmd desc"\ninvocation: "/my-tool"\n---\necho cmd',
         )
 
         yield* fs.writeFileString(
           mcpFile,
-          "---\nkind: mcp\nname: \"my-tool\"\ndescription: \"mcp desc\"\ncommand: \"node\"\nargs: [\"server.js\"]\n---\n{}",
+          '---\nkind: mcp\nname: "my-tool"\ndescription: "mcp desc"\ncommand: "node"\nargs: ["server.js"]\n---\n{}',
         )
 
         yield* fs.writeFileString(
           skillFile,
-          "---\nkind: skill\nname: \"my-tool\"\ndescription: \"skill desc\"\ntrigger: \"my-tool\"\nsource: \"echo hi\"\n---\n",
+          '---\nkind: skill\nname: "my-tool"\ndescription: "skill desc"\ntrigger: "my-tool"\nsource: "echo hi"\n---\n',
         )
 
         yield* fs.writeFileString(
           promptFile,
-          "---\nkind: prompt\nname: \"my-tool\"\ndescription: \"prompt desc\"\n---\nHello Prompt",
+          '---\nkind: prompt\nname: "my-tool"\ndescription: "prompt desc"\n---\nHello Prompt',
         )
 
         yield* agentService.reload()

@@ -113,9 +113,7 @@ export class FileChangeTracker {
   }
 }
 
-function detectChanges(
-  snapshots: Map<string, { mtime: number; size: number }>,
-): Effect.Effect<boolean> {
+function detectChanges(snapshots: Map<string, { mtime: number; size: number }>): Effect.Effect<boolean> {
   return Effect.gen(function* () {
     for (const [filePath, prev] of snapshots) {
       const current = yield* statFile(filePath)

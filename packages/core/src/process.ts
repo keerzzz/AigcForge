@@ -12,8 +12,7 @@ export class AppProcessError extends Schema.TaggedErrorClass<AppProcessError>()(
   cause: Schema.optional(Schema.Defect()),
 }) {
   override get message() {
-    const detail =
-      this.stderr?.trim() || (this.cause instanceof Error ? this.cause.message : String(this.cause))
+    const detail = this.stderr?.trim() || (this.cause instanceof Error ? this.cause.message : String(this.cause))
     const status = this.exitCode === undefined ? "" : ` (exit ${this.exitCode})`
     return `Command failed${status}: ${this.command}${detail ? `: ${detail}` : ""}`
   }

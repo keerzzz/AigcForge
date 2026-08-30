@@ -3,16 +3,26 @@ export * as AgentAsset from "./agent-asset"
 import { Effect, Schema } from "effect"
 
 export const Name = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 80, { message: "Name must be at most 80 code points" })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
+      message: "Name must be at least 1 code point",
+    }),
+  ),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
+      message: "Name must be at most 80 code points",
+    }),
+  ),
   Schema.brand("AgentAsset.Name"),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-    message: "Description must be at most 300 code points",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
+      message: "Description must be at most 300 code points",
+    }),
+  ),
   Schema.brand("AgentAsset.Description"),
 )
 export type Description = typeof Description.Type
@@ -26,17 +36,21 @@ export const Revision = Schema.String.pipe(
 export type Revision = typeof Revision.Type
 
 export const Config = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
-    message: "Config must be at most 100,000 UTF-8 bytes",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
+      message: "Config must be at most 100,000 UTF-8 bytes",
+    }),
+  ),
   Schema.brand("AgentAsset.Config"),
 )
 export type Config = typeof Config.Type
 
 export const Source = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
-    message: "Source must be at most 100,000 UTF-8 bytes",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
+      message: "Source must be at most 100,000 UTF-8 bytes",
+    }),
+  ),
   Schema.brand("AgentAsset.Source"),
 )
 export type Source = typeof Source.Type

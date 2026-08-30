@@ -86,13 +86,15 @@ export const layer = Layer.effectDiscard(
                 if (Option.isNone(composition)) {
                   return yield* new ToolFailure({ message: "Custom session snapshot service unavailable" })
                 }
-                const snapshot = yield* composition.value.read(context.sessionID).pipe(
-                  Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
-                    Effect.fail(
-                      new ToolFailure({ message: `Failed to decode custom session snapshot: ${error.details}` }),
+                const snapshot = yield* composition.value
+                  .read(context.sessionID)
+                  .pipe(
+                    Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                      Effect.fail(
+                        new ToolFailure({ message: `Failed to decode custom session snapshot: ${error.details}` }),
+                      ),
                     ),
-                  ),
-                )
+                  )
                 if (!snapshot) return yield* new ToolFailure({ message: "Custom session snapshot not found" })
                 return CompositionCatalog.createCompositionSkillCatalog(snapshot.data.skills, yield* skills.list())
               })

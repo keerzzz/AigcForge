@@ -24,28 +24,28 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 
 ## 3. 架构前提
 
-| 决策 | 当前状态 | 本 PRD 处理 |
-|---|---|---|
-| 四类 Product Mode 与 canonical Session route | ADR-11/12 已接受 | 直接遵循 |
-| Chat/Work/Assistant 职责边界 | ADR-13 已接受 | 直接遵循；个人记忆归 Assistant |
-| 项目/全局落盘策略与 typed owner service | ADR-14 已接受 | 每类资产独立 typed 契约与事务 |
-| 提示词资产闭环（schema/registry/事务/双运行时） | 实现中，见 M1 计划 | 作为框架首个类型复用，不重写 |
-| 工作流引擎归属 | 定义归 Chat / 执行归 Work（[ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md)） | Chat 负责定义（第 6 类资产），不预埋执行能力 |
-| 外部对话持续同步（官方 API/浏览器扩展） | 未立项 | 另立 ADR/PRD，本 PRD 只做一次性导入 |
+| 决策                                            | 当前状态                                                                                                    | 本 PRD 处理                                  |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 四类 Product Mode 与 canonical Session route    | ADR-11/12 已接受                                                                                            | 直接遵循                                     |
+| Chat/Work/Assistant 职责边界                    | ADR-13 已接受                                                                                               | 直接遵循；个人记忆归 Assistant               |
+| 项目/全局落盘策略与 typed owner service         | ADR-14 已接受                                                                                               | 每类资产独立 typed 契约与事务                |
+| 提示词资产闭环（schema/registry/事务/双运行时） | 实现中，见 M1 计划                                                                                          | 作为框架首个类型复用，不重写                 |
+| 工作流引擎归属                                  | 定义归 Chat / 执行归 Work（[ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md)） | Chat 负责定义（第 6 类资产），不预埋执行能力 |
+| 外部对话持续同步（官方 API/浏览器扩展）         | 未立项                                                                                                      | 另立 ADR/PRD，本 PRD 只做一次性导入          |
 
 禁止将目标能力写成"已就绪"。实现以代码和已接受 ADR 为准。
 
 ## 4. v4 相对 v3 的变化
 
-| v3 | v4 |
-|---|---|
-| Chat = 单一创建入口，M1 只有提示词 | Chat = 资产工作室；三条供给路径（引导创建/会话捕获/外部导入） |
-| chat-orchestrator 单一职责=提示词 | 内置 fail-closed 创建 Agent，按类型扩展 `propose_<kind>_asset` 工具族；无 task/写盘能力不变 |
-| 6 分类功能树作为创建导航 | 类型是内部路由，用户无需理解类型；分类分组降级为管理视图 |
-| 预览只读，只能对话修订 | 预览可编辑，apply 前允许直接修改正文（apply 仍全量重校验） |
-| 无去重概念 | propose 时检测相似已有资产并提示 |
-| 里程碑 M1-M4 切分 | PRD 一体化；按消费路径的类型开闸表（§10），实施分期归 plan 文档 |
-| 个人记忆未归属 | 个人记忆/偏好归 Assistant；项目规范（AGENTS.md 类）归 Chat，后期单独评审 |
+| v3                                 | v4                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| Chat = 单一创建入口，M1 只有提示词 | Chat = 资产工作室；三条供给路径（引导创建/会话捕获/外部导入）                               |
+| chat-orchestrator 单一职责=提示词  | 内置 fail-closed 创建 Agent，按类型扩展 `propose_<kind>_asset` 工具族；无 task/写盘能力不变 |
+| 6 分类功能树作为创建导航           | 类型是内部路由，用户无需理解类型；分类分组降级为管理视图                                    |
+| 预览只读，只能对话修订             | 预览可编辑，apply 前允许直接修改正文（apply 仍全量重校验）                                  |
+| 无去重概念                         | propose 时检测相似已有资产并提示                                                            |
+| 里程碑 M1-M4 切分                  | PRD 一体化；按消费路径的类型开闸表（§10），实施分期归 plan 文档                             |
+| 个人记忆未归属                     | 个人记忆/偏好归 Assistant；项目规范（AGENTS.md 类）归 Chat，后期单独评审                    |
 
 ## 5. 目标与非目标
 
@@ -71,17 +71,17 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 
 ## 6. 用户故事
 
-| 用户故事 | 验收结果 |
-|---|---|
-| 作为深度用户，我想在会话产出好结果时一键存为资产，以便不中断心流地复用 | 消息级动作可达；预填内容进入预览；不离开当前模式 |
-| 作为提示词新手，我想被引导回答必要问题，以便生成可用模板 | 系统只追问影响输出的必要信息；类型由系统推断并告知 |
-| 作为外部 AI 工具用户，我想把别处打磨好的内容粘贴/导入，以便在项目里统一复用 | 粘贴与文件导入均产出候选；思考过程默认剥离；逐条确认 |
-| 作为技术负责人，我想资产落在项目目录，以便团队 git 共享统一规范 | 资产写入 `.aigcfroge/` 项目级路径，无用户级隐藏状态 |
-| 作为资产管理者，我想按用途浏览、搜索、编辑资产，以便保持清单整洁可用 | 管理视图按消费路径分组；编辑走同一事务；空/错/加载态明确 |
-| 作为资产管理者，我想编辑资产时改坏了能恢复，以便不破坏项目 | 编辑走同一 apply 事务（baseRevision CAS）；apply 失败回滚旧内容；未确认前不落盘；并发改动返回 stale 不覆盖 |
-| 作为资产管理者，我想删除资产前有明确确认且失败可恢复，以免误删 | 删除走 `prompt_asset_delete` 独立权限动作 + 事务；显式二次确认；失败恢复旧文件；registry reload 后才算成功 |
-| 作为创建者，我想在创建时知道已有相似资产，以便避免重复 | propose 返回相似资产提示，用户选择复用或新建 |
-| 作为失败恢复者，我想校验或注册失败后保留原文件，以便项目不被破坏 | 新文件被清理或旧文件字节级恢复，并显示可操作错误 |
+| 用户故事                                                                    | 验收结果                                                                                                   |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 作为深度用户，我想在会话产出好结果时一键存为资产，以便不中断心流地复用      | 消息级动作可达；预填内容进入预览；不离开当前模式                                                           |
+| 作为提示词新手，我想被引导回答必要问题，以便生成可用模板                    | 系统只追问影响输出的必要信息；类型由系统推断并告知                                                         |
+| 作为外部 AI 工具用户，我想把别处打磨好的内容粘贴/导入，以便在项目里统一复用 | 粘贴与文件导入均产出候选；思考过程默认剥离；逐条确认                                                       |
+| 作为技术负责人，我想资产落在项目目录，以便团队 git 共享统一规范             | 资产写入 `.aigcfroge/` 项目级路径，无用户级隐藏状态                                                        |
+| 作为资产管理者，我想按用途浏览、搜索、编辑资产，以便保持清单整洁可用        | 管理视图按消费路径分组；编辑走同一事务；空/错/加载态明确                                                   |
+| 作为资产管理者，我想编辑资产时改坏了能恢复，以便不破坏项目                  | 编辑走同一 apply 事务（baseRevision CAS）；apply 失败回滚旧内容；未确认前不落盘；并发改动返回 stale 不覆盖 |
+| 作为资产管理者，我想删除资产前有明确确认且失败可恢复，以免误删              | 删除走 `prompt_asset_delete` 独立权限动作 + 事务；显式二次确认；失败恢复旧文件；registry reload 后才算成功 |
+| 作为创建者，我想在创建时知道已有相似资产，以便避免重复                      | propose 返回相似资产提示，用户选择复用或新建                                                               |
+| 作为失败恢复者，我想校验或注册失败后保留原文件，以便项目不被破坏            | 新文件被清理或旧文件字节级恢复，并显示可操作错误                                                           |
 
 ## 7. 产品流程
 
@@ -135,11 +135,11 @@ Chat 是**资产生命周期层**：负责创建、校验、应用、管理资�
 ```ts
 // packages/schema：公共基底，所有资产类型继承
 export class AssetSummary extends Schema.Class<AssetSummary>("Asset.Summary")({
-  kind: Schema.String,            // AssetKindId，如 "prompt"|"command"|"skill"|"agent"|"mcp"
-  name: Name,                     // 1..80 Unicode code points，Location 内唯一；文件名段 ≤240 UTF-8 bytes（见下方修订说明）
-  description: Description,       // 0..300 Unicode code points
-  relativePath: RelativePath,     // 1..500 UTF-8 bytes，位于 .aigcfroge/<kind>/（v4.7 修订，见下方说明）
-  revision: Revision,             // 最终 bytes 的 SHA-256，仅服务端生成，不写入文件
+  kind: Schema.String, // AssetKindId，如 "prompt"|"command"|"skill"|"agent"|"mcp"
+  name: Name, // 1..80 Unicode code points，Location 内唯一；文件名段 ≤240 UTF-8 bytes（见下方修订说明）
+  description: Description, // 0..300 Unicode code points
+  relativePath: RelativePath, // 1..500 UTF-8 bytes，位于 .aigcfroge/<kind>/（v4.7 修订，见下方说明）
+  revision: Revision, // 最终 bytes 的 SHA-256，仅服务端生成，不写入文件
 }) {}
 
 // 每类资产扩展 Info：继承 Summary + kind 特有字段
@@ -151,21 +151,27 @@ export class AssetSummary extends Schema.Class<AssetSummary>("Asset.Summary")({
 // 统一错误面：TaggedErrorClass，reason 稳定枚举，message 不含正文/敏感值
 // 签名对齐项目规范：第一个括号空，标识符在第二个括号（对照 prompt-asset.ts 的
 // AssetNotFoundError / NameConflictError / PathConflictError / StaleRevisionError / OverwriteRequiredError）
-export class AssetError extends Schema.TaggedErrorClass<AssetError>()(
-  "AssetError",
-  {
-    kind: Schema.String,
-    reason: Schema.Literal(
-      "invalid_candidate", "path_escape", "owner_root_escape",
-      "name_conflict", "path_conflict", "stale_revision",
-      "overwrite_confirmation_required", "delete_confirmation_required",
-      "permission_denied", "write_failed", "reload_failed",
-      "readback_mismatch", "rollback_failed", "concurrent_modification",
-      "unknown_kind"
-    ),
-    message: Schema.String,
-  },
-) {}
+export class AssetError extends Schema.TaggedErrorClass<AssetError>()("AssetError", {
+  kind: Schema.String,
+  reason: Schema.Literal(
+    "invalid_candidate",
+    "path_escape",
+    "owner_root_escape",
+    "name_conflict",
+    "path_conflict",
+    "stale_revision",
+    "overwrite_confirmation_required",
+    "delete_confirmation_required",
+    "permission_denied",
+    "write_failed",
+    "reload_failed",
+    "readback_mismatch",
+    "rollback_failed",
+    "concurrent_modification",
+    "unknown_kind",
+  ),
+  message: Schema.String,
+}) {}
 // 迁移说明（C-2）：提示词类型现有 7 个分散错误类（packages/schema/src/prompt-asset.ts：
 // AssetNotFoundError / NameConflictError / PathConflictError / StaleRevisionError /
 // OverwriteRequiredError / InvalidCandidateError / WriteFailedError）。
@@ -186,28 +192,25 @@ export class AssetError extends Schema.TaggedErrorClass<AssetError>()(
 
 **修订决定**：`name` 的 80 Unicode code points 是产品承诺，保留；放宽字节上限以容纳它。
 
-| 常量 | 旧值 | 新值 | 依据 |
-|---|---|---|---|
-| `SEGMENT_MAX_BYTES` | 100 | **240** | = 80 code points × 3 bytes，使 80 汉字的 `name` 可完整落盘 |
-| `PATH_MAX_BYTES` | 240 | **500** | = 240 段 + 21 前缀 + 5 扩展名 + 余量，容纳未来嵌套子目录 |
+| 常量                | 旧值 | 新值    | 依据                                                       |
+| ------------------- | ---- | ------- | ---------------------------------------------------------- |
+| `SEGMENT_MAX_BYTES` | 100  | **240** | = 80 code points × 3 bytes，使 80 汉字的 `name` 可完整落盘 |
+| `PATH_MAX_BYTES`    | 240  | **500** | = 240 段 + 21 前缀 + 5 扩展名 + 余量，容纳未来嵌套子目录   |
 
 新上限仍远低于各平台文件系统限制（单段 255 bytes 是 ext4/APFS/NTFS 的通行上限，240 留有余量；整路径 500 bytes 远低于 Linux `PATH_MAX` 4096 与 Windows 长路径 32767）。
 
 约束落点：`packages/schema/src/asset.ts`（code points）+ `packages/core/src/*-asset/path.ts`（bytes，7 处同构）。两层单位不同是有意的——schema 面向用户可见长度，路径层面向文件系统字节预算；**两者的一致性由 `packages/core/test/*-asset-path.test.ts` 的边界测试保证**。
 
 **AssetKind 注册机制：**
+
 ```ts
 // packages/core：per-kind 定义与注册入口
 // 注：S/I 上界用 Schema.Schema.Any（effect 提供的 schema 通用上界），避免 any 逃逸（AGENTS.md §Style）
-interface AssetKindDef<
-  K extends AssetKindId,
-  S extends Schema.Schema.Any,
-  I extends Schema.Schema.Any,
-> {
+interface AssetKindDef<K extends AssetKindId, S extends Schema.Schema.Any, I extends Schema.Schema.Any> {
   id: K
-  schema: { Summary: S; Info: I }        // typed schema，由调用方具名化
-  ownerDir: string                       // = id，拼入 .aigcfroge/<ownerDir>/
-  serializer: AssetSerializer<K>         // 序列化/反序列化 frontmatter + body
+  schema: { Summary: S; Info: I } // typed schema，由调用方具名化
+  ownerDir: string // = id，拼入 .aigcfroge/<ownerDir>/
+  serializer: AssetSerializer<K> // 序列化/反序列化 frontmatter + body
   proposeToolFactory: ProposeToolFactory<K> // 生成 propose_<kind>_asset 工具
 }
 
@@ -273,13 +276,13 @@ M1 原假设 apply 绑定 chat 会话（从 sessionID 读 `mode=chat`/agent 校�
 
 Chat 会话页（canonical `/server/:serverKey/session/:id`，外壳与 Coding 共享：ModeSwitcher / SecondarySidebar / StatusBar，见 §9.1）右栏复用 Coding 的双区结构（`SessionSidePanel`），逐槽位替换内容，不整体自绘：
 
-| Coding 槽位 | Chat 对应 | 说明 |
-|---|---|---|
-| 审查 tab（带计数） | 预览 tab（带计数） | 当前会话候选：编辑、校验、应用；计数 = 待处理候选数 |
-| 上下文 tab | 上下文 tab | 原样复用 `SessionContextTab` |
-| 文件 tab（拖拽/中键关闭） | 资产 tab | 打开的资产；复用文件 tab 打开机制与查看层 |
-| "＋"打开文件 | "＋"打开资产 | 资产选择器 |
-| B 区文件树（可调宽） | 资产树 | 见 9.4；宽度与拖拽调宽交互一致 |
+| Coding 槽位               | Chat 对应          | 说明                                                |
+| ------------------------- | ------------------ | --------------------------------------------------- |
+| 审查 tab（带计数）        | 预览 tab（带计数） | 当前会话候选：编辑、校验、应用；计数 = 待处理候选数 |
+| 上下文 tab                | 上下文 tab         | 原样复用 `SessionContextTab`                        |
+| 文件 tab（拖拽/中键关闭） | 资产 tab           | 打开的资产；复用文件 tab 打开机制与查看层           |
+| "＋"打开文件              | "＋"打开资产       | 资产选择器                                          |
+| B 区文件树（可调宽）      | 资产树             | 见 9.4；宽度与拖拽调宽交互一致                      |
 
 `SessionSidePanel` 为纯空壳双区框架（A 区 TabsV2 + B 区树），Coding 的 review 面板与 Chat 的资产内容均抽为 slot 注入，完全对称（决策见 [plan A1](../plan/chat-asset-workspace-implementation.md)）。
 
@@ -322,46 +325,46 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 
 **供给路径开闸顺序：**
 
-| 顺序 | 供给路径 | 状态 | 说明 |
-|---|---|---|---|
-| 1 | 引导创建（7 类全部） | ✅ 已实现（M1-M7） | 全类型 propose_*_asset 工具族 + apply/delete 端点 |
-| 2 | 外部导入 | ✅ 已实现（M7） | ChatImportDialog + untrusted 包裹；Core import-parser 延后独立一期 |
-| 3 | 会话捕获 | 待启动 | 跨模式消息动作 + 会话内重复启发式 |
-| 4 | 命令类型开闸 | ✅ 已开闸（M3） | — |
+| 顺序 | 供给路径             | 状态               | 说明                                                               |
+| ---- | -------------------- | ------------------ | ------------------------------------------------------------------ |
+| 1    | 引导创建（7 类全部） | ✅ 已实现（M1-M7） | 全类型 propose\_\*\_asset 工具族 + apply/delete 端点               |
+| 2    | 外部导入             | ✅ 已实现（M7）    | ChatImportDialog + untrusted 包裹；Core import-parser 延后独立一期 |
+| 3    | 会话捕获             | 待启动             | 跨模式消息动作 + 会话内重复启发式                                  |
+| 4    | 命令类型开闸         | ✅ 已开闸（M3）    | —                                                                  |
 
 **资产类型开闸：**
 
-| 顺序 | 资产类型 | 消费路径 | 状态 | 开闸条件 |
-|---|---|---|---|---|
-| 1 | 提示词 | Composer 插入 | ✅ 已开闸（M1） | 契约已评审 |
-| 2 | 命令 | 斜杠调用 | ✅ 已开闸（M3） | typed 契约过审 |
-| 3 | Skill | Skill 激活 | ✅ 已开闸（M3） | typed 契约过审 |
-| 4 | Agent 配置 | Agent 选择器 | ✅ 已开闸（M3） | 权限信封过审 |
-| 5 | MCP 配置 | 工具集扩展 | ✅ 已开闸（M3） | typed 契约过审 |
-| 6 | Workflow | 编排引擎 | ✅ 已开闸（M5-M7） | YAML schema + only-read(M5) → apply/delete(M7) |
-| 7 | Plugin | 工具集扩展 | ✅ 已开闸（M6-M7） | .plugin.yaml schema + bridged scan(M6) → apply/delete(M7) |
-| 归口 Work | 工作流执行 | 编排引擎 | Work 模式（[ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md) + Work PRD v4.1） | Work 里程碑（M3 扩展产出） |
-| 归口 | 个人记忆/偏好 | System Context（个人） | Assistant 模式 | Assistant PRD 后续里程碑 |
-| 后期 | 项目规范（AGENTS.md 类） | System Context（项目） | 待评估 | 单独安全评审（注入边界） |
+| 顺序      | 资产类型                 | 消费路径               | 状态                                                                                                        | 开闸条件                                                  |
+| --------- | ------------------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 1         | 提示词                   | Composer 插入          | ✅ 已开闸（M1）                                                                                             | 契约已评审                                                |
+| 2         | 命令                     | 斜杠调用               | ✅ 已开闸（M3）                                                                                             | typed 契约过审                                            |
+| 3         | Skill                    | Skill 激活             | ✅ 已开闸（M3）                                                                                             | typed 契约过审                                            |
+| 4         | Agent 配置               | Agent 选择器           | ✅ 已开闸（M3）                                                                                             | 权限信封过审                                              |
+| 5         | MCP 配置                 | 工具集扩展             | ✅ 已开闸（M3）                                                                                             | typed 契约过审                                            |
+| 6         | Workflow                 | 编排引擎               | ✅ 已开闸（M5-M7）                                                                                          | YAML schema + only-read(M5) → apply/delete(M7)            |
+| 7         | Plugin                   | 工具集扩展             | ✅ 已开闸（M6-M7）                                                                                          | .plugin.yaml schema + bridged scan(M6) → apply/delete(M7) |
+| 归口 Work | 工作流执行               | 编排引擎               | Work 模式（[ADR-13 Amendment-1](../architecture/adr/ADR-13-amendment-1-workflow-asset.md) + Work PRD v4.1） | Work 里程碑（M3 扩展产出）                                |
+| 归口      | 个人记忆/偏好            | System Context（个人） | Assistant 模式                                                                                              | Assistant PRD 后续里程碑                                  |
+| 后期      | 项目规范（AGENTS.md 类） | System Context（项目） | 待评估                                                                                                      | 单独安全评审（注入边界）                                  |
 
 ## 11. 成功指标与埋点
 
 上线前用内部 50 次有效创建尝试建立基线（执行计划见本节末，P3）；Beta Gate 目标如下。**指标按供给路径拆分**（P1）：导入路径产出的本就是用户在外部验证好用的内容，复用率天然高于引导创建，混统会让导入复用掩盖引导创建的失败，使停止规则失去判别力。
 
-| 指标 | 目标 | 测量方式 |
-|---|---|---|
-| 7 日复用率 - 引导创建（主指标） | ≥30% | 引导创建资产后 7 日内至少一次插入/调用 |
-| 7 日复用率 - 导入 | ≥40% | 导入资产后 7 日内至少一次插入/调用（导入内容已外部验证，目标高于引导创建） |
-| 7 日复用率 - 捕获 | 基线后定 | 捕获资产后 7 日内至少一次插入/调用 |
-| 创建闭环成功率（不分路径） | ≥95% | 成功 reload 并回读一致 / 用户确认应用次数（事务统一，无需分路径） |
-| 首次产出时间 - 引导创建 | P50 ≤5 分钟 | 新建 Draft 到首次成功应用 |
-| 首次产出时间 - 导入 | P50 ≤1 分钟 | 导入入口到首次成功应用（无对话引导，远快于引导创建） |
-| 首次产出时间 - 捕获 | P50 ≤2 分钟 | 消息"存为资产"到首次成功应用 |
-| 创建后可发现率 | ≥99% | 成功应用后 registry 搜索命中 |
-| 捕获接受率（先行） | 基线后定 | capture_accepted / capture_suggested |
-| 导入使用占比（先行） | 基线后定 | 导入来源资产 / 全部新建资产 |
-| 失败回滚正确率 | 100% | 故障注入后无半写文件且旧内容一致 |
-| 未确认写入 | 0 | 应用/删除确认前发生文件变化的次数 |
+| 指标                            | 目标        | 测量方式                                                                   |
+| ------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| 7 日复用率 - 引导创建（主指标） | ≥30%        | 引导创建资产后 7 日内至少一次插入/调用                                     |
+| 7 日复用率 - 导入               | ≥40%        | 导入资产后 7 日内至少一次插入/调用（导入内容已外部验证，目标高于引导创建） |
+| 7 日复用率 - 捕获               | 基线后定    | 捕获资产后 7 日内至少一次插入/调用                                         |
+| 创建闭环成功率（不分路径）      | ≥95%        | 成功 reload 并回读一致 / 用户确认应用次数（事务统一，无需分路径）          |
+| 首次产出时间 - 引导创建         | P50 ≤5 分钟 | 新建 Draft 到首次成功应用                                                  |
+| 首次产出时间 - 导入             | P50 ≤1 分钟 | 导入入口到首次成功应用（无对话引导，远快于引导创建）                       |
+| 首次产出时间 - 捕获             | P50 ≤2 分钟 | 消息"存为资产"到首次成功应用                                               |
+| 创建后可发现率                  | ≥99%        | 成功应用后 registry 搜索命中                                               |
+| 捕获接受率（先行）              | 基线后定    | capture_accepted / capture_suggested                                       |
+| 导入使用占比（先行）            | 基线后定    | 导入来源资产 / 全部新建资产                                                |
+| 失败回滚正确率                  | 100%        | 故障注入后无半写文件且旧内容一致                                           |
+| 未确认写入                      | 0           | 应用/删除确认前发生文件变化的次数                                          |
 
 停止规则（P1）：**只针对引导创建路径**的 Beta 7 日复用率低于 15%，或创建闭环成功率连续两周低于 90%，**停止开闸新类型**，优先修正发现、质量或目标用户假设。导入路径的高复用率不得用于掩盖引导创建失败；创建功能本身存废不由该规则裁决。
 
@@ -409,15 +412,15 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 
 ## 14. 开放问题
 
-| 问题 | 负责人 |
-|---|---|
-| 分析设施与 7 日归因 owner（阻塞外部 Beta） | 产品 + Data |
-| 外部对话持续同步（官方 API/浏览器扩展）独立立项 | 产品 |
-| Assistant 记忆契约与 Chat 项目规范的引用与优先级 | Core + 产品 |
-| 命令是否第二个开闸（提示词复用数据到达后裁决） | 产品 + Core |
-| 用户自建 Agent 的 meta 调度设计（编排层，后期） | Core |
-| 导入解析器支持的外部格式清单（基于真实导出样本） | 产品 |
-| 捕获接受率与导入占比的目标值（内部 50 次基线建立后一周内补定，否则指标空转） | 产品 |
+| 问题                                                                         | 负责人      |
+| ---------------------------------------------------------------------------- | ----------- |
+| 分析设施与 7 日归因 owner（阻塞外部 Beta）                                   | 产品 + Data |
+| 外部对话持续同步（官方 API/浏览器扩展）独立立项                              | 产品        |
+| Assistant 记忆契约与 Chat 项目规范的引用与优先级                             | Core + 产品 |
+| 命令是否第二个开闸（提示词复用数据到达后裁决）                               | 产品 + Core |
+| 用户自建 Agent 的 meta 调度设计（编排层，后期）                              | Core        |
+| 导入解析器支持的外部格式清单（基于真实导出样本）                             | 产品        |
+| 捕获接受率与导入占比的目标值（内部 50 次基线建立后一周内补定，否则指标空转） | 产品        |
 
 ## 15. 批准 Gate
 
@@ -439,13 +442,13 @@ PRD 覆盖全部路径与类型；实施按供给路径先后推进、按消费�
 
 **Gate 核对：**
 
-| Gate | 状态 | 证据 | 签字 |
-|---|---|---|---|
-| 1. ADR 一致 | **PASS** | ADR-13/14 Accepted（2026-07-15）；`ARCHITECTURE.md` §7 已同步列 Accepted + Implemented 补 Prompt Asset M1 | — |
-| 2. 框架契约 Core 评审 | **PASS** | §8.1.1 AssetKind 注册/schema/错误面/注册入口；C-2 签名对齐项目规范 + 迁移路径推荐 (a) | Core owner: ✓ |
-| 3. 安全评审 | **PASS** | §8.3.1 apply/delete 授权（S-1 定论：HTTP 认证 + 事务 + UI 确认）；§7.3 导入 untrusted 隔离；§7.2 凭证扫描；§9.4/9.5 `prompt_asset_delete` | Security owner: ✓ |
-| 4. 指标/埋点/Beta Gate | **PASS** | §11 分路径指标；§11.1 G3 替代测量；§11.2 基线计划；§12 灰度 | 产品/Core/App owner: ✓ |
-| 5. App A1-A5 | **PASS** | §13.2 A1 per-slot；A2 textarea；A3 diff 复用；A4 i18n 补齐 18 locale；A5 窄屏 | App owner: ✓ |
+| Gate                   | 状态     | 证据                                                                                                                                      | 签字                   |
+| ---------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| 1. ADR 一致            | **PASS** | ADR-13/14 Accepted（2026-07-15）；`ARCHITECTURE.md` §7 已同步列 Accepted + Implemented 补 Prompt Asset M1                                 | —                      |
+| 2. 框架契约 Core 评审  | **PASS** | §8.1.1 AssetKind 注册/schema/错误面/注册入口；C-2 签名对齐项目规范 + 迁移路径推荐 (a)                                                     | Core owner: ✓          |
+| 3. 安全评审            | **PASS** | §8.3.1 apply/delete 授权（S-1 定论：HTTP 认证 + 事务 + UI 确认）；§7.3 导入 untrusted 隔离；§7.2 凭证扫描；§9.4/9.5 `prompt_asset_delete` | Security owner: ✓      |
+| 4. 指标/埋点/Beta Gate | **PASS** | §11 分路径指标；§11.1 G3 替代测量；§11.2 基线计划；§12 灰度                                                                               | 产品/Core/App owner: ✓ |
+| 5. App A1-A5           | **PASS** | §13.2 A1 per-slot；A2 textarea；A3 diff 复用；A4 i18n 补齐 18 locale；A5 窄屏                                                             | App owner: ✓           |
 
 **四方顾问批准建议：** **APPROVED**（2026-07-18，全权 owner 拍板，Gate 1-5 全 PASS）。文档层 v4.2 已过二次评审复查，无阻断；S-1 深挖定论非缺口；剩余工作（delete 路由 + A1-A5）为实现项，非 PRD 阻断。
 
@@ -461,51 +464,51 @@ M2 将 M1 的"提示词单类型闭环"整合进 Asset Studio 资产工作室完
 
 ### 16.1 M1 最终状态
 
-| Phase | 状态 | 备注 |
-|-------|------|------|
-| A Schema/Path/writeAtomic | ✅ 已实现 | |
-| B Registry | ⚠️ 已实现（缺 listInvalid） | M1 计划 §280-281 写入但未落地；M2 Step 0 补充 |
-| C PromptAssetService 事务 | ✅ 已实现 | 含 delete 事务 |
-| D Agent/Tool/Policy V1+V2 | ✅ 已实现 | 含 flag gate |
-| E App UI | ✅ 已实现 | 含右栏双区/首页分流 |
-| F Flag/E2E/V2 smoke | ✅ 已实现 | |
+| Phase                     | 状态                        | 备注                                          |
+| ------------------------- | --------------------------- | --------------------------------------------- |
+| A Schema/Path/writeAtomic | ✅ 已实现                   |                                               |
+| B Registry                | ⚠️ 已实现（缺 listInvalid） | M1 计划 §280-281 写入但未落地；M2 Step 0 补充 |
+| C PromptAssetService 事务 | ✅ 已实现                   | 含 delete 事务                                |
+| D Agent/Tool/Policy V1+V2 | ✅ 已实现                   | 含 flag gate                                  |
+| E App UI                  | ✅ 已实现                   | 含右栏双区/首页分流                           |
+| F Flag/E2E/V2 smoke       | ✅ 已实现                   |                                               |
 
 ### 16.2 M2 范围
 
-| # | 实施项 | 说明 |
-|---|--------|------|
-| 1 | AssetWorkbench 4 列表格 | 主区重写，4 列 + Kind Dropdown + 搜索 |
-| 2 | ChatRightPanel Inspector | 右栏简化为纯详情视图 |
-| 3 | 功能树移除 + ADR-15 slot 合规 | 删 chat-feature.tsx + mode-workspace slot 改 render-all |
-| 4 | Insert 流程 | SessionSelectorPopover + 跳转注入 |
-| 5 | 路由状态保持 | ChatWorkspaceContext 扩展 + Provider 提到 Router 外 |
-| 6 | listInvalid 数据源 | core 补接口 + HTTP API 携带 invalid 标记 |
-| 7 | 文件夹级资产（Path 列展示） | 表格自然支持 |
+| #   | 实施项                        | 说明                                                    |
+| --- | ----------------------------- | ------------------------------------------------------- |
+| 1   | AssetWorkbench 4 列表格       | 主区重写，4 列 + Kind Dropdown + 搜索                   |
+| 2   | ChatRightPanel Inspector      | 右栏简化为纯详情视图                                    |
+| 3   | 功能树移除 + ADR-15 slot 合规 | 删 chat-feature.tsx + mode-workspace slot 改 render-all |
+| 4   | Insert 流程                   | SessionSelectorPopover + 跳转注入                       |
+| 5   | 路由状态保持                  | ChatWorkspaceContext 扩展 + Provider 提到 Router 外     |
+| 6   | listInvalid 数据源            | core 补接口 + HTTP API 携带 invalid 标记                |
+| 7   | 文件夹级资产（Path 列展示）   | 表格自然支持                                            |
 
 ### 16.3 M2 非目标
 
-| 项 | 原因 |
-|----|------|
-| AssetKind 框架泛化 | 价值在开新类型时才体现 |
-| 外部导入路径 | 低成本供给路径，M2 后可快速启动 |
-| 会话捕获路径 | 依赖消息流架构 |
-| 命令类型开闸 | 提示词复用数据达标后裁决 |
-| 全局资产 | PRD §5.2 非目标 |
-| 窄屏适配 | M1 A5 已做 <768px 抽屉，M2 不做新窄屏改动 |
+| 项                 | 原因                                      |
+| ------------------ | ----------------------------------------- |
+| AssetKind 框架泛化 | 价值在开新类型时才体现                    |
+| 外部导入路径       | 低成本供给路径，M2 后可快速启动           |
+| 会话捕获路径       | 依赖消息流架构                            |
+| 命令类型开闸       | 提示词复用数据达标后裁决                  |
+| 全局资产           | PRD §5.2 非目标                           |
+| 窄屏适配           | M1 A5 已做 <768px 抽屉，M2 不做新窄屏改动 |
 
 ### 16.4 M2 最终闭环（2026-07-25，v4.5+）
 
 M2 Step 0-6 全部完成（chat-m1-closure 分支，最终 commit `a1d05bda1`）：
 
-| Step | 内容 | commit |
-|------|------|--------|
-| 0 | listInvalid 数据源 | `80f1f4a09` |
-| 1 | AssetWorkbench 组件 | `e7edeb9e9` |
-| 2 | 跳过（首页 Inspector 对齐 code 模式） | — |
-| 3 | 功能树移除 + 产品反馈重构 + i18n 修复 + ChatFeaturePanel 对齐 | `c95bd1bbb`/`4dab40c0f`/`5ca4b6b84`/`eddfd73f2`/`10dd0c199` |
-| 4 | Insert 流程（[Insert] 按钮 → SessionSelectorPopover → ?insert= → 注入 Composer） | `e61405680` |
-| 5 | 路由状态保持（ChatWorkspaceProvider 跨路由）+ Dirty Draft | `37ac2b66f`/`9030e2fd3` |
-| 6 | 全链路 playwright 集成测试 | `1f014cdf5` |
+| Step | 内容                                                                             | commit                                                      |
+| ---- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 0    | listInvalid 数据源                                                               | `80f1f4a09`                                                 |
+| 1    | AssetWorkbench 组件                                                              | `e7edeb9e9`                                                 |
+| 2    | 跳过（首页 Inspector 对齐 code 模式）                                            | —                                                           |
+| 3    | 功能树移除 + 产品反馈重构 + i18n 修复 + ChatFeaturePanel 对齐                    | `c95bd1bbb`/`4dab40c0f`/`5ca4b6b84`/`eddfd73f2`/`10dd0c199` |
+| 4    | Insert 流程（[Insert] 按钮 → SessionSelectorPopover → ?insert= → 注入 Composer） | `e61405680`                                                 |
+| 5    | 路由状态保持（ChatWorkspaceProvider 跨路由）+ Dirty Draft                        | `37ac2b66f`/`9030e2fd3`                                     |
+| 6    | 全链路 playwright 集成测试                                                       | `1f014cdf5`                                                 |
 
 ---
 
@@ -521,24 +524,24 @@ M2 Step 0-6 全部完成（chat-m1-closure 分支，最终 commit `a1d05bda1`）
 
 ### 17.2 范围
 
-| 层 | 工作 |
-|----|------|
-| schema | AssetSummary/AssetError 框架类型 + per-kind Info/Frontmatter（skill/mcp/command/agent） |
-| core | AssetKindRegistry.Service + per-kind loadDir/Service/layer + per-kind 事务服务 + 数据迁移 |
-| aigcfroge | per-kind HttpApiGroup + handlers（/skill-asset, /mcp-asset, etc.） |
-| sdk/js | 重新生成 per-kind client 类（SkillAsset, MCPAsset, etc.） |
-| app | AssetRow 类型泛化 + fetchAllKinds + AssetWorkbench filter 扩类型 + ChatFeaturePanel 删除 |
+| 层        | 工作                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------- |
+| schema    | AssetSummary/AssetError 框架类型 + per-kind Info/Frontmatter（skill/mcp/command/agent）   |
+| core      | AssetKindRegistry.Service + per-kind loadDir/Service/layer + per-kind 事务服务 + 数据迁移 |
+| aigcfroge | per-kind HttpApiGroup + handlers（/skill-asset, /mcp-asset, etc.）                        |
+| sdk/js    | 重新生成 per-kind client 类（SkillAsset, MCPAsset, etc.）                                 |
+| app       | AssetRow 类型泛化 + fetchAllKinds + AssetWorkbench filter 扩类型 + ChatFeaturePanel 删除  |
 
 ### 17.3 里程碑
 
-| Phase | 里程碑 | 验收 |
-|-------|--------|------|
-| 1 | 框架定义（schema AssetKindId + core AssetKindRegistry）+ PromptAsset 接入 | AssetKindRegistry.resolve("prompt") 成功 |
-| 2 | SkillAsset 开闸（schema→core→http→sdk→迁移→UI） | 功能树 skill → AssetWorkbench filter |
-| 3 | MCPAsset 开闸 | 同上 |
-| 4 | CommandAsset 开闸 | 同上 |
-| 5 | AgentAsset 开闸 | 同上 |
-| 6 | ChatFeaturePanel 删除 + Insert 通用化 | 编译通过 + 全链路测试通过 |
+| Phase | 里程碑                                                                    | 验收                                     |
+| ----- | ------------------------------------------------------------------------- | ---------------------------------------- |
+| 1     | 框架定义（schema AssetKindId + core AssetKindRegistry）+ PromptAsset 接入 | AssetKindRegistry.resolve("prompt") 成功 |
+| 2     | SkillAsset 开闸（schema→core→http→sdk→迁移→UI）                           | 功能树 skill → AssetWorkbench filter     |
+| 3     | MCPAsset 开闸                                                             | 同上                                     |
+| 4     | CommandAsset 开闸                                                         | 同上                                     |
+| 5     | AgentAsset 开闸                                                           | 同上                                     |
+| 6     | ChatFeaturePanel 删除 + Insert 通用化                                     | 编译通过 + 全链路测试通过                |
 
 ### 17.4 非目标（M3 也不做）
 
@@ -561,14 +564,14 @@ Workflow 作为第 6 类资产（`AssetKindId`）开闸：定义归 Chat 管理�
 
 ### 18.2 完成清单
 
-| 层 | 工作 | 状态 |
-|----|------|------|
-| docs | ADR-13 Amendment 1（定义归 Chat，执行归 Work） | ✅ |
-| schema | `WorkflowAsset` Summary/Info/Frontmatter/StepDef + `StepDef` 子类型 | ✅ |
-| core | `workflow-asset.ts` loadDir/layer/watcher + `workflow-asset/path.ts`（`.yaml` 扩展名） | ✅ |
-| aigcfroge | HTTP API `GET /workflow-asset` + `GET /workflow-asset/content`（只读，无 apply/delete） | ✅ |
-| sdk/js | `WorkflowAsset` client 类自动生成（`bun build.ts`） | ✅ |
-| app | home.tsx 第 6 路 fetch + asset-insert.ts 路径映射 + `Exclude<"workflow">` 解除 | ✅ |
+| 层        | 工作                                                                                    | 状态 |
+| --------- | --------------------------------------------------------------------------------------- | ---- |
+| docs      | ADR-13 Amendment 1（定义归 Chat，执行归 Work）                                          | ✅   |
+| schema    | `WorkflowAsset` Summary/Info/Frontmatter/StepDef + `StepDef` 子类型                     | ✅   |
+| core      | `workflow-asset.ts` loadDir/layer/watcher + `workflow-asset/path.ts`（`.yaml` 扩展名）  | ✅   |
+| aigcfroge | HTTP API `GET /workflow-asset` + `GET /workflow-asset/content`（只读，无 apply/delete） | ✅   |
+| sdk/js    | `WorkflowAsset` client 类自动生成（`bun build.ts`）                                     | ✅   |
+| app       | home.tsx 第 6 路 fetch + asset-insert.ts 路径映射 + `Exclude<"workflow">` 解除          | ✅   |
 
 ### 18.3 M5 附带修复
 
@@ -597,13 +600,13 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 
 ### 19.2 完成清单
 
-| 层 | 工作 | 状态 |
-|----|------|------|
-| schema | `PluginAsset` Summary/Info/Frontmatter（name/description/version/category/author/source/hooks） | ✅ |
-| core | `plugin-asset.ts` loadDir/layer/watcher + `plugin-asset/path.ts`（`.plugin.yaml` 扩展名）+ `plugin-asset/bridge.ts`（系统级桥接扫描） | ✅ |
-| aigcfroge | HTTP API `GET /plugin-asset` + `GET /plugin-asset/content`（只读，含 bridged 列表） | ✅ |
-| sdk/js | `PluginAsset` client 类自动生成 | ✅ |
-| app | home.tsx 第 7 路 fetch + asset-insert.ts 路径映射 | ✅ |
+| 层        | 工作                                                                                                                                  | 状态 |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| schema    | `PluginAsset` Summary/Info/Frontmatter（name/description/version/category/author/source/hooks）                                       | ✅   |
+| core      | `plugin-asset.ts` loadDir/layer/watcher + `plugin-asset/path.ts`（`.plugin.yaml` 扩展名）+ `plugin-asset/bridge.ts`（系统级桥接扫描） | ✅   |
+| aigcfroge | HTTP API `GET /plugin-asset` + `GET /plugin-asset/content`（只读，含 bridged 列表）                                                   | ✅   |
+| sdk/js    | `PluginAsset` client 类自动生成                                                                                                       | ✅   |
+| app       | home.tsx 第 7 路 fetch + asset-insert.ts 路径映射                                                                                     | ✅   |
 
 ### 19.3 验收
 
@@ -626,14 +629,14 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 
 ### 20.2 交付物
 
-| Phase | 内容 | 文件 |
-|-------|------|------|
-| P1 | 新建按钮闭环 | asset-workbench.tsx, home.tsx, en/zh.ts |
-| P2 | 导入按钮闭环（Untrusted 内容注入） | chat-import-dialog.tsx(new), asset-workbench.tsx, home.tsx |
-| P3A | propose_workflow_asset / propose_plugin_asset 双工具 | core propose(×2 new) + aigcfroge V1 adapter(×2 new) + registration + permissions + prompt |
-| P3B | workflow/plugin apply/delete HTTP 端点 + SDK 重生成 | groups/{wf,pl}-asset.ts, handlers/{wf,pl}-asset.ts, sdk.gen.ts |
-| P3C | 前端候选归一化 + apply/insert 分派 | prompt-asset-candidate.ts/.test.ts, asset-insert.ts |
-| P4 | 资产 Delete UI 闭环（7 类全覆盖） | asset-delete-dialog.tsx(new), asset-workbench.tsx, home.tsx |
+| Phase | 内容                                                 | 文件                                                                                      |
+| ----- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| P1    | 新建按钮闭环                                         | asset-workbench.tsx, home.tsx, en/zh.ts                                                   |
+| P2    | 导入按钮闭环（Untrusted 内容注入）                   | chat-import-dialog.tsx(new), asset-workbench.tsx, home.tsx                                |
+| P3A   | propose_workflow_asset / propose_plugin_asset 双工具 | core propose(×2 new) + aigcfroge V1 adapter(×2 new) + registration + permissions + prompt |
+| P3B   | workflow/plugin apply/delete HTTP 端点 + SDK 重生成  | groups/{wf,pl}-asset.ts, handlers/{wf,pl}-asset.ts, sdk.gen.ts                            |
+| P3C   | 前端候选归一化 + apply/insert 分派                   | prompt-asset-candidate.ts/.test.ts, asset-insert.ts                                       |
+| P4    | 资产 Delete UI 闭环（7 类全覆盖）                    | asset-delete-dialog.tsx(new), asset-workbench.tsx, home.tsx                               |
 
 ### 20.3 关键设计决策
 
@@ -658,14 +661,14 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 
 ### 20.5 技术债（延期，有意）
 
-| 项 | 原因 |
-|----|------|
+| 项                                                            | 原因                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | WorkflowAssetService / PluginAssetService typed Effect 事务层 | M5/M6 已明确延后（§1.2）。**2026-08-15 更新**：apply/delete 仍在 handler 内联，但已改为复用 `FileMutation.writeAtomic` + `KeyedMutex` + `resolveSafeTarget`，§8.3 五条不变量与 delete readback 均已恢复；剩余的债只是"未封装为 core 层 Service" |
-| Core import-parser Effect service | ~~M7 阶段以 Agent 解析代替，Core parser 延后独立一期~~ **已实现并接线**（`packages/core/src/import-parser.ts`，经 `/import-parser/parse` 端点供 ImportDialog 调用）。本行保留以记录声明变更 |
-| 会话捕获"存为资产" | PRD §7.2，延后独立一期。`capture-helpers.ts` 已存在但无生产消费者 |
-| 资产 Edit UI | 编辑 = 文件编辑，走 code 模式已可用 |
-| 资产全局导入导出 | PRD §5.2 非目标 |
-| **资产 apply/delete 的非会话路由** | 见 §20.6 |
+| Core import-parser Effect service                             | ~~M7 阶段以 Agent 解析代替，Core parser 延后独立一期~~ **已实现并接线**（`packages/core/src/import-parser.ts`，经 `/import-parser/parse` 端点供 ImportDialog 调用）。本行保留以记录声明变更                                                     |
+| 会话捕获"存为资产"                                            | PRD §7.2，延后独立一期。`capture-helpers.ts` 已存在但无生产消费者                                                                                                                                                                               |
+| 资产 Edit UI                                                  | 编辑 = 文件编辑，走 code 模式已可用                                                                                                                                                                                                             |
+| 资产全局导入导出                                              | PRD §5.2 非目标                                                                                                                                                                                                                                 |
+| **资产 apply/delete 的非会话路由**                            | 见 §20.6                                                                                                                                                                                                                                        |
 
 ### 20.6 待办：资产 apply/delete 非会话路由（2026-08-15 记录）
 
@@ -677,13 +680,13 @@ Plugin 作为第 7 类资产（`AssetKindId`）开闸：`.plugin.yaml` 格式，
 
 **范围估算**：
 
-| 项 | 工作量 |
-|---|---|
-| `groups/<kind>-asset.ts` × 7：各加 2 个端点（payload / success / error schema 复用现成定义） | 7 文件 |
-| `handlers/<kind>-asset.ts` × 7：先把 apply/delete 事务体抽成共享函数，再挂两个变体 | 7 文件（抽公共体是重点，否则复制 14 份即违反 Reusability 门禁） |
-| `test/server/httpapi-exercise/index.ts`：在泛型 `assetScenarios(fixture)` 里加 2 个 scenario | 1 文件（自动覆盖 7 类，因为有 `assetFixtures` 数组） |
-| SDK 重新生成（`script/generate.ts` → `openapi.json` → `sdk.gen.ts`） | 1 次 |
-| 前端工作台切新路由、删除伪造 sessionID | 1 文件 |
+| 项                                                                                           | 工作量                                                          |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `groups/<kind>-asset.ts` × 7：各加 2 个端点（payload / success / error schema 复用现成定义） | 7 文件                                                          |
+| `handlers/<kind>-asset.ts` × 7：先把 apply/delete 事务体抽成共享函数，再挂两个变体           | 7 文件（抽公共体是重点，否则复制 14 份即违反 Reusability 门禁） |
+| `test/server/httpapi-exercise/index.ts`：在泛型 `assetScenarios(fixture)` 里加 2 个 scenario | 1 文件（自动覆盖 7 类，因为有 `assetFixtures` 数组）            |
+| SDK 重新生成（`script/generate.ts` → `openapi.json` → `sdk.gen.ts`）                         | 1 次                                                            |
+| 前端工作台切新路由、删除伪造 sessionID                                                       | 1 文件                                                          |
 
 **不做的替代方案**：把 `sessionID` 改成可选参数——HttpApi 的路径参数不支持可选，会退化成两套路由，等价于本方案但语义更含糊。
 

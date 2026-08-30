@@ -193,9 +193,9 @@ export const layer = Layer.effect(
             // exists=true) by treating the missing file as no prior bytes; any other
             // read error still propagates.
             const priorBytes: Uint8Array | null = existed
-              ? yield* fs.readFile(canonical).pipe(
-                  Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)),
-                )
+              ? yield* fs
+                  .readFile(canonical)
+                  .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)))
               : null
 
             // Register temp cleanup on any failure or interruption
@@ -206,18 +206,21 @@ export const layer = Layer.effect(
               ),
             )
 
-            yield* (typeof input.content === "string"
-              ? fs.writeFileString(tmp, input.content)
-              : fs.writeFile(tmp, input.content)
+            yield* (
+              typeof input.content === "string"
+                ? fs.writeFileString(tmp, input.content)
+                : fs.writeFile(tmp, input.content)
             ).pipe(
               Effect.catchReason("PlatformError", "NotFound", () =>
-                fs.makeDirectory(dirname(tmp), { recursive: true }).pipe(
-                  Effect.andThen(
-                    typeof input.content === "string"
-                      ? fs.writeFileString(tmp, input.content)
-                      : fs.writeFile(tmp, input.content),
+                fs
+                  .makeDirectory(dirname(tmp), { recursive: true })
+                  .pipe(
+                    Effect.andThen(
+                      typeof input.content === "string"
+                        ? fs.writeFileString(tmp, input.content)
+                        : fs.writeFile(tmp, input.content),
+                    ),
                   ),
-                ),
               ),
             )
             yield* fs.rename(tmp, canonical)

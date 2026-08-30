@@ -2258,11 +2258,7 @@ function Task(props: ToolProps) {
     const description = stringValue(props.input.description)
     if (!description) return ""
     let content = [
-      formatSubagentTitle(
-        taskAgentLabel(props.metadata, props.input),
-        description,
-        props.metadata.background === true,
-      ),
+      formatSubagentTitle(taskAgentLabel(props.metadata, props.input), description, props.metadata.background === true),
     ]
 
     const retrying = retry()

@@ -66,8 +66,7 @@ const BaseParameterFields = {
   }),
   command: Schema.optional(Schema.String).annotate({ description: "The command that triggered this task" }),
   execution_type: Schema.optional(Schema.Literals(["subagent", "external-cli"])).annotate({
-    description:
-      "Execution mode: subagent (default) for internal agents, external-cli for CLI tools like claude-code",
+    description: "Execution mode: subagent (default) for internal agents, external-cli for CLI tools like claude-code",
   }),
   cli_target: Schema.optional(Schema.String).annotate({
     description: "CLI name when execution_type is 'external-cli'. Use @name in conversation.",
@@ -112,11 +111,7 @@ export const TaskTool = Tool.define(
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
     const spawner = yield* ChildProcessSpawner
-    const adapterRegistry = yield* Effect.serviceOption(AdapterRegistry).pipe(
-      Effect.map(Option.getOrUndefined),
-    )
-
-
+    const adapterRegistry = yield* Effect.serviceOption(AdapterRegistry).pipe(Effect.map(Option.getOrUndefined))
 
     const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
       params: { description: string; cli_target: string; prompt: string; cwd: string },
@@ -180,10 +175,15 @@ export const TaskTool = Tool.define(
         text: `[Project directory: ${params.cwd}]\n\n${params.prompt}`,
       } as any)
 
-      const result = yield* CliTimeout.executeWithTimeout(spawner, adapter, {
-        prompt: `[Project directory: ${params.cwd}]\n\n${params.prompt}`,
-        cwd: params.cwd,
-      }, 300_000)
+      const result = yield* CliTimeout.executeWithTimeout(
+        spawner,
+        adapter,
+        {
+          prompt: `[Project directory: ${params.cwd}]\n\n${params.prompt}`,
+          cwd: params.cwd,
+        },
+        300_000,
+      )
 
       // Write output message to child session
       const outputMsgId = MessageID.ascending()
@@ -233,12 +233,15 @@ export const TaskTool = Tool.define(
         if (!params.cli_target) {
           return yield* Effect.fail(new Error("cli_target is required when execution_type is 'external-cli'"))
         }
-        const cliResult: Tool.ExecuteResult = yield* executeCLI({
-          description: params.description,
-          cli_target: params.cli_target,
-          prompt: params.prompt,
-          cwd: parent.directory,
-        }, ctx)
+        const cliResult: Tool.ExecuteResult = yield* executeCLI(
+          {
+            description: params.description,
+            cli_target: params.cli_target,
+            prompt: params.prompt,
+            cwd: parent.directory,
+          },
+          ctx,
+        )
         return cliResult
       }
 
@@ -502,9 +505,7 @@ export const TaskTool = Tool.define(
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const previousSessionIDRef = yield* Ref.make(Option.none<SessionID>())
-          return yield* run(params, ctx, previousSessionIDRef).pipe(
-            Effect.retry(Schedule.recurs(1)),
-          )
+          return yield* run(params, ctx, previousSessionIDRef).pipe(Effect.retry(Schedule.recurs(1)))
         }).pipe(Effect.catch((e: unknown) => Effect.die(e))),
     }
   }),

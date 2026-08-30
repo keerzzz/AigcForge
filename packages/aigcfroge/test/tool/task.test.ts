@@ -377,14 +377,10 @@ describe("tool.task", () => {
         description: "argv bypass adapter",
         detect: () => Effect.succeed(true),
         buildArgs: (input: Parameters<CliAdapter["buildArgs"]>[0]) =>
-          Effect.succeed([
-            "-e",
-            "process.stdout.write(process.argv[1])",
-            input.prompt,
-          ]),
+          Effect.succeed(["-e", "process.stdout.write(process.argv[1])", input.prompt]),
         parseOutput: (stdout: string, stderr: string) =>
           Effect.succeed({
-            status: stderr ? "failed" as const : "success" as const,
+            status: stderr ? ("failed" as const) : ("success" as const),
             summary: stdout,
             errors: stderr ? [stderr] : undefined,
           }),

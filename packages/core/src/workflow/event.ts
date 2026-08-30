@@ -20,13 +20,10 @@ export const Updated = EventV2.define({
 
 export type Update = EventV2.Data<typeof Updated>
 
-export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()(
-  "WorkflowEvent.CommitRejected",
-  {
-    runID: WorkflowAsset.WorkflowRunID,
-    revision: Schema.Int,
-  },
-) {
+export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()("WorkflowEvent.CommitRejected", {
+  runID: WorkflowAsset.WorkflowRunID,
+  revision: Schema.Int,
+}) {
   override get message() {
     return `Workflow run ${this.runID} rejected revision ${this.revision}`
   }
@@ -45,16 +42,10 @@ export const publish = Effect.fn("WorkflowEvent.publish")(function* (
         }
         return commit(seq).pipe(
           Effect.flatMap((accepted) =>
-            accepted
-              ? Effect.void
-              : Effect.die(new CommitRejected({ runID: update.runID, revision: update.revision })),
+            accepted ? Effect.void : Effect.die(new CommitRejected({ runID: update.runID, revision: update.revision })),
           ),
         )
       },
     })
-    .pipe(
-      Effect.catchDefect((defect) =>
-        defect instanceof CommitRejected ? Effect.fail(defect) : Effect.die(defect),
-      ),
-    )
+    .pipe(Effect.catchDefect((defect) => (defect instanceof CommitRejected ? Effect.fail(defect) : Effect.die(defect))))
 })

@@ -17,7 +17,12 @@ export function createCompositionSkillCatalog(
   for (const item of boundSkills) {
     if ("kind" in item && item.kind === "skill") {
       boundSkillPaths.add(item.relativePath.replaceAll("\\", "/"))
-      const boundName = item.relativePath.replaceAll("\\", "/").replace(/\/SKILL\.md$/, "").replace(/\.md$/, "").split("/").pop()
+      const boundName = item.relativePath
+        .replaceAll("\\", "/")
+        .replace(/\/SKILL\.md$/, "")
+        .replace(/\.md$/, "")
+        .split("/")
+        .pop()
       if (boundName) boundSkillNames.add(boundName)
     } else if ("name" in item && "relativePath" in item) {
       boundSkillNames.add(item.name)

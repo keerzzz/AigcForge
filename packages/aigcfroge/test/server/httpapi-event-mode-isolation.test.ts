@@ -17,7 +17,9 @@ import { disposeAllInstances, TestInstance } from "../fixture/fixture"
 import { pollWithTimeout, testEffect } from "../lib/effect"
 import { httpApiLayer, request, requestInDirectory } from "./httpapi-layer"
 
-const it = testEffect(Layer.mergeAll(Session.defaultLayer, Database.defaultLayer, EventV2Bridge.defaultLayer, httpApiLayer))
+const it = testEffect(
+  Layer.mergeAll(Session.defaultLayer, Database.defaultLayer, EventV2Bridge.defaultLayer, httpApiLayer),
+)
 
 const CAPABLE = { [ProductModePolicy.CAPABILITIES_HEADER]: ProductModePolicy.CAPABILITY_CUSTOM_V1 }
 
@@ -82,7 +84,12 @@ const openStream = <A, E, R>(
 
 // Reads until `predicate` matches, collecting everything seen along the way so
 // tests can assert which events were filtered out before the match.
-const readUntil = <A, E, R>(read: Effect.Effect<A, E, R>, predicate: (event: A) => boolean, message: string, max = 10) =>
+const readUntil = <A, E, R>(
+  read: Effect.Effect<A, E, R>,
+  predicate: (event: A) => boolean,
+  message: string,
+  max = 10,
+) =>
   Effect.gen(function* () {
     const seen: A[] = []
     for (let index = 0; index < max; index++) {
@@ -233,7 +240,8 @@ describe("event stream product-mode isolation", () => {
         yield* publishMessageRemoved(sessions.regular.id)
         const v2 = yield* readUntil(
           legacy.read,
-          (event) => event.payload.type === "message.removed" && event.payload.properties.sessionID === sessions.regular.id,
+          (event) =>
+            event.payload.type === "message.removed" && event.payload.properties.sessionID === sessions.regular.id,
           "regular session event never reached the global stream",
         )
         expect(v2.seen.some((event) => event.payload.properties.sessionID === sessions.custom.id)).toBe(false)
@@ -254,7 +262,8 @@ describe("event stream product-mode isolation", () => {
         yield* publishMessageRemoved(sessions.custom.id)
         const capableResult = yield* readUntil(
           capable.read,
-          (event) => event.payload.type === "message.removed" && event.payload.properties.sessionID === sessions.custom.id,
+          (event) =>
+            event.payload.type === "message.removed" && event.payload.properties.sessionID === sessions.custom.id,
           "custom session event never reached the capable global stream",
         )
         expect(capableResult.matched.payload.properties.sessionID).toBe(sessions.custom.id)

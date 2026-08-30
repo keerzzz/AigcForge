@@ -3,16 +3,26 @@ export * as MCPAsset from "./mcp-asset"
 import { Effect, Schema } from "effect"
 
 export const Name = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 80, { message: "Name must be at most 80 code points" })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
+      message: "Name must be at least 1 code point",
+    }),
+  ),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
+      message: "Name must be at most 80 code points",
+    }),
+  ),
   Schema.brand("MCPAsset.Name"),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-    message: "Description must be at most 300 code points",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
+      message: "Description must be at most 300 code points",
+    }),
+  ),
   Schema.brand("MCPAsset.Description"),
 )
 export type Description = typeof Description.Type
@@ -26,15 +36,21 @@ export const Revision = Schema.String.pipe(
 export type Revision = typeof Revision.Type
 
 export const Command = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Command must be at least 1 code point" })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
+      message: "Command must be at least 1 code point",
+    }),
+  ),
   Schema.brand("MCPAsset.Command"),
 )
 export type Command = typeof Command.Type
 
 export const ConfigJson = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
-    message: "Config JSON must be at most 100,000 UTF-8 bytes",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
+      message: "Config JSON must be at most 100,000 UTF-8 bytes",
+    }),
+  ),
   Schema.brand("MCPAsset.ConfigJson"),
 )
 export type ConfigJson = typeof ConfigJson.Type

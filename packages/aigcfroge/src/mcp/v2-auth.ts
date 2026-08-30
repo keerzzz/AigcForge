@@ -94,7 +94,7 @@ export const layer = Layer.effect(
     })
 
     const set = Effect.fn("McpAuthV2.set")(function* (mcpName: string, entry: Entry, serverUrl?: string) {
-      yield* mutate((data) => ({ ...data, [mcpName]: serverUrl ? { ...entry, serverUrl } as Entry : entry }))
+      yield* mutate((data) => ({ ...data, [mcpName]: serverUrl ? ({ ...entry, serverUrl } as Entry) : entry }))
     })
 
     const remove = Effect.fn("McpAuthV2.remove")(function* (mcpName: string) {
@@ -125,7 +125,11 @@ export const layer = Layer.effect(
       })
 
     return Service.of({
-      all, get, getForUrl, set, remove,
+      all,
+      get,
+      getForUrl,
+      set,
+      remove,
       updateTokens: updateField("tokens"),
       updateClientInfo: updateField("clientInfo"),
       updateCodeVerifier: updateField("codeVerifier"),

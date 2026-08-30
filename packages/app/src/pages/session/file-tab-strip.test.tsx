@@ -52,7 +52,7 @@ describe("SessionFileTabStrip (shared drag tab surface)", () => {
     const side = read("session-side-panel.tsx")
     expect(side).toContain("<SessionFileTabStrip")
     expect(side).toContain("SessionFileTabStrip")
-    expect(side).toContain('value={activeTab()}')
+    expect(side).toContain("value={activeTab()}")
   })
 
   test("chat-right-panel consumes SessionFileTabStrip", () => {

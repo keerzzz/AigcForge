@@ -141,8 +141,8 @@ export const layer = Layer.effect(
           const zodParams = allZod ? z.object(args) : undefined
           const jsonSchema = zodParams ? zodJsonSchema(zodParams) : legacyJsonSchema(entries)
           const parameters = zodParams
-            ? Schema.declare<Record<string, unknown>>((u): u is Record<string, unknown> =>
-                zodParams.safeParse(u).success,
+            ? Schema.declare<Record<string, unknown>>(
+                (u): u is Record<string, unknown> => zodParams.safeParse(u).success,
               )
             : Schema.Record(Schema.String, Schema.Unknown)
           return {
@@ -267,7 +267,15 @@ export const layer = Layer.effect(
             tool.patch,
             tool.workPreset,
             ...(flags.experimentalChatAsset
-              ? [tool.proposePromptAsset, tool.proposeSkillAsset, tool.proposeMCPAsset, tool.proposeCommandAsset, tool.proposeAgentAsset, tool.proposeWorkflowAsset, tool.proposePluginAsset]
+              ? [
+                  tool.proposePromptAsset,
+                  tool.proposeSkillAsset,
+                  tool.proposeMCPAsset,
+                  tool.proposeCommandAsset,
+                  tool.proposeAgentAsset,
+                  tool.proposeWorkflowAsset,
+                  tool.proposePluginAsset,
+                ]
               : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),

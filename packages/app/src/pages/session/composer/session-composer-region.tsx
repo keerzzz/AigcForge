@@ -167,9 +167,7 @@ export function SessionComposerRegion(props: {
   // chat/work/assistant × meta 显示（组件内部判断）。
   const tierMode = createMemo(() => draft()?.mode ?? info()?.mode)
   const tierAgent = createMemo(() => draft()?.agent ?? info()?.agent)
-  const tierValue = createMemo<"propose" | "full" | undefined>(
-    () => draft()?.permissionTier ?? info()?.permissionTier,
-  )
+  const tierValue = createMemo<"propose" | "full" | undefined>(() => draft()?.permissionTier ?? info()?.permissionTier)
   const [overrideEnabled, setOverrideEnabled] = createSignal(false)
   const overrideStatus = async () => {
     const id = route.params.id

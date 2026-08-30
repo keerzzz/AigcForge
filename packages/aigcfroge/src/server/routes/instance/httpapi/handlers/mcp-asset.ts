@@ -26,7 +26,10 @@ function toApplyError(err: unknown): Effect.Effect<never, ConflictError | Invali
   } else if (err instanceof MCPAssetService.ConcurrentModificationError) {
     error = new ConflictError({ message: `Concurrent modification: ${err.relativePath}`, resource: err.relativePath })
   } else if (err instanceof MCPAssetService.ReadbackMismatchError) {
-    error = new ConflictError({ message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`, resource: err.relativePath })
+    error = new ConflictError({
+      message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`,
+      resource: err.relativePath,
+    })
   } else if (err instanceof MCPAssetService.RollbackFailedError) {
     error = new InvalidRequestError({ message: err.reason })
   } else {
@@ -48,7 +51,10 @@ function toDeleteError(err: unknown): Effect.Effect<never, ConflictError | Inval
   } else if (err instanceof MCPAssetService.ConcurrentModificationError) {
     error = new ConflictError({ message: `Concurrent modification: ${err.relativePath}`, resource: err.relativePath })
   } else if (err instanceof MCPAssetService.ReadbackMismatchError) {
-    error = new ConflictError({ message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`, resource: err.relativePath })
+    error = new ConflictError({
+      message: `Readback mismatch at ${err.relativePath} — possible name conflict with another asset`,
+      resource: err.relativePath,
+    })
   } else if (err instanceof MCPAssetService.RollbackFailedError) {
     error = new InvalidRequestError({ message: err.reason })
   } else {
@@ -68,7 +74,11 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
       const registry = yield* MCPAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
       const all = yield* registry.list()
       const filtered = ctx.query.search
-        ? all.filter((a) => a.name.toLowerCase().includes(ctx.query.search!.toLowerCase()) || a.description.toLowerCase().includes(ctx.query.search!.toLowerCase()))
+        ? all.filter(
+            (a) =>
+              a.name.toLowerCase().includes(ctx.query.search!.toLowerCase()) ||
+              a.description.toLowerCase().includes(ctx.query.search!.toLowerCase()),
+          )
         : all
       const invalid = yield* registry.listInvalid()
       return {
@@ -94,9 +104,9 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const registry = yield* MCPAsset.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const info = yield* registry.getByPath(ctx.query.path).pipe(
-        Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${ctx.query.path}` }))),
-      )
+      const info = yield* registry
+        .getByPath(ctx.query.path)
+        .pipe(Effect.catch(() => Effect.fail(new InvalidRequestError({ message: `Not found: ${ctx.query.path}` }))))
       return Schema.decodeUnknownSync(SchemaMCPAsset.Info)({
         kind: info.kind,
         name: info.name,
@@ -114,14 +124,21 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
       payload: { candidate: SchemaMCPAsset.Candidate; baseRevision?: string; overwrite: boolean }
     }) {
       const ctx2 = yield* InstanceState.context
-      if (!flags.experimentalChatAsset) return yield* Effect.fail(new InvalidRequestError({ message: "MCP asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable." }))
+      if (!flags.experimentalChatAsset)
+        return yield* Effect.fail(
+          new InvalidRequestError({
+            message: "MCP asset creation is not enabled. Set AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true to enable.",
+          }),
+        )
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* MCPAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const info = yield* service.apply({
-        candidate: ctx.payload.candidate,
-        baseRevision: ctx.payload.baseRevision ?? null,
-        overwrite: ctx.payload.overwrite,
-      }).pipe(Effect.catch(toApplyError))
+      const info = yield* service
+        .apply({
+          candidate: ctx.payload.candidate,
+          baseRevision: ctx.payload.baseRevision ?? null,
+          overwrite: ctx.payload.overwrite,
+        })
+        .pipe(Effect.catch(toApplyError))
       return Schema.decodeUnknownSync(SchemaMCPAsset.Info)({
         kind: info.kind,
         name: info.name,
@@ -141,10 +158,12 @@ export const mcpAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "mcp-asset
       const ctx2 = yield* InstanceState.context
       const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
       const service = yield* MCPAssetService.Service.pipe(Effect.provide(layer), Effect.orDie)
-      yield* service.delete({
-        relativePath: ctx.payload.relativePath,
-        baseRevision: ctx.payload.baseRevision ?? null,
-      }).pipe(Effect.catch(toDeleteError))
+      yield* service
+        .delete({
+          relativePath: ctx.payload.relativePath,
+          baseRevision: ctx.payload.baseRevision ?? null,
+        })
+        .pipe(Effect.catch(toDeleteError))
     })
 
     return handlers.handle("list", list).handle("content", content).handle("apply", apply).handle("delete", deleteAsset)

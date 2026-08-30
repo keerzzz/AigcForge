@@ -27,7 +27,7 @@ Settings that affect process startup, shell execution, or network serving. Revie
 
 | Field        | Current Purpose                                     | Status | Notes                                                                          |
 | ------------ | --------------------------------------------------- | ------ | ------------------------------------------------------------------------------ |
-| `shell`      | Default shell for terminal and shell tool execution | keep   | Port as effective config; shared shell choice is used throughout aigcfroge.     |
+| `shell`      | Default shell for terminal and shell tool execution | keep   | Port as effective config; shared shell choice is used throughout aigcfroge.    |
 | `logLevel`   | Intended logging level configuration                | remove | Do not port: no config consumer exists and logging initializes from CLI input. |
 | `server`     | Hostname, port, mDNS, and CORS settings             | remove | Do not port: location config is loaded after the server is already running.    |
 | `autoupdate` | Automatic update or notification behavior           | keep   | Global-only user preference; keep `true`, `false`, and `"notify"`.             |
@@ -304,8 +304,8 @@ Rename legacy `permission` to `permissions` and expose the normalized ordered ru
 
 External protocol and server integration configuration.
 
-| Field | Current Purpose                       | Status   | Notes                                                                                                                                             |
-| ----- | ------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Field | Current Purpose                       | Status   | Notes                                                                                                                                              |
+| ----- | ------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `mcp` | MCP server definitions and enablement | redesign | Keep aigcfroge's explicit local/remote server entry format, nested under `mcp.servers`; use `disabled` for inactive entries and move timeout here. |
 
 Keep the aigcfroge MCP server entry format instead of adopting the common `mcpServers` copy/paste shape. Local servers remain explicit `type: "local"` entries with command arrays and `environment`; remote servers remain explicit `type: "remote"` entries with `url`, `headers`, and optional `oauth`. Nest the server map under `mcp.servers` so protocol-wide settings such as default timeout can live under the same subsystem.

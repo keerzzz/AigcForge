@@ -11,19 +11,19 @@
 
 ## 0. M6 → M7 范围缺口矩阵
 
-| 维度 | M1-M6 已完成 | M7 范围 | 后续 |
-|------|-------------|---------|------|
-| **新建按钮** | 占位 disabled | ✅ 激活：创建 chat Draft + 种子提示词 + 跳转 | — |
-| **导入按钮** | 占位 disabled | ✅ 激活：ImportDialog + 不信任内容注入 + Agent 解析 | Core 侧 import-parser service（Phase 2 之外的独立一期） |
-| **propose_workflow_asset** | 不存在 | ✅ 新增 Core V2 工具 + chat-orchestrator 权限 | WorkflowAssetService typed 事务层（仍延后，见 §1.2） |
-| **propose_plugin_asset** | 不存在 | ✅ 新增 Core V2 工具 + chat-orchestrator 权限 | PluginAssetService typed 事务层（仍延后，见 §1.2） |
-| **workflow/plugin apply/delete HTTP 端点** | 仅 list/content 只读端点 | ✅ 新增 apply/delete 端点 + SDK 重生成（Phase 3.5） | typed 事务层接管（后续 MR） |
-| **workflow/plugin candidate 归一化** | 显式 return null | ✅ 补齐前端 CandidateInfo 支持 | — |
-| **workflow/plugin apply + insert** | 缺失分支 | ✅ 补齐 asset-insert 分派（依赖 Phase 3.5 端点） | — |
-| **资产 Delete UI** | 5 类已有资产 API 已实现，UI 缺失；workflow/plugin 端点本 MR 新增 | ✅ 表格行 hover [Delete] + 确认对话框（7 类全覆盖） | — |
-| **资产 Edit UI** | 无 | ❌ 不做（编辑 = 文件编辑，走 code 模式） | 后续 PRD 评审 |
-| **会话捕获** | 无 | ❌ 不做（已在 PRD §7.2，另立 MR） | 后续 |
-| **chat-orchestrator prompt** | 仅提及 5 类 | ✅ 补齐 workflow/plugin 引导 | — |
+| 维度                                       | M1-M6 已完成                                                     | M7 范围                                             | 后续                                                    |
+| ------------------------------------------ | ---------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------- |
+| **新建按钮**                               | 占位 disabled                                                    | ✅ 激活：创建 chat Draft + 种子提示词 + 跳转        | —                                                       |
+| **导入按钮**                               | 占位 disabled                                                    | ✅ 激活：ImportDialog + 不信任内容注入 + Agent 解析 | Core 侧 import-parser service（Phase 2 之外的独立一期） |
+| **propose_workflow_asset**                 | 不存在                                                           | ✅ 新增 Core V2 工具 + chat-orchestrator 权限       | WorkflowAssetService typed 事务层（仍延后，见 §1.2）    |
+| **propose_plugin_asset**                   | 不存在                                                           | ✅ 新增 Core V2 工具 + chat-orchestrator 权限       | PluginAssetService typed 事务层（仍延后，见 §1.2）      |
+| **workflow/plugin apply/delete HTTP 端点** | 仅 list/content 只读端点                                         | ✅ 新增 apply/delete 端点 + SDK 重生成（Phase 3.5） | typed 事务层接管（后续 MR）                             |
+| **workflow/plugin candidate 归一化**       | 显式 return null                                                 | ✅ 补齐前端 CandidateInfo 支持                      | —                                                       |
+| **workflow/plugin apply + insert**         | 缺失分支                                                         | ✅ 补齐 asset-insert 分派（依赖 Phase 3.5 端点）    | —                                                       |
+| **资产 Delete UI**                         | 5 类已有资产 API 已实现，UI 缺失；workflow/plugin 端点本 MR 新增 | ✅ 表格行 hover [Delete] + 确认对话框（7 类全覆盖） | —                                                       |
+| **资产 Edit UI**                           | 无                                                               | ❌ 不做（编辑 = 文件编辑，走 code 模式）            | 后续 PRD 评审                                           |
+| **会话捕获**                               | 无                                                               | ❌ 不做（已在 PRD §7.2，另立 MR）                   | 后续                                                    |
+| **chat-orchestrator prompt**               | 仅提及 5 类                                                      | ✅ 补齐 workflow/plugin 引导                        | —                                                       |
 
 ---
 
@@ -31,7 +31,7 @@
 
 ### 1.1 范围（含）
 
-1. **新建按钮闭环** — 点击"新建资产" → 创建 chat Draft（chat-orchestrator 绑定）→ Composer 预填种子提示词 → 用户发送 → Agent 引导对话 → propose_*_asset → ChatRightPanel 预览 → Apply
+1. **新建按钮闭环** — 点击"新建资产" → 创建 chat Draft（chat-orchestrator 绑定）→ Composer 预填种子提示词 → 用户发送 → Agent 引导对话 → propose\_\*\_asset → ChatRightPanel 预览 → Apply
 2. **导入按钮闭环** — 点击"导入" → 弹出 ImportDialog（文本粘贴 + 文件选择）→ 内容标注 untrusted → 创建 chat Draft → Composer 预填包裹后的导入内容 + 系统提示 → Agent 解析提出资产
 3. **workflow/plugin propose 工具补齐** — Core V2 工具定义 + V1 工具适配 + chat-orchestrator 权限 + system prompt + 前端候选归一化 + apply/insert 分派
 4. **资产 Delete UI 闭环** — 表格行 hover [Delete] 按钮 + 二次确认对话框 + SDK delete 调用 + registry reload（7 类资产全覆盖）
@@ -143,9 +143,12 @@ apply/delete 走本 MR 新增的 HTTP 端点（Phase 3.5），不再是"已有 A
   if (!conn || !directory) return
   const ctx = global.ensureServerCtx(conn) // projects 来源，同 openProjectNewSessionFn
   const seedPrompt = `Help me create a new ${chatFeature()} asset.`
-  openProjectNewSession(ctx.projects, (server, dir) =>
-    tabs.newDraft({ server, directory: dir, ...modeDraft("chat") }, seedPrompt),
-    ServerConnection.key(conn), directory)
+  openProjectNewSession(
+    ctx.projects,
+    (server, dir) => tabs.newDraft({ server, directory: dir, ...modeDraft("chat") }, seedPrompt),
+    ServerConnection.key(conn),
+    directory,
+  )
   ```
 - 注意：`ChatFeatureID` 共 7 种取值，**不存在 `"all"`**，不要写 `chatFeature() !== 'all'` 之类的死分支
 - 与 `focusedServer()`、`newSessionDirectory()` 复用现有 hooks
@@ -245,6 +248,7 @@ apply/delete 走本 MR 新增的 HTTP 端点（Phase 3.5），不再是"已有 A
 #### Step 3.5: workflow/plugin apply/delete HTTP 端点 + SDK 重生成（审批裁决新增）
 
 **位置**：
+
 - `packages/aigcfroge/src/server/routes/instance/httpapi/groups/workflow-asset.ts`（修改）
 - `packages/aigcfroge/src/server/routes/instance/httpapi/groups/plugin-asset.ts`（修改）
 - `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/workflow-asset.ts`（修改）
@@ -367,47 +371,47 @@ bun --cwd packages/app test --timeout 30000
 
 ## 5. 文件清单
 
-| 文件 | 操作 | 阶段 |
-|------|------|------|
-| `packages/app/src/components/chat/asset-workbench.tsx` | 修改：添加 onNew/onImport/onDelete props + 按钮激活 | Phase 1/2/4 |
-| `packages/app/src/pages/home.tsx` | 修改：传递 onNew/onImport/onDelete callbacks | Phase 1/2/4 |
-| `packages/app/src/components/chat/chat-import-dialog.tsx` | **新增** | Phase 2 |
-| `packages/app/src/components/chat/asset-delete-dialog.tsx` | **新增** | Phase 4 |
-| `packages/core/src/tool/propose-workflow-asset.ts` | **新增** | Phase 3 |
-| `packages/core/src/tool/propose-plugin-asset.ts` | **新增** | Phase 3 |
-| `packages/aigcfroge/src/tool/propose-workflow-asset.ts` | **新增** | Phase 3 |
-| `packages/aigcfroge/src/tool/propose-plugin-asset.ts` | **新增** | Phase 3 |
-| `packages/core/src/tool/builtins.ts` | 修改：注册 2 个新工具 | Phase 3 |
-| `packages/aigcfroge/src/tool/registry.ts` | 修改：注册 2 个新工具 | Phase 3 |
-| `packages/core/src/plugin/agent.ts` | 修改：chat-orchestrator 权限 +2 | Phase 3 |
-| `packages/aigcfroge/src/agent/agent.ts` | 修改：V1 agent 权限 +2 | Phase 3 |
-| `packages/core/src/agent/prompt/chat-orchestrator.ts` | 修改：添加 workflow/plugin 引导 | Phase 3 |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/workflow-asset.ts` | 修改：+apply/delete 端点 | Phase 3.5 |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/plugin-asset.ts` | 修改：+apply/delete 端点 | Phase 3.5 |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/workflow-asset.ts` | 修改：+apply/delete handler | Phase 3.5 |
-| `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/plugin-asset.ts` | 修改：+apply/delete handler | Phase 3.5 |
-| `packages/sdk/js/src/v2/gen/*` | 重生成（`./packages/sdk/js/script/build.ts`） | Phase 3.5 |
-| `packages/aigcfroge/test/server/httpapi-workflow-asset.test.ts` | 修改：+apply/delete 用例 | Phase 3.5 |
-| `packages/aigcfroge/test/server/httpapi-plugin-asset.test.ts` | 修改：+apply/delete 用例 | Phase 3.5 |
-| `packages/app/src/components/chat/prompt-asset-candidate.ts` | 修改：workflow/plugin 候选归一化 | Phase 3 |
-| `packages/app/src/components/chat/prompt-asset-candidate.test.ts` | 修改：:87 断言改为正常归一化 | Phase 3 |
-| `packages/app/src/components/chat/asset-insert.ts` | 修改：补齐 workflow/plugin apply/insert 分支 | Phase 3 |
-| `packages/app/src/i18n/en.ts` | 修改：新增导入/删除/新建相关字符串 | Phase 1/2/4 |
-| `packages/app/src/i18n/zh.ts` | 修改：新增导入/删除/新建相关字符串 | Phase 1/2/4 |
+| 文件                                                                               | 操作                                                | 阶段        |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------- | ----------- |
+| `packages/app/src/components/chat/asset-workbench.tsx`                             | 修改：添加 onNew/onImport/onDelete props + 按钮激活 | Phase 1/2/4 |
+| `packages/app/src/pages/home.tsx`                                                  | 修改：传递 onNew/onImport/onDelete callbacks        | Phase 1/2/4 |
+| `packages/app/src/components/chat/chat-import-dialog.tsx`                          | **新增**                                            | Phase 2     |
+| `packages/app/src/components/chat/asset-delete-dialog.tsx`                         | **新增**                                            | Phase 4     |
+| `packages/core/src/tool/propose-workflow-asset.ts`                                 | **新增**                                            | Phase 3     |
+| `packages/core/src/tool/propose-plugin-asset.ts`                                   | **新增**                                            | Phase 3     |
+| `packages/aigcfroge/src/tool/propose-workflow-asset.ts`                            | **新增**                                            | Phase 3     |
+| `packages/aigcfroge/src/tool/propose-plugin-asset.ts`                              | **新增**                                            | Phase 3     |
+| `packages/core/src/tool/builtins.ts`                                               | 修改：注册 2 个新工具                               | Phase 3     |
+| `packages/aigcfroge/src/tool/registry.ts`                                          | 修改：注册 2 个新工具                               | Phase 3     |
+| `packages/core/src/plugin/agent.ts`                                                | 修改：chat-orchestrator 权限 +2                     | Phase 3     |
+| `packages/aigcfroge/src/agent/agent.ts`                                            | 修改：V1 agent 权限 +2                              | Phase 3     |
+| `packages/core/src/agent/prompt/chat-orchestrator.ts`                              | 修改：添加 workflow/plugin 引导                     | Phase 3     |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/workflow-asset.ts`   | 修改：+apply/delete 端点                            | Phase 3.5   |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/groups/plugin-asset.ts`     | 修改：+apply/delete 端点                            | Phase 3.5   |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/workflow-asset.ts` | 修改：+apply/delete handler                         | Phase 3.5   |
+| `packages/aigcfroge/src/server/routes/instance/httpapi/handlers/plugin-asset.ts`   | 修改：+apply/delete handler                         | Phase 3.5   |
+| `packages/sdk/js/src/v2/gen/*`                                                     | 重生成（`./packages/sdk/js/script/build.ts`）       | Phase 3.5   |
+| `packages/aigcfroge/test/server/httpapi-workflow-asset.test.ts`                    | 修改：+apply/delete 用例                            | Phase 3.5   |
+| `packages/aigcfroge/test/server/httpapi-plugin-asset.test.ts`                      | 修改：+apply/delete 用例                            | Phase 3.5   |
+| `packages/app/src/components/chat/prompt-asset-candidate.ts`                       | 修改：workflow/plugin 候选归一化                    | Phase 3     |
+| `packages/app/src/components/chat/prompt-asset-candidate.test.ts`                  | 修改：:87 断言改为正常归一化                        | Phase 3     |
+| `packages/app/src/components/chat/asset-insert.ts`                                 | 修改：补齐 workflow/plugin apply/insert 分支        | Phase 3     |
+| `packages/app/src/i18n/en.ts`                                                      | 修改：新增导入/删除/新建相关字符串                  | Phase 1/2/4 |
+| `packages/app/src/i18n/zh.ts`                                                      | 修改：新增导入/删除/新建相关字符串                  | Phase 1/2/4 |
 
 ---
 
 ## 6. 风险与缓解
 
-| 风险 | 缓解 |
-|------|------|
+| 风险                                                                                                                  | 缓解                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | workflow/plugin 写端点在 handler 层内联实现（无 typed 事务层），缺少 prompt-asset 的 rollback / ReadbackMismatch 防护 | **显式技术债**：baseRevision CAS + overwrite 显式 flag + system origin 拒绝兜底；typed WorkflowAssetService/PluginAssetService 仍列后续 MR |
-| SDK 重生成（`script/build.ts`）可能夹带无关 gen 漂移 | 重生成前确认 gen 与 main 一致；MR diff 逐条核对 gen 变更仅与本次端点相关 |
-| home 工作室 Delete 无活动 sessionID | 服务端按 `InstanceState.context` 解析 Location、不消费 sessionID（prompt-asset handler 现状）；前端取 directory 下任一会话 ID 并注释说明 |
-| 导入内容经 Agent 解析可能丢失结构 | 遵循 PRD §7.3: 标注 untrusted，Agent 只整理不执行 |
-| chat-orchestrator 9→11 个工具权限面增大 | 保持 fail-closed（deny-all 基线），单工具权限粒度不变 |
-| 新建按钮需要 `focusedServer()` / `newSessionDirectory()` 逻辑 | 已在 home.tsx 中实现，直接复用（`global.ensureServerCtx` 先例见 :485-493） |
-| workflow 落盘路径误用 PRD 概念 `.agf.yaml` | 已修正为 `.yaml`（对齐 registry glob）；propose 工具与端点共用同一路径规范化逻辑 |
+| SDK 重生成（`script/build.ts`）可能夹带无关 gen 漂移                                                                  | 重生成前确认 gen 与 main 一致；MR diff 逐条核对 gen 变更仅与本次端点相关                                                                   |
+| home 工作室 Delete 无活动 sessionID                                                                                   | 服务端按 `InstanceState.context` 解析 Location、不消费 sessionID（prompt-asset handler 现状）；前端取 directory 下任一会话 ID 并注释说明   |
+| 导入内容经 Agent 解析可能丢失结构                                                                                     | 遵循 PRD §7.3: 标注 untrusted，Agent 只整理不执行                                                                                          |
+| chat-orchestrator 9→11 个工具权限面增大                                                                               | 保持 fail-closed（deny-all 基线），单工具权限粒度不变                                                                                      |
+| 新建按钮需要 `focusedServer()` / `newSessionDirectory()` 逻辑                                                         | 已在 home.tsx 中实现，直接复用（`global.ensureServerCtx` 先例见 :485-493）                                                                 |
+| workflow 落盘路径误用 PRD 概念 `.agf.yaml`                                                                            | 已修正为 `.yaml`（对齐 registry glob）；propose 工具与端点共用同一路径规范化逻辑                                                           |
 
 ---
 
@@ -450,14 +454,14 @@ bun --cwd packages/app test --timeout 30000
 
 ### 9.1 变更摘要（32 files，~1500+ LOC）
 
-| Phase | 新建 | 修改 | 说明 |
-|-------|------|------|------|
-| P1 | — | asset-workbench.tsx/.test.ts, home.tsx, en.ts, zh.ts | 新建按钮闭环 |
-| P2 | chat-import-dialog.tsx/.test.ts | asset-workbench.tsx, home.tsx | 导入按钮闭环 |
-| P3A | propose-{workflow,plugin}-asset.ts(×4 core+aigcfroge), test×2 | builtins.ts, registry.ts, agent.ts×2, chat-orchestrator.ts | propose 工具 + 注册 + 权限 + prompt |
-| P3B | — | groups/{wf,pl}-asset.ts, handlers/{wf,pl}-asset.ts, test×2, sdk.gen.ts, types.gen.ts | apply/delete 端点 + SDK 重生成 |
-| P3C | — | prompt-asset-candidate.ts/.test.ts, asset-insert.ts | 前端候选归一化 + apply/insert 分派 |
-| P4 | asset-delete-dialog.tsx | asset-workbench.tsx, home.tsx, en.ts, zh.ts | Delete UI 闭环（7 类全覆盖）|
+| Phase | 新建                                                          | 修改                                                                                 | 说明                                |
+| ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
+| P1    | —                                                             | asset-workbench.tsx/.test.ts, home.tsx, en.ts, zh.ts                                 | 新建按钮闭环                        |
+| P2    | chat-import-dialog.tsx/.test.ts                               | asset-workbench.tsx, home.tsx                                                        | 导入按钮闭环                        |
+| P3A   | propose-{workflow,plugin}-asset.ts(×4 core+aigcfroge), test×2 | builtins.ts, registry.ts, agent.ts×2, chat-orchestrator.ts                           | propose 工具 + 注册 + 权限 + prompt |
+| P3B   | —                                                             | groups/{wf,pl}-asset.ts, handlers/{wf,pl}-asset.ts, test×2, sdk.gen.ts, types.gen.ts | apply/delete 端点 + SDK 重生成      |
+| P3C   | —                                                             | prompt-asset-candidate.ts/.test.ts, asset-insert.ts                                  | 前端候选归一化 + apply/insert 分派  |
+| P4    | asset-delete-dialog.tsx                                       | asset-workbench.tsx, home.tsx, en.ts, zh.ts                                          | Delete UI 闭环（7 类全覆盖）        |
 
 ### 9.2 验收标准达成
 
@@ -477,22 +481,22 @@ bun --cwd packages/app test --timeout 30000
 
 ### 9.3 实施中纠正的缺陷
 
-| # | 严重度 | 描述 | 位置 |
-|---|--------|------|------|
-| 1 | MED | baseRevision CAS 缺失—apply/delete 无 stale 写保护 | handlers/{wf,pl}-asset.ts |
-| 2 | LOW | Effect.tryPromise catch 吞错误—改为单参数形式 | handlers/{wf,pl}-asset.ts |
-| 3 | LOW | propose Input 使用 Schema.String→改为 branded Name/Description | core propose-*-asset.ts |
-| 4 | LOW | 未使用的 js-yaml 导入 | handlers/{wf,pl}-asset.ts |
-| 5 | LOW | POST 端点测试模式—从 webHandler 迁移到 testEffect+httpApiLayer | test/httpapi-*.test.ts |
+| #   | 严重度 | 描述                                                           | 位置                      |
+| --- | ------ | -------------------------------------------------------------- | ------------------------- |
+| 1   | MED    | baseRevision CAS 缺失—apply/delete 无 stale 写保护             | handlers/{wf,pl}-asset.ts |
+| 2   | LOW    | Effect.tryPromise catch 吞错误—改为单参数形式                  | handlers/{wf,pl}-asset.ts |
+| 3   | LOW    | propose Input 使用 Schema.String→改为 branded Name/Description | core propose-\*-asset.ts  |
+| 4   | LOW    | 未使用的 js-yaml 导入                                          | handlers/{wf,pl}-asset.ts |
+| 5   | LOW    | POST 端点测试模式—从 webHandler 迁移到 testEffect+httpApiLayer | test/httpapi-\*.test.ts   |
 
 ### 9.4 技术债（记录在案，不在 M7 范围）
 
-| 项 | 状态 |
-|----|------|
-| WorkflowAssetService / PluginAssetService typed Effect 事务层 | 延后（§1.2） |
-| Core 侧 import-parser service | 延后独立一期（§1.2） |
-| 会话捕获"存为资产" | 延后独立一期（§1.2） |
-| 资产 Edit UI | 延后（代码编辑器替代） |
+| 项                                                            | 状态                   |
+| ------------------------------------------------------------- | ---------------------- |
+| WorkflowAssetService / PluginAssetService typed Effect 事务层 | 延后（§1.2）           |
+| Core 侧 import-parser service                                 | 延后独立一期（§1.2）   |
+| 会话捕获"存为资产"                                            | 延后独立一期（§1.2）   |
+| 资产 Edit UI                                                  | 延后（代码编辑器替代） |
 
 ---
 
@@ -502,17 +506,17 @@ bun --cwd packages/app test --timeout 30000
 
 ### 10.1 P0 修复
 
-| # | 问题 | 根因 | 修复 |
-|---|------|------|------|
-| 1 | home 工作室 Delete 全链路 400 | 假 sessionID `"home-workbench"` 不过路由 `SessionID`（`isStartsWith("ses")`）decode | 改 `ses-home-delete`（路由形状占位，handler 按 directory header 解析 Location），删除调用加 try/catch |
-| 2 | propose 说"有效"→ apply 400 且脏文件落盘 | propose 只验 YAML 可解析，apply 先写盘后由 registry 判 `bad_frontmatter` | core 新增 `validateContent`（YAML + Frontmatter schema 同一契约），propose 与 HTTP apply 共享；apply 先校验再写盘（写前失败，不再留脏文件）；chat-orchestrator prompt 补 workflow/plugin 必填字段指引 |
+| #   | 问题                                     | 根因                                                                                | 修复                                                                                                                                                                                                  |
+| --- | ---------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | home 工作室 Delete 全链路 400            | 假 sessionID `"home-workbench"` 不过路由 `SessionID`（`isStartsWith("ses")`）decode | 改 `ses-home-delete`（路由形状占位，handler 按 directory header 解析 Location），删除调用加 try/catch                                                                                                 |
+| 2   | propose 说"有效"→ apply 400 且脏文件落盘 | propose 只验 YAML 可解析，apply 先写盘后由 registry 判 `bad_frontmatter`            | core 新增 `validateContent`（YAML + Frontmatter schema 同一契约），propose 与 HTTP apply 共享；apply 先校验再写盘（写前失败，不再留脏文件）；chat-orchestrator prompt 补 workflow/plugin 必填字段指引 |
 
 ### 10.2 P1 修复
 
-| # | 问题 | 修复 |
-|---|------|------|
-| 3 | delete 按项目根解析短键（ENOENT）且未校验穿越 | delete 统一走 `validateRelativePath`（拒 `..`/绝对路径/非法段），按 ownerRoot（WORKFLOWS_DIR/PLUGINS_DIR）解析，嵌套键可用 |
-| 4 | 新 httpapi 测试 7 红 + 10 个 TS 错误 | 夹具/候选 YAML 合规化（`kind`/`version`/steps 形状）；POST 测试按 e2e.test.ts 先例加 flag save/restore 基建（beforeEach 设 `AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true`，afterAll 恢复）；类型断言修正 |
+| #   | 问题                                          | 修复                                                                                                                                                                                               |
+| --- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3   | delete 按项目根解析短键（ENOENT）且未校验穿越 | delete 统一走 `validateRelativePath`（拒 `..`/绝对路径/非法段），按 ownerRoot（WORKFLOWS_DIR/PLUGINS_DIR）解析，嵌套键可用                                                                         |
+| 4   | 新 httpapi 测试 7 红 + 10 个 TS 错误          | 夹具/候选 YAML 合规化（`kind`/`version`/steps 形状）；POST 测试按 e2e.test.ts 先例加 flag save/restore 基建（beforeEach 设 `AIGCFROGE_EXPERIMENTAL_CHAT_ASSET=true`，afterAll 恢复）；类型断言修正 |
 
 ### 10.3 P2 修复
 

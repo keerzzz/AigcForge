@@ -71,71 +71,69 @@ export function AssistantNavTree(props: {
   return (
     <SelectionContext.Provider value={selection}>
       <div class="flex min-h-0 flex-col">
-      <div class="px-3 pb-1 pt-2 text-v2-text-text-muted text-11-regular [font-weight:440]">
-        {language.t("assistant.nav.title")}
-      </div>
-      <nav class="flex flex-col gap-px px-2" aria-label={language.t("assistant.nav.title")}>
-        <NavSection
-          id="reminders"
-          icon="mode-assistant"
-          label={language.t("assistant.nav.reminders")}
-          count={pending().length}
-          collapsed={collapsed.reminders ?? true}
-          onToggle={() => setCollapsed("reminders", !(collapsed.reminders ?? true))}
-        >
-          <For each={pending()}>
-            {(reminder: ScheduleInfo) => (
-              <NavItem
-                icon="mode-assistant"
-                label={reminder.content ?? ""}
-                selected={isItemSelected("reminders", reminder.id)}
-                onClick={() => props.onSelect({ kind: "reminders", itemId: reminder.id })}
-              />
-            )}
-          </For>
-        </NavSection>
+        <div class="px-3 pb-1 pt-2 text-v2-text-text-muted text-11-regular [font-weight:440]">
+          {language.t("assistant.nav.title")}
+        </div>
+        <nav class="flex flex-col gap-px px-2" aria-label={language.t("assistant.nav.title")}>
+          <NavSection
+            id="reminders"
+            icon="mode-assistant"
+            label={language.t("assistant.nav.reminders")}
+            count={pending().length}
+            collapsed={collapsed.reminders ?? true}
+            onToggle={() => setCollapsed("reminders", !(collapsed.reminders ?? true))}
+          >
+            <For each={pending()}>
+              {(reminder: ScheduleInfo) => (
+                <NavItem
+                  icon="mode-assistant"
+                  label={reminder.content ?? ""}
+                  selected={isItemSelected("reminders", reminder.id)}
+                  onClick={() => props.onSelect({ kind: "reminders", itemId: reminder.id })}
+                />
+              )}
+            </For>
+          </NavSection>
 
-        <NavSection
-          id="memory"
-          icon="status"
-          label={language.t("assistant.nav.memory")}
-          count={memories().length}
-          collapsed={collapsed.memory ?? true}
-          onToggle={() => setCollapsed("memory", !(collapsed.memory ?? true))}
-        >
-          <For each={memories()}>
-            {(memory: PersonalMemoryInfo) => (
-              <NavItem
-                icon="status"
-                label={memory.content ?? ""}
-                selected={isItemSelected("memory", memory.id)}
-                onClick={() => props.onSelect({ kind: "memory", itemId: memory.id })}
-              />
-            )}
-          </For>
-        </NavSection>
+          <NavSection
+            id="memory"
+            icon="status"
+            label={language.t("assistant.nav.memory")}
+            count={memories().length}
+            collapsed={collapsed.memory ?? true}
+            onToggle={() => setCollapsed("memory", !(collapsed.memory ?? true))}
+          >
+            <For each={memories()}>
+              {(memory: PersonalMemoryInfo) => (
+                <NavItem
+                  icon="status"
+                  label={memory.content ?? ""}
+                  selected={isItemSelected("memory", memory.id)}
+                  onClick={() => props.onSelect({ kind: "memory", itemId: memory.id })}
+                />
+              )}
+            </For>
+          </NavSection>
 
-        <NavSection
-          id="kb"
-          icon="edit"
-          label={language.t("assistant.nav.kb")}
-          count={notes().length}
-          collapsed={collapsed.kb ?? true}
-          onToggle={() => setCollapsed("kb", !(collapsed.kb ?? true))}
-        >
-          <For each={kbTree()}>
-            {(node) => <KbTagNodeRow node={node} onSelect={props.onSelect} />}
-          </For>
-        </NavSection>
+          <NavSection
+            id="kb"
+            icon="edit"
+            label={language.t("assistant.nav.kb")}
+            count={notes().length}
+            collapsed={collapsed.kb ?? true}
+            onToggle={() => setCollapsed("kb", !(collapsed.kb ?? true))}
+          >
+            <For each={kbTree()}>{(node) => <KbTagNodeRow node={node} onSelect={props.onSelect} />}</For>
+          </NavSection>
 
-        <NavItem
-          icon="outline-dots"
-          label={language.t("assistant.nav.dangling")}
-          count={dangling().length}
-          selected={selection()?.kind === "dangling"}
-          onClick={() => props.onSelect({ kind: "dangling" })}
-        />
-      </nav>
+          <NavItem
+            icon="outline-dots"
+            label={language.t("assistant.nav.dangling")}
+            count={dangling().length}
+            selected={selection()?.kind === "dangling"}
+            onClick={() => props.onSelect({ kind: "dangling" })}
+          />
+        </nav>
       </div>
     </SelectionContext.Provider>
   )
@@ -199,18 +197,13 @@ function KbTagNodeRow(props: {
         </For>
       </div>
       <div class="flex min-w-0 flex-col pl-4">
-        <For each={props.node.notes}>
-          {(note: KbNoteNote) => <KbNoteRow note={note} onSelect={props.onSelect} />}
-        </For>
+        <For each={props.node.notes}>{(note: KbNoteNote) => <KbNoteRow note={note} onSelect={props.onSelect} />}</For>
       </div>
     </div>
   )
 }
 
-function KbNoteRow(props: {
-  note: KbNoteNote
-  onSelect: (selection: AssistantNavSelection) => void
-}) {
+function KbNoteRow(props: { note: KbNoteNote; onSelect: (selection: AssistantNavSelection) => void }) {
   const { note } = props
   const selection = useContext(SelectionContext)!
   const selected = createMemo(() => {

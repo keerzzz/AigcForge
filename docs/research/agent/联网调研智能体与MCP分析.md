@@ -19,14 +19,14 @@ Genspark 提出了基于“智能体混合体系（Mixture-of-Agents, MoA）”�
 月之暗面（Moonshot AI）推出的 Kimi 探索版依托其自主研发的 Attention Residuals（AttnRes）架构，突破了传统 Transformer 结构在极长上下文处理中的信息模糊瓶颈20。Kimi 探索版将长文本处理能力与实时联网搜索结合，使智能体能够在调取和分析数百个全网网页的同时，保持对深层关键细节的注意力加权，擅长处理复杂的长篇综述与深度资料比对任务20。  
 腾讯则将大模型能力与国民级应用生态进行了深度融合19。微信搜一搜的 AI 搜索功能以及腾讯元宝同时接入了腾讯混元大模型与 DeepSeek-R1 满血版19。该体系不仅能检索公网信息，还能深度整合微信公众号平台的高质量独家内容生态，在旅游攻略、商业洞察以及知识解答等场景下表现出极高的数据独特性与权威归因能力19。
 
-| 产品名称 | 核心推理引擎与架构 | 数据源与检索范围 | 核心功能与差异化优势 |
-| :---- | :---- | :---- | :---- |
-| **OpenAI Deep Research** | o3 系列推理大模型，基于强化学习微调3 | 开放互联网、PDF 文档、图像、内置 Python 运行沙箱3 | 支持交互式需求澄清，具备长时序自主规划与动态多跳检索能力，输出带精准引用的结构化报告3 |
-| **Perplexity AI** | 动态模型路由（支持 Claude、GPT 等模型组合）11 | 自建网络索引、第三方搜索 API、集成计算机执行环境11 | 提供即时问答与深度调研双模式，通过集成计算机环境强化事实核查与引用质量11 |
-| **Genspark** | Mixture-of-Agents (MoA) 体系，协同 70+ 模型13 | 全网公网数据、10+ 独家数据集、80+ 工具链14 | 自动生成动态 Sparkpages，支持异步后台调研与一键式事实交叉比对（Cross-Check）13 |
-| **DeepSeek R1 / 扩展架构** | DeepSeek-R1 深度推理模型（结合开源生态）21 | 第三方搜索引擎 API（如 Tavily、火山方舟等）22 | 展现显式思维链，构建“思考-检索-再思考”自适应循环，具备极高的推理性价比21 |
-| **Kimi 探索版** | Moonshot Kimi 大模型（基于 AttnRes 架构）20 | 全网实时互联网检索20 | 结合超长上下文与深层注意力加权机制，专长于海量网页数据的提取与长篇研报生成20 |
-| **微信 AI 搜索 / 腾讯元宝** | 腾讯混元大模型 \+ DeepSeek-R1 双引擎19 | 全网搜索数据 \+ 微信公众号独家内容生态19 | 依靠超级流量入口，融合公网数据与高价值私域内容生态，提供全面的信息合成19 |
+| 产品名称                    | 核心推理引擎与架构                            | 数据源与检索范围                                   | 核心功能与差异化优势                                                                  |
+| :-------------------------- | :-------------------------------------------- | :------------------------------------------------- | :------------------------------------------------------------------------------------ |
+| **OpenAI Deep Research**    | o3 系列推理大模型，基于强化学习微调3          | 开放互联网、PDF 文档、图像、内置 Python 运行沙箱3  | 支持交互式需求澄清，具备长时序自主规划与动态多跳检索能力，输出带精准引用的结构化报告3 |
+| **Perplexity AI**           | 动态模型路由（支持 Claude、GPT 等模型组合）11 | 自建网络索引、第三方搜索 API、集成计算机执行环境11 | 提供即时问答与深度调研双模式，通过集成计算机环境强化事实核查与引用质量11              |
+| **Genspark**                | Mixture-of-Agents (MoA) 体系，协同 70+ 模型13 | 全网公网数据、10+ 独家数据集、80+ 工具链14         | 自动生成动态 Sparkpages，支持异步后台调研与一键式事实交叉比对（Cross-Check）13        |
+| **DeepSeek R1 / 扩展架构**  | DeepSeek-R1 深度推理模型（结合开源生态）21    | 第三方搜索引擎 API（如 Tavily、火山方舟等）22      | 展现显式思维链，构建“思考-检索-再思考”自适应循环，具备极高的推理性价比21              |
+| **Kimi 探索版**             | Moonshot Kimi 大模型（基于 AttnRes 架构）20   | 全网实时互联网检索20                               | 结合超长上下文与深层注意力加权机制，专长于海量网页数据的提取与长篇研报生成20          |
+| **微信 AI 搜索 / 腾讯元宝** | 腾讯混元大模型 \+ DeepSeek-R1 双引擎19        | 全网搜索数据 \+ 微信公众号独家内容生态19           | 依靠超级流量入口，融合公网数据与高价值私域内容生态，提供全面的信息合成19              |
 
 ## **开源深度调研智能体项目与技术路线**
 
@@ -39,13 +39,13 @@ GPT-Researcher 是开源领域最早且最成熟的自主科研智能体之一1�
 Perplexica 与 Vane 是Perplexity 的开源替代品1。Perplexica 底层对接开源搜索引擎 SearXNG，结合 LangChain 与本地或云端 LLM，实现了完全本地化、隐私安全的 AI 搜索引擎1。Vane 则在隐私保护的基础上进一步优化了交互模式，提供极速模式（Speed）、平衡模式（Balanced）与深度调研模式（Quality），并允许用户精准挑选学术论文、论坛讨论或全网内容作为检索源26。  
 在 OpenAI Deep Research 推出后，开源社区涌现出了一批旨在高精度复刻其工作流的项目22。其中，dzhng/deep-research 以极简的 TypeScript 架构展示了基于递归推理与 Firecrawl 数据采集的深度搜索闭环25。sugarforever/deepseek-deep-research 专门针对 DeepSeek-R1 进行优化，利用 R1 模型的思考过程控制搜索 API，构建了符合标准 Chat Completion 规范的后端服务22。而 Zilliz 推出的 Deep-Searcher 则将公网搜索与企业内部向量数据库（Milvus）相结合，提供了兼顾企业私域知识与公网信息的深度检索解决方案30。
 
-| 项目名称 | 核心架构与设计范式 | 技术栈与工具依赖 | 适用场景与产出物特性 |
-| :---- | :---- | :---- | :---- |
-| **GPT-Researcher** | 主从式并行 Agent 编排，支持 Plan-and-Solve 拓扑27 | Python, LangChain, 多源 Web Scrapers1 | 自动化生成包含完整参考文献引用的万字学术/商业研报1 |
-| **STORM** | 基于角色扮演的对话质询，自底向上生成分层大纲7 | Python, DSPy 框架, 多 Agent 对话系统7 | 生成结构严密、多视角覆盖的类维基百科综合知识综述1 |
-| **Perplexica / Vane** | 独立检索模块 \+ 交互式 UI，支持多搜索模式1 | TypeScript, SearXNG, Ollama / 商业 API1 | 私有化部署的 AI 搜索引擎，快速提供附带来源的对话式解答1 |
-| **deep-research (dzhng)** | 极简迭代递归搜索，基于上下文大纲扩展25 | TypeScript, Node.js, Firecrawl API25 | 轻量级深度搜索逻辑实现，适合二次开发与集成25 |
-| **Deep-Searcher (Zilliz)** | 混合 RAG 范式（企业向量数据库 \+ 公网搜索引擎）30 | Python, Milvus / Zilliz Cloud, Multi-LLM30 | 跨企业内部私有知识库与互联网外部数据的综合深度调研30 |
+| 项目名称                   | 核心架构与设计范式                                | 技术栈与工具依赖                           | 适用场景与产出物特性                                    |
+| :------------------------- | :------------------------------------------------ | :----------------------------------------- | :------------------------------------------------------ |
+| **GPT-Researcher**         | 主从式并行 Agent 编排，支持 Plan-and-Solve 拓扑27 | Python, LangChain, 多源 Web Scrapers1      | 自动化生成包含完整参考文献引用的万字学术/商业研报1      |
+| **STORM**                  | 基于角色扮演的对话质询，自底向上生成分层大纲7     | Python, DSPy 框架, 多 Agent 对话系统7      | 生成结构严密、多视角覆盖的类维基百科综合知识综述1       |
+| **Perplexica / Vane**      | 独立检索模块 \+ 交互式 UI，支持多搜索模式1        | TypeScript, SearXNG, Ollama / 商业 API1    | 私有化部署的 AI 搜索引擎，快速提供附带来源的对话式解答1 |
+| **deep-research (dzhng)**  | 极简迭代递归搜索，基于上下文大纲扩展25            | TypeScript, Node.js, Firecrawl API25       | 轻量级深度搜索逻辑实现，适合二次开发与集成25            |
+| **Deep-Searcher (Zilliz)** | 混合 RAG 范式（企业向量数据库 \+ 公网搜索引擎）30 | Python, Milvus / Zilliz Cloud, Multi-LLM30 | 跨企业内部私有知识库与互联网外部数据的综合深度调研30    |
 
 ## **模型上下文协议 (MCP) 与 Agent Skill 生态**
 
@@ -59,14 +59,14 @@ Tavily MCP Server 专为 AI Agent 的事实检索与归因打造8。其暴露的
 针对隐私敏感或希望获取非垄断性检索结果的场景，Brave Search MCP 和 Kagi MCP 提供了独立索引库的接入能力8。Brave Search MCP 原生支持完整的高级搜索语法（如 site:、filetype:pdf、intitle:、时间范围限定等），允许智能体生成精准的组合逻辑查询指令8。  
 为了解决多源工具调用的繁琐配置问题，社区推出了聚合类 MCP 服务，如 mcp-omnisearch8。该服务在一个 MCP 端口内集成了 Tavily、Perplexity、Kagi、Jina AI、Brave、Exa 及 Firecrawl 的能力，使智能体能够根据当前的具体调研子目标，在语义搜索、事实核查或代码库检索之间实现动态路由8。对于需要突破登录墙或强 JS 动态渲染的复杂网页，结合无头浏览器的 Playwright MCP 或 Browserbase MCP 则为智能体补充了可视化交互与 UI 操作能力33。
 
-| MCP 服务名称 | 暴露的核心 Tool / Skill 接口 | 数据输出格式与特性 | 典型应用场景与能力适配 |
-| :---- | :---- | :---- | :---- |
-| **Firecrawl MCP** | scrape, crawl, search, map, batch\_scrape \[cite: 8, 9\] | 清洁 Markdown, 结构化 JSON, 网页截图9 | 深度全站分析、复杂文档清洗、绕过防爬阻碍获取正文9 |
-| **Exa MCP** | neural\_search, find\_similar, get\_contents \[cite: 8, 33\] | 向量化语义文档链接、干净提炼文本8 | 概念驱动的探究性搜索、寻找深层隐藏资源、同类竞品洞察8 |
-| **Tavily MCP** | tavily\_search, tavily\_extract \[cite: 8, 35\] | 高相关性事实文本块、完整引用元数据8 | 快速事实核查、即时事件追踪、需要高度可靠归因的回答8 |
-| **Brave Search MCP** | brave\_web\_search, brave\_local\_search \[cite: 8, 36\] | 包含丰富元数据的 SERP JSON8 | 隐私安全检索、精准限定域名或文件类型的高级搜索8 |
-| **mcp-omnisearch** | 统一搜索网关（整合 7+ 主流搜索引擎与数据提取工具）8 | 标准化聚合 JSON 数据8 | 复合型长程调研智能体，需根据任务灵活切换搜索引擎8 |
-| **Playwright MCP** | navigate, click, type, screenshot, evaluate \[cite: 36\] | DOM 快照、渲染后页面文本、交互图像36 | 处理动态单页应用（SPA）、表单交互、突破复杂界面阻碍33 |
+| MCP 服务名称         | 暴露的核心 Tool / Skill 接口                              | 数据输出格式与特性                    | 典型应用场景与能力适配                                |
+| :------------------- | :-------------------------------------------------------- | :------------------------------------ | :---------------------------------------------------- |
+| **Firecrawl MCP**    | scrape, crawl, search, map, batch_scrape \[cite: 8, 9\]   | 清洁 Markdown, 结构化 JSON, 网页截图9 | 深度全站分析、复杂文档清洗、绕过防爬阻碍获取正文9     |
+| **Exa MCP**          | neural_search, find_similar, get_contents \[cite: 8, 33\] | 向量化语义文档链接、干净提炼文本8     | 概念驱动的探究性搜索、寻找深层隐藏资源、同类竞品洞察8 |
+| **Tavily MCP**       | tavily_search, tavily_extract \[cite: 8, 35\]             | 高相关性事实文本块、完整引用元数据8   | 快速事实核查、即时事件追踪、需要高度可靠归因的回答8   |
+| **Brave Search MCP** | brave_web_search, brave_local_search \[cite: 8, 36\]      | 包含丰富元数据的 SERP JSON8           | 隐私安全检索、精准限定域名或文件类型的高级搜索8       |
+| **mcp-omnisearch**   | 统一搜索网关（整合 7+ 主流搜索引擎与数据提取工具）8       | 标准化聚合 JSON 数据8                 | 复合型长程调研智能体，需根据任务灵活切换搜索引擎8     |
+| **Playwright MCP**   | navigate, click, type, screenshot, evaluate \[cite: 36\]  | DOM 快照、渲染后页面文本、交互图像36  | 处理动态单页应用（SPA）、表单交互、突破复杂界面阻碍33 |
 
 ## **深度调研智能体的核心架构设计与工程机制**
 
@@ -84,41 +84,41 @@ Tavily MCP Server 专为 AI Agent 的事实检索与归因打造8。其暴露的
 
 #### **引用的著作**
 
-> 1. JMcrafter26/awesome-ai-tools \- GitHub, [https://github.com/JMcrafter26/awesome-ai-tools](https://github.com/JMcrafter26/awesome-ai-tools)  
-> 2. OpenAI Deep Research \- Emergent Mind, [https://www.emergentmind.com/topics/openai-deep-research](https://www.emergentmind.com/topics/openai-deep-research)  
-> 3. Understanding OpenAI's Deep Research Methodology \- PromptLayer Blog, [https://blog.promptlayer.com/how-deep-research-works/](https://blog.promptlayer.com/how-deep-research-works/)  
-> 4. OpenAI紧急加播：ChatGPT上新深度搜索，持续思考30分钟输出1万字，刷榜“人类最后的考试, [https://hub.baai.ac.cn/view/43085](https://hub.baai.ac.cn/view/43085)  
-> 5. Step-DeepResearch Technical Report \- arXiv, [https://arxiv.org/html/2512.20491v1](https://arxiv.org/html/2512.20491v1)  
-> 6. Yunque DeepResearch Technical Report \- arXiv, [https://arxiv.org/html/2601.19578v1](https://arxiv.org/html/2601.19578v1)  
-> 7. ai-for-developers/awesome-claude: A curated list of awesome cloud computing resources, services, frameworks, and tools. \- GitHub, [https://github.com/ai-for-developers/awesome-claude](https://github.com/ai-for-developers/awesome-claude)  
-> 8. mcp-omnisearch \- MCP Server Finder, [https://www.mcpserverfinder.com/servers/spences10/mcp-omnisearch](https://www.mcpserverfinder.com/servers/spences10/mcp-omnisearch)  
-> 9. 16 Best MCP Servers You Can Add to Cursor For 10x Productivity \- Firecrawl, [https://www.firecrawl.dev/blog/best-mcp-servers-for-cursor](https://www.firecrawl.dev/blog/best-mcp-servers-for-cursor)  
-> 10. OpenAI's deep research aims to outthink analysts \- IBM, [https://www.ibm.com/think/news/openai-releases-deep-research](https://www.ibm.com/think/news/openai-releases-deep-research)  
-> 11. The ultimate guide to Perplexity AI, [https://datanorth.ai/blog/perplexity-ai-what-is-it-and-why-is-it-important](https://datanorth.ai/blog/perplexity-ai-what-is-it-and-why-is-it-important)  
-> 12. Deep Research, now in Computer \- Perplexity, [https://www.perplexity.ai/hub/blog/deep-research-now-in-computer](https://www.perplexity.ai/hub/blog/deep-research-now-in-computer)  
-> 13. Genspark Wikipedia: Official Access, Features & Quick Guide, Click to Use\! \- Skywork, [https://skywork.ai/blog/models/genspark-wikipedia-official-access-features-quick-guide/](https://skywork.ai/blog/models/genspark-wikipedia-official-access-features-quick-guide/)  
-> 14. Record-Breaking Launch: Genspark Super Agent Reaches $10 Million ARR Faster Than Any AI Product \- AI Secret, [https://aisecret.us/record-breaking-launch-genspark-super-agent-reaches-10-million-arr-faster-than-any-ai-product/](https://aisecret.us/record-breaking-launch-genspark-super-agent-reaches-10-million-arr-faster-than-any-ai-product/)  
-> 15. Blog \- Genspark.ai, [https://www.genspark.ai/blog](https://www.genspark.ai/blog)  
-> 16. Genspark vs remio: AI Search vs Personal Knowledge Base, [https://www.remio.ai/post/genspark-vs-remio-ai-search-vs-personal-knowledge-base](https://www.remio.ai/post/genspark-vs-remio-ai-search-vs-personal-knowledge-base)  
-> 17. World''s First Search and Autopilot Agent Integration, Plus More\! \- Genspark AI, [https://www.genspark.ai/blog/genspark-new-features-20240925](https://www.genspark.ai/blog/genspark-new-features-20240925)  
-> 18. Make complex analysis and fact-checking surprisingly easy with Genspark's "Autopilot Agent"\!｜AI-Bridge Lab \- note, [https://note.com/doerstokyo\_kb/n/n2552a3e50bc0?hl=en](https://note.com/doerstokyo_kb/n/n2552a3e50bc0?hl=en)  
-> 19. “国民应用”牵手DeepSeek：微信的AI搜索野心与腾讯的“双模型”押注 \- DoNews, [https://www.donews.com/article/detail/5093/81504.html](https://www.donews.com/article/detail/5093/81504.html)  
-> 20. 月之暗面 \- 品玩, [https://www.pingwest.com/tag/21975](https://www.pingwest.com/tag/21975)  
-> 21. 教师必看！DeepSeek超全使用指南, [https://www.scge.gov.cn/html/website/outsite/xinxihuagongzuo/wenjianziliao/1899645340236296193.html](https://www.scge.gov.cn/html/website/outsite/xinxihuagongzuo/wenjianziliao/1899645340236296193.html)  
-> 22. sugarforever/deepseek-deep-research \- GitHub, [https://github.com/sugarforever/deepseek-deep-research](https://github.com/sugarforever/deepseek-deep-research)  
-> 23. 中国蓝观察丨超200家企业接入DeepSeek AI正在改变世界 \- 新蓝网, [https://www.cztv.com/newsDetail/767744](https://www.cztv.com/newsDetail/767744)  
-> 24. AI助手巅峰对决：DeepSeek、元宝、豆包、Kim，谁是“智能之王”？谁又最糟糕？ \- OFweek人工智能网, [https://m.ofweek.com/ai/2025-03/ART-201700-8110-30659336.html](https://m.ofweek.com/ai/2025-03/ART-201700-8110-30659336.html)  
-> 25. awesome-ml/llm-tools.md at master \- GitHub, [https://github.com/underlines/awesome-ml/blob/master/llm-tools.md](https://github.com/underlines/awesome-ml/blob/master/llm-tools.md)  
-> 26. ItzCrazyKns/Vane: Vane is an AI-powered answering engine. \- GitHub, [https://github.com/ItzCrazyKns/Vane](https://github.com/ItzCrazyKns/Vane)  
-> 27. Open-Source Deep Research Agents with Multi-Tool Integration｜Hafnium \- note, [https://note.com/hafnium/n/nf114386ea856?hl=en](https://note.com/hafnium/n/nf114386ea856?hl=en)  
-> 28. AI Agents for ABM: Automating Account-Based Workflows \- LinkedIn, [https://zenabm.com/blog/ai-agents-for-abm](https://zenabm.com/blog/ai-agents-for-abm)  
-> 29. ChatGPT: how to use it and the pitfalls/cautions in academia \- PMC, [https://pmc.ncbi.nlm.nih.gov/articles/PMC12597148/](https://pmc.ncbi.nlm.nih.gov/articles/PMC12597148/)  
-> 30. swiftsimplify/awesome-open-source-ai-tools \- GitHub, [https://github.com/swiftsimplify/awesome-open-source-ai-tools](https://github.com/swiftsimplify/awesome-open-source-ai-tools)  
-> 31. Deep Research alternatives · ItzCrazyKns Vane · Discussion \#608 \- GitHub, [https://github.com/ItzCrazyKns/Vane/discussions/608](https://github.com/ItzCrazyKns/Vane/discussions/608)  
-> 32. Best Web Search APIs & MCPs for AI Agents 2026 \- Vellum, [https://www.vellum.ai/blog/best-web-search-apis-and-mcps-for-ai-agents](https://www.vellum.ai/blog/best-web-search-apis-and-mcps-for-ai-agents)  
-> 33. Top 15 Web Search MCPs to Connect Your AI To \- Nimble, [https://www.nimbleway.com/blog/top-web-search-mcps](https://www.nimbleway.com/blog/top-web-search-mcps)  
-> 34. Best Web Search APIs for AI Applications in 2026 \- Firecrawl, [https://www.firecrawl.dev/blog/best-web-search-apis](https://www.firecrawl.dev/blog/best-web-search-apis)  
-> 35. Top Web Search MCP Servers for Claude, Cursor, Codex and More \- Firecrawl, [https://www.firecrawl.dev/blog/best-web-search-mcp](https://www.firecrawl.dev/blog/best-web-search-mcp)  
-> 36. GitHub \- TrelisResearch/mcp: Model Context Protocol Servers, [https://github.com/TrelisResearch/mcp](https://github.com/TrelisResearch/mcp)  
-> 37. Tongyi DeepResearch Technical Report \- GitHub, [https://raw.githubusercontent.com/Alibaba-NLP/DeepResearch/main/Tech\_Report.pdf](https://raw.githubusercontent.com/Alibaba-NLP/DeepResearch/main/Tech_Report.pdf)  
+> 1. JMcrafter26/awesome-ai-tools \- GitHub, [https://github.com/JMcrafter26/awesome-ai-tools](https://github.com/JMcrafter26/awesome-ai-tools)
+> 2. OpenAI Deep Research \- Emergent Mind, [https://www.emergentmind.com/topics/openai-deep-research](https://www.emergentmind.com/topics/openai-deep-research)
+> 3. Understanding OpenAI's Deep Research Methodology \- PromptLayer Blog, [https://blog.promptlayer.com/how-deep-research-works/](https://blog.promptlayer.com/how-deep-research-works/)
+> 4. OpenAI紧急加播：ChatGPT上新深度搜索，持续思考30分钟输出1万字，刷榜“人类最后的考试, [https://hub.baai.ac.cn/view/43085](https://hub.baai.ac.cn/view/43085)
+> 5. Step-DeepResearch Technical Report \- arXiv, [https://arxiv.org/html/2512.20491v1](https://arxiv.org/html/2512.20491v1)
+> 6. Yunque DeepResearch Technical Report \- arXiv, [https://arxiv.org/html/2601.19578v1](https://arxiv.org/html/2601.19578v1)
+> 7. ai-for-developers/awesome-claude: A curated list of awesome cloud computing resources, services, frameworks, and tools. \- GitHub, [https://github.com/ai-for-developers/awesome-claude](https://github.com/ai-for-developers/awesome-claude)
+> 8. mcp-omnisearch \- MCP Server Finder, [https://www.mcpserverfinder.com/servers/spences10/mcp-omnisearch](https://www.mcpserverfinder.com/servers/spences10/mcp-omnisearch)
+> 9. 16 Best MCP Servers You Can Add to Cursor For 10x Productivity \- Firecrawl, [https://www.firecrawl.dev/blog/best-mcp-servers-for-cursor](https://www.firecrawl.dev/blog/best-mcp-servers-for-cursor)
+> 10. OpenAI's deep research aims to outthink analysts \- IBM, [https://www.ibm.com/think/news/openai-releases-deep-research](https://www.ibm.com/think/news/openai-releases-deep-research)
+> 11. The ultimate guide to Perplexity AI, [https://datanorth.ai/blog/perplexity-ai-what-is-it-and-why-is-it-important](https://datanorth.ai/blog/perplexity-ai-what-is-it-and-why-is-it-important)
+> 12. Deep Research, now in Computer \- Perplexity, [https://www.perplexity.ai/hub/blog/deep-research-now-in-computer](https://www.perplexity.ai/hub/blog/deep-research-now-in-computer)
+> 13. Genspark Wikipedia: Official Access, Features & Quick Guide, Click to Use\! \- Skywork, [https://skywork.ai/blog/models/genspark-wikipedia-official-access-features-quick-guide/](https://skywork.ai/blog/models/genspark-wikipedia-official-access-features-quick-guide/)
+> 14. Record-Breaking Launch: Genspark Super Agent Reaches $10 Million ARR Faster Than Any AI Product \- AI Secret, [https://aisecret.us/record-breaking-launch-genspark-super-agent-reaches-10-million-arr-faster-than-any-ai-product/](https://aisecret.us/record-breaking-launch-genspark-super-agent-reaches-10-million-arr-faster-than-any-ai-product/)
+> 15. Blog \- Genspark.ai, [https://www.genspark.ai/blog](https://www.genspark.ai/blog)
+> 16. Genspark vs remio: AI Search vs Personal Knowledge Base, [https://www.remio.ai/post/genspark-vs-remio-ai-search-vs-personal-knowledge-base](https://www.remio.ai/post/genspark-vs-remio-ai-search-vs-personal-knowledge-base)
+> 17. World''s First Search and Autopilot Agent Integration, Plus More\! \- Genspark AI, [https://www.genspark.ai/blog/genspark-new-features-20240925](https://www.genspark.ai/blog/genspark-new-features-20240925)
+> 18. Make complex analysis and fact-checking surprisingly easy with Genspark's "Autopilot Agent"\!｜AI-Bridge Lab \- note, [https://note.com/doerstokyo_kb/n/n2552a3e50bc0?hl=en](https://note.com/doerstokyo_kb/n/n2552a3e50bc0?hl=en)
+> 19. “国民应用”牵手DeepSeek：微信的AI搜索野心与腾讯的“双模型”押注 \- DoNews, [https://www.donews.com/article/detail/5093/81504.html](https://www.donews.com/article/detail/5093/81504.html)
+> 20. 月之暗面 \- 品玩, [https://www.pingwest.com/tag/21975](https://www.pingwest.com/tag/21975)
+> 21. 教师必看！DeepSeek超全使用指南, [https://www.scge.gov.cn/html/website/outsite/xinxihuagongzuo/wenjianziliao/1899645340236296193.html](https://www.scge.gov.cn/html/website/outsite/xinxihuagongzuo/wenjianziliao/1899645340236296193.html)
+> 22. sugarforever/deepseek-deep-research \- GitHub, [https://github.com/sugarforever/deepseek-deep-research](https://github.com/sugarforever/deepseek-deep-research)
+> 23. 中国蓝观察丨超200家企业接入DeepSeek AI正在改变世界 \- 新蓝网, [https://www.cztv.com/newsDetail/767744](https://www.cztv.com/newsDetail/767744)
+> 24. AI助手巅峰对决：DeepSeek、元宝、豆包、Kim，谁是“智能之王”？谁又最糟糕？ \- OFweek人工智能网, [https://m.ofweek.com/ai/2025-03/ART-201700-8110-30659336.html](https://m.ofweek.com/ai/2025-03/ART-201700-8110-30659336.html)
+> 25. awesome-ml/llm-tools.md at master \- GitHub, [https://github.com/underlines/awesome-ml/blob/master/llm-tools.md](https://github.com/underlines/awesome-ml/blob/master/llm-tools.md)
+> 26. ItzCrazyKns/Vane: Vane is an AI-powered answering engine. \- GitHub, [https://github.com/ItzCrazyKns/Vane](https://github.com/ItzCrazyKns/Vane)
+> 27. Open-Source Deep Research Agents with Multi-Tool Integration｜Hafnium \- note, [https://note.com/hafnium/n/nf114386ea856?hl=en](https://note.com/hafnium/n/nf114386ea856?hl=en)
+> 28. AI Agents for ABM: Automating Account-Based Workflows \- LinkedIn, [https://zenabm.com/blog/ai-agents-for-abm](https://zenabm.com/blog/ai-agents-for-abm)
+> 29. ChatGPT: how to use it and the pitfalls/cautions in academia \- PMC, [https://pmc.ncbi.nlm.nih.gov/articles/PMC12597148/](https://pmc.ncbi.nlm.nih.gov/articles/PMC12597148/)
+> 30. swiftsimplify/awesome-open-source-ai-tools \- GitHub, [https://github.com/swiftsimplify/awesome-open-source-ai-tools](https://github.com/swiftsimplify/awesome-open-source-ai-tools)
+> 31. Deep Research alternatives · ItzCrazyKns Vane · Discussion \#608 \- GitHub, [https://github.com/ItzCrazyKns/Vane/discussions/608](https://github.com/ItzCrazyKns/Vane/discussions/608)
+> 32. Best Web Search APIs & MCPs for AI Agents 2026 \- Vellum, [https://www.vellum.ai/blog/best-web-search-apis-and-mcps-for-ai-agents](https://www.vellum.ai/blog/best-web-search-apis-and-mcps-for-ai-agents)
+> 33. Top 15 Web Search MCPs to Connect Your AI To \- Nimble, [https://www.nimbleway.com/blog/top-web-search-mcps](https://www.nimbleway.com/blog/top-web-search-mcps)
+> 34. Best Web Search APIs for AI Applications in 2026 \- Firecrawl, [https://www.firecrawl.dev/blog/best-web-search-apis](https://www.firecrawl.dev/blog/best-web-search-apis)
+> 35. Top Web Search MCP Servers for Claude, Cursor, Codex and More \- Firecrawl, [https://www.firecrawl.dev/blog/best-web-search-mcp](https://www.firecrawl.dev/blog/best-web-search-mcp)
+> 36. GitHub \- TrelisResearch/mcp: Model Context Protocol Servers, [https://github.com/TrelisResearch/mcp](https://github.com/TrelisResearch/mcp)
+> 37. Tongyi DeepResearch Technical Report \- GitHub, [https://raw.githubusercontent.com/Alibaba-NLP/DeepResearch/main/Tech_Report.pdf](https://raw.githubusercontent.com/Alibaba-NLP/DeepResearch/main/Tech_Report.pdf)
 > 38. OpenAI's Deep Research Tool: A Comprehensive Overview | by ByteBridge \- Medium, [https://bytebridge.medium.com/openais-deep-research-tool-a-comprehensive-overview-12ddab43feff](https://bytebridge.medium.com/openais-deep-research-tool-a-comprehensive-overview-12ddab43feff)

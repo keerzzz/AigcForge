@@ -96,7 +96,7 @@ packages/app/src/pages/session/timeline/session-todo-progress.{ts,tsx}  revision
 
 **修复步骤**：
 
-1. `packages/aigcfroge/src/agent/subagent-permissions.ts:20-37`——按既有 `canTaskwrite` 模式为四个新工具各加一条：先 `const canTaskCreate = input.subagent.permission.some((rule) => rule.permission === "task_create")`（其余三个同理），再在返回数组中追加 `...(canTaskCreate ? [] : [{ permission: "task_create" as const, pattern: "*" as const, action: "deny" as const }])` 等四条，紧跟现有 taskwrite 条目之后。加一行注释说明裁决：「task_* 增量工具默认 deny（2026-08-06 裁决：子代理只交付结果、不维护任务进度；显式授权可 opt-in 启用 P2-b 进度上报）」。
+1. `packages/aigcfroge/src/agent/subagent-permissions.ts:20-37`——按既有 `canTaskwrite` 模式为四个新工具各加一条：先 `const canTaskCreate = input.subagent.permission.some((rule) => rule.permission === "task_create")`（其余三个同理），再在返回数组中追加 `...(canTaskCreate ? [] : [{ permission: "task_create" as const, pattern: "*" as const, action: "deny" as const }])` 等四条，紧跟现有 taskwrite 条目之后。加一行注释说明裁决：「task\_\* 增量工具默认 deny（2026-08-06 裁决：子代理只交付结果、不维护任务进度；显式授权可 opt-in 启用 P2-b 进度上报）」。
 2. `packages/core/src/plugin/agent.ts:276-283`——`general` 子代理的 `PermissionV2.merge(defaults, [...])` deny 列表中，`taskwrite` 条目之后插入 `{ action: "task_create", resource: "*", effect: "deny" }` 等四条（`task_update`/`task_delete`/`task_reorder` 同），并加同款裁决注释。
 3. **确认权限名拼写**：deny 规则里的 permission/action 字符串必须与 `builtins.ts` 注册的工具名完全一致（`task_create` 等，下划线），写错拼写等于没 deny——改完后 grep 两处文件确认四个名字与 `packages/core/src/tool/builtins.ts` 的注册名逐字一致。
 4. `packages/core/test/agent.test.ts:152` 附近的 general 子代理权限回归清单，补四个新工具的 deny 断言；同时在 `packages/aigcfroge` 下 grep `subagent-permissions` 的既有测试，若有对应断言清单同步补齐，若无则为四个新工具补一条「未显式授权 → 默认 deny；显式授权 → 不追加 deny」的用例（沿用该文件既有测试模式）。

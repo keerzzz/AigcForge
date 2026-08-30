@@ -20,6 +20,7 @@ M1 已全部闭环（commit `e0700c19f`，分支 `chat-m1-closure`），包括 P
 每步 TDD：先写测试（红）→ 最小实现（绿）→ 重构（清理）
 
 每步完成后执行**改完即审流程**：
+
 ```
 1. git diff -- <files>
 2. 匹配 Skills（effect / frontend-theming）
@@ -34,15 +35,15 @@ M1 已全部闭环（commit `e0700c19f`，分支 `chat-m1-closure`），包括 P
 
 ### 实施顺序
 
-| Step | 内容 | 包 |
-|------|------|----|
-| **0** | listInvalid 数据源（core/schema/httpapi）| schema + core + aigcfroge |
-| **1** | AssetWorkbench 4 列表格（新增）| app |
-| **2** | ChatRightPanel 简化为 Detail Inspector | app |
-| **3** | 功能树移除 + ADR-15 slot 合规 | app（删 chat-feature.ts + home.tsx `<Dynamic>` 改 render-all）|
-| **4** | Insert 流程 + SessionSelectorPopover | app |
-| **5** | 路由状态保持 + Dirty Draft + Provider 提到 Router 外 | app（chat-workspace.tsx 新增）|
-| **6** | 全链路集成测试 | app |
+| Step  | 内容                                                 | 包                                                             |
+| ----- | ---------------------------------------------------- | -------------------------------------------------------------- |
+| **0** | listInvalid 数据源（core/schema/httpapi）            | schema + core + aigcfroge                                      |
+| **1** | AssetWorkbench 4 列表格（新增）                      | app                                                            |
+| **2** | ChatRightPanel 简化为 Detail Inspector               | app                                                            |
+| **3** | 功能树移除 + ADR-15 slot 合规                        | app（删 chat-feature.ts + home.tsx `<Dynamic>` 改 render-all） |
+| **4** | Insert 流程 + SessionSelectorPopover                 | app                                                            |
+| **5** | 路由状态保持 + Dirty Draft + Provider 提到 Router 外 | app（chat-workspace.tsx 新增）                                 |
+| **6** | 全链路集成测试                                       | app                                                            |
 
 ### 关键约束（审批定论）
 
@@ -63,11 +64,11 @@ M1 已全部闭环（commit `e0700c19f`，分支 `chat-m1-closure`），包括 P
 
 ### 已完成并 commit（分支 chat-m1-closure）
 
-| commit | 内容 |
-|---|---|
-| `5277a551c` | docs(chat-m2): M2 启动文档（handoff + plan + prd v4.5） |
+| commit      | 内容                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `5277a551c` | docs(chat-m2): M2 启动文档（handoff + plan + prd v4.5）                                         |
 | `80f1f4a09` | feat(chat-m2): Step 0 listInvalid 数据源（schema/core/httpapi/SDK 重新生成/mode-surfaces 适配） |
-| `e7edeb9e9` | feat(chat-m2): Step 1 AssetWorkbench 组件 + 纯函数测试（13 测试 + i18n） |
+| `e7edeb9e9` | feat(chat-m2): Step 1 AssetWorkbench 组件 + 纯函数测试（13 测试 + i18n）                        |
 
 ### Step 2 决策：跳过首页 Inspector
 
@@ -108,19 +109,21 @@ M1 已全部闭环（commit `e0700c19f`，分支 `chat-m1-closure`），包括 P
 
 ### 已完成并 commit（分支 chat-m1-closure）
 
-| commit | 内容 |
-|---|---|
-| `c95bd1bbb` | refactor(chat-m2): secondarySidebarOpen 默认 true->false（项5）|
-| `4dab40c0f` | refactor(chat-m2): Step 3 功能树移除 + ADR-15 slot 合规（项1+2+3+4+6）|
+| commit      | 内容                                                                   |
+| ----------- | ---------------------------------------------------------------------- |
+| `c95bd1bbb` | refactor(chat-m2): secondarySidebarOpen 默认 true->false（项5）        |
+| `4dab40c0f` | refactor(chat-m2): Step 3 功能树移除 + ADR-15 slot 合规（项1+2+3+4+6） |
 
 ### Step 3 实施要点（供 Step 4-6 参考）
 
 **render-all 机制（ADR-15 §4 方案1）**：
+
 - L461 sidebar grid slot：`display: contents`（visible）/ `display: none`（hidden）。visible slot 的组件 root 直接成为 grid item（col 1），无额外 wrapper 改变布局
 - 主区 section：`display: flex`（visible，flex-1 填充）/ `display: none`（hidden）。wrapper div 承载 pt-6（coding slot）/ 无 padding（chat slot）
 - 两个 slot 常驻挂载，display 切换不 remount，createResource 不重取
 
 **数据流**：
+
 - `useChatDirectory()`（mode-surfaces.tsx 导出）：server.current ?? server.list[0] -> ensureServerCtx -> lastSession.directory(scope) ?? 首个 project worktree。ChatSidebar 与 Home 资产 fetch 共用，确保 Location 展示与资产列表目录一致
 - Home `createResource(chatDirSdk, promptAsset.list)`：提升到 Home（slot 之上，ADR-15 §4 方案2），**非 mode-gated**（避免切换 chat 时重取）；chatAssetList()?.assets/invalid ?? [] 传入 AssetWorkbenchTable
 - `ChatSidebarSlot = modeSurface("chat").Sidebar`（模块级 const，经 registry 解析，保持 modeSurface.chat.Sidebar 非死代码）
@@ -156,10 +159,10 @@ M1 已全部闭环（commit `e0700c19f`，分支 `chat-m1-closure`），包括 P
 
 ### 新增 commit
 
-| commit | 内容 |
-|---|---|
+| commit      | 内容                                                             |
+| ----------- | ---------------------------------------------------------------- |
 | `5ca4b6b84` | refactor(chat-m2): 按产品反馈恢复功能树导航 + chatFeature 持久化 |
-| `eddfd73f2` | fix(chat-m2): ChatSessionList 标题 i18n 误译 项目列表->会话列表 |
+| `eddfd73f2` | fix(chat-m2): ChatSessionList 标题 i18n 误译 项目列表->会话列表  |
 
 ### 当前 chat 首页布局（最终态）
 

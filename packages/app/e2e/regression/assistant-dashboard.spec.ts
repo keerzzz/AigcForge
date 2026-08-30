@@ -95,9 +95,7 @@ test.describe("regression: assistant dashboard", () => {
     const cancel = page.getByLabel("Cancel reminder")
     await expect(cancel).toBeVisible({ timeout: 15_000 })
     await cancel.click()
-    await expect
-      .poll(() => cancelled, { timeout: 10_000 })
-      .toBe(true)
+    await expect.poll(() => cancelled, { timeout: 10_000 }).toBe(true)
   })
 
   test("confirms and rejects a pending memory proposal", async ({ page }) => {
@@ -124,7 +122,15 @@ test.describe("regression: assistant dashboard", () => {
   })
 })
 
-async function mockServer(page: Page, extra: { state: object } & Partial<MockServerConfig>) {
+// Hooks consumed by this spec's own page.route handlers below; the shared
+// mock server (utils/mock-server.ts) does not implement them.
+type DashboardHooks = {
+  onScheduleCancel?: () => void
+  onMemoryConfirm?: () => void
+  onMemoryReject?: () => void
+}
+
+async function mockServer(page: Page, extra: { state: object } & Partial<MockServerConfig> & DashboardHooks) {
   const { state, ...config } = extra
   await mockAigcfrogeServer(page, {
     directory,

@@ -10,11 +10,11 @@
 
 参考资源：
 
-| 来源 | 核心可借鉴设计 |
-|---|---|
-| **DeepSeek-Reasonix** (`cache_shape.go`) | PrefixShape SHA256 快照 + CompareShape 跨轮诊断 + 三级 Compaction 水位线 + 流中断恢复 |
-| **2026 AI Agent 白皮书** | Protocol Cards 按需注入、MCP 工具动态裁剪、多模型瀑布、执行计划持久化 |
-| **项目现有基础设施** | `Step.Ended` 已含 `tokens.cache.read/write`、`CacheHint`/`CachePolicy` Schema 已就位、`compaction.ts` 有一级触发、`Retried` 事件已存在 |
+| 来源                                     | 核心可借鉴设计                                                                                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **DeepSeek-Reasonix** (`cache_shape.go`) | PrefixShape SHA256 快照 + CompareShape 跨轮诊断 + 三级 Compaction 水位线 + 流中断恢复                                                  |
+| **2026 AI Agent 白皮书**                 | Protocol Cards 按需注入、MCP 工具动态裁剪、多模型瀑布、执行计划持久化                                                                  |
+| **项目现有基础设施**                     | `Step.Ended` 已含 `tokens.cache.read/write`、`CacheHint`/`CachePolicy` Schema 已就位、`compaction.ts` 有一级触发、`Retried` 事件已存在 |
 
 ### 当前状态
 
@@ -23,7 +23,7 @@ LLM request 流程（当前）:
 
   Agent → LLM.request(promptCacheKey) → stream → step-finish(usage)
                                                        └── tokens(cacheRead, cacheWrite)
-                                                       
+
   存在的问题:
   1. ❌ 无 PrefixShape 快照 → 无法诊断"为什么这轮缓存 miss"
   2. ❌ 无跨轮 CompareShape → 无法归因 (system/tools/log_rewrite)
@@ -164,7 +164,9 @@ yield* events.publish(CacheDiagnostic, {
 // packages/core/src/session/store.ts
 // 在 Service 实现中新增:
 let rewriteVersion = 0
-const incrementRewrite = () => { rewriteVersion++ }
+const incrementRewrite = () => {
+  rewriteVersion++
+}
 const getRewriteVersion = () => rewriteVersion
 ```
 
@@ -200,12 +202,12 @@ Phase 1 的 ephemeral `CacheDiagnostic` 事件已含 `sessionCacheRead` 和 `ses
 
 `make()` 返回的闭包中新增状态变量，将单级触发改为四级水位线：
 
-| 水位 | 阈值 | 行为 |
-|---|---|---|
-| **soft** (50%) | `watermark >= 0.5` | 只发 `Compaction.SoftWarning` 事件，**不压缩** — 保护缓存前缀 |
-| **snip** (60%) | `watermark >= 0.6` | 修剪陈旧 tool result（已有 `PruneStaleToolResults` 模式可借鉴） |
-| **compact** (80%) | `watermark >= 0.8` | 执行现有 `compactAfterOverflow` 逻辑 |
-| **force** (90%) | `watermark >= 0.9` | 强制压缩，跳过 foldEconomics 检查 |
+| 水位              | 阈值               | 行为                                                            |
+| ----------------- | ------------------ | --------------------------------------------------------------- |
+| **soft** (50%)    | `watermark >= 0.5` | 只发 `Compaction.SoftWarning` 事件，**不压缩** — 保护缓存前缀   |
+| **snip** (60%)    | `watermark >= 0.6` | 修剪陈旧 tool result（已有 `PruneStaleToolResults` 模式可借鉴） |
+| **compact** (80%) | `watermark >= 0.8` | 执行现有 `compactAfterOverflow` 逻辑                            |
+| **force** (90%)   | `watermark >= 0.9` | 强制压缩，跳过 foldEconomics 检查                               |
 
 ### 3.2 防卡死锁（`make()` 闭包中的状态）
 
@@ -214,9 +216,9 @@ let consecutiveCompacts = 0
 let compactStuck = false
 
 // compactIfNeeded 中:
-if (compactStuck) return false   // 暂停自动压缩
+if (compactStuck) return false // 暂停自动压缩
 if (watermark >= compactRatio) {
-  const ok = yield* compactAfterOverflow(input)
+  const ok = yield * compactAfterOverflow(input)
   if (ok) {
     consecutiveCompacts++
     if (consecutiveCompacts >= 2) {
@@ -266,12 +268,12 @@ export const Stuck = EventV2.define({
 ```typescript
 // core/src/tool/registry.ts 内部
 const INTENT_TOOL_FILTERS: Record<string, (def: ToolDef) => boolean> = {
-  "code_understanding": (t) => isReadOnly(t),       // 只读工具
-  "content_creation":   (t) => isFileWriteTool(t),  // 文件写工具
-  "configuration":      (t) => isConfigTool(t),     // 配置工具
-  "code_modification":  (t) => true,                 // 全部
-  "workflow":           (t) => true,                 // 全部
-  "mention":            (t) => true,                 // 全部
+  code_understanding: (t) => isReadOnly(t), // 只读工具
+  content_creation: (t) => isFileWriteTool(t), // 文件写工具
+  configuration: (t) => isConfigTool(t), // 配置工具
+  code_modification: (t) => true, // 全部
+  workflow: (t) => true, // 全部
+  mention: (t) => true, // 全部
 }
 ```
 
@@ -292,11 +294,8 @@ materialize: (permissions, intent?) => {
 **`packages/core/src/session/runner/llm.ts`** — 调用处：
 
 ```typescript
-const intent = session.intent  // 或从 PreRouter 获取
-const toolMaterialization = yield* tools.materialize(
-  agent.info?.permissions,
-  intent,
-)
+const intent = session.intent // 或从 PreRouter 获取
+const toolMaterialization = yield * tools.materialize(agent.info?.permissions, intent)
 ```
 
 ### 4.3 导出 IntentCategory 类型
@@ -347,15 +346,18 @@ case "provider-error":
 if (aborted && streamRecoveries < maxStreamRecoveries) {
   streamRecoveries++
   // 注入恢复 user message（复用已有 MidTurnSteerPrefix 模式）
-  session.add(Message.user({
-    text: "[Stream interrupted] Continue from where you left off without repeating completed work.",
-  }))
+  session.add(
+    Message.user({
+      text: "[Stream interrupted] Continue from where you left off without repeating completed work.",
+    }),
+  )
   // 发布 Retried 事件
-  yield* events.publish(SessionEvent.Retried, {
-    sessionID: session.id,
-    attempt: streamRecoveries,
-    error: { message: "Stream interrupted", isRetryable: true },
-  })
+  yield *
+    events.publish(SessionEvent.Retried, {
+      sessionID: session.id,
+      attempt: streamRecoveries,
+      error: { message: "Stream interrupted", isRetryable: true },
+    })
   // 继续下一轮
   needsContinuation = true
 }
@@ -367,8 +369,13 @@ if (aborted && streamRecoveries < maxStreamRecoveries) {
 
 ```typescript
 return {
-  publish, flush, failAssistant, failUnsettledTools,
-  hasActiveAssistant, hasAssistantStarted, hasProviderError,
+  publish,
+  flush,
+  failAssistant,
+  failUnsettledTools,
+  hasActiveAssistant,
+  hasAssistantStarted,
+  hasProviderError,
   assistantMessageID,
   // 新增:
   isAborted: () => aborted,
@@ -401,6 +408,7 @@ resolve: (session, intent?) => {
 ### 6.2 `findCheaperModel` 查找策略
 
 遍历 session 的 provider 配置，查找同一 provider 的更便宜模型：
+
 - `deepseek-reasoner` → `deepseek-chat`
 - `claude-opus` → `claude-haiku`
 - 未配置 fallback → 返回 primary（安全降级）
@@ -423,9 +431,9 @@ export const metaAgentStep = sqliteTable("meta_agent_step", {
     .notNull()
     .references(() => metaAgentSession.id, { onDelete: "cascade" }),
   seq: integer("seq").notNull(),
-  type: text("type").notNull(),       // "subagent" | "external-cli" | "tool"
+  type: text("type").notNull(), // "subagent" | "external-cli" | "tool"
   engine: text("engine").notNull(),
-  status: text("status").notNull(),    // "pending" | "running" | "completed" | "failed"
+  status: text("status").notNull(), // "pending" | "running" | "completed" | "failed"
   prompt: text("prompt"),
   result: text("result"),
   error: text("error"),
@@ -480,12 +488,13 @@ end(step):
     "tools": ["read", "write", "edit", "bash", "glob", "grep", "task"],
     "readOnly": false,
     "endpoints": { "type": "internal" },
-    "auth": { "type": "inherited" }
-  }
+    "auth": { "type": "inherited" },
+  },
 }
 ```
 
 涉及文件（扩展方式相同）：
+
 - `packages/aigcfroge/src/agent/build/agent.json`
 - `packages/aigcfroge/src/agent/explore/agent.json`
 - `packages/aigcfroge/src/agent/general/agent.json`
@@ -545,16 +554,16 @@ bun turbo typecheck
 
 ## 审查修正清单（v1 → v2）
 
-| # | 问题 | v1 写法 | 修正 |
-|---|---|---|---|
-| 1 | `Step.Ended` 是 durable event v2 | 建议在其 payload 加字段 | 改为新增 ephemeral `CacheDiagnostic` 事件 |
-| 2 | `rewriteVersion` 不存在 | 说"从 session 获取" | 需在 SessionStore 新增计数器 |
-| 3 | `Step.Ended` 已有 cache tokens | 未提及 | Phase 2 直接复用，无需改 schema |
-| 4 | `Retried` 事件已存在 | 说要新建恢复事件 | Phase 5 复用 `Retried` |
-| 5 | `Compaction.Ended` 已定义 | 未提及现有 schema | 在其基础上新增 SoftWarning/Stuck |
-| 6 | `agent.json` 已有独立格式 | 建议替换为全新格式 | 改为在现有字段上扩展 |
-| 7 | Phase 2 全局累加器无初始化位置 | 只说"在 run 中加变量" | 明确在 `runTurnAttempt` 闭包中初始化 |
-| 8 | Phase 4 intent 类型跨包引用 | 未说明引用方式 | 通过 `intent.ts` 导出 Union，core 层直接引用 |
+| #   | 问题                             | v1 写法                 | 修正                                         |
+| --- | -------------------------------- | ----------------------- | -------------------------------------------- |
+| 1   | `Step.Ended` 是 durable event v2 | 建议在其 payload 加字段 | 改为新增 ephemeral `CacheDiagnostic` 事件    |
+| 2   | `rewriteVersion` 不存在          | 说"从 session 获取"     | 需在 SessionStore 新增计数器                 |
+| 3   | `Step.Ended` 已有 cache tokens   | 未提及                  | Phase 2 直接复用，无需改 schema              |
+| 4   | `Retried` 事件已存在             | 说要新建恢复事件        | Phase 5 复用 `Retried`                       |
+| 5   | `Compaction.Ended` 已定义        | 未提及现有 schema       | 在其基础上新增 SoftWarning/Stuck             |
+| 6   | `agent.json` 已有独立格式        | 建议替换为全新格式      | 改为在现有字段上扩展                         |
+| 7   | Phase 2 全局累加器无初始化位置   | 只说"在 run 中加变量"   | 明确在 `runTurnAttempt` 闭包中初始化         |
+| 8   | Phase 4 intent 类型跨包引用      | 未说明引用方式          | 通过 `intent.ts` 导出 Union，core 层直接引用 |
 
 ---
 

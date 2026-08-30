@@ -34,7 +34,12 @@ describe("extractMessageContent", () => {
   })
 
   test("filters interactive UI parts", () => {
-    const parts = [textPart("visible"), { type: "question", id: "q" }, { type: "confirm", id: "c" }, textPart("also visible")]
+    const parts = [
+      textPart("visible"),
+      { type: "question", id: "q" },
+      { type: "confirm", id: "c" },
+      textPart("also visible"),
+    ]
     expect(extractMessageContent(parts)).toBe("visible\n\nalso visible")
   })
 

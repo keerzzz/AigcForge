@@ -38,16 +38,16 @@ const EMPTY_BRIDGE: readonly BridgeEntry[] = []
 function scanClaudeCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEntry[]> {
   return Effect.gen(function* () {
     const pattern = path.join(getHome(), ".claude", "plugins", "**", ".claude-plugin", "plugin.json")
-    const files: readonly string[] = yield* fs.glob(pattern, { absolute: true, include: "file" }).pipe(
-      Effect.catch(() => Effect.succeed([] as readonly string[])),
-    )
+    const files: readonly string[] = yield* fs
+      .glob(pattern, { absolute: true, include: "file" })
+      .pipe(Effect.catch(() => Effect.succeed([] as readonly string[])))
     const results: Effect.Effect<readonly BridgeEntry[]>[] = []
     for (const file of files) {
       results.push(
         Effect.gen(function* () {
-          const raw: Uint8Array | undefined = yield* fs.readFile(file).pipe(
-            Effect.catch(() => Effect.succeed(undefined)),
-          )
+          const raw: Uint8Array | undefined = yield* fs
+            .readFile(file)
+            .pipe(Effect.catch(() => Effect.succeed(undefined)))
           if (!raw) return [] as readonly BridgeEntry[]
           const text = new TextDecoder().decode(raw)
           const parsed: Record<string, unknown> = JSON.parse(text)
@@ -56,7 +56,17 @@ function scanClaudeCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly Bri
           if (!name) return [] as readonly BridgeEntry[]
           const pluginDir = path.dirname(path.dirname(file))
           const bundled = yield* countBundled(fs, pluginDir)
-          return [{ name, description, source: "claude-code" as const, category: "", originPath: file, format: "claude-plugin-v1", bundled }]
+          return [
+            {
+              name,
+              description,
+              source: "claude-code" as const,
+              category: "",
+              originPath: file,
+              format: "claude-plugin-v1",
+              bundled,
+            },
+          ]
         }).pipe(Effect.catch(() => Effect.succeed([] as readonly BridgeEntry[]))),
       )
     }
@@ -68,11 +78,15 @@ function scanClaudeCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly Bri
 function scanCodexSkills(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEntry[]> {
   return Effect.gen(function* () {
     const cachePath = path.join(getHome(), ".codex", "vendor_imports", "skills-curated-cache.json")
-    const raw: Uint8Array | undefined = yield* fs.readFile(cachePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+    const raw: Uint8Array | undefined = yield* fs
+      .readFile(cachePath)
+      .pipe(Effect.catch(() => Effect.succeed(undefined)))
     if (!raw) return EMPTY_BRIDGE
     const text = new TextDecoder().decode(raw)
     const data: Record<string, unknown> = JSON.parse(text)
-    const skills: readonly Record<string, unknown>[] = Array.isArray(data.skills) ? data.skills.filter((s: unknown): s is Record<string, unknown> => typeof s === "object" && s !== null) : []
+    const skills: readonly Record<string, unknown>[] = Array.isArray(data.skills)
+      ? data.skills.filter((s: unknown): s is Record<string, unknown> => typeof s === "object" && s !== null)
+      : []
     return skills
       .filter((s): s is Record<string, unknown> & { id: string } => typeof s.id === "string" && s.id.length > 0)
       .map((s) => ({
@@ -90,7 +104,9 @@ function scanCodexSkills(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEnt
 function scanCodexMCPServers(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEntry[]> {
   return Effect.gen(function* () {
     const configPath = path.join(getHome(), ".codex", "config.toml")
-    const raw: Uint8Array | undefined = yield* fs.readFile(configPath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+    const raw: Uint8Array | undefined = yield* fs
+      .readFile(configPath)
+      .pipe(Effect.catch(() => Effect.succeed(undefined)))
     if (!raw) return EMPTY_BRIDGE
     const text = new TextDecoder().decode(raw)
     const matches = text.matchAll(/^\[mcp_servers\.(\w+)\]\s*$/gm)
@@ -113,23 +129,33 @@ function scanCodexMCPServers(fs: FSUtil.Interface): Effect.Effect<readonly Bridg
 function scanCursorPlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEntry[]> {
   return Effect.gen(function* () {
     const pattern = path.join(getHome(), ".cursor", "plugins", "local", "**", "package.json")
-    const files: readonly string[] = yield* fs.glob(pattern, { absolute: true, include: "file" }).pipe(
-      Effect.catch(() => Effect.succeed([] as readonly string[])),
-    )
+    const files: readonly string[] = yield* fs
+      .glob(pattern, { absolute: true, include: "file" })
+      .pipe(Effect.catch(() => Effect.succeed([] as readonly string[])))
     const results: Effect.Effect<readonly BridgeEntry[]>[] = []
     for (const file of files) {
       results.push(
         Effect.gen(function* () {
-          const raw: Uint8Array | undefined = yield* fs.readFile(file).pipe(
-            Effect.catch(() => Effect.succeed(undefined)),
-          )
+          const raw: Uint8Array | undefined = yield* fs
+            .readFile(file)
+            .pipe(Effect.catch(() => Effect.succeed(undefined)))
           if (!raw) return [] as readonly BridgeEntry[]
           const text = new TextDecoder().decode(raw)
           const pkg: Record<string, unknown> = JSON.parse(text)
           const name = typeof pkg.name === "string" ? pkg.name.trim() : ""
           if (!name) return [] as readonly BridgeEntry[]
           const description = typeof pkg.description === "string" ? pkg.description : ""
-          return [{ name, description, source: "cursor" as const, category: "", originPath: file, format: "cursor-ext-v1", bundled: { commands: 0, skills: 0, agents: 0, hooks: 0, mcpServers: 0 } }]
+          return [
+            {
+              name,
+              description,
+              source: "cursor" as const,
+              category: "",
+              originPath: file,
+              format: "cursor-ext-v1",
+              bundled: { commands: 0, skills: 0, agents: 0, hooks: 0, mcpServers: 0 },
+            },
+          ]
         }).pipe(Effect.catch(() => Effect.succeed([] as readonly BridgeEntry[]))),
       )
     }
@@ -141,13 +167,25 @@ function scanCursorPlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeE
 function scanZCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEntry[]> {
   return Effect.gen(function* () {
     const configPath = path.join(getHome(), ".zcode", "v2", "config.json")
-    const raw: Uint8Array | undefined = yield* fs.readFile(configPath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+    const raw: Uint8Array | undefined = yield* fs
+      .readFile(configPath)
+      .pipe(Effect.catch(() => Effect.succeed(undefined)))
     if (!raw) return EMPTY_BRIDGE
     const text = new TextDecoder().decode(raw)
     const data: Record<string, unknown> = JSON.parse(text)
     const count = Object.keys(data).length > 0 ? 1 : 0
     return count > 0
-      ? [{ name: "zcode-configurations", description: "ZCode v2 configurations and model cache", source: "zcode" as const, category: "", originPath: configPath, format: "zcode-config-v1", bundled: { commands: 0, skills: 0, agents: count, hooks: 0, mcpServers: 0 } }]
+      ? [
+          {
+            name: "zcode-configurations",
+            description: "ZCode v2 configurations and model cache",
+            source: "zcode" as const,
+            category: "",
+            originPath: configPath,
+            format: "zcode-config-v1",
+            bundled: { commands: 0, skills: 0, agents: count, hooks: 0, mcpServers: 0 },
+          },
+        ]
       : EMPTY_BRIDGE
   })
 }
@@ -155,7 +193,9 @@ function scanZCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEn
 function scanKimiCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly BridgeEntry[]> {
   return Effect.gen(function* () {
     const configPath = path.join(getHome(), ".kimi-code", "config.toml")
-    const raw: Uint8Array | undefined = yield* fs.readFile(configPath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+    const raw: Uint8Array | undefined = yield* fs
+      .readFile(configPath)
+      .pipe(Effect.catch(() => Effect.succeed(undefined)))
     if (!raw) return EMPTY_BRIDGE
     const text = new TextDecoder().decode(raw)
     const matches = text.matchAll(/^\[models\."kimi-code\/(\S+)"\]/gm)
@@ -179,11 +219,21 @@ function scanKimiCodePlugins(fs: FSUtil.Interface): Effect.Effect<readonly Bridg
 
 function countBundled(fs: FSUtil.Interface, pluginDir: string): Effect.Effect<BridgeEntry["bundled"]> {
   return Effect.gen(function* () {
-    const cmds: readonly string[] = yield* fs.glob(path.join(pluginDir, "commands", "*.md"), { include: "file" }).pipe(Effect.catch(() => Effect.succeed([])))
-    const skills: readonly string[] = yield* fs.glob(path.join(pluginDir, "skills", "**", "SKILL.md"), { include: "file" }).pipe(Effect.catch(() => Effect.succeed([])))
-    const agents: readonly string[] = yield* fs.glob(path.join(pluginDir, "agents", "*.md"), { include: "file" }).pipe(Effect.catch(() => Effect.succeed([])))
-    const hooksFiles: readonly string[] = yield* fs.glob(path.join(pluginDir, "hooks", "hooks.json"), { include: "file" }).pipe(Effect.catch(() => Effect.succeed([])))
-    const mcpRaw: Uint8Array | undefined = yield* fs.readFile(path.join(pluginDir, ".mcp.json")).pipe(Effect.catch(() => Effect.succeed(undefined)))
+    const cmds: readonly string[] = yield* fs
+      .glob(path.join(pluginDir, "commands", "*.md"), { include: "file" })
+      .pipe(Effect.catch(() => Effect.succeed([])))
+    const skills: readonly string[] = yield* fs
+      .glob(path.join(pluginDir, "skills", "**", "SKILL.md"), { include: "file" })
+      .pipe(Effect.catch(() => Effect.succeed([])))
+    const agents: readonly string[] = yield* fs
+      .glob(path.join(pluginDir, "agents", "*.md"), { include: "file" })
+      .pipe(Effect.catch(() => Effect.succeed([])))
+    const hooksFiles: readonly string[] = yield* fs
+      .glob(path.join(pluginDir, "hooks", "hooks.json"), { include: "file" })
+      .pipe(Effect.catch(() => Effect.succeed([])))
+    const mcpRaw: Uint8Array | undefined = yield* fs
+      .readFile(path.join(pluginDir, ".mcp.json"))
+      .pipe(Effect.catch(() => Effect.succeed(undefined)))
     return {
       commands: cmds.length,
       skills: skills.length,

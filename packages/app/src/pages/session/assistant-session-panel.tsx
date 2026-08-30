@@ -148,10 +148,7 @@ export function AssistantSessionPanel() {
   )
 
   return (
-    <SessionRightPanel
-      size={size}
-      ariaLabel={language.t("assistant.panel.title")}
-    >
+    <SessionRightPanel size={size} ariaLabel={language.t("assistant.panel.title")}>
       <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
         <TabsV2.List
           class="no-scrollbar flex gap-0.5 overflow-x-auto border-b border-v2-border-border-base px-1"

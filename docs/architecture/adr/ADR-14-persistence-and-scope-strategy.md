@@ -13,10 +13,10 @@ Chat 资产、Work 产出、Assistant 调度和 Agent 来源具有不同的生�
 
 ### 1. 配置资产
 
-| 作用域 | 根目录 | 适用数据 |
-|---|---|---|
+| 作用域 | 根目录                             | 适用数据           |
+| ------ | ---------------------------------- | ------------------ |
 | 项目级 | `<Location.directory>/.aigcfroge/` | 项目资产和项目配置 |
-| 全局级 | `Global.Service.config` | 用户全局配置资产 |
+| 全局级 | `Global.Service.config`            | 用户全局配置资产   |
 
 - `Global.Service.config` 由 XDG 配置根或 `AIGCFROGE_CONFIG_DIR` 解析，不硬编码 `~/.aigcfroge`。
 - 资产保存相对所属根目录的规范化路径；路径解析必须验证 `..`、绝对路径和符号链接越界。
@@ -36,13 +36,13 @@ Chat 资产、Work 产出、Assistant 调度和 Agent 来源具有不同的生�
 
 ### 4. 数据真源
 
-| 数据 | 真源 | 非真源 |
-|---|---|---|
-| Chat 配置资产 | typed registry + 文件 | Session transcript |
-| Work 产出内容 | Location 文件 | Artifact 投影正文副本 |
-| Work 产出身份 | Artifact 事件/投影 | 工具日志 |
-| Assistant 调度 | Schedule/Delivery 表 | EventV2-only、BackgroundJob |
-| Session 分类与 Agent | Session durable fields | 当前 UI Mode、URL 推断 |
+| 数据                 | 真源                   | 非真源                      |
+| -------------------- | ---------------------- | --------------------------- |
+| Chat 配置资产        | typed registry + 文件  | Session transcript          |
+| Work 产出内容        | Location 文件          | Artifact 投影正文副本       |
+| Work 产出身份        | Artifact 事件/投影     | 工具日志                    |
+| Assistant 调度       | Schedule/Delivery 表   | EventV2-only、BackgroundJob |
+| Session 分类与 Agent | Session durable fields | 当前 UI Mode、URL 推断      |
 
 ### 5. 迁移与兼容
 

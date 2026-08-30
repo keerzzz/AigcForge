@@ -168,7 +168,9 @@ export type Error =
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
-  readonly create: (input: CreateInput) => Effect.Effect<
+  readonly create: (
+    input: CreateInput,
+  ) => Effect.Effect<
     SessionSchema.Info,
     | ProductModePolicy.UnsupportedProductModeError
     | PromptConflictError
@@ -176,7 +178,9 @@ export interface Interface {
     | SessionComposition.SnapshotDecodeError
     | SessionComposition.AgentDelegationForbiddenError
   >
-  readonly createCustom: (input: CreateCustomInput) => Effect.Effect<
+  readonly createCustom: (
+    input: CreateCustomInput,
+  ) => Effect.Effect<
     { session: SessionSchema.Info; snapshot: Composition.Snapshot },
     | Composition.ResolveError
     | PromptConflictError
@@ -184,7 +188,9 @@ export interface Interface {
     | SessionComposition.SnapshotAlreadyExistsError
     | SessionComposition.SnapshotDecodeError
   >
-  readonly upgradeCustom: (input: UpgradeCustomInput) => Effect.Effect<
+  readonly upgradeCustom: (
+    input: UpgradeCustomInput,
+  ) => Effect.Effect<
     { session: SessionSchema.Info; snapshot: Composition.Snapshot },
     | NotFoundError
     | UpgradeSourceModeError
@@ -217,7 +223,10 @@ export interface Interface {
     sessionID: SessionSchema.ID
     after?: number
   }) => Stream.Stream<SessionEvent.DurableEvent, NotFoundError>
-  readonly switchAgent: (input: { sessionID: SessionSchema.ID; agent: string }) => Effect.Effect<
+  readonly switchAgent: (input: {
+    sessionID: SessionSchema.ID
+    agent: string
+  }) => Effect.Effect<
     void,
     | NotFoundError
     | ProductModePolicy.UnsupportedProductModeError
@@ -230,7 +239,10 @@ export interface Interface {
     model: ModelV2.Ref
   }) => Effect.Effect<void, NotFoundError | ProductModePolicy.UnsupportedProductModeError>
   readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
-  readonly removeMessage: (input: { sessionID: SessionSchema.ID; messageID: SessionMessage.ID }) => Effect.Effect<void, NotFoundError>
+  readonly removeMessage: (input: {
+    sessionID: SessionSchema.ID
+    messageID: SessionMessage.ID
+  }) => Effect.Effect<void, NotFoundError>
   readonly setTitle: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
   readonly prompt: (input: {
     id?: SessionMessage.ID
@@ -289,7 +301,9 @@ export interface Interface {
     text: string
   }) => Effect.Effect<void, NotFoundError | SyntheticConflictError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
-  readonly toolSummary: (sessionID: SessionSchema.ID) => Effect.Effect<ToolSummary.Summary[], NotFoundError | MessageDecodeError>
+  readonly toolSummary: (
+    sessionID: SessionSchema.ID,
+  ) => Effect.Effect<ToolSummary.Summary[], NotFoundError | MessageDecodeError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Session") {}
@@ -340,9 +354,7 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         if (parent && parentSnapshot) {
           const defaultAgentID =
-            parentSnapshot.version === 1
-              ? parentSnapshot.data.agentID
-              : parentSnapshot.data.agents[0]?.id ?? "meta"
+            parentSnapshot.version === 1 ? parentSnapshot.data.agentID : (parentSnapshot.data.agents[0]?.id ?? "meta")
           const agentID: string = input.agent ?? defaultAgentID
           yield* sessionComposition.assertAgentAllowed(parent.id, agentID)
           return AgentV2.ID.make(agentID)
@@ -443,12 +455,14 @@ export const layer = Layer.effect(
             return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
           }
           if (!existing) {
-            yield* sessionComposition.copy(parent.id, sessionID).pipe(
-              Effect.catchTag(
-                "SessionComposition.SnapshotAlreadyExistsError",
-                () => new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() }),
-              ),
-            )
+            yield* sessionComposition
+              .copy(parent.id, sessionID)
+              .pipe(
+                Effect.catchTag(
+                  "SessionComposition.SnapshotAlreadyExistsError",
+                  () => new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() }),
+                ),
+              )
           }
         }
         // TODO: Restore recorded sessions onto replacement synchronized workspaces in a future API slice.
@@ -779,7 +793,11 @@ export const layer = Layer.effect(
       }),
       removeMessage: Effect.fn("V2Session.removeMessage")(function* (input) {
         yield* result.get(input.sessionID)
-        yield* db.delete(SessionMessageTable).where(and(eq(SessionMessageTable.session_id, input.sessionID), eq(SessionMessageTable.id, input.messageID))).run().pipe(Effect.orDie)
+        yield* db
+          .delete(SessionMessageTable)
+          .where(and(eq(SessionMessageTable.session_id, input.sessionID), eq(SessionMessageTable.id, input.messageID)))
+          .run()
+          .pipe(Effect.orDie)
       }),
       setTitle: Effect.fn("V2Session.setTitle")(function* (input) {
         yield* result.get(input.sessionID)
@@ -787,7 +805,8 @@ export const layer = Layer.effect(
           .update(SessionTable)
           .set({ title: input.title })
           .where(eq(SessionTable.id, input.sessionID))
-          .run().pipe(Effect.orDie)
+          .run()
+          .pipe(Effect.orDie)
       }),
       compact: Effect.fn("V2Session.compact")(function* (input) {
         yield* result.get(input.sessionID)

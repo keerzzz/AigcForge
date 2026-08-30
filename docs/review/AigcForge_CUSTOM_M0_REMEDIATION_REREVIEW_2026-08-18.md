@@ -17,18 +17,18 @@ It does not close all ten items. Dynamic re-review reproduced a legacy fork that
 
 ## 2. Prior Finding Status
 
-| Prior item | Status | Re-review result |
-| --- | --- | --- |
-| HIGH-1 generic Custom creation | **Partial** | Root V1/V2 create is blocked, but legacy fork still creates Custom without Snapshot |
-| HIGH-2 legacy execution semantics | **Partial** | Agent/command/CLI policy rejects Custom; orphan Custom operation coverage remains incomplete |
-| MEDIUM-1 Composition fail-open | **Partial** | Typed refs/consumer checks improved; ProfileInput does not resolve stored Profile as truth |
-| MEDIUM-2 untrusted freeze | **Partial** | Freeze re-resolves input, but tool facts are not ToolRegistrationFingerprint/ToolCatalogDigest |
-| MEDIUM-3 Agent/Skill bridge | **Partial** | Agent bridge is wired; composition-local Skill catalog remains test-only |
-| MEDIUM-4 Profile identity | **Partial** | Name/description equality added; relativePath still flattened with `basename` |
-| MEDIUM-5 Profile delete | **Partial** | DeleteResult/absence checks added; reload failure is not compensated and rollback errors are swallowed |
-| MEDIUM-6 client isolation | **Open** | Legacy coverage improved; V2 operations and most Session SSE events are not correctly isolated |
-| LOW-1 AssetKind registry | **Open** | Registry is wired, but pre-registered owner directories are wrong |
-| LOW-2 App/SDK branches | **Closed** | Custom Profile dispatch and regenerated SDK are present |
+| Prior item                        | Status      | Re-review result                                                                                       |
+| --------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------ |
+| HIGH-1 generic Custom creation    | **Partial** | Root V1/V2 create is blocked, but legacy fork still creates Custom without Snapshot                    |
+| HIGH-2 legacy execution semantics | **Partial** | Agent/command/CLI policy rejects Custom; orphan Custom operation coverage remains incomplete           |
+| MEDIUM-1 Composition fail-open    | **Partial** | Typed refs/consumer checks improved; ProfileInput does not resolve stored Profile as truth             |
+| MEDIUM-2 untrusted freeze         | **Partial** | Freeze re-resolves input, but tool facts are not ToolRegistrationFingerprint/ToolCatalogDigest         |
+| MEDIUM-3 Agent/Skill bridge       | **Partial** | Agent bridge is wired; composition-local Skill catalog remains test-only                               |
+| MEDIUM-4 Profile identity         | **Partial** | Name/description equality added; relativePath still flattened with `basename`                          |
+| MEDIUM-5 Profile delete           | **Partial** | DeleteResult/absence checks added; reload failure is not compensated and rollback errors are swallowed |
+| MEDIUM-6 client isolation         | **Open**    | Legacy coverage improved; V2 operations and most Session SSE events are not correctly isolated         |
+| LOW-1 AssetKind registry          | **Open**    | Registry is wired, but pre-registered owner directories are wrong                                      |
+| LOW-2 App/SDK branches            | **Closed**  | Custom Profile dispatch and regenerated SDK are present                                                |
 
 ## 3. Blocking Findings
 
@@ -158,15 +158,15 @@ The test asserts only IDs, not ownerDir. Use constants instead of repeated path 
 
 ## 5. Verification
 
-| Check | Result |
-| --- | --- |
-| Schema focused | 20 pass, 0 fail |
-| Core focused | 64 pass, 0 fail |
-| AigcForge focused | 11 pass, 0 fail |
-| App unit suite | 895 pass, 0 fail |
-| Full typecheck | 15/15 successful |
-| Full lint | 2831 files, 0 errors, 36 warnings |
-| Incremental lint | pass, 70 files / 6118 added lines |
+| Check             | Result                            |
+| ----------------- | --------------------------------- |
+| Schema focused    | 20 pass, 0 fail                   |
+| Core focused      | 64 pass, 0 fail                   |
+| AigcForge focused | 11 pass, 0 fail                   |
+| App unit suite    | 895 pass, 0 fail                  |
+| Full typecheck    | 15/15 successful                  |
+| Full lint         | 2831 files, 0 errors, 36 warnings |
+| Incremental lint  | pass, 70 files / 6118 added lines |
 
 The reported "0 warnings" is true only for the incremental gate. Full lint still reports 36 warnings. Passing focused tests do not cover the reproduced fork, ProfileInput substitution, nested path, ownerDir, or mode-less SSE cases.
 

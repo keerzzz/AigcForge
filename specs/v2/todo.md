@@ -120,6 +120,7 @@
 **评审修复记录**（2026-08-04 差分审查 `docs/review/AigcForge_DIFFERENTIAL_REVIEW_M2_M7_2026-08-03.md` 首轮 5 HIGH + 3 MEDIUM + GATE 修复 + 二轮复审 `AigcForge_DIFFERENTIAL_REREVIEW_M2_M7_2026-08-04.md` 的残余/新增项闭环，全部带回归测试）：
 
 首轮：
+
 1. **HIGH-1 六态回写**：Progress 折叠面板写回改为单任务 PATCH，`preserveStatus` 六态透传（不再经 `normalizeStatus` 降级）、`flipTaskWriteStatus` 六态显式裁决、scheduled/cancelled 在折叠面板内禁用（走标题弹层管理）。失败的 recurring 任务不再被无关勾选意外重排。
 2. **HIGH-2 缓存全量 PATCH 删行**：新增原子单任务端点 `PATCH/DELETE /session/:id/task/:taskID` + `POST /session/:id/task`（核心 `SessionTask.removeTask` 新增），Progress/定时任务 Popover/Agent Hub 全部改走单任务 mutation——陈旧缓存只能触及被命中的行，后台并发 append 不再被静默删除。
 3. **HIGH-3 中断永久 in_progress**：`ScheduledJob.arm(now, { recover })` 启动时把「带调度字段的 in_progress 行」（死进程残留 claim）重置为 pending 并重排队；普通 task.updated 重 arm 不触碰运行中 claim（B1 防重入不破）。**交付语义为 at-least-once**（二轮 MEDIUM-5）：child 已产生外部副作用但进程在 terminal settle 前崩溃时，重启会重新执行；高风险 job 需引入幂等/durable claim。
@@ -131,21 +132,9 @@
 9. **GATE-1 lint**：`session-todo-progress.tsx:126` 的 `as Node | null` 改为 `instanceof Node` 收窄，`bun run lint` 全绿。
 10. **新增单任务端点** 已进 SDK 再生成（无漂移）；e2e mock-server 补 `POST /task` + `PATCH/DELETE /task/:taskID` 路由，写回断言同步为单任务响应形状。
 
-二轮（`AigcForge_DIFFERENTIAL_REREVIEW_M2_M7_2026-08-04.md`）：
-11. **HIGH（二轮 HIGH-1）`task_schedule remove` 原子化**：remove 从 read-modify-reconcile 改为 `SessionTask.removeTask`（单行删除），并发 append 不再被 remove 误删。
-12. **HIGH（二轮 HIGH-2）append 环检查入事务**：见第 6 条。
-13. **MEDIUM（二轮 MEDIUM-1）create 响应身份**：`createTask` handler 用 `.at(-1)` 取新建行（append 返回按 position 排序的全列表，新建行持最高 position）；非空 session 第二次 POST 返回正确的新任务。
-14. **MEDIUM（二轮 MEDIUM-2）position 唯一性**：append 起始 position 从 `existing.length` 改为 `max(position)+1`（task 表主键为 `(session_id, position)`，中间删除后按 length 会 PK 冲突）。
-15. **MEDIUM（二轮 MEDIUM-3）Hub SSE 竞态**：见第 8 条。
-16. **API 边界**：公开 `PATCH /session/:id/task/:taskID` 载荷移除 `outputDigest`（保留为 TaskDriver/ScheduledJob settle 内部能力），客户端不能覆盖执行摘要/子会话链接。
-17. **并发回归补全**：`session-task-service.test.ts` 并发跨 session update 闭环拒环；`tool-taskschedule.test.ts` remove 与 append 并发不丢写；`httpapi-session` prompt directory 回归超时放宽至 60s（消除 flaky）。
+二轮（`AigcForge_DIFFERENTIAL_REREVIEW_M2_M7_2026-08-04.md`）：11. **HIGH（二轮 HIGH-1）`task_schedule remove` 原子化**：remove 从 read-modify-reconcile 改为 `SessionTask.removeTask`（单行删除），并发 append 不再被 remove 误删。12. **HIGH（二轮 HIGH-2）append 环检查入事务**：见第 6 条。13. **MEDIUM（二轮 MEDIUM-1）create 响应身份**：`createTask` handler 用 `.at(-1)` 取新建行（append 返回按 position 排序的全列表，新建行持最高 position）；非空 session 第二次 POST 返回正确的新任务。14. **MEDIUM（二轮 MEDIUM-2）position 唯一性**：append 起始 position 从 `existing.length` 改为 `max(position)+1`（task 表主键为 `(session_id, position)`，中间删除后按 length 会 PK 冲突）。15. **MEDIUM（二轮 MEDIUM-3）Hub SSE 竞态**：见第 8 条。16. **API 边界**：公开 `PATCH /session/:id/task/:taskID` 载荷移除 `outputDigest`（保留为 TaskDriver/ScheduledJob settle 内部能力），客户端不能覆盖执行摘要/子会话链接。17. **并发回归补全**：`session-task-service.test.ts` 并发跨 session update 闭环拒环；`tool-taskschedule.test.ts` remove 与 append 并发不丢写；`httpapi-session` prompt directory 回归超时放宽至 60s（消除 flaky）。
 
-三轮（评审裁决 `2026-08-04` BLOCKER B-1 + MEDIUM M-1~M-4 闭环）：
-18. **B-1（裁决 BLOCKER）effect `Either`→`Result`**：`session-task-service.test.ts` 曾用 `effect@4.0.0-beta.83` 已更名的 `Either`/`Effect.either`/`Either.isLeft`，导致**整文件 20+ 用例（含 HIGH-2 并发环、HIGH-4、MEDIUM-1、MEDIUM-2 全部新回归）静默不跑**、core typecheck 3 错。已改为 `Result`/`Effect.result`/`Result.isFailure`（failure 取值字段为 `.failure`），文件 23 用例全绿、core typecheck 通过。
-19. **M-1 legacy 旁路**：`replaceLegacy`（legacy TodoWrite 桥，`todo.ts` 透传 `status:"scheduled"` 且无 schedule 字段）此前无死调度守卫，可写 daemon 永不执行的任务。抽取共享 `hasDeadSchedule` 校验器，接入 update/append/patch/replaceLegacy 四条写路径；`SessionTodo.update`/`replaceLegacy` 错误通道加宽为 `TaskWriteError`；补 replaceLegacy 拒死任务测试。
-20. **M-2 append 并发拒环**：并发 append 测试暴露 SQLite 延迟事务**不串行**两个跨 session 并发写（update 因争用既有行而串行，append 插新行不争用）→ 事务内检环仍可被并发绕过。给全部 task 写操作（update/append/replaceLegacy/patch/delete/removeTask）加 `Semaphore` 写锁串行化；补「并发跨 session append 只能一个落盘」测试（用显式 id 构成真环）。
-21. **M-3 e2e mock 类型与保真**：`config.tasks` 由 `unknown[]` 改为结构化任务类型（消 5 个类型错误）；DELETE 缺失 id 从 200 改为 404（真实端点行为）、POST 忽略客户端 id 由 mock 统一 mint（真实端点行为）；本次改动的 e2e 文件 0 类型错误（`e2e/performance`/`e2e/smoke` 的 20 个既有类型错误不在分支 diff）。
-22. **M-4 文案**：`specs/v2/todo.md` M3b-2 行「启停走 PATCH reconcile」改为单任务 `PATCH /session/:id/task/:taskID`；`session-scheduled-tasks.tsx` 注释同步；createTask 空结果从 404 改为 500 defect（不可达防御分支）。
+三轮（评审裁决 `2026-08-04` BLOCKER B-1 + MEDIUM M-1~M-4 闭环）：18. **B-1（裁决 BLOCKER）effect `Either`→`Result`**：`session-task-service.test.ts` 曾用 `effect@4.0.0-beta.83` 已更名的 `Either`/`Effect.either`/`Either.isLeft`，导致**整文件 20+ 用例（含 HIGH-2 并发环、HIGH-4、MEDIUM-1、MEDIUM-2 全部新回归）静默不跑**、core typecheck 3 错。已改为 `Result`/`Effect.result`/`Result.isFailure`（failure 取值字段为 `.failure`），文件 23 用例全绿、core typecheck 通过。19. **M-1 legacy 旁路**：`replaceLegacy`（legacy TodoWrite 桥，`todo.ts` 透传 `status:"scheduled"` 且无 schedule 字段）此前无死调度守卫，可写 daemon 永不执行的任务。抽取共享 `hasDeadSchedule` 校验器，接入 update/append/patch/replaceLegacy 四条写路径；`SessionTodo.update`/`replaceLegacy` 错误通道加宽为 `TaskWriteError`；补 replaceLegacy 拒死任务测试。20. **M-2 append 并发拒环**：并发 append 测试暴露 SQLite 延迟事务**不串行**两个跨 session 并发写（update 因争用既有行而串行，append 插新行不争用）→ 事务内检环仍可被并发绕过。给全部 task 写操作（update/append/replaceLegacy/patch/delete/removeTask）加 `Semaphore` 写锁串行化；补「并发跨 session append 只能一个落盘」测试（用显式 id 构成真环）。21. **M-3 e2e mock 类型与保真**：`config.tasks` 由 `unknown[]` 改为结构化任务类型（消 5 个类型错误）；DELETE 缺失 id 从 200 改为 404（真实端点行为）、POST 忽略客户端 id 由 mock 统一 mint（真实端点行为）；本次改动的 e2e 文件 0 类型错误（`e2e/performance`/`e2e/smoke` 的 20 个既有类型错误不在分支 diff）。22. **M-4 文案**：`specs/v2/todo.md` M3b-2 行「启停走 PATCH reconcile」改为单任务 `PATCH /session/:id/task/:taskID`；`session-scheduled-tasks.tsx` 注释同步；createTask 空结果从 404 改为 500 defect（不可达防御分支）。
 
 **M2 已声明限制**（如实，非已解决）：
 

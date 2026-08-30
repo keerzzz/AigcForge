@@ -56,9 +56,13 @@ export function parseAgentFile(sourcePath: string, raw: string): FileAgent | und
     : []
 
   // Map handoffs from frontmatter — validate against Handoff schema
-  const handoffs: Array<{ label: string; agent: string; prompt: string; send?: boolean; model?: string }> = Array.isArray(data.handoffs)
-    ? data.handoffs.filter((h): h is { label: string; agent: string; prompt: string } => typeof h.label === "string" && typeof h.agent === "string" && typeof h.prompt === "string")
-    : []
+  const handoffs: Array<{ label: string; agent: string; prompt: string; send?: boolean; model?: string }> =
+    Array.isArray(data.handoffs)
+      ? data.handoffs.filter(
+          (h): h is { label: string; agent: string; prompt: string } =>
+            typeof h.label === "string" && typeof h.agent === "string" && typeof h.prompt === "string",
+        )
+      : []
 
   return {
     sourcePath,

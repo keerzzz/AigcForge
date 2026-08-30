@@ -37,8 +37,11 @@ test("keeps a hidden prod launcher for old Linux pins", async () => {
   if (previous === undefined) delete process.env.AIGCFROGE_CHANNEL
   else process.env.AIGCFROGE_CHANNEL = previous
 
-  expect(config.deb?.fpm?.[0]).toEndWith(`${legacyDesktopEntry}=/usr/share/applications/aigcfroge-desktop.desktop`)
-  expect(config.rpm?.fpm?.[0]).toEndWith(`${legacyDesktopEntry}=/usr/share/applications/aigcfroge-desktop.desktop`)
+  // The fpm left-hand side is an absolute native path; normalize separators so the
+  // suffix check holds on Windows checkouts too.
+  const expected = `${legacyDesktopEntry}=/usr/share/applications/aigcfroge-desktop.desktop`
+  expect(config.deb?.fpm?.[0]?.replaceAll("\\", "/")).toEndWith(expected)
+  expect(config.rpm?.fpm?.[0]?.replaceAll("\\", "/")).toEndWith(expected)
 
   const desktop = await Bun.file(legacyDesktopEntry).text()
   expect(desktop).toContain("Exec=/opt/Aigcfroge/ai.aigcfroge.desktop %U")

@@ -11,7 +11,13 @@ import { ServerScope, SessionRouteKey, SessionStateKey } from "@/utils/server-sc
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { requireServerKey } from "@/utils/session-route"
 import { toolCountFromParts } from "./tool-count"
-import type { ConnectionState, StatusBarModelInfo, StatusBarCacheInfo, StatusBarSubagentInfo, StatusBarSource } from "./types"
+import type {
+  ConnectionState,
+  StatusBarModelInfo,
+  StatusBarCacheInfo,
+  StatusBarSubagentInfo,
+  StatusBarSource,
+} from "./types"
 import type { StatusBarMetric, MetricGroup } from "./metrics"
 import { createStore } from "solid-js/store"
 
@@ -125,8 +131,7 @@ export function createCurrentSessionSource(): StatusBarSource {
     const agent = sessAgent()
     if (!agent) return undefined
     const subagentMsgs = messages().filter(
-      (msg): msg is Message & { agent: string } =>
-        msg.role === "assistant" && "agent" in msg && msg.agent !== agent,
+      (msg): msg is Message & { agent: string } => msg.role === "assistant" && "agent" in msg && msg.agent !== agent,
     )
     if (subagentMsgs.length === 0) return undefined
     let active = 0
@@ -170,62 +175,114 @@ export function createCurrentSessionSource(): StatusBarSource {
     const limit = modelLimit()
     const locale = lang.intl()
     const fmtNum = (n: number) => n.toLocaleString(locale)
-    const fmtCurrency = (n: number) =>
-      new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(n)
+    const fmtCurrency = (n: number) => new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(n)
 
     return [
-      mk("tokens.total", "tokens", "statusBar.metrics.totalTokens",
-        () => t ? fmtNum(t.input + t.output + t.reasoning + t.cache.read + t.cache.write) : "—",
-        () => !!t),
-      mk("tokens.input", "tokens", "statusBar.metrics.inputTokens",
-        () => t ? fmtNum(t.input) : "—",
-        () => !!t),
-      mk("tokens.output", "tokens", "statusBar.metrics.outputTokens",
-        () => t ? fmtNum(t.output) : "—",
-        () => !!t),
-      mk("tokens.reasoning", "tokens", "statusBar.metrics.reasoningTokens",
-        () => t ? fmtNum(t.reasoning) : "—",
-        () => !!t),
-      mk("context.usage", "context", "statusBar.metrics.contextUsage",
-        () => ctx && limit ? `${fmtNum(ctx.total)} / ${fmtNum(limit)} (${Math.round(ctx.total / limit * 100)}%)` : "—",
-        () => !!(ctx && limit)),
-      mk("cache.rate", "cache", "statusBar.metrics.cacheRate",
+      mk(
+        "tokens.total",
+        "tokens",
+        "statusBar.metrics.totalTokens",
+        () => (t ? fmtNum(t.input + t.output + t.reasoning + t.cache.read + t.cache.write) : "—"),
+        () => !!t,
+      ),
+      mk(
+        "tokens.input",
+        "tokens",
+        "statusBar.metrics.inputTokens",
+        () => (t ? fmtNum(t.input) : "—"),
+        () => !!t,
+      ),
+      mk(
+        "tokens.output",
+        "tokens",
+        "statusBar.metrics.outputTokens",
+        () => (t ? fmtNum(t.output) : "—"),
+        () => !!t,
+      ),
+      mk(
+        "tokens.reasoning",
+        "tokens",
+        "statusBar.metrics.reasoningTokens",
+        () => (t ? fmtNum(t.reasoning) : "—"),
+        () => !!t,
+      ),
+      mk(
+        "context.usage",
+        "context",
+        "statusBar.metrics.contextUsage",
+        () =>
+          ctx && limit ? `${fmtNum(ctx.total)} / ${fmtNum(limit)} (${Math.round((ctx.total / limit) * 100)}%)` : "—",
+        () => !!(ctx && limit),
+      ),
+      mk(
+        "cache.rate",
+        "cache",
+        "statusBar.metrics.cacheRate",
         () => {
           if (!ctx) return "—"
           const d = ctx.input + ctx.cacheRead
-          return d > 0 ? `${Math.round(ctx.cacheRead / d * 100)}%` : "—"
+          return d > 0 ? `${Math.round((ctx.cacheRead / d) * 100)}%` : "—"
         },
-        () => !!ctx),
-      mk("cache.read", "cache", "statusBar.metrics.cacheRead",
-        () => ctx ? fmtNum(ctx.cacheRead) : "—",
-        () => !!ctx),
-      mk("cache.write", "cache", "statusBar.metrics.cacheWrite",
-        () => ctx ? fmtNum(ctx.cacheWrite) : "—",
-        () => !!ctx),
-      mk("cost.total", "cost", "statusBar.metrics.totalCost",
-        () => c !== undefined ? fmtCurrency(c) : "—",
-        () => c !== undefined),
-      mk("subagent.active", "subagent", "statusBar.metrics.subagentActive",
+        () => !!ctx,
+      ),
+      mk(
+        "cache.read",
+        "cache",
+        "statusBar.metrics.cacheRead",
+        () => (ctx ? fmtNum(ctx.cacheRead) : "—"),
+        () => !!ctx,
+      ),
+      mk(
+        "cache.write",
+        "cache",
+        "statusBar.metrics.cacheWrite",
+        () => (ctx ? fmtNum(ctx.cacheWrite) : "—"),
+        () => !!ctx,
+      ),
+      mk(
+        "cost.total",
+        "cost",
+        "statusBar.metrics.totalCost",
+        () => (c !== undefined ? fmtCurrency(c) : "—"),
+        () => c !== undefined,
+      ),
+      mk(
+        "subagent.active",
+        "subagent",
+        "statusBar.metrics.subagentActive",
         () => {
           const s = subagentInfo()
           return s ? String(s.active) : "—"
         },
-        () => !!subagentInfo()),
-      mk("subagent.completed", "subagent", "statusBar.metrics.subagentCompleted",
+        () => !!subagentInfo(),
+      ),
+      mk(
+        "subagent.completed",
+        "subagent",
+        "statusBar.metrics.subagentCompleted",
         () => {
           const s = subagentInfo()
           return s ? String(s.completed) : "—"
         },
-        () => !!subagentInfo()),
-      mk("subagent.failed", "subagent", "statusBar.metrics.subagentFailed",
+        () => !!subagentInfo(),
+      ),
+      mk(
+        "subagent.failed",
+        "subagent",
+        "statusBar.metrics.subagentFailed",
         () => {
           const s = subagentInfo()
           return s ? String(s.failed) : "—"
         },
-        () => !!subagentInfo()),
-      mk("tools.count", "tools", "statusBar.metrics.toolCount",
+        () => !!subagentInfo(),
+      ),
+      mk(
+        "tools.count",
+        "tools",
+        "statusBar.metrics.toolCount",
         () => fmtNum(toolCount()),
-        () => toolCount() > 0),
+        () => toolCount() > 0,
+      ),
     ]
   })
 
@@ -263,10 +320,13 @@ export function createCurrentSessionSource(): StatusBarSource {
       const health = key ? global.servers.health[key] : undefined
       const conn = routeServer()
       const state: ConnectionState =
-        health?.healthy === true ? "online"
-        : health?.healthy === false ? "offline"
-        : conn?.type === "sidecar" || conn?.type === "http" ? "online"
-        : "reconnecting"
+        health?.healthy === true
+          ? "online"
+          : health?.healthy === false
+            ? "offline"
+            : conn?.type === "sidecar" || conn?.type === "http"
+              ? "online"
+              : "reconnecting"
       return { state, serverName: serverName(conn), serverKey: key }
     },
     model: sessModel,

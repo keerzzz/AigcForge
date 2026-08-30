@@ -17,8 +17,7 @@ export class Info extends Schema.Class<Info>("ConfigV2.CliAgent")({
     description: "Human-readable label shown in the agent list and permission prompts.",
   }),
   args: Schema.Array(Schema.String).pipe(Schema.optional).annotate({
-    description:
-      "Static argv prefix. `{prompt}` and `{resumeId}` placeholders are interpolated before spawning.",
+    description: "Static argv prefix. `{prompt}` and `{resumeId}` placeholders are interpolated before spawning.",
   }),
   output: OutputType.pipe(Schema.optional).annotate({
     description: "Stdout parsing strategy: claude-jsonl, codex-jsonl, or plain (default).",

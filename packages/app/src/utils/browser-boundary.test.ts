@@ -68,6 +68,8 @@ function readsProcessOnImport(file: string) {
 }
 
 describe("browser boundary: @aigcfroge workspace imports", () => {
+  // The full-tree walk starves past bun's 5s default under turbo parallel
+  // load (observed 8.6s); the scan itself finishes in ~1s idle.
   test("no app source pulls a workspace module that reads process on import", () => {
     const offenders: string[] = []
 
@@ -83,9 +85,7 @@ describe("browser boundary: @aigcfroge workspace imports", () => {
         while (queue.length > 0) {
           const current = queue.shift()!
           if (readsProcessOnImport(current)) {
-            offenders.push(
-              `${path.relative(appSrc, file)} -> ${specifier} -> ${path.relative(packagesRoot, current)}`,
-            )
+            offenders.push(`${path.relative(appSrc, file)} -> ${specifier} -> ${path.relative(packagesRoot, current)}`)
             break
           }
           for (const next of specifiers(current)) {
@@ -106,7 +106,7 @@ describe("browser boundary: @aigcfroge workspace imports", () => {
     }
 
     expect(offenders).toEqual([])
-  })
+  }, 30_000)
 
   test("the boundary walker actually detects a node-only core module", () => {
     // Guards the guard: if resolution or the process pattern silently stops

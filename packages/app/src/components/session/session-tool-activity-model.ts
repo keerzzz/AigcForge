@@ -21,7 +21,13 @@ const classifyTool = (tool: string): ToolCategory => {
   if (tool === "task") return "agent"
   if (tool === "bash") return "command"
   if (tool === "list_assets" || (tool.startsWith("propose_") && tool.endsWith("_asset"))) return "asset"
-  if (tool.startsWith("mcp_") || tool === "list_mcp_resources" || tool === "list_mcp_resource_templates" || tool === "read_mcp_resource") return "mcp"
+  if (
+    tool.startsWith("mcp_") ||
+    tool === "list_mcp_resources" ||
+    tool === "list_mcp_resource_templates" ||
+    tool === "read_mcp_resource"
+  )
+    return "mcp"
   return "general"
 }
 
@@ -43,9 +49,7 @@ const CATEGORY_LABEL: Record<ToolCategory, string> = {
 // drops older parts, shrinking the counts.
 const isDoomLoopBlock = (error: string) => error.includes("blocked by doom_loop")
 
-export function aggregateToolActivity(
-  parts: readonly Part[],
-): ToolActivity[] {
+export function aggregateToolActivity(parts: readonly Part[]): ToolActivity[] {
   const counts = new Map<string, ToolActivityItem>()
 
   for (const part of parts) {
@@ -68,19 +72,17 @@ export function aggregateToolActivity(
     grouped.set(category, group)
   }
 
-  return CATEGORY_ORDER
-    .map((category) => {
-      const items = grouped.get(category)
-      if (!items || items.length === 0) return null
+  return CATEGORY_ORDER.map((category) => {
+    const items = grouped.get(category)
+    if (!items || items.length === 0) return null
 
-      const sorted = items.sort((a, b) => b.count + b.errors - (a.count + a.errors)).slice(0, 10)
+    const sorted = items.sort((a, b) => b.count + b.errors - (a.count + a.errors)).slice(0, 10)
 
-      return {
-        category,
-        label: CATEGORY_LABEL[category],
-        total: sorted.reduce((sum, item) => sum + item.count, 0),
-        items: sorted,
-      } satisfies ToolActivity
-    })
-    .filter((x): x is ToolActivity => x !== null)
+    return {
+      category,
+      label: CATEGORY_LABEL[category],
+      total: sorted.reduce((sum, item) => sum + item.count, 0),
+      items: sorted,
+    } satisfies ToolActivity
+  }).filter((x): x is ToolActivity => x !== null)
 }

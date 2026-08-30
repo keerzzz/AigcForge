@@ -27,10 +27,9 @@ const NonNegativeLimit = Schema.optional(
 // schema boundary.
 const DeliveryKeyParam = Schema.String.pipe(
   Schema.check(
-    Schema.makeFilter<string>(
-      (key) => key.length > 0 && !key.includes("/") && !key.includes("\\"),
-      { message: "deliveryKey must be a single route segment" },
-    ),
+    Schema.makeFilter<string>((key) => key.length > 0 && !key.includes("/") && !key.includes("\\"), {
+      message: "deliveryKey must be a single route segment",
+    }),
   ),
 )
 

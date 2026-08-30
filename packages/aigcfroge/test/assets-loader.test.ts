@@ -57,12 +57,37 @@ describe("scanAssets", () => {
     expect(assets.length).toBe(12)
 
     const byKind = groupBy(assets, "kind")
-    expect(byKind.get("prompt")?.map((a) => a.name).sort()).toEqual(["code-review", "commit-msg"])
+    expect(
+      byKind
+        .get("prompt")
+        ?.map((a) => a.name)
+        .sort(),
+    ).toEqual(["code-review", "commit-msg"])
     expect(byKind.get("skill")?.map((a) => a.name)).toEqual(["deploy"])
-    expect(byKind.get("mcp")?.map((a) => a.name).sort()).toEqual(["filesystem", "github"])
-    expect(byKind.get("command")?.map((a) => a.name).sort()).toEqual(["build", "test"])
-    expect(byKind.get("agent")?.map((a) => a.name).sort()).toEqual(["planner", "reviewer"])
-    expect(byKind.get("workflow")?.map((a) => a.name).sort()).toEqual(["build", "release"])
+    expect(
+      byKind
+        .get("mcp")
+        ?.map((a) => a.name)
+        .sort(),
+    ).toEqual(["filesystem", "github"])
+    expect(
+      byKind
+        .get("command")
+        ?.map((a) => a.name)
+        .sort(),
+    ).toEqual(["build", "test"])
+    expect(
+      byKind
+        .get("agent")
+        ?.map((a) => a.name)
+        .sort(),
+    ).toEqual(["planner", "reviewer"])
+    expect(
+      byKind
+        .get("workflow")
+        ?.map((a) => a.name)
+        .sort(),
+    ).toEqual(["build", "release"])
     expect(byKind.get("plugin")?.map((a) => a.name)).toEqual(["eslint"])
   })
 

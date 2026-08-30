@@ -56,7 +56,11 @@ export const layer = Layer.effect(
       { id: "agent", schema: { Summary: AgentAsset.Summary, Info: AgentAsset.Info }, ownerDir: AGENTS_DIR },
       { id: "workflow", schema: { Summary: WorkflowAsset.Summary, Info: WorkflowAsset.Info }, ownerDir: WORKFLOWS_DIR },
       { id: "plugin", schema: { Summary: PluginAsset.Summary, Info: PluginAsset.Info }, ownerDir: PLUGINS_DIR },
-      { id: "custom-profile", schema: { Summary: CustomProfile.Summary, Info: CustomProfile.Info }, ownerDir: CUSTOM_PROFILES_DIR },
+      {
+        id: "custom-profile",
+        schema: { Summary: CustomProfile.Summary, Info: CustomProfile.Info },
+        ownerDir: CUSTOM_PROFILES_DIR,
+      },
     ]
 
     for (const def of defaultDefs) {

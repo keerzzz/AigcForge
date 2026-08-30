@@ -3,16 +3,26 @@ export * as WorkflowAsset from "./workflow-asset"
 import { Effect, Schema } from "effect"
 
 export const Name = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length >= 1, { message: "Name must be at least 1 code point" })),
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 80, { message: "Name must be at most 80 code points" })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
+      message: "Name must be at least 1 code point",
+    }),
+  ),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
+      message: "Name must be at most 80 code points",
+    }),
+  ),
   Schema.brand("WorkflowAsset.Name"),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-    message: "Description must be at most 300 code points",
-  })),
+  Schema.check(
+    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
+      message: "Description must be at most 300 code points",
+    }),
+  ),
   Schema.brand("WorkflowAsset.Description"),
 )
 export type Description = typeof Description.Type
@@ -54,14 +64,10 @@ export const StepRunStatus = Schema.Literals([
 ])
 export type StepRunStatus = typeof StepRunStatus.Type
 
-export const WorkflowRunID = Schema.String.pipe(
-  Schema.brand("WorkflowRunID"),
-)
+export const WorkflowRunID = Schema.String.pipe(Schema.brand("WorkflowRunID"))
 export type WorkflowRunID = typeof WorkflowRunID.Type
 
-export const StepRunID = Schema.String.pipe(
-  Schema.brand("StepRunID"),
-)
+export const StepRunID = Schema.String.pipe(Schema.brand("StepRunID"))
 export type StepRunID = typeof StepRunID.Type
 
 export const ErrorCategory = Schema.Literals([
@@ -162,19 +168,10 @@ export class StepDef extends Schema.Class<StepDef>("WorkflowAsset.StepDef")({
     Schema.withConstructorDefault(Effect.succeed("abort" as const)),
   ),
   maxAttempts: Schema.optional(
-    Schema.Int.check(
-      Schema.isGreaterThanOrEqualTo(1),
-      Schema.isLessThanOrEqualTo(MAX_ATTEMPTS),
-    ),
-  ).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed(1)),
-    Schema.withConstructorDefault(Effect.succeed(1)),
-  ),
+    Schema.Int.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(MAX_ATTEMPTS)),
+  ).pipe(Schema.withDecodingDefaultKey(Effect.succeed(1)), Schema.withConstructorDefault(Effect.succeed(1))),
   timeoutSeconds: Schema.optional(
-    Schema.Int.check(
-      Schema.isGreaterThanOrEqualTo(1),
-      Schema.isLessThanOrEqualTo(MAX_TIMEOUT_SECONDS),
-    ),
+    Schema.Int.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(MAX_TIMEOUT_SECONDS)),
   ),
 }) {}
 
@@ -220,10 +217,7 @@ export class InvalidEntry extends Schema.Class<InvalidEntry>("WorkflowAsset.Inva
 export function computeMaxConcurrency(steps: readonly StepDef[]): number {
   return Math.min(
     MAX_PARALLEL,
-    steps.reduce(
-      (maximum, step) => Math.max(maximum, step.parallel?.length ?? 1),
-      1,
-    ),
+    steps.reduce((maximum, step) => Math.max(maximum, step.parallel?.length ?? 1), 1),
   )
 }
 

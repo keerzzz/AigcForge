@@ -48,12 +48,8 @@ describe("ToolSummary.fromMessages", () => {
 
   it("aggregates tools across multiple assistant messages", () => {
     const messages = [
-      assistantWithTools("build", [
-        makeToolCallPlain({ name: "read", input: { path: "src/a.ts" } }),
-      ]),
-      assistantWithTools("build", [
-        makeToolCallPlain({ name: "read", input: { path: "src/b.ts" } }),
-      ]),
+      assistantWithTools("build", [makeToolCallPlain({ name: "read", input: { path: "src/a.ts" } })]),
+      assistantWithTools("build", [makeToolCallPlain({ name: "read", input: { path: "src/b.ts" } })]),
     ]
 
     const result = ToolSummary.fromMessages(messages)
@@ -64,9 +60,7 @@ describe("ToolSummary.fromMessages", () => {
 
   it("extracts file path from workdir for bash tools", () => {
     const messages = [
-      assistantWithTools("explore", [
-        makeToolCallPlain({ name: "bash", input: { command: "ls", workdir: "src/" } }),
-      ]),
+      assistantWithTools("explore", [makeToolCallPlain({ name: "bash", input: { command: "ls", workdir: "src/" } })]),
     ]
 
     const result = ToolSummary.fromMessages(messages)
@@ -75,9 +69,7 @@ describe("ToolSummary.fromMessages", () => {
 
   it("sets status to failed for error tools", () => {
     const messages = [
-      assistantWithTools("build", [
-        makeToolCallPlain({ name: "edit", input: { path: "main.ts" }, status: "error" }),
-      ]),
+      assistantWithTools("build", [makeToolCallPlain({ name: "edit", input: { path: "main.ts" }, status: "error" })]),
     ]
 
     const result = ToolSummary.fromMessages(messages)
@@ -86,9 +78,7 @@ describe("ToolSummary.fromMessages", () => {
 
   it("sets status to running for pending tool", () => {
     const messages = [
-      assistantWithTools("build", [
-        makeToolCallPlain({ name: "read", input: { path: "main.ts" }, status: "pending" }),
-      ]),
+      assistantWithTools("build", [makeToolCallPlain({ name: "read", input: { path: "main.ts" }, status: "pending" })]),
     ]
 
     const result = ToolSummary.fromMessages(messages)

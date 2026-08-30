@@ -70,8 +70,8 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
     const list = discovered()?.workflows ?? []
     const q = query()
     if (!q) return list
-    return list.filter((workflow) =>
-      workflow.name.toLowerCase().includes(q) || (workflow.description ?? "").toLowerCase().includes(q),
+    return list.filter(
+      (workflow) => workflow.name.toLowerCase().includes(q) || (workflow.description ?? "").toLowerCase().includes(q),
     )
   })
 
@@ -86,8 +86,8 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
     const list = discovered()?.commands ?? []
     const q = query()
     if (!q) return list
-    return list.filter((command) =>
-      command.name.toLowerCase().includes(q) || (command.description ?? "").toLowerCase().includes(q),
+    return list.filter(
+      (command) => command.name.toLowerCase().includes(q) || (command.description ?? "").toLowerCase().includes(q),
     )
   })
 
@@ -230,7 +230,8 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
               <For each={filteredAgents()}>
                 {(agent) => {
                   const isIncluded = () => draft.state.agents.some((a) => a.relativePath === agent.relativePath)
-                  const isPrimary = () => (agent.name ?? agent.relativePath.replace(/\.md$/, "")) === draft.state.primaryAgent
+                  const isPrimary = () =>
+                    (agent.name ?? agent.relativePath.replace(/\.md$/, "")) === draft.state.primaryAgent
 
                   return (
                     <button
@@ -293,13 +294,15 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                       type="button"
                       aria-pressed={isSelected()}
                       class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
-                      onClick={() => draft.toggleWorkflow({
-                        kind: "workflow",
-                        relativePath: workflow.relativePath,
-                        revision: workflow.revision,
-                        name: workflow.name,
-                        description: workflow.description,
-                      })}
+                      onClick={() =>
+                        draft.toggleWorkflow({
+                          kind: "workflow",
+                          relativePath: workflow.relativePath,
+                          revision: workflow.revision,
+                          name: workflow.name,
+                          description: workflow.description,
+                        })
+                      }
                     >
                       <div class="flex min-w-0 items-center gap-1.5">
                         <Icon name="mode-custom" size="small" class="shrink-0 text-v2-icon-icon-muted" />
@@ -333,7 +336,9 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
               <For each={filteredPrompts()}>
                 {(prompt) => {
                   const isBound = () =>
-                    (draft.state.bindings["orchestrator"]?.prompts ?? []).some((p) => p.relativePath === prompt.relativePath)
+                    (draft.state.bindings["orchestrator"]?.prompts ?? []).some(
+                      (p) => p.relativePath === prompt.relativePath,
+                    )
 
                   return (
                     <button
@@ -397,20 +402,24 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
             >
               <For each={filteredCommands()}>
                 {(command) => {
-                  const isBound = () => (draft.state.bindings[commandConsumer()]?.commands ?? [])
-                    .some((item) => item.relativePath === command.relativePath)
+                  const isBound = () =>
+                    (draft.state.bindings[commandConsumer()]?.commands ?? []).some(
+                      (item) => item.relativePath === command.relativePath,
+                    )
                   return (
                     <button
                       type="button"
                       aria-pressed={isBound()}
                       class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
-                      onClick={() => draft.toggleCommand(commandConsumer(), {
-                        kind: "command",
-                        relativePath: command.relativePath,
-                        revision: command.revision,
-                        name: command.name,
-                        description: command.description,
-                      })}
+                      onClick={() =>
+                        draft.toggleCommand(commandConsumer(), {
+                          kind: "command",
+                          relativePath: command.relativePath,
+                          revision: command.revision,
+                          name: command.name,
+                          description: command.description,
+                        })
+                      }
                     >
                       <div class="flex min-w-0 items-center gap-1.5">
                         <Icon name="settings-gear" size="small" class="shrink-0 text-v2-icon-icon-muted" />
@@ -444,7 +453,9 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
               <For each={filteredSkills()}>
                 {(skill) => {
                   const isBound = () =>
-                    (draft.state.bindings["orchestrator"]?.skills ?? []).some((s) => s.relativePath === skill.relativePath)
+                    (draft.state.bindings["orchestrator"]?.skills ?? []).some(
+                      (s) => s.relativePath === skill.relativePath,
+                    )
 
                   return (
                     <button

@@ -18,17 +18,18 @@
 
 ### 2.1 chat 挂起的完整链路
 
-| 步 | 位置 | 发生 |
-|---|---|---|
-| 1 | 前端 [local.tsx:67](../../packages/app/src/context/local.tsx#L67) | agent 选择器列表 `filter(mode !== "subagent" && !hidden)`，**不按产品模式过滤**；chat 模式可选到 `meta` |
-| 2 | 后端 [prompt.ts:1186](../../packages/aigcfroge/src/session/prompt.ts#L1186) | `enforcePrimary("chat", "meta")` -> `Effect.die(AgentNotAllowedError)`，发生在 `loop()`(1200) 之前 |
-| 3 | [runner.ts:76](../../packages/aigcfroge/src/effect/runner.ts#L76) | runLoop 未启动 -> Runner `onIdle` 永不触发 -> **无 `session.status` idle 事件** |
-| 4 | [handlers/session.ts:456-463](../../packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts#L456) | `catchCause` 只 `logError` + `publish(Session.Event.Error)`，**不调 `status.set(idle)`** |
-| 5 | 前端 [event-reducer.ts:106-389](../../packages/app/src/context/global-sync/event-reducer.ts#L106) | **无 `"session.error"` 分支** -> `session_status` 保持乐观 busy（[submit.ts:64](../../packages/app/src/components/prompt-input/submit.ts#L64)）-> `working()` 永真 -> spinner 永转 |
-| 6 | [prompt.ts:1331](../../packages/aigcfroge/src/session/prompt.ts#L1331) | runLoop 未执行 -> assistant 占位未写 -> 无 `message.updated` |
-| 7 | 前端 [session-context-tab.tsx:94,434](../../packages/app/src/components/session/session-context-tab.tsx#L94) | 读 V1 event store，不过滤 finish；占位事件没进 store -> **「只有 user 消息」**（非 UI 过滤，是真没写） |
+| 步  | 位置                                                                                                                | 发生                                                                                                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 前端 [local.tsx:67](../../packages/app/src/context/local.tsx#L67)                                                   | agent 选择器列表 `filter(mode !== "subagent" && !hidden)`，**不按产品模式过滤**；chat 模式可选到 `meta`                                                                            |
+| 2   | 后端 [prompt.ts:1186](../../packages/aigcfroge/src/session/prompt.ts#L1186)                                         | `enforcePrimary("chat", "meta")` -> `Effect.die(AgentNotAllowedError)`，发生在 `loop()`(1200) 之前                                                                                 |
+| 3   | [runner.ts:76](../../packages/aigcfroge/src/effect/runner.ts#L76)                                                   | runLoop 未启动 -> Runner `onIdle` 永不触发 -> **无 `session.status` idle 事件**                                                                                                    |
+| 4   | [handlers/session.ts:456-463](../../packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts#L456) | `catchCause` 只 `logError` + `publish(Session.Event.Error)`，**不调 `status.set(idle)`**                                                                                           |
+| 5   | 前端 [event-reducer.ts:106-389](../../packages/app/src/context/global-sync/event-reducer.ts#L106)                   | **无 `"session.error"` 分支** -> `session_status` 保持乐观 busy（[submit.ts:64](../../packages/app/src/components/prompt-input/submit.ts#L64)）-> `working()` 永真 -> spinner 永转 |
+| 6   | [prompt.ts:1331](../../packages/aigcfroge/src/session/prompt.ts#L1331)                                              | runLoop 未执行 -> assistant 占位未写 -> 无 `message.updated`                                                                                                                       |
+| 7   | 前端 [session-context-tab.tsx:94,434](../../packages/app/src/components/session/session-context-tab.tsx#L94)        | 读 V1 event store，不过滤 finish；占位事件没进 store -> **「只有 user 消息」**（非 UI 过滤，是真没写）                                                                             |
 
 **日志铁证**（今天 7-24 所有 chat session）：
+
 ```
 prompt_async failed cause="Cause([Die(AgentNotAllowedError:
   Agent "meta" is not allowed in mode "chat": Only chat-orchestrator is allowed in chat mode)])"
@@ -62,6 +63,7 @@ openai-compatible provider **无默认 `chunkTimeout`**（[provider.ts:208](../.
 **问题**：[local.tsx:67](../../packages/app/src/context/local.tsx#L67) agent 列表不按 mode 过滤，chat 模式能选 meta/plan/build。
 
 **改法**：`local.tsx` 引入 `useMode`，`list` memo 按 `currentMode` 过滤：
+
 - `chat` 模式：仅保留 `chat-orchestrator`（id 来自 `ProductModeAgentPolicy.CHAT_ORCHESTRATOR`）
 - 其他模式：保持原逻辑（排除 chat-orchestrator，避免误选）
 
@@ -109,16 +111,17 @@ openai-compatible provider **无默认 `chunkTimeout`**（[provider.ts:208](../.
 
 ## 4. 验证
 
-| 场景 | 期望 |
-|---|---|
-| chat 模式选 meta（若 UI 仍放行）| 不卡思考中；显示「chat 模式只允许 chat-orchestrator」错误；loading 清除 |
-| chat 模式默认 chat-orchestrator | 正常对话出 assistant |
-| chat 模式切到 code 模式 | 会话列表不显示 chat 会话 |
-| code 模式会话列表 | 只含 coding 会话 |
-| 后端任意 prompt 失败（模拟 die）| UI 收到 error + loading 清除 |
-| openai-compatible SSE stall | 60s 超时 abort，不永久挂起（若做 3.5） |
+| 场景                             | 期望                                                                    |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| chat 模式选 meta（若 UI 仍放行） | 不卡思考中；显示「chat 模式只允许 chat-orchestrator」错误；loading 清除 |
+| chat 模式默认 chat-orchestrator  | 正常对话出 assistant                                                    |
+| chat 模式切到 code 模式          | 会话列表不显示 chat 会话                                                |
+| code 模式会话列表                | 只含 coding 会话                                                        |
+| 后端任意 prompt 失败（模拟 die） | UI 收到 error + loading 清除                                            |
+| openai-compatible SSE stall      | 60s 超时 abort，不永久挂起（若做 3.5）                                  |
 
 **命令**：
+
 - `bun --cwd packages/app typecheck` + `bun --cwd packages/aigcfroge typecheck` + `bun --cwd packages/session-ui typecheck`
 - `bun --cwd packages/app test`（event-reducer / submit 相关）
 - `bun --cwd packages/aigcfroge test`（handler / policy 相关）
@@ -126,13 +129,13 @@ openai-compatible provider **无默认 `chunkTimeout`**（[provider.ts:208](../.
 
 ## 5. 风险与回滚
 
-| 风险 | 缓解 |
-|---|---|
-| 3.1 local.tsx 引入 useMode 破坏现有 agent 选择 | 仅过滤 chat 模式，其他模式逻辑不变；typecheck + 手动验证 |
+| 风险                                             | 缓解                                                           |
+| ------------------------------------------------ | -------------------------------------------------------------- |
+| 3.1 local.tsx 引入 useMode 破坏现有 agent 选择   | 仅过滤 chat 模式，其他模式逻辑不变；typecheck + 手动验证       |
 | 3.2 handler 多调 `status.set(idle)` 影响正常流程 | idle 是幂等；正常流程 runLoop 的 `finishRun` 也设 idle，不冲突 |
-| 3.3 event-reducer 误清正常会话的 busy | `sessionID` 判空；仅 error 事件触发，正常 busy 不发 error |
-| 3.4 会话列表过滤导致历史无 mode 会话消失 | `s.mode ?? "coding"` 把 null 当 coding，历史会话保留 |
-| 3.5 chunkTimeout 误杀慢响应 | 60s 足够宽；可配置 |
+| 3.3 event-reducer 误清正常会话的 busy            | `sessionID` 判空；仅 error 事件触发，正常 busy 不发 error      |
+| 3.4 会话列表过滤导致历史无 mode 会话消失         | `s.mode ?? "coding"` 把 null 当 coding，历史会话保留           |
+| 3.5 chunkTimeout 误杀慢响应                      | 60s 足够宽；可配置                                             |
 
 回滚：每项独立 commit，按需 revert。
 

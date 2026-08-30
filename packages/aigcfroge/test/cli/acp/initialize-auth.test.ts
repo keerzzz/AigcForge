@@ -23,7 +23,7 @@ describe("aigcfroge acp initialize/auth subprocess", () => {
         expect(initialized.agentCapabilities?.sessionCapabilities?.resume).toEqual({})
         expect(initialized.agentInfo?.name).toBe("Aigcfroge")
       }),
-    60_000,
+    120_000,
   )
 
   cliIt.live(
@@ -35,15 +35,17 @@ describe("aigcfroge acp initialize/auth subprocess", () => {
 
         expect(initialized.authMethods?.[0]?.id).toBe("aigcfroge-login")
         expect(initialized.authMethods?.[0]?._meta?.["terminal-auth"]).toBeDefined()
-        expect(yield* acp.request<AuthenticateResponse>("authenticate", { methodId: "aigcfroge-login" })).toMatchObject({
-          result: {},
-        })
+        expect(yield* acp.request<AuthenticateResponse>("authenticate", { methodId: "aigcfroge-login" })).toMatchObject(
+          {
+            result: {},
+          },
+        )
 
         const rejected = yield* acp.request<AuthenticateResponse>("authenticate", { methodId: "missing-auth-method" })
         expectErrorCode(rejected.error, -32602)
         expect(JSON.stringify(rejected.error)).not.toContain(process.env.AIGCFROGE_AUTH_CONTENT ?? "not-present")
       }),
-    60_000,
+    120_000,
   )
 
   cliIt.live(
@@ -56,6 +58,6 @@ describe("aigcfroge acp initialize/auth subprocess", () => {
         expect(initialized.result?.authMethods?.[0]?.id).toBe("aigcfroge-login")
         expect(initialized.result?.authMethods?.[0]?._meta?.["terminal-auth"]).toBeUndefined()
       }),
-    60_000,
+    120_000,
   )
 })

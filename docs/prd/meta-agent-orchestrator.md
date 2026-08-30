@@ -94,19 +94,19 @@
 
 本架构综合三个仓库的最佳实践：
 
-| 模块 | 来源仓库 | 借鉴内容 |
-|---|---|---|
-| 元智能体定义 | `/web/aigcfroge` | meta-agent.ts、meta.txt 系统提示模式 |
-| 意图分类 | `/web/aigcfroge` | intent.ts 正则分类器 |
-| 引擎路由 | `/web/aigcfroge` | engine-selector.ts 调度映射 |
-| CLI 适配器 | `/web/aigcfroge` | CliAdapter 接口 + claude-code/codex 实现 |
-| 缓存预热 | `/web/aigcfroge` | cache-warmth.ts 三区缓存 + SHA 追踪 |
-| 委派上下文 | `/web/aigcfroge` | ContextBuilder + dialog-context.txt |
-| 并行分发 | `/cc` | AgentTool 并行 spawn + 协调器模式 |
-| 系统提示缓存 | `/cc` | 分叉子智能体字节级前缀锁定的方法 |
-| 会话复用 | 当前项目 | task.ts 的 task_id 复用 |
-| 子智能体权限 | 当前项目 | deriveSubagentSessionPermission |
-| 全权限兜底 | 当前项目 | build agent 的全权限模型 |
+| 模块         | 来源仓库         | 借鉴内容                                 |
+| ------------ | ---------------- | ---------------------------------------- |
+| 元智能体定义 | `/web/aigcfroge` | meta-agent.ts、meta.txt 系统提示模式     |
+| 意图分类     | `/web/aigcfroge` | intent.ts 正则分类器                     |
+| 引擎路由     | `/web/aigcfroge` | engine-selector.ts 调度映射              |
+| CLI 适配器   | `/web/aigcfroge` | CliAdapter 接口 + claude-code/codex 实现 |
+| 缓存预热     | `/web/aigcfroge` | cache-warmth.ts 三区缓存 + SHA 追踪      |
+| 委派上下文   | `/web/aigcfroge` | ContextBuilder + dialog-context.txt      |
+| 并行分发     | `/cc`            | AgentTool 并行 spawn + 协调器模式        |
+| 系统提示缓存 | `/cc`            | 分叉子智能体字节级前缀锁定的方法         |
+| 会话复用     | 当前项目         | task.ts 的 task_id 复用                  |
+| 子智能体权限 | 当前项目         | deriveSubagentSessionPermission          |
+| 全权限兜底   | 当前项目         | build agent 的全权限模型                 |
 
 ---
 
@@ -121,9 +121,9 @@
 export const permission = Permission.merge(
   buildPermissions,
   Permission.fromConfig({
-    task: "allow",        // 委派任务
-    question: "allow",    // 询问用户
-    write: "allow",       // 直接写文件 (AGENTS.md, 插件等)
+    task: "allow", // 委派任务
+    question: "allow", // 询问用户
+    write: "allow", // 直接写文件 (AGENTS.md, 插件等)
     create_command: "allow",
     create_agent: "allow",
     configure_mcp: "allow",
@@ -152,15 +152,15 @@ export const permission = Permission.merge(
 
 **分类维度**：
 
-| 类别 | 触发模式 | 默认路由 |
-|---|---|---|
-| `content_creation` | `create/generate/write/make/生成/创建` | lightweight |
-| `code_understanding` | `explain/how/what/why/解释/怎么` | explore |
-| `code_modification` | `refactor/fix/add/change/重构/修复` | build |
-| `configuration` | `configure/setup/connect/agent/mcp/workflow` | general |
-| `workflow` | `先...然后.../pipeline/工作流/并行/同时` | workflow engine |
-| `@mention` | `@claude-code @gemini @build` | 显式指定目标 |
-| `unknown` | 以上都不匹配 | 元智能体自处理或询问 |
+| 类别                 | 触发模式                                     | 默认路由             |
+| -------------------- | -------------------------------------------- | -------------------- |
+| `content_creation`   | `create/generate/write/make/生成/创建`       | lightweight          |
+| `code_understanding` | `explain/how/what/why/解释/怎么`             | explore              |
+| `code_modification`  | `refactor/fix/add/change/重构/修复`          | build                |
+| `configuration`      | `configure/setup/connect/agent/mcp/workflow` | general              |
+| `workflow`           | `先...然后.../pipeline/工作流/并行/同时`     | workflow engine      |
+| `@mention`           | `@claude-code @gemini @build`                | 显式指定目标         |
+| `unknown`            | 以上都不匹配                                 | 元智能体自处理或询问 |
 
 **插件扩展**：`plugin.meta.intent.register(pattern, category)` — 注册新的分类规则。
 
@@ -175,13 +175,13 @@ interface EngineDispatch {
 }
 
 const ENGINE_DISPATCH: Record<string, EngineDispatch> = {
-  content_creation:    { type: "subagent",   target: "lightweight" },
-  code_understanding:  { type: "subagent",   target: "explore" },
-  code_modification:   { type: "subagent",   target: "build" },
-  configuration:       { type: "subagent",   target: "general" },
-  "claude-code":       { type: "external-cli", target: "claude-code" },
-  gemini:              { type: "external-cli", target: "gemini" },
-  codex:               { type: "external-cli", target: "codex" },
+  content_creation: { type: "subagent", target: "lightweight" },
+  code_understanding: { type: "subagent", target: "explore" },
+  code_modification: { type: "subagent", target: "build" },
+  configuration: { type: "subagent", target: "general" },
+  "claude-code": { type: "external-cli", target: "claude-code" },
+  gemini: { type: "external-cli", target: "gemini" },
+  codex: { type: "external-cli", target: "codex" },
 }
 ```
 
@@ -216,10 +216,10 @@ const ENGINE_DISPATCH: Record<string, EngineDispatch> = {
 
 支持两种模式：
 
-| 模式 | 语法 | 语义 | 实现 |
-|---|---|---|---|
-| 并行 | `@A @B 同时...` | 同时分发，各自执行，结果汇总 | 多个 `task()` 同时发起，用 `Effect.all` 等待 |
-| 串行 pipeline | `先 @A 再 @B 最后 @C` | 按序执行，前一步输出是后一步输入 | `Effect.flatMap` 链或状态机 |
+| 模式          | 语法                  | 语义                             | 实现                                         |
+| ------------- | --------------------- | -------------------------------- | -------------------------------------------- |
+| 并行          | `@A @B 同时...`       | 同时分发，各自执行，结果汇总     | 多个 `task()` 同时发起，用 `Effect.all` 等待 |
+| 串行 pipeline | `先 @A 再 @B 最后 @C` | 按序执行，前一步输出是后一步输入 | `Effect.flatMap` 链或状态机                  |
 
 **工作流状态**：每个工作流有独立的 `WorkflowState` 跟踪：
 
@@ -243,11 +243,11 @@ interface WorkflowState {
 interface CliAdapter {
   readonly name: string
   readonly command: string
-  readonly detect: () => Effect<boolean>          // 系统是否有这个 CLI
+  readonly detect: () => Effect<boolean> // 系统是否有这个 CLI
   readonly buildArgs: (input: { prompt: string; cwd: string }) => Effect<readonly string[]>
   readonly parseOutput: (stdout: string, stderr: string) => Effect<DelegationResult>
-  readonly cancel?: (cwd: string) => Effect<void>  // 可选中断
-  readonly timeout?: number                         // 可选超时 (ms)
+  readonly cancel?: (cwd: string) => Effect<void> // 可选中断
+  readonly timeout?: number // 可选超时 (ms)
 }
 
 interface DelegationResult {
@@ -268,11 +268,11 @@ interface DelegationResult {
 
 内置适配器（第一阶段）：
 
-| CLI | 命令 | 默认启用 |
-|---|---|---|
-| Claude Code | `claude` | 若检测到 |
-| Gemini CLI | `gemini` | 若检测到 (TODO) |
-| Codex | `codex` | 若检测到 (TODO) |
+| CLI         | 命令     | 默认启用        |
+| ----------- | -------- | --------------- |
+| Claude Code | `claude` | 若检测到        |
+| Gemini CLI  | `gemini` | 若检测到 (TODO) |
+| Codex       | `codex`  | 若检测到 (TODO) |
 
 **插件扩展**：`plugin.meta.adapter.register(name, factory)` — 注册新的 CLI 适配器。
 
@@ -328,14 +328,15 @@ const L3_DYNAMIC = `
 ```typescript
 interface CacheWarmthEntry {
   engineId: string
-  lastContextSha: string       // 上下文哈希，用于比较缓存是否有效
-  lastUsed: number             // last used timestamp
-  hitRate: number              // 命中率 (0-1)
+  lastContextSha: string // 上下文哈希，用于比较缓存是否有效
+  lastUsed: number // last used timestamp
+  hitRate: number // 命中率 (0-1)
   taskCategory: IntentCategory // 按分类统计
 }
 ```
 
 策略：
+
 - 当 `hitRate > 0.5` 时在委派上下文中加入 `<cache-warm/>` 信号
 - 基于意图分类**预测下一引擎**，在等待用户输入时预构造上下文
 - 字节级前缀锁定：system prompt 的 L1 区**任何情况下不允许动态内容**
@@ -371,38 +372,42 @@ interface MetaHooks {
 // 审计插件: 每次 dispatch 记录日志
 define({
   id: "audit-logger",
-  effect: (ctx) => Effect.gen(function* () {
-    yield* ctx.meta.middleware({
-      name: "audit",
-      onDispatch: (input) => Effect.gen(function* () {
-        yield* log(`[AUDIT] dispatch: ${input.target} - ${input.prompt}`)
-      }),
-    })
-  }),
+  effect: (ctx) =>
+    Effect.gen(function* () {
+      yield* ctx.meta.middleware({
+        name: "audit",
+        onDispatch: (input) =>
+          Effect.gen(function* () {
+            yield* log(`[AUDIT] dispatch: ${input.target} - ${input.prompt}`)
+          }),
+      })
+    }),
 })
 
 // Gemini 适配器插件
 define({
   id: "gemini-adapter",
-  effect: (ctx) => Effect.gen(function* () {
-    yield* ctx.meta.adapter.register("gemini", () => GeminiAdapter)
-  }),
+  effect: (ctx) =>
+    Effect.gen(function* () {
+      yield* ctx.meta.adapter.register("gemini", () => GeminiAdapter)
+    }),
 })
 
 // Code review 工作流插件
 define({
   id: "code-review-workflow",
-  effect: (ctx) => Effect.gen(function* () {
-    yield* ctx.meta.workflow.register("code-review", {
-      name: "代码审查",
-      steps: [
-        { target: "plan",   prompt: "审查代码变更计划" },
-        { target: "build",  prompt: "执行必要的修改" },
-        { target: "explore", prompt: "验证修改正确性" },
-      ],
-      mode: "pipeline",
-    })
-  }),
+  effect: (ctx) =>
+    Effect.gen(function* () {
+      yield* ctx.meta.workflow.register("code-review", {
+        name: "代码审查",
+        steps: [
+          { target: "plan", prompt: "审查代码变更计划" },
+          { target: "build", prompt: "执行必要的修改" },
+          { target: "explore", prompt: "验证修改正确性" },
+        ],
+        mode: "pipeline",
+      })
+    }),
 })
 ```
 
@@ -410,21 +415,21 @@ define({
 
 分阶段实现：
 
-| 阶段 | 能力 | 用户交互 |
-|---|---|---|
-| P1 | 通过对话描述 → 生成插件配置 | 元智能体生成 `.md` 插件定义，写入 `config/plugins/` |
-| P2 | 生成后 → 自动加载 & 可用 | 插件写入后热加载生效 |
-| P3 | 生成 → 测试沙箱 → 验证 → 上线 | 插件先加载到沙箱环境测试，通过后正式注册 |
+| 阶段 | 能力                          | 用户交互                                            |
+| ---- | ----------------------------- | --------------------------------------------------- |
+| P1   | 通过对话描述 → 生成插件配置   | 元智能体生成 `.md` 插件定义，写入 `config/plugins/` |
+| P2   | 生成后 → 自动加载 & 可用      | 插件写入后热加载生效                                |
+| P3   | 生成 → 测试沙箱 → 验证 → 上线 | 插件先加载到沙箱环境测试，通过后正式注册            |
 
 ### 3.10 错误处理策略
 
-| 错误场景 | 策略 |
-|---|---|
-| 子智能体执行失败 | 元智能体收到 `<task-error>` → 判断是否重试 or 换引擎 |
-| 外部 CLI 超时 | `CliAdapter.timeout` 配置 → 超时后 kill 进程 → 报告失败 |
-| 外部 CLI 不可用 | `detect()` 返回 false → 从可用列表移除 → 推荐替代 |
-| 工作流某步骤失败 | 跳过后续步骤 → 报告部分完成 → 用户决定是否继续 |
-| 元智能体自身中断 | 子任务继续后台执行（后台模式）或 一并取消（前台模式） |
+| 错误场景         | 策略                                                    |
+| ---------------- | ------------------------------------------------------- |
+| 子智能体执行失败 | 元智能体收到 `<task-error>` → 判断是否重试 or 换引擎    |
+| 外部 CLI 超时    | `CliAdapter.timeout` 配置 → 超时后 kill 进程 → 报告失败 |
+| 外部 CLI 不可用  | `detect()` 返回 false → 从可用列表移除 → 推荐替代       |
+| 工作流某步骤失败 | 跳过后续步骤 → 报告部分完成 → 用户决定是否继续          |
+| 元智能体自身中断 | 子任务继续后台执行（后台模式）或 一并取消（前台模式）   |
 
 ---
 
@@ -434,19 +439,20 @@ define({
 
 **目标**：元智能体作为默认入口，能分类意图、路由到子智能体、支持 `@mention`
 
-| 编号 | 任务 | 影响文件 | 预估复杂度 |
-|---|---|---|---|
-| 1.1 | 创建 `meta/` 目录和 intent.ts 分类器 | `packages/aigcfroge/src/agent/meta/intent.ts` | S |
-| 1.2 | 创建 engine-selector.ts 路由 | `packages/aigcfroge/src/agent/meta/engine-selector.ts` | S |
-| 1.3 | 创建 mention.ts @mention 解析 | `packages/aigcfroge/src/agent/meta/mention.ts` | M |
-| 1.4 | 创建 meta-agent.ts 定义 | `packages/aigcfroge/src/agent/meta-agent.ts` | M |
-| 1.5 | 创建 meta.txt 系统提示（L1+L2 缓存结构） | `packages/aigcfroge/src/agent/prompt/meta.txt` | M |
-| 1.6 | 在 Agent 注册表中注册元智能体 | `packages/aigcfroge/src/agent/agent.ts` | S |
-| 1.7 | 改默认智能体为 meta | `packages/core/src/plugin/agent.ts` | S |
-| 1.8 | 扩展 `deriveSubagentSessionPermission` | `packages/aigcfroge/src/agent/subagent-permissions.ts` | S |
-| 1.9 | L1/L2 缓存结构实现 | `packages/aigcfroge/src/agent/meta/cache-warmth.ts` | M |
+| 编号 | 任务                                     | 影响文件                                               | 预估复杂度 |
+| ---- | ---------------------------------------- | ------------------------------------------------------ | ---------- |
+| 1.1  | 创建 `meta/` 目录和 intent.ts 分类器     | `packages/aigcfroge/src/agent/meta/intent.ts`          | S          |
+| 1.2  | 创建 engine-selector.ts 路由             | `packages/aigcfroge/src/agent/meta/engine-selector.ts` | S          |
+| 1.3  | 创建 mention.ts @mention 解析            | `packages/aigcfroge/src/agent/meta/mention.ts`         | M          |
+| 1.4  | 创建 meta-agent.ts 定义                  | `packages/aigcfroge/src/agent/meta-agent.ts`           | M          |
+| 1.5  | 创建 meta.txt 系统提示（L1+L2 缓存结构） | `packages/aigcfroge/src/agent/prompt/meta.txt`         | M          |
+| 1.6  | 在 Agent 注册表中注册元智能体            | `packages/aigcfroge/src/agent/agent.ts`                | S          |
+| 1.7  | 改默认智能体为 meta                      | `packages/core/src/plugin/agent.ts`                    | S          |
+| 1.8  | 扩展 `deriveSubagentSessionPermission`   | `packages/aigcfroge/src/agent/subagent-permissions.ts` | S          |
+| 1.9  | L1/L2 缓存结构实现                       | `packages/aigcfroge/src/agent/meta/cache-warmth.ts`    | M          |
 
 **验证标准**：
+
 - 新会话默认使用 meta agent
 - meta agent 能分类意图并路由到正确的子智能体
 - `@build xxx` 能直接转发到 build
@@ -456,16 +462,17 @@ define({
 
 **目标**：元智能体可以调用外部 CLI 智能体
 
-| 编号 | 任务 | 影响文件 | 预估复杂度 |
-|---|---|---|---|
-| 2.1 | CLI 适配器接口 | `packages/aigcfroge/src/agent/meta/adapters/interface.ts` | S |
-| 2.2 | Claude Code 适配器 | `packages/aigcfroge/src/agent/meta/adapters/claude-code.ts` | M |
-| 2.3 | 适配器注册表 | `packages/aigcfroge/src/agent/meta/adapters/registry.ts` | M |
-| 2.4 | CLI 扫描 & detect() | `packages/aigcfroge/src/agent/meta/adapters/scanner.ts` | M |
-| 2.5 | 扩展 task 工具支持 CLI 模式 | `packages/aigcfroge/src/tool/task.ts` | L |
-| 2.6 | CLI 超时 & 中断处理 | `packages/aigcfroge/src/agent/meta/adapters/timeout.ts` | M |
+| 编号 | 任务                        | 影响文件                                                    | 预估复杂度 |
+| ---- | --------------------------- | ----------------------------------------------------------- | ---------- |
+| 2.1  | CLI 适配器接口              | `packages/aigcfroge/src/agent/meta/adapters/interface.ts`   | S          |
+| 2.2  | Claude Code 适配器          | `packages/aigcfroge/src/agent/meta/adapters/claude-code.ts` | M          |
+| 2.3  | 适配器注册表                | `packages/aigcfroge/src/agent/meta/adapters/registry.ts`    | M          |
+| 2.4  | CLI 扫描 & detect()         | `packages/aigcfroge/src/agent/meta/adapters/scanner.ts`     | M          |
+| 2.5  | 扩展 task 工具支持 CLI 模式 | `packages/aigcfroge/src/tool/task.ts`                       | L          |
+| 2.6  | CLI 超时 & 中断处理         | `packages/aigcfroge/src/agent/meta/adapters/timeout.ts`     | M          |
 
 **验证标准**：
+
 - 系统有 `claude` 命令时，元智能体能检测到并路由给它
 - `@claude-code xxx` 启动 Claude Code 子进程并返回结果
 - 超时能中断外部 CLI 进程
@@ -474,15 +481,16 @@ define({
 
 **目标**：支持并行和串行工作流
 
-| 编号 | 任务 | 影响文件 | 预估复杂度 |
-|---|---|---|---|
-| 3.1 | 工作流状态管理 | `packages/aigcfroge/src/agent/meta/workflow/state.ts` | M |
-| 3.2 | 串行 pipeline 执行器 | `packages/aigcfroge/src/agent/meta/workflow/pipeline.ts` | M |
-| 3.3 | 并行 fan-out 执行器 | `packages/aigcfroge/src/agent/meta/workflow/fanout.ts` | M |
-| 3.4 | 工作流系统提示表述 | `packages/aigcfroge/src/agent/prompt/meta.txt` (更新) | S |
-| 3.5 | `@mention` 工作流解析增强 | `packages/aigcfroge/src/agent/meta/mention.ts` | S |
+| 编号 | 任务                      | 影响文件                                                 | 预估复杂度 |
+| ---- | ------------------------- | -------------------------------------------------------- | ---------- |
+| 3.1  | 工作流状态管理            | `packages/aigcfroge/src/agent/meta/workflow/state.ts`    | M          |
+| 3.2  | 串行 pipeline 执行器      | `packages/aigcfroge/src/agent/meta/workflow/pipeline.ts` | M          |
+| 3.3  | 并行 fan-out 执行器       | `packages/aigcfroge/src/agent/meta/workflow/fanout.ts`   | M          |
+| 3.4  | 工作流系统提示表述        | `packages/aigcfroge/src/agent/prompt/meta.txt` (更新)    | S          |
+| 3.5  | `@mention` 工作流解析增强 | `packages/aigcfroge/src/agent/meta/mention.ts`           | S          |
 
 **验证标准**：
+
 - `先 @plan 设计方案，再 @build 实现` 能按序执行
 - `@claude-code 分析, @gemini 检查(同时)` 能并行分发
 - 工作流步骤失败能正确处理
@@ -491,18 +499,19 @@ define({
 
 **目标**：完整的 meta 插件扩展点 + chat 模式生成
 
-| 编号 | 任务 | 影响文件 | 预估复杂度 |
-|---|---|---|---|
-| 4.1 | 新增 `MetaHooks` 到 PluginContext | `packages/plugin/src/v2/effect/context.ts` | M |
-| 4.2 | 实现 meta.intent 注册 | `packages/plugin/src/v2/effect/meta.ts` | M |
-| 4.3 | 实现 meta.adapter 注册 | `packages/plugin/src/v2/effect/meta.ts` | M |
-| 4.4 | 实现 meta.workflow 注册 | `packages/plugin/src/v2/effect/meta.ts` | M |
-| 4.5 | 实现 meta.middleware 注册 | `packages/plugin/src/v2/effect/meta.ts` | M |
-| 4.6 | 实现 meta.policy 注册 | `packages/plugin/src/v2/effect/meta.ts` | M |
-| 4.7 | Chat 模式生成插件 — 基础 | 元智能体生成插件 .md 写入 `config/plugins/` | L |
-| 4.8 | 插件热加载 | 插件文件变更 → 自动注册 | L |
+| 编号 | 任务                              | 影响文件                                    | 预估复杂度 |
+| ---- | --------------------------------- | ------------------------------------------- | ---------- |
+| 4.1  | 新增 `MetaHooks` 到 PluginContext | `packages/plugin/src/v2/effect/context.ts`  | M          |
+| 4.2  | 实现 meta.intent 注册             | `packages/plugin/src/v2/effect/meta.ts`     | M          |
+| 4.3  | 实现 meta.adapter 注册            | `packages/plugin/src/v2/effect/meta.ts`     | M          |
+| 4.4  | 实现 meta.workflow 注册           | `packages/plugin/src/v2/effect/meta.ts`     | M          |
+| 4.5  | 实现 meta.middleware 注册         | `packages/plugin/src/v2/effect/meta.ts`     | M          |
+| 4.6  | 实现 meta.policy 注册             | `packages/plugin/src/v2/effect/meta.ts`     | M          |
+| 4.7  | Chat 模式生成插件 — 基础          | 元智能体生成插件 .md 写入 `config/plugins/` | L          |
+| 4.8  | 插件热加载                        | 插件文件变更 → 自动注册                     | L          |
 
 **验证标准**：
+
 - 插件能注册新的意图分类规则
 - 插件能注册新的 CLI 适配器
 - 插件能注册工作流模板
@@ -513,15 +522,15 @@ define({
 
 **目标**：缓存优化、审计、文档
 
-| 编号 | 任务 | 影响文件 | 预估复杂度 |
-|---|---|---|---|
-| 5.1 | cache-warmth 全面集成 | `packages/aigcfroge/src/agent/meta/cache-warmth.ts` | M |
-| 5.2 | `meta_agent_session` 表集成（层级会话） | `packages/core/src/meta-agent/` | L |
-| 5.3 | Gemini CLI 适配器 | `packages/aigcfroge/src/agent/meta/adapters/gemini.ts` | M |
-| 5.4 | Codex CLI 适配器 | `packages/aigcfroge/src/agent/meta/adapters/codex.ts` | M |
-| 5.5 | Chat 生成插件 → 沙箱测试 | P3 完善 | L |
-| 5.6 | 用户设置页 CLI 开关集成 | `packages/app/` + `packages/server/` | M |
-| 5.7 | 审计日志 & telemetry | `packages/core/src/agent/meta/audit.ts` | M |
+| 编号 | 任务                                    | 影响文件                                               | 预估复杂度 |
+| ---- | --------------------------------------- | ------------------------------------------------------ | ---------- |
+| 5.1  | cache-warmth 全面集成                   | `packages/aigcfroge/src/agent/meta/cache-warmth.ts`    | M          |
+| 5.2  | `meta_agent_session` 表集成（层级会话） | `packages/core/src/meta-agent/`                        | L          |
+| 5.3  | Gemini CLI 适配器                       | `packages/aigcfroge/src/agent/meta/adapters/gemini.ts` | M          |
+| 5.4  | Codex CLI 适配器                        | `packages/aigcfroge/src/agent/meta/adapters/codex.ts`  | M          |
+| 5.5  | Chat 生成插件 → 沙箱测试                | P3 完善                                                | L          |
+| 5.6  | 用户设置页 CLI 开关集成                 | `packages/app/` + `packages/server/`                   | M          |
+| 5.7  | 审计日志 & telemetry                    | `packages/core/src/agent/meta/audit.ts`                | M          |
 
 ---
 
@@ -536,6 +545,7 @@ define({
 3. **插件生成**：写插件文件需要 Write 权限
 
 **行为约定**（通过系统提示约束，而非权限硬限制）：
+
 - 委派优先：99% 的代码执行通过 task 委派
 - 兜底自干：仅在子智能体不可用或任务足够简单时直接执行
 
@@ -543,11 +553,11 @@ define({
 
 当前项目的架构是分层的：
 
-| 层 | 用途 | 内容 |
-|---|---|---|
-| `packages/schema/` | 数据类型定义 | meta-agent.ts (已有) |
-| `packages/core/` | 核心服务 | AgentV2, plugin, meta-agent sql |
-| `packages/aigcfroge/` | 应用逻辑 | Agent 服务, Tool 注册表, Session 处理 |
+| 层                    | 用途         | 内容                                  |
+| --------------------- | ------------ | ------------------------------------- |
+| `packages/schema/`    | 数据类型定义 | meta-agent.ts (已有)                  |
+| `packages/core/`      | 核心服务     | AgentV2, plugin, meta-agent sql       |
+| `packages/aigcfroge/` | 应用逻辑     | Agent 服务, Tool 注册表, Session 处理 |
 
 元智能体的编排逻辑属于**应用层行为**（因为它依赖 Tool 注册表、Session 系统、子智能体定义），所以放在 `packages/aigcfroge/src/agent/meta/` 最合理。`packages/core/` 中的 `meta-agent/sql.ts` 作为数据层支持。
 

@@ -46,55 +46,70 @@ describe("AgentFileLoader", () => {
     })
 
     test("should return undefined when name is missing", () => {
-      const agent = parseAgentFile("test.agent.md", `\
+      const agent = parseAgentFile(
+        "test.agent.md",
+        `\
 ---
 description: No name
 ---
 Just body
-`)
+`,
+      )
       expect(agent).toBeUndefined()
     })
 
     test("should return undefined on invalid YAML", () => {
-      const agent = parseAgentFile("test.agent.md", `\
+      const agent = parseAgentFile(
+        "test.agent.md",
+        `\
 ---
 name: test
 invalid yaml: [unclosed
 ---
 body
-`)
+`,
+      )
       expect(agent).toBeUndefined()
     })
 
     test("should handle body without frontmatter", () => {
-      const agent = parseAgentFile("test.agent.md", `\
+      const agent = parseAgentFile(
+        "test.agent.md",
+        `\
 ---
 name: Bare
 ---
-`)
+`,
+      )
       expect(agent).toBeDefined()
       expect(agent!.info.id as string).toBe("Bare")
       expect(agent!.info.system).toBeUndefined()
     })
 
     test("should set user-invocable: false as hidden", () => {
-      const agent = parseAgentFile("test.agent.md", `\
+      const agent = parseAgentFile(
+        "test.agent.md",
+        `\
 ---
 name: HiddenAgent
 user-invocable: false
 ---
 body
-`)
+`,
+      )
       expect(agent!.info.hidden).toBe(true)
     })
 
     test("should default hidden to false", () => {
-      const agent = parseAgentFile("test.agent.md", `\
+      const agent = parseAgentFile(
+        "test.agent.md",
+        `\
 ---
 name: VisibleAgent
 ---
 body
-`)
+`,
+      )
       expect(agent!.info.hidden).toBe(false)
     })
 

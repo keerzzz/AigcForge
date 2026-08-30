@@ -39,12 +39,12 @@ home.tsx:
 
 server-sync child store 形状见 `packages/app/src/context/global-sync/child-store.ts:191-241`、数据加载见 `bootstrap.ts:188-330`。
 
-| kind | server-sync 来源 | 说明 |
-|------|-----------------|------|
-| **skill** | `data.command.filter(c => c.source === "skill")` | 运行时 skill（`command/index.ts:142-153` 注入 `source: "skill"`） |
-| **mcp** | `Object.keys(data.mcp)` | 已配置 MCP 服务器（record keyed by name，非数组；description 留空） |
+| kind        | server-sync 来源                                 | 说明                                                                                                   |
+| ----------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| **skill**   | `data.command.filter(c => c.source === "skill")` | 运行时 skill（`command/index.ts:142-153` 注入 `source: "skill"`）                                      |
+| **mcp**     | `Object.keys(data.mcp)`                          | 已配置 MCP 服务器（record keyed by name，非数组；description 留空）                                    |
 | **command** | `data.command.filter(c => c.source !== "skill")` | 普通命令 + MCP prompt（`source` 为 optional，含 `undefined`/`"command"`/`"mcp"`，归入 command 属预期） |
-| **agent** | `data.agent.filter(a => !a.hidden)` | 已配置 agent（`normalizeAgentList` 不过滤 hidden，需在此过滤） |
+| **agent**   | `data.agent.filter(a => !a.hidden)`              | 已配置 agent（`normalizeAgentList` 不过滤 hidden，需在此过滤）                                         |
 
 **数据门控（关键）**：child store 的 `command` 与 `mcp` 仅在 child 以 `{ mcp: true }` 触碰后才加载（`bootstrap.ts:276,330`、`child-store.ts:302-307` 的 `enableMcp`）；`agent` 随普通 bootstrap 加载。因此 home.tsx 与 mode-surfaces.tsx 必须调 `sync.child(dir, { mcp: true })`，否则 command/mcp 恒为空。
 
@@ -53,21 +53,22 @@ server-sync child store 形状见 `packages/app/src/context/global-sync/child-st
 按 `kind + name` 去重，**project 优先**（系统行被同名项目行遮蔽）。
 
 依据：
+
 - M3 legacy migration（`asset-migration.ts`）只做复制不删原文件，`.claude/skills/**/SKILL.md`、`.agents/skills/**/SKILL.md`、`.aigcfroge/command/` 等仍被 runtime 扫描进 `command.list()`，同时迁移副本已进入 `.aigcfroge/<kind>/` 被 SDK list 返回——不去重会双行显示。
 - 服务端已有同名遮蔽先例：`command/index.ts:143` `if (commands[item.name]) continue`。
 - 跨 kind 同名不冲突（M3 风险 5 结论）：去重键必须含 kind，prompt `fmt` 不遮蔽 skill `fmt`。
 
 ## 4. 改动文件
 
-| 文件 | 改动 | 量级 |
-|------|------|------|
-| `asset-workbench.tsx` | `AssetRow` 加 `origin: "system" \| "project"`；输入项加可选 `origin`（默认 `"project"`） | ~10 行 |
-| `asset-workbench.tsx` | 纯逻辑区新增 `systemAssets()` 提取 + `mergeAssets()` 去重合并 + `systemCountFor()` 计数 | ~45 行 |
-| `asset-workbench.tsx` | 行渲染 Name 列前加来源**文本 chip**（复用 kind badge 样式，i18n `asset.origin.*`）；[Insert] 仅 `!row.invalid && row.origin !== "system"` 时渲染 | ~12 行 |
-| `home.tsx` | `chatCtx().sync.child(dir, { mcp: true })` 取系统数据，`createMemo` 合并后传入表格 | ~15 行 |
-| `mode-surfaces.tsx` | `useChatFeatureData` 改 `{ mcp: true }`；`kindCounts` 带 project name 集合；`countFor` = 项目数 + `systemCountFor` | ~25 行 |
-| `i18n/en.ts + zh.ts` | `asset.origin.system`, `asset.origin.project` | 4 行 |
-| `asset-workbench.test.ts` | Step 1-3 红测试（co-located，对齐现有 strategy A 纯函数测试） | ~70 行 |
+| 文件                      | 改动                                                                                                                                             | 量级   |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| `asset-workbench.tsx`     | `AssetRow` 加 `origin: "system" \| "project"`；输入项加可选 `origin`（默认 `"project"`）                                                         | ~10 行 |
+| `asset-workbench.tsx`     | 纯逻辑区新增 `systemAssets()` 提取 + `mergeAssets()` 去重合并 + `systemCountFor()` 计数                                                          | ~45 行 |
+| `asset-workbench.tsx`     | 行渲染 Name 列前加来源**文本 chip**（复用 kind badge 样式，i18n `asset.origin.*`）；[Insert] 仅 `!row.invalid && row.origin !== "system"` 时渲染 | ~12 行 |
+| `home.tsx`                | `chatCtx().sync.child(dir, { mcp: true })` 取系统数据，`createMemo` 合并后传入表格                                                               | ~15 行 |
+| `mode-surfaces.tsx`       | `useChatFeatureData` 改 `{ mcp: true }`；`kindCounts` 带 project name 集合；`countFor` = 项目数 + `systemCountFor`                               | ~25 行 |
+| `i18n/en.ts + zh.ts`      | `asset.origin.system`, `asset.origin.project`                                                                                                    | 4 行   |
+| `asset-workbench.test.ts` | Step 1-3 红测试（co-located，对齐现有 strategy A 纯函数测试）                                                                                    | ~70 行 |
 
 **不改**：core、aigcfroge、schema、sdk — 纯 UI 改动。
 
@@ -101,6 +102,7 @@ describe("buildRows origin", () => {
 ```
 
 **绿**：
+
 - `AssetOrigin = "system" | "project"`；`AssetRow.origin: AssetOrigin`
 - `buildRows` 的 `assets` 输入项类型加 `origin?: AssetOrigin`（缺省 `"project"`）；invalid 行恒 `"project"`
 - 行渲染 Name 列名前加来源文本 chip（i18n `asset.origin.system` / `asset.origin.project`）
@@ -116,7 +118,11 @@ describe("buildRows origin", () => {
 ```ts
 describe("systemAssets", () => {
   test("splits command list into skill and command kinds", () => {
-    const items = systemAssets({ commands: [cmd({ name: "fmt", source: "skill" }), cmd({ name: "run" })], agents: [], mcp: {} })
+    const items = systemAssets({
+      commands: [cmd({ name: "fmt", source: "skill" }), cmd({ name: "run" })],
+      agents: [],
+      mcp: {},
+    })
     expect(items).toEqual([
       { kind: "skill", name: "fmt", description: "" },
       { kind: "command", name: "run", description: "" },
@@ -124,7 +130,11 @@ describe("systemAssets", () => {
   })
 
   test("maps mcp record keys to mcp assets and skips hidden agents", () => {
-    const items = systemAssets({ commands: [], agents: [agent({ name: "build" }), agent({ name: "internal", hidden: true })], mcp: { github: {} } })
+    const items = systemAssets({
+      commands: [],
+      agents: [agent({ name: "build" }), agent({ name: "internal", hidden: true })],
+      mcp: { github: {} },
+    })
     expect(items).toEqual([
       { kind: "mcp", name: "github", description: "" },
       { kind: "agent", name: "build", description: "" },
@@ -153,6 +163,7 @@ describe("mergeAssets", () => {
 ```
 
 **绿**：
+
 - `asset-workbench.tsx` 纯逻辑区新增：
   - `SystemAsset = { kind: AssetKindId; name: string; description?: string }`
   - `systemAssets({ commands, agents, mcp })`：按 §3.1 提取（command 二分、mcp 取 key、agent 滤 hidden）
@@ -191,6 +202,7 @@ describe("systemCountFor", () => {
 ```
 
 **绿**：
+
 - `asset-workbench.tsx` 新增 `systemCountFor(system, kind, projectNames)`
 - `mode-surfaces.tsx`：
   - `useChatFeatureData` 的 `child(current)` 改 `child(current, { mcp: true })`
@@ -232,6 +244,7 @@ bun run lint
 ### 2026-07-26：五层代码追溯，6 项修正后 Approved
 
 **追溯路径**：
+
 - L5 `asset-workbench.tsx` → `buildRows(assets, invalid)` 双参签名，`AssetRow` 无 `origin`；测试 co-located（strategy A 纯函数 + `bun:test`）
 - L5 `home.tsx:344-372` → `chatAssetList` 并发取 5 kind SDK list，合并 `assets`/`invalid` 传入表格
 - L5 `mode-surfaces.tsx:173-194` → `kindCounts` 取 5 kind SDK list 计数；`useChatFeatureData` 用 `child(current)` 未开 mcp
@@ -242,11 +255,11 @@ bun run lint
 
 **发现的问题及修正**：
 
-| # | 问题 | 严重程度 | 修正 |
-|---|------|---------|------|
-| 1 | 原计划无去重规则：M3 migration 不删 legacy 原文件，runtime 仍扫描 → 同 asset 双行 | 🔴 阻断 | §3.2 新增 kind+name 去重，project 优先（对齐服务端遮蔽先例） |
-| 2 | `command`/`mcp` 数据需 `{ mcp: true }` 门控加载，原计划直接读会恒空 | 🔴 阻断 | §3.1 门控说明；home/mode-surfaces 改 `child(dir, { mcp: true })` |
-| 3 | 红测试引用不存在的 `buildWithOrigin`；`mergeAssets` 签名两处不一致 | 🟡 TDD | §5 全部改为真实接口（`buildRows` 扩展 + `systemAssets`/`mergeAssets`/`systemCountFor`） |
-| 4 | 「系统行 `data-invalid`」语义错误：会触发错误排序与红色错误徽标 | 🟡 正确性 | 系统行用 `origin` 判定，不碰 `invalid`；验收标准同步修正 |
-| 5 | 📦/📁 emoji 徽标违反 DESIGN.md Icon System（v2 内联 SVG 字典，无 emoji） | 🟡 设计 | 改为 kind badge 同款文本 chip + i18n `asset.origin.*`（en/zh，沿用 promptAsset.* 债务约定） |
-| 6 | 类型细节缺失：`Command.source` optional 含 `"mcp"`；`data.mcp` 是 record 非数组；agent 需滤 `hidden` | 🟡 类型 | §3.1 表格逐条注明 |
+| #   | 问题                                                                                                 | 严重程度  | 修正                                                                                         |
+| --- | ---------------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------- |
+| 1   | 原计划无去重规则：M3 migration 不删 legacy 原文件，runtime 仍扫描 → 同 asset 双行                    | 🔴 阻断   | §3.2 新增 kind+name 去重，project 优先（对齐服务端遮蔽先例）                                 |
+| 2   | `command`/`mcp` 数据需 `{ mcp: true }` 门控加载，原计划直接读会恒空                                  | 🔴 阻断   | §3.1 门控说明；home/mode-surfaces 改 `child(dir, { mcp: true })`                             |
+| 3   | 红测试引用不存在的 `buildWithOrigin`；`mergeAssets` 签名两处不一致                                   | 🟡 TDD    | §5 全部改为真实接口（`buildRows` 扩展 + `systemAssets`/`mergeAssets`/`systemCountFor`）      |
+| 4   | 「系统行 `data-invalid`」语义错误：会触发错误排序与红色错误徽标                                      | 🟡 正确性 | 系统行用 `origin` 判定，不碰 `invalid`；验收标准同步修正                                     |
+| 5   | 📦/📁 emoji 徽标违反 DESIGN.md Icon System（v2 内联 SVG 字典，无 emoji）                             | 🟡 设计   | 改为 kind badge 同款文本 chip + i18n `asset.origin.*`（en/zh，沿用 promptAsset.\* 债务约定） |
+| 6   | 类型细节缺失：`Command.source` optional 含 `"mcp"`；`data.mcp` 是 record 非数组；agent 需滤 `hidden` | 🟡 类型   | §3.1 表格逐条注明                                                                            |

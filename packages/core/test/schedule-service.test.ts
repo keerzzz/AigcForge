@@ -15,10 +15,7 @@ import { testEffect } from "./lib/effect"
 const sessionID = SessionV2.ID.make("ses_schedule_service_test")
 
 const it = testEffect(
-  ScheduleService.layer.pipe(
-    Layer.provideMerge(Database.defaultLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-  ),
+  ScheduleService.layer.pipe(Layer.provideMerge(Database.defaultLayer), Layer.provideMerge(EventV2.defaultLayer)),
 )
 
 const deliveryIt = testEffect(
@@ -276,7 +273,7 @@ describe("AssistantSchedulerDaemon", () => {
         yield* TestClock.adjust(Duration.minutes(1))
         yield* Effect.yieldNow
       }
-      expect((yield* deliveries.listInbox(sessionID))).toHaveLength(1)
+      expect(yield* deliveries.listInbox(sessionID)).toHaveLength(1)
     }),
   )
 })
@@ -326,7 +323,9 @@ describe("AssistantSchedulerDaemon (restart recovery)", () => {
       yield* setup
       const schedules = yield* ScheduleService.Service
       const deliveries = yield* ScheduleService.DeliveryService
-      const created = yield* schedules.create(makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:crashed:1" }))
+      const created = yield* schedules.create(
+        makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:crashed:1" }),
+      )
       // Simulate a crash mid-delivery: the row is running (stale claim).
       yield* schedules.claim(created.id, "dead-scheduler", Date.now() - 3600_000)
 
@@ -345,7 +344,9 @@ describe("AssistantSchedulerDaemon (restart recovery)", () => {
       yield* setup
       const schedules = yield* ScheduleService.Service
       const deliveries = yield* ScheduleService.DeliveryService
-      const created = yield* schedules.create(makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:cancelled:1" }))
+      const created = yield* schedules.create(
+        makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:cancelled:1" }),
+      )
       yield* schedules.cancel(created.id)
 
       const { core } = yield* restart

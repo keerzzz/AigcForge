@@ -8,26 +8,9 @@ const MAX_VALUE_LENGTH = 200
 
 // Correction signals: Chinese and English. The strong set also enables the L3
 // raw-text fallback; the weak signal "no" only enables structured extraction.
-const SIGNAL_PATTERNS: RegExp[] = [
-  /不对/,
-  /错了/,
-  /应该是/,
-  /\bno\b/,
-  /\bwrong\b/,
-  /\bshould be\b/,
-  /不是/,
-  /\bnot\b/,
-]
+const SIGNAL_PATTERNS: RegExp[] = [/不对/, /错了/, /应该是/, /\bno\b/, /\bwrong\b/, /\bshould be\b/, /不是/, /\bnot\b/]
 
-const STRONG_SIGNAL_PATTERNS: RegExp[] = [
-  /不对/,
-  /错了/,
-  /应该是/,
-  /\bwrong\b/,
-  /\bshould be\b/,
-  /不是/,
-  /\bnot\b/,
-]
+const STRONG_SIGNAL_PATTERNS: RegExp[] = [/不对/, /错了/, /应该是/, /\bwrong\b/, /\bshould be\b/, /不是/, /\bnot\b/]
 
 // Words to strip from each side before entity extraction so signal words do
 // not shadow the actual corrected entity.
@@ -62,10 +45,9 @@ const SENSITIVE_PATTERNS: RegExp[] = [
 
 const hasSensitiveContent = (text: string) => SENSITIVE_PATTERNS.some((pattern) => pattern.test(text))
 
-export class ExtractionError extends Schema.TaggedErrorClass<ExtractionError>()(
-  "CorrectionExtractor.ExtractionError",
-  { reason: Schema.String },
-) {
+export class ExtractionError extends Schema.TaggedErrorClass<ExtractionError>()("CorrectionExtractor.ExtractionError", {
+  reason: Schema.String,
+}) {
   override get message() {
     return `Correction extraction failed: ${this.reason}`
   }
@@ -124,7 +106,15 @@ export const extractCorrections = (text: string): ReadonlyArray<CorrectionStore.
   if (!hasSignal) return []
   const pair = extractPair(text)
   if (pair !== undefined)
-    return [{ key: `user:${pair.correct}`, correct: pair.correct, wrong: pair.wrong, source: "user-correction", extractLayer: 2 }]
+    return [
+      {
+        key: `user:${pair.correct}`,
+        correct: pair.correct,
+        wrong: pair.wrong,
+        source: "user-correction",
+        extractLayer: 2,
+      },
+    ]
   if (!STRONG_SIGNAL_PATTERNS.some((pattern) => pattern.test(text))) return []
   const trimmed = text.trim()
   if (trimmed.length > MAX_VALUE_LENGTH) return []

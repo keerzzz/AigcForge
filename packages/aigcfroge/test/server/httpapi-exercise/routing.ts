@@ -1,5 +1,5 @@
 import { Duration } from "effect"
-import { OpenApiMethods, type OpenApiSpec, type Options, type Result, type Scenario } from "./types"
+import { OpenApiMethods, type OpenApiSpec, type Options, type Scenario } from "./types"
 
 type ScenarioTimeout = `${number} ${Duration.Unit}`
 
@@ -32,11 +32,6 @@ export function routeKeys(spec: OpenApiSpec) {
 
 export function routeKey(scenario: Scenario) {
   return `${scenario.method} ${scenario.path}`
-}
-
-export function coverageResult(scenario: Scenario): Result {
-  if (scenario.kind === "todo") return { status: "skip", scenario }
-  return { status: "pass", scenario }
 }
 
 export function parseOptions(args: string[]): Options {

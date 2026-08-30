@@ -5,6 +5,8 @@ import { fixture } from "./session-timeline-stress.fixture"
 import { installStressSessionTabs, mockStressTimeline, stressSessionHref } from "./timeline-test-helpers"
 import { measureSessionSwitch, waitForStableTimeline } from "./session-tab-switch-probe"
 
+const messages: Record<string, (typeof fixture.messages)[keyof typeof fixture.messages]> = fixture.messages
+
 type Result = Awaited<ReturnType<typeof measureSessionSwitch>>
 
 benchmark("benchmarks cold and hot session tab switching", async ({ browser, report }, testInfo) => {
@@ -34,8 +36,8 @@ async function trial(page: Page, mode: "cold" | "hot") {
   }
   await waitForStableTimeline(page, fixture.expected.sourceMessageIDs.at(-1)!)
 
-  const destinationIDs = fixture.messages[fixture.targetID].map((message) => message.info.id)
-  const sourceIDs = fixture.messages[fixture.sourceID].map((message) => message.info.id)
+  const destinationIDs = messages[fixture.targetID].map((message) => message.info.id)
+  const sourceIDs = messages[fixture.sourceID].map((message) => message.info.id)
   const lastID = fixture.expected.targetMessageIDs.at(-1)!
   const href = stressSessionHref(fixture.targetID)
   const result = await measureSessionSwitch(page, {

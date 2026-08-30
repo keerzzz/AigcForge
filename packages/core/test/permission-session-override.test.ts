@@ -138,7 +138,13 @@ describe("SessionPermissionOverride", () => {
       yield* Effect.gen(function* () {
         const fresh = yield* SessionPermissionOverride.Service
         expect(yield* fresh.get(created.id)).toBe(false)
-      }).pipe(Effect.provide(Layer.fresh(Layer.mergeAll(SessionPermissionOverride.layer, EventV2.defaultLayer, SessionStore.defaultLayer, projects))))
+      }).pipe(
+        Effect.provide(
+          Layer.fresh(
+            Layer.mergeAll(SessionPermissionOverride.layer, EventV2.defaultLayer, SessionStore.defaultLayer, projects),
+          ),
+        ),
+      )
     }),
   )
 

@@ -13,7 +13,20 @@ import { MetaProvider } from "@solidjs/meta"
 import { type BaseRouterProps, Navigate, Route, Router, useParams, useSearchParams } from "@solidjs/router"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { Effect } from "effect"
-import { type Component, createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, type JSX, lazy, onCleanup, type ParentProps, Show } from "solid-js"
+import {
+  type Component,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  ErrorBoundary,
+  For,
+  type JSX,
+  lazy,
+  onCleanup,
+  type ParentProps,
+  Show,
+} from "solid-js"
 import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
@@ -86,7 +99,6 @@ function LegacySessionRedirect() {
   return
 }
 
-
 const TargetSessionRoute = () => {
   const params = useParams<{ serverKey: string; id: string }>()
   const server = useServer()
@@ -147,20 +159,20 @@ function ResolvedTargetSessionRoute() {
     if (isMode(sessionMode)) mode.setCurrentMode(sessionMode)
   })
 
-	return (
-	  <TargetServerScopedProviders directory={directory} sessionID={() => params.id}>
-	    <Show when={!resolved.error} fallback={<ErrorPage error={resolved.error} />}>
-	      <Show when={directory()}>
-	        <SDKProvider directory={targetDirectory}>
-	          <DirectoryDataProvider directory={targetDirectory} server={serverKey}>
-	            <ApprovalCenter />
-	            <TargetSessionPage />
-	          </DirectoryDataProvider>
-	        </SDKProvider>
-	      </Show>
-	    </Show>
-	  </TargetServerScopedProviders>
-	)
+  return (
+    <TargetServerScopedProviders directory={directory} sessionID={() => params.id}>
+      <Show when={!resolved.error} fallback={<ErrorPage error={resolved.error} />}>
+        <Show when={directory()}>
+          <SDKProvider directory={targetDirectory}>
+            <DirectoryDataProvider directory={targetDirectory} server={serverKey}>
+              <ApprovalCenter />
+              <TargetSessionPage />
+            </DirectoryDataProvider>
+          </SDKProvider>
+        </Show>
+      </Show>
+    </TargetServerScopedProviders>
+  )
 }
 
 function TargetSessionPage() {
@@ -187,7 +199,6 @@ function SelectedServerProviders(props: ParentProps) {
     </ServerKey>
   )
 }
-
 
 function DraftRoute() {
   const [search] = useSearchParams<{ draftId?: string }>()
@@ -263,7 +274,6 @@ function QueryProvider(props: ParentProps) {
 }
 
 function BodyDesignClass() {
-
   createEffect(() => {
     if (typeof document === "undefined") return
     document.body.classList.add("font-(family-name:--font-family-text)")
@@ -304,7 +314,6 @@ function ServerScopedProviders(props: ServerScopedShellProps) {
     </PermissionProvider>
   )
 }
-
 
 function AppLayout(props: ParentProps) {
   return (
@@ -528,34 +537,33 @@ export function AppInterface(props: {
       defaultServer={props.defaultServer}
       canonicalLocalServer={props.canonicalLocalServer}
       servers={props.servers}
-	    >
-	      <GlobalProvider>
-	        <SettingsProvider>
-			<ConnectionGate disableHealthCheck={props.disableHealthCheck}>
-			  <ChatWorkspaceProvider>
-			  <Dynamic
-				component={props.router ?? Router}
-				root={(routerProps) => (
-				  <>
-				  <DirtyDraftGuard />
-				  <TabsProvider>
-					<ServerShell>
-					  <AppLayout>{routerProps.children}</AppLayout>
-					</ServerShell>
-				  </TabsProvider>
-				  </>
-				)}
-			  >
-				<Routes />
-			  </Dynamic>
-			  </ChatWorkspaceProvider>
-			</ConnectionGate>
-	        </SettingsProvider>
-	      </GlobalProvider>
-	    </ServerProvider>
-	  )
-	}
-
+    >
+      <GlobalProvider>
+        <SettingsProvider>
+          <ConnectionGate disableHealthCheck={props.disableHealthCheck}>
+            <ChatWorkspaceProvider>
+              <Dynamic
+                component={props.router ?? Router}
+                root={(routerProps) => (
+                  <>
+                    <DirtyDraftGuard />
+                    <TabsProvider>
+                      <ServerShell>
+                        <AppLayout>{routerProps.children}</AppLayout>
+                      </ServerShell>
+                    </TabsProvider>
+                  </>
+                )}
+              >
+                <Routes />
+              </Dynamic>
+            </ChatWorkspaceProvider>
+          </ConnectionGate>
+        </SettingsProvider>
+      </GlobalProvider>
+    </ServerProvider>
+  )
+}
 
 export function ModeRoute() {
   const params = useParams<{ mode: string }>()
@@ -570,19 +578,23 @@ export function ModeRoute() {
     if (current) mode.setCurrentMode(current)
   })
 
-  return <Show when={selected()} fallback={<Navigate href="/" />}><ModeWorkspace /></Show>
+  return (
+    <Show when={selected()} fallback={<Navigate href="/" />}>
+      <ModeWorkspace />
+    </Show>
+  )
 }
 
 // ADR-16: / renders the global home overview page (no redirect); /mode/:mode
 // stays the authoritative mode home route.
 function Routes() {
-	return (
-		<>
-			<Route path="/" component={HomeOverview} />
-			<Route path="/mode/:mode" component={ModeRoute} />
-			<Route path="/new-session" component={DraftRoute} />
-			<Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
-			<Route path="/:dir/session/:id?" component={LegacySessionRedirect} />
-		</>
-	)
+  return (
+    <>
+      <Route path="/" component={HomeOverview} />
+      <Route path="/mode/:mode" component={ModeRoute} />
+      <Route path="/new-session" component={DraftRoute} />
+      <Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
+      <Route path="/:dir/session/:id?" component={LegacySessionRedirect} />
+    </>
+  )
 }

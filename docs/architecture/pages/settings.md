@@ -50,9 +50,9 @@ interface Settings {
   }
   appearance: {
     fontSize: number
-    mono: string           // 等宽字体
-    sans: string           // UI 字体
-    terminal: string       // 终端字体
+    mono: string // 等宽字体
+    sans: string // UI 字体
+    terminal: string // 终端字体
   }
   keybinds: Record<string, string>
   permissions: {
@@ -157,36 +157,36 @@ settings.keybinds: Record<string, string>
 
 ## 8. 持久化
 
-| 要素 | 说明 |
-|------|------|
-| Key | "settings.v3" |
-| 存储 | localStorage (同步) + 工作区文件 (异步) |
-| 格式 | JSON, Schema 版本化 |
+| 要素   | 说明                                     |
+| ------ | ---------------------------------------- |
+| Key    | "settings.v3"                            |
+| 存储   | localStorage (同步) + 工作区文件 (异步)  |
+| 格式   | JSON, Schema 版本化                      |
 | 默认值 | withFallback + utils/settings-default.ts |
 
 ---
 
 ## 9. 错误边界
 
-| 场景 | 处理 |
-|------|------|
-| Store 读取失败 | withFallback 回退默认值 |
+| 场景                | 处理                       |
+| ------------------- | -------------------------- |
+| Store 读取失败      | withFallback 回退默认值    |
 | localStorage 不可用 | persisted() 内部 try/catch |
-| 无效设置值 | Schema decode + fallback |
+| 无效设置值          | Schema decode + fallback   |
 
 ---
 
 ## 10. 上下游文件索引
 
-| 层级 | 文件 |
-|------|------|
-| Provider 实现 | context/settings.tsx |
-| 持久化 | utils/persist.ts |
-| V2 UI 入口 | components/settings-v2/dialog-settings-v2.tsx |
-| V2 General | components/settings-v2/general.tsx |
-| V2 Keybinds | components/settings-keybinds.tsx |
-| V2 Servers | components/settings-v2/servers.tsx |
-| V2 Providers | components/settings-v2/providers.tsx |
-| V2 Models | components/settings-v2/models.tsx |
-| SettingsRowV2 | components/settings-v2/parts/row.tsx |
-| i18n | i18n/en.ts (settings 小节) |
+| 层级          | 文件                                          |
+| ------------- | --------------------------------------------- |
+| Provider 实现 | context/settings.tsx                          |
+| 持久化        | utils/persist.ts                              |
+| V2 UI 入口    | components/settings-v2/dialog-settings-v2.tsx |
+| V2 General    | components/settings-v2/general.tsx            |
+| V2 Keybinds   | components/settings-keybinds.tsx              |
+| V2 Servers    | components/settings-v2/servers.tsx            |
+| V2 Providers  | components/settings-v2/providers.tsx          |
+| V2 Models     | components/settings-v2/models.tsx             |
+| SettingsRowV2 | components/settings-v2/parts/row.tsx          |
+| i18n          | i18n/en.ts (settings 小节)                    |

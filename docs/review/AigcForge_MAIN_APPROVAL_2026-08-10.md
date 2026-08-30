@@ -8,16 +8,16 @@
 
 ## 一、门禁与验证记录
 
-| 门禁 | 结果 |
-|---|---|
-| 增量 lint（`LINT_BASE_REF=d896ae0e bun run script/lint-changed.ts`） | 退出码 0，221 文件 / 22,888 新增行，无新违规 |
-| typecheck（core / app `tsgo -b` / aigcfroge / ui） | 全绿 |
-| `git diff --check d896ae0e..main` | **失败**：398 处 trailing whitespace，全部在 `docs/research/{agent,industry}/` 3 篇调研 Markdown，无源码涉及 |
-| app 测试 | 735 + 3 pass / 0 fail |
-| aigcfroge `test/session/prompt.test.ts`（含标题重试 3 用例） | 57 pass / 0 fail |
-| core memory/doom/task/外部 CLI 聚焦测试（各复审组实跑） | 27 + 106 + 92 pass / 0 fail |
-| session-ui / tui / desktop 聚焦测试 | 107 / 7 / 14 pass / 0 fail |
-| core `cli-sdk-live-smoke` 2 skip | 环境门控（`AIGCFROGE_LIVE_CLI_SMOKE` 未开启），opt-in 设计，非失败 |
+| 门禁                                                                 | 结果                                                                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 增量 lint（`LINT_BASE_REF=d896ae0e bun run script/lint-changed.ts`） | 退出码 0，221 文件 / 22,888 新增行，无新违规                                                                 |
+| typecheck（core / app `tsgo -b` / aigcfroge / ui）                   | 全绿                                                                                                         |
+| `git diff --check d896ae0e..main`                                    | **失败**：398 处 trailing whitespace，全部在 `docs/research/{agent,industry}/` 3 篇调研 Markdown，无源码涉及 |
+| app 测试                                                             | 735 + 3 pass / 0 fail                                                                                        |
+| aigcfroge `test/session/prompt.test.ts`（含标题重试 3 用例）         | 57 pass / 0 fail                                                                                             |
+| core memory/doom/task/外部 CLI 聚焦测试（各复审组实跑）              | 27 + 106 + 92 pass / 0 fail                                                                                  |
+| session-ui / tui / desktop 聚焦测试                                  | 107 / 7 / 14 pass / 0 fail                                                                                   |
+| core `cli-sdk-live-smoke` 2 skip                                     | 环境门控（`AIGCFROGE_LIVE_CLI_SMOKE` 未开启），opt-in 设计，非失败                                           |
 
 ## 二、上轮阻断项复核
 

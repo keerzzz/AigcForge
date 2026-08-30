@@ -148,7 +148,9 @@ describe("custom-draft store", () => {
         agentID: "reviewer",
         instructions: [],
         prompts: [{ relativePath: "code-review.md", revision: Revision.make("c".repeat(64)), content: "" }],
-        skills: [{ name: "git-diff", description: "", relativePath: "git-diff", revision: Revision.make("d".repeat(64)) }],
+        skills: [
+          { name: "git-diff", description: "", relativePath: "git-diff", revision: Revision.make("d".repeat(64)) },
+        ],
         tools: { fingerprints: [], catalogDigest: Digest.make("b".repeat(64)), catalog: [] },
       },
     }

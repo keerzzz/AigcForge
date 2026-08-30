@@ -191,6 +191,7 @@ bun --cwd packages/session-ui test src；bun --cwd packages/app test:unit；bun 
 【验收】claude/codex 走 ACP；权限问询双端弹窗一致；外部 CLI 工具调用进度实时可见；JSONL 可配置回退。
 【收尾】更新 ARCHITECTURE.md §4 子系统表、docs/roadmap/external-cli-dispatch-roadmap.md 状态；复议 meta_agent_step 是否暴露 HTTP/UI（彼时给结论）。
 ```
+
 ---
 
 ## M1 审批结果（2026-08-06，通过）与后续里程碑补丁
@@ -210,6 +211,7 @@ M1 已验收通过，审批记录见 `docs/review/external-cli-dispatch-m1-revie
 - permission assert 的 metadata 含 {description, execution_type:"external-cli"}，resources=[cli_target]——M2 的 permission dock 渲染直接读 request.metadata。
 - 子 Session 消息经 SessionEvent.Prompted 投影写入（不触发 drain）。
 ```
+
 ---
 
 ## M2 审批结果（2026-08-06，通过）与 M3 补丁
@@ -227,6 +229,7 @@ M2 已验收通过，审批记录见 `docs/review/external-cli-dispatch-m2-revie
 - agent 列表条目带 source:"external-cli"（agent.ts:409 合成），@补全与卡片都消费它；M3 的配置定义 CLI 必须走同一合成路径出现在列表里。
 - ui.tool.cli i18n key 已存在（三语），M3 新增文案沿用同组命名。
 ```
+
 ---
 
 ## M3 审批结果（2026-08-06，通过，含审批方修复）与 M4 补丁
@@ -249,6 +252,7 @@ M3 已验收通过，审批记录见 `docs/review/external-cli-dispatch-m3-revie
 - meta prompt 动态化已闭环：MetaPromptFiller transform effectful 实时取名单 + 60s re-detect 触发 reload；M4 换 SDK 传输不影响该链路。
 - 解冻 2 技术债：config 热更靠 composer 重拉 + 60s re-detect 兜底，SSE 推送未做。
 ```
+
 ---
 
 ## M4 审批结果（2026-08-06，通过，含审批方修复）与 M5 补丁
@@ -271,6 +275,7 @@ M4 已验收通过，审批记录见 `docs/review/external-cli-dispatch-m4-revie
 - 依赖现状：@anthropic-ai/claude-agent-sdk@0.3.220、@openai/codex-sdk@0.146.0 在 packages/core；@agentclientprotocol/sdk@0.21.0 仓库已有。
 - 手动验收欠账（M5 前补）：真实 SDK it.live 冒烟（claude 2.1.220 / codex 0.146.0 本机已装）；M1–M3 手动项（tmux TUI 卡片、子会话双消息、配置新增 CLI 免重启）。
 ```
+
 ---
 
 ## M5 审批结果（2026-08-06，通过，含审批方修复）— 里程碑收官与后续项
@@ -291,6 +296,7 @@ M5 已验收通过，M1–M5 全部收官。审批记录见 `docs/review/externa
 ```
 
 【后续独立项（不属本计划，需各自立项）】
+
 1. 手动验收欠账：桥二进制 it.live 冒烟（装 claude-code-acp/codex-acp 后）；真实 SDK 冒烟（AIGCFROGE_LIVE_CLI_SMOKE=1，等 provider 配额）；M1–M3 TUI 三点（卡片四点/子会话双消息/配置免重启）。
 2. 任务卡片外部 CLI 实时进度 UI（onProgress 三段接线 + 展开视图渲染，视觉方案先行）。
 3. meta_agent_step 暴露决策（P2：补全 HTTP+AgentTaskHub 消费，或删表）。

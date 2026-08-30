@@ -3,8 +3,7 @@ import { nextRun } from "@aigcfroge/core/session/schedule"
 
 // Timestamps are built with local Date so the cron matching (which reads local
 // clock fields) is deterministic on any machine timezone.
-const at = (y: number, mo: number, d: number, h: number, mi: number) =>
-  new Date(y, mo - 1, d, h, mi, 0, 0).getTime()
+const at = (y: number, mo: number, d: number, h: number, mi: number) => new Date(y, mo - 1, d, h, mi, 0, 0).getTime()
 
 describe("nextRun", () => {
   test("every minute returns the next minute boundary", () => {

@@ -238,7 +238,10 @@ links pointing at it become dangling.`,
             Effect.gen(function* () {
               const prior = yield* kb.get(input.id)
               if (!prior) return { id: input.id, deleted: false }
-              yield* kb.remove({ id: prior.id, baseDir: prior.scope === "global" ? Global.Path.config : location.directory })
+              yield* kb.remove({
+                id: prior.id,
+                baseDir: prior.scope === "global" ? Global.Path.config : location.directory,
+              })
               return { id: input.id, deleted: true }
             }).pipe(
               Effect.catchCause((cause) =>
@@ -256,9 +259,7 @@ links pointing at it become dangling.`,
       description: `List dangling wikilinks: [[titles]] that reference notes which do not exist yet.`,
       input: Schema.Struct({}),
       output: Schema.Struct({
-        dangling: Schema.Array(
-          Schema.Struct({ sourceTitle: Schema.String, targetTitle: Schema.String }),
-        ),
+        dangling: Schema.Array(Schema.Struct({ sourceTitle: Schema.String, targetTitle: Schema.String })),
       }),
       execute: (_input, context) =>
         assertTool(kbListDanglingName, context).pipe(

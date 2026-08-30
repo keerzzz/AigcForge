@@ -76,7 +76,10 @@ export function WorkSecondarySidebar(props: {
         </div>
       </Show>
       <TabsV2 value={tab()} onChange={switchTab}>
-        <TabsV2.List class="shrink-0 gap-0 border-b border-v2-border-border-base px-2 pt-1" aria-label={language.t("work.sidebar.tab.trade")}>
+        <TabsV2.List
+          class="shrink-0 gap-0 border-b border-v2-border-border-base px-2 pt-1"
+          aria-label={language.t("work.sidebar.tab.trade")}
+        >
           <TabsV2.Trigger value="trade">
             <span>{language.t("work.sidebar.tab.trade")}</span>
             <span class="min-w-[2ch] text-v2-text-text-faint text-11-regular">{sessions().length}</span>

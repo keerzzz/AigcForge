@@ -82,7 +82,11 @@ const createRealCustom = Effect.fnUntraced(function* (directory: string, asset: 
   return yield* Schema.decodeUnknownEffect(CustomCreateResponse)(yield* response.json)
 })
 
-const assertSnapshotCopied = Effect.fnUntraced(function* (parentID: Session.Info["id"], childID: Session.Info["id"], digest: string) {
+const assertSnapshotCopied = Effect.fnUntraced(function* (
+  parentID: Session.Info["id"],
+  childID: Session.Info["id"],
+  digest: string,
+) {
   const { db } = yield* Database.Service
   const snapshots = yield* db
     .select({ sessionID: SessionCompositionSnapshotTable.session_id })

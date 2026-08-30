@@ -58,8 +58,10 @@ export const Flag = {
     return enabledByExperimental("AIGCFROGE_EXPERIMENTAL_REFERENCES")
   },
   get AIGCFROGE_EXPERIMENTAL_CHAT_ASSET() {
-    if (process.env["AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"] !== undefined) return truthy("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET")
-    if (process.env["AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET"] !== undefined) return truthy("AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET")
+    if (process.env["AIGCFROGE_EXPERIMENTAL_CHAT_ASSET"] !== undefined)
+      return truthy("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET")
+    if (process.env["AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET"] !== undefined)
+      return truthy("AIGCFROGE_EXPERIMENTAL_CHAT_PROMPT_ASSET")
     return true
   },
   get AIGCFROGE_TUI_CONFIG() {

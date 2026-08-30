@@ -20,7 +20,7 @@ describe("taskCardModel", () => {
     const model = taskCardModel(
       { description: "Run the build", subagent_type: "build" },
       { sessionId: "ses_cli_1", cli: "claude-code", execution_type: "external-cli", status: "success" },
-      "<task id=\"ses_cli_1\" state=\"completed\"><summary>CLI task summary</summary><task_result>\nDone the work\n</task_result></task>",
+      '<task id="ses_cli_1" state="completed"><summary>CLI task summary</summary><task_result>\nDone the work\n</task_result></task>',
     )
     expect(model.isExternalCli).toBe(true)
     expect(model.title).toBe("claude-code")
@@ -62,7 +62,11 @@ describe("taskCardModel", () => {
   })
 
   test("maps a failed CLI status to failed", () => {
-    const model = taskCardModel({}, { execution_type: "external-cli", status: "failed" }, "<task_error>boom</task_error>")
+    const model = taskCardModel(
+      {},
+      { execution_type: "external-cli", status: "failed" },
+      "<task_error>boom</task_error>",
+    )
     expect(model.status).toBe("failed")
   })
 
@@ -91,7 +95,7 @@ describe("taskCardModel", () => {
     const model = taskCardModel(
       {},
       { execution_type: "external-cli", status: "failed" },
-      "<task id=\"x\" state=\"error\"><task_error>\nCLI blew up\n</task_error></task>",
+      '<task id="x" state="error"><task_error>\nCLI blew up\n</task_error></task>',
     )
     expect(model.summary).toBe("CLI blew up")
   })

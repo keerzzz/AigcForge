@@ -93,7 +93,9 @@ const extractFiles = (toolName: string, toolInput: unknown): ReadonlyArray<strin
   const command = toolInput.command
   if (typeof command !== "string") return []
   const files: string[] = []
-  for (const match of command.matchAll(/(?:\.{1,2}\/)?[\w@/.-]+\.(?:md|ts|tsx|js|jsx|json|css|html|py|rs|go|sh|yml|yaml|toml)\b/g)) {
+  for (const match of command.matchAll(
+    /(?:\.{1,2}\/)?[\w@/.-]+\.(?:md|ts|tsx|js|jsx|json|css|html|py|rs|go|sh|yml|yaml|toml)\b/g,
+  )) {
     files.push(match[0])
   }
   return files
@@ -153,9 +155,7 @@ export const layer = Layer.effect(
         }
       }
       if (dangling.length === 0) return ""
-      const lines = dangling.map(
-        (item) => `- ${item.reference}（${item.file} 中引用）`,
-      )
+      const lines = dangling.map((item) => `- ${item.reference}（${item.file} 中引用）`)
       const details = lines.join("\n")
       for (const item of dangling) {
         yield* correctionStore.record({

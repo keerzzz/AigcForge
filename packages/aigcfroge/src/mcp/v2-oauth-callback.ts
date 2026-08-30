@@ -20,7 +20,11 @@ function htmlError(error: string) {
 <body><div class="container"><h1>Authorization Failed</h1><div class="error">${error.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] || c)}</div></div></body></html>`
 }
 
-interface PendingAuth { resolve: (code: string) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }
+interface PendingAuth {
+  resolve: (code: string) => void
+  reject: (error: Error) => void
+  timeout: ReturnType<typeof setTimeout>
+}
 
 let server: ReturnType<typeof createServer> | undefined
 const pendingAuths = new Map<string, PendingAuth>()
@@ -29,7 +33,10 @@ const CALLBACK_TIMEOUT_MS = 5 * 60 * 1000
 
 function cleanupStateIndex(oauthState: string) {
   for (const [name, state] of mcpNameToState) {
-    if (state === oauthState) { mcpNameToState.delete(name); break }
+    if (state === oauthState) {
+      mcpNameToState.delete(name)
+      break
+    }
   }
 }
 
@@ -41,7 +48,11 @@ function stopIfIdle() {
 
 function handleRequest(req: IncomingMessage, res: ServerResponse) {
   const url = new URL(req.url || "/", `http://localhost:${currentPort}`)
-  if (url.pathname !== currentPath) { res.writeHead(404); res.end("Not found"); return }
+  if (url.pathname !== currentPath) {
+    res.writeHead(404)
+    res.end("Not found")
+    return
+  }
 
   const code = url.searchParams.get("code")
   const state = url.searchParams.get("state")
@@ -50,27 +61,43 @@ function handleRequest(req: IncomingMessage, res: ServerResponse) {
 
   if (!state) {
     res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" })
-    res.end(htmlError("Missing required state parameter - potential CSRF attack")); return
+    res.end(htmlError("Missing required state parameter - potential CSRF attack"))
+    return
   }
 
   if (error) {
     const msg = errorDescription || error
-    if (pendingAuths.has(state)) { clearTimeout(pendingAuths.get(state)!.timeout); pendingAuths.delete(state); cleanupStateIndex(state); pendingAuths.get(state)?.reject(new Error(msg)) }
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); res.end(htmlError(msg)); stopIfIdle(); return
+    if (pendingAuths.has(state)) {
+      clearTimeout(pendingAuths.get(state)!.timeout)
+      pendingAuths.delete(state)
+      cleanupStateIndex(state)
+      pendingAuths.get(state)?.reject(new Error(msg))
+    }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
+    res.end(htmlError(msg))
+    stopIfIdle()
+    return
   }
 
   if (!code) {
-    res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" }); res.end(htmlError("No authorization code provided")); return
+    res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" })
+    res.end(htmlError("No authorization code provided"))
+    return
   }
 
   if (!pendingAuths.has(state)) {
-    res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" }); res.end(htmlError("Invalid or expired state parameter")); return
+    res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" })
+    res.end(htmlError("Invalid or expired state parameter"))
+    return
   }
 
   const pending = pendingAuths.get(state)!
-  clearTimeout(pending.timeout); pendingAuths.delete(state); cleanupStateIndex(state)
+  clearTimeout(pending.timeout)
+  pendingAuths.delete(state)
+  cleanupStateIndex(state)
   pending.resolve(code)
-  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); res.end(HTML_SUCCESS)
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
+  res.end(HTML_SUCCESS)
   stopIfIdle()
 }
 
@@ -80,7 +107,8 @@ export async function ensureRunning(redirectUri?: string): Promise<void> {
   if (server) return
   const running = await isPortInUse(port)
   if (running) return
-  currentPort = port; currentPath = path
+  currentPort = port
+  currentPath = path
   server = createServer(handleRequest)
   await new Promise<void>((resolve, reject) => {
     server!.listen(currentPort, OAUTH_CALLBACK_HOST, () => resolve())
@@ -92,7 +120,12 @@ export function waitForCallback(oauthState: string, mcpName?: string): Promise<s
   if (mcpName) mcpNameToState.set(mcpName, oauthState)
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      if (pendingAuths.has(oauthState)) { pendingAuths.delete(oauthState); if (mcpName) mcpNameToState.delete(mcpName); reject(new Error("OAuth callback timeout")); stopIfIdle() }
+      if (pendingAuths.has(oauthState)) {
+        pendingAuths.delete(oauthState)
+        if (mcpName) mcpNameToState.delete(mcpName)
+        reject(new Error("OAuth callback timeout"))
+        stopIfIdle()
+      }
     }, CALLBACK_TIMEOUT_MS)
     pendingAuths.set(oauthState, { resolve, reject, timeout })
   })
@@ -102,13 +135,22 @@ export function cancelPending(mcpName: string): void {
   const oauthState = mcpNameToState.get(mcpName)
   const key = oauthState ?? mcpName
   const pending = pendingAuths.get(key)
-  if (pending) { clearTimeout(pending.timeout); pendingAuths.delete(key); mcpNameToState.delete(mcpName); pending.reject(new Error("Authorization cancelled")); stopIfIdle() }
+  if (pending) {
+    clearTimeout(pending.timeout)
+    pendingAuths.delete(key)
+    mcpNameToState.delete(mcpName)
+    pending.reject(new Error("Authorization cancelled"))
+    stopIfIdle()
+  }
 }
 
 export async function isPortInUse(port: number = OAUTH_CALLBACK_PORT): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = createConnection(port, "127.0.0.1")
-    socket.on("connect", () => { socket.destroy(); resolve(true) })
+    socket.on("connect", () => {
+      socket.destroy()
+      resolve(true)
+    })
     socket.on("error", () => resolve(false))
   })
 }
@@ -116,8 +158,14 @@ export async function isPortInUse(port: number = OAUTH_CALLBACK_PORT): Promise<b
 export async function stop(): Promise<void> {
   if (server) await new Promise<void>((resolve) => server!.close(() => resolve()))
   server = undefined
-  for (const [, pending] of pendingAuths) { clearTimeout(pending.timeout); pending.reject(new Error("OAuth callback server stopped")) }
-  pendingAuths.clear(); mcpNameToState.clear()
+  for (const [, pending] of pendingAuths) {
+    clearTimeout(pending.timeout)
+    pending.reject(new Error("OAuth callback server stopped"))
+  }
+  pendingAuths.clear()
+  mcpNameToState.clear()
 }
 
-export function isRunning(): boolean { return server !== undefined }
+export function isRunning(): boolean {
+  return server !== undefined
+}

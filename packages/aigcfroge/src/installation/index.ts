@@ -217,75 +217,77 @@ export const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProce
 
         return "unknown" as Method
       }),
-      latest: Effect.fn("Installation.latest")(function* (installMethod?: Method) {
-        const detectedMethod = installMethod || (yield* result.method())
+      latest: Effect.fn("Installation.latest")(
+        function* (installMethod?: Method) {
+          const detectedMethod = installMethod || (yield* result.method())
 
-        if (detectedMethod === "brew") {
-          const formula = yield* getBrewFormula()
-          if (formula.includes("/")) {
-            const infoJson = yield* text(["brew", "info", "--json=v2", formula])
-            const info = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(BrewInfoV2))(infoJson)
-            return info.formulae[0].versions.stable
+          if (detectedMethod === "brew") {
+            const formula = yield* getBrewFormula()
+            if (formula.includes("/")) {
+              const infoJson = yield* text(["brew", "info", "--json=v2", formula])
+              const info = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(BrewInfoV2))(infoJson)
+              return info.formulae[0].versions.stable
+            }
+            const response = yield* httpOk.execute(
+              HttpClientRequest.get("https://formulae.brew.sh/api/formula/aigcfroge.json").pipe(
+                HttpClientRequest.acceptJson,
+              ),
+            )
+            const data = yield* HttpClientResponse.schemaBodyJson(BrewFormula)(response)
+            return data.versions.stable
           }
+
+          if (detectedMethod === "npm" || detectedMethod === "bun" || detectedMethod === "pnpm") {
+            const response = yield* httpOk.execute(
+              HttpClientRequest.get(
+                `${yield* NpmConfig.registry(process.cwd())}/aigcfroge/${InstallationChannel}`,
+              ).pipe(HttpClientRequest.acceptJson),
+            )
+            const data = yield* HttpClientResponse.schemaBodyJson(NpmPackage)(response)
+            return data.version
+          }
+
+          if (detectedMethod === "choco") {
+            const response = yield* httpOk.execute(
+              HttpClientRequest.get(
+                "https://community.chocolatey.org/api/v2/Packages?$filter=Id%20eq%20%27aigcfroge%27%20and%20IsLatestVersion&$select=Version",
+              ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json;odata=verbose" })),
+            )
+            const data = yield* HttpClientResponse.schemaBodyJson(ChocoPackage)(response)
+            return data.d.results[0].Version
+          }
+
+          if (detectedMethod === "scoop") {
+            const response = yield* httpOk.execute(
+              HttpClientRequest.get(
+                "https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/aigcfroge.json",
+              ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json" })),
+            )
+            const data = yield* HttpClientResponse.schemaBodyJson(ScoopManifest)(response)
+            return data.version
+          }
+
           const response = yield* httpOk.execute(
-            HttpClientRequest.get("https://formulae.brew.sh/api/formula/aigcfroge.json").pipe(
+            HttpClientRequest.get("https://api.github.com/repos/keerzzz/AigcForge/releases/latest").pipe(
               HttpClientRequest.acceptJson,
             ),
           )
-          const data = yield* HttpClientResponse.schemaBodyJson(BrewFormula)(response)
-          return data.versions.stable
-        }
-
-        if (detectedMethod === "npm" || detectedMethod === "bun" || detectedMethod === "pnpm") {
-          const response = yield* httpOk.execute(
-            HttpClientRequest.get(
-              `${yield* NpmConfig.registry(process.cwd())}/aigcfroge/${InstallationChannel}`,
-            ).pipe(HttpClientRequest.acceptJson),
-          )
-          const data = yield* HttpClientResponse.schemaBodyJson(NpmPackage)(response)
-          return data.version
-        }
-
-        if (detectedMethod === "choco") {
-          const response = yield* httpOk.execute(
-            HttpClientRequest.get(
-              "https://community.chocolatey.org/api/v2/Packages?$filter=Id%20eq%20%27aigcfroge%27%20and%20IsLatestVersion&$select=Version",
-            ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json;odata=verbose" })),
-          )
-          const data = yield* HttpClientResponse.schemaBodyJson(ChocoPackage)(response)
-          return data.d.results[0].Version
-        }
-
-        if (detectedMethod === "scoop") {
-          const response = yield* httpOk.execute(
-            HttpClientRequest.get(
-              "https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/aigcfroge.json",
-            ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json" })),
-          )
-          const data = yield* HttpClientResponse.schemaBodyJson(ScoopManifest)(response)
-          return data.version
-        }
-
-        const response = yield* httpOk.execute(
-          HttpClientRequest.get("https://api.github.com/repos/keerzzz/AigcForge/releases/latest").pipe(
-            HttpClientRequest.acceptJson,
+          const data = yield* HttpClientResponse.schemaBodyJson(GitHubRelease)(response)
+          return data.tag_name.replace(/^v/, "")
+        },
+        (effect) =>
+          effect.pipe(
+            // Domain (aigcfroge.ai) unregistered or formula not yet submitted to
+            // Homebrew/Scoop/npm registries will surface as 404/DNS errors here.
+            // Degrade to current version so `upgrade` reports "already installed"
+            // instead of crashing — non-blocking until infra is in place.
+            Effect.catchCause((cause) =>
+              Effect.gen(function* () {
+                yield* Effect.logWarning("failed to check latest version; defaulting to current", { cause })
+                return InstallationVersion
+              }),
+            ),
           ),
-        )
-        const data = yield* HttpClientResponse.schemaBodyJson(GitHubRelease)(response)
-        return data.tag_name.replace(/^v/, "")
-      }, (effect) =>
-        effect.pipe(
-          // Domain (aigcfroge.ai) unregistered or formula not yet submitted to
-          // Homebrew/Scoop/npm registries will surface as 404/DNS errors here.
-          // Degrade to current version so `upgrade` reports "already installed"
-          // instead of crashing — non-blocking until infra is in place.
-          Effect.catchCause((cause) =>
-            Effect.gen(function* () {
-              yield* Effect.logWarning("failed to check latest version; defaulting to current", { cause })
-              return InstallationVersion
-            }),
-          ),
-        ),
       ),
       upgrade: Effect.fn("Installation.upgrade")(function* (m: Method, target: string) {
         let upgradeResult: { code: number; stdout: string; stderr: string } | undefined

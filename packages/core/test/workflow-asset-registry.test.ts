@@ -11,10 +11,7 @@ import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 
 function locationLayer(dir: string) {
-  return Layer.succeed(
-    Location.Service,
-    Location.Service.of(location({ directory: AbsolutePath.make(dir) })),
-  )
+  return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
 }
 
 function fullLayer(dir: string) {
@@ -46,7 +43,7 @@ async function createWorkflow(dir: string, name: string, description: string) {
       "version: 1.0.0",
       "triggers: []",
       "steps:",
-      '  - id: s1',
+      "  - id: s1",
       '    name: "Step 1"',
       '    agent: "builtin"',
       "    input: {}",
@@ -63,10 +60,9 @@ describe("WorkflowAsset registry", () => {
   test("lists assets from empty directory", async () => {
     await withTmp(async (dir) => {
       const list = await runNow(
-        Effect.gen(function* () { return yield* (yield* WorkflowAsset.Service).list() }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* WorkflowAsset.Service).list()
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(list).toEqual([])
     })
@@ -76,10 +72,9 @@ describe("WorkflowAsset registry", () => {
     await withTmp(async (dir) => {
       await createWorkflow(dir, "code-review", "Automated code review")
       const list = await runNow(
-        Effect.gen(function* () { return yield* (yield* WorkflowAsset.Service).list() }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* WorkflowAsset.Service).list()
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(list.length).toBe(1)
       expect(list[0].kind).toBe("workflow")
@@ -96,10 +91,9 @@ describe("WorkflowAsset registry", () => {
       await createWorkflow(dir, "review", "Code review")
       await createWorkflow(dir, "deploy", "Deploy pipeline")
       const list = await runNow(
-        Effect.gen(function* () { return yield* (yield* WorkflowAsset.Service).list() }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* WorkflowAsset.Service).list()
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(list.length).toBe(2)
       const names = list.map((a) => a.name).toSorted()
@@ -111,10 +105,9 @@ describe("WorkflowAsset registry", () => {
     await withTmp(async (dir) => {
       await createWorkflow(dir, "my-workflow", "A workflow")
       const info = await runNow(
-        Effect.gen(function* () { return yield* (yield* WorkflowAsset.Service).getByPath("my-workflow.yaml") }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* WorkflowAsset.Service).getByPath("my-workflow.yaml")
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(info.name).toBe("my-workflow")
     })
@@ -135,10 +128,9 @@ describe("WorkflowAsset registry", () => {
     await withTmp(async (dir) => {
       await createWorkflow(dir, "find-me", "test")
       const info = await runNow(
-        Effect.gen(function* () { return yield* (yield* WorkflowAsset.Service).findByName("find-me") }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* WorkflowAsset.Service).findByName("find-me")
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(info).toBeDefined()
       expect(info!.name).toBe("find-me")
@@ -148,10 +140,9 @@ describe("WorkflowAsset registry", () => {
   test("reloads after adding a new workflow", async () => {
     await withTmp(async (dir) => {
       const reg = await runNow(
-        Effect.gen(function* () { return yield* WorkflowAsset.Service }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* WorkflowAsset.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect((await runNow(reg.list())).length).toBe(0)
       await createWorkflow(dir, "added-later", "new")
@@ -231,16 +222,14 @@ describe("WorkflowAsset registry", () => {
 
       const [listA, listB] = await Promise.all([
         runNow(
-          Effect.gen(function* () { return yield* (yield* WorkflowAsset.Service).list() }).pipe(
-            Effect.provide(fullLayer(dirA.path)),
-            Effect.scoped,
-          ),
+          Effect.gen(function* () {
+            return yield* (yield* WorkflowAsset.Service).list()
+          }).pipe(Effect.provide(fullLayer(dirA.path)), Effect.scoped),
         ),
         runNow(
-          Effect.gen(function* () { return yield* (yield* WorkflowAsset.Service).list() }).pipe(
-            Effect.provide(fullLayer(dirB.path)),
-            Effect.scoped,
-          ),
+          Effect.gen(function* () {
+            return yield* (yield* WorkflowAsset.Service).list()
+          }).pipe(Effect.provide(fullLayer(dirB.path)), Effect.scoped),
         ),
       ])
       expect(listA.length).toBe(1)
@@ -270,12 +259,14 @@ describe("WorkflowAsset registry", () => {
       ].join("\n")
       await fs.writeFile(path.join(workflowsDir, "hello.yaml"), validYaml)
       // .md file in workflows dir should be ignored (glob is **/*.yaml)
-      await fs.writeFile(path.join(workflowsDir, "hello.md"), "---\nkind: prompt\nname: hello\ndescription: p\n---\nbody")
+      await fs.writeFile(
+        path.join(workflowsDir, "hello.md"),
+        "---\nkind: prompt\nname: hello\ndescription: p\n---\nbody",
+      )
       const list = await runNow(
-        Effect.gen(function* () { return yield* (yield* WorkflowAsset.Service).list() }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* WorkflowAsset.Service).list()
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(list.length).toBe(1)
       expect(list[0].relativePath).toBe("hello.yaml")

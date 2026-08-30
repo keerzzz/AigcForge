@@ -443,9 +443,7 @@ test.describe("regression: work resume ledger (M1.5)", () => {
     { ...taskB, id: "tsk_mock_c", content: "撰写候选稿", status: "pending" },
   ]
 
-  test("work mode shows the resume button and fold-over digests, and click sends a resume prompt", async ({
-    page,
-  }) => {
+  test("work mode shows the resume button and fold-over digests, and click sends a resume prompt", async ({ page }) => {
     // M1.5 D2: the resume entry point is work-mode only — set the persisted
     // mode-view store to work before the app boots (storage prefix + key).
     await page.addInitScript(() => {

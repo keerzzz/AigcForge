@@ -80,17 +80,12 @@ describe("countSimilarPrompts", () => {
   })
 
   test("CJK: below threshold with only 2 similar Chinese prompts", () => {
-    const history = [
-      "帮我写一个React组件",
-      "帮我写一个React组件",
-      "完全不相关的文本完全不同的话题",
-    ]
+    const history = ["帮我写一个React组件", "帮我写一个React组件", "完全不相关的文本完全不同的话题"]
     expect(countSimilarPrompts("帮我写一个React组件", history)).toBeUndefined()
   })
 })
 
 describe("extractUserPrompts", () => {
-
   test("extracts user prompts in order", () => {
     const msgs = [
       { role: "user" as const, id: "u1" },
@@ -118,11 +113,7 @@ describe("extractUserPrompts", () => {
       if (id === "u3") return [fakePart("different")]
       return []
     }
-    expect(extractUserPrompts(msgs, getParts)).toEqual([
-      "hello world",
-      "hello world",
-      "different",
-    ])
+    expect(extractUserPrompts(msgs, getParts)).toEqual(["hello world", "hello world", "different"])
   })
 
   test("skips empty prompts", () => {

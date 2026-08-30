@@ -11,10 +11,7 @@ import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 
 function locationLayer(dir: string) {
-  return Layer.succeed(
-    Location.Service,
-    Location.Service.of(location({ directory: AbsolutePath.make(dir) })),
-  )
+  return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
 }
 
 function fullLayer(dir: string) {
@@ -37,12 +34,7 @@ async function withTmp<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 async function createPlugin(dir: string, name: string, description: string, extra?: string) {
   const assetDir = path.join(dir, ".aigcfroge", "plugins")
   await fs.mkdir(assetDir, { recursive: true })
-  const lines = [
-    "kind: plugin",
-    `name: ${name}`,
-    `description: ${description}`,
-    "version: 1.0.0",
-  ]
+  const lines = ["kind: plugin", `name: ${name}`, `description: ${description}`, "version: 1.0.0"]
   if (extra) lines.push(extra)
   await fs.writeFile(path.join(assetDir, `${name}.plugin.yaml`), lines.join("\n"))
 }
@@ -56,10 +48,9 @@ describe("PluginAsset registry", () => {
   test("lists assets from empty directory", async () => {
     await withTmp(async (dir) => {
       const list = await runNow(
-        Effect.gen(function* () { return yield* (yield* PluginAsset.Service).list() }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* PluginAsset.Service).list()
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(list).toEqual([])
     })
@@ -69,10 +60,9 @@ describe("PluginAsset registry", () => {
     await withTmp(async (dir) => {
       await createPlugin(dir, "code-review", "Automated code review")
       const list = await runNow(
-        Effect.gen(function* () { return yield* (yield* PluginAsset.Service).list() }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* PluginAsset.Service).list()
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(list.length).toBe(1)
       expect(list[0].kind).toBe("plugin")
@@ -89,10 +79,9 @@ describe("PluginAsset registry", () => {
       await createPlugin(dir, "review", "Code review")
       await createPlugin(dir, "deploy", "Deploy pipeline")
       const list = await runNow(
-        Effect.gen(function* () { return yield* (yield* PluginAsset.Service).list() }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* PluginAsset.Service).list()
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(list.length).toBe(2)
       const names = list.map((a) => a.name).toSorted()
@@ -104,10 +93,9 @@ describe("PluginAsset registry", () => {
     await withTmp(async (dir) => {
       await createPlugin(dir, "my-plugin", "A plugin")
       const info = await runNow(
-        Effect.gen(function* () { return yield* (yield* PluginAsset.Service).getByPath("my-plugin.plugin.yaml") }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* PluginAsset.Service).getByPath("my-plugin.plugin.yaml")
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(info.name).toBe("my-plugin")
     })
@@ -128,10 +116,9 @@ describe("PluginAsset registry", () => {
     await withTmp(async (dir) => {
       await createPlugin(dir, "find-me", "test")
       const info = await runNow(
-        Effect.gen(function* () { return yield* (yield* PluginAsset.Service).findByName("find-me") }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* PluginAsset.Service).findByName("find-me")
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect(info).toBeDefined()
       expect(info!.name).toBe("find-me")
@@ -141,10 +128,9 @@ describe("PluginAsset registry", () => {
   test("reloads after adding a new plugin", async () => {
     await withTmp(async (dir) => {
       const reg = await runNow(
-        Effect.gen(function* () { return yield* PluginAsset.Service }).pipe(
-          Effect.provide(fullLayer(dir)),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* PluginAsset.Service
+        }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect((await runNow(reg.list())).length).toBe(0)
       await createPlugin(dir, "added-later", "new")
@@ -189,13 +175,7 @@ describe("PluginAsset registry", () => {
     await withTmp(async (dir) => {
       const pluginsDir = path.join(dir, ".aigcfroge", "plugins")
       await fs.mkdir(pluginsDir, { recursive: true })
-      const c = () =>
-        [
-          "kind: plugin",
-          'name: "dup"',
-          'description: "test"',
-          'version: "1.0"',
-        ].join("\n")
+      const c = () => ["kind: plugin", 'name: "dup"', 'description: "test"', 'version: "1.0"'].join("\n")
       await fs.writeFile(path.join(pluginsDir, "first.plugin.yaml"), c())
       await fs.writeFile(path.join(pluginsDir, "second.plugin.yaml"), c())
       const [list, invalid] = await runNow(
@@ -218,16 +198,14 @@ describe("PluginAsset registry", () => {
 
       const [listA, listB] = await Promise.all([
         runNow(
-          Effect.gen(function* () { return yield* (yield* PluginAsset.Service).list() }).pipe(
-            Effect.provide(fullLayer(dirA.path)),
-            Effect.scoped,
-          ),
+          Effect.gen(function* () {
+            return yield* (yield* PluginAsset.Service).list()
+          }).pipe(Effect.provide(fullLayer(dirA.path)), Effect.scoped),
         ),
         runNow(
-          Effect.gen(function* () { return yield* (yield* PluginAsset.Service).list() }).pipe(
-            Effect.provide(fullLayer(dirB.path)),
-            Effect.scoped,
-          ),
+          Effect.gen(function* () {
+            return yield* (yield* PluginAsset.Service).list()
+          }).pipe(Effect.provide(fullLayer(dirB.path)), Effect.scoped),
         ),
       ])
       expect(listA.length).toBe(1)
@@ -262,12 +240,7 @@ describe("PluginAsset registry", () => {
         }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
       expect((await runNow(reg.listInvalid())).length).toBeGreaterThanOrEqual(1)
-      const goodYaml = [
-        "kind: plugin",
-        'name: "fixed"',
-        'description: "ok"',
-        'version: "1.0"',
-      ].join("\n")
+      const goodYaml = ["kind: plugin", 'name: "fixed"', 'description: "ok"', 'version: "1.0"'].join("\n")
       await fs.writeFile(path.join(pluginsDir, "broken.plugin.yaml"), goodYaml)
       await runNow(reg.reload())
       expect(await runNow(reg.listInvalid())).toEqual([])

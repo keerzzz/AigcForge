@@ -38,12 +38,14 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     )
 
     const available = createMemo(() =>
-      providers().connected().flatMap((p) =>
-        Object.values(p.models).map((m) => ({
-          ...m,
-          provider: p,
-        })),
-      ),
+      providers()
+        .connected()
+        .flatMap((p) =>
+          Object.values(p.models).map((m) => ({
+            ...m,
+            provider: p,
+          })),
+        ),
     )
 
     const release = createMemo(

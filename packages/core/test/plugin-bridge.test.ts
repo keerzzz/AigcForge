@@ -18,10 +18,9 @@ describe("PluginBridge", () => {
     process.env.AIGCFROGE_TEST_HOME = emptyHome
     try {
       const result = await Effect.runPromise(
-        Effect.gen(function* () { return yield* (yield* PluginBridge.Service).scan() }).pipe(
-          Effect.provide(bridgeLayer()),
-          Effect.scoped,
-        ),
+        Effect.gen(function* () {
+          return yield* (yield* PluginBridge.Service).scan()
+        }).pipe(Effect.provide(bridgeLayer()), Effect.scoped),
       )
       expect(Array.isArray(result)).toBe(true)
       expect(result.length).toBe(0)
@@ -49,10 +48,9 @@ describe("PluginBridge", () => {
       process.env.AIGCFROGE_TEST_HOME = tmp.path
       try {
         const result = await Effect.runPromise(
-          Effect.gen(function* () { return yield* (yield* PluginBridge.Service).scan() }).pipe(
-            Effect.provide(bridgeLayer()),
-            Effect.scoped,
-          ),
+          Effect.gen(function* () {
+            return yield* (yield* PluginBridge.Service).scan()
+          }).pipe(Effect.provide(bridgeLayer()), Effect.scoped),
         )
         const cc = result.filter((e) => e.source === "claude-code")
         expect(cc.length).toBeGreaterThanOrEqual(1)
@@ -65,6 +63,8 @@ describe("PluginBridge", () => {
         process.env.AIGCFROGE_TEST_HOME = prev
         await tmp[Symbol.asyncDispose]()
       }
-    } catch { /* skip on env conflict */ }
+    } catch {
+      /* skip on env conflict */
+    }
   })
 })

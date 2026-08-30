@@ -93,14 +93,14 @@ proves that reuse is unavailable or would violate scope, authority, or lifecycle
 
 ## Finding Rules
 
-| Finding | Evidence threshold | Default action |
-|---|---|---|
-| Duplicate | Same behavior, same owner boundary, compatible contract | reuse/merge |
-| Dead | No reachable caller or required compatibility/registration path | delete after impact check |
-| Surplus | Adds no behavior, authority, validation, or lifecycle value | delete or inline |
-| Complex | More branches, state, or indirection than the local contract requires | simplify, then test |
-| Comment defect | New, stale, non-English, or narrative comment | rewrite/remove |
-| Uncertain | Evidence conflicts or public behavior may change | keep and request owner decision |
+| Finding        | Evidence threshold                                                    | Default action                  |
+| -------------- | --------------------------------------------------------------------- | ------------------------------- |
+| Duplicate      | Same behavior, same owner boundary, compatible contract               | reuse/merge                     |
+| Dead           | No reachable caller or required compatibility/registration path       | delete after impact check       |
+| Surplus        | Adds no behavior, authority, validation, or lifecycle value           | delete or inline                |
+| Complex        | More branches, state, or indirection than the local contract requires | simplify, then test             |
+| Comment defect | New, stale, non-English, or narrative comment                         | rewrite/remove                  |
+| Uncertain      | Evidence conflicts or public behavior may change                      | keep and request owner decision |
 
 ## Reference
 

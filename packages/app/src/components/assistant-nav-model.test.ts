@@ -65,8 +65,32 @@ describe("buildKbTagTree", () => {
 
 describe("sessionHighlightIDs (D5 会话列表联动)", () => {
   const reminders: ScheduleInfo[] = [
-    { id: "sch_1", sessionID: "sess_1", kind: "reminder", content: "r1", dueAt: 1, timezone: "UTC", status: "pending", attempts: 0, deliveryKey: "k", createdAt: 0, updatedAt: 0 } as ScheduleInfo,
-    { id: "sch_2", sessionID: "sess_2", kind: "reminder", content: "r2", dueAt: 1, timezone: "UTC", status: "pending", attempts: 0, deliveryKey: "k", createdAt: 0, updatedAt: 0 } as ScheduleInfo,
+    {
+      id: "sch_1",
+      sessionID: "sess_1",
+      kind: "reminder",
+      content: "r1",
+      dueAt: 1,
+      timezone: "UTC",
+      status: "pending",
+      attempts: 0,
+      deliveryKey: "k",
+      createdAt: 0,
+      updatedAt: 0,
+    } as ScheduleInfo,
+    {
+      id: "sch_2",
+      sessionID: "sess_2",
+      kind: "reminder",
+      content: "r2",
+      dueAt: 1,
+      timezone: "UTC",
+      status: "pending",
+      attempts: 0,
+      deliveryKey: "k",
+      createdAt: 0,
+      updatedAt: 0,
+    } as ScheduleInfo,
   ]
   const memories: PersonalMemoryInfo[] = [
     {
@@ -100,7 +124,9 @@ describe("sessionHighlightIDs (D5 会话列表联动)", () => {
   })
 
   test("unknown or missing item ids highlight nothing", () => {
-    expect(sessionHighlightIDs({ selection: { kind: "reminders", itemId: "sch_nope" }, reminders, memories }).size).toBe(0)
+    expect(
+      sessionHighlightIDs({ selection: { kind: "reminders", itemId: "sch_nope" }, reminders, memories }).size,
+    ).toBe(0)
     expect(sessionHighlightIDs({ selection: undefined, reminders, memories }).size).toBe(0)
   })
 

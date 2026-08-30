@@ -118,12 +118,7 @@ describe("TaskUpdateTool", () => {
       })
       expect(result.result.type).toBe("text")
 
-      const row = yield* db
-        .select()
-        .from(TaskTable)
-        .where(eq(TaskTable.id, task.id))
-        .get()
-        .pipe(Effect.orDie)
+      const row = yield* db.select().from(TaskTable).where(eq(TaskTable.id, task.id)).get().pipe(Effect.orDie)
       expect(row?.output_digest).toBe("已确认主题/时长/平台")
 
       const latest = yield* tasks.get(sessionID)

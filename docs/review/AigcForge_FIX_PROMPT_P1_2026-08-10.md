@@ -13,12 +13,15 @@
 `"default-src 'none'; script-src 'unsafe-inline'; connect-src 'none';"`，缺 `style-src` 与 `img-src`。iframe `csp` 属性作用于 srcdoc 文档且与 meta CSP 取交集，导致回落 `default-src 'none'`——Chromium 下内联样式容器高度塌陷为 0、`data:` 图片不加载，LLM 产物图表（vis-network 等）渲染塌陷。
 
 **修复**：把 `IFRAME_CSP` 与 `packages/session-ui/src/components/html-artifact-srcdoc.ts:27` 的 `CSP_META` 对齐，即补 `style-src 'unsafe-inline'; img-src 'self' data:'`：
+
 ```
 "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none';"
 ```
+
 两条策略同时生效，安全姿态不变（多 CSP 取交集，用户注入 meta 无法放宽）。不要新增其他任何指令。
 
 **测试**：
+
 - 更新 `html-artifact.test.ts` 中对 `IFRAME_CSP` 的契约断言。
 - e2e `packages/app` 的 `work-html-artifact.spec.ts` 增加一条断言：srcdoc 内带内联 `style="height:NNpx"` 的容器 computed height > 0（现有 e2e 因 canvas 默认 300×150 兜底而未暴露该缺陷）。
 

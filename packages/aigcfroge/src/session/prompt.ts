@@ -135,16 +135,14 @@ export const layer = Layer.effect(
     const config = yield* Config.Service
     const permission = yield* Permission.Service
     // 软依赖：override service 缺失时按关闭处理（fail-closed）。
-    const override = Option.getOrElse(
-      yield* Effect.serviceOption(SessionPermissionOverride.Service),
-      () =>
-        SessionPermissionOverride.Service.of({
-          get: () => Effect.succeed(false),
-          enable: () => Effect.void,
-          renew: () => Effect.void,
-          disable: () => Effect.void,
-          clear: () => Effect.void,
-        }),
+    const override = Option.getOrElse(yield* Effect.serviceOption(SessionPermissionOverride.Service), () =>
+      SessionPermissionOverride.Service.of({
+        get: () => Effect.succeed(false),
+        enable: () => Effect.void,
+        renew: () => Effect.void,
+        disable: () => Effect.void,
+        clear: () => Effect.void,
+      }),
     )
     const fsys = yield* FSUtil.Service
     const mcp = yield* MCP.Service
@@ -374,8 +372,8 @@ export const layer = Layer.effect(
         parentID: session.parentID,
         attended: session.attended,
         masterPermissionEnabled: yield* override
-                .get(sessionID)
-                .pipe(Effect.catchTag("Session.NotFoundError", () => Effect.succeed(false))),
+          .get(sessionID)
+          .pipe(Effect.catchTag("Session.NotFoundError", () => Effect.succeed(false))),
         savedApprovals: [],
       }
       const subtaskRules = PermissionEffective.effectiveV1(

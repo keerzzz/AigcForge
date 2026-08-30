@@ -121,16 +121,16 @@ export const daemon = <R>(input: {
           // permanently kill the tick fiber.
           Effect.catchDefect((defect) => Effect.logError("Scheduler arm defect contained", defect)),
         )
-        yield* input.core.tick(Date.now()).pipe(
-          Effect.catchDefect((defect) => Effect.logError("Scheduler tick defect contained", defect)),
-        )
+        yield* input.core
+          .tick(Date.now())
+          .pipe(Effect.catchDefect((defect) => Effect.logError("Scheduler tick defect contained", defect)))
       }).pipe(Effect.repeat(Schedule.spaced("1 minute"))),
     )
     yield* input.rearmSignals.pipe(
       Stream.runForEach(() =>
-        input.core.arm(Date.now()).pipe(
-          Effect.catchDefect((defect) => Effect.logError("Scheduler re-arm defect contained", defect)),
-        ),
+        input.core
+          .arm(Date.now())
+          .pipe(Effect.catchDefect((defect) => Effect.logError("Scheduler re-arm defect contained", defect))),
       ),
       Effect.forkScoped({ startImmediately: true }),
     )

@@ -8,17 +8,18 @@
 ## 1. Executive Summary
 
 | Severity | Found | Fixed | Open |
-|---|---:|---:|---:|
-| Critical | 0 | 0 | 0 |
-| High | 0 | 0 | 0 |
-| Medium | 1 | 1 | 0 |
-| Low | 4 | 4 | 0 |
+| -------- | ----: | ----: | ---: |
+| Critical |     0 |     0 |    0 |
+| High     |     0 |     0 |    0 |
+| Medium   |     1 |     1 |    0 |
+| Low      |     4 |     4 |    0 |
 
 **Overall risk after fixes:** LOW
 
 **Recommendation:** APPROVE
 
 **Scope:** 27 tracked files + 6 untracked = 33 files. Four phases:
+
 - **P0/P1** — pulse refactor (indeterminate activity, single track-local coordinate)
 - **P2** — `TaskExecutionProgress` contract + delegation progress + determinate pulse
 - **P3** — `revision` optimistic concurrency + 4 incremental LLM tools + HTTP API/SDK + App fold-over
@@ -26,17 +27,20 @@
 ## 2. What Changed
 
 ### P0/P1 (pulse refactor)
+
 - Removed `outputFractionFromMessages` / `TASK_OUTPUT_BUDGET` (fake-progress heuristic). Pulse is now an indeterminate activity interval (completedFrontier → anchor).
 - Unified nodes/fill/pulse to the track-area's local 0-100 coordinate space (CSS owns the 16px inset via `--session-progress-inset`; no JS width measurement).
 - Six-state node rendering (`scheduled`/`failed` preserved, not folded to `pending`).
 - `prefers-reduced-motion` handling. Shared `TRACK_INSET`/`PULSE_WIDTH` injected as CSS variables.
 
 ### P2 (execution progress)
+
 - `TaskExecutionPhase` + `task.progress` EventV2 event + `SessionTask.recordProgress` (ephemeral, no DB write).
 - `task` delegation tool: `Effect.scoped` + `Effect.forkScoped` subscribes to child `task.updated` events during foreground `delegate`; `childCompletionRatio` → parent anchor `recordProgress`. Observer is interrupted on settle (no leak).
 - App: `session_task_progress` store + `event-reducer` handler (predicate-narrowed payload) + UI model `anchorProgress` → `pulse.progressPct` + CSS `data-determinate` rests at `--pulse-progress-pct`.
 
 ### P3 (revision + incremental commands)
+
 - `revision` field on `SessionTask.Info` (server-managed, starts 1, increments on every write) + migration.
 - `expectedRevision` optimistic concurrency: `patch`/`updateTask` (per-task), `update`/`reorder` (max-revision). `stale_revision` error type.
 - 4 incremental LLM tools: `task_create`/`task_update`/`task_delete`/`task_reorder`. `taskwrite` keeps `expectedRevision` (full-list replace with guard).
@@ -83,30 +87,30 @@ No Core/API/SDK persistence or Session V2 execution contract was broken. `revisi
 
 ## 5. Test Coverage
 
-| Verification | Result |
-|---|---|
-| Core session+tool tests | 435 pass, 0 fail |
-| App unit tests | 635 pass, 0 fail |
-| aigcfroge httpapi-session + httpapi-sdk | 48 pass, 0 fail |
-| Target Chromium regression | 15 pass, 0 fail |
-| `childCompletionRatio` unit tests | 5 pass, 0 fail |
-| P2 model tests (determinate progress) | 7 pass, 0 fail |
-| P3 domain tests (revision + incremental) | 16 pass, 0 fail |
-| App typecheck (`tsgo -b`) | pass |
-| Core + aigcfroge + schema typecheck | pass |
-| Lint | 0 errors; 1 unrelated existing Core warning (`task.ts:69`) |
-| `git diff --check` | pass |
+| Verification                             | Result                                                     |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| Core session+tool tests                  | 435 pass, 0 fail                                           |
+| App unit tests                           | 635 pass, 0 fail                                           |
+| aigcfroge httpapi-session + httpapi-sdk  | 48 pass, 0 fail                                            |
+| Target Chromium regression               | 15 pass, 0 fail                                            |
+| `childCompletionRatio` unit tests        | 5 pass, 0 fail                                             |
+| P2 model tests (determinate progress)    | 7 pass, 0 fail                                             |
+| P3 domain tests (revision + incremental) | 16 pass, 0 fail                                            |
+| App typecheck (`tsgo -b`)                | pass                                                       |
+| Core + aigcfroge + schema typecheck      | pass                                                       |
+| Lint                                     | 0 errors; 1 unrelated existing Core warning (`task.ts:69`) |
+| `git diff --check`                       | pass                                                       |
 
 ## 6. Security & Engineering Gates
 
-| Gate | Status |
-|---|---|
+| Gate             | Status                                                                                                                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Catch Everything | ✓ tool execute maps `TaskWriteError`→`ToolFailure`; HTTP handler→`InvalidRequestError`(400); progress observer `Effect.scoped`+`forkScoped` (interrupted on settle, no leak); event-reducer drops malformed payload (break, no crash) |
-| No Null Pointer | ✓ `expectedRevision` optional; `result` undefined guards; SDK `revision` edge-string narrowing; `childCompletionRatio` empty-list → undefined; snapshot taskID match check |
-| Security First | ✓ `permission.assert` on every tool; `outputDigest` still absent from PATCH; event payload predicate-narrowed (no `as any`) |
-| No Cheating | ✓ schema import alias `SessionTaskSchema` commented (genuine collision); no `as any`/`@ts-ignore`; type-only import for `TaskProgressSnapshot` (no runtime cycle) |
-| Reusability | ✓ 4 tools reuse domain `append`/`updateTask`/`patch`/`removeTask`/`reorder`; HTTP `patchTask` reuses `updateTask`+`patch`; `childCompletionRatio` independent pure function |
-| Clean Logs | ✓ progress events carry only phase/counts; `TaskWriteError.message` has no sensitive data |
+| No Null Pointer  | ✓ `expectedRevision` optional; `result` undefined guards; SDK `revision` edge-string narrowing; `childCompletionRatio` empty-list → undefined; snapshot taskID match check                                                            |
+| Security First   | ✓ `permission.assert` on every tool; `outputDigest` still absent from PATCH; event payload predicate-narrowed (no `as any`)                                                                                                           |
+| No Cheating      | ✓ schema import alias `SessionTaskSchema` commented (genuine collision); no `as any`/`@ts-ignore`; type-only import for `TaskProgressSnapshot` (no runtime cycle)                                                                     |
+| Reusability      | ✓ 4 tools reuse domain `append`/`updateTask`/`patch`/`removeTask`/`reorder`; HTTP `patchTask` reuses `updateTask`+`patch`; `childCompletionRatio` independent pure function                                                           |
+| Clean Logs       | ✓ progress events carry only phase/counts; `TaskWriteError.message` has no sensitive data                                                                                                                                             |
 
 ## 7. Residual Risk
 

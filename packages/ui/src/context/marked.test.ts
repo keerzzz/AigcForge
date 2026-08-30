@@ -3,9 +3,7 @@ import { createMarkedParser, mermaidPlaceholder } from "./marked"
 
 describe("mermaidPlaceholder", () => {
   test("wraps percent-encoded source into a data-mermaid div", () => {
-    expect(mermaidPlaceholder("graph TD; A-->B")).toBe(
-      '<div data-mermaid="graph%20TD%3B%20A--%3EB"></div>',
-    )
+    expect(mermaidPlaceholder("graph TD; A-->B")).toBe('<div data-mermaid="graph%20TD%3B%20A--%3EB"></div>')
   })
 
   test("round-trips through attribute parsing and decodeURIComponent", () => {

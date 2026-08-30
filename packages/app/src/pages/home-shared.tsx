@@ -1,14 +1,5 @@
 import type { Session } from "@aigcfroge/sdk/v2/client"
-import {
-  createEffect,
-  createMemo,
-  For,
-  on,
-  onCleanup,
-  onMount,
-  Show,
-  type JSX,
-} from "solid-js"
+import { createEffect, createMemo, For, on, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createStore } from "solid-js/store"
 import { Spinner } from "@aigcfroge/ui/spinner"
@@ -458,7 +449,10 @@ export function HomeSessionSkeleton(props: { label: string }) {
   )
 }
 
-export function groupSessions(records: HomeSessionRecord[], language: ReturnType<typeof useLanguage>): HomeSessionGroup[] {
+export function groupSessions(
+  records: HomeSessionRecord[],
+  language: ReturnType<typeof useLanguage>,
+): HomeSessionGroup[] {
   records = records ?? []
   const now = DateTime.local()
   const yesterday = now.minus({ days: 1 })

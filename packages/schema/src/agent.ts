@@ -38,6 +38,14 @@ export const Info = Schema.Struct({
   .pipe(
     withStatics((schema) => ({
       empty: (id: ID) =>
-        schema.make({ id, request: { headers: {}, body: {} }, mode: "all", hidden: false, permissions: [], attended: false, handoffs: [] }),
+        schema.make({
+          id,
+          request: { headers: {}, body: {} },
+          mode: "all",
+          hidden: false,
+          permissions: [],
+          attended: false,
+          handoffs: [],
+        }),
     })),
   )

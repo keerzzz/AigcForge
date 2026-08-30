@@ -129,8 +129,16 @@ describe("task_spawn tool", () => {
       // Inject a cycle directly (bypassing the service guard) so the tool's
       // append hits the defensive depends_on_cycle rejection — proving the
       // TaskWriteError surfaces as a ToolFailure instead of an untyped defect.
-      yield* db.update(TaskTable).set({ depends_on: [b.id] }).where(eq(TaskTable.id, a.id)).run()
-      yield* db.update(TaskTable).set({ depends_on: [a.id] }).where(eq(TaskTable.id, b.id)).run()
+      yield* db
+        .update(TaskTable)
+        .set({ depends_on: [b.id] })
+        .where(eq(TaskTable.id, a.id))
+        .run()
+      yield* db
+        .update(TaskTable)
+        .set({ depends_on: [a.id] })
+        .where(eq(TaskTable.id, b.id))
+        .run()
 
       const result = yield* executeTool(reg, call([{ content: "c" }]))
       expect(result.type).toBe("error")

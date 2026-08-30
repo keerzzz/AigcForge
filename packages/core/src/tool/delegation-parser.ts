@@ -23,9 +23,12 @@ export function parseDelegationResult(text: string): DelegationResult | undefine
 
   // Extract status
   const statusMatch = text.match(STATUS_PATTERN)
-  const status = statusMatch?.[1] === "partial" ? "partial" as const
-    : statusMatch?.[1] === "failed" ? "failed" as const
-    : "success" as const
+  const status =
+    statusMatch?.[1] === "partial"
+      ? ("partial" as const)
+      : statusMatch?.[1] === "failed"
+        ? ("failed" as const)
+        : ("success" as const)
 
   // Extract summary
   let summary = ""
@@ -47,15 +50,24 @@ export function parseDelegationResult(text: string): DelegationResult | undefine
   const fileMatch3 = text.match(FILE_PATTERNS[2])
 
   if (fileMatch1) {
-    const vals = (fileMatch1[1] ?? fileMatch1[2] ?? "").split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+    const vals = (fileMatch1[1] ?? fileMatch1[2] ?? "")
+      .split(/[,;]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
     created.push(...vals)
   }
   if (fileMatch2) {
-    const vals = (fileMatch2[1] ?? fileMatch2[2] ?? "").split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+    const vals = (fileMatch2[1] ?? fileMatch2[2] ?? "")
+      .split(/[,;]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
     modified.push(...vals)
   }
   if (fileMatch3) {
-    const vals = (fileMatch3[1] ?? fileMatch3[2] ?? "").split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+    const vals = (fileMatch3[1] ?? fileMatch3[2] ?? "")
+      .split(/[,;]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
     deleted.push(...vals)
   }
 
@@ -77,9 +89,14 @@ export function parseDelegationResult(text: string): DelegationResult | undefine
   return {
     status,
     summary: summary || "Task completed",
-    files: created.length || modified.length || deleted.length
-      ? { created: created.length ? created : undefined, modified: modified.length ? modified : undefined, deleted: deleted.length ? deleted : undefined }
-      : undefined,
+    files:
+      created.length || modified.length || deleted.length
+        ? {
+            created: created.length ? created : undefined,
+            modified: modified.length ? modified : undefined,
+            deleted: deleted.length ? deleted : undefined,
+          }
+        : undefined,
     errors: errors.length ? errors : undefined,
   }
 }
@@ -93,7 +110,7 @@ export function parseDelegationOutput(stdout: string, stderr: string): Effect.Ef
     // Fallback: extract first 200 chars as summary
     const summary = stdout.trim().slice(0, 200) || "Task completed (no output)"
     return {
-      status: stderr ? "failed" as const : "success" as const,
+      status: stderr ? ("failed" as const) : ("success" as const),
       summary,
       errors: stderr ? [stderr.trim().slice(0, 500)] : undefined,
     }

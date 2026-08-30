@@ -42,7 +42,6 @@ describe("loadRootSessionsWithFallback", () => {
     expect(calls).toEqual([{ directory: "dir", roots: true, limit: 10 }])
   })
 
-
   test("forwards product mode to limited and fallback queries", async () => {
     const calls: Array<{ directory: string; roots: true; mode?: ProductMode; limit?: number }> = []
 

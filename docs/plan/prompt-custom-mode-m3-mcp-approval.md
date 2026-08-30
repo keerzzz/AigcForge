@@ -140,6 +140,7 @@ packages/core/src/tool/AGENTS.md
 - App/UI：`packages/app/AGENTS.md`、`.aigcfroge/skills/frontend-theming/SKILL.md`。
 
 **M2 复审报告必读 §2.5 与 §3。** 它记录了 11 项 P0/P1 的根因与修法，其中 3 条直接决定 M3 的设计边界（见 §4.6）。
+
 ## 3. 锁定 M3
 
 只执行 Phase C（对应 M3 计划 §3）：
@@ -252,6 +253,7 @@ M2 带着「多 Agent 委派在真实 Provider 上跑不起来」这个 P0，穿
 1. **只跑 core 不算跑门禁。** Phase D 交付时报告只贴了 core 的绿数字，实际带着 **9 个实例 HTTP 回归**合过来。根因是 `Layer.provideMerge` 导出第二个内存 SQLite 并遮蔽共享实例；core 单测测不到，因为它们各自直接组合 Layer。**Phase C 是 `McpRegistration` 的首个生产消费者、要新增 location 层、动同一批 Layer 拓扑——`bun --cwd packages/aigcfroge test test/server/` 必须真的跑完并贴数字。**
 2. **测试名声称什么，断言就必须真的观察到什么。** Phase B 有一条名为「reveals the previously registered tool」的测试用了两个无法区分的处理器，关闭前后断言字面完全相同——它证明的是「还在」，不是「露出了前一个赢家」。**本 Phase 的高危同型：「子进程被杀掉」写成断言 Scope 关闭没报错；「材料没进日志」写成断言日志非空。**
 3. **harness 提供的东西，生产装配未必有。** Phase D 首版的 presence 用 `Effect.serviceOption` 而无人提供，测试却因为每个 harness 自己补了那层而全绿。**本 Phase 的高危同型：测试里手搓 Layer 组合让连接 owner 拿到 `Tools.Service`，而生产装配的 Layer 顺序根本组不出来。**
+
 ## 5. 工作拆解
 
 每个 slice 独立红绿，不要一把梭。每个 slice 开始前建立：
@@ -345,6 +347,7 @@ acceptance | layer | red test | expected failure | green evidence | final gate
 - **不扩 Snapshot version**（Phase E）。注意为什么这件事不能顺手做：composition union 今天只有 V1|V2，**没有 v1→v2 升级**，未知版本硬失败，消费方各自 `switch version`——新增 v3 意味着**每个这类站点都要加第三分支**。这是一次独立评估，不是一个字段。
 - 不做审批中心 UI（Phase F 本体）。
 - 不动 `ApprovalPresence`、不动 `PermissionSaved`、不动 `permission/effective.ts` 的两个清单。
+
 ## 6. 每个 slice 强制 TDD 循环
 
 ```text
@@ -512,6 +515,7 @@ M completion:
 - Remaining risks or blocked checks:
 - Proposed next M (not started):
 ```
+
 ## 10. 必须立即停止的情况
 
 - **Slice 0 未完成，或其结论未获人类裁定**，却要写 credential / connection / transport 生产代码。
@@ -540,13 +544,13 @@ M completion:
 
 ## 使用说明
 
-| 项 | 值 |
-| --- | --- |
-| 复制范围 | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->` |
+| 项           | 值                                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ |
+| 复制范围     | `<!-- PROMPT START -->` 到 `<!-- PROMPT END -->`                                                                   |
 | 当前安全起点 | **Phase C（connection / credential / health），分支 `mcp-connection`**；从最新**本地** `main`（`229e3eb7d`）建分支 |
-| 第一个停机点 | **Slice 0 复核报告**——只交报告不交代码，等人类裁定 ADR-21 |
-| 自动继续范围 | 裁定通过后 Slice 1→4 各自全绿即自动继续；**不进 Phase E、不进 Phase F 本体** |
-| 强制停止点 | Slice 0 未裁定、四个 slice 全部完成（等复审）、范围滑进 Phase E/F、测试失败、owner/协议冲突、§10 任一条 |
-| 测试基线 | core **2109 pass / 2 skip / 0 fail**；aigcfroge server **379 pass / 2 skip / 0 fail**（低于即回归） |
-| 分支原则 | M3 各阶段在本地依次合入 main 成链，全部完成后统一开一个 PR；不逐阶段推送 |
-| 卡住时 | 输出停止报告，不绕过 Gate 或测试 |
+| 第一个停机点 | **Slice 0 复核报告**——只交报告不交代码，等人类裁定 ADR-21                                                          |
+| 自动继续范围 | 裁定通过后 Slice 1→4 各自全绿即自动继续；**不进 Phase E、不进 Phase F 本体**                                       |
+| 强制停止点   | Slice 0 未裁定、四个 slice 全部完成（等复审）、范围滑进 Phase E/F、测试失败、owner/协议冲突、§10 任一条            |
+| 测试基线     | core **2109 pass / 2 skip / 0 fail**；aigcfroge server **379 pass / 2 skip / 0 fail**（低于即回归）                |
+| 分支原则     | M3 各阶段在本地依次合入 main 成链，全部完成后统一开一个 PR；不逐阶段推送                                           |
+| 卡住时       | 输出停止报告，不绕过 Gate 或测试                                                                                   |

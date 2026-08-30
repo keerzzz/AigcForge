@@ -55,7 +55,7 @@ describe("extractFirstHeading", () => {
 
 describe("detectArtifactFormat (M3.5)", () => {
   test("detects html when the candidate contains a ```html fenced block", () => {
-    expect(detectArtifactFormat("# 拓扑图\n\n```html\n<div id=\"topo\"></div>\n```")).toBe("html")
+    expect(detectArtifactFormat('# 拓扑图\n\n```html\n<div id="topo"></div>\n```')).toBe("html")
   })
 
   test("detects html at the very start of the candidate", () => {
@@ -73,7 +73,7 @@ describe("detectArtifactFormat (M3.5)", () => {
 
 describe("extractHtmlBlock (M3.5)", () => {
   test("extracts the first ```html fenced block content", () => {
-    const candidate = "# 拓扑图\n\n```html\n<div id=\"topo\"></div>\n<script>new vis.Network();</script>\n```\n\n说明"
+    const candidate = '# 拓扑图\n\n```html\n<div id="topo"></div>\n<script>new vis.Network();</script>\n```\n\n说明'
     expect(extractHtmlBlock(candidate)).toBe('<div id="topo"></div>\n<script>new vis.Network();</script>')
   })
 
@@ -81,12 +81,12 @@ describe("extractHtmlBlock (M3.5)", () => {
     expect(extractHtmlBlock("# PRD\n\n正文")).toBeNull()
   })
 
-  test("is compatible with an unclosed <artifact type=\"html\"> tag", () => {
+  test('is compatible with an unclosed <artifact type="html"> tag', () => {
     const candidate = '<artifact type="html"><div>hi</div>'
     expect(extractHtmlBlock(candidate)).toBe("<div>hi</div>")
   })
 
-  test("is compatible with a closed <artifact type=\"html\"> tag", () => {
+  test('is compatible with a closed <artifact type="html"> tag', () => {
     const candidate = '<artifact type="html"><div>hi</div></artifact>'
     expect(extractHtmlBlock(candidate)).toBe("<div>hi</div>")
   })
@@ -94,7 +94,7 @@ describe("extractHtmlBlock (M3.5)", () => {
 
 describe("draftFilename (M3.5)", () => {
   test("derives a .html filename for html candidates", () => {
-    expect(draftFilename("# 拓扑图\n\n```html\n<div id=\"topo\"></div>\n```")).toBe("拓扑图.html")
+    expect(draftFilename('# 拓扑图\n\n```html\n<div id="topo"></div>\n```')).toBe("拓扑图.html")
   })
 
   test("derives a .md filename for markdown candidates (backward compatible)", () => {
@@ -141,7 +141,7 @@ describe("wrapHtmlForDisk (M3.5 D6)", () => {
   })
 
   test("html candidates are written as the extracted block wrapped with the guard", () => {
-    const candidate = "# 拓扑图\n\n```html\n<div id=\"topo\"></div>\n```"
+    const candidate = '# 拓扑图\n\n```html\n<div id="topo"></div>\n```'
     const out = applyContentForDisk(candidate)
     expect(out).toContain('<div id="topo"></div>')
     expect(out).not.toContain("```html")

@@ -59,8 +59,5 @@ export const DeliveryTable = sqliteTable(
       .notNull()
       .$default(() => Date.now()),
   },
-  (table) => [
-    index("delivery_session_idx").on(table.session_id),
-    index("delivery_schedule_idx").on(table.schedule_id),
-  ],
+  (table) => [index("delivery_session_idx").on(table.session_id), index("delivery_schedule_idx").on(table.schedule_id)],
 )

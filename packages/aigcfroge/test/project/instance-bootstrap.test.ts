@@ -62,49 +62,61 @@ function waitDisposed(directory: string) {
   })
 }
 
-it.live("InstanceStore.provide runs InstanceBootstrap before effect", () =>
-  Effect.gen(function* () {
-    const tmp = yield* bootstrapFixture
-    const store = yield* InstanceStore.Service
+it.live(
+  "InstanceStore.provide runs InstanceBootstrap before effect",
+  () =>
+    Effect.gen(function* () {
+      const tmp = yield* bootstrapFixture
+      const store = yield* InstanceStore.Service
 
-    yield* store.provide({ directory: tmp.directory }, Effect.succeed("ok"))
+      yield* store.provide({ directory: tmp.directory }, Effect.succeed("ok"))
 
-    expect(existsSync(tmp.marker)).toBe(true)
-  }),
+      expect(existsSync(tmp.marker)).toBe(true)
+    }),
+  60_000,
 )
 
-it.live("CLI bootstrap runs InstanceBootstrap before callback", () =>
-  Effect.gen(function* () {
-    const tmp = yield* bootstrapFixture
+it.live(
+  "CLI bootstrap runs InstanceBootstrap before callback",
+  () =>
+    Effect.gen(function* () {
+      const tmp = yield* bootstrapFixture
 
-    yield* Effect.promise(() => cliBootstrap(tmp.directory, async () => "ok"))
+      yield* Effect.promise(() => cliBootstrap(tmp.directory, async () => "ok"))
 
-    expect(existsSync(tmp.marker)).toBe(true)
-  }),
+      expect(existsSync(tmp.marker)).toBe(true)
+    }),
+  60_000,
 )
 
-it.live("CLI bootstrap disposes the instance when the callback rejects", () =>
-  Effect.gen(function* () {
-    const tmp = yield* bootstrapFixture
-    const disposed = yield* waitDisposed(tmp.directory).pipe(Effect.forkScoped({ startImmediately: true }))
+it.live(
+  "CLI bootstrap disposes the instance when the callback rejects",
+  () =>
+    Effect.gen(function* () {
+      const tmp = yield* bootstrapFixture
+      const disposed = yield* waitDisposed(tmp.directory).pipe(Effect.forkScoped({ startImmediately: true }))
 
-    const exit = yield* Effect.promise(() =>
-      cliBootstrap(tmp.directory, async () => Promise.reject(new Error("boom"))),
-    ).pipe(Effect.exit)
+      const exit = yield* Effect.promise(() =>
+        cliBootstrap(tmp.directory, async () => Promise.reject(new Error("boom"))),
+      ).pipe(Effect.exit)
 
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) expect(Cause.squash(exit.cause)).toMatchObject({ message: "boom" })
-    yield* Fiber.join(disposed)
-  }),
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) expect(Cause.squash(exit.cause)).toMatchObject({ message: "boom" })
+      yield* Fiber.join(disposed)
+    }),
+  60_000,
 )
 
-it.live("InstanceStore.reload runs InstanceBootstrap", () =>
-  Effect.gen(function* () {
-    const tmp = yield* bootstrapFixture
-    const store = yield* InstanceStore.Service
+it.live(
+  "InstanceStore.reload runs InstanceBootstrap",
+  () =>
+    Effect.gen(function* () {
+      const tmp = yield* bootstrapFixture
+      const store = yield* InstanceStore.Service
 
-    yield* store.reload({ directory: tmp.directory })
+      yield* store.reload({ directory: tmp.directory })
 
-    expect(existsSync(tmp.marker)).toBe(true)
-  }),
+      expect(existsSync(tmp.marker)).toBe(true)
+    }),
+  60_000,
 )

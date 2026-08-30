@@ -20,12 +20,12 @@ ADR-12 §3 规定 ModeWorkspace 共享结构含 "Mode-scoped Session lists"（�
 
 主区内容由模式核心对象决定（对齐 ADR-13 模式定位表），不强制为会话列表：
 
-| 模式 | 主区 slot | 依据 |
-|---|---|---|
-| Chat | 资产工作台（资产树 + 编辑/预览 + 新建/导入） | ADR-13: Chat 核心对象=可复用资产 |
-| Coding | 会话列表（从 Home 自绘抽为 slot，数据流迁移） | ADR-13: Coding=代码任务 |
-| Work | 非编程产出视图（未来开闸）¹ | ADR-13: Work=非编程产出 |
-| Assistant | 个人主动事项视图（未来开闸）² | ADR-13: Assistant=个人主动事项 |
+| 模式      | 主区 slot                                     | 依据                             |
+| --------- | --------------------------------------------- | -------------------------------- |
+| Chat      | 资产工作台（资产树 + 编辑/预览 + 新建/导入）  | ADR-13: Chat 核心对象=可复用资产 |
+| Coding    | 会话列表（从 Home 自绘抽为 slot，数据流迁移） | ADR-13: Coding=代码任务          |
+| Work      | 非编程产出视图（未来开闸）¹                   | ADR-13: Work=非编程产出          |
+| Assistant | 个人主动事项视图（未来开闸）²                 | ADR-13: Assistant=个人主动事项   |
 
 ¹ Work 的具体 slot（是否含工作流引擎）待 ADR-13 §边界规则5（工作流归属未决）+ Work PRD 决定，本 ADR 不预设工作流。
 ² Assistant 的记忆/主动触达 slot 待 Assistant PRD + ADR-13 §边界规则3（主动性来自持久调度）决定。
@@ -83,12 +83,12 @@ ModeSwitcher / SecondarySidebar / StatusBar / 路由 / 同步 / 通知 / 空 loa
 
 记录当前真实 owner 边界（main 基线代码事实，非统一状态声称）：
 
-| 模式侧栏 | Location/项目树 owner | 说明 |
-|---|---|---|
-| Coding | `CodingProjectColumnSidebar`（构建于 `coding-project-column.tsx` 的 `HomeProjectColumn`/`HomeProjectRow`） | 拥有多 server/多项目选择、sandbox、项目操作、通知、Coding 新建会话；**不替换为 `ModeLocationNewSession`**，`ModeLocationNewSession` 也不读取 `CodingSelectionCtx` |
-| Work | `WorkProjectColumnSidebar` → `ModeLocationNewSession`（`mode="work"`） | 只负责 active directory、注册地址和新建入口 |
-| Assistant | `AssistantSidebar`（`assistant-feature-sidebar.tsx`）→ `ModeLocationNewSession`（`mode="assistant"`） | 同上 |
-| Chat | `ChatFeatureSidebar`（`mode-surfaces.tsx`）**内联** Location + 新建/添加项目逻辑 | 额外承载 7 类 feature tree/counts；**未消费** `ModeLocationNewSession`，不得将 Chat 误报为已统一 Location |
+| 模式侧栏  | Location/项目树 owner                                                                                      | 说明                                                                                                                                                              |
+| --------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Coding    | `CodingProjectColumnSidebar`（构建于 `coding-project-column.tsx` 的 `HomeProjectColumn`/`HomeProjectRow`） | 拥有多 server/多项目选择、sandbox、项目操作、通知、Coding 新建会话；**不替换为 `ModeLocationNewSession`**，`ModeLocationNewSession` 也不读取 `CodingSelectionCtx` |
+| Work      | `WorkProjectColumnSidebar` → `ModeLocationNewSession`（`mode="work"`）                                     | 只负责 active directory、注册地址和新建入口                                                                                                                       |
+| Assistant | `AssistantSidebar`（`assistant-feature-sidebar.tsx`）→ `ModeLocationNewSession`（`mode="assistant"`）      | 同上                                                                                                                                                              |
+| Chat      | `ChatFeatureSidebar`（`mode-surfaces.tsx`）**内联** Location + 新建/添加项目逻辑                           | 额外承载 7 类 feature tree/counts；**未消费** `ModeLocationNewSession`，不得将 Chat 误报为已统一 Location                                                         |
 
 `MODE_SURFACES` 契约不变：`coding/chat/work/assistant` 四 Sidebar 保持 render-all + `display:none` 挂载。Assistant `global|project` 知识库 scope 选择器不在本计划实现。进一步抽取更低层 Location primitive 需要行为等价测试前置，本附录不强制决定。
 
@@ -114,13 +114,13 @@ ModeSwitcher / SecondarySidebar / StatusBar / 路由 / 同步 / 通知 / 空 loa
 
 ### Gate 核对
 
-| Gate | 状态 | 证据 | 签字 |
-|---|---|---|---|
-| 1. ADR 一致 | PASS | amends ADR-12 §3，对齐 ADR-13 模式定位表 + ADR-14 §4；不冲突 ADR-11（不编 mode 进 session URL）| Core owner ✓ |
-| 2. 框架契约 Core 评审 | PASS | §4 slot 不 remount 两方案（display:none / 上提 resource）+ §5 不落库 | Core owner ✓ |
-| 3. 安全评审 | PASS | §5 会话↔资产不落库（ADR-14 §4）；无新 migration（PRD §5.2 不变）；沿用 PRD §8.3.1 授权模型 | Security ✓（沿用 §8.3.1） |
-| 4. 指标/埋点 | N/A | 本 ADR 不涉及指标 | - |
-| 5. App 评审 | PASS | §4 SolidJS 机制（solid-js@1.9.10 实证）/ plan step 1 createEffect（对齐 app.tsx:201）/ step 7 queryKey 去 mode / 实施前置项 A1·A4·A5 已标注 | App owner ✓ |
+| Gate                  | 状态 | 证据                                                                                                                                        | 签字                      |
+| --------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| 1. ADR 一致           | PASS | amends ADR-12 §3，对齐 ADR-13 模式定位表 + ADR-14 §4；不冲突 ADR-11（不编 mode 进 session URL）                                             | Core owner ✓              |
+| 2. 框架契约 Core 评审 | PASS | §4 slot 不 remount 两方案（display:none / 上提 resource）+ §5 不落库                                                                        | Core owner ✓              |
+| 3. 安全评审           | PASS | §5 会话↔资产不落库（ADR-14 §4）；无新 migration（PRD §5.2 不变）；沿用 PRD §8.3.1 授权模型                                                 | Security ✓（沿用 §8.3.1） |
+| 4. 指标/埋点          | N/A  | 本 ADR 不涉及指标                                                                                                                           | -                         |
+| 5. App 评审           | PASS | §4 SolidJS 机制（solid-js@1.9.10 实证）/ plan step 1 createEffect（对齐 app.tsx:201）/ step 7 queryKey 去 mode / 实施前置项 A1·A4·A5 已标注 | App owner ✓               |
 
 ### 签字
 

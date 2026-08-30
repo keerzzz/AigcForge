@@ -15,7 +15,11 @@ export function executeWithTimeout(
   return Effect.gen(function* () {
     const available = yield* adapter.detect()
     if (!available) {
-      return { status: "failed" as const, summary: `CLI "${adapter.name}" not available`, errors: ["CLI not found on system"] }
+      return {
+        status: "failed" as const,
+        summary: `CLI "${adapter.name}" not available`,
+        errors: ["CLI not found on system"],
+      }
     }
 
     const timeout = adapter.timeout ?? timeoutMs
@@ -40,7 +44,10 @@ export function executeWithTimeout(
         )
         return {
           stdout: stdout.buffer,
-          stderr: exitCode === 0 || stderr.buffer.length ? stderr.buffer : Buffer.from(`Process exited with code ${exitCode}`),
+          stderr:
+            exitCode === 0 || stderr.buffer.length
+              ? stderr.buffer
+              : Buffer.from(`Process exited with code ${exitCode}`),
         }
       }),
     ).pipe(

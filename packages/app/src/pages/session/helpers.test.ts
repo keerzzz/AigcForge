@@ -29,7 +29,9 @@ describe("createOpenReviewFile", () => {
       },
       openTab: (tab) => calls.push(`open:${tab}`),
       setActive: (tab) => calls.push(`active:${tab}`),
-      loadFile: (path) => { calls.push(`load:${path}`) },
+      loadFile: (path) => {
+        calls.push(`load:${path}`)
+      },
     })
 
     openReviewFile("src/a.ts")
@@ -51,7 +53,9 @@ describe("createOpenSessionFileTab", () => {
         calls.push(`path:${tab}`)
         return tab.slice("file://".length)
       },
-      loadFile: (path) => { calls.push(`load:${path}`) },
+      loadFile: (path) => {
+        calls.push(`load:${path}`)
+      },
       openReviewPanel: () => calls.push("review"),
       setActive: (tab) => calls.push(`active:${tab}`),
     })

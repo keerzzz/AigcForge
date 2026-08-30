@@ -24,15 +24,15 @@
 ### **多轮次请求模式（MRTR）的交互机制**
 
 由于无状态架构取消了服务器主动向客户端推送请求的持久通道，当工具执行过程中需要用户进一步输入或确认时，传统的长连接推送模式不再适用7。2026-07-28 规范引入了多轮次请求模式（Multi Round-Trip Requests，简称 MRTR，SEP-2322）作为核心替代方案7。  
-在 MRTR 模式下，当服务端需要额外信息时，不再保持连接等待，而是直接返回一个类型为 input\_required 的 InputRequiredResult，其中包含 inputRequests 字段和由服务端签发的 requestState7。客户端（或宿主智能体）在收集到所需的用户输入后，带上之前返回的 requestState 与 inputResponses 重新发起原始请求7。这种设计使得重试请求可以落到服务端集群中的任意节点上，实现了真正意义上的无状态多轮交互7。
+在 MRTR 模式下，当服务端需要额外信息时，不再保持连接等待，而是直接返回一个类型为 input_required 的 InputRequiredResult，其中包含 inputRequests 字段和由服务端签发的 requestState7。客户端（或宿主智能体）在收集到所需的用户输入后，带上之前返回的 requestState 与 inputResponses 重新发起原始请求7。这种设计使得重试请求可以落到服务端集群中的任意节点上，实现了真正意义上的无状态多轮交互7。
 
-| 维度 | MCP 2025-11-25 规范 | MCP 2026-07-28 规范 | 架构影响与工程推论 |
-| :---- | :---- | :---- | :---- |
-| **会话与连接** | 有状态，依附长连接与 Mcp-Session-Id \[cite: 6\] | 完全无状态，自包含 HTTP 请求6 | 负载均衡器无需配置粘性会话，支持普通轮询路由1 |
-| **初始化机制** | initialize/initialized 强握手6 | 移除握手，采用 server/discover 及逐请求 \_meta 传参6 | 极大地简化了连接建立流程，降低了系统冷启动延迟1 |
-| **网关路由** | 需深入解析 JSON-RPC 请求体7 | 显式 HTTP 标头（Mcp-Method, Mcp-Name）1 | 传统 HTTP 网关（如 NGINX, Cloudflare）可直接实现高效路由7 |
-| **交互式输入** | 基于长连接的双向推送与通道保持7 | 多轮次请求模式（MRTR / InputRequiredResult）7 | 交互式操作不再阻塞服务器资源，完美适配 Serverless 架构7 |
-| **列表发现与更新** | 依靠 SSE 长通道进行变更通知7 | 支持基于 ttlMs 与 cacheScope 的客户端缓存1 | 大幅减少重复工具发现请求，显著提升 LLM 响应速度1 |
+| 维度               | MCP 2025-11-25 规范                             | MCP 2026-07-28 规范                                  | 架构影响与工程推论                                        |
+| :----------------- | :---------------------------------------------- | :--------------------------------------------------- | :-------------------------------------------------------- |
+| **会话与连接**     | 有状态，依附长连接与 Mcp-Session-Id \[cite: 6\] | 完全无状态，自包含 HTTP 请求6                        | 负载均衡器无需配置粘性会话，支持普通轮询路由1             |
+| **初始化机制**     | initialize/initialized 强握手6                  | 移除握手，采用 server/discover 及逐请求 \_meta 传参6 | 极大地简化了连接建立流程，降低了系统冷启动延迟1           |
+| **网关路由**       | 需深入解析 JSON-RPC 请求体7                     | 显式 HTTP 标头（Mcp-Method, Mcp-Name）1              | 传统 HTTP 网关（如 NGINX, Cloudflare）可直接实现高效路由7 |
+| **交互式输入**     | 基于长连接的双向推送与通道保持7                 | 多轮次请求模式（MRTR / InputRequiredResult）7        | 交互式操作不再阻塞服务器资源，完美适配 Serverless 架构7   |
+| **列表发现与更新** | 依靠 SSE 长通道进行变更通知7                    | 支持基于 ttlMs 与 cacheScope 的客户端缓存1           | 大幅减少重复工具发现请求，显著提升 LLM 响应速度1          |
 
 ## **一等公民扩展框架与企业级核心增强**
 
@@ -53,11 +53,11 @@ MCP Apps 扩展（SEP-1865）允许 MCP 服务器直接向客户端交付交互�
 企业环境中的反复授权与凭据管理是智能体落地面临的最大瓶颈之一4。2026年6月18日稳定的 Enterprise-Managed Authorization（EMA）扩展提供了“零接触”（Zero-touch）的单点登录体验4。通过 EMA，企业管理员可集中管理 MCP 服务器的访问权限，员工仅需登录一次即可安全访问授权范围内的所有 MCP 服务，该方案已被 Anthropic、Microsoft 及 Okta 等主流厂商广泛采用4。  
 在基础授权安全方面，2026-07-28 规范全面对齐 OAuth 2.1 与 OpenID Connect（OIDC）规范。规范要求 MCP 服务器必须实现受保护资源元数据发现（RFC 9728），便于客户端自动推导授权服务器地址6。客户端请求 Token 时必须明确指定目标 MCP 服务器 URI（RFC 8707 资源指示器），防止令牌跨服务器重放攻击6。客户端标识符元数据文档（CIMD）取代了传统的动态客户端注册（RFC 7591），作为首选的客户端注册与身份识别机制6。同时，规范强制客户端校验授权响应中的 iss 参数（SEP-2468 / RFC 9207），并将凭据严格绑定至特定的授权发行方（SEP-2352），有效抵御了发行方混淆攻击6。
 
-| 扩展名称与标准标识符 | 核心功能与运行机制 | 安全与治理逻辑 | 典型应用场景 |
-| :---- | :---- | :---- | :---- |
-| **MCP Apps** io.modelcontextprotocol/apps | 服务端交付 HTML/JS 沙箱 UI，在客户端内嵌渲染6 | UI 操作强制走 JSON-RPC，复用宿主统一审计与同意路径6 | 复合数据可视化、复杂交互式表单、审批确认面板6 |
-| **Tasks** io.modelcontextprotocol/tasks | 提供非阻塞的长时间异步任务句柄与轮询/更新接口6 | 删除全局 tasks/list，防止跨租户任务信息泄露6 | 复杂代码编译、海量数据 ETL 抽取、深度多步检索6 |
-| **EMA (Enterprise Auth)** io.modelcontextprotocol/ema | 企业级集中式 SSO 与 Zero-touch 授权分发机制4 | 结合 RFC 8707 资源指示器与 RFC 9207 发行方绑定，防止 Token 滥用6 | 企业内部多工具统一鉴权、跨部门智能体安全合规接入4 |
+| 扩展名称与标准标识符                                  | 核心功能与运行机制                             | 安全与治理逻辑                                                   | 典型应用场景                                      |
+| :---------------------------------------------------- | :--------------------------------------------- | :--------------------------------------------------------------- | :------------------------------------------------ |
+| **MCP Apps** io.modelcontextprotocol/apps             | 服务端交付 HTML/JS 沙箱 UI，在客户端内嵌渲染6  | UI 操作强制走 JSON-RPC，复用宿主统一审计与同意路径6              | 复合数据可视化、复杂交互式表单、审批确认面板6     |
+| **Tasks** io.modelcontextprotocol/tasks               | 提供非阻塞的长时间异步任务句柄与轮询/更新接口6 | 删除全局 tasks/list，防止跨租户任务信息泄露6                     | 复杂代码编译、海量数据 ETL 抽取、深度多步检索6    |
+| **EMA (Enterprise Auth)** io.modelcontextprotocol/ema | 企业级集中式 SSO 与 Zero-touch 授权分发机制4   | 结合 RFC 8707 资源指示器与 RFC 9207 发行方绑定，防止 Token 滥用6 | 企业内部多工具统一鉴权、跨部门智能体安全合规接入4 |
 
 ## **规范废弃机制与平滑迁移策略**
 
@@ -103,20 +103,20 @@ MCP 2026-07-28 规范的发布，标志着智能体基础设施完成了从草�
 
 #### **引用的著作**
 
-> 1. Model Context Protocol 2026-07-28 Specification and the Future of Tool Selection \- n1n.ai, [https://explore.n1n.ai/blog/model-context-protocol-2026-07-28-spec-guide-2026-07-28](https://explore.n1n.ai/blog/model-context-protocol-2026-07-28-spec-guide-2026-07-28)  
-> 2. The MCP Server Ecosystem: A Rigorous Survey for Builders \- Medium, [https://medium.com/@chierhu/the-mcp-server-ecosystem-a-rigorous-survey-for-builders-cbb15b98cd1e](https://medium.com/@chierhu/the-mcp-server-ecosystem-a-rigorous-survey-for-builders-cbb15b98cd1e)  
-> 3. MCP 2026-07-28 Specification: Stateless Core and Extensions \- Kingy AI, [https://kingy.ai/ai-launch-tracker/model-context-protocol-2026-07-28-specification/](https://kingy.ai/ai-launch-tracker/model-context-protocol-2026-07-28-specification/)  
-> 4. Model Context Protocol Blog, [https://blog.modelcontextprotocol.io/](https://blog.modelcontextprotocol.io/)  
-> 5. Stateless MCP: A Hands-On Guide to the 2026 Spec | QWE AI Academy, [https://www.qwe.edu.pl/tutorial/stateless-mcp-hands-on-guide/](https://www.qwe.edu.pl/tutorial/stateless-mcp-hands-on-guide/)  
-> 6. The biggest MCP spec update ships July 28: What changes for AI agent authentication, [https://workos.com/blog/mcp-2026-spec-agent-authentication](https://workos.com/blog/mcp-2026-spec-agent-authentication)  
-> 7. Announcing v2.0 of the official MCP C\# SDK \- .NET Blog, [https://devblogs.microsoft.com/dotnet/announcing-v20-of-the-official-mcp-csharp-sdk/](https://devblogs.microsoft.com/dotnet/announcing-v20-of-the-official-mcp-csharp-sdk/)  
-> 8. GitHub \- Zijian-Ni/awesome-ai-agents-2026, [https://github.com/Zijian-Ni/awesome-ai-agents-2026](https://github.com/Zijian-Ni/awesome-ai-agents-2026)  
-> 9. typescript-sdk/docs/migration/support-2026-07-28.md at main \- GitHub, [https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/migration/support-2026-07-28.md](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/migration/support-2026-07-28.md)  
-> 10. Releases · modelcontextprotocol/typescript-sdk \- GitHub, [https://github.com/modelcontextprotocol/typescript-sdk/releases](https://github.com/modelcontextprotocol/typescript-sdk/releases)  
-> 11. cognee-mcp by topoteretes \- Glama, [https://glama.ai/mcp/servers/topoteretes/cognee](https://glama.ai/mcp/servers/topoteretes/cognee)  
-> 12. ログインしたら、もう全部つながっている — MCPのエンタープライズ認可標準「EMA」が変えること, [https://note.com/shugo/n/n1149438f5308](https://note.com/shugo/n/n1149438f5308)  
-> 13. MCP仕様「2026-07-28」を公開 ——プロトコルをステートレス化、拡張機構や認可も強化, [https://gihyo.jp/article/2026/07/mcp-spec-2026-07-28](https://gihyo.jp/article/2026/07/mcp-spec-2026-07-28)  
-> 14. The official TypeScript SDK for Model Context Protocol servers and clients \- GitHub, [https://github.com/modelcontextprotocol/typescript-sdk](https://github.com/modelcontextprotocol/typescript-sdk)  
-> 15. Best AI Agent Frameworks 2026: Alice Labs Top 10 Ranked, [https://alicelabs.ai/en/insights/best-ai-agent-frameworks-2026](https://alicelabs.ai/en/insights/best-ai-agent-frameworks-2026)  
-> 16. What Is AI Agent Tool Calling? (MCP, A2A) \- Arcade.dev, [https://www.arcade.dev/blog/what-is-ai-agent-tool-calling/](https://www.arcade.dev/blog/what-is-ai-agent-tool-calling/)  
+> 1. Model Context Protocol 2026-07-28 Specification and the Future of Tool Selection \- n1n.ai, [https://explore.n1n.ai/blog/model-context-protocol-2026-07-28-spec-guide-2026-07-28](https://explore.n1n.ai/blog/model-context-protocol-2026-07-28-spec-guide-2026-07-28)
+> 2. The MCP Server Ecosystem: A Rigorous Survey for Builders \- Medium, [https://medium.com/@chierhu/the-mcp-server-ecosystem-a-rigorous-survey-for-builders-cbb15b98cd1e](https://medium.com/@chierhu/the-mcp-server-ecosystem-a-rigorous-survey-for-builders-cbb15b98cd1e)
+> 3. MCP 2026-07-28 Specification: Stateless Core and Extensions \- Kingy AI, [https://kingy.ai/ai-launch-tracker/model-context-protocol-2026-07-28-specification/](https://kingy.ai/ai-launch-tracker/model-context-protocol-2026-07-28-specification/)
+> 4. Model Context Protocol Blog, [https://blog.modelcontextprotocol.io/](https://blog.modelcontextprotocol.io/)
+> 5. Stateless MCP: A Hands-On Guide to the 2026 Spec | QWE AI Academy, [https://www.qwe.edu.pl/tutorial/stateless-mcp-hands-on-guide/](https://www.qwe.edu.pl/tutorial/stateless-mcp-hands-on-guide/)
+> 6. The biggest MCP spec update ships July 28: What changes for AI agent authentication, [https://workos.com/blog/mcp-2026-spec-agent-authentication](https://workos.com/blog/mcp-2026-spec-agent-authentication)
+> 7. Announcing v2.0 of the official MCP C\# SDK \- .NET Blog, [https://devblogs.microsoft.com/dotnet/announcing-v20-of-the-official-mcp-csharp-sdk/](https://devblogs.microsoft.com/dotnet/announcing-v20-of-the-official-mcp-csharp-sdk/)
+> 8. GitHub \- Zijian-Ni/awesome-ai-agents-2026, [https://github.com/Zijian-Ni/awesome-ai-agents-2026](https://github.com/Zijian-Ni/awesome-ai-agents-2026)
+> 9. typescript-sdk/docs/migration/support-2026-07-28.md at main \- GitHub, [https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/migration/support-2026-07-28.md](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/migration/support-2026-07-28.md)
+> 10. Releases · modelcontextprotocol/typescript-sdk \- GitHub, [https://github.com/modelcontextprotocol/typescript-sdk/releases](https://github.com/modelcontextprotocol/typescript-sdk/releases)
+> 11. cognee-mcp by topoteretes \- Glama, [https://glama.ai/mcp/servers/topoteretes/cognee](https://glama.ai/mcp/servers/topoteretes/cognee)
+> 12. ログインしたら、もう全部つながっている — MCPのエンタープライズ認可標準「EMA」が変えること, [https://note.com/shugo/n/n1149438f5308](https://note.com/shugo/n/n1149438f5308)
+> 13. MCP仕様「2026-07-28」を公開 ——プロトコルをステートレス化、拡張機構や認可も強化, [https://gihyo.jp/article/2026/07/mcp-spec-2026-07-28](https://gihyo.jp/article/2026/07/mcp-spec-2026-07-28)
+> 14. The official TypeScript SDK for Model Context Protocol servers and clients \- GitHub, [https://github.com/modelcontextprotocol/typescript-sdk](https://github.com/modelcontextprotocol/typescript-sdk)
+> 15. Best AI Agent Frameworks 2026: Alice Labs Top 10 Ranked, [https://alicelabs.ai/en/insights/best-ai-agent-frameworks-2026](https://alicelabs.ai/en/insights/best-ai-agent-frameworks-2026)
+> 16. What Is AI Agent Tool Calling? (MCP, A2A) \- Arcade.dev, [https://www.arcade.dev/blog/what-is-ai-agent-tool-calling/](https://www.arcade.dev/blog/what-is-ai-agent-tool-calling/)
 > 17. AI Security Roundup: LLM, MCP, RAG, and Agentic Vulnerabilities, [https://www.kubiosec.tech/blog/2026-07-03-AI-Security-Roundup](https://www.kubiosec.tech/blog/2026-07-03-AI-Security-Roundup)

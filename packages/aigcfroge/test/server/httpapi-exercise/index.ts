@@ -43,8 +43,8 @@ import {
   exerciseDatabasePath,
   exerciseGlobalRoot,
 } from "./environment"
-import { color, printHeader, printResults } from "./report"
-import { coverageResult, parseOptions, routeKey, routeKeys, selectedScenarios } from "./routing"
+import { color, printCoverage, printHeader, printResults } from "./report"
+import { parseOptions, routeKey, routeKeys, selectedScenarios } from "./routing"
 import { runScenario } from "./runner"
 import { disposeApps } from "./backend"
 import { runtime } from "./runtime"
@@ -236,14 +236,19 @@ function assetScenarios(fixture: AssetFixture): Scenario[] {
         (body, ctx) =>
           Effect.gen(function* () {
             object(body)
-            check(body.kind === fixture.kind, `${fixture.kind} asset apply should preserve kind`)
-            check(body.name === fixture.name, `${fixture.kind} asset apply should preserve name`)
-            if (typeof body.relativePath !== "string") {
+            // Agent-asset apply returns AgentAsset.ApplyResult ({asset, warnings},
+            // to carry import warnings); the other kinds return the flat asset
+            // info. Normalize by response shape rather than special-casing kind.
+            const applied = isRecord(body.asset) ? body.asset : body
+            if (isRecord(body.asset)) array(body.warnings)
+            check(applied.kind === fixture.kind, `${fixture.kind} asset apply should preserve kind`)
+            check(applied.name === fixture.name, `${fixture.kind} asset apply should preserve name`)
+            if (typeof applied.relativePath !== "string") {
               throw new Error(`${fixture.kind} asset apply should return a path`)
             }
             if (!ctx.directory) throw new Error(`${fixture.kind} asset apply needs a project directory`)
             const directory = ctx.directory
-            const relativePath = body.relativePath
+            const relativePath = applied.relativePath
             const exists = yield* Effect.promise(() =>
               Bun.file(path.join(directory, fixture.directory, relativePath)).exists(),
             )
@@ -526,6 +531,81 @@ function customCompositionScenarios(): Scenario[] {
         array(body.profiles)
       }),
   ]
+}
+
+/**
+ * Seed a custom session plus one durable workflow run, created directly through
+ * the Location-scoped WorkflowRun service. Going through the HTTP run endpoint
+ * would wake the execution engine and race the scenario's own assertions.
+ * Returns the run and the snapshot's WorkflowInfo so retry seeds can reuse the
+ * same step definitions the handler would read from the snapshot.
+ */
+function seedWorkflowRun(ctx: ScenarioContext, title: string) {
+  return Effect.gen(function* () {
+    const custom = yield* ctx.customSession({ title, workflow: true })
+    const seeded = yield* ctx.workflow(({ run, composition }) =>
+      Effect.gen(function* () {
+        const snapshot = yield* composition.get(custom.session.id)
+        if (snapshot.version !== 2 || !snapshot.data.workflow) {
+          return yield* Effect.die("workflow custom session snapshot has no workflow")
+        }
+        const created = yield* run.create({
+          sessionID: custom.session.id,
+          workflow: snapshot.data.workflow,
+          snapshotDigest: snapshot.digest,
+        })
+        return { created, steps: yield* run.getSteps(created.id), workflow: snapshot.data.workflow }
+      }),
+    )
+    return { sessionID: custom.session.id, run: seeded.created, steps: seeded.steps, workflow: seeded.workflow }
+  })
+}
+
+/** Move the seeded run's first step to `running`, then re-read both revisions. */
+function seedRunningWorkflowStep(ctx: ScenarioContext, title: string) {
+  return Effect.gen(function* () {
+    const seeded = yield* seedWorkflowRun(ctx, title)
+    const step = seeded.steps[0]
+    if (!step) return yield* Effect.die("workflow run seed created no steps")
+    return yield* ctx.workflow(({ run }) =>
+      Effect.gen(function* () {
+        yield* run.startStep(step.id)
+        const freshRun = yield* run.get(seeded.run.id)
+        const freshStep = (yield* run.getSteps(seeded.run.id)).find((candidate) => candidate.id === step.id)
+        if (!freshStep) return yield* Effect.die("workflow step disappeared after startStep")
+        return { sessionID: seeded.sessionID, run: freshRun, step: freshStep, workflow: seeded.workflow }
+      }),
+    )
+  })
+}
+
+/**
+ * Cancel the seeded run down to a terminal state with its first step cancelled
+ * (startStep -> cancelRun -> finalizeCancelRun): a run only accepts a manual
+ * retry when it is terminal and the target step is failed/execution_unknown/
+ * cancelled, and a plain cancelRun would leave a never-started step `skipped`,
+ * which is not retryable.
+ */
+function seedTerminalWorkflowRun(ctx: ScenarioContext, title: string) {
+  return Effect.gen(function* () {
+    const seeded = yield* seedRunningWorkflowStep(ctx, title)
+    return yield* ctx.workflow(({ run }) =>
+      Effect.gen(function* () {
+        const cancelling = yield* run.cancelRun({ runID: seeded.run.id, errorCategory: "step_cancelled" })
+        yield* run.finalizeCancelRun({
+          runID: seeded.run.id,
+          expectedRevision: cancelling.revision,
+          errorCategory: "step_cancelled",
+        })
+        const terminalRun = yield* run.get(seeded.run.id)
+        const terminalStep = (yield* run.getSteps(seeded.run.id)).find((candidate) => candidate.id === seeded.step.id)
+        if (!terminalStep || terminalStep.status !== "cancelled") {
+          return yield* Effect.die("workflow step is not cancelled after finalizeCancelRun")
+        }
+        return { sessionID: seeded.sessionID, run: terminalRun, step: terminalStep, workflow: seeded.workflow }
+      }),
+    )
+  })
 }
 
 const scenarios: Scenario[] = [
@@ -1867,6 +1947,40 @@ const scenarios: Scenario[] = [
       check(body.grant.action === "write", "grant action comes from pending request")
     }),
   http.protected
+    .post("/api/session/{sessionID}/permission/{requestID}/grant", "v2.session.permission.grant.missing")
+    .seeded((ctx) => ctx.session({ title: "Grant missing request owner" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/permission/{requestID}/grant", {
+        sessionID: ctx.state.id,
+        // PermissionV2.ID decodes only `per…` strings; anything shorter-circuited
+        // earlier would be a 400, not the 404 this scenario pins.
+        requestID: "per_httpapi_missing",
+      }),
+      headers: ctx.headers(),
+      body: { level: "session" },
+    }))
+    .json(404, (body) => {
+      object(body)
+      check(
+        body._tag === "PermissionNotFoundError",
+        "an unknown pending request must stay a typed 404, not a generic failure",
+      )
+    }),
+  http.protected
+    .post("/api/session/{sessionID}/permission/{requestID}/grant", "v2.session.permission.grant.invalid")
+    // Payload decoding rejects a bogus level before the handler runs, so a real
+    // session is all the middleware needs; no pending request is required.
+    .seeded((ctx) => ctx.session({ title: "Grant invalid payload owner" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/permission/{requestID}/grant", {
+        sessionID: ctx.state.id,
+        requestID: "per_httpapi_invalid",
+      }),
+      headers: ctx.headers(),
+      body: { level: "bogus" },
+    }))
+    .status(400),
+  http.protected
     .delete("/api/permission/grant/{grantID}", "v2.permission.grant.revoke")
     .mutating()
     .seeded((ctx) =>
@@ -2567,6 +2681,51 @@ const scenarios: Scenario[] = [
     }))
     .json(404),
   http.protected
+    .post("/session/{sessionID}/workflow/{runID}/cancel", "session.workflow.cancelRun")
+    .seeded((ctx) => seedWorkflowRun(ctx, "Workflow run cancel"))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/cancel", {
+        sessionID: ctx.state.sessionID,
+        runID: ctx.state.run.id,
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: { expectedRunRevision: ctx.state.run.revision },
+    }))
+    .json(200, (body, ctx) => {
+      object(body)
+      object(body.run)
+      check(body.run.id === ctx.state.run.id, "cancel should return the seeded run")
+      check(
+        body.run.status === "cancelled",
+        "with no process-local owner the handler finalizes the cancel to cancelled in-band",
+      )
+      check(
+        typeof body.run.revision === "number" && body.run.revision > ctx.state.run.revision,
+        "cancel should bump the run revision",
+      )
+      array(body.steps)
+      check(
+        body.steps.some((step) => isRecord(step) && step.runId === ctx.state.run.id && step.status === "skipped"),
+        "the never-dispatched step settles as skipped when the run cancels",
+      )
+    }),
+  http.protected
+    .post("/session/{sessionID}/workflow/{runID}/cancel", "session.workflow.cancelRun.stale")
+    .seeded((ctx) => seedWorkflowRun(ctx, "Workflow run cancel stale revision"))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/cancel", {
+        sessionID: ctx.state.sessionID,
+        runID: ctx.state.run.id,
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: { expectedRunRevision: ctx.state.run.revision + 999 },
+    }))
+    .json(409, (body, ctx) => {
+      object(body)
+      check(body._tag === "ConflictError", "a stale run revision must stay a typed conflict, not a generic failure")
+      check(body.resource === ctx.state.run.id, "conflict should point at the contested run")
+    }),
+  http.protected
     .post("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel", "session.workflow.cancelStep.missing")
     .seeded((ctx) => ctx.customSession({ title: "Missing workflow step cancel", workflow: true }))
     .at((ctx) => ({
@@ -2579,6 +2738,60 @@ const scenarios: Scenario[] = [
       body: { expectedRunRevision: 1, expectedStepRevision: 1 },
     }))
     .json(404),
+  http.protected
+    .post("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel", "session.workflow.cancelStep")
+    .seeded((ctx) => seedRunningWorkflowStep(ctx, "Workflow step cancel"))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel", {
+        sessionID: ctx.state.sessionID,
+        runID: ctx.state.run.id,
+        stepRunID: ctx.state.step.id,
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: { expectedRunRevision: ctx.state.run.revision, expectedStepRevision: ctx.state.step.revision },
+    }))
+    .json(200, (body, ctx) => {
+      object(body)
+      object(body.run)
+      // The handler wakes the execution engine before responding, so the run
+      // status itself is racing the drain here; the cancelled step row is the
+      // committed, stable signal this endpoint produced.
+      check(body.run.id === ctx.state.run.id, "cancel step should return the owning run")
+      array(body.steps)
+      const step = body.steps.find((candidate) => isRecord(candidate) && candidate.id === ctx.state.step.id)
+      check(isRecord(step), "response should include the cancelled step")
+      check(step.status === "cancelled", "the running step should be cancelled")
+      check(
+        typeof step.revision === "number" && step.revision > ctx.state.step.revision,
+        "cancel should bump the step revision",
+      )
+    }),
+  http.protected
+    .post("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel", "session.workflow.cancelStep.stale")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const seeded = yield* seedWorkflowRun(ctx, "Workflow step cancel stale revision")
+        const step = seeded.steps[0]
+        if (!step) return yield* Effect.die("workflow run seed created no steps")
+        return { sessionID: seeded.sessionID, run: seeded.run, step }
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/cancel", {
+        sessionID: ctx.state.sessionID,
+        runID: ctx.state.run.id,
+        stepRunID: ctx.state.step.id,
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      // A step revision that never existed trips the handler's revision guard
+      // before the service is touched.
+      body: { expectedRunRevision: ctx.state.run.revision, expectedStepRevision: ctx.state.step.revision + 999 },
+    }))
+    .json(409, (body, ctx) => {
+      object(body)
+      check(body._tag === "ConflictError", "a stale step revision must stay a typed conflict, not a generic failure")
+      check(body.resource === ctx.state.run.id, "conflict should point at the contested run")
+    }),
   http.protected
     .post("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry", "session.workflow.retryStep.missing")
     .seeded((ctx) => ctx.customSession({ title: "Missing workflow step retry", workflow: true }))
@@ -2596,6 +2809,90 @@ const scenarios: Scenario[] = [
       },
     }))
     .json(404),
+  http.protected
+    .post("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry", "session.workflow.retryStep")
+    .seeded((ctx) => seedTerminalWorkflowRun(ctx, "Workflow step retry"))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry", {
+        sessionID: ctx.state.sessionID,
+        runID: ctx.state.run.id,
+        stepRunID: ctx.state.step.id,
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: {
+        requestID: "httpapi-exercise-workflow-retry",
+        expectedRunRevision: ctx.state.run.revision,
+        expectedStepRevision: ctx.state.step.revision,
+      },
+    }))
+    .json(202, (body, ctx) => {
+      object(body)
+      object(body.run)
+      check(body.run.id !== ctx.state.run.id, "retry should create a new lineage run, not mutate the terminal one")
+      check(body.run.parentRunID === ctx.state.run.id, "lineage run should point at the source run")
+      check(body.run.retryOfStepRunID === ctx.state.step.id, "lineage run should name the retried step")
+      // `run` is captured before the handler wakes the execution engine, so its
+      // fields are the committed creation state.
+      check(body.run.status === "pending", "the lineage run starts pending")
+      check(body.run.revision === 1, "the lineage run starts at revision 1")
+      array(body.steps)
+      // The woken drain may dispatch the step before this read races it, so
+      // assert on the immutable lineage fields (stepId, attempt), not status.
+      const lineageRunID = body.run.id
+      check(
+        body.steps.some(
+          (step) =>
+            isRecord(step) &&
+            step.runId === lineageRunID &&
+            step.stepId === ctx.state.step.stepId &&
+            step.attempt === ctx.state.step.attempt + 1,
+        ),
+        "the retried step should re-enter at the next attempt in the lineage run",
+      )
+    }),
+  http.protected
+    .post("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry", "session.workflow.retryStep.conflict")
+    .seeded((ctx) =>
+      Effect.gen(function* () {
+        const seeded = yield* seedTerminalWorkflowRun(ctx, "Workflow step retry conflict")
+        // A first retry owns the requestID. Repeating it with a different
+        // revision payload changes the request digest, which must surface as
+        // RequestConflictError -> 409 rather than an idempotent replay.
+        yield* ctx.workflow(({ run }) =>
+          run.retryRun({
+            runID: seeded.run.id,
+            stepRunID: seeded.step.id,
+            requestID: "httpapi-exercise-workflow-retry-conflict",
+            expectedRunRevision: seeded.run.revision,
+            expectedStepRevision: seeded.step.revision,
+            stepsDef: seeded.workflow.steps,
+            sessionID: seeded.sessionID,
+          }),
+        )
+        return seeded
+      }),
+    )
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry", {
+        sessionID: ctx.state.sessionID,
+        runID: ctx.state.run.id,
+        stepRunID: ctx.state.step.id,
+      }),
+      headers: { ...ctx.headers(), "x-aigcfroge-capabilities": "product-mode-custom-v1" },
+      body: {
+        requestID: "httpapi-exercise-workflow-retry-conflict",
+        expectedRunRevision: ctx.state.run.revision,
+        expectedStepRevision: ctx.state.step.revision + 999,
+      },
+    }))
+    .json(409, (body) => {
+      object(body)
+      check(body._tag === "ConflictError", "a reused requestID must stay a typed conflict, not a generic failure")
+      check(
+        body.resource === "httpapi-exercise-workflow-retry-conflict",
+        "conflict should name the contested requestID",
+      )
+    }),
   http.protected
     .get("/session/{sessionID}/cache-diagnostics", "session.cacheDiagnostics")
     .seeded((ctx) => ctx.session({ title: "Cache diagnostics session" }))
@@ -2645,7 +2942,10 @@ const scenarios: Scenario[] = [
     .seeded((ctx) =>
       Effect.gen(function* () {
         const session = yield* ctx.session({ title: "Task list session" })
-        const tasks = yield* ctx.tasks(session.id, [{ content: "listed", status: "in_progress", priority: "high" }])
+        // Seed as pending: ScheduledJob.recoverStaleClaims resets schedule-less
+        // in_progress tasks back to pending on startup, so an in_progress seed
+        // would not survive to the HTTP read.
+        const tasks = yield* ctx.tasks(session.id, [{ content: "listed", status: "pending", priority: "high" }])
         return { session, tasks }
       }),
     )
@@ -2661,7 +2961,7 @@ const scenarios: Scenario[] = [
             isRecord(task) &&
             task.id === ctx.state.tasks[0].id &&
             task.content === "listed" &&
-            task.status === "in_progress",
+            task.status === "pending",
         ),
         "task list should include the seeded task",
       )
@@ -3405,18 +3705,28 @@ const main = Effect.gen(function* () {
     global: exerciseGlobalRoot,
   })
 
-  const results =
-    options.mode === "coverage"
-      ? selected.map(coverageResult)
-      : yield* Effect.forEach(
-          selected,
-          (scenario) =>
-            Effect.gen(function* () {
-              if (options.progress) console.log(`${color.dim}RUN ${routeKey(scenario)} ${scenario.name}${color.reset}`)
-              return yield* runScenario(options)(scenario)
-            }),
-          { concurrency: 1 },
-        )
+  // Coverage mode never executes scenarios: it reports registration coverage
+  // and enforces only the missing/todo gates. Behavioural status/body
+  // assertions are exclusively --mode effect's job (S5: the pass/fail shape
+  // here was a lie — coverage knew nothing about behaviour).
+  if (options.mode === "coverage") {
+    printCoverage(selected, missing, extra)
+    if (options.failOnSkip && selected.some((scenario) => scenario.kind === "todo"))
+      return yield* Effect.fail(new Error("one or more scenarios are todo (no behaviour scenario registered)"))
+    if (options.failOnMissing && missing.length > 0)
+      return yield* Effect.fail(new Error("one or more routes have no scenario"))
+    return undefined
+  }
+
+  const results = yield* Effect.forEach(
+    selected,
+    (scenario) =>
+      Effect.gen(function* () {
+        if (options.progress) console.log(`${color.dim}RUN ${routeKey(scenario)} ${scenario.name}${color.reset}`)
+        return yield* runScenario(options)(scenario)
+      }),
+    { concurrency: 1 },
+  )
   printResults(results, missing, extra)
 
   if (results.some((result) => result.status === "fail"))

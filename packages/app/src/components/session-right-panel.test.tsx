@@ -42,7 +42,7 @@ describe("SessionRightPanel (unified A/B shell)", () => {
     const assistant = read("../pages/session/assistant-session-panel.tsx")
     expect(assistant).not.toContain("fileTree=")
     expect(read("session-right-panel.tsx")).toContain("FileTree")
-    expect(read("session-right-panel.tsx")).toContain('onFileClick={(node) => void file.load(node.path)}')
+    expect(read("session-right-panel.tsx")).toContain("onFileClick={(node) => void file.load(node.path)}")
   })
 
   test("work regresses to the raised shell (no border-l plane style)", () => {

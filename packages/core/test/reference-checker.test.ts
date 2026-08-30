@@ -166,10 +166,7 @@ describe("ReferenceChecker", () => {
   )
 
   it.live("skips instead of blocking when the scan times out", () =>
-    withFixture(
-      { "guide.md": "See [target](./missing.md) for details.\n".repeat(5_000) },
-      { timeout_ms: 1 },
-    ).pipe(
+    withFixture({ "guide.md": "See [target](./missing.md) for details.\n".repeat(5_000) }, { timeout_ms: 1 }).pipe(
       Effect.flatMap(([, layer]) =>
         runCheck({ sessionID, toolName: "edit", toolInput: { path: "guide.md" } }).pipe(Effect.provide(layer)),
       ),

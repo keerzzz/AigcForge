@@ -140,9 +140,7 @@ export function toRow(info: Info) {
     summary_deletions: info.summary?.deletions,
     summary_files: info.summary?.files,
     summary_diffs: info.summary?.diffs,
-    metadata: info.presetCategoryId
-      ? { ...info.metadata, presetCategoryId: info.presetCategoryId }
-      : info.metadata,
+    metadata: info.presetCategoryId ? { ...info.metadata, presetCategoryId: info.presetCategoryId } : info.metadata,
     cost: info.cost ?? 0,
     tokens_input: (info.tokens ?? EmptyTokens).input,
     tokens_output: (info.tokens ?? EmptyTokens).output,
@@ -336,7 +334,6 @@ export type GlobalListInput = {
   archived?: boolean
   mode?: ProductMode.ID
 }
-
 
 export const Event = {
   Created: SessionV1.Event.Created,

@@ -26,7 +26,10 @@ export const Output = Schema.Struct({
 
 export const toModelOutput = ({ output }: { output: { preset: WorkPreset.Preset } }) => {
   const questions = output.preset.questions
-    .map((q) => `- ${q.prompt}${q.options?.length ? ` (options: ${q.options.join(", ")})` : ""}${q.required ? " [required]" : ""}`)
+    .map(
+      (q) =>
+        `- ${q.prompt}${q.options?.length ? ` (options: ${q.options.join(", ")})` : ""}${q.required ? " [required]" : ""}`,
+    )
     .join("\n")
   return [
     {

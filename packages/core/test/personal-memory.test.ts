@@ -6,10 +6,7 @@ import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(
-  PersonalMemory.layer.pipe(
-    Layer.provideMerge(Database.defaultLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-  ),
+  PersonalMemory.layer.pipe(Layer.provideMerge(Database.defaultLayer), Layer.provideMerge(EventV2.defaultLayer)),
 )
 
 const makeInput = (overrides: Partial<Parameters<PersonalMemory.Interface["propose"]>[0]> = {}) => ({

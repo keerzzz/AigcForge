@@ -24,15 +24,15 @@ docs/plan/session-capture-implementation.md              （本计划全文，56
 
 ## 1. 目标
 
-在**非 chat 模式**的所有 assistant 消息最终轮次上添加"存为资产"按钮。用户点击后：提取消息文本内容 → 创建 chat Draft（chat-orchestrator 绑定）→ 预填 seed prompt → chat-orchestrator 处理 → propose_*_asset → 右栏预览 → 用户 apply。
+在**非 chat 模式**的所有 assistant 消息最终轮次上添加"存为资产"按钮。用户点击后：提取消息文本内容 → 创建 chat Draft（chat-orchestrator 绑定）→ 预填 seed prompt → chat-orchestrator 处理 → propose\_\*\_asset → 右栏预览 → 用户 apply。
 
 **按钮显示规则**：
 
-| 维度 | 规则 |
-|------|------|
-| 模式 | coding / work / assistant — 显示；**chat — 隐藏** |
-| 消息类型 | assistant 消息最终轮次（`!workingTurn`） |
-| Agent | 所有 agent 的输出（不限 meta/subagent） |
+| 维度     | 规则                                              |
+| -------- | ------------------------------------------------- |
+| 模式     | coding / work / assistant — 显示；**chat — 隐藏** |
+| 消息类型 | assistant 消息最终轮次（`!workingTurn`）          |
+| Agent    | 所有 agent 的输出（不限 meta/subagent）           |
 
 **范围**：`packages/schema`（credential-scan.ts 新建）+ `packages/core`（credential-scanner.ts 新建）+ `packages/app`（capture-helpers.ts / capture-button.tsx 新建；session.tsx 改）+ `packages/session-ui`（message-part.tsx UserActions 改）。**不新增 API 端点**。
 
@@ -58,6 +58,7 @@ grep -n "onNewAsset\|openProjectNewSession\|newDraft" packages/app/src/pages/hom
 ```
 
 **关键发现**：
+
 - `message-part.tsx:171-175`：`UserActions` 类型只有 `fork`/`revert`/`handoff` — 需加 `capture`
 - `message-timeline.tsx:1176-1192`：`HandoffButton` 渲染位置 — **同层级添加 CaptureButton**
 - `session.tsx:1561`：`const actions = { revert, handoff }` — 需加 `capture`
@@ -89,6 +90,7 @@ grep -n "onNewAsset\|openProjectNewSession\|newDraft" packages/app/src/pages/hom
 **测试**：`packages/core/test/credential-scanner.test.ts`（新建）— 检测 API key / Bearer token / private key / .env line 模式，返回脱敏结果，对正常文本无误报
 
 **实现**：
+
 - `packages/schema/src/credential-scan.ts`（新建）— `ScanResult` Schema.Class：`{ hits: [{type, lineIndex, positionHint}], stripped: string }`。hits 含行号和分类标签，不含实际值
 - `packages/core/src/credential-scanner.ts`（新建）— Effect service，`Context.Tag` + `Layer.effect`。纯正则匹配，不依赖外部库。不输出匹配值到任何日志。此服务后续被 import-parser 共享复用
 
@@ -103,6 +105,7 @@ grep -n "onNewAsset\|openProjectNewSession\|newDraft" packages/app/src/pages/hom
 **测试**：`packages/app/src/components/chat/capture-helpers.test.ts`（新建并置）— 提取 text part（过滤 tool call / 交互 UI / question/confirm）、空 parts 返回 ""、wrap 产生 `<captured_content source_session="..." source_message="...">...</captured_content>`、seed prompt 含 i18n 指令
 
 **实现**：
+
 - `packages/schema/src/session-capture.ts`（新建）— `CaptureSource` type
 - `packages/app/src/components/chat/capture-helpers.ts`（新建）— `extractMessageContent(parts)`、`wrapCaptureContent(content, source)`、`captureSeedPrompt(content, t)`
 
@@ -117,6 +120,7 @@ grep -n "onNewAsset\|openProjectNewSession\|newDraft" packages/app/src/pages/hom
 **测试**：CaptureButton 在 coding mode + 消息完成时可见；chat mode 隐藏；working 状态隐藏；点击触发 onCapture
 
 **实现**：
+
 - `message-part.tsx:171` — `UserActions` 加 `capture?: () => void`
 - `packages/app/src/components/chat/capture-button.tsx`（新建）— `<TooltipV2>` + `<Icon name="archive">`，v2 token，i18n label `chatCapture.captureAsAsset`
 - `message-timeline.tsx:1176` 附近 — `<Show when={props.actions?.capture && !workingTurn(...)}><CaptureButton ... /></Show>`
@@ -134,6 +138,7 @@ grep -n "onNewAsset\|openProjectNewSession\|newDraft" packages/app/src/pages/hom
 **实现** — `packages/app/src/pages/session.tsx`：
 
 新增 imports（当前缺失）：
+
 ```ts
 import { useGlobal } from "@/context/global"
 import { ServerConnection, useServer } from "@/context/server"
@@ -143,6 +148,7 @@ import { extractMessageContent, captureSeedPrompt } from "@/components/chat/capt
 ```
 
 新增 hooks（与其他 hooks 一起在组件顶部）：
+
 ```ts
 const global = useGlobal()
 const server = useServer()
@@ -150,6 +156,7 @@ const modeCtx = useMode()
 ```
 
 capture action（放在 line 1561 actions 定义处）：
+
 ```ts
 const capture = () => {
   const sessionInfo = info()          // info() = sync().session.get(params.id)，session.tsx:244
@@ -194,6 +201,7 @@ const actions = { revert, handoff, capture: sessionMode() !== "chat" ? capture :
 **测试**：en.ts 和 zh.ts 含 `chatCapture.*` keys；chat-orchestrator system prompt 含 `<captured_content>` 处理指引
 
 **实现**：
+
 - `en.ts` / `zh.ts` — 加 `chatCapture: { captureAsAsset, instruction, sourceLabel }`
 - `packages/core/src/agent/prompt/chat-orchestrator.ts` — system prompt 加：
   ```
@@ -219,6 +227,7 @@ bun run lint
 ```
 
 浏览器：
+
 - coding session → assistant 消息上"存为资产"按钮可见
 - chat session → 无"存为资产"按钮
 - 点击"存为资产" → 创建 chat Draft → chat-orchestrator → propose → preview → apply

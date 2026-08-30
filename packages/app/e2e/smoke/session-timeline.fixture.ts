@@ -124,7 +124,10 @@ function toolPart(
       ? { files: [patchFile(index, "update"), patchFile(index + 1, index % 2 === 0 ? "add" : "delete")] }
       : tool === "edit" || tool === "write"
         ? {
-            filediff: fileDiff(typeof input.filePath === "string" ? input.filePath : `src/generated/file-${index}.ts`, index),
+            filediff: fileDiff(
+              typeof input.filePath === "string" ? input.filePath : `src/generated/file-${index}.ts`,
+              index,
+            ),
             diff: patch(index, outputLength),
             preview: patch(index + 1, 420),
           }
@@ -140,7 +143,10 @@ function toolPart(
       status: "completed",
       input,
       output: lorem(index * 23 + partIndex, outputLength),
-      title: tool === "bash" ? String(input.command) : [input.filePath, input.path, input.pattern].find(x => typeof x === "string") ?? "completed",
+      title:
+        tool === "bash"
+          ? String(input.command)
+          : ([input.filePath, input.path, input.pattern].find((x) => typeof x === "string") ?? "completed"),
       metadata,
       time: { start: 1700000000000 + index * 10_000, end: 1700000000000 + index * 10_000 + 400 },
     },
@@ -230,8 +236,8 @@ const sourceMessages = Array.from({ length: 12 }, (_, index) => [
 
 function renderable(part: MessagePart) {
   if (part.type === "tool" && part.tool === "todowrite") return false
-  if (part.type === "text") return !!part.text.trim()
-  if (part.type === "reasoning") return !!part.text.trim()
+  if (part.type === "text") return !!part.text?.trim()
+  if (part.type === "reasoning") return !!part.text?.trim()
   return part.type !== "step-start" && part.type !== "step-finish" && part.type !== "patch"
 }
 

@@ -66,8 +66,7 @@ const state: {
 const installStub = () =>
   TaskDriver.installForTesting(
     {
-      get: () =>
-        state.getDies ? Effect.die("facade unavailable") : Effect.succeed({ location }),
+      get: () => (state.getDies ? Effect.die("facade unavailable") : Effect.succeed({ location })),
       create: (input) =>
         Effect.sync(() => {
           state.createChild.push(input)
@@ -91,9 +90,7 @@ const installStub = () =>
   )
 
 const it = testEffect(
-  ScheduledJobExecutor.layer.pipe(
-    Layer.provideMerge(Layer.effect(TaskDriver.Runtime, installStub())),
-  ),
+  ScheduledJobExecutor.layer.pipe(Layer.provideMerge(Layer.effect(TaskDriver.Runtime, installStub()))),
 )
 
 const run = (input: { agent?: string; prompt?: string }) =>

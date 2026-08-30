@@ -66,9 +66,7 @@ const mockSnapshot = (sessionID: SessionV2.ID, allowedAgentID: string = "custom-
     createdAt: 1000,
     data: new Composition.SnapshotDataV1({
       agentID: allowedAgentID,
-      instructions: [
-        new Composition.Instruction({ source: "custom.agent.md", content: "Custom System Instructions" }),
-      ],
+      instructions: [new Composition.Instruction({ source: "custom.agent.md", content: "Custom System Instructions" })],
       prompts: [],
       skills: [
         new Composition.SkillInfo({
@@ -92,8 +90,18 @@ const mockSnapshot = (sessionID: SessionV2.ID, allowedAgentID: string = "custom-
 // consistent — never run assertDependency against it.)
 const frozenDigest = Composition.Digest.make("4".repeat(64))
 const frozenFingerprints = [
-  { placement: "/workspace", name: "glob", digest: Composition.Digest.make("5".repeat(64)), installationVersion: "0.1.0" },
-  { placement: "/workspace", name: "read", digest: Composition.Digest.make("6".repeat(64)), installationVersion: "0.1.0" },
+  {
+    placement: "/workspace",
+    name: "glob",
+    digest: Composition.Digest.make("5".repeat(64)),
+    installationVersion: "0.1.0",
+  },
+  {
+    placement: "/workspace",
+    name: "read",
+    digest: Composition.Digest.make("6".repeat(64)),
+    installationVersion: "0.1.0",
+  },
 ]
 const frozenSnapshot = (sessionID: SessionV2.ID, profilePath?: string) =>
   new Composition.SnapshotV1({
@@ -178,7 +186,6 @@ const it = testEffect(
 )
 
 describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
-
   describe("Resume & Snapshot Reconstitution", () => {
     it.effect("reconstitutes snapshot accurately from database on session reload", () =>
       Effect.gen(function* () {
@@ -186,19 +193,32 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         const { db } = yield* Database.Service
         const sessionID = SessionV2.ID.make("ses_custom_resume_1")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_life_1"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: sessionID,
-          slug: "life-slug-1",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_life_1"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_life_1"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: sessionID,
+            slug: "life-slug-1",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_life_1"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         const snapshot = mockSnapshot(sessionID, "custom-coder")
         yield* comp.attach(sessionID, snapshot)
@@ -223,19 +243,32 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         const { db } = yield* Database.Service
         const sessionID = SessionV2.ID.make("ses_missing_snap")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_life_2"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: sessionID,
-          slug: "life-slug-2",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_life_2"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_life_2"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: sessionID,
+            slug: "life-slug-2",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_life_2"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         const result = yield* comp.get(sessionID).pipe(Effect.exit)
         expect(result._tag).toBe("Failure")
@@ -252,28 +285,45 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         const { db } = yield* Database.Service
         const sessionID = SessionV2.ID.make("ses_corrupt_snap")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_life_3"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: sessionID,
-          slug: "life-slug-3",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_life_3"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_life_3"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: sessionID,
+            slug: "life-slug-3",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_life_3"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         // Insert malformed data into snapshot table
-        yield* db.insert(SessionCompositionSnapshotTable).values({
-          session_id: sessionID,
-          version: 1,
-          digest: "not-a-valid-sha256-hex-digest-at-all",
-          data: sql`'{"invalid_field": 123}'`,
-          time_created: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(SessionCompositionSnapshotTable)
+          .values({
+            session_id: sessionID,
+            version: 1,
+            digest: "not-a-valid-sha256-hex-digest-at-all",
+            data: sql`'{"invalid_field": 123}'`,
+            time_created: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         const result = yield* comp.get(sessionID).pipe(Effect.exit)
         expect(result._tag).toBe("Failure")
@@ -305,7 +355,11 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
 
         yield* db
           .insert(ProjectTable)
-          .values({ id: ProjectSchema.ID.make("proj_life_plain"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] })
+          .values({
+            id: ProjectSchema.ID.make("proj_life_plain"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
           .onConflictDoNothing()
           .run()
           .pipe(Effect.orDie)
@@ -342,19 +396,32 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         const { db } = yield* Database.Service
         const rootSessionID = SessionV2.ID.make("ses_life_parent")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_life_4"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: rootSessionID,
-          slug: "life-slug-4",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_life_4"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Root Custom Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_life_4"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: rootSessionID,
+            slug: "life-slug-4",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_life_4"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Root Custom Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         const parentSnapshot = mockSnapshot(rootSessionID, "custom-coder")
         yield* comp.attach(rootSessionID, parentSnapshot)
@@ -387,19 +454,32 @@ describe("Custom Mode Lifecycle: Resume, Fork, Move, & Drift Isolation", () => {
         const { db } = yield* Database.Service
         const sessionID = SessionV2.ID.make("ses_drift_iso")
 
-        yield* db.insert(ProjectTable).values({ id: ProjectSchema.ID.make("proj_life_5"), worktree: AbsolutePath.make("/workspace"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-        yield* db.insert(SessionTable).values({
-          id: sessionID,
-          slug: "life-slug-5",
-          version: "1.0.0",
-          project_id: ProjectV2.ID.make("proj_life_5"),
-          directory: AbsolutePath.make("/workspace"),
-          title: "Frozen Session",
-          mode: "custom",
-          agent: AgentV2.ID.make("meta"),
-          time_created: Date.now(),
-          time_updated: Date.now(),
-        }).run().pipe(Effect.orDie)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: ProjectSchema.ID.make("proj_life_5"),
+            worktree: AbsolutePath.make("/workspace"),
+            sandboxes: [],
+          })
+          .onConflictDoNothing()
+          .run()
+          .pipe(Effect.orDie)
+        yield* db
+          .insert(SessionTable)
+          .values({
+            id: sessionID,
+            slug: "life-slug-5",
+            version: "1.0.0",
+            project_id: ProjectV2.ID.make("proj_life_5"),
+            directory: AbsolutePath.make("/workspace"),
+            title: "Frozen Session",
+            mode: "custom",
+            agent: AgentV2.ID.make("meta"),
+            time_created: Date.now(),
+            time_updated: Date.now(),
+          })
+          .run()
+          .pipe(Effect.orDie)
 
         const originalSnapshot = mockSnapshot(sessionID, "custom-coder")
         yield* comp.attach(sessionID, originalSnapshot)

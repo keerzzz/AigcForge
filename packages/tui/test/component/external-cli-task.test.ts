@@ -32,9 +32,7 @@ describe("TUI external-cli task display", () => {
   })
 
   test("permissionTaskTitle shows the CLI target for external-cli", () => {
-    expect(permissionTaskTitle({ execution_type: "external-cli", cli_target: "claude-code" })).toBe(
-      "Claude-Code CLI",
-    )
+    expect(permissionTaskTitle({ execution_type: "external-cli", cli_target: "claude-code" })).toBe("Claude-Code CLI")
   })
 
   test("permissionTaskTitle defaults external-cli to a plain CLI label without a target", () => {

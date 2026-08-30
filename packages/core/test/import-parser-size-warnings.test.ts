@@ -19,10 +19,22 @@ const ok = (input: string) => {
 describe("入口尺寸与单块尺寸分离（P1-7 回归）", () => {
   it("150KB 文档 + 多个小块 → 正常解析，不再整体 too_large", () => {
     const filler = "prose line that pads the document out\n".repeat(1900)
-    const input = [filler, "```yaml", "kind: workflow", "steps: [a]", "```", filler, "```", "a prompt body", "```"].join("\n")
+    const input = [
+      filler,
+      "```yaml",
+      "kind: workflow",
+      "steps: [a]",
+      "```",
+      filler,
+      "```",
+      "a prompt body",
+      "```",
+    ].join("\n")
     const bytes = new TextEncoder().encode(input).length
     const r = ok(input)
-    console.log(`[SIZE] input=${(bytes / 1024).toFixed(0)}KB candidates=${r.candidates.length} errors=${JSON.stringify(r.errors.map((e) => e.reason))}`)
+    console.log(
+      `[SIZE] input=${(bytes / 1024).toFixed(0)}KB candidates=${r.candidates.length} errors=${JSON.stringify(r.errors.map((e) => e.reason))}`,
+    )
     expect(bytes).toBeGreaterThan(100_000)
     expect(bytes).toBeLessThan(200 * 1024)
     expect(r.candidates.length).toBe(2)
@@ -39,7 +51,9 @@ describe("入口尺寸与单块尺寸分离（P1-7 回归）", () => {
     const big = "x".repeat(100_001)
     const input = ["```", big, "```", "```", "small body", "```"].join("\n")
     const r = ok(input)
-    console.log(`[SIZE] per-block: candidates=${r.candidates.length} errors=${JSON.stringify(r.errors.map((e) => `${e.section}:${e.reason}`))}`)
+    console.log(
+      `[SIZE] per-block: candidates=${r.candidates.length} errors=${JSON.stringify(r.errors.map((e) => `${e.section}:${e.reason}`))}`,
+    )
     expect(r.candidates.length).toBe(1)
     expect(r.errors.some((e) => e.reason === "too_large")).toBe(true)
   })
