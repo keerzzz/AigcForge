@@ -235,7 +235,8 @@ export const locationLayer = Layer.effect(
         // LLM request goes out with Auth.none -> 401.
         const credential = connection
           ? yield* integrations.connection.resolve(connection)
-          : yield* getCredential(selected.providerID) as unknown as Effect.Effect<Credential.Value | undefined>
+          : // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- the seam resolver's requirements are open (unknown); it runs in the caller's context
+            yield* getCredential(selected.providerID) as unknown as Effect.Effect<Credential.Value | undefined>
         return yield* resolve(session, selected, credential)
       }),
     })

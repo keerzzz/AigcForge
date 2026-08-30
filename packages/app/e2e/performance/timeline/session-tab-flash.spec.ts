@@ -15,6 +15,8 @@ import {
   stressSessionHref,
 } from "./timeline-test-helpers"
 
+const messages: Record<string, (typeof fixture.messages)[keyof typeof fixture.messages]> = fixture.messages
+
 benchmark("samples cached session repaint after the click", async ({ page, report }) => {
   benchmark.setTimeout(120_000)
   await mockStressTimeline(page)
@@ -32,8 +34,8 @@ benchmark("samples cached session repaint after the click", async ({ page, repor
 
   await installCachedRepaintProbe(page, {
     targetHref: stressSessionHref(fixture.targetID),
-    destination: fixture.messages[fixture.targetID as keyof typeof fixture.messages].map((message) => message.info.id),
-    source: fixture.messages[fixture.sourceID as keyof typeof fixture.messages].map((message) => message.info.id),
+    destination: messages[fixture.targetID].map((message) => message.info.id),
+    source: messages[fixture.sourceID].map((message) => message.info.id),
     last: fixture.expected.targetMessageIDs.at(-1)!,
     windowMs: 1_000,
   })

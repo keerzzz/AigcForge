@@ -81,6 +81,7 @@ export const layer = Layer.effect(
         yield* db
           .update(SessionTable)
           .set({
+            // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- the column type wants branded MessageID/PartID and omits the null placeholders this write persists
             revert: {
               messageID: input.revert.messageID,
               snapshot: input.revert.snapshot ?? null,

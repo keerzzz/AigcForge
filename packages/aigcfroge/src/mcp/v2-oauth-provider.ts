@@ -147,10 +147,12 @@ export class McpOAuthProvider implements OAuthClientProvider {
         await Effect.runPromise(this.auth.remove(this.mcpName))
         break
       case "client":
+        // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- persisted Entry fields are readonly; delete requires a mutable view
         delete (entry as any).clientInfo
         await Effect.runPromise(this.auth.set(this.mcpName, entry))
         break
       case "tokens":
+        // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- persisted Entry fields are readonly; delete requires a mutable view
         delete (entry as any).tokens
         await Effect.runPromise(this.auth.set(this.mcpName, entry))
         break
