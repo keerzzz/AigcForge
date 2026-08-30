@@ -200,7 +200,7 @@ Enforced across all Effect-touching packages. Detail lives in `.aigcfroge/skills
 ## Type Checking
 
 - For daily development, prefer `bun --cwd packages/<name> typecheck` (single package). Run `bun typecheck` (routes to `bun turbo typecheck`) for full-repo checks in CI or before merging. Never invoke `tsc` directly.
-- Every package's `typecheck` script uses `tsgo --noEmit` (the `@typescript/native-preview` binary). `app` and `desktop` use `tsgo -b` (project-references build) instead of `--noEmit`.
+- Every package's `typecheck` script uses `tsgo --noEmit` (the `@typescript/native-preview` binary). `app` and `desktop` use `tsgo -b` (project-references build) instead of `--noEmit`; `app` additionally runs `tsgo --noEmit -p e2e/tsconfig.json` so the Playwright e2e specs stay typechecked.
 - `script` and `storybook` have no `typecheck` script and are excluded from `bun turbo typecheck`.
 - The `.husky/pre-push` hook runs `bun typecheck` before push; it is not a pre-commit hook. Set `AIGCFROGE_SKIP_TYPECHECK=1` to skip (e.g. for rapid iteration pushes to a feature branch).
 

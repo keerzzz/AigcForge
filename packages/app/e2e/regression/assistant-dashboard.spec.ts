@@ -124,7 +124,15 @@ test.describe("regression: assistant dashboard", () => {
   })
 })
 
-async function mockServer(page: Page, extra: { state: object } & Partial<MockServerConfig>) {
+// Hooks consumed by this spec's own page.route handlers below; the shared
+// mock server (utils/mock-server.ts) does not implement them.
+type DashboardHooks = {
+  onScheduleCancel?: () => void
+  onMemoryConfirm?: () => void
+  onMemoryReject?: () => void
+}
+
+async function mockServer(page: Page, extra: { state: object } & Partial<MockServerConfig> & DashboardHooks) {
   const { state, ...config } = extra
   await mockAigcfrogeServer(page, {
     directory,

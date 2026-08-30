@@ -12,7 +12,7 @@
     "./index.css": "./src/index.css"
   },
   "scripts": {
-    "typecheck": "tsgo -b",
+    "typecheck": "tsgo -b && tsgo --noEmit -p e2e/tsconfig.json",
     "start": "vite",
     "dev": "vite",
     "build": "vite build",

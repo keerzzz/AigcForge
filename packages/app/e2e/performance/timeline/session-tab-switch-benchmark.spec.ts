@@ -34,8 +34,12 @@ async function trial(page: Page, mode: "cold" | "hot") {
   }
   await waitForStableTimeline(page, fixture.expected.sourceMessageIDs.at(-1)!)
 
-  const destinationIDs = fixture.messages[fixture.targetID].map((message) => message.info.id)
-  const sourceIDs = fixture.messages[fixture.sourceID].map((message) => message.info.id)
+  const destinationIDs = fixture.messages[fixture.targetID as keyof typeof fixture.messages].map(
+    (message) => message.info.id,
+  )
+  const sourceIDs = fixture.messages[fixture.sourceID as keyof typeof fixture.messages].map(
+    (message) => message.info.id,
+  )
   const lastID = fixture.expected.targetMessageIDs.at(-1)!
   const href = stressSessionHref(fixture.targetID)
   const result = await measureSessionSwitch(page, {
