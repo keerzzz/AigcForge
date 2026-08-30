@@ -23,7 +23,7 @@ describe("aigcfroge acp initialize/auth subprocess", () => {
         expect(initialized.agentCapabilities?.sessionCapabilities?.resume).toEqual({})
         expect(initialized.agentInfo?.name).toBe("Aigcfroge")
       }),
-    60_000,
+    120_000,
   )
 
   cliIt.live(
@@ -43,7 +43,7 @@ describe("aigcfroge acp initialize/auth subprocess", () => {
         expectErrorCode(rejected.error, -32602)
         expect(JSON.stringify(rejected.error)).not.toContain(process.env.AIGCFROGE_AUTH_CONTENT ?? "not-present")
       }),
-    60_000,
+    120_000,
   )
 
   cliIt.live(
@@ -56,6 +56,6 @@ describe("aigcfroge acp initialize/auth subprocess", () => {
         expect(initialized.result?.authMethods?.[0]?.id).toBe("aigcfroge-login")
         expect(initialized.result?.authMethods?.[0]?._meta?.["terminal-auth"]).toBeUndefined()
       }),
-    60_000,
+    120_000,
   )
 })

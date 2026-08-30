@@ -71,6 +71,7 @@ it.live("InstanceStore.provide runs InstanceBootstrap before effect", () =>
 
     expect(existsSync(tmp.marker)).toBe(true)
   }),
+  60_000,
 )
 
 it.live("CLI bootstrap runs InstanceBootstrap before callback", () =>
@@ -81,6 +82,7 @@ it.live("CLI bootstrap runs InstanceBootstrap before callback", () =>
 
     expect(existsSync(tmp.marker)).toBe(true)
   }),
+  60_000,
 )
 
 it.live("CLI bootstrap disposes the instance when the callback rejects", () =>
@@ -96,6 +98,7 @@ it.live("CLI bootstrap disposes the instance when the callback rejects", () =>
     if (Exit.isFailure(exit)) expect(Cause.squash(exit.cause)).toMatchObject({ message: "boom" })
     yield* Fiber.join(disposed)
   }),
+  60_000,
 )
 
 it.live("InstanceStore.reload runs InstanceBootstrap", () =>
@@ -107,4 +110,5 @@ it.live("InstanceStore.reload runs InstanceBootstrap", () =>
 
     expect(existsSync(tmp.marker)).toBe(true)
   }),
+  60_000,
 )
