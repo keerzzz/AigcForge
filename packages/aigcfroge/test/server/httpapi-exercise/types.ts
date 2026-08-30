@@ -1,7 +1,9 @@
 import type { Duration, Effect } from "effect"
 import type { PermissionV2 } from "@aigcfroge/core/permission"
 import type { ScopedGrantStore } from "@aigcfroge/core/grant/store"
+import type { SessionComposition } from "@aigcfroge/core/session/composition"
 import type { SessionTask } from "@aigcfroge/core/session/task"
+import type { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
 import type { KBNote } from "@aigcfroge/schema/kb-note"
 import type { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
 import type { Schedule } from "@aigcfroge/schema/schedule"
@@ -76,6 +78,17 @@ export type ScenarioContext = {
     action: string
     resources: string[]
   }) => Effect.Effect<ScopedGrantStore.Info>
+  /**
+   * Run against the Location-scoped workflow services (same resolution path the
+   * HttpApi handlers use). Domain errors are defects here: a seed that cannot
+   * build its own fixture should fail loudly, not map to an HTTP expectation.
+   */
+  workflow: <A, E>(
+    use: (services: {
+      readonly run: WorkflowRun.Interface
+      readonly composition: SessionComposition.Interface
+    }) => Effect.Effect<A, E>,
+  ) => Effect.Effect<A>
   project: () => Effect.Effect<Project.Info>
   message: (sessionID: SessionID, input?: { text?: string }) => Effect.Effect<MessageSeed>
   messages: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts[]>
