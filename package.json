@@ -10,7 +10,7 @@
     "dev:desktop": "bun --cwd packages/desktop dev",
     "dev:web": "bun --cwd packages/app dev",
     "dev:storybook": "bun --cwd packages/storybook storybook",
-    "lint": "oxlint && bun run script/lint-changed.ts && bun run script/check-unawaited-assertions.ts",
+    "lint": "oxlint && bun run script/format.ts --check && bun run script/lint-changed.ts && bun run script/check-unawaited-assertions.ts",
     "audit": "bun audit",
     "typecheck": "bun turbo typecheck",
     "upgrade-opentui": "bun run script/upgrade-opentui.ts",
