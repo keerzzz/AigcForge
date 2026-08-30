@@ -86,7 +86,7 @@ describe("SessionShareV2", () => {
       })
       const result = yield* share
         .share({
-          sourceSessionID: "ses_nonexistent" as any,
+          sourceSessionID: SessionV2.ID.make("ses_nonexistent"),
           targetSessionID: target.id,
           scope: "reference",
         })

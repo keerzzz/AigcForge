@@ -47,9 +47,7 @@ test("auth seam resolver inherits caller Effect context", async () => {
   )
 
   const result = await Effect.runPromise(
-    (getCredential("openai") as unknown as Effect.Effect<Credential.Value | undefined, never, TestAuth>).pipe(
-      Effect.provideService(TestAuth, { key: "secret" }),
-    ),
+    runCredential("openai").pipe(Effect.provideService(TestAuth, { key: "secret" })),
   )
   expect(result).toEqual(Credential.Key.make({ type: "key", key: "openai:secret" }))
 })

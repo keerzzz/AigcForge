@@ -1,6 +1,7 @@
 import path from "path"
 import { describe, expect, test, beforeEach } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
+import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset" // Schema namespace; core PromptAsset uses the unaliased name.
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
@@ -81,12 +82,12 @@ describe("PromptAsset V2 smoke", () => {
 
             // Apply
             const applied = yield* svc.apply({
-              candidate: {
+              candidate: Schema.decodeUnknownSync(SchemaPromptAsset.Candidate)({
                 name: "v2-smoke",
                 description: "V2 smoke test",
                 template: "content",
                 relativePath: "",
-              } as any,
+              }),
               baseRevision: null,
               overwrite: false,
             })

@@ -1,6 +1,7 @@
 import path from "path"
 import { describe, expect, test } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
+import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset" // Schema namespace; core PromptAsset uses the unaliased name.
 import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
 import { ProposePromptAssetTool } from "@aigcfroge/core/tool/propose-prompt-asset"
@@ -157,12 +158,12 @@ describe("PromptAsset E2E (aigcfroge)", () => {
 
             // Apply
             const applied = yield* svc.apply({
-              candidate: {
+              candidate: Schema.decodeUnknownSync(SchemaPromptAsset.Candidate)({
                 name: "e2e-test",
                 description: "E2E test",
                 template: "Hello, {{world}}!",
                 relativePath: "",
-              } as any,
+              }),
               baseRevision: null,
               overwrite: false,
             })
@@ -204,12 +205,12 @@ describe("PromptAsset E2E (aigcfroge)", () => {
 
             // Apply
             const applied = yield* svc.apply({
-              candidate: {
+              candidate: Schema.decodeUnknownSync(SchemaPromptAsset.Candidate)({
                 name: "del-test",
                 description: "Delete test",
                 template: "To be deleted",
                 relativePath: "",
-              } as any,
+              }),
               baseRevision: null,
               overwrite: false,
             })
@@ -246,7 +247,12 @@ describe("PromptAsset E2E (aigcfroge)", () => {
             })
             return yield* svc
               .apply({
-                candidate: { name: "stale", description: "d", template: "v2", relativePath: "" } as any,
+                candidate: Schema.decodeUnknownSync(SchemaPromptAsset.Candidate)({
+                  name: "stale",
+                  description: "d",
+                  template: "v2",
+                  relativePath: "",
+                }),
                 baseRevision: "0000000000000000000000000000000000000000000000000000000000000000",
                 overwrite: true,
               })
@@ -266,12 +272,14 @@ describe("PromptAsset E2E (aigcfroge)", () => {
           Effect.gen(function* () {
             const svc = yield* PromptAssetService.Service
             return yield* svc
-              .propose({
-                name: "escape",
-                description: "d",
-                template: "d",
-                relativePath: "../../../etc/passwd",
-              } as any)
+              .propose(
+                Schema.decodeUnknownSync(SchemaPromptAsset.Candidate)({
+                  name: "escape",
+                  description: "d",
+                  template: "d",
+                  relativePath: "../../../etc/passwd",
+                }),
+              )
               .pipe(Effect.flip)
           }).pipe(Effect.provide(layer), Effect.scoped),
         ).catch((e: unknown) => e)

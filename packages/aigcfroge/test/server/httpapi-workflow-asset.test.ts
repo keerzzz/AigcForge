@@ -14,6 +14,12 @@ const it = testEffect(Layer.mergeAll(httpApiLayer))
 // The full Info schema is too strict for the wire shape (optional fields arrive as null).
 const AppliedInfo = Schema.Struct({ relativePath: Schema.String, revision: Schema.String })
 
+// Minimal decode of the list response: only the fields the assertions read.
+const ListBody = Schema.Struct({
+  assets: Schema.Array(Schema.Struct({ name: Schema.String })),
+  invalid: Schema.Array(Schema.Struct({ relativePath: Schema.String, errorTag: Schema.optional(Schema.String) })),
+})
+
 afterEach(async () => {
   await disposeAllInstances()
   await resetDatabase()
@@ -48,10 +54,7 @@ describe("workflow asset HttpApi", () => {
         const t = yield* TestInstance
         const res = yield* requestInDirectory(WorkflowAssetApiGroup.WorkflowAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as {
-          assets: { name: string }[]
-          invalid: { relativePath: string; errorTag?: string }[]
-        }
+        const body = Schema.decodeUnknownSync(ListBody)(yield* res.json)
         expect(body.assets).toEqual([])
       }),
     { git: true },
@@ -67,10 +70,7 @@ describe("workflow asset HttpApi", () => {
         yield* Effect.promise(() => fs.writeFile(path.join(wfDir, "broken.yaml"), "broken yaml [["))
         const res = yield* requestInDirectory(WorkflowAssetApiGroup.WorkflowAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as {
-          assets: { name: string }[]
-          invalid: { relativePath: string; errorTag?: string }[]
-        }
+        const body = Schema.decodeUnknownSync(ListBody)(yield* res.json)
         expect(body.invalid).toEqual([{ relativePath: "broken.yaml", errorTag: "parse_error" }])
       }),
     { git: true },
@@ -91,10 +91,7 @@ describe("workflow asset HttpApi", () => {
         )
         const res = yield* requestInDirectory(WorkflowAssetApiGroup.WorkflowAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as {
-          assets: { name: string }[]
-          invalid: { relativePath: string; errorTag?: string }[]
-        }
+        const body = Schema.decodeUnknownSync(ListBody)(yield* res.json)
         expect(body.assets).toHaveLength(1)
         expect(body.assets[0].name).toBe("code-review")
       }),

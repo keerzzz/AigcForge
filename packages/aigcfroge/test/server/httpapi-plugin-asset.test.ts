@@ -14,6 +14,13 @@ const it = testEffect(Layer.mergeAll(httpApiLayer))
 // The full Info schema is too strict for the wire shape (optional fields arrive as null).
 const AppliedInfo = Schema.Struct({ relativePath: Schema.String, revision: Schema.String })
 
+// Minimal decode of the list response: only the fields the assertions read.
+const ListBody = Schema.Struct({
+  assets: Schema.Array(Schema.Struct({ name: Schema.String, kind: Schema.optional(Schema.String) })),
+  invalid: Schema.Array(Schema.Unknown),
+  bridged: Schema.Array(Schema.Unknown),
+})
+
 function post(route: string, directory: string, body: Record<string, unknown>) {
   return requestInDirectory(route, directory, {
     method: "POST",
@@ -48,11 +55,7 @@ describe("plugin asset HttpApi", () => {
         const t = yield* TestInstance
         const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as {
-          assets: { name: string; kind?: string }[]
-          invalid: unknown[]
-          bridged: unknown[]
-        }
+        const body = Schema.decodeUnknownSync(ListBody)(yield* res.json)
         expect(body.assets).toEqual([])
         expect(Array.isArray(body.bridged)).toBe(true)
       }),
@@ -69,11 +72,7 @@ describe("plugin asset HttpApi", () => {
         yield* Effect.promise(() => fs.writeFile(path.join(plDir, "broken.plugin.yaml"), "broken yaml [["))
         const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as {
-          assets: { name: string; kind?: string }[]
-          invalid: unknown[]
-          bridged: unknown[]
-        }
+        const body = Schema.decodeUnknownSync(ListBody)(yield* res.json)
         expect(body.invalid).toEqual([{ relativePath: "broken.plugin.yaml", errorTag: "parse_error" }])
       }),
     { git: true },
@@ -94,11 +93,7 @@ describe("plugin asset HttpApi", () => {
         )
         const res = yield* requestInDirectory(PluginAssetApiGroup.PluginAssetPaths.list, t.directory)
         expect(res.status).toBe(200)
-        const body = (yield* res.json) as unknown as {
-          assets: { name: string; kind?: string }[]
-          invalid: unknown[]
-          bridged: unknown[]
-        }
+        const body = Schema.decodeUnknownSync(ListBody)(yield* res.json)
         expect(body.assets).toHaveLength(1)
         expect(body.assets[0].name).toBe("my-plugin")
         expect(body.assets[0].kind).toBe("plugin")
