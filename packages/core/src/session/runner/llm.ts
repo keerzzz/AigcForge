@@ -66,6 +66,7 @@ import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
 import { SessionStore } from "../store"
 import { SessionComposition } from "../composition"
+import { CompositionConsumerView } from "../../composition/consumer-view"
 import { AgentProvenanceError, type RunError, Service, SnapshotDriftError } from "./index"
 import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
@@ -500,8 +501,9 @@ export const layer = Layer.effect(
     ) =>
       Effect.gen(function* () {
         const session = yield* store.get(sessionID)
+        const scope = snapshot && session ? CompositionConsumerView.resolveScope(snapshot, session) : undefined
         const [sysContext, skillCtx, refGuidance] = yield* Effect.all(
-          [systemContext.load(), skillGuidance.load(agent, { snapshot }), referenceGuidance.load()],
+          [systemContext.load(), skillGuidance.load(agent, { snapshot, scope }), referenceGuidance.load()],
           { concurrency: "unbounded" },
         )
         let combined = SystemContext.combine([sysContext, skillCtx, refGuidance])
@@ -533,18 +535,28 @@ export const layer = Layer.effect(
           ])
         }
 
-        if (snapshot && snapshot.data.instructions.length > 0) {
-          const customInstructions = snapshot.data.instructions.map((i) => i.content).join("\n\n")
-          combined = SystemContext.combine([
-            combined,
-            SystemContext.make({
-              key: SystemContext.Key.make("core/custom-instructions"),
-              codec: Schema.toCodecJson(Schema.String),
-              load: Effect.succeed(customInstructions),
-              baseline: (content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
-              update: (_previous, content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
-            }),
-          ])
+        if (snapshot) {
+          // Per-consumer instructions only. There is deliberately no fallback to the flat
+          // `data.instructions` array here: for a scoped graph that array spans every consumer, so
+          // falling back would hand a child agent the whole composition's system prompts. An
+          // unresolvable consumer is rejected upstream by runTurnAttempt's binding check.
+          const scopeForInstructions = session
+            ? CompositionConsumerView.resolveScope(snapshot, session)
+            : ({ _tag: "unscoped" } as const)
+          const instr = CompositionConsumerView.getInstructions(snapshot, scopeForInstructions)
+          const customInstructions = instr.length > 0 ? instr.map((i) => i.content).join("\n\n") : undefined
+          if (customInstructions) {
+            combined = SystemContext.combine([
+              combined,
+              SystemContext.make({
+                key: SystemContext.Key.make("core/custom-instructions"),
+                codec: Schema.toCodecJson(Schema.String),
+                load: Effect.succeed(customInstructions),
+                baseline: (content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
+                update: (_previous, content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
+              }),
+            ])
+          }
         }
 
         return combined
@@ -575,6 +587,20 @@ export const layer = Layer.effect(
       // typed error before any context, tool, or provider work (MEDIUM-3a/3b).
       const snapshot = session.mode === "custom" ? yield* readCustomSnapshot(session.id) : undefined
       if (snapshot) {
+        // Fail closed before any context, tool or provider work when the session cannot be mapped
+        // onto a consumer binding. `unresolved` (agent absent from the frozen pool) and a scoped
+        // key with no entry are both rejected; only V1 / pre-binding snapshots are exempt.
+        const scope = CompositionConsumerView.resolveScope(snapshot, session)
+        if (!CompositionConsumerView.isBindingSatisfied(snapshot, scope)) {
+          return yield* new SnapshotDriftError({
+            sessionID,
+            reason: "consumer_binding_missing",
+            details:
+              scope._tag === "unresolved"
+                ? `Agent '${scope.agent}' is not part of the frozen composition pool`
+                : `Missing binding for consumer '${scope._tag === "scoped" ? scope.key : "unknown"}'`,
+          })
+        }
         yield* verifySnapshotMcp(session.id, snapshot)
         yield* verifySnapshotTools(session.id, snapshot)
       }
@@ -875,13 +901,25 @@ export const layer = Layer.effect(
       // MEDIUM-2b: custom sessions resolve steers against the snapshot-bound skill
       // catalog; out-of-snapshot names publish the standard not-found text.
       const session = yield* store.get(sessionID)
-      const available =
-        session?.mode === "custom"
-          ? CompositionCatalog.createCompositionSkillCatalog(
-              (yield* readCustomSnapshot(sessionID)).data.skills,
-              yield* skills.list(),
-            )
-          : yield* skills.list()
+      const snapshotForSkills = session?.mode === "custom" ? yield* readCustomSnapshot(sessionID) : undefined
+      let available: ReadonlyArray<import("../../skill").SkillV2.Info>
+      if (session?.mode === "custom" && snapshotForSkills) {
+        const scope = CompositionConsumerView.resolveScope(snapshotForSkills, session)
+        if (!CompositionConsumerView.isBindingSatisfied(snapshotForSkills, scope)) {
+          return yield* new SnapshotDriftError({
+            sessionID,
+            reason: "consumer_binding_missing",
+            details:
+              scope._tag === "unresolved"
+                ? `Agent '${scope.agent}' is not part of the frozen composition pool`
+                : `Missing binding for consumer '${scope._tag === "scoped" ? scope.key : "unknown"}'`,
+          })
+        }
+        const perConsumerSkills = CompositionConsumerView.getSkills(snapshotForSkills, scope)
+        available = CompositionCatalog.createCompositionSkillCatalog(perConsumerSkills, yield* skills.list())
+      } else {
+        available = yield* skills.list()
+      }
       for (const admitted of pending) {
         if (admitted.kind !== "skill") continue
         const skill = available.find((candidate) => candidate.name === admitted.skill)

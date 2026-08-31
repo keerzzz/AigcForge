@@ -11,6 +11,7 @@ import { SessionComposition } from "../session/composition"
 import { TaskDriver } from "./task-driver"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
+import { CompositionConsumerView } from "../composition/consumer-view"
 
 export const name = "skill"
 const FILE_LIMIT = 10
@@ -96,7 +97,20 @@ export const layer = Layer.effectDiscard(
                     ),
                   )
                 if (!snapshot) return yield* new ToolFailure({ message: "Custom session snapshot not found" })
-                return CompositionCatalog.createCompositionSkillCatalog(snapshot.data.skills, yield* skills.list())
+                // Per-consumer skill catalog. V1 and pre-binding snapshots resolve to "unscoped",
+                // where the flat array is the contract; a scoped graph never falls back to it,
+                // because that array spans every consumer in the composition.
+                const scope = CompositionConsumerView.resolveScopeForAgent(snapshot, context.agent)
+                if (!CompositionConsumerView.isBindingSatisfied(snapshot, scope)) {
+                  return yield* new ToolFailure({
+                    message:
+                      scope._tag === "unresolved"
+                        ? `Agent '${scope.agent}' is not part of the frozen composition pool`
+                        : `Missing binding for consumer '${scope._tag === "scoped" ? scope.key : "unknown"}'`,
+                  })
+                }
+                const snapshotSkills = CompositionConsumerView.getSkills(snapshot, scope)
+                return CompositionCatalog.createCompositionSkillCatalog(snapshotSkills, yield* skills.list())
               })
               const skill = current.find((skill) => skill.name === input.name)
               if (!skill) return yield* unableToLoad(input.name)

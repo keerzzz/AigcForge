@@ -1207,14 +1207,132 @@ steps:
             expect(snapshot.version).toBe(2)
             if (snapshot.version === 2) {
               expect(snapshot.data.maxConcurrency).toBe(1)
-              expect(snapshot.data.bindings.orchestrator.prompts).toHaveLength(1)
-              expect(snapshot.data.bindings.orchestrator.skills).toEqual([])
-              expect(snapshot.data.bindings.orchestrator.commands[0].name).toBe("review")
-              expect(snapshot.data.bindings["agents/coder"].prompts).toEqual([])
-              expect(snapshot.data.bindings["agents/coder"].skills[0].name).toBe("review")
-              expect(snapshot.data.bindings["agents/coder"].commands[0].name).toBe("review")
+              expect(snapshot.data.bindings!.orchestrator.prompts).toHaveLength(1)
+              expect(snapshot.data.bindings!.orchestrator.skills).toEqual([])
+              expect(snapshot.data.bindings!.orchestrator.commands[0].name).toBe("review")
+              expect(snapshot.data.bindings!["agents/coder"].prompts).toEqual([])
+              expect(snapshot.data.bindings!["agents/coder"].skills[0].name).toBe("review")
+              expect(snapshot.data.bindings!["agents/coder"].commands[0].name).toBe("review")
               expect(snapshot.data.tools.catalog).toEqual(["read"])
             }
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("freezes an orchestrator entry even when nothing is bound to it", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nYou code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+        // A second agent puts the composition on the V2 (scoped graph) freeze path; a single-agent
+        // composition with no workflow or command still freezes as V1 by design.
+        const writerRaw = `---\nkind: agent\nname: writer\ndescription: Writer\n---\nYou write.\n`
+        await fs.writeFile(path.join(agentDir, "writer.md"), writerRaw)
+        const writerRev = Hash.sha256(Buffer.from(writerRaw))
+
+        const skillDir = path.join(dir, ".aigcfroge", "skills", "review")
+        await fs.mkdir(skillDir, { recursive: true })
+        const skillRaw = `---\nname: review\ndescription: Review checklist\n---\nCheck correctness.\n`
+        await fs.writeFile(path.join(skillDir, "SKILL.md"), skillRaw)
+        const skillRev = Hash.sha256(Buffer.from(skillRaw))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            // Everything bound to the child agent, nothing to the orchestrator. The frozen graph must
+            // still carry an orchestrator entry: the runtime fails closed on an absent consumer, so
+            // omitting it would make this legitimate composition unrunnable at its root.
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [
+                { kind: "agent", relativePath: "coder.md", revision: coderRev },
+                { kind: "agent", relativePath: "writer.md", revision: writerRev },
+              ],
+              bindings: {
+                "agents/coder": {
+                  prompts: [],
+                  skills: [{ kind: "skill", relativePath: "review/SKILL.md", revision: skillRev }],
+                },
+              },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+            expect(snapshot.version).toBe(2)
+            if (snapshot.version === 2) {
+              expect(snapshot.data.bindings).toBeDefined()
+              const keys = Object.keys(snapshot.data.bindings!)
+              // Every addressable consumer gets an entry, bound or not.
+              expect(keys).toContain("orchestrator")
+              expect(keys).toContain("agents/writer")
+              expect(snapshot.data.bindings!.orchestrator.skills).toEqual([])
+              expect(snapshot.data.bindings!.orchestrator.prompts).toEqual([])
+              expect(snapshot.data.bindings!["agents/coder"].skills[0].name).toBe("review")
+              expect(snapshot.data.bindings!["agents/writer"].skills).toEqual([])
+              // Each agent's own system prompt lands in its own consumer, never the orchestrator's.
+              expect(snapshot.data.bindings!["agents/coder"].instructions.map((i) => i.source)).toContain("agent:coder")
+              expect(snapshot.data.bindings!["agents/writer"].instructions.map((i) => i.source)).toContain(
+                "agent:writer",
+              )
+              expect(snapshot.data.bindings!.orchestrator.instructions.map((i) => i.source)).not.toContain(
+                "agent:coder",
+              )
+            }
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("derives a machine consumer key for agent names ConsumerKey cannot express", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        // ConsumerKey only accepts [a-zA-Z0-9_-]; AgentAsset.Name accepts any 1-80 code points. The
+        // key is therefore derived, not copied: an ASCII filename supplies it, and a filename that
+        // sanitizes to nothing falls back to a deterministic hex digest.
+        const asciiFileRaw = `---\nkind: agent\nname: 测试 代理.1\ndescription: Unicode name, ASCII file\n---\nYou test.\n`
+        await fs.writeFile(path.join(agentDir, "reviewer.md"), asciiFileRaw)
+        const asciiFileRev = Hash.sha256(Buffer.from(asciiFileRaw))
+        const unicodeFileRaw = `---\nkind: agent\nname: 写手\ndescription: Unicode name and file\n---\nYou write.\n`
+        await fs.writeFile(path.join(agentDir, "写手.md"), unicodeFileRaw)
+        const unicodeFileRev = Hash.sha256(Buffer.from(unicodeFileRaw))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [
+                { kind: "agent", relativePath: "reviewer.md", revision: asciiFileRev },
+                { kind: "agent", relativePath: "写手.md", revision: unicodeFileRev },
+              ],
+              bindings: {},
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+            expect(snapshot.version).toBe(2)
+            if (snapshot.version !== 2) return
+            const keyFor = (name: string) => snapshot.data.agents.find((a) => a.name === name)?.consumerKey
+            const asciiKey = keyFor("测试 代理.1")
+            const hexKey = keyFor("写手")
+            // Display names survive untouched; the keys are ASCII and ConsumerKey-decodable.
+            expect(asciiKey).toBe("agents/reviewer")
+            expect(hexKey).toMatch(/^agents\/[0-9a-f]{1,12}$/)
+            for (const key of [asciiKey, hexKey]) {
+              expect(() => Schema.decodeUnknownSync(Composition.ConsumerKey)(key!)).not.toThrow()
+              expect(Object.keys(snapshot.data.bindings!)).toContain(key!)
+            }
+            // Distinct agents never collapse onto one consumer.
+            expect(asciiKey).not.toBe(hexKey)
+            // Each agent's own prompt is scoped to its own derived key.
+            expect(snapshot.data.bindings![asciiKey!].instructions.map((i) => i.source)).toContain("agent:测试 代理.1")
+            expect(snapshot.data.bindings![hexKey!].instructions.map((i) => i.source)).toContain("agent:写手")
           }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
         )
       })

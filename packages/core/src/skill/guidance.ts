@@ -7,6 +7,7 @@ import { SkillV2 } from "../skill"
 import { SystemContext } from "../system-context/index"
 
 import { Composition } from "@aigcfroge/schema/composition"
+import { CompositionConsumerView } from "../composition/consumer-view"
 
 const Summary = Schema.Struct({
   name: Schema.String,
@@ -34,6 +35,12 @@ const render = (skills: ReadonlyArray<Summary>) =>
 
 export type GuidanceOptions = {
   readonly snapshot?: Composition.Snapshot
+  /**
+   * Which consumer's skills to advertise. Omitted means "unscoped" — correct for V1 and
+   * pre-binding V2 snapshots, and for callers with no Session in hand. It must never be used to
+   * guess a consumer inside a scoped graph: the flat `data.skills` array spans every consumer.
+   */
+  readonly scope?: CompositionConsumerView.Scope
 }
 
 export interface Interface {
@@ -52,7 +59,8 @@ export const layer = Layer.effect(
         const agent = selection.info
         if (!agent) return SystemContext.empty
         if (options?.snapshot) {
-          const snapshotSkills = options.snapshot.data.skills
+          const snapshot = options.snapshot
+          const snapshotSkills = CompositionConsumerView.getSkills(snapshot, options.scope ?? { _tag: "unscoped" })
           const available = snapshotSkills
             .map((s) => ({ name: s.name, description: s.description }))
             .toSorted((a, b) => a.name.localeCompare(b.name))
