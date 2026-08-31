@@ -3,9 +3,19 @@ const guardedRules = [
   "typescript/consistent-return",
   "typescript/unbound-method",
   "typescript/await-thenable",
+  // Only ever reported as warnings by `.oxlintrc.json` (suspicious: warn), so nothing else fails on
+  // them. Gating them here — against added lines only — keeps dead imports and redundant casts from
+  // accumulating in new code without re-litigating the existing tree.
+  "typescript/no-unnecessary-type-assertion",
+  "eslint/no-unused-vars",
 ] as const
 
-const guardedRuleIDs = new Set(guardedRules.map((rule) => `typescript-eslint(${rule.slice("typescript/".length)})`))
+const guardedRuleIDs = new Set(
+  guardedRules.map((rule) => {
+    const [plugin, name] = [rule.slice(0, rule.indexOf("/")), rule.slice(rule.indexOf("/") + 1)]
+    return plugin === "eslint" ? `eslint(${name})` : `typescript-eslint(${name})`
+  }),
+)
 const sourcePattern = /\.(?:[cm]?[jt]s|[jt]sx)$/
 
 const target = await resolveTarget()
