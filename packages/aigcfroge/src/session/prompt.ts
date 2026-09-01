@@ -60,6 +60,7 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionInput } from "@aigcfroge/core/session/input"
 import { PromptParts } from "./prompt-parts"
 import { SessionMessage } from "@aigcfroge/core/session/message"
+import { AgentV2 } from "@aigcfroge/core/agent"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { AgentAttachment, FileAttachment, Prompt, Source } from "@aigcfroge/core/session/prompt"
@@ -121,7 +122,13 @@ export interface Interface {
     parts: PromptInput["parts"]
     agent?: string
     model?: { providerID: string; modelID: string; variant?: string }
-  }) => Effect.Effect<SessionInput.Admitted, PromptParts.UnmaterializedUriError | SessionV2.Error, SessionV2.Service>
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    // `switchAgent` runs the primary-agent policy, so its typed rejections are
+    // part of this contract rather than something the handler can ignore.
+    PromptParts.UnmaterializedUriError | ProductModeAgentPolicy.AgentNotAllowedError | SessionV2.Error,
+    SessionV2.Service
+  >
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionPrompt") {}
@@ -1724,35 +1731,28 @@ export const layer = Layer.effect(
       const fileParts = input.parts.filter((part) => part.type === "file")
       let canonical = prompt
       if (fileParts.length > 0) {
-        const attachments = yield* Effect.forEach(
-          fileParts,
-          (part) =>
-            PromptParts.materializeFilePart(fsys, part).pipe(
-              Effect.mapError(() => new PromptParts.UnmaterializedUriError({ uri: part.url })),
-            ),
-          { discard: false },
-        )
+        // `materializeFilePart` already fails with UnmaterializedUriError and
+        // carries the underlying reason; re-wrapping here would erase it.
+        const attachments = yield* Effect.forEach(fileParts, (part) => PromptParts.materializeFilePart(fsys, part), {
+          discard: false,
+        })
         canonical = Prompt.make({
           text: prompt.text,
           files: attachments,
           ...(prompt.agents === undefined ? {} : { agents: prompt.agents }),
         })
       }
-      // Selection must be durable before the wake: publish the same events the
-      // V1 sync path publishes, whose projectors write the session row.
+      // Selection must be durable before the wake, and it must go through the
+      // policy owners: `switchAgent` carries the five-mode primary-agent gate
+      // plus the custom Snapshot pool check (S3 B2). Publishing `AgentSwitched`
+      // by hand here would reopen exactly the hole that gate closed — a custom
+      // root could persist a non-meta agent and brick its next provider turn.
       if (input.agent !== undefined) {
-        yield* events.publish(SessionEvent.AgentSwitched, {
-          sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
-          agent: input.agent,
-        })
+        yield* v2session.switchAgent({ sessionID: input.sessionID, agent: AgentV2.ID.make(input.agent) })
       }
       if (input.model !== undefined) {
-        yield* events.publish(SessionEvent.ModelSwitched, {
+        yield* v2session.switchModel({
           sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
           model: {
             id: ModelV2.ID.make(input.model.modelID),
             providerID: ProviderV2.ID.make(input.model.providerID),

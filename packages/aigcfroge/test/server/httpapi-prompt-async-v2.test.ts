@@ -137,7 +137,7 @@ describe("P1-1 prompt_async V2 branch — HTTP + durable RED", () => {
     expect(row?.id).toBe(messageID)
   })
 
-  test("3. model / agent / variant must be durable before wake", async () => {
+  test("3. model / variant must be durable before wake", async () => {
     await using tmp = await tmpdir({ git: true })
     const sessionID = await createCustomSession(tmp.path)
     const messageID = newMessageID(3)
@@ -147,7 +147,6 @@ describe("P1-1 prompt_async V2 branch — HTTP + durable RED", () => {
         parts: [{ type: "text", text: "hello" }],
         messageID,
         model: { providerID: "test", modelID: "test-model" },
-        agent: "coder",
         variant: "high",
       }),
     })
@@ -155,25 +154,59 @@ describe("P1-1 prompt_async V2 branch — HTTP + durable RED", () => {
     // Selection is NOT stored on session_input — that table has no agent/model/variant column
     // (core/src/session/sql.ts SessionInputTable). It lives on the session row: `agent` text plus
     // a `model` JSON column shaped { id, providerID, variant? } (sql.ts:57-61), so the request's
-    // `modelID` lands in `model.id`. The V2 branch at handlers/session.ts:831 forwards only
-    // `{ text: promptText }`, so all three are dropped — asserting the post-fix contract here is
-    // what makes this a RED instead of a row-exists check.
+    // `modelID` lands in `model.id`.
     const session = await readSessionRow(sessionID)
-    expect(session?.agent).toBe("coder")
     expect(session?.model?.providerID).toBe("test")
     expect(session?.model?.id).toBe("test-model")
     expect(session?.model?.variant).toBe("high")
+  })
+
+  test("3b. an agent the mode policy forbids is rejected typed, with no durable mutation", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const sessionID = await createCustomSession(tmp.path)
+    const before = await readSessionRow(sessionID)
+    const messageID = newMessageID(31)
+    // `coder` is in the frozen pool, so the Snapshot allowlist accepts it — but a custom
+    // ROOT may only be `meta` (product-mode-agent-policy.ts custom branch). The original
+    // version of this test asserted the switch SUCCEEDED, which is the P1-4b brick path:
+    // the row would hold `coder` and the next provider turn would fail at the per-turn
+    // gate. Selection must go through `switchAgent`, which carries that policy.
+    const res = await request(`/session/${sessionID}/prompt_async`, tmp.path, {
+      method: "POST",
+      body: JSON.stringify({
+        parts: [{ type: "text", text: "hello" }],
+        messageID,
+        agent: "coder",
+      }),
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+    const after = await readSessionRow(sessionID)
+    expect(after?.agent).toBe(before?.agent)
+    expect(await readInputRow(messageID)).toBeUndefined()
   })
 
   test("4. pure attachment (no text, files non-empty) must admit, not 204 with zero rows", async () => {
     await using tmp = await tmpdir({ git: true })
     const sessionID = await createCustomSession(tmp.path)
     const messageID = newMessageID(4)
+    // The attachment must ride in `parts`. `PromptPayload` has no top-level
+    // `files` field, so the earlier version of this test sent one and had it
+    // dropped at decode — it asserted "empty text admits" while claiming to
+    // assert "attachment admits". A data-URL image is the one attachment shape
+    // the adapter lowers today, so it is what proves the contract.
     const res = await request(`/session/${sessionID}/prompt_async`, tmp.path, {
       method: "POST",
       body: JSON.stringify({
-        parts: [{ type: "text", text: "" }],
-        files: [{ uri: "file:///tmp/a.txt", mime: "text/plain", name: "a.txt" }],
+        parts: [
+          { type: "text", text: "" },
+          {
+            type: "file",
+            mime: "image/png",
+            filename: "pixel.png",
+            url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==",
+          },
+        ],
         messageID,
       }),
     })
@@ -181,6 +214,11 @@ describe("P1-1 prompt_async V2 branch — HTTP + durable RED", () => {
     const row = await readInputRow(messageID)
     expect(row).toBeDefined()
     expect(row?.id).toBe(messageID)
+    // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+    const prompt = row?.prompt as { text?: string; files?: ReadonlyArray<{ mime?: string; uri?: string }> }
+    expect(prompt?.text ?? "").toBe("")
+    expect(prompt?.files).toHaveLength(1)
+    expect(prompt?.files?.[0]?.mime).toBe("image/png")
   })
 
   test("5. truly empty payload (no text, no attachment) must be typed 400, not 204", async () => {
@@ -202,5 +240,31 @@ describe("P1-1 prompt_async V2 branch — HTTP + durable RED", () => {
     })
     expect([400, 404, 409]).toContain(res.status)
     expect(res.status).not.toBe(204)
+  })
+
+  test("7. a text-file attachment is rejected typed, not base64-encoded as media", async () => {
+    await using tmp = await tmpdir({ git: true })
+    const sessionID = await createCustomSession(tmp.path)
+    const messageID = newMessageID(7)
+    const filePath = path.join(tmp.path, "note.txt")
+    await fs.writeFile(filePath, "line one\nline two\n")
+    // The V1 path lowers a text file through the Read tool into TEXT context
+    // (LSP ranges, ?start=&end= offsets). Base64-encoding it as media is a
+    // different and wrong answer, so the adapter must fail closed until that
+    // lowering is shared. Asserting the 4xx is what stops a future change from
+    // "fixing" this by silently sending bytes.
+    const res = await request(`/session/${sessionID}/prompt_async`, tmp.path, {
+      method: "POST",
+      body: JSON.stringify({
+        parts: [
+          { type: "text", text: "review this" },
+          { type: "file", mime: "text/plain", filename: "note.txt", url: `file://${filePath}` },
+        ],
+        messageID,
+      }),
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+    expect(await readInputRow(messageID)).toBeUndefined()
   })
 })

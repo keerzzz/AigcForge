@@ -1196,7 +1196,7 @@ steps:
             expect(plan.valid).toBe(true)
             expect(plan.commands).toHaveLength(1)
             expect(plan.commands[0].name).toBe("review")
-            expect(plan.commands[0].template).toContain("without executing it")
+            expect(plan.commands[0].source).toContain("without executing it")
             expect(plan.capabilities).toEqual([])
             expect(plan.costPreview?.effectiveToolCount).toBe(1)
             expect(plan.instructions.some((instruction) => instruction.content.includes("without executing it"))).toBe(
@@ -1261,6 +1261,11 @@ steps:
     })
 
     test("legacy CommandInfo snapshots decode with an empty invocation (fail closed)", () => {
+      // A snapshot written before S5 carries the body under the retired `template`
+      // key. It must still decode (excess keys are ignored) and must be
+      // identifiable as legacy: `invocation` is the discriminator, because
+      // `CommandAsset.Invocation` requires >= 1 code point so a real freeze can
+      // never produce "".
       const legacy = Schema.decodeUnknownSync(Composition.CommandInfo)({
         name: "review",
         description: "Review",

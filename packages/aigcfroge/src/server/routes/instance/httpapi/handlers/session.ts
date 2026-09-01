@@ -861,8 +861,21 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             Effect.catchTag("UnsupportedProductModeError", () =>
               Effect.fail(new InvalidRequestError({ message: "Unsupported product mode" })),
             ),
-            Effect.catchTag("PromptParts.UnmaterializedUriError", () =>
-              Effect.fail(new InvalidRequestError({ message: "Attachment URI cannot be materialized" })),
+            Effect.catchTag("PromptParts.UnmaterializedUriError", (error) =>
+              Effect.fail(new InvalidRequestError({ message: error.message })),
+            ),
+            // The mode × agent policy rejected the requested selection (for
+            // example a custom root asked for a non-meta agent). Surface the real
+            // reason: this is the caller's mistake, not an internal failure.
+            Effect.catchTag("AgentNotAllowedError", (error) =>
+              Effect.fail(new InvalidRequestError({ message: error.message })),
+            ),
+            Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
+              Effect.fail(
+                new InvalidRequestError({
+                  message: `Agent '${error.agentID}' is not part of the frozen composition pool`,
+                }),
+              ),
             ),
             // Remaining SessionV2.Error members are not reachable from prompt
             // admission; fail typed instead of leaking a defect.

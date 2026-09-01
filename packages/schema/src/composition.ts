@@ -161,14 +161,20 @@ export class CommandInfo extends Schema.Class<CommandInfo>("Composition.CommandI
   description: Schema.String,
   relativePath: Schema.String,
   revision: Revision,
-  template: Schema.String,
-  // S5 snapshot fidelity: freeze the full CommandAsset identity. Old snapshots
-  // predate these fields; `invocation` defaults to "" so a legacy command fails
-  // closed instead of inheriting new execution ability (D6).
-  invocation: Schema.String.pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed("")),
-    Schema.withConstructorDefault(Effect.succeed("")),
-  ),
+  // S5 snapshot fidelity: freeze the CommandAsset identity under the asset's own
+  // field names, so nothing has to translate on the way in or out. `source` is
+  // the command body — it used to be frozen as `template`, which had no reader
+  // anywhere (the `command.template` in asset-migration is the V1 config shape,
+  // not this class), so that name is gone rather than kept alongside a duplicate.
+  //
+  // `invocation` is the single legacy discriminator: `CommandAsset.Invocation`
+  // requires at least one code point, so a freeze can never produce "". A
+  // snapshot written before these fields existed decodes to "" and must fail
+  // closed in the runtime instead of inheriting execution ability (D6). There is
+  // deliberately no constructor default — new code must supply it, otherwise
+  // omitting the field would silently forge that legacy marker, which is the
+  // mistake `withDecodingDefaultKey({})` made for `bindings` (D5-A).
+  invocation: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed(""))),
   args: Schema.optional(Schema.String),
   source: Schema.optional(Schema.String),
 }) {}

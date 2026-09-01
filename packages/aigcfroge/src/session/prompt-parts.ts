@@ -1,7 +1,6 @@
 export * as PromptParts from "./prompt-parts"
 
 import { Effect, FileSystem, Schema } from "effect"
-import type { PlatformError } from "effect/PlatformError"
 import { fileURLToPath } from "url"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { FileAttachment, Prompt } from "@aigcfroge/schema/prompt"
@@ -88,8 +87,20 @@ export class UnmaterializedUriError extends Schema.TaggedErrorClass<Unmaterializ
   "PromptParts.UnmaterializedUriError",
   {
     uri: Schema.String,
+    /**
+     * Why materialization failed, when it failed rather than being unsupported.
+     * Without it "file not found" and "permission denied" collapse into the same
+     * opaque 400 and the caller has nothing to act on.
+     */
+    reason: Schema.optional(Schema.String),
   },
-) {}
+) {
+  override get message() {
+    return this.reason === undefined
+      ? `Attachment URI cannot be materialized: ${this.uri}`
+      : `Attachment URI cannot be materialized: ${this.uri} (${this.reason})`
+  }
+}
 
 /**
  * Materialize a legacy file part into a provider-lowerable canonical
@@ -97,13 +108,30 @@ export class UnmaterializedUriError extends Schema.TaggedErrorClass<Unmaterializ
  * into data URLs so `file://` never reaches a provider base64 validator
  * (S4 provider-lowering RED 1); remote/managed URIs are not implemented and
  * fail typed instead of leaking through as media bytes (RED 6).
+ *
+ * Text files and directories are rejected rather than base64-encoded. The V1
+ * path (`SessionPrompt.createUserMessage`'s `resolvePart`) lowers both through
+ * the Read tool into TEXT context — with LSP symbol ranges and `?start=&end=`
+ * offsets for text, and a listing for directories. Encoding source code as
+ * base64 media is not a smaller version of that, it is a different and wrong
+ * answer, so this adapter fails closed until that lowering is extracted into a
+ * shared owner (S4 GREEN 2, tracked in docs/technical-debt.md).
  */
 export const materializeFilePart = (
   fs: FileSystem.FileSystem,
   part: SessionV1.FilePartInput,
-): Effect.Effect<FileAttachment, UnmaterializedUriError | PlatformError> =>
+): Effect.Effect<FileAttachment, UnmaterializedUriError> =>
   Effect.gen(function* () {
     const url = new URL(part.url)
+    const unsupportedAsMedia =
+      part.mime === "text/plain"
+        ? "text attachments must be lowered to text context, which this adapter cannot do yet"
+        : part.mime === "application/x-directory"
+          ? "directory attachments must be lowered to a listing, which this adapter cannot do yet"
+          : undefined
+    if (unsupportedAsMedia !== undefined) {
+      return yield* new UnmaterializedUriError({ uri: part.url, reason: unsupportedAsMedia })
+    }
     if (url.protocol === "data:") {
       return FileAttachment.create({
         uri: part.url,
@@ -113,7 +141,18 @@ export const materializeFilePart = (
     }
     if (url.protocol === "file:") {
       const absolute = fileURLToPath(part.url)
-      const bytes = yield* fs.readFile(absolute)
+      const info = yield* fs
+        .stat(absolute)
+        .pipe(Effect.mapError((error) => new UnmaterializedUriError({ uri: part.url, reason: error.message })))
+      if (info.type === "Directory") {
+        return yield* new UnmaterializedUriError({
+          uri: part.url,
+          reason: "directory attachments must be lowered to a listing, which this adapter cannot do yet",
+        })
+      }
+      const bytes = yield* fs
+        .readFile(absolute)
+        .pipe(Effect.mapError((error) => new UnmaterializedUriError({ uri: part.url, reason: error.message })))
       const base64 = Buffer.from(bytes).toString("base64")
       return FileAttachment.create({
         uri: `data:${part.mime};base64,${base64}`,

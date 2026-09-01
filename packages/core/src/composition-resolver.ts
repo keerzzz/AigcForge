@@ -524,7 +524,6 @@ export const layer = Layer.effect(
             description: command.description,
             relativePath: command.relativePath,
             revision: Schema.decodeUnknownSync(Composition.Revision)(command.revision),
-            template: command.source,
             invocation: command.invocation,
             args: command.args,
             source: command.source,
