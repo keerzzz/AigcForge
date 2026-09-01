@@ -23,6 +23,7 @@ export type Event =
   | EventSessionNextPromptAdmitted
   | EventSessionNextShellAdmitted
   | EventSessionNextSkillAdmitted
+  | EventSessionNextCommandAdmitted
   | EventSessionNextContextUpdated
   | EventSessionNextSynthetic
   | EventSessionNextSyntheticAdmitted
@@ -928,6 +929,23 @@ export type GlobalEvent = {
           sessionID: string
           messageID: string
           skill: string
+          delivery: "steer" | "queue"
+        }
+      }
+    | {
+        id: string
+        type: "session.next.command.admitted"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageID: string
+          command: string
+          relativePath: string
+          revision: string
+          consumer: string
+          arguments: string
+          context: Prompt
+          snapshotDigest: string
           delivery: "steer" | "queue"
         }
       }
@@ -1975,6 +1993,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextPromptAdmitted
     | SyncEventSessionNextShellAdmitted
     | SyncEventSessionNextSkillAdmitted
+    | SyncEventSessionNextCommandAdmitted
     | SyncEventSessionNextContextUpdated
     | SyncEventSessionNextSynthetic
     | SyncEventSessionNextSyntheticAdmitted
@@ -2897,6 +2916,32 @@ export type ConflictError = {
   resource?: string
 }
 
+export type NotFoundError = {
+  name: "NotFoundError"
+  data: {
+    message: string
+  }
+}
+
+export type UnknownError1 = {
+  _tag: "UnknownError"
+  message: string
+  ref?: string
+}
+
+export type UnsupportedProductModeError = {
+  _tag: "UnsupportedProductModeError"
+  mode: string
+  message: string
+}
+
+export type CompositionResolveError = {
+  _tag: "CompositionResolveError"
+  code: string
+  message: string
+  diagnostics?: Array<CompositionDiagnostic>
+}
+
 export type SessionNotFoundError = {
   _tag: "SessionNotFoundError"
   sessionID: string
@@ -3088,19 +3133,6 @@ export type Session2 = {
     partID?: string
     snapshot?: string
     diff?: string
-  }
-}
-
-export type UnsupportedProductModeError = {
-  _tag: "UnsupportedProductModeError"
-  mode: string
-  message: string
-}
-
-export type NotFoundError = {
-  name: "NotFoundError"
-  data: {
-    message: string
   }
 }
 
@@ -3679,20 +3711,13 @@ export type InvalidCursorError = {
   message: string
 }
 
-export type CompositionResolveError = {
-  _tag: "CompositionResolveError"
-  code: string
-  message: string
-  diagnostics?: Array<CompositionDiagnostic>
-}
-
 export type ServiceUnavailableError = {
   _tag: "ServiceUnavailableError"
   message: string
   service?: string
 }
 
-export type UnknownError1 = {
+export type UnknownError2 = {
   _tag: "UnknownError"
   message: string
   ref?: string
@@ -3737,6 +3762,7 @@ export type V2Event =
   | V2EventSessionNextPromptAdmitted
   | V2EventSessionNextShellAdmitted
   | V2EventSessionNextSkillAdmitted
+  | V2EventSessionNextCommandAdmitted
   | V2EventSessionNextContextUpdated
   | V2EventSessionNextSynthetic
   | V2EventSessionNextSyntheticAdmitted
@@ -4348,6 +4374,30 @@ export type SyncEventSessionNextSkillAdmitted = {
       sessionID: string
       messageID: string
       skill: string
+      delivery: "steer" | "queue"
+    }
+  }
+}
+
+export type SyncEventSessionNextCommandAdmitted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.command.admitted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
+      command: string
+      relativePath: string
+      revision: string
+      consumer: string
+      arguments: string
+      context: Prompt
+      snapshotDigest: string
       delivery: "steer" | "queue"
     }
   }
@@ -5424,7 +5474,9 @@ export type CompositionPlan = {
     description: string
     relativePath: string
     revision: string
-    template: string
+    invocation?: string
+    args?: string
+    source?: string
   }>
   instructions: Array<CompositionInstruction>
   skills: Array<CompositionSkillInfo>
@@ -5531,7 +5583,9 @@ export type CompositionCommandInfo = {
   description: string
   relativePath: string
   revision: string
-  template: string
+  invocation?: string
+  args?: string
+  source?: string
 }
 
 export type CompositionSnapshotBindingData = {
@@ -5577,7 +5631,9 @@ export type CompositionSnapshotDataV2 = {
     description: string
     relativePath: string
     revision: string
-    template: string
+    invocation?: string
+    args?: string
+    source?: string
   }>
   instructions: Array<CompositionInstruction>
   prompts: Array<CompositionSnapshotPromptData>
@@ -5979,11 +6035,29 @@ export type SessionInputAdmittedSynthetic = {
   text: string
 }
 
+export type SessionInputAdmittedCommand = {
+  kind: "command"
+  admittedSeq: number
+  id: string
+  sessionID: string
+  delivery: "steer" | "queue"
+  timeCreated: number
+  promotedSeq?: number
+  command: string
+  relativePath: string
+  revision: string
+  consumer: string
+  arguments: string
+  context: Prompt
+  snapshotDigest: string
+}
+
 export type SessionInputAdmitted =
   | SessionInputAdmittedPrompt
   | SessionInputAdmittedShell
   | SessionInputAdmittedSkill
   | SessionInputAdmittedSynthetic
+  | SessionInputAdmittedCommand
 
 export type SessionMessageAgentSwitched = {
   id: string
@@ -6834,6 +6908,33 @@ export type V2EventSessionNextSkillAdmitted = {
     sessionID: string
     messageID: string
     skill: string
+    delivery: "steer" | "queue"
+  }
+}
+
+export type V2EventSessionNextCommandAdmitted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.command.admitted"
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    command: string
+    relativePath: string
+    revision: string
+    consumer: string
+    arguments: string
+    context: Prompt
+    snapshotDigest: string
     delivery: "steer" | "queue"
   }
 }
@@ -9079,6 +9180,24 @@ export type EventSessionNextSkillAdmitted = {
     sessionID: string
     messageID: string
     skill: string
+    delivery: "steer" | "queue"
+  }
+}
+
+export type EventSessionNextCommandAdmitted = {
+  id: string
+  type: "session.next.command.admitted"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    command: string
+    relativePath: string
+    revision: string
+    consumer: string
+    arguments: string
+    context: Prompt
+    snapshotDigest: string
     delivery: "steer" | "queue"
   }
 }
@@ -13376,6 +13495,10 @@ export type CustomProfileContentErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type CustomProfileContentError = CustomProfileContentErrors[keyof CustomProfileContentErrors]
@@ -13414,6 +13537,10 @@ export type CustomProfileApplyErrors = {
    * ConflictError
    */
   409: ConflictError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
 }
 
 export type CustomProfileApplyError = CustomProfileApplyErrors[keyof CustomProfileApplyErrors]
@@ -13448,9 +13575,17 @@ export type CustomProfileDeleteErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
 }
 
 export type CustomProfileDeleteError = CustomProfileDeleteErrors[keyof CustomProfileDeleteErrors]
@@ -13476,9 +13611,9 @@ export type CustomCompositionPlanData = {
 
 export type CustomCompositionPlanErrors = {
   /**
-   * InvalidRequestError
+   * UnsupportedProductModeError | InvalidRequestError
    */
-  400: InvalidRequestError
+  400: UnsupportedProductModeError | InvalidRequestError
 }
 
 export type CustomCompositionPlanError = CustomCompositionPlanErrors[keyof CustomCompositionPlanErrors]
@@ -13504,9 +13639,17 @@ export type CustomCompositionStartData = {
 
 export type CustomCompositionStartErrors = {
   /**
-   * InvalidRequestError
+   * UnsupportedProductModeError | InvalidRequestError
    */
-  400: InvalidRequestError
+  400: UnsupportedProductModeError | InvalidRequestError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * CompositionResolveError
+   */
+  422: CompositionResolveError
 }
 
 export type CustomCompositionStartError = CustomCompositionStartErrors[keyof CustomCompositionStartErrors]
@@ -13532,17 +13675,21 @@ export type CustomCompositionUpgradeData = {
 
 export type CustomCompositionUpgradeErrors = {
   /**
-   * InvalidRequestError
+   * UnsupportedProductModeError | InvalidRequestError
    */
-  400: InvalidRequestError
+  400: UnsupportedProductModeError | InvalidRequestError
   /**
    * SessionNotFoundError
    */
   404: SessionNotFoundError
   /**
-   * SessionBusyError
+   * SessionBusyError | ConflictError
    */
-  409: SessionBusyError
+  409: SessionBusyError | ConflictError
+  /**
+   * CompositionResolveError
+   */
+  422: CompositionResolveError
 }
 
 export type CustomCompositionUpgradeError = CustomCompositionUpgradeErrors[keyof CustomCompositionUpgradeErrors]
@@ -15601,6 +15748,10 @@ export type SessionPromptAsyncErrors = {
    * NotFoundError
    */
   404: NotFoundError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
 }
 
 export type SessionPromptAsyncError = SessionPromptAsyncErrors[keyof SessionPromptAsyncErrors]
@@ -17576,7 +17727,7 @@ export type V2SessionContextErrors = {
   /**
    * UnknownError
    */
-  500: UnknownError1
+  500: UnknownError2
 }
 
 export type V2SessionContextError = V2SessionContextErrors[keyof V2SessionContextErrors]
@@ -17865,7 +18016,7 @@ export type V2SessionMessagesErrors = {
   /**
    * UnknownError
    */
-  500: UnknownError1
+  500: UnknownError2
 }
 
 export type V2SessionMessagesError = V2SessionMessagesErrors[keyof V2SessionMessagesErrors]

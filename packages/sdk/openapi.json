@@ -7238,6 +7238,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get the full content of a custom profile asset by path.",
@@ -7315,6 +7325,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UnknownError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnknownError1"
                 }
               }
             }
@@ -7411,12 +7431,32 @@
               }
             }
           },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          },
           "409": {
             "description": "ConflictError",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UnknownError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnknownError1"
                 }
               }
             }
@@ -7485,11 +7525,14 @@
             }
           },
           "400": {
-            "description": "InvalidRequestError",
+            "description": "UnsupportedProductModeError | InvalidRequestError",
             "content": {
               "application/json": {
                 "schema": {
                   "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/UnsupportedProductModeError"
+                    },
                     {
                       "$ref": "#/components/schemas/InvalidRequestError"
                     },
@@ -7562,11 +7605,14 @@
             }
           },
           "400": {
-            "description": "InvalidRequestError",
+            "description": "UnsupportedProductModeError | InvalidRequestError",
             "content": {
               "application/json": {
                 "schema": {
                   "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/UnsupportedProductModeError"
+                    },
                     {
                       "$ref": "#/components/schemas/InvalidRequestError"
                     },
@@ -7574,6 +7620,26 @@
                       "$ref": "#/components/schemas/InvalidRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CompositionResolveError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionResolveError"
                 }
               }
             }
@@ -7632,11 +7698,14 @@
             }
           },
           "400": {
-            "description": "InvalidRequestError",
+            "description": "UnsupportedProductModeError | InvalidRequestError",
             "content": {
               "application/json": {
                 "schema": {
                   "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/UnsupportedProductModeError"
+                    },
                     {
                       "$ref": "#/components/schemas/InvalidRequestError"
                     },
@@ -7659,11 +7728,28 @@
             }
           },
           "409": {
-            "description": "SessionBusyError",
+            "description": "SessionBusyError | ConflictError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionBusyError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionBusyError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ConflictError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CompositionResolveError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionResolveError"
                 }
               }
             }
@@ -12669,6 +12755,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UnknownError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnknownError1"
                 }
               }
             }
@@ -17736,7 +17832,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UnknownError1"
+                  "$ref": "#/components/schemas/UnknownError2"
                 }
               }
             }
@@ -18494,7 +18590,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UnknownError1"
+                  "$ref": "#/components/schemas/UnknownError2"
                 }
               }
             }
@@ -22521,6 +22617,9 @@
             "$ref": "#/components/schemas/EventSessionNextSkillAdmitted"
           },
           {
+            "$ref": "#/components/schemas/EventSessionNextCommandAdmitted"
+          },
+          {
             "$ref": "#/components/schemas/EventSessionNextContextUpdated"
           },
           {
@@ -25305,6 +25404,76 @@
                       }
                     },
                     "required": ["timestamp", "sessionID", "messageID", "skill", "delivery"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["session.next.command.admitted"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "messageID": {
+                        "type": "string",
+                        "pattern": "^msg_"
+                      },
+                      "command": {
+                        "type": "string"
+                      },
+                      "relativePath": {
+                        "type": "string"
+                      },
+                      "revision": {
+                        "type": "string"
+                      },
+                      "consumer": {
+                        "type": "string"
+                      },
+                      "arguments": {
+                        "type": "string"
+                      },
+                      "context": {
+                        "$ref": "#/components/schemas/Prompt"
+                      },
+                      "snapshotDigest": {
+                        "type": "string"
+                      },
+                      "delivery": {
+                        "type": "string",
+                        "enum": ["steer", "queue"]
+                      }
+                    },
+                    "required": [
+                      "timestamp",
+                      "sessionID",
+                      "messageID",
+                      "command",
+                      "relativePath",
+                      "revision",
+                      "consumer",
+                      "arguments",
+                      "context",
+                      "snapshotDigest",
+                      "delivery"
+                    ],
                     "additionalProperties": false
                   }
                 },
@@ -29043,6 +29212,9 @@
                 "$ref": "#/components/schemas/SyncEventSessionNextSkillAdmitted"
               },
               {
+                "$ref": "#/components/schemas/SyncEventSessionNextCommandAdmitted"
+              },
+              {
                 "$ref": "#/components/schemas/SyncEventSessionNextContextUpdated"
               },
               {
@@ -31642,6 +31814,82 @@
         "required": ["_tag", "message"],
         "additionalProperties": false
       },
+      "NotFoundError": {
+        "type": "object",
+        "required": ["name", "data"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["NotFoundError"]
+          },
+          "data": {
+            "type": "object",
+            "required": ["message"],
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "UnknownError1": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["UnknownError"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "UnsupportedProductModeError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["UnsupportedProductModeError"]
+          },
+          "mode": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "mode", "message"],
+        "additionalProperties": false
+      },
+      "CompositionResolveError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["CompositionResolveError"]
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "diagnostics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnostic"
+            }
+          }
+        },
+        "required": ["_tag", "code", "message"],
+        "additionalProperties": false
+      },
       "SessionNotFoundError": {
         "type": "object",
         "properties": {
@@ -32227,42 +32475,6 @@
         },
         "required": ["id", "slug", "projectID", "directory", "title", "version", "time"],
         "additionalProperties": false
-      },
-      "UnsupportedProductModeError": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": ["UnsupportedProductModeError"]
-          },
-          "mode": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": ["_tag", "mode", "message"],
-        "additionalProperties": false
-      },
-      "NotFoundError": {
-        "type": "object",
-        "required": ["name", "data"],
-        "properties": {
-          "name": {
-            "type": "string",
-            "enum": ["NotFoundError"]
-          },
-          "data": {
-            "type": "object",
-            "required": ["message"],
-            "properties": {
-              "message": {
-                "type": "string"
-              }
-            }
-          }
-        }
       },
       "Todo": {
         "type": "object",
@@ -34247,29 +34459,6 @@
         "required": ["_tag", "message"],
         "additionalProperties": false
       },
-      "CompositionResolveError": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": ["CompositionResolveError"]
-          },
-          "code": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "diagnostics": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CompositionDiagnostic"
-            }
-          }
-        },
-        "required": ["_tag", "code", "message"],
-        "additionalProperties": false
-      },
       "ServiceUnavailableError": {
         "type": "object",
         "properties": {
@@ -34287,7 +34476,7 @@
         "required": ["_tag", "message"],
         "additionalProperties": false
       },
-      "UnknownError1": {
+      "UnknownError2": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -34418,6 +34607,9 @@
           },
           {
             "$ref": "#/components/schemas/V2EventSessionNextSkillAdmitted"
+          },
+          {
+            "$ref": "#/components/schemas/V2EventSessionNextCommandAdmitted"
           },
           {
             "$ref": "#/components/schemas/V2EventSessionNextContextUpdated"
@@ -36448,6 +36640,97 @@
                   }
                 },
                 "required": ["timestamp", "sessionID", "messageID", "skill", "delivery"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "id", "seq", "aggregateID", "data"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "id", "syncEvent"],
+        "additionalProperties": false
+      },
+      "SyncEventSessionNextCommandAdmitted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["sync"]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "syncEvent": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["session.next.command.admitted.1"]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^evt_"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "aggregateID": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "number"
+                  },
+                  "sessionID": {
+                    "type": "string",
+                    "pattern": "^ses"
+                  },
+                  "messageID": {
+                    "type": "string",
+                    "pattern": "^msg_"
+                  },
+                  "command": {
+                    "type": "string"
+                  },
+                  "relativePath": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "string"
+                  },
+                  "consumer": {
+                    "type": "string"
+                  },
+                  "arguments": {
+                    "type": "string"
+                  },
+                  "context": {
+                    "$ref": "#/components/schemas/Prompt"
+                  },
+                  "snapshotDigest": {
+                    "type": "string"
+                  },
+                  "delivery": {
+                    "type": "string",
+                    "enum": ["steer", "queue"]
+                  }
+                },
+                "required": [
+                  "timestamp",
+                  "sessionID",
+                  "messageID",
+                  "command",
+                  "relativePath",
+                  "revision",
+                  "consumer",
+                  "arguments",
+                  "context",
+                  "snapshotDigest",
+                  "delivery"
+                ],
                 "additionalProperties": false
               }
             },
@@ -39925,11 +40208,17 @@
                   "maxLength": 64,
                   "pattern": "^[0-9a-f]{64}$"
                 },
-                "template": {
+                "invocation": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "string"
+                },
+                "source": {
                   "type": "string"
                 }
               },
-              "required": ["name", "description", "relativePath", "revision", "template"],
+              "required": ["name", "description", "relativePath", "revision"],
               "additionalProperties": false
             }
           },
@@ -40294,11 +40583,17 @@
             "maxLength": 64,
             "pattern": "^[0-9a-f]{64}$"
           },
-          "template": {
+          "invocation": {
+            "type": "string"
+          },
+          "args": {
+            "type": "string"
+          },
+          "source": {
             "type": "string"
           }
         },
-        "required": ["name", "description", "relativePath", "revision", "template"],
+        "required": ["name", "description", "relativePath", "revision"],
         "additionalProperties": false
       },
       "CompositionSnapshotBindingData": {
@@ -40464,11 +40759,17 @@
                   "maxLength": 64,
                   "pattern": "^[0-9a-f]{64}$"
                 },
-                "template": {
+                "invocation": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "string"
+                },
+                "source": {
                   "type": "string"
                 }
               },
-              "required": ["name", "description", "relativePath", "revision", "template"],
+              "required": ["name", "description", "relativePath", "revision"],
               "additionalProperties": false
             }
           },
@@ -41906,6 +42207,75 @@
         "required": ["kind", "admittedSeq", "id", "sessionID", "delivery", "timeCreated", "text"],
         "additionalProperties": false
       },
+      "SessionInputAdmittedCommand": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["command"]
+          },
+          "admittedSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "sessionID": {
+            "type": "string",
+            "pattern": "^ses"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": ["steer", "queue"]
+          },
+          "timeCreated": {
+            "type": "number"
+          },
+          "promotedSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "command": {
+            "type": "string"
+          },
+          "relativePath": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "consumer": {
+            "type": "string"
+          },
+          "arguments": {
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Prompt"
+          },
+          "snapshotDigest": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "admittedSeq",
+          "id",
+          "sessionID",
+          "delivery",
+          "timeCreated",
+          "command",
+          "relativePath",
+          "revision",
+          "consumer",
+          "arguments",
+          "context",
+          "snapshotDigest"
+        ],
+        "additionalProperties": false
+      },
       "SessionInputAdmitted": {
         "anyOf": [
           {
@@ -41919,6 +42289,9 @@
           },
           {
             "$ref": "#/components/schemas/SessionInputAdmittedSynthetic"
+          },
+          {
+            "$ref": "#/components/schemas/SessionInputAdmittedCommand"
           }
         ]
       },
@@ -44696,6 +45069,98 @@
               }
             },
             "required": ["timestamp", "sessionID", "messageID", "skill", "delivery"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "V2EventSessionNextCommandAdmitted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.command.admitted"]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "command": {
+                "type": "string"
+              },
+              "relativePath": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "consumer": {
+                "type": "string"
+              },
+              "arguments": {
+                "type": "string"
+              },
+              "context": {
+                "$ref": "#/components/schemas/Prompt"
+              },
+              "snapshotDigest": {
+                "type": "string"
+              },
+              "delivery": {
+                "type": "string",
+                "enum": ["steer", "queue"]
+              }
+            },
+            "required": [
+              "timestamp",
+              "sessionID",
+              "messageID",
+              "command",
+              "relativePath",
+              "revision",
+              "consumer",
+              "arguments",
+              "context",
+              "snapshotDigest",
+              "delivery"
+            ],
             "additionalProperties": false
           }
         },
@@ -51247,6 +51712,76 @@
               }
             },
             "required": ["timestamp", "sessionID", "messageID", "skill", "delivery"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextCommandAdmitted": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.command.admitted"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "command": {
+                "type": "string"
+              },
+              "relativePath": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "consumer": {
+                "type": "string"
+              },
+              "arguments": {
+                "type": "string"
+              },
+              "context": {
+                "$ref": "#/components/schemas/Prompt"
+              },
+              "snapshotDigest": {
+                "type": "string"
+              },
+              "delivery": {
+                "type": "string",
+                "enum": ["steer", "queue"]
+              }
+            },
+            "required": [
+              "timestamp",
+              "sessionID",
+              "messageID",
+              "command",
+              "relativePath",
+              "revision",
+              "consumer",
+              "arguments",
+              "context",
+              "snapshotDigest",
+              "delivery"
+            ],
             "additionalProperties": false
           }
         },
