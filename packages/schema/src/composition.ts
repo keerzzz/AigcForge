@@ -162,6 +162,15 @@ export class CommandInfo extends Schema.Class<CommandInfo>("Composition.CommandI
   relativePath: Schema.String,
   revision: Revision,
   template: Schema.String,
+  // S5 snapshot fidelity: freeze the full CommandAsset identity. Old snapshots
+  // predate these fields; `invocation` defaults to "" so a legacy command fails
+  // closed instead of inheriting new execution ability (D6).
+  invocation: Schema.String.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("")),
+    Schema.withConstructorDefault(Effect.succeed("")),
+  ),
+  args: Schema.optional(Schema.String),
+  source: Schema.optional(Schema.String),
 }) {}
 
 export class Instruction extends Schema.Class<Instruction>("Composition.Instruction")({

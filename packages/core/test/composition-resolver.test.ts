@@ -1220,6 +1220,56 @@ steps:
       })
     })
 
+    test("freezes the full CommandAsset identity (invocation/args/source) in the snapshot", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nYou code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const commandDir = path.join(dir, ".aigcfroge", "commands")
+        await fs.mkdir(commandDir, { recursive: true })
+        const commandRaw = `---\nkind: command\nname: review\ndescription: Review the change\ninvocation: /review $1\nargs: "$1: path"\n---\nReview it without executing.\n`
+        await fs.writeFile(path.join(commandDir, "review.md"), commandRaw)
+        const commandRev = Hash.sha256(Buffer.from(commandRaw))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const commandRef = { kind: "command" as const, relativePath: "review.md", revision: commandRev }
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [{ kind: "agent", relativePath: "coder.md", revision: coderRev }],
+              bindings: {
+                orchestrator: { prompts: [], skills: [], commands: [commandRef] },
+              },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+            const commands = snapshot.data.commands
+            expect(commands[0]?.invocation).toBe("/review $1")
+            expect(commands[0]?.args).toBe("$1: path")
+            expect(commands[0]?.source).toContain("Review it without executing")
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("legacy CommandInfo snapshots decode with an empty invocation (fail closed)", () => {
+      const legacy = Schema.decodeUnknownSync(Composition.CommandInfo)({
+        name: "review",
+        description: "Review",
+        relativePath: "review.md",
+        revision: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+        template: "old template",
+      })
+      expect(legacy.invocation).toBe("")
+      expect(legacy.args).toBeUndefined()
+      expect(legacy.source).toBeUndefined()
+    })
+
     test("freezes an orchestrator entry even when nothing is bound to it", async () => {
       await withTmp(async (dir) => {
         const agentDir = path.join(dir, ".aigcfroge", "agents")

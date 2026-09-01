@@ -525,6 +525,9 @@ export const layer = Layer.effect(
             relativePath: command.relativePath,
             revision: Schema.decodeUnknownSync(Composition.Revision)(command.revision),
             template: command.source,
+            invocation: command.invocation,
+            args: command.args,
+            source: command.source,
           })
           if (!alreadyGlobal) commands.push(cmdInfo)
           if (!perConsumerCommands.get(consumer)!.some((c) => c.relativePath === cmdInfo.relativePath)) {
