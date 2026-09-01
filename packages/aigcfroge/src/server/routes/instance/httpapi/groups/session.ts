@@ -27,6 +27,7 @@ import {
   SessionBusyError,
   InvalidRequestError,
   UnsupportedProductModeError,
+  UnknownError,
 } from "../errors"
 import { described } from "./metadata"
 import { QueryBoolean } from "./query"
@@ -479,7 +480,7 @@ export const SessionApi = HttpApi.make("session")
           query: WorkspaceRoutingQuery,
           payload: PromptPayload,
           success: described(HttpApiSchema.NoContent, "Prompt accepted"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError, UnknownError],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.prompt_async",

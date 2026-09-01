@@ -1,4 +1,9 @@
 import { Schema } from "effect"
+// S7: the domain error family lives in the canonical owner (packages/server).
+// The legacy surface keeps its legacy-only error shapes here but re-exports the
+// shared domain errors instead of re-implementing them, so both surfaces encode
+// the same wire shape. See docs/plan §S7 GREEN 1.
+export { UnsupportedProductModeError, CompositionResolveError } from "@aigcfroge/server/errors"
 
 export class InvalidRequestError extends Schema.TaggedErrorClass<InvalidRequestError>()(
   "InvalidRequestError",
@@ -173,15 +178,6 @@ export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoun
     message: Schema.String,
   },
   { httpApiStatus: 404 },
-) {}
-
-export class UnsupportedProductModeError extends Schema.TaggedErrorClass<UnsupportedProductModeError>()(
-  "UnsupportedProductModeError",
-  {
-    mode: Schema.String,
-    message: Schema.String,
-  },
-  { httpApiStatus: 400 },
 ) {}
 
 export class ApiNotFoundError extends Schema.ErrorClass<ApiNotFoundError>("NotFoundError")(

@@ -47,10 +47,14 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           ),
         )
         if (!ProductModePolicy.isSessionSupported(info, capabilitiesHeader)) {
+          // S7: capability missing is a typed unsupported-mode error, not 404.
+          // 404 is reserved for sessions that do not exist. A client without
+          // the custom capability learns the session exists but that its mode
+          // is outside the client's declared capabilities.
           return yield* Effect.fail(
-            new SessionNotFoundError({
-              sessionID,
-              message: `Session not found: ${sessionID}`,
+            new UnsupportedProductModeError({
+              mode: info.mode,
+              message: `Mode "${info.mode}" is not supported by this client's declared capabilities.`,
             }),
           )
         }
@@ -69,18 +73,6 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
 
     const requireReadableSession = (sessionID: string, capabilitiesHeader?: string | null) =>
       requireSessionAndCapability(sessionID, capabilitiesHeader)
-
-    const requireRuntimeControlSession = (sessionID: string, operation: string, capabilitiesHeader?: string | null) =>
-      Effect.gen(function* () {
-        const info = yield* requireRuntimeSession(sessionID, capabilitiesHeader)
-        if (info.mode === "custom") {
-          return yield* new UnsupportedProductModeError({
-            mode: info.mode,
-            message: `Mode "${info.mode}" does not support session.${operation} in Custom Mode M1.`,
-          })
-        }
-        return info
-      })
 
     return handlers
       .handle(
@@ -188,7 +180,10 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         "session.custom",
         Effect.fn(function* (ctx) {
           if (!ProductModePolicy.isCustomModeEnabled()) {
-            return yield* new InvalidRequestError({
+            // S7: runtime disabled is a typed disabled error (stable message),
+            // matching the admission/control surfaces. Not a generic 400.
+            return yield* new UnsupportedProductModeError({
+              mode: "custom",
               message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
             })
           }
@@ -196,7 +191,10 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           // creating custom sessions requires the custom capability header.
           const req = yield* HttpServerRequest.HttpServerRequest
           if (!ProductModePolicy.isCustomCapable(req.headers[ProductModePolicy.CAPABILITIES_HEADER])) {
-            return yield* new InvalidRequestError({
+            // S7: capability missing is a typed unsupported-mode error, mirroring
+            // the per-session capability gate in requireSessionAndCapability.
+            return yield* new UnsupportedProductModeError({
+              mode: "custom",
               message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
             })
           }
@@ -262,7 +260,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeControlSession(ctx.params.sessionID, "switchAgent", capabilitiesHeader)
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.switchAgent({ sessionID: ctx.params.sessionID, agent: ctx.payload.agent }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -309,7 +307,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeControlSession(ctx.params.sessionID, "switchModel", capabilitiesHeader)
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.switchModel({ sessionID: ctx.params.sessionID, model: ctx.payload.model }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -379,7 +377,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeControlSession(ctx.params.sessionID, "compact", capabilitiesHeader)
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.compact({ sessionID: ctx.params.sessionID }).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -406,7 +404,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeControlSession(ctx.params.sessionID, "wait", capabilitiesHeader)
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.wait(ctx.params.sessionID).pipe(
             Effect.catchTag("Session.NotFoundError", (error) =>
               Effect.fail(
@@ -487,7 +485,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeControlSession(ctx.params.sessionID, "interrupt", capabilitiesHeader)
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.interrupt(ctx.params.sessionID)
           return HttpApiSchema.NoContent.make()
         }),
@@ -604,7 +602,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeControlSession(ctx.params.sessionID, "share", capabilitiesHeader)
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* share
             .share({
               sourceSessionID: ctx.params.sessionID,

@@ -175,7 +175,7 @@ const createRealCustom = Effect.fnUntraced(function* (directory: string) {
 
 describe.serial("V2 Session Capability Matrix", () => {
   it.instance(
-    "hides every custom-session endpoint from clients without the custom capability",
+    "rejects every custom-session endpoint for clients without the custom capability with a typed unsupported error",
     () =>
       Effect.gen(function* () {
         const test = yield* TestInstance
@@ -191,10 +191,14 @@ describe.serial("V2 Session Capability Matrix", () => {
               directory: test.directory,
               capable: false,
             })
+            // S7: capability missing is a typed unsupported-mode error, not a
+            // 404. 404 is reserved for sessions that do not exist. The mode is
+            // asserted so a regression to "session not found" (which also
+            // carries mode-less 404) cannot pass.
             expect({ endpoint: endpoint.name, status: response.status, body: yield* response.json }).toMatchObject({
               endpoint: endpoint.name,
-              status: 404,
-              body: { _tag: "SessionNotFoundError", sessionID: custom.id },
+              status: 400,
+              body: { _tag: "UnsupportedProductModeError", mode: "custom" },
             })
           }),
         )
@@ -304,7 +308,8 @@ describe.serial("V2 Session Capability Matrix", () => {
         const rejected = yield* post("/api/session/custom", test.directory, payload, false)
         expect(rejected.status).toBe(400)
         expect(yield* rejected.json).toMatchObject({
-          _tag: "InvalidRequestError",
+          _tag: "UnsupportedProductModeError",
+          mode: "custom",
           message: expect.stringContaining(ProductModePolicy.CAPABILITY_CUSTOM_V1),
         })
 
@@ -440,7 +445,8 @@ describe.serial("V2 Session Capability Matrix", () => {
         const planRes = yield* post("/custom-composition/plan", test.directory, comp, true)
         expect(planRes.status).toBe(400)
         expect(yield* planRes.json).toMatchObject({
-          _tag: "InvalidRequestError",
+          _tag: "UnsupportedProductModeError",
+          mode: "custom",
           message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
         })
 
@@ -448,7 +454,8 @@ describe.serial("V2 Session Capability Matrix", () => {
         const startRes = yield* post("/custom-composition/start", test.directory, { composition: comp }, true)
         expect(startRes.status).toBe(400)
         expect(yield* startRes.json).toMatchObject({
-          _tag: "InvalidRequestError",
+          _tag: "UnsupportedProductModeError",
+          mode: "custom",
           message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
         })
 
@@ -461,7 +468,8 @@ describe.serial("V2 Session Capability Matrix", () => {
         )
         expect(upgradeRes.status).toBe(400)
         expect(yield* upgradeRes.json).toMatchObject({
-          _tag: "InvalidRequestError",
+          _tag: "UnsupportedProductModeError",
+          mode: "custom",
           message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
         })
 
@@ -474,7 +482,8 @@ describe.serial("V2 Session Capability Matrix", () => {
         )
         expect(sessionCustomRes.status).toBe(400)
         expect(yield* sessionCustomRes.json).toMatchObject({
-          _tag: "InvalidRequestError",
+          _tag: "UnsupportedProductModeError",
+          mode: "custom",
           message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
         })
       }),
@@ -545,5 +554,62 @@ describe.serial("V2 Session Capability Matrix", () => {
         }
       }),
     { git: true, config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
+    "applies operation policy, not a blanket custom gate, to control operations when the flag is enabled",
+    () =>
+      Effect.gen(function* () {
+        yield* enableCustomMode
+        const test = yield* TestInstance
+        const created = yield* createRealCustom(test.directory)
+
+        // S7: interrupt/wait/compact/switch* used to share a blanket
+        // "Custom Mode M1" gate that rejected custom for every control
+        // operation. With the flag on, each operation now follows its own
+        // domain policy: interrupt is a no-op on an idle session (204),
+        // compact is genuinely unavailable (typed 503, same as non-custom),
+        // and switchAgent works inside the frozen pool for custom children.
+        const interrupt = yield* post(`/api/session/${created.data.id}/interrupt`, test.directory, {})
+        expect(interrupt.status).toBe(204)
+
+        const compact = yield* post(`/api/session/${created.data.id}/compact`, test.directory, {})
+        expect(compact.status).toBe(503)
+        expect(yield* compact.json).toMatchObject({ _tag: "ServiceUnavailableError" })
+
+        const fork = yield* post(`/api/session/${created.data.id}/fork`, test.directory, {})
+        expect(fork.status).toBe(200)
+        const forkBody = yield* Schema.decodeUnknownEffect(ForkResponse)(yield* fork.json)
+        const switchAgent = yield* post(`/api/session/${forkBody.sessionID}/agent`, test.directory, { agent: "coder" })
+        expect(switchAgent.status).toBe(204)
+      }),
+    { git: true, config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
+    "routes the legacy share endpoint to the external share-link owner, never a self context-share",
+    () =>
+      Effect.gen(function* () {
+        yield* enableCustomMode
+        const test = yield* TestInstance
+        const created = yield* createRealCustom(test.directory)
+
+        // S7 / D14: legacy /session/:id/share is the EXTERNAL share-link
+        // owner. Sharing is disabled in config, so the external owner fails
+        // typed (500). The pre-S7 V2 branch instead called the canonical
+        // context share on itself, which returned 200 and published a
+        // synthetic self-injection into the session timeline. Asserting 500
+        // proves the external owner was reached; asserting an empty context
+        // proves no synthetic self-injection happened.
+        const share = yield* post(`/session/${created.data.id}/share`, test.directory, undefined)
+        expect(share.status).toBe(500)
+
+        const context = yield* requestInDirectory(`/api/session/${created.data.id}/context`, test.directory, {
+          headers: capableHeaders,
+        })
+        expect(context.status).toBe(200)
+        expect(yield* context.json).toEqual({ data: [] })
+      }),
+    { git: true, config: { formatter: false, lsp: false, share: "disabled" } },
   )
 })

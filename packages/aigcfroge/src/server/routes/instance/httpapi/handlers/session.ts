@@ -59,7 +59,13 @@ import {
   WorkflowRetryStepPayload,
   WorkflowRunPayload,
 } from "../groups/session"
-import { ConflictError, PermissionNotFoundError, InvalidRequestError, UnsupportedProductModeError } from "../errors"
+import {
+  ConflictError,
+  PermissionNotFoundError,
+  InvalidRequestError,
+  UnsupportedProductModeError,
+  UnknownError,
+} from "../errors"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { notFound } from "../errors"
 import * as SessionError from "./session-errors"
@@ -735,23 +741,15 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     // (matches the legacy route behavior which routed any failure through
     // ErrorMiddleware → NamedError.Unknown 500) instead of blanket-mapping
     // every failure to a 400 BadRequest.
+    //
+    // S7 / D14: this legacy /session/:id/share endpoint is the EXTERNAL
+    // share-link owner (SessionShare → ShareNext URL). It must never route to
+    // SessionShareV2 (the canonical context share): that would publish a
+    // synthetic self-injection into the session timeline. The canonical
+    // context share lives only on /api/session/:id/share in packages/server.
     const share = Effect.fn("SessionHttpApi.share")(function* (ctx: { params: { sessionID: SessionID } }) {
-      const info = yield* requireRuntimeSession(ctx.params.sessionID)
-      if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
-        const shareSvc2 = yield* SessionShareV2.Service
-        yield* shareSvc2
-          .share({
-            sourceSessionID: ctx.params.sessionID,
-            targetSessionID: ctx.params.sessionID,
-            scope: "full",
-            trigger: false,
-          })
-          .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
-      } else {
-        yield* shareSvc
-          .share(ctx.params.sessionID)
-          .pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
-      }
+      yield* requireRuntimeSession(ctx.params.sessionID)
+      yield* shareSvc.share(ctx.params.sessionID).pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
       return yield* requireRuntimeSession(ctx.params.sessionID)
     })
 
@@ -877,9 +875,35 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
                 }),
               ),
             ),
-            // Remaining SessionV2.Error members are not reachable from prompt
-            // admission; fail typed instead of leaking a defect.
-            Effect.catch(() => Effect.fail(new InvalidRequestError({ message: "Prompt admission failed" }))),
+            // S7: no 4xx catch-all. The catchTag handlers above already mapped
+            // the reachable domain errors to InvalidRequestError. The remaining
+            // SessionV2.Error members are not reachable from prompt admission;
+            // if one ever escapes it is a server-side inconsistency and must
+            // surface as a typed 500, not be disguised as a client error.
+            Effect.catchTag("Session.MessageDecodeError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.OperationUnavailableError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.SyntheticConflictError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.UpgradeSourceModeError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.SessionBusyError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Composition.ResolveError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.CommandUnavailableError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
           )
         return HttpApiSchema.NoContent.make()
       }
