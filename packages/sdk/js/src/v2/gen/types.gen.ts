@@ -17870,6 +17870,53 @@ export type V2SessionShellResponses = {
 
 export type V2SessionShellResponse = V2SessionShellResponses[keyof V2SessionShellResponses]
 
+export type V2SessionCommandData = {
+  body: {
+    id?: string
+    command: string
+    arguments?: string
+    context?: Prompt
+    resume?: boolean
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/command"
+}
+
+export type V2SessionCommandErrors = {
+  /**
+   * InvalidRequestError | UnsupportedProductModeError
+   */
+  400: InvalidRequestError | UnsupportedProductModeError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2SessionCommandError = V2SessionCommandErrors[keyof V2SessionCommandErrors]
+
+export type V2SessionCommandResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionInputAdmitted
+  }
+}
+
+export type V2SessionCommandResponse = V2SessionCommandResponses[keyof V2SessionCommandResponses]
+
 export type V2SessionInterruptData = {
   body?: never
   path: {
