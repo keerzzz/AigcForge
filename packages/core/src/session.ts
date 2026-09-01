@@ -173,6 +173,7 @@ export interface Interface {
   ) => Effect.Effect<
     SessionSchema.Info,
     | ProductModePolicy.UnsupportedProductModeError
+    | ProductModeAgentPolicy.AgentNotAllowedError
     | PromptConflictError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError
@@ -230,6 +231,7 @@ export interface Interface {
     void,
     | NotFoundError
     | ProductModePolicy.UnsupportedProductModeError
+    | ProductModeAgentPolicy.AgentNotAllowedError
     | SessionComposition.AgentDelegationForbiddenError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError
@@ -267,6 +269,7 @@ export interface Interface {
     SessionInput.Admitted,
     | NotFoundError
     | PromptConflictError
+    | ProductModeAgentPolicy.CommandDeniedError
     | ProductModePolicy.UnsupportedProductModeError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError
@@ -707,7 +710,7 @@ export const layer = Layer.effect(
             }
             // V2 shell policy guard: deny shell in chat mode
             const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode ?? "coding")
-            if (!commandVerdict.allowed) return yield* Effect.die(commandVerdict.error)
+            if (!commandVerdict.allowed) return yield* commandVerdict.error
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery: SessionInput.Delivery = "queue"
             const expected = { sessionID: input.sessionID, messageID, command: input.command, delivery }
@@ -767,6 +770,15 @@ export const layer = Layer.effect(
         if (session.mode === "custom") {
           yield* sessionComposition.assertAgentAllowed(input.sessionID, input.agent)
         }
+        // P1-4: enforce the five-mode primary-agent policy at switch time for
+        // every session except custom children. Custom children legitimately
+        // hold non-primary agents (R6-3: authorized at creation against the
+        // parent Snapshot allowlist), so they keep the pool check only. Custom
+        // roots must stay `meta`; without this gate a post-creation swap would
+        // persist an agent that bricks the next provider turn.
+        if (!(session.mode === "custom" && session.parentID !== undefined)) {
+          yield* ProductModeAgentPolicy.enforcePrimary(session.mode, input.agent)
+        }
         yield* events.publish(SessionEvent.AgentSwitched, {
           sessionID: input.sessionID,
           messageID: SessionMessage.ID.create(),
@@ -818,6 +830,10 @@ export const layer = Layer.effect(
       }),
       resume: Effect.fn("V2Session.resume")(function* (sessionID) {
         const session = yield* result.get(sessionID)
+        // D12 (S3): same kill-switch gate as the drain — resume must not be a
+        // silent no-op when custom mode is off; the HTTP layer maps the typed
+        // UnsupportedProductModeError to 400.
+        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
         if (session.mode === "custom") {
           yield* sessionComposition.get(sessionID)
         }

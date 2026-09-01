@@ -237,6 +237,12 @@ export const dict = {
   "prompt.mode.shell.exit": "按 esc 退出",
   "session.child.promptDisabled": "子智能體會話無法發送提示。",
   "session.child.backToParent": "返回主會話。",
+  "session.handoff.confirm.title": "此交接會擴大權限",
+  "session.handoff.confirm.body":
+    "{{agent}} 可以做本會話目前做不到的事。確認後僅為本次交接切換到它；具體操作執行前仍會逐項詢問。",
+  "session.handoff.confirm.approve": "切換並繼續",
+  "session.handoff.declined.title": "已取消交接",
+  "session.handoff.declined.description": "會話仍停留在目前的智能體。",
 
   "prompt.example.1": "修復程式碼庫中的一個 TODO",
   "prompt.example.2": "這個專案的技術堆疊是什麼?",

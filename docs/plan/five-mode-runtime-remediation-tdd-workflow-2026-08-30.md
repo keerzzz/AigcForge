@@ -40,14 +40,17 @@
 
 **已完成的裁决与实施（截至 2026-09-01，分支 `five-mode-tdd`）**：
 
-| 项             | 状态                 | 证据                                                                                                                                                                                                                                                                                                          |
-| -------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D4-A + D5-A    | **已实施并合入分支** | 提交 `74487f934`：`bindings` 三态解码、`AgentInfo.consumerKey` 派生、`CompositionConsumerView` 的 `Scope` 判别式取代 `string \| undefined`、三处扁平回退删除、orchestrator 无条件产出条目、resolve/freeze TOCTOU 根治、完整性校验拆到 `assertDependency`（结构）与 freeze（落地）。全仓 `bun typecheck` 15/15 |
-| S0 RED 基线    | **已落盘**           | 提交 `d24b7035a`：9 条断言，8 绿 1 红（`SyntheticAdmitted` 属 S3，正确保持红）。`SyntheticAdmitted` 那条已自证可满足（临时加入 `DurableDefinitions` → 变绿 → 还原）                                                                                                                                           |
-| 增量 lint 门禁 | **已加固**           | 提交 `7a431619c`：`guardedRules` 增加 `no-unnecessary-type-assertion` 与 `no-unused-vars`（仅新增行），立即抓出 `tool/skill.ts` 一处死 import                                                                                                                                                                 |
-| D13            | **已裁决**           | 见 §6 D13：功能保留，改用 `switchAgent` + `prompt`；fork modifier 删除；提权走现成三档交互                                                                                                                                                                                                                    |
-| owner 仲裁     | **已裁决**           | S2/S6 owner 归本计划，三份未开工计划（`v2-architecture-governance-slice-0-3`、`v2-ux-trust-foundation`、`mode-page-unification-v2`）的重叠切片折叠进来，各自保留非重叠部分。依据：极致减法的「归并」优于「选赢家让另一方 rebase」，且本计划已有可复现产物、那三份分支均不存在                                 |
-| D2 对冲        | **已裁决**           | 对冲条款必须点名 `EventV2.publish` 跨连接写 deadlock（`docs/technical-debt.md` 已登记债）为具体阻塞点，不得写成含糊的「若现有事务边界无法承载」                                                                                                                                                               |
+| 项             | 状态                 | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D4-A + D5-A    | **已实施并合入分支** | 提交 `74487f934`：`bindings` 三态解码、`AgentInfo.consumerKey` 派生、`CompositionConsumerView` 的 `Scope` 判别式取代 `string \| undefined`、三处扁平回退删除、orchestrator 无条件产出条目、resolve/freeze TOCTOU 根治、完整性校验拆到 `assertDependency`（结构）与 freeze（落地）。全仓 `bun typecheck` 15/15                                                                                                                                                                                                                                                                                    |
+| S0 RED 基线    | **已落盘**           | 提交 `d24b7035a`：9 条断言，8 绿 1 红（`SyntheticAdmitted` 属 S3，正确保持红）。`SyntheticAdmitted` 那条已自证可满足（临时加入 `DurableDefinitions` → 变绿 → 还原）                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 增量 lint 门禁 | **已加固**           | 提交 `7a431619c`：`guardedRules` 增加 `no-unnecessary-type-assertion` 与 `no-unused-vars`（仅新增行），立即抓出 `tool/skill.ts` 一处死 import                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| D13            | **已裁决**           | 见 §6 D13：功能保留，改用 `switchAgent` + `prompt`；fork modifier 删除；提权走现成三档交互                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| owner 仲裁     | **已裁决**           | S2/S6 owner 归本计划，三份未开工计划（`v2-architecture-governance-slice-0-3`、`v2-ux-trust-foundation`、`mode-page-unification-v2`）的重叠切片折叠进来，各自保留非重叠部分。依据：极致减法的「归并」优于「选赢家让另一方 rebase」，且本计划已有可复现产物、那三份分支均不存在                                                                                                                                                                                                                                                                                                                    |
+| D2 对冲        | **已裁决**           | 对冲条款必须点名 `EventV2.publish` 跨连接写 deadlock（`docs/technical-debt.md` 已登记债）为具体阻塞点，不得写成含糊的「若现有事务边界无法承载」                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| T2 断言核验    | **已完成（只读）**   | 2026-09-01：P1-4a/b/c、P2-10~15、P2-17 共 10 条全部 CONFIRMED（P2-15 带分腿限定）。三处证据修正已回写：`enforcePrimary` 真实调用点 5 处（`task.ts:234` 是 `checkPrimaryAgent`、`task-driver.ts:701` 是注释）、custom 子会话 per-turn gate 属**故意豁免**、P2-14 证据锚点改为 `mode-surfaces.tsx:242` → `custom-sidebar.tsx:30`。D12 的 `export` 入口经复核**不存在**，措辞已改                                                                                                                                                                                                                   |
+| D12            | **已裁决**           | 取 A（收紧域层）：kill switch 下沉到 `execution/local.ts` drain 这一唯一 `SessionRunner.run` 调用点，pending input 保持 pending，`UnsupportedProductModeError` 复用进 `RunError`；归 S3，不需要 S2 kernel。见 §6 D12                                                                                                                                                                                                                                                                                                                                                                             |
+| S3             | **已实施并审批通过** | A（`SyntheticAdmitted` 进 `DurableDefinitions`）、B（`enforcePrimary` 改 typed，verdict 拆 `PrimaryPolicyVerdict`/`CommandPolicyVerdict`，堵住 `CommandDeniedError` 向 create/switchAgent 的泄漏）、B2（`switchAgent` 对 custom root 补 primary gate，custom 子会话按 R6-3 豁免）、C（skill 提升复用 `admitted.timeCreated`）、D（kill switch 下沉为一处门）、E（handoff = `switchAgent`+`prompt`）。复审驳回首版 handoff 顺序缺陷，返工结果见 §6 D13「S3 实施结果」。全仓 `bun typecheck` 15/15 —— 自 `74487f934` 起首次回绿（D5-A 遗漏的 3 处 app fixture 与 2 处 core snapshot fixture 已补） |
 
 在 S-1 结束、下列前提完成且用户作出最终批准前，**不得修改生产代码或创建实施分支**：
 
@@ -308,13 +311,27 @@ Snapshot v2 Runtime 禁止回退顶层扁平字段；v1 使用单独兼容路径
 
 ### MODE-P1-4：`switchAgent` 可持久化非法状态
 
-`SessionV2.switchAgent`：
+**已核验（T2 2026-09-01，只读复核）。** `SessionV2.switchAgent`（`core/src/session.ts:761-776`）全体只有两道门：`ProductModePolicy.assertRuntimeSupported`（:763，kill switch）与 custom 分支的 `sessionComposition.assertAgentAllowed`（:768）。
 
-- 非 Custom 未统一执行五模式 primary-agent policy；
-- Custom root 只验证 agent 在 Snapshot pool 中，未保持 root=`meta`；
-- `AgentSwitched` 先持久化，Runner 下一轮才执行 primary policy。
+- 非 Custom 未统一执行五模式 primary-agent policy —— `enforcePrimary` 真实调用点共 **5 处**（`core/src/session.ts:363`、`:365`、`core/src/session/runner/llm.ts:583`、`aigcfroge/src/session/session.ts:736`、`aigcfroge/src/session/prompt.ts:1242`），`switchAgent` 不在其中。
+- Custom root 只验证 agent 在 Snapshot pool 中 —— `assertAgentAllowed`（`core/src/session/composition.ts:243-262`）只判 `agents.some(a => a.id === agentID || a.name === agentID)`，不判 root=`meta`；root=`meta` 的强制在 `product-mode-agent-policy.ts:117-127`，只在 `create` 与每轮 turn 执行。
+- `AgentSwitched` 先持久化 —— `:770` publish，`projector.ts:335-343` 立即写 `SessionTable.agent`；primary policy 首次执行在下一轮 `runner/llm.ts:581-583`。
 
-非法操作必须在 event/row mutation 前 fail typed，并断言零 durable side effect。
+**修正一处旧表述**：对 **custom 子会话**，per-turn gate 是**故意豁免**的（`runner/llm.ts:575-583`，注释 R6-3：custom 子会话的非 primary agent 已在创建时经父 Snapshot allowlist 授权，改走 `resolvePrimaryAgent` 不校验）。所以"下一轮才执行"只对 custom root 与非 custom 会话成立。
+
+**RED 必须钉的合成失效路径**（P1-4b + P1-4c + P1-3 同根，一条测试覆盖三条）：
+
+```
+switchAgent(custom root, "coder")
+  → assertAgentAllowed 只查 pool，pool 里确实有 coder → 通过
+  → AgentSwitched 持久化，SessionTable.agent = "coder"
+  → 下一轮 enforcePrimary("custom", "coder")
+  → "Only meta is allowed as root agent in custom mode" → Effect.die → 会话砖化
+```
+
+非法操作必须在 event/row mutation 前 fail typed，并断言零 durable side effect（零 `AgentSwitched`、零 row update、零 provider 调用）。
+
+**实现复用点**：不要新造 verdict→typed error 的判定。`core/src/tool/task.ts:228-238` 已是目标形态 —— `checkPrimaryAgent`（纯函数返回 verdict，不 die）→ `ToolFailure`，注释明写 "so a disallowed delegation returns a readable tool failure instead of dying inside child-session creation"。P1-3 把 `enforcePrimary` 的 `Effect.die`（`product-mode-agent-policy.ts:55-61`）改 typed error 时，走同一条路。
 
 ### MODE-P1-5：Skill promotion timestamp 与 admission 不一致
 
@@ -415,6 +432,18 @@ App 和 TUI 的 handoff 调用向 V2 fork payload 传递 `prompt/agent`，但 V2
 17. Custom kill switch 对 admission/resume/provider turn 的语义不统一。
 18. typed error 缺稳定 message；unknown defect 被 catch-all 伪装成 4xx。
 19. Prompt decode log 记录完整 `part`，可能泄漏文本、data URL/base64 和文件正文。
+
+**T2 只读核验结果（2026-09-01）** —— 下列条目已取得 `file:line` 证据，进入实施切片时不必重新探路：
+
+| 条目 | 判定                | 证据锚点                                                                                                                                                                                                                                                                                                                                                        |
+| ---- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 10   | CONFIRMED           | `app/src/components/custom/custom-sidebar.tsx:34-38` 五个 per-call `.catch(() => ({data:{assets:[]}}))` + `:48-50` 外层 `catch`。与 `docs/technical-debt.md:80` 已登记债**同一处**，非新缺陷                                                                                                                                                                    |
+| 11   | CONFIRMED           | `custom-snapshot-panel.tsx:56-68`：`throwOnError: false` + `catch { return undefined }` → `:70` `digest = snapshot()?.digest ?? ""`、`:71-73` `snapshotV2` 判 undefined → 渲染"无 Snapshot"                                                                                                                                                                     |
+| 12   | CONFIRMED（三态）   | `custom-preview-column.tsx:114-121`：`canStart` 只查 `disabled`/`unsupported`（`:63` 通用 error 分支只返回 `{error}`）、不查 `planResult.latest === undefined`（首屏）、不查 `plan()?.digest`                                                                                                                                                                   |
+| 13   | CONFIRMED           | `custom-sidebar.tsx:112-119` 传 `revision: ""` → `context/custom-draft.tsx:175-186` `addAgent` 仅 `draft.agents.push`，全程无 `sdk.client.*` 调用                                                                                                                                                                                                               |
+| 14   | CONFIRMED（换证据） | `mode-surfaces.tsx:242-244` custom slot → `CustomProjectColumnSidebar` → `custom-sidebar.tsx:30` 的 `createResource` 在 `currentMode === "chat"` 时仍挂载发请求。`mode-workspace.tsx:174-196` 只证明 render-all + `display:none`；`:55-64` 那 7 个 list 在父组件体内，与 slot 隐藏无关，**不是本条证据**                                                        |
+| 15   | CONFIRMED（分腿）   | 落 sentinel 的腿：`session/info.ts:33` 读侧 materialize、`meta-agent/service.ts:104-118` create 直接写 `variant ?? "default"`、`aigcfroge/session/prompt.ts:801` `ModelSwitched` publish → `projector.ts:347` 原样写库。**不落**的腿：`core/src/session.ts:409-414` create 原样写 `input.model.variant`（undefined 保持 undefined）。写回归测试前先定要钉哪条腿 |
+| 17   | CONFIRMED（见 D12） | 覆盖矩阵与待裁决的两条路见 §6 D12                                                                                                                                                                                                                                                                                                                               |
 
 ## 3.4 P3：测试、死代码和注释债务
 
@@ -685,10 +714,44 @@ Snapshot V2 → Draft → CompositionInput → Plan
 
 **推荐**：定义为真正的执行 kill switch：
 
-- read/export/history 允许；
+- read/history 允许；
 - create/admission/resume/wake/provider turn/command fail closed；
 - 所有入口复用同一 typed policy；
 - 关闭时不得留下部分 durable mutation。
+
+**核验修正（T2 2026-09-01）**：原表述里的 **`export` 入口不存在** —— 全仓 `packages/server/src`、`packages/aigcfroge/src/server` 无任何 export 端点（搜 `exportSession` / `sessionExport` / `"export"` 路由字面量均零命中）。最近的候选是 `share`（`handlers/session.ts:733`，已由 `requireRuntimeSession` 门住）。措辞已改为 read/history。
+
+**实测覆盖矩阵**（`Flag.AIGCFROGE_CUSTOM_MODE` 是 `flag.ts:76-77` 的 getter，访问时读 env）：
+
+| 入口                        | 是否被 flag 门住           | gate                                                                                                                            |
+| --------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| create（V1 通用）           | 恒拒绝，与 flag 无关       | `product-mode-policy.ts:54-63` `assertCreationSupported` 对 custom 永远 fail                                                    |
+| create（M1 start）          | 是                         | `custom-composition.ts:24/35/84` `isCustomModeEnabled()`                                                                        |
+| prompt admission（V2）      | 是                         | `core/src/session.ts:674`；HTTP `handlers/session.ts:820` `requireRuntimeSession`                                               |
+| prompt / command（V1 sync） | 恒拒绝，与 flag 无关       | `handlers/session.ts:797/864/876` `v1SyncUnsupportedForCustom`                                                                  |
+| switchAgent / switchModel   | 是                         | `core/src/session.ts:763` / `:779`                                                                                              |
+| **resume（V2）**            | **否**                     | `core/src/session.ts:819-825` 只有 `sessionComposition.get`，无 `assertRuntimeSupported`                                        |
+| **wake / provider turn**    | **否**                     | `execution/local.ts:16-27` drain → `SessionRunner.run` 无 mode 检查；`runner/llm.ts:581` 只有 `enforcePrimary` + Snapshot drift |
+| read: get/list/children     | 否（仅 capability header） | `handlers/session.ts:174/177/181` `requireSession` / `filterSupportedSessions`                                                  |
+| read: messages/message      | 是                         | `handlers/session.ts:382/422` `requireRuntimeSession`                                                                           |
+
+**裁决（用户 2026-09-01）：取 A —— 收紧域层。** kill switch 的价值就是"关了就跑不动"；B 把它降级成客户端礼貌约定，任何非 HTTP 调用方（TUI 直连、plugin、task 委派）都能绕过。
+
+原始分歧：`product-mode-policy.ts:34-37` 的注释声明 "Consumed only at HTTP gates; the domain layer stays flag-free"，但 `assertRuntimeSupported`（内部就调 `isCustomModeEnabled()`）已经被域层的 `prompt`(`session.ts:674`) / `switchAgent`(`:763`) / `switchModel`(`:779`) 调用 —— 注释与代码早已不一致，resume/wake/provider turn 是仅剩的无门点。被否决的 B 是"从这三处移除 flag 判定，只保留 HTTP 门"。
+
+**A 的实现形态（复核后收敛为一处，非三处）**：
+
+`SessionRunner.run` 全仓**只有一个调用点** —— `execution/local.ts:19`，位于 `coordinator.drain` 内，而 drain 在 `:17` **已经读了 session** 并已在 `:18` 对不存在做 fail-closed。`resume`(`coordinator.run`) 与 `wake` 都汇入同一个 drain，provider turn 只能由 `SessionRunner.run` 发起。所以：
+
+- **唯一新增门**：`execution/local.ts:17-18` 之后、`SessionRunner.run` 之前，对已读到的 `session.mode` 调 `ProductModePolicy.assertRuntimeSupported`。零额外 DB 读，一处覆盖 resume + wake + provider turn。
+- **附带（非安全必需，为可诊断性）**：`V2Session.resume`(`session.ts:819-825`) 补同一道门，让 HTTP 拿到 typed 400 而不是静默 no-op。
+- **错误通道复用现成先例**：`UnsupportedProductModeError`（`product-mode-policy.ts:10`，已带 `httpApiStatus: 400`）加入 `SessionRunner.RunError` 联合（`runner/index.ts:40-48`）。`SnapshotDriftError` 就是同一形态的先例 —— 同文件声明、进同一联合、在任何 provider/context/tool 工作之前 fail 掉整轮。**不新建 error 类**。
+- **"已 admit 未跑完"语义**：pending input **保持 pending**，不改写、不拒绝、不产生任何 durable mutation；flag 恢复后照常 drain。这直接满足本节"关闭时不得留下部分 durable mutation"，也是 A 不需要 S2 kernel 的原因。
+- 注释 `product-mode-policy.ts:34-37` 那句 "domain layer stays flag-free" 必须删除或改写为事实。
+
+**切片归属：S3。** 原本担心的"改 admission 之后的语义属 S2 durable 边界"在选定 pending-保持-pending 后不成立 —— 没有新的事务边界，只有一个前置门。
+
+**RED**：flag off 下对已有 custom 会话调 `resume` → 断言 typed `UnsupportedProductModeError`、零 provider 调用、pending input 计数不变；flag on 后同一会话 drain 正常完成。
 
 ### D13：handoff 的原语选择与提权交互（已裁决 2026-09-01）
 
@@ -745,6 +808,24 @@ Snapshot V2 → Draft → CompositionInput → Plan
 **切片归属**：S3 = handoff 走 switchAgent+prompt、fork modifier 改 typed 拒绝、提权判定、`send` 兑现、修 file-loader；schema = `agent-asset.handoffs`；S6 = Builder handoff 编辑器 + HandoffButton 提权明细与三态 + break-glass 例外；**S2 不涉及**。
 
 过渡期（S3 GREEN 前）唯一允许的中间状态：服务端对携带 modifier 的 fork 返回稳定 typed error，App/TUI 同步禁用 handoff。禁止 2xx 成功后忽略字段。
+
+**S3 实施结果（2026-09-01，复审后返工一轮）**
+
+首版实现把 `await switchAgent` 放在提权判定之前，产生两个叠加缺陷：
+
+1. 门只挡住了 prompt，agent 已 durable 切完 —— 而提权本身就是 agent 切换，`propose` 会话点一次 plan→build 就永久变成 build，无回退路径；
+2. 判定读的是切换后的状态（`session.tsx:257` 的 `info()`、TUI 的 `session()` 都是从 SSE 同步存储实时读），`await` 返回时 `AgentSwitched` 可能已落库落流，于是 current 与 target 同一 agent、规则集相同、`escalates` 为 false → 自动发出。门是否生效取决于 SSE 时序，测不出来。
+
+返工后的形态：
+
+- 决策与执行拆成 `planHandoff` / `executeHandoff`（`packages/schema/src/handoff.ts`）。`switchAgent` 只能在「非提权计划」或「用户明确确认」之后到达 —— 顺序错误由结构排除，不靠调用点自觉。
+- 提权时**先问再切**，确认后按原意图执行（`then` 携带 `switch-and-send` / `switch-and-prefill`），即 `once` 语义。不采用「预填但不切」：那会把 handoff 文案留在瞄准旧 agent 的输入框里，发出去就是用错 agent 静默作答。确认界面复用现成宿主 —— app 走 `useDialog().push`（与 `session-permission-override-dialog.tsx` 同一宿主），TUI 走 `DialogConfirm.show`；两端都不新建对话框基础设施。取消时不产生任何 durable 变更，只给可见提示。
+- `always`（记住某条 handoff）仍未实现，需要按 label+目标 agent 持久化授权，归 S6。此前报告同时写了「走 once/always/reject 三态」和「三态归 S6」，以本条为准。
+- **owner 落在 `@aigcfroge/schema`，不是两份拷贝。** 首版在 app 与 tui 各放一份逐字节相同的 `handoff-policy.ts`（连「app 不能 import core」这句注释都照抄进了 TUI，而 TUI 是 Node 进程）。权限判定有两份实现就是两种行为，已归并为一份，两端 import 同一模块。
+- 连带修掉一个潜在浏览器崩溃：那两份拷贝都 `import { Wildcard } from "@aigcfroge/core/util/wildcard"`，而 `wildcard.ts` 在 `match()` **函数体内**读 `process.platform`。`browser-boundary.test.ts` 的 `MODULE_SCOPE_PROCESS` 只匹配模块求值期的读取，函数体内的读取被显式忽略；app 的 vite 配置也没有 `process` shim。所以每次 handoff 点击都会在浏览器里抛 `process is not defined`，而门禁全绿。matcher 已下沉为 `packages/schema/src/wildcard.ts`（`typeof process !== "undefined"` 守卫），`core/util/wildcard` 改为 re-export，7 个 Node 侧消费者导入路径不变。
+- 判定偏差的准确表述：`allow` 维度只会多确认（over-report），`deny → ask` 维度会少确认（under-report），后者由工具级 ask 兜底。
+
+**fork payload 已 fail closed，不再等 S7。** 收成 `Schema.Struct({})` 会忽略多余字段，外部旧 SDK 传 `prompt` 仍拿 2xx + 字段被丢 —— 正是 P1-14 本身的失效形态。改为显式声明两个被删的键为 `Schema.optional(Schema.Never)`：`{}` 通过，`{prompt}` / `{agent}` 解码失败返 4xx，无关的未知字段仍按 HTTP 惯例宽容。RED 自证（红线 8）：临时改回 `Schema.Struct({})` → `v2-session-capability.test.ts` 新断言红（6 pass 1 fail）→ 还原 → 7 pass 0 fail。SDK 侧参数移除仍归 S7 重生成。
 
 ### D14：Session share 术语和 owner
 
@@ -1816,7 +1897,7 @@ REFACTOR:
 
 - [ ] canonical owner 为 `packages/server`。
 - [ ] capability/runtime/operation error typed 且状态码稳定。
-- [ ] handoff fork modifier 要么原子产生 durable effect，要么与 SDK/App/TUI/Handoff UI 端到端移除；过渡期 typed fail closed。
+- [ ] handoff fork modifier 要么原子产生 durable effect，要么与 SDK/App/TUI/Handoff UI 端到端移除；过渡期 typed fail closed。**服务端与两个客户端已完成**（fork payload 对 `prompt`/`agent` typed 拒绝，App/TUI 改走 `switchAgent`+`prompt`）；只剩 SDK 重生成移除参数，归 S7。
 - [ ] external share 与 context share 语义拆分。
 - [ ] custom profile/composition 使用完整 Location identity。
 - [ ] OpenAPI/SDK 单一生成链、required/null/security/error semantic tests 全绿。
@@ -1849,7 +1930,7 @@ REFACTOR:
 - [ ] D9：canonical Command API 位于 `packages/server`；legacy `/command` 不改同步合同。
 - [ ] D10：V1 Snapshot 缺精确 refs 时 fail closed。
 - [ ] D11：legacy global Draft 只迁移到首个明确 Location，不 fan-out。
-- [ ] D12：Custom kill switch 阻止执行型入口，但保留 read/export。
+- [x] D12：Custom kill switch 阻止执行型入口，但保留 read/history。**已裁决取 A（收紧域层）**：唯一新增门在 `execution/local.ts:17-19`（drain 已读 session，一处覆盖 resume + wake + provider turn），`resume` 补门供 typed 400，`UnsupportedProductModeError` 进 `SessionRunner.RunError`，pending input 保持 pending。归 S3。`export` 端点经复核不存在。详见 §6 D12
 - [x] D13（已裁决 2026-09-01）：handoff 功能保留，改用 `switchAgent` + `prompt`（不 fork）；fork 的 `prompt`/`agent` 字段删除；提权走 `PermissionEffective.effectiveV2` 判定 + 逐工具询问的 `once`/`always`/`reject` 三态；`bash` × `propose` 走 break-glass；`agent-asset.ts` 补 `handoffs`。
 - [ ] D14：external share 与 context share 拆分 owner/命名。
 - [ ] S-1 owner ledger 已裁定本计划与三个并行计划的 Core/App/ModeWorkspace owner 和合并顺序。

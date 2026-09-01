@@ -34,6 +34,8 @@ import { useLocation, useSearchParams, useNavigate } from "@solidjs/router"
 import { NewSessionView, SessionHeader, createGitState, GitStatusBar, GitCommitBar } from "@/components/session"
 import { useComments } from "@/context/comments"
 import { useServerSync } from "@/context/server-sync"
+import { executeHandoff, planHandoff } from "@aigcfroge/schema/handoff"
+import { confirmHandoffEscalation } from "@/pages/session/handoff-confirm"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { usePrompt, type ContentPart } from "@/context/prompt"
@@ -66,7 +68,6 @@ import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
-import { sessionHref, requireServerKey } from "@/utils/session-route"
 import { useChatWorkspace } from "@/context/chat-workspace"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
@@ -1569,30 +1570,51 @@ export default function Page() {
       .map((item) => ({ id: item.id, text: line(item.id) }))
   })
 
-  const handoff = async (agent: string, prompt: string) => {
+  const handoff = async (agent: string, promptText: string, send?: boolean) => {
     const sessionID = params.id
     if (!sessionID) return
 
+    // D13 (S3): handoff = switchAgent + prompt on the SAME session, never a
+    // fork. The plan is computed from the PRE-switch state and decides whether
+    // the switch may happen at all — the agent is what carries the permissions,
+    // so an escalating handoff must not switch and then ask.
+    const sessionInfo = info()
+    const agents = sync().data.agent ?? []
+    const plan = planHandoff({
+      session: {
+        mode: sessionInfo?.mode,
+        tier: sessionInfo?.permissionTier,
+        attended: sessionInfo?.attended,
+      },
+      currentAgent: sessionInfo?.agent,
+      targetAgent: agent,
+      currentRules: agents.find((a) => a.name === sessionInfo?.agent)?.permission ?? [],
+      targetRules: agents.find((a) => a.name === agent)?.permission ?? [],
+      send,
+    })
+
     try {
-      const result = await sdk().client.v2.session.fork({
-        sessionID,
-        prompt,
-        agent,
+      await executeHandoff(plan, {
+        switchAgent: async () => {
+          await sdk().client.v2.session.switchAgent({ sessionID, agent })
+        },
+        send: async () => {
+          await sdk().client.v2.session.prompt({
+            sessionID,
+            prompt: { text: promptText },
+            delivery: "steer",
+            resume: true,
+          })
+        },
+        prefill: () =>
+          prompt.set([{ type: "text", content: promptText, start: 0, end: promptText.length }], promptText.length),
+        confirm: () => confirmHandoffEscalation(dialog, language, agent),
+        reject: () =>
+          showToast({
+            title: language.t("session.handoff.declined.title"),
+            description: language.t("session.handoff.declined.description"),
+          }),
       })
-
-      const childID = result.data?.sessionID
-      if (!childID) {
-        showToast({
-          title: language.t("common.requestFailed"),
-          description: language.t("session.handoff.failed"),
-        })
-        return
-      }
-
-      const key = params.serverKey
-      if (!key) return
-
-      navigate(sessionHref(requireServerKey(key), childID))
     } catch (err) {
       showToast({
         title: language.t("common.requestFailed"),

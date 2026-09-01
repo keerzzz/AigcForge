@@ -364,9 +364,16 @@ export const SessionGroup = HttpApiGroup.make("server.session")
   .add(
     HttpApiEndpoint.post("session.fork", "/api/session/:sessionID/fork", {
       params: { sessionID: SessionV2.ID },
+      // D13 (2026-09-01): fork no longer carries prompt/agent modifiers. Handoff
+      // is switchAgent + prompt on the SAME session (two existing durable
+      // primitives), never a fork. The two removed keys are declared as `never`
+      // rather than dropped from the struct: a bare `Schema.Struct({})` ignores
+      // excess properties, so an older SDK sending `prompt` would get 2xx and a
+      // silently discarded prompt — exactly the failure mode P1-14 recorded.
+      // Declaring them fails the payload decode instead, so the client learns.
       payload: Schema.Struct({
-        prompt: Schema.String.pipe(Schema.optional),
-        agent: Schema.String.pipe(Schema.optional),
+        prompt: Schema.optional(Schema.Never),
+        agent: Schema.optional(Schema.Never),
       }),
       success: Schema.Struct({ sessionID: SessionV2.ID }),
       error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],

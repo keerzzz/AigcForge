@@ -164,7 +164,12 @@ export interface MessageProps {
   showAssistantCopyPartID?: string | null
   showReasoningSummaries?: boolean
   /** Handoff actions available for this assistant message's agent. */
-  handoffs?: ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>
+  handoffs?: ReadonlyArray<{
+    readonly label: string
+    readonly agent: string
+    readonly prompt: string
+    readonly send?: boolean
+  }>
 }
 
 export type SessionAction = (input: { sessionID: string; messageID: string }) => Promise<void> | void
@@ -172,7 +177,7 @@ export type SessionAction = (input: { sessionID: string; messageID: string }) =>
 export type UserActions = {
   fork?: SessionAction
   revert?: SessionAction
-  handoff?: (agent: string, prompt: string) => void
+  handoff?: (agent: string, prompt: string, send?: boolean) => void
   capture?: () => void
 }
 

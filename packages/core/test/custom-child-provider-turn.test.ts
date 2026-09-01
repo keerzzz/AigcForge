@@ -18,6 +18,7 @@ import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
 import { ReferenceChecker } from "@aigcfroge/core/session/reference-checker"
 import { Verifier } from "@aigcfroge/core/session/verifier"
 import { EventV2 } from "@aigcfroge/core/event"
+import { EventTable } from "@aigcfroge/core/event/sql"
 import { InstallationVersion } from "@aigcfroge/core/installation/version"
 import { Location } from "@aigcfroge/core/location"
 import { PermissionV2 } from "@aigcfroge/core/permission"
@@ -44,6 +45,7 @@ import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { testEffect } from "./lib/effect"
 import { withCustomModeEnabled } from "./lib/product-mode"
+import { eq } from "drizzle-orm"
 
 // Phase A probe for the unregistered contradiction between per-turn
 // `ProductModeAgentPolicy.enforcePrimary` (custom allows only `meta`) and
@@ -308,7 +310,24 @@ describe("Custom Mode non-meta child provider turn (Phase A probe)", () => {
                 revision,
               }),
             ],
-            bindings: {},
+            // A real freeze emits an entry for every addressable consumer
+            // (`composition-resolver.ts`), so a pool agent always has one. An
+            // empty map here is a scoped graph with no entries, which the
+            // consumer-binding gate fails closed on before provenance runs.
+            bindings: {
+              orchestrator: new Composition.SnapshotBindingData({
+                instructions: [],
+                prompts: [],
+                skills: [],
+                commands: [],
+              }),
+              [`agents/${CHILD_AGENT}`]: new Composition.SnapshotBindingData({
+                instructions: [],
+                prompts: [],
+                skills: [],
+                commands: [],
+              }),
+            },
             instructions: [],
             prompts: [],
             skills: [],
@@ -370,7 +389,24 @@ describe("Custom Mode non-meta child provider turn (Phase A probe)", () => {
                 revision,
               }),
             ],
-            bindings: {},
+            // A real freeze emits an entry for every addressable consumer
+            // (`composition-resolver.ts`), so a pool agent always has one. An
+            // empty map here is a scoped graph with no entries, which the
+            // consumer-binding gate fails closed on before provenance runs.
+            bindings: {
+              orchestrator: new Composition.SnapshotBindingData({
+                instructions: [],
+                prompts: [],
+                skills: [],
+                commands: [],
+              }),
+              [`agents/${CHILD_AGENT}`]: new Composition.SnapshotBindingData({
+                instructions: [],
+                prompts: [],
+                skills: [],
+                commands: [],
+              }),
+            },
             instructions: [],
             prompts: [],
             skills: [],
@@ -506,6 +542,50 @@ describe("Custom Mode non-meta child provider turn (Phase A probe)", () => {
         const error = Cause.squash(exit.cause)
         expect(error instanceof ProductModeAgentPolicy.AgentNotAllowedError).toBe(true)
       }
+      expect(requests).toHaveLength(0)
+    }),
+  )
+
+  // P1-4 RED: switchAgent on a custom ROOT to an in-pool non-meta agent must
+  // fail typed BEFORE any durable mutation. Before the fix the switch passed
+  // (pool membership only), persisted AgentSwitched, and the next provider turn
+  // bricked at the per-turn enforcePrimary gate.
+  it.effect("custom root switch to an in-pool non-meta agent fails typed with zero durable side effects (P1-4)", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-root-switch", "Done")
+      const { db } = yield* Database.Service
+      const rootID = SessionV2.ID.make("ses_switch_brick_root")
+      yield* insertCustomRoot(rootID)
+      yield* attachChildAgentSnapshot(rootID)
+      const sessions = yield* SessionV2.Service
+
+      const exit = yield* sessions.switchAgent({ sessionID: rootID, agent: CHILD_AGENT }).pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        // Typed failure, not a die: the switch must reject BEFORE any durable
+        // mutation, so the error has to be catchable on the failure channel.
+        const error = Cause.findErrorOption(exit.cause)
+        expect(error._tag).toBe("Some")
+        if (error._tag === "Some") {
+          expect(error.value instanceof ProductModeAgentPolicy.AgentNotAllowedError).toBe(true)
+        }
+      }
+      const switched = yield* db
+        .select({ id: EventTable.id })
+        .from(EventTable)
+        .where(eq(EventTable.aggregate_id, rootID))
+        .run()
+        .pipe(Effect.orDie)
+      expect(switched).toHaveLength(0)
+      const row = yield* db
+        .select({ agent: SessionTable.agent })
+        .from(SessionTable)
+        .where(eq(SessionTable.id, rootID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(row?.agent).toBe(AgentV2.ID.make("meta"))
       expect(requests).toHaveLength(0)
     }),
   )

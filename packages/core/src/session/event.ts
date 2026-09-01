@@ -559,6 +559,7 @@ const DurableDefinitions = [
   SkillAdmitted,
   ContextUpdated,
   Synthetic,
+  SyntheticAdmitted,
   Forked,
   Shell.Started,
   Shell.Ended,

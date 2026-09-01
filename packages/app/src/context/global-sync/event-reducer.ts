@@ -311,8 +311,8 @@ export function applyDirectoryEvent(input: {
       break
     }
     case "session.error": {
-      // Fallback: when a backend error event arrives while the session is still busy (e.g.
-      // enforcePrimary died outside runLoop and never hit Runner.onIdle), force idle to clear
+      // Fallback: when a backend error event arrives while the session is still busy (a V1
+      // prompt failure never reaches Runner.onIdle, typed or not), force idle to clear
       // frontend working/loading so the spinner does not spin forever. sessionID is optional in
       // the schema; skip when absent to avoid clearing other sessions.
       const props = event.properties as { sessionID?: string }

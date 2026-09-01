@@ -115,6 +115,7 @@ export const agentAssetHandlers = HttpApiBuilder.group(InstanceHttpApi, "agent-a
         revision: info.revision,
         config: info.config,
         source: info.source,
+        handoffs: info.handoffs ?? [],
       })
     })
 

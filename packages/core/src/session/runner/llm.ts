@@ -930,7 +930,7 @@ export const layer = Layer.effect(
         yield* events.publish(SessionEvent.Prompted, {
           sessionID,
           messageID: admitted.id,
-          timestamp: yield* DateTime.now,
+          timestamp: admitted.timeCreated,
           prompt: Prompt.make({ text }),
           delivery: admitted.delivery,
         })
@@ -962,7 +962,10 @@ export const layer = Layer.effect(
       // V2 shell policy guard: deny shell in chat mode (defense in depth, shell method
       // also checks this, but drainShell executes independently via the runner loop).
       const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode)
-      if (!commandVerdict.allowed) return yield* Effect.die(commandVerdict.error)
+      if (!commandVerdict.allowed) {
+        yield* Effect.fail(commandVerdict.error)
+        return
+      }
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       // Spawn is interruptible; Shell.Ended is published from an uninterruptible tail so the

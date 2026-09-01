@@ -262,6 +262,12 @@ export const dict = {
   "prompt.mode.shell.exit": "按 esc 退出",
   "session.child.promptDisabled": "子智能体会话无法发送提示。",
   "session.child.backToParent": "返回主会话。",
+  "session.handoff.confirm.title": "此交接会扩大权限",
+  "session.handoff.confirm.body":
+    "{{agent}} 可以做本会话当前做不到的事。确认后仅为本次交接切换到它；具体操作运行前仍会逐项询问。",
+  "session.handoff.confirm.approve": "切换并继续",
+  "session.handoff.declined.title": "已取消交接",
+  "session.handoff.declined.description": "会话仍停留在当前智能体。",
   "prompt.example.1": "修复代码库中的一个 TODO",
   "prompt.example.2": "这个项目的技术栈是什么？",
   "prompt.example.3": "修复失败的测试",

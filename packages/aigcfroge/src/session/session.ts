@@ -461,7 +461,7 @@ export interface Interface {
     permissionTier?: PermissionTier.ID
     attended?: boolean
     workspaceID?: WorkspaceV2.ID
-  }) => Effect.Effect<Info, ProductModePolicy.UnsupportedProductModeError>
+  }) => Effect.Effect<Info, ProductModePolicy.UnsupportedProductModeError | ProductModeAgentPolicy.AgentNotAllowedError>
   readonly fork: (input: {
     sessionID: SessionID
     messageID?: MessageID

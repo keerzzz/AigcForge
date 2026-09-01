@@ -1,6 +1,13 @@
 export * as AgentAsset from "./agent-asset"
 
 import { Effect, Schema } from "effect"
+import { Handoff } from "./handoff"
+
+export const Handoffs = Schema.mutable(Schema.Array(Handoff)).pipe(
+  Schema.withDecodingDefaultKey(Effect.succeed([])),
+  Schema.withConstructorDefault(Effect.succeed([])),
+)
+export type Handoffs = typeof Handoffs.Type
 
 export const Name = Schema.String.pipe(
   Schema.check(
@@ -80,6 +87,7 @@ export class Info extends Schema.Class<Info>("AgentAsset.Info")({
   revision: Revision,
   config: Config,
   source: Source,
+  handoffs: Handoffs,
 }) {}
 
 export class ApplyResult extends Schema.Class<ApplyResult>("AgentAsset.ApplyResult")({
@@ -95,6 +103,7 @@ export class Frontmatter extends Schema.Class<Frontmatter>("AgentAsset.Frontmatt
     Schema.withDecodingDefaultKey(Effect.succeed("" as Config)),
     Schema.withConstructorDefault(Effect.succeed("" as Config)),
   ),
+  handoffs: Schema.optional(Handoffs).pipe(Schema.withConstructorDefault(Effect.succeed([]))),
 }) {}
 
 export const InvalidErrorTag = Schema.Literals(["parse_error", "bad_frontmatter", "name_conflict"])

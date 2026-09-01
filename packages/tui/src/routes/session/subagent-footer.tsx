@@ -9,11 +9,17 @@ import type { AssistantMessage } from "@aigcfroge/sdk/v2"
 import { Locale } from "../../util/locale"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useCommandShortcut, useAigcfrogeKeymap } from "../../keymap"
+import { executeHandoff, planHandoff } from "@aigcfroge/schema/handoff"
+import { useToast } from "../../ui/toast"
+import { useDialog } from "../../ui/dialog"
+import { DialogConfirm } from "../../ui/dialog-confirm"
 
 export function SubagentFooter() {
   const route = useRouteData("session")
   const sync = useSync()
   const sdk = useSDK()
+  const toast = useToast()
+  const dialog = useDialog()
   const { navigate } = useRoute()
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
   const session = createMemo(() => sync.session.get(route.sessionID))
@@ -67,22 +73,57 @@ export function SubagentFooter() {
     return undefined
   })
 
-  const handoffActions = createMemo<{ label: string; agent: string; prompt: string }[]>(() => {
+  const handoffActions = createMemo<{ label: string; agent: string; prompt: string; send?: boolean }[]>(() => {
     const name = currentAgentName()
     if (!name) return []
     const agent = sync.data.agent.find((a) => a.name === name)
     return (agent?.handoffs ?? []).filter((h) => h.label && h.agent && h.prompt)
   })
 
-  const handleHandoff = async (agent: string, prompt: string) => {
+  const handleHandoff = async (agent: string, prompt: string, send?: boolean) => {
     const sessionID = route.sessionID
     if (!sessionID) return
+
+    // D13 (S3): handoff = switchAgent + prompt on the SAME session (no fork, no
+    // navigation). The plan is computed from the PRE-switch state and decides
+    // whether the switch may happen at all — see @aigcfroge/schema/handoff.
+    const current = session()
+    const agents = sync.data.agent ?? []
+    const plan = planHandoff({
+      session: { mode: current?.mode, tier: current?.permissionTier, attended: current?.attended },
+      currentAgent: current?.agent,
+      targetAgent: agent,
+      currentRules: agents.find((a) => a.name === current?.agent)?.permission ?? [],
+      targetRules: agents.find((a) => a.name === agent)?.permission ?? [],
+      send,
+    })
+
     try {
-      const result = await sdk.client.v2.session.fork({ sessionID, prompt, agent })
-      const childID = result.data?.sessionID
-      if (childID) navigate({ type: "session", sessionID: childID })
+      await executeHandoff(plan, {
+        switchAgent: async () => {
+          await sdk.client.v2.session.switchAgent({ sessionID, agent })
+        },
+        send: async () => {
+          await sdk.client.v2.session.prompt({
+            sessionID,
+            prompt: { text: prompt },
+            delivery: "steer",
+            resume: true,
+          })
+        },
+        prefill: () =>
+          navigate({ type: "session", sessionID, prompt: { input: prompt, parts: [{ type: "text", text: prompt }] } }),
+        confirm: async () =>
+          (await DialogConfirm.show(
+            dialog,
+            "This handoff widens permissions",
+            `${agent} is allowed to do things this session currently is not. Switch to it for this handoff?`,
+            "switch",
+          )) === true,
+        reject: () => toast.show({ message: "Handoff cancelled — agent unchanged", variant: "info" }),
+      })
     } catch {
-      // handoff failed silently
+      toast.show({ message: `Handoff to ${agent} failed`, variant: "error" })
     }
   }
 
@@ -168,7 +209,7 @@ export function SubagentFooter() {
                   <box
                     onMouseOver={() => setHandoffHover(index())}
                     onMouseOut={() => setHandoffHover(null)}
-                    onMouseUp={() => handleHandoff(action.agent, action.prompt)}
+                    onMouseUp={() => handleHandoff(action.agent, action.prompt, action.send)}
                     backgroundColor={handoffHover() === index() ? theme.backgroundElement : theme.backgroundPanel}
                   >
                     <text fg={theme.text}>{action.label}</text>

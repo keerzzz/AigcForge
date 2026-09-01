@@ -33,8 +33,9 @@ export function isCustomCapable(header: string | undefined | null): boolean {
 
 /**
  * Server-side kill switch for custom mode, read at access time so tests and
- * tooling can toggle it at runtime. Fail-closed: default off. Consumed only at
- * HTTP gates; the domain layer (createCustom/upgradeCustom) stays flag-free.
+ * tooling can toggle it at runtime. Fail-closed: default off. Consumed at HTTP
+ * gates AND in the domain layer: prompt admission, switchAgent/switchModel,
+ * V2Session.resume, and the SessionRunner drain all assert it directly.
  */
 export function isCustomModeEnabled(): boolean {
   return Flag.AIGCFROGE_CUSTOM_MODE

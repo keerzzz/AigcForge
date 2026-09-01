@@ -435,7 +435,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       // session.create() without passing directory. V1 shareSvc.create resolves the
       // directory via the V1 Session service's workspace context. Re-enable V2 create
       // once the client passes directory or V2 create can resolve it from context.
-      return yield* shareSvc.create(ctx.payload)
+      return yield* shareSvc.create(ctx.payload).pipe(
+        // AgentNotAllowedError (mode × agent policy rejection) surfaces as a typed
+        // failure from V1 create since P1-3; map it to 400 like the prompt endpoints.
+        Effect.catchTag("AgentNotAllowedError", () => Effect.fail(new HttpApiError.BadRequest({}))),
+      )
     })
 
     const createRaw = Effect.fn("SessionHttpApi.createRaw")(function* (ctx: {
@@ -637,6 +641,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", () =>
               Effect.fail(new HttpApiError.BadRequest({})),
             ),
+            Effect.catchTag("AgentNotAllowedError", () => Effect.fail(new HttpApiError.BadRequest({}))),
             Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
               Effect.fail(new HttpApiError.BadRequest({})),
             ),
@@ -837,6 +842,22 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         return HttpApiSchema.NoContent.make()
       }
       yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID }).pipe(
+        // Typed failures (AgentNotAllowedError from the mode × agent policy,
+        // image errors) publish their real message instead of a defect dump.
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            yield* Effect.logError("prompt_async failed", { sessionID: ctx.params.sessionID, error })
+            yield* events.publish(Session.Event.Error, {
+              sessionID: ctx.params.sessionID,
+              error: new NamedError.Unknown({ message: error.message }).toObject(),
+            })
+            // A V1 prompt failure never reaches Runner.onIdle, so set idle
+            // explicitly — otherwise the frontend working() stays true and the
+            // spinner hangs. status.set(idle) publishes session.status +
+            // session.idle events, which the frontend uses to clear loading.
+            yield* statusSvc.set(ctx.params.sessionID, { type: "idle" })
+          }),
+        ),
         Effect.catchCause((cause) =>
           Effect.gen(function* () {
             yield* Effect.logError("prompt_async failed", { sessionID: ctx.params.sessionID, cause })
@@ -844,10 +865,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
               sessionID: ctx.params.sessionID,
               error: new NamedError.Unknown({ message: Cause.pretty(cause) }).toObject(),
             })
-            // When prompt fails (including enforcePrimary dying outside runLoop), Runner.onIdle
-            // never fires, so set idle explicitly — otherwise the frontend working() stays true
-            // and the spinner hangs. status.set(idle) publishes session.status + session.idle
-            // events, which the frontend uses to clear loading.
+            // Same idle settlement as the typed branch above: defects also
+            // bypass Runner.onIdle.
             yield* statusSvc.set(ctx.params.sessionID, { type: "idle" })
           }),
         ),

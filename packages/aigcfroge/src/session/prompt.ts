@@ -110,12 +110,19 @@ function isOrphanedInterruptedTool(part: SessionV1.ToolPart) {
   return part.state.status === "error" && part.state.metadata?.interrupted === true
 }
 
+export type PromptError = Image.Error | ProductModeAgentPolicy.AgentNotAllowedError
+
 export interface Interface {
   readonly cancel: (sessionID: SessionID) => Effect.Effect<void>
-  readonly prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, Image.Error>
+  readonly prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, PromptError>
   readonly loop: (input: LoopInput) => Effect.Effect<SessionV1.WithParts>
   readonly shell: (input: ShellInput) => Effect.Effect<SessionV1.WithParts, Session.BusyError>
-  readonly command: (input: CommandInput) => Effect.Effect<SessionV1.WithParts, Image.Error>
+  readonly command: (
+    input: CommandInput,
+  ) => Effect.Effect<
+    SessionV1.WithParts,
+    Image.Error | ProductModeAgentPolicy.CommandDeniedError | ProductModeAgentPolicy.AgentNotAllowedError
+  >
   readonly resolvePromptParts: (template: string) => Effect.Effect<PromptInput["parts"]>
 }
 
@@ -1234,7 +1241,7 @@ export const layer = Layer.effect(
       return { info, parts }
     }, Effect.scoped)
 
-    const prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, Image.Error> = Effect.fn(
+    const prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, PromptError> = Effect.fn(
       "SessionPrompt.prompt",
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
@@ -1566,7 +1573,12 @@ export const layer = Layer.effect(
       return yield* state.startShell(input.sessionID, lastAssistant(input.sessionID), shellImpl(input, ready), ready)
     })
 
-    const command = Effect.fn("SessionPrompt.command")(function* (input: CommandInput) {
+    const command: (
+      input: CommandInput,
+    ) => Effect.Effect<
+      SessionV1.WithParts,
+      Image.Error | ProductModeAgentPolicy.CommandDeniedError | ProductModeAgentPolicy.AgentNotAllowedError
+    > = Effect.fn("SessionPrompt.command")(function* (input: CommandInput) {
       yield* Effect.logInfo("command", {
         "session.id": input.sessionID,
         command: input.command,
@@ -1576,7 +1588,7 @@ export const layer = Layer.effect(
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       if (session.mode) {
         const verdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode)
-        if (!verdict.allowed) return yield* Effect.die(verdict.error)
+        if (!verdict.allowed) return yield* verdict.error
       }
       const cmd = yield* commands.get(input.command)
       if (!cmd) {

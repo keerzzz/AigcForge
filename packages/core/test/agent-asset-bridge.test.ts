@@ -64,6 +64,7 @@ describe("AgentAssetBridge - agentAssetToAgentInfo", () => {
       config: "model: anthropic/claude-3-5-sonnet\nmode: subagent",
       source: "You are a code reviewer.",
       revision: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      handoffs: [],
     }
     const info = agentAssetToAgentInfo(asset)
     expect(info).toBeDefined()
@@ -83,6 +84,7 @@ describe("AgentAssetBridge - agentAssetToAgentInfo", () => {
       config: "",
       source: "Hacked meta",
       revision: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      handoffs: [],
     }
     const info = agentAssetToAgentInfo(asset)
     expect(info).toBeUndefined()

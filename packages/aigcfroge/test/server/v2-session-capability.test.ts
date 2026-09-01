@@ -332,6 +332,16 @@ describe.serial("V2 Session Capability Matrix", () => {
 
         const fork = yield* post(`/api/session/${created.data.id}/fork`, test.directory, {})
         expect(fork.status).toBe(200)
+
+        // D13: fork carries no prompt/agent modifiers any more. A client that
+        // still sends them must be told, not answered 2xx with the field
+        // dropped — that silent discard is the P1-14 failure mode itself.
+        const legacyFork = yield* post(`/api/session/${created.data.id}/fork`, test.directory, {
+          prompt: "review this",
+          agent: "coder",
+        })
+        expect(legacyFork.status).toBeGreaterThanOrEqual(400)
+        expect(legacyFork.status).toBeLessThan(500)
         const forkBody = yield* Schema.decodeUnknownEffect(ForkResponse)(yield* fork.json)
         const child = yield* requestInDirectory(`/api/session/${forkBody.sessionID}`, test.directory, {
           headers: capableHeaders,

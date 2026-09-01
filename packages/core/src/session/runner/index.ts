@@ -2,6 +2,8 @@ export * as SessionRunner from "./index"
 
 import type { LLMError } from "@aigcfroge/llm"
 import { Context, Effect, Schema } from "effect"
+import { ProductModeAgentPolicy } from "../../product-mode-agent-policy"
+import { ProductModePolicy } from "../../product-mode-policy"
 import { SessionSchema } from "../schema"
 import type { ContextSnapshotDecodeError, MessageDecodeError } from "../error"
 import { SessionRunnerModel } from "./model"
@@ -46,6 +48,9 @@ export type RunError =
   | SystemContext.InitializationBlocked
   | ToolOutputStore.Error
   | SnapshotDriftError
+  | ProductModeAgentPolicy.AgentNotAllowedError
+  | ProductModeAgentPolicy.CommandDeniedError
+  | ProductModePolicy.UnsupportedProductModeError
 
 /** Runs one local continuation from already-recorded Session history. */
 export interface Interface {

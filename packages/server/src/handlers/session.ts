@@ -159,6 +159,13 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     }),
                   ),
                 ),
+                Effect.catchTag("AgentNotAllowedError", (err) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: err.message,
+                    }),
+                  ),
+                ),
                 Effect.catchTag("SessionComposition.SnapshotNotFoundError", (err) =>
                   Effect.fail(
                     new InvalidRequestError({
@@ -269,6 +276,13 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               Effect.fail(
                 new InvalidRequestError({
                   message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
+                }),
+              ),
+            ),
+            Effect.catchTag("AgentNotAllowedError", (error) =>
+              Effect.fail(
+                new InvalidRequestError({
+                  message: error.message,
                 }),
               ),
             ),
@@ -509,6 +523,13 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     }),
                   ),
                 ),
+                Effect.catchTag("CommandDeniedError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: error.message,
+                    }),
+                  ),
+                ),
                 Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
                   Effect.fail(
                     new SessionNotFoundError({
@@ -656,6 +677,13 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
             Effect.fail(
               new InvalidRequestError({
                 message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
+              }),
+            ),
+          ),
+          Effect.catchTag("AgentNotAllowedError", (error) =>
+            Effect.fail(
+              new InvalidRequestError({
+                message: error.message,
               }),
             ),
           ),
