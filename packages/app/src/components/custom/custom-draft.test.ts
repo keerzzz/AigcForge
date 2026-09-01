@@ -204,6 +204,7 @@ describe("custom-draft store", () => {
         },
         bindings: {
           orchestrator: {
+            instructions: [],
             prompts: [{ relativePath: "guide.md", revision: Revision.make("f".repeat(64)), content: "" }],
             skills: [{ name: "bash", description: "", relativePath: "bash", revision: Revision.make("1".repeat(64)) }],
             commands: [],
@@ -246,6 +247,7 @@ describe("custom-draft store", () => {
         workflow: null,
         bindings: {
           "agents/coder": {
+            instructions: [],
             prompts: [],
             skills: [],
             commands: [

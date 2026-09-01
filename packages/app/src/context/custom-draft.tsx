@@ -325,7 +325,11 @@ export function createCustomDraftState(
           const bindings =
             snapshot.version === 2
               ? Object.fromEntries(
-                  Object.entries(snapshot.data.bindings).map(([consumer, binding]) => [
+                  // `bindings` is absent on pre-binding V2 snapshots (schema
+                  // decodes the key as optional, so `{}` and "missing" stay
+                  // distinguishable). A missing map means no per-consumer view
+                  // to project, not an empty one.
+                  Object.entries(snapshot.data.bindings ?? {}).map(([consumer, binding]) => [
                     consumer,
                     {
                       prompts: binding.prompts.map((prompt) => ({
