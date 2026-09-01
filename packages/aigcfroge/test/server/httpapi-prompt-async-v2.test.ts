@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
-import { Context, Effect } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { eq } from "drizzle-orm"
 import { Hash } from "@aigcfroge/core/util/hash"
 import { Database } from "@aigcfroge/core/database/database"
+import { memoMap } from "@aigcfroge/core/effect/memo-map"
 import { SessionInputTable, SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import * as SessionSchema from "@aigcfroge/core/session/schema"
@@ -21,12 +22,21 @@ let savedCustomMode: string | undefined
 // `eq(SessionInputTable.id, ...)` does not typecheck (the column carries Brand<"Session.Message.ID">).
 const newMessageID = (n: number) => SessionMessage.ID.make(`msg_${Date.now()}_${n}`)
 
+// The tests run under `test/preload.ts` which sets AIGCFROGE_DB=":memory:". A bare
+// `Effect.provide(Database.defaultLayer)` builds a fresh in-memory connection that can
+// never see the writes the HttpApiApp graph made. Building the layer with the shared
+// app `memoMap` instead reuses the HttpApiApp's connection so the assertions below
+// observe the handler's durable writes.
 const runDb = <A>(body: (db: Database.Interface["db"]) => Effect.Effect<A, never, never>) =>
   Effect.runPromise(
-    Effect.gen(function* () {
-      const { db } = yield* Database.Service
-      return yield* body(db)
-    }).pipe(Effect.provide(Database.defaultLayer)),
+    Effect.scoped(
+      Effect.gen(function* () {
+        const scope = yield* Effect.scope
+        const graph = yield* Layer.buildWithMemoMap(Database.defaultLayer, memoMap, scope)
+        const { db } = Context.get(graph, Database.Service)
+        return yield* body(db)
+      }),
+    ),
   )
 
 const readInputRow = (id: SessionMessage.ID) =>
@@ -45,6 +55,10 @@ const readSessionRow = (id: string) =>
 function request(route: string, directory: string, init?: RequestInit) {
   const headers = new Headers(init?.headers)
   headers.set("x-aigcfroge-directory", encodeURIComponent(directory))
+  // Custom sessions gate on the capability header both at composition start
+  // and at prompt_async (assertRuntimeSupported); without it the fixture never
+  // reaches the assertions below.
+  headers.set("x-aigcfroge-capabilities", "product-mode-custom-v1")
   if (!headers.has("content-type")) headers.set("content-type", "application/json")
   return HttpApiApp.webHandler().handler(new Request(`http://localhost${route}`, { ...init, headers }), context)
 }
@@ -63,6 +77,8 @@ async function createCustomSession(directory: string) {
     // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
     requestedCapabilities: [] as string[],
   }
+  // The request helper below sends the custom capability header, which both
+  // composition start and prompt_async gate on for custom sessions.
   const res = await request(CustomCompositionApiGroup.CustomCompositionPaths.start, directory, {
     method: "POST",
     body: JSON.stringify({ composition: input }),

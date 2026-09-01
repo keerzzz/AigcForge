@@ -824,21 +824,50 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
-        const v2session = yield* SessionV2.Service
-        // Extract text from the V1 prompt payload's first text part.
-        const parts = ctx.payload.parts as Array<{ type: string; text?: string }> | undefined
-        const textPart = parts?.find((p) => p.type === "text")
-        const promptText = textPart?.text ?? ""
-        if (promptText) {
-          yield* v2session
-            .prompt({
-              sessionID: ctx.params.sessionID,
-              prompt: { text: promptText },
-              delivery: "steer",
-              resume: true,
-            })
-            .pipe(Effect.ignore)
+        // S4: legacy PromptPayload → canonical durable submission. A truly empty
+        // payload (no parts) is a typed 400; empty text with attachments is legal.
+        // Selection (agent/model/variant) and the durable prompt row are written
+        // before we return 204, and errors are typed, never swallowed.
+        if (ctx.payload.parts.length === 0) {
+          return yield* new InvalidRequestError({ message: "Prompt payload is empty" })
         }
+        yield* promptSvc
+          .admitCanonical({
+            sessionID: ctx.params.sessionID,
+            messageID: ctx.payload.messageID,
+            parts: ctx.payload.parts,
+            agent: ctx.payload.agent,
+            model: ctx.payload.model
+              ? {
+                  providerID: ctx.payload.model.providerID,
+                  modelID: ctx.payload.model.modelID,
+                  variant: ctx.payload.variant,
+                }
+              : undefined,
+          })
+          .pipe(
+            Effect.catchTag("Session.NotFoundError", () =>
+              Effect.fail(notFound(`Session not found: ${ctx.params.sessionID}`)),
+            ),
+            Effect.catchTag("Session.PromptConflictError", () =>
+              Effect.fail(new InvalidRequestError({ message: `Prompt conflict for session ${ctx.params.sessionID}` })),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
+              Effect.fail(notFound(`Snapshot not found for session ${ctx.params.sessionID}`)),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotDecodeError", () =>
+              Effect.fail(new InvalidRequestError({ message: "Snapshot decode failed" })),
+            ),
+            Effect.catchTag("UnsupportedProductModeError", () =>
+              Effect.fail(new InvalidRequestError({ message: "Unsupported product mode" })),
+            ),
+            Effect.catchTag("PromptParts.UnmaterializedUriError", () =>
+              Effect.fail(new InvalidRequestError({ message: "Attachment URI cannot be materialized" })),
+            ),
+            // Remaining SessionV2.Error members are not reachable from prompt
+            // admission; fail typed instead of leaking a defect.
+            Effect.catch(() => Effect.fail(new InvalidRequestError({ message: "Prompt admission failed" }))),
+          )
         return HttpApiSchema.NoContent.make()
       }
       yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID }).pipe(
