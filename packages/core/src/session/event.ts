@@ -121,6 +121,24 @@ export const SkillAdmitted = EventV2.define({
 })
 export type SkillAdmitted = typeof SkillAdmitted.Type
 
+export const CommandAdmitted = EventV2.define({
+  type: "session.next.command.admitted",
+  ...options,
+  schema: {
+    ...Base,
+    messageID: SessionMessageID.ID,
+    command: Schema.String,
+    relativePath: Schema.String,
+    revision: Schema.String,
+    consumer: Schema.String,
+    arguments: Schema.String,
+    context: Prompt,
+    snapshotDigest: Schema.String,
+    delivery: Delivery,
+  },
+})
+export type CommandAdmitted = typeof CommandAdmitted.Type
+
 export const ContextUpdated = EventV2.define({
   type: "session.next.context.updated",
   ...options,
@@ -557,6 +575,7 @@ const DurableDefinitions = [
   PromptAdmitted,
   ShellAdmitted,
   SkillAdmitted,
+  CommandAdmitted,
   ContextUpdated,
   Synthetic,
   SyntheticAdmitted,

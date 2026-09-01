@@ -73,6 +73,16 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
     return s && s.version === 2 ? s : undefined
   })
 
+  // Commands are consumer-bound in the V2 binding graph; the panel shows each
+  // command next to the consumer it is frozen for (S5 leg 4).
+  const commandEntries = createMemo(() => {
+    const snap = snapshot()
+    if (!snap || snap.version !== 2) return []
+    return Object.entries(snap.data.bindings ?? {}).flatMap(([consumer, binding]) =>
+      binding.commands.map((command) => ({ consumer, command })),
+    )
+  })
+
   function handleCopyDigest() {
     if (!digest()) return
     void navigator.clipboard?.writeText(digest())
@@ -275,6 +285,32 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
                   <span class="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 font-mono text-11-regular text-emerald-300">
                     {skill.name}
                   </span>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+
+        {/* Commands list (per consumer binding) */}
+        <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+          <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+            {language.t("custom.sidebar.commands")} ({commandEntries().length})
+          </span>
+          <Show
+            when={commandEntries().length > 0}
+            fallback={
+              <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.sidebar.noCommands")}</span>
+            }
+          >
+            <div class="flex flex-col gap-1.5">
+              <For each={commandEntries()}>
+                {(entry) => (
+                  <div class="flex items-center justify-between rounded bg-v2-background-bg-layer-01 px-2 py-1 text-11-regular border border-v2-border-border-faint">
+                    <span class="font-medium text-v2-text-text-base">{entry.command.name}</span>
+                    <span class="font-mono text-10-regular text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded">
+                      {entry.consumer}
+                    </span>
+                  </div>
                 )}
               </For>
             </div>

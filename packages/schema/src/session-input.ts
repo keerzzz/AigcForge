@@ -52,7 +52,39 @@ export const AdmittedSynthetic = Schema.Struct({
   text: Schema.String,
 }).annotate({ identifier: "SessionInput.AdmittedSynthetic" })
 
-export type Admitted = AdmittedPrompt | AdmittedShell | AdmittedSkill | AdmittedSynthetic
-export const Admitted = Schema.Union([AdmittedPrompt, AdmittedShell, AdmittedSkill, AdmittedSynthetic])
+/**
+ * Durable row payload for a Custom Snapshot command admission (S5 D7). The
+ * canonical name lives in the `command` column and the canonical context Prompt
+ * (files/agents) in the `prompt` column; this struct carries the frozen
+ * identity needed for promotion-time static expansion and exact-conflict
+ * semantics. Plain strings here: the branded Composition values are validated
+ * at the admission boundary, and the row must decode even when a snapshot has
+ * since been replaced.
+ */
+export interface CommandPayload extends Schema.Schema.Type<typeof CommandPayload> {}
+export const CommandPayload = Schema.Struct({
+  relativePath: Schema.String,
+  revision: Schema.String,
+  consumer: Schema.String,
+  arguments: Schema.String,
+  snapshotDigest: Schema.String,
+}).annotate({ identifier: "SessionInput.CommandPayload" })
+
+/** Custom Snapshot command invocation admitted to the durable inbox. */
+export interface AdmittedCommand extends Schema.Schema.Type<typeof AdmittedCommand> {}
+export const AdmittedCommand = Schema.Struct({
+  kind: Schema.Literal("command"),
+  ...Base,
+  command: Schema.String,
+  relativePath: Schema.String,
+  revision: Schema.String,
+  consumer: Schema.String,
+  arguments: Schema.String,
+  context: Prompt,
+  snapshotDigest: Schema.String,
+}).annotate({ identifier: "SessionInput.AdmittedCommand" })
+
+export type Admitted = AdmittedPrompt | AdmittedShell | AdmittedSkill | AdmittedSynthetic | AdmittedCommand
+export const Admitted = Schema.Union([AdmittedPrompt, AdmittedShell, AdmittedSkill, AdmittedSynthetic, AdmittedCommand])
   .pipe(Schema.toTaggedUnion("kind"))
   .annotate({ identifier: "SessionInput.Admitted" })

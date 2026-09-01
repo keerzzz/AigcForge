@@ -45,6 +45,7 @@ import { useSettings } from "@/context/settings"
 import { useSync } from "@/context/sync"
 import { useTerminal } from "@/context/terminal"
 import { type FollowupDraft, sendFollowupDraft } from "@/components/prompt-input/submit"
+import { useSessionSnapshotCommands } from "@/utils/session-commands"
 import { createSessionComposerState, SessionComposerRegion } from "@/pages/session/composer"
 import {
   createOpenReviewFile,
@@ -256,6 +257,7 @@ export default function Page() {
   }
 
   const info = createMemo(() => (params.id ? sync().session.get(params.id) : undefined))
+  const sessionCommands = useSessionSnapshotCommands(info)
   const isChildSession = createMemo(() => !!info()?.parentID)
   const canReview = createMemo(() => !!sync().project)
   const reviewTab = createMemo(() => isDesktop())
@@ -1389,6 +1391,7 @@ export default function Page() {
         serverSync: serverSync(),
         draft: item,
         optimisticBusy: item.sessionDirectory === sdk().directory,
+        commands: sessionCommands.commands,
       }).catch((err) => {
         setFollowup("failed", input.sessionID, input.id)
         fail(err)

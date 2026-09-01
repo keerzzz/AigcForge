@@ -29,6 +29,7 @@ import { ProductModePolicy } from "./product-mode-policy"
 import { ProjectTable } from "./project/sql"
 import { SessionComposition } from "./session/composition"
 import { CompositionResolver } from "./composition-resolver"
+import { CompositionConsumerView } from "./composition/consumer-view"
 import { LocationServiceMap } from "./location-layer"
 import path from "path"
 import { fromRow } from "./session/info"
@@ -127,6 +128,19 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   messageID: SessionMessage.ID,
 }) {}
 
+export class CommandUnavailableError extends Schema.TaggedErrorClass<CommandUnavailableError>()(
+  "Session.CommandUnavailableError",
+  {
+    sessionID: SessionSchema.ID,
+    command: Schema.String,
+    reason: Schema.Literals(["not-custom", "unbound", "ambiguous", "legacy"]),
+  },
+) {
+  override get message() {
+    return `Command ${this.command} is unavailable for session ${this.sessionID}: ${this.reason}`
+  }
+}
+
 export class SyntheticConflictError extends Schema.TaggedErrorClass<SyntheticConflictError>()(
   "Session.SyntheticConflictError",
   {
@@ -156,6 +170,7 @@ export type Error =
   | MessageDecodeError
   | OperationUnavailableError
   | PromptConflictError
+  | CommandUnavailableError
   | SyntheticConflictError
   | UpgradeSourceModeError
   | SessionBusyError
@@ -283,6 +298,22 @@ export interface Interface {
     SessionInput.Admitted,
     | NotFoundError
     | PromptConflictError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
+  readonly command: (input: {
+    id?: SessionMessage.ID
+    sessionID: SessionSchema.ID
+    command: string
+    arguments?: string
+    context?: Prompt
+    resume?: boolean
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    | NotFoundError
+    | PromptConflictError
+    | CommandUnavailableError
     | ProductModePolicy.UnsupportedProductModeError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError
@@ -758,6 +789,99 @@ export const layer = Layer.effect(
               return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
             if (input.resume !== false) yield* execution.wake(admitted.sessionID)
             return admitted
+          }),
+        ),
+      ),
+      command: Effect.fn("V2Session.command")((input) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            const session = yield* result.get(input.sessionID)
+            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+            // Snapshot commands are a Custom Mode capability (S10 matrix). Every
+            // other mode must fail closed: a live-store name is not a frozen
+            // catalog entry, so it must never inherit Custom runtime behavior.
+            if (session.mode !== "custom") {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "not-custom",
+              })
+            }
+            const snapshot = yield* sessionComposition.get(input.sessionID)
+            const scope = CompositionConsumerView.resolveScope(snapshot, session)
+            // Fail closed on any consumer that cannot be mapped onto the frozen
+            // binding graph; the flat arrays are never a fallback (D5-A).
+            if (!CompositionConsumerView.isBindingSatisfied(snapshot, scope)) {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "unbound",
+              })
+            }
+            const catalog = CompositionConsumerView.getCommands(snapshot, scope)
+            const matches = catalog.filter((entry) => entry.name === input.command)
+            if (matches.length === 0) {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "unbound",
+              })
+            }
+            if (matches.length > 1) {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "ambiguous",
+              })
+            }
+            const entry = matches[0]
+            // D6: a legacy snapshot decodes invocation to "" and must fail
+            // closed instead of inheriting execution ability.
+            if (entry.invocation === "") {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "legacy",
+              })
+            }
+            const messageID = input.id ?? SessionMessage.ID.create()
+            const delivery: SessionInput.Delivery = "steer"
+            const expected = {
+              sessionID: input.sessionID,
+              messageID,
+              command: entry.name,
+              relativePath: entry.relativePath,
+              revision: entry.revision,
+              consumer: scope._tag === "scoped" ? scope.key : "orchestrator",
+              arguments: input.arguments ?? "",
+              context: input.context ?? Prompt.make({ text: "" }),
+              snapshotDigest: snapshot.digest,
+              delivery,
+            }
+            const admission = yield* SessionInput.admitCommand(db, events, {
+              id: messageID,
+              sessionID: input.sessionID,
+              command: expected.command,
+              relativePath: expected.relativePath,
+              revision: expected.revision,
+              consumer: expected.consumer,
+              arguments: expected.arguments,
+              context: expected.context,
+              snapshotDigest: expected.snapshotDigest,
+              delivery: expected.delivery,
+            }).pipe(
+              Effect.catchDefect((defect) =>
+                defect instanceof SessionInput.LifecycleConflict
+                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                  : Effect.die(defect),
+              ),
+            )
+            if (!SessionInput.equivalentCommand(admission.admitted, expected))
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            // Exact retry with the same message ID creates no second row and no
+            // second wake: the wake fires only for a fresh admission.
+            if (admission.created && input.resume !== false) yield* execution.wake(input.sessionID)
+            return admission.admitted
           }),
         ),
       ),

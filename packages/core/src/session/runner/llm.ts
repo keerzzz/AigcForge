@@ -67,6 +67,7 @@ import { SessionSchema } from "../schema"
 import { SessionStore } from "../store"
 import { SessionComposition } from "../composition"
 import { CompositionConsumerView } from "../../composition/consumer-view"
+import { CommandParse } from "@aigcfroge/schema/command-parse"
 import { AgentProvenanceError, type RunError, Service, SnapshotDriftError } from "./index"
 import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
@@ -640,12 +641,14 @@ export const layer = Layer.effect(
           promoted = yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
           promoted += yield* promoteSkills(session.id, cutoff)
           promoted += yield* promoteSynthetics(session.id, cutoff)
+          promoted += yield* promoteCommands(session.id, cutoff)
         }
         if (promotion === "queue") {
           promoted += Number(yield* SessionInput.promoteNextQueued(db, events, session.id))
           promoted += yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
           promoted += yield* promoteSkills(session.id, cutoff)
           promoted += yield* promoteSynthetics(session.id, cutoff)
+          promoted += yield* promoteCommands(session.id, cutoff)
         }
         if (promoted > 0) currentStep = 1
       }
@@ -955,6 +958,99 @@ export const layer = Layer.effect(
       return pending.length
     })
 
+    const promoteCommands = Effect.fn("SessionRunner.promoteCommands")(function* (
+      sessionID: SessionSchema.ID,
+      cutoff: number,
+    ) {
+      const pending = yield* SessionInput.pendingCommandSteers(db, sessionID, cutoff)
+      if (pending.length === 0) return 0
+      // Snapshot commands are a Custom Mode capability (S10 matrix). The frozen
+      // catalog is the only source of truth for expansion; the live command
+      // store and the flat `data.commands` array are never a fallback (P1-7).
+      const session = yield* store.get(sessionID)
+      if (!session) return yield* Effect.die(`Session not found: ${sessionID}`)
+      const snapshot = session.mode === "custom" ? yield* readCustomSnapshot(sessionID) : undefined
+      if (session.mode !== "custom" || snapshot === undefined) {
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "consumer_binding_missing",
+          details: "Command steers require a frozen Custom snapshot",
+        })
+      }
+      const scope = CompositionConsumerView.resolveScope(snapshot, session)
+      if (!CompositionConsumerView.isBindingSatisfied(snapshot, scope)) {
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "consumer_binding_missing",
+          details:
+            scope._tag === "unresolved"
+              ? `Agent '${scope.agent}' is not part of the frozen composition pool`
+              : `Missing binding for consumer '${scope._tag === "scoped" ? scope.key : "unknown"}'`,
+        })
+      }
+      const catalog = CompositionConsumerView.getCommands(snapshot, scope)
+      for (const admitted of pending) {
+        if (admitted.kind !== "command") continue
+        // The frozen entry is matched by its full identity (name + relativePath
+        // + revision), never by name alone: a same-name impostor from a
+        // replaced snapshot must fail closed instead of running new content
+        // under an old admission.
+        const entry = catalog.find(
+          (candidate) =>
+            candidate.name === admitted.command &&
+            candidate.relativePath === admitted.relativePath &&
+            candidate.revision === admitted.revision,
+        )
+        if (!entry || entry.invocation === "") {
+          // Fail closed with the standard not-found text; the frozen body is
+          // never delivered for an entry that is gone or legacy (D6).
+          yield* events.publish(SessionEvent.Prompted, {
+            sessionID,
+            messageID: admitted.id,
+            timestamp: admitted.timeCreated,
+            prompt: Prompt.make({ text: `Command not found: ${admitted.command}` }),
+            delivery: admitted.delivery,
+          })
+          continue
+        }
+        const expanded = CommandParse.expandInvocation({
+          invocation: entry.invocation,
+          argsSchema: entry.args,
+          arguments: admitted.arguments,
+        })
+        if (expanded._tag !== "ok") {
+          yield* events.publish(SessionEvent.Prompted, {
+            sessionID,
+            messageID: admitted.id,
+            timestamp: admitted.timeCreated,
+            prompt: Prompt.make({ text: `Command rejected: ${expanded.error.message}` }),
+            delivery: admitted.delivery,
+          })
+          continue
+        }
+        // Static expansion only: the canonical prompt is a user turn. Shell
+        // fences inside the template stay text and are never executed, and no
+        // agent/model override can enter from the frozen catalog (the frozen
+        // CommandInfo carries no such fields).
+        yield* events.publish(SessionEvent.Prompted, {
+          sessionID,
+          messageID: admitted.id,
+          timestamp: admitted.timeCreated,
+          prompt: Prompt.make({
+            text: expanded.text,
+            ...(admitted.context.files !== undefined && admitted.context.files.length > 0
+              ? { files: admitted.context.files }
+              : {}),
+            ...(admitted.context.agents !== undefined && admitted.context.agents.length > 0
+              ? { agents: admitted.context.agents }
+              : {}),
+          }),
+          delivery: admitted.delivery,
+        })
+      }
+      return pending.length
+    })
+
     const drainShell = Effect.fn("SessionRunner.drainShell")(function* (admitted: SessionInput.Admitted) {
       if (admitted.kind !== "shell") return
       // Fence shell execution to the session's owning Location, mirroring runTurnAttempt.
@@ -1053,7 +1149,11 @@ export const layer = Layer.effect(
         hasPromptSteer || hasSkillSteer
           ? false
           : yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic")
-      const hasSteer = hasPromptSteer || hasSkillSteer || hasSyntheticSteer
+      const hasCommandSteer =
+        hasPromptSteer || hasSkillSteer || hasSyntheticSteer
+          ? false
+          : yield* SessionInput.hasPending(db, input.sessionID, "steer", "command")
+      const hasSteer = hasPromptSteer || hasSkillSteer || hasSyntheticSteer || hasCommandSteer
       const hasQueue = hasSteer ? false : yield* SessionInput.hasPending(db, input.sessionID, "queue")
       const hasShell = hasQueue ? false : (yield* SessionInput.nextPendingShell(db, input.sessionID)) !== undefined
       if (!input.force && !hasSteer && !hasQueue && !hasShell) return
@@ -1077,7 +1177,8 @@ export const layer = Layer.effect(
               needsContinuation =
                 (yield* SessionInput.hasPending(db, input.sessionID, "steer", "prompt")) ||
                 (yield* SessionInput.hasPending(db, input.sessionID, "steer", "skill")) ||
-                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic"))
+                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic")) ||
+                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "command"))
           }
         }
         // Drain queued shell inputs at the idle boundary.

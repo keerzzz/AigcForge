@@ -186,6 +186,7 @@ export const SessionInputTable = sqliteTable(
     prompt: text({ mode: "json" }).$type<Prompt>(),
     command: text(),
     skill: text(),
+    command_payload: text({ mode: "json" }).$type<SessionInput.CommandPayload>(),
     delivery: text().$type<SessionInput.Delivery>().notNull(),
     admitted_seq: integer().notNull(),
     promoted_seq: integer(),

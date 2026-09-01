@@ -6,6 +6,7 @@ let createPromptSubmit: typeof import("./submit").createPromptSubmit
 const createdClients: string[] = []
 const createdSessions: string[] = []
 const enabledAutoAccept: Array<{ sessionID: string; directory: string }> = []
+const sentCommand: Array<{ command?: string; arguments?: string; parts?: unknown }> = []
 const optimistic: Array<{
   directory?: string
   sessionID?: string
@@ -62,7 +63,10 @@ const clientFor = (directory: string) => {
       },
       prompt: async () => ({ data: undefined }),
       promptAsync: async () => ({ data: undefined }),
-      command: async () => ({ data: undefined }),
+      command: async (input: { command?: string; arguments?: string; parts?: unknown }) => {
+        sentCommand.push(input)
+        return { data: undefined }
+      },
       abort: async () => ({ data: undefined }),
     },
     worktree: {

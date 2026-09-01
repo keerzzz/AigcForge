@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "9cd17dbb-8ef0-4d85-83c3-dab628b07495",
-  "prevIds": ["2cc13146-dd2f-416f-b21b-d6793665703a"],
+  "id": "2d28dbcc-72e6-4a58-bbe7-28a2069b95d6",
+  "prevIds": ["9cd17dbb-8ef0-4d85-83c3-dab628b07495"],
   "ddl": [
     {
       "name": "workspace",
@@ -2291,6 +2291,16 @@
       "default": null,
       "generated": null,
       "name": "skill",
+      "entityType": "columns",
+      "table": "session_input"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "command_payload",
       "entityType": "columns",
       "table": "session_input"
     },

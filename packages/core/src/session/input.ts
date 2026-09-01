@@ -2,7 +2,7 @@ export * as SessionInput from "./input"
 
 import { and, asc, eq, isNull, lte } from "drizzle-orm"
 import { DateTime, Effect, Schema } from "effect"
-import { Admitted, Delivery } from "@aigcfroge/schema/session-input"
+import { Admitted, CommandPayload, Delivery } from "@aigcfroge/schema/session-input"
 import type { Database } from "../database/database"
 import type { EventV2 } from "../event"
 import { SessionEvent } from "./event"
@@ -13,10 +13,11 @@ import { SessionInputTable, SessionMessageTable } from "./sql"
 
 type DatabaseService = Database.Interface["db"]
 
-export { Admitted, Delivery }
+export { Admitted, CommandPayload, Delivery }
 
 const decodePrompt = Schema.decodeUnknownSync(Prompt)
 const encodePrompt = Schema.encodeSync(Prompt)
+const decodePayload = Schema.decodeUnknownSync(CommandPayload)
 
 const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted => {
   const base = {
@@ -34,6 +35,17 @@ const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted => {
   if (row.kind === "skill") {
     if (row.skill === null) throw new Error(`Skill input ${row.id} is missing its skill name`)
     return Admitted.make({ kind: "skill", ...base, skill: row.skill })
+  }
+  if (row.kind === "command") {
+    if (row.command === null) throw new Error(`Command input ${row.id} is missing its command name`)
+    if (row.command_payload === null) throw new Error(`Command input ${row.id} is missing its command payload`)
+    return Admitted.make({
+      kind: "command",
+      ...base,
+      command: row.command,
+      ...decodePayload(row.command_payload),
+      context: row.prompt === null ? Prompt.make({ text: "" }) : decodePrompt(row.prompt),
+    })
   }
   if (row.kind === "synthetic") {
     if (row.prompt === null) throw new Error(`Synthetic input ${row.id} is missing its text`)
@@ -177,6 +189,72 @@ export const admitSkill = Effect.fn("SessionInput.admitSkill")(function* (
       ),
       Effect.catchDefect((defect) =>
         find(db, input.id).pipe(Effect.flatMap((stored) => (stored ? Effect.succeed(stored) : Effect.die(defect)))),
+      ),
+    )
+})
+
+export const admitCommand = Effect.fn("SessionInput.admitCommand")(function* (
+  db: DatabaseService,
+  events: EventV2.Interface,
+  input: {
+    readonly id: SessionMessage.ID
+    readonly sessionID: SessionSchema.ID
+    readonly command: string
+    readonly relativePath: string
+    readonly revision: string
+    readonly consumer: string
+    readonly arguments: string
+    readonly context: Prompt
+    readonly snapshotDigest: string
+    readonly delivery: Delivery
+  },
+) {
+  const existing = yield* find(db, input.id)
+  if (existing !== undefined) return { admitted: existing, created: false } as const
+  const timestamp = yield* DateTime.now
+  return yield* events
+    .publish(SessionEvent.CommandAdmitted, {
+      messageID: input.id,
+      sessionID: input.sessionID,
+      timestamp,
+      command: input.command,
+      relativePath: input.relativePath,
+      revision: input.revision,
+      consumer: input.consumer,
+      arguments: input.arguments,
+      context: input.context,
+      snapshotDigest: input.snapshotDigest,
+      delivery: input.delivery,
+    })
+    .pipe(
+      Effect.flatMap((event) =>
+        event.durable === undefined
+          ? Effect.die("Command admission event is missing aggregate sequence")
+          : Effect.succeed({
+              admitted: Admitted.make({
+                kind: "command",
+                admittedSeq: event.durable.seq,
+                id: input.id,
+                sessionID: input.sessionID,
+                command: input.command,
+                relativePath: input.relativePath,
+                revision: input.revision,
+                consumer: input.consumer,
+                arguments: input.arguments,
+                context: input.context,
+                snapshotDigest: input.snapshotDigest,
+                delivery: input.delivery,
+                timeCreated: timestamp,
+              }),
+              created: true,
+            } as const),
+      ),
+      Effect.catchDefect((defect) =>
+        find(db, input.id).pipe(
+          Effect.flatMap((stored) =>
+            stored ? Effect.succeed({ admitted: stored, created: false } as const) : Effect.die(defect),
+          ),
+        ),
       ),
     )
 })
@@ -339,6 +417,57 @@ export const projectSkillAdmitted = Effect.fn("SessionInput.projectSkillAdmitted
   if (!stored) return yield* Effect.die(new LifecycleConflict({ id: input.id }))
 })
 
+export const projectCommandAdmitted = Effect.fn("SessionInput.projectCommandAdmitted")(function* (
+  db: DatabaseService,
+  input: {
+    readonly admittedSeq: number
+    readonly id: SessionMessage.ID
+    readonly sessionID: SessionSchema.ID
+    readonly command: string
+    readonly relativePath: string
+    readonly revision: string
+    readonly consumer: string
+    readonly arguments: string
+    readonly context: Prompt
+    readonly snapshotDigest: string
+    readonly delivery: Delivery
+    readonly timeCreated: DateTime.Utc
+  },
+) {
+  const message = yield* db
+    .select({ id: SessionMessageTable.id })
+    .from(SessionMessageTable)
+    .where(eq(SessionMessageTable.id, input.id))
+    .get()
+    .pipe(Effect.orDie)
+  if (message !== undefined) return yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  const stored = yield* db
+    .insert(SessionInputTable)
+    .values({
+      id: input.id,
+      session_id: input.sessionID,
+      kind: "command",
+      admitted_seq: input.admittedSeq,
+      command: input.command,
+      prompt: encodePrompt(input.context),
+      command_payload: {
+        relativePath: input.relativePath,
+        revision: input.revision,
+        consumer: input.consumer,
+        arguments: input.arguments,
+        snapshotDigest: input.snapshotDigest,
+      },
+      delivery: input.delivery,
+      time_created: DateTime.toEpochMillis(input.timeCreated),
+    })
+    .onConflictDoNothing()
+    .returning({ id: SessionInputTable.id })
+    .get()
+    .pipe(Effect.orDie)
+  if (!stored) return yield* Effect.die(new LifecycleConflict({ id: input.id }))
+  return undefined
+})
+
 export const projectSyntheticAdmitted = Effect.fn("SessionInput.projectSyntheticAdmitted")(function* (
   db: DatabaseService,
   input: {
@@ -412,6 +541,29 @@ export const pendingSkillSteers = Effect.fn("SessionInput.pendingSkillSteers")(f
         eq(SessionInputTable.session_id, sessionID),
         isNull(SessionInputTable.promoted_seq),
         eq(SessionInputTable.kind, "skill"),
+        eq(SessionInputTable.delivery, "steer"),
+        lte(SessionInputTable.admitted_seq, cutoff),
+      ),
+    )
+    .orderBy(asc(SessionInputTable.admitted_seq))
+    .all()
+    .pipe(Effect.orDie)
+  return rows.map(fromRow)
+})
+
+export const pendingCommandSteers = Effect.fn("SessionInput.pendingCommandSteers")(function* (
+  db: DatabaseService,
+  sessionID: SessionSchema.ID,
+  cutoff: number,
+) {
+  const rows = yield* db
+    .select()
+    .from(SessionInputTable)
+    .where(
+      and(
+        eq(SessionInputTable.session_id, sessionID),
+        isNull(SessionInputTable.promoted_seq),
+        eq(SessionInputTable.kind, "command"),
         eq(SessionInputTable.delivery, "steer"),
         lte(SessionInputTable.admitted_seq, cutoff),
       ),
@@ -533,6 +685,31 @@ export const equivalentSkill = (
   input.sessionID === expected.sessionID &&
   input.skill === expected.skill
 
+export const equivalentCommand = (
+  input: Admitted,
+  expected: {
+    readonly sessionID: SessionSchema.ID
+    readonly command: string
+    readonly relativePath: string
+    readonly revision: string
+    readonly consumer: string
+    readonly arguments: string
+    readonly context: Prompt
+    readonly snapshotDigest: string
+    readonly delivery: Delivery
+  },
+) =>
+  input.kind === "command" &&
+  input.delivery === expected.delivery &&
+  input.sessionID === expected.sessionID &&
+  input.command === expected.command &&
+  input.relativePath === expected.relativePath &&
+  input.revision === expected.revision &&
+  input.consumer === expected.consumer &&
+  input.arguments === expected.arguments &&
+  input.snapshotDigest === expected.snapshotDigest &&
+  JSON.stringify(encodePrompt(input.context)) === JSON.stringify(encodePrompt(expected.context))
+
 export const equivalentSynthetic = (
   input: Admitted,
   expected: { readonly sessionID: SessionSchema.ID; readonly text: string },
@@ -556,9 +733,12 @@ const matchesProjection = (
     readonly timeCreated: DateTime.Utc
   },
 ) =>
-  // Skill rows do not store the resolved prompt content (only the invocation name), so the
-  // prompt-equality check does not apply; identity + delivery + time are the durable match.
-  (input.kind === "skill"
+  // Skill rows do not store the resolved prompt content (only the invocation
+  // name), and command rows store the canonical context plus the frozen
+  // identity but not the promotion-time expanded text; for both, the
+  // prompt-equality check does not apply — identity + delivery + time are the
+  // durable match.
+  (input.kind === "skill" || input.kind === "command"
     ? input.sessionID === expected.sessionID && input.delivery === expected.delivery
     : equivalent(input, expected)) &&
   DateTime.toEpochMillis(input.timeCreated) === DateTime.toEpochMillis(expected.timeCreated)

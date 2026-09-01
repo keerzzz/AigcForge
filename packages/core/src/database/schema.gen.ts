@@ -349,6 +349,7 @@ export default {
           \`prompt\` text,
           \`command\` text,
           \`skill\` text,
+          \`command_payload\` text,
           \`delivery\` text NOT NULL,
           \`admitted_seq\` integer NOT NULL,
           \`promoted_seq\` integer,
