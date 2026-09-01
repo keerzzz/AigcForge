@@ -1,5 +1,14 @@
 # V2 UX 可信底座实施计划：首个执行切片
 
+> **⚠️ Owner 仲裁（2026-09-01）**：本计划与 [five-mode-runtime-remediation-tdd-workflow-2026-08-30.md](five-mode-runtime-remediation-tdd-workflow-2026-08-30.md) 声明了重叠的 owner。裁决结果：**重叠切片归五模式修整计划**，本计划保留非重叠部分。
+>
+> 依据：`CLAUDE.md` 的极致减法 —— 两个 owner 抢同一件事本身就是双事实源（正是那份计划要修的 R1/R2 同类问题），协议答案是**归并**而非「选赢家让另一方 rebase」。证据不对称：本计划分支不存在、零产物；五模式计划已在 `five-mode-tdd` 落盘 4 个提交（`d24b7035a` / `74487f934` / `7a431619c` / `ad4f9ca7f`），含 9 条可复现 RED 与已实施的 D4-A + D5-A。
+>
+> 重叠明细见下表。开工前先读该计划 §5 owner 地图。
+> **本计划让出**：`custom-preview-column.tsx`、`custom-sidebar.tsx`、`custom-builder-main.tsx`、`custom-snapshot-panel.tsx`、`mode-workspace.tsx` 五个文件（= 五模式计划 S6 App Location/Draft/Provider/Navigation）。Phase 0 能力校准、Phase 1 几何基线、Phase 2 状态词汇、Phase 3 Token 迁移试点中不触及这五个文件的部分仍属本计划。
+>
+> **注意**：B3-3 对 `custom-sidebar.tsx:30-50` 的重写与 §5.2 对 `classifyPlanFailure` 的分析，与五模式计划 S6/S8 重叠，需合并执行而非各做一遍。
+
 > **来源路线图**：[docs/roadmap/v2-ux-ui-roadmap.md](../roadmap/v2-ux-ui-roadmap.md)（2026-08-29，**有条件进入执行**）
 >
 > **范围**：路线图 §7「首个执行切片」6 项 = Phase 0 能力校准 · Phase 1 几何基线 · Phase 2 状态词汇与错误真实性 · Phase 3 Token 迁移试点 · Review gate。

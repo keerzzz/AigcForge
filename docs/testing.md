@@ -146,3 +146,10 @@ CI 注记：
 5. 不只测 V2 漏 V1（双运行时功能必须 parity）。
 6. 不新增 `Effect.sleep(N)` 等待型测试。
 7. 测试必须在所属包内运行，禁止根目录执行。
+8. **新增的 RED 必须可满足**：能仅靠修改生产代码变绿。禁止 `expect(false).toBe(true)`、禁止
+   `const x = false; expect(x).toBe(true)`、禁止断言只能由改测试自身来满足的条件。
+   判别式（提交前必跑）：临时把生产代码改对 → 跑 → 确认变绿 → 还原 → 两次输出都进报告。
+   反例（2026-08-31 实测）：用 `Schema.decodeUnknownSync(SessionEvent.Durable)(payload)` 探
+   union 成员性，因为 union 每个成员都要求事件信封的 `id` 字段，手搓 payload 即使在标签加入后
+   仍会因 `Missing key at ["id"]` 继续红 —— 今天红对了，明天红错了。正解是断言
+   `Object.keys(SessionEvent.Durable.cases)` 的成员性。

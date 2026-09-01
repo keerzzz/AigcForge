@@ -38,6 +38,17 @@
 
 本方案的**诊断结论获有条件批准**：D1、D2、D3、D4、D6、D7、D8、D9、D10、D11、D12、D14 的方向可进入证据扫描；D5、D13 的原表述撤回并按第 6 节重写。
 
+**已完成的裁决与实施（截至 2026-09-01，分支 `five-mode-tdd`）**：
+
+| 项             | 状态                 | 证据                                                                                                                                                                                                                                                                                                          |
+| -------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D4-A + D5-A    | **已实施并合入分支** | 提交 `74487f934`：`bindings` 三态解码、`AgentInfo.consumerKey` 派生、`CompositionConsumerView` 的 `Scope` 判别式取代 `string \| undefined`、三处扁平回退删除、orchestrator 无条件产出条目、resolve/freeze TOCTOU 根治、完整性校验拆到 `assertDependency`（结构）与 freeze（落地）。全仓 `bun typecheck` 15/15 |
+| S0 RED 基线    | **已落盘**           | 提交 `d24b7035a`：9 条断言，8 绿 1 红（`SyntheticAdmitted` 属 S3，正确保持红）。`SyntheticAdmitted` 那条已自证可满足（临时加入 `DurableDefinitions` → 变绿 → 还原）                                                                                                                                           |
+| 增量 lint 门禁 | **已加固**           | 提交 `7a431619c`：`guardedRules` 增加 `no-unnecessary-type-assertion` 与 `no-unused-vars`（仅新增行），立即抓出 `tool/skill.ts` 一处死 import                                                                                                                                                                 |
+| D13            | **已裁决**           | 见 §6 D13：功能保留，改用 `switchAgent` + `prompt`；fork modifier 删除；提权走现成三档交互                                                                                                                                                                                                                    |
+| owner 仲裁     | **已裁决**           | S2/S6 owner 归本计划，三份未开工计划（`v2-architecture-governance-slice-0-3`、`v2-ux-trust-foundation`、`mode-page-unification-v2`）的重叠切片折叠进来，各自保留非重叠部分。依据：极致减法的「归并」优于「选赢家让另一方 rebase」，且本计划已有可复现产物、那三份分支均不存在                                 |
+| D2 对冲        | **已裁决**           | 对冲条款必须点名 `EventV2.publish` 跨连接写 deadlock（`docs/technical-debt.md` 已登记债）为具体阻塞点，不得写成含糊的「若现有事务边界无法承载」                                                                                                                                                               |
+
 在 S-1 结束、下列前提完成且用户作出最终批准前，**不得修改生产代码或创建实施分支**：
 
 1. 明确 Snapshot V1、pre-binding V2 和新 consumer-runtime Snapshot 的兼容边界；不能把缺失 `bindings` 解码后的 `{}` 误判为一个合法空 catalog。
@@ -375,7 +386,11 @@ App Draft/UI 维护 `primaryAgent`，但 CompositionInput 没有该字段，Cust
 
 App 和 TUI 的 handoff 调用向 V2 fork payload 传递 `prompt/agent`，但 V2 handler 只 lower `messageID`。结果是 child Session 可被创建并导航，初始 prompt 没有 admission、agent 没有选择或切换，用户只看到一个“成功”的空 child。
 
-这是活功能的静默失效，不能按“未消费死字段”单独删除。最终必须在 D13 的原子实现或端到端移除之间裁决；过渡期不得返回成功后忽略字段。
+这是活功能的静默失效，不能按「未消费死字段」单独删除。已按 D13 裁决（2026-09-01）：功能保留但改建在 `switchAgent` + `prompt` 上，fork 的这两个字段作为错误原语删除。过渡期不得返回成功后忽略字段。
+
+证据链：`packages/server/src/groups/session.ts:367-370` 声明 `prompt?`/`agent?`；`packages/server/src/handlers/session.ts:607-630` 只读 `ctx.params.sessionID`，从不读 `ctx.payload`；调用方 `packages/app/src/pages/session.tsx:1572-1595`（经 `session/timeline/message-timeline.tsx:1223-1230` 的 `HandoffButton`）与 `packages/tui/src/routes/session/subagent-footer.tsx:77-87`；配置源 `packages/schema/src/agent.ts:32` 的 `handoffs: Array<{label, agent, prompt, send?, model?}>`。
+
+附带缺陷（同一根因，S3 一并修）：`packages/core/src/agent/file-loader.ts:61-64` 的 filter 只校验 `label/agent/prompt`，静默丢弃 `send` 与 `model`；`packages/schema/src/agent-asset.ts` 没有 `handoffs` 字段，`agent/asset-bridge.ts:67` 只能读 `config?.handoffs`，因此经资产工作室创建的 agent 无处填写 handoff —— 这是该功能至今零使用的真正原因。
 
 ## 3.3 P2：高风险一致性和可观测性问题
 
@@ -675,18 +690,61 @@ Snapshot V2 → Draft → CompositionInput → Plan
 - 所有入口复用同一 typed policy；
 - 关闭时不得留下部分 durable mutation。
 
-### D13：handoff 的 `fork + prompt + agent` 合同
+### D13：handoff 的原语选择与提权交互（已裁决 2026-09-01）
 
-**撤回“直接删除当前未消费字段”的原表述。**`prompt/agent` 有 App/TUI 的真实调用方，当前问题是静默失效的活功能。
+**两次撤回。** 初版写「删除未消费死字段」是错的（有真实调用方）；复审版写「原子实现 fork+prompt+agent 或端到端移除」二选一也是错的 —— 它把实现偏差当成了产品选项。
 
-最终产品必须二选一：
+**产品裁决（用户 2026-09-01）：功能必须保留。**
 
-1. **原子实现**：新增或扩展 durable Fork Submission，在同一可审计操作中完成 fork、frozen child selection、Prompt admission、synthetic 和 post-commit wake；任一失败不得留下“已导航但无 prompt/agent”的 child。
-2. **端到端移除**：同时移除 Schema/OpenAPI/SDK 字段、App/TUI 调用方、HandoffButton 和用户可见配置；以编译与行为测试证明没有遗留入口。
+**架构裁决：handoff 用 `switchAgent` + `prompt`，不用 fork。**
 
-过渡期唯一允许的中间状态是：服务端对携带 modifier 的 fork 返回稳定 typed unsupported/validation error，App/TUI 同步隐藏或禁用 handoff。禁止 2xx 成功后忽略字段，也禁止 fork 后由客户端分别 switch/prompt 造成半完成 child。
+设计出处 `docs/plan/vscode-alignment-meta-agent.md` P3 写的目标是「让 agent 之间可以显式切换（如 Plan → Implement）」——**切换**。实现却选了 fork，这是实现偏离设计，不是设计有两个选项。`SessionV2.switchAgent`（`core/src/session.ts:761`）已存在且已 durable，`SessionV2.prompt` 同样，所以正确解法是组合两个既有原语：
 
-S0 必须记录产品裁决；未裁决不得进入 S7 GREEN。
+|            | fork + agent + prompt（旧方案）     | switchAgent + prompt（裁决） |
+| ---------- | ----------------------------------- | ---------------------------- |
+| 需要的原语 | 3 操作原子提交，须等 S2 建出 kernel | 两个**已有** durable 原语    |
+| 能否现在做 | 不能，卡 S2                         | 能，S3 即可闭合              |
+| 导航       | 需打开子会话，撞 MODE-P1-10         | 不动导航，完全绕开           |
+| 失败退化   | prompt 失败留下空 child 孤儿        | 未发出，用户自行补一句       |
+| 语义       | 分叉                                | 接棒，与 handoff 一词一致    |
+| 会话历史   | 断成两条                            | 一条线连续可读               |
+
+想「从同一方案分叉两种实施」时，`fork` 本身是独立且正确的功能：用户先 fork 再 handoff。**组合已有能力，不为一个用例焊出新原语。**
+
+因此 fork 端点的 `prompt`/`agent` **确认删除** —— 它们是错误的原语承载，而非要保留的功能。删除的同时功能在 switchAgent 上做通，满足「必须保留」。
+
+**残留原子性问题远小于 S2**：`switchAgent` 必须先提交，`prompt` 才能进 admission，否则这句话会跑在旧 agent 上。两步顺序问题，两步各自已有冲突语义，不需要三方事务。
+
+**提权与 `send` 的交互（复用现成范式，零新增交互）**
+
+`plan` 声明为 "Disallows all edit tools"（`aigcfroge/src/agent/agent.ts:276`），`build` 按配置执行工具（`:259`）。所以 `plan → build` 是明确提权，而它正是 handoff 主用例。一个 `.agent.md` 写 `send: true` 就静默从只读跳进可写并自动发指令，不可接受。
+
+仓库已有三档交互强度，不新建：
+
+| 现成范式    | 位置                                                                      | 强度                                                             |
+| ----------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 档位切换    | `app/src/pages/session/composer/permission-tier-selector.tsx`             | 最轻，`aria-pressed` 按钮组，点即生效                            |
+| 逐工具询问  | `app/src/context/permission.tsx:21` + `core/src/permission.ts:57` `Reply` | 中，`once` / `always` / `reject` 三态，有持久化通道              |
+| break-glass | `app/src/pages/session/composer/session-permission-override-dialog.tsx`   | 最重，Dialog + 强制勾选 + 30s 续租 60s 租约 + 仅根会话且有人值守 |
+
+裁决规则：
+
+1. **提权判定 owner = `PermissionEffective.effectiveV2`**（`core/src/permission.ts:223`），不新建判断逻辑。
+2. **未提权（同级或收窄）+ `send: true`** → 直接 switchAgent 并发出。
+3. **提权 + `send: true`** → 降级为预填，显示提权明细，走逐工具询问的 `once` / `always` / `reject` 三态。选 `always` 则记住该 handoff（label+目标 agent），下次直接兑现 `send`。
+4. **`send: false`** → 一律预填等用户确认，不论权限。
+5. **唯一走 break-glass 的例外**：目标 agent 的有效权限含 `bash` 且当前会话为 `propose` 档 —— 等于一步从「只提议」跳到「可执行任意命令」，与 `session-permission-override-dialog` 守同一风险面，必须复用它。
+6. **不按工具危险度分档**：逐工具询问本就按具体工具问，危险度已内建在权限表中。handoff 只需在切换那一刻问一次。
+
+「自动发」= 未提权或已 `always` 授权；「填好等交互」= 提权且未授权。两种真实需求落在同一机制，**由权限裁决而非配置裁决**。
+
+**`agent-asset.ts` 必须补 `handoffs` 字段。** `packages/schema/src/agent-asset.ts` 当前没有该字段，`asset-bridge.ts:67` 只能从 `config?.handoffs` 取 —— 所以经资产工作室创建的 agent 根本无处填写 handoff。这是该功能至今无人使用的真正原因，而不是功能不被需要。
+
+**`file-loader.ts:61-64` 的 filter 只校验 `label/agent/prompt`**，静默丢弃 `send` 与 `model`。`send` 必须做通（两种交互都依赖它）；`model` 与模型选择 owner 纠缠，本轮不做，登记技术债。
+
+**切片归属**：S3 = handoff 走 switchAgent+prompt、fork modifier 改 typed 拒绝、提权判定、`send` 兑现、修 file-loader；schema = `agent-asset.handoffs`；S6 = Builder handoff 编辑器 + HandoffButton 提权明细与三态 + break-glass 例外；**S2 不涉及**。
+
+过渡期（S3 GREEN 前）唯一允许的中间状态：服务端对携带 modifier 的 fork 返回稳定 typed error，App/TUI 同步禁用 handoff。禁止 2xx 成功后忽略字段。
 
 ### D14：Session share 术语和 owner
 
@@ -1792,7 +1850,7 @@ REFACTOR:
 - [ ] D10：V1 Snapshot 缺精确 refs 时 fail closed。
 - [ ] D11：legacy global Draft 只迁移到首个明确 Location，不 fan-out。
 - [ ] D12：Custom kill switch 阻止执行型入口，但保留 read/export。
-- [ ] D13：handoff 的 fork modifier 作产品二选一裁决：原子 durable 实现，或 Schema/SDK/App/TUI/UI 端到端移除；裁决前 typed fail closed。
+- [x] D13（已裁决 2026-09-01）：handoff 功能保留，改用 `switchAgent` + `prompt`（不 fork）；fork 的 `prompt`/`agent` 字段删除；提权走 `PermissionEffective.effectiveV2` 判定 + 逐工具询问的 `once`/`always`/`reject` 三态；`bash` × `propose` 走 break-glass；`agent-asset.ts` 补 `handoffs`。
 - [ ] D14：external share 与 context share 拆分 owner/命名。
 - [ ] S-1 owner ledger 已裁定本计划与三个并行计划的 Core/App/ModeWorkspace owner 和合并顺序。
 - [ ] SDK/OpenAPI ledger 已裁定 tracked spec、V1 gen、V2 gen 的再生或冻结/迁移策略。
