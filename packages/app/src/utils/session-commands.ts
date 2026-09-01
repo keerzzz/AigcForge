@@ -39,10 +39,7 @@ export function useSessionSnapshotCommands(session: () => SessionLike | undefine
     () => (sessionID() ? { sessionID: sessionID(), directory: sdk().directory } : undefined),
     async (source): Promise<Composition.Snapshot | undefined> => {
       try {
-        const res = await sdk().client.session.composition(
-          { sessionID: source.sessionID! },
-          { throwOnError: false },
-        )
+        const res = await sdk().client.session.composition({ sessionID: source.sessionID! }, { throwOnError: false })
         return extractSnapshot(res.data)
       } catch {
         return undefined

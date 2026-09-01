@@ -275,9 +275,7 @@ describe("SessionV2.command", () => {
       yield* setup([boundCommand])
       const session = yield* SessionV2.Service
 
-      const error = yield* session
-        .command({ sessionID, command: "outside-command", resume: false })
-        .pipe(Effect.flip)
+      const error = yield* session.command({ sessionID, command: "outside-command", resume: false }).pipe(Effect.flip)
       expect(error._tag).toBe("Session.CommandUnavailableError")
       if (error._tag === "Session.CommandUnavailableError") expect(error.reason).toBe("unbound")
     }),
@@ -303,7 +301,7 @@ describe("SessionV2.command", () => {
     }),
   )
 
-  it.effect("a legacy snapshot command (invocation \"\") fails closed", () =>
+  it.effect('a legacy snapshot command (invocation "") fails closed', () =>
     Effect.gen(function* () {
       yield* setup([
         new Composition.CommandInfo({
