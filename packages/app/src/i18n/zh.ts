@@ -266,6 +266,7 @@ export const dict = {
   "session.handoff.confirm.body":
     "{{agent}} 可以做本会话当前做不到的事。确认后仅为本次交接切换到它；具体操作运行前仍会逐项询问。",
   "session.handoff.confirm.approve": "切换并继续",
+  "session.handoff.confirm.remember": "记住此交接（针对该智能体）",
   "session.handoff.declined.title": "已取消交接",
   "session.handoff.declined.description": "会话仍停留在当前智能体。",
   "prompt.example.1": "修复代码库中的一个 TODO",

@@ -241,6 +241,7 @@ export const dict = {
   "session.handoff.confirm.body":
     "{{agent}} 可以做本會話目前做不到的事。確認後僅為本次交接切換到它；具體操作執行前仍會逐項詢問。",
   "session.handoff.confirm.approve": "切換並繼續",
+  "session.handoff.confirm.remember": "記住此交接（針對該智能體）",
   "session.handoff.declined.title": "已取消交接",
   "session.handoff.declined.description": "會話仍停留在目前的智能體。",
 

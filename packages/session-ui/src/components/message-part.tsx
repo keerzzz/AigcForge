@@ -177,7 +177,7 @@ export type SessionAction = (input: { sessionID: string; messageID: string }) =>
 export type UserActions = {
   fork?: SessionAction
   revert?: SessionAction
-  handoff?: (agent: string, prompt: string, send?: boolean) => void
+  handoff?: (label: string, agent: string, prompt: string, send?: boolean) => void
   capture?: () => void
 }
 
@@ -882,7 +882,7 @@ export function Message(props: MessageProps) {
                   label: h.label,
                   agent: h.agent,
                   prompt: h.prompt,
-                  onClick: () => props.actions!.handoff!(h.agent, h.prompt),
+                  onClick: () => props.actions!.handoff!(h.label, h.agent, h.prompt),
                 }))}
               />
             </Show>

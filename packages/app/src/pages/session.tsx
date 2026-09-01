@@ -34,7 +34,7 @@ import { useLocation, useSearchParams, useNavigate } from "@solidjs/router"
 import { NewSessionView, SessionHeader, createGitState, GitStatusBar, GitCommitBar } from "@/components/session"
 import { useComments } from "@/context/comments"
 import { useServerSync } from "@/context/server-sync"
-import { executeHandoff, planHandoff } from "@aigcfroge/schema/handoff"
+import { executeHandoff, handoffAuthorizationKey, planHandoff } from "@aigcfroge/schema/handoff"
 import { confirmHandoffEscalation } from "@/pages/session/handoff-confirm"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
@@ -332,6 +332,15 @@ export default function Page() {
       paused: {},
       edit: {},
     }),
+  )
+
+  // D13 `always`: grants remembered after an escalated handoff confirmation,
+  // keyed by handoffAuthorizationKey(location, label, targetAgent). The storage
+  // is workspace-scoped (per directory), so one project's grants never leak
+  // into another (the custom-draft single-global-key bug is not copied here).
+  const [handoffGrants, setHandoffGrants] = persisted(
+    Persist.serverWorkspace(serverSDK().scope, sdk().directory, "handoff-grants", ["handoff-grants.v1"]),
+    createStore<string[]>([]),
   )
 
   createComputed((prev) => {
@@ -1573,7 +1582,7 @@ export default function Page() {
       .map((item) => ({ id: item.id, text: line(item.id) }))
   })
 
-  const handoff = async (agent: string, promptText: string, send?: boolean) => {
+  const handoff = async (label: string, agent: string, promptText: string, send?: boolean) => {
     const sessionID = params.id
     if (!sessionID) return
 
@@ -1583,6 +1592,12 @@ export default function Page() {
     // so an escalating handoff must not switch and then ask.
     const sessionInfo = info()
     const agents = sync().data.agent ?? []
+    // D13 `always`: a grant remembered for this (location, label, agent) makes
+    // planHandoff return the switch action directly, skipping the confirm. The
+    // grant storage is workspace-scoped, and the key embeds the location, so a
+    // grant from one project never authorizes the same handoff elsewhere.
+    const location = sdk().directory
+    const authorized = new Set(handoffGrants)
     const plan = planHandoff({
       session: {
         mode: sessionInfo?.mode,
@@ -1594,6 +1609,9 @@ export default function Page() {
       currentRules: agents.find((a) => a.name === sessionInfo?.agent)?.permission ?? [],
       targetRules: agents.find((a) => a.name === agent)?.permission ?? [],
       send,
+      location,
+      label,
+      authorized,
     })
 
     try {
@@ -1611,7 +1629,14 @@ export default function Page() {
         },
         prefill: () =>
           prompt.set([{ type: "text", content: promptText, start: 0, end: promptText.length }], promptText.length),
-        confirm: () => confirmHandoffEscalation(dialog, language, agent),
+        confirm: async () => {
+          const result = await confirmHandoffEscalation(dialog, language, agent)
+          if (result.approved && result.remember) {
+            const grant = handoffAuthorizationKey(location, label, agent)
+            if (!handoffGrants.includes(grant)) setHandoffGrants([...handoffGrants, grant])
+          }
+          return result.approved
+        },
         reject: () =>
           showToast({
             title: language.t("session.handoff.declined.title"),

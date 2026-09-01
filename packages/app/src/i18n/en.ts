@@ -248,6 +248,7 @@ export const dict = {
   "session.handoff.confirm.body":
     "{{agent}} is allowed to do things this session currently is not. Approving switches to it for this handoff only; individual actions still ask before they run.",
   "session.handoff.confirm.approve": "Switch and continue",
+  "session.handoff.confirm.remember": "Remember this handoff for this agent",
   "session.handoff.declined.title": "Handoff cancelled",
   "session.handoff.declined.description": "The session was left on its current agent.",
 

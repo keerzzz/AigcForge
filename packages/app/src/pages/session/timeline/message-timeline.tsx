@@ -1227,7 +1227,7 @@ export function MessageTimeline(props: {
                         label: h.label,
                         agent: h.agent,
                         prompt: h.prompt,
-                        onClick: () => props.actions!.handoff!(h.agent, h.prompt, h.send),
+                        onClick: () => props.actions!.handoff!(h.label, h.agent, h.prompt, h.send),
                       }))}
                     />
                   </div>
