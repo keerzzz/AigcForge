@@ -8760,8 +8760,8 @@ export class Session3 extends HeyApiClient {
   public fork<ThrowOnError extends boolean = false>(
     parameters: {
       sessionID: string
-      prompt?: string
-      agent?: string
+      prompt?: unknown
+      agent?: unknown
     },
     options?: Options<never, ThrowOnError>,
   ) {

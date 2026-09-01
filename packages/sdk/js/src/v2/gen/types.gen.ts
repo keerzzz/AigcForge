@@ -5147,6 +5147,7 @@ export type AgentAssetInfo = {
   revision: string
   config: string
   source: string
+  handoffs?: Array<Handoff>
 }
 
 export type AgentAssetCandidate = {
@@ -5288,6 +5289,7 @@ export type CompositionAgentInfo = {
   description: string
   relativePath: string
   revision: string
+  consumerKey?: string
 }
 
 export type WorkflowAssetStepDef = {
@@ -5414,6 +5416,7 @@ export type CompositionPlan = {
     description: string
     relativePath: string
     revision: string
+    consumerKey?: string
   }>
   workflow?: CompositionWorkflowInfo
   commands?: Array<{
@@ -5523,6 +5526,24 @@ export type CompositionSnapshotV1 = {
   data: CompositionSnapshotDataV1
 }
 
+export type CompositionCommandInfo = {
+  name: string
+  description: string
+  relativePath: string
+  revision: string
+  template: string
+}
+
+export type CompositionSnapshotBindingData = {
+  instructions?: Array<{
+    source: string
+    content: string
+  }>
+  prompts: Array<CompositionSnapshotPromptData>
+  skills: Array<CompositionSkillInfo>
+  commands: Array<CompositionCommandInfo>
+}
+
 export type CompositionSnapshotMcpInfo = {
   bindings: Array<{
     serverName: string
@@ -5548,26 +5569,7 @@ export type CompositionSnapshotDataV2 = {
   agents: Array<CompositionAgentInfo>
   workflow?: CompositionWorkflowInfo
   bindings?: {
-    [key: string]: {
-      prompts: Array<{
-        relativePath: string
-        revision: string
-        content: string
-      }>
-      skills: Array<{
-        name: string
-        description: string
-        relativePath: string
-        revision: string
-      }>
-      commands: Array<{
-        name: string
-        description: string
-        relativePath: string
-        revision: string
-        template: string
-      }>
-    }
+    [key: string]: CompositionSnapshotBindingData
   }
   maxConcurrency?: number
   commands?: Array<{
@@ -17793,8 +17795,8 @@ export type V2SessionShareResponse = V2SessionShareResponses[keyof V2SessionShar
 
 export type V2SessionForkData = {
   body: {
-    prompt?: string
-    agent?: string
+    prompt?: unknown
+    agent?: unknown
   }
   path: {
     sessionID: string
