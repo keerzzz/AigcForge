@@ -1248,10 +1248,13 @@ steps:
               requestedCapabilities: [],
             })
             const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
-            const commands = snapshot.data.commands
-            expect(commands[0]?.invocation).toBe("/review $1")
-            expect(commands[0]?.args).toBe("$1: path")
-            expect(commands[0]?.source).toContain("Review it without executing")
+            expect(snapshot.version).toBe(2)
+            if (snapshot.version === 2) {
+              const commands = snapshot.data.bindings!.orchestrator.commands
+              expect(commands[0]?.invocation).toBe("/review $1")
+              expect(commands[0]?.args).toBe("$1: path")
+              expect(commands[0]?.source).toContain("Review it without executing")
+            }
           }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
         )
       })
