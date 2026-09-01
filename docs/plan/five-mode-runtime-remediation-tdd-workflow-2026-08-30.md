@@ -1897,7 +1897,7 @@ REFACTOR:
 
 - [ ] canonical owner 为 `packages/server`。
 - [ ] capability/runtime/operation error typed 且状态码稳定。
-- [ ] handoff fork modifier 要么原子产生 durable effect，要么与 SDK/App/TUI/Handoff UI 端到端移除；过渡期 typed fail closed。**服务端与两个客户端已完成**（fork payload 对 `prompt`/`agent` typed 拒绝，App/TUI 改走 `switchAgent`+`prompt`）；只剩 SDK 重生成移除参数，归 S7。
+- [x] handoff fork modifier 要么原子产生 durable effect，要么与 SDK/App/TUI/Handoff UI 端到端移除；过渡期 typed fail closed。**已完成（2026-09-02）**：服务端 fork payload 对 `prompt`/`agent` typed 拒绝，App/TUI 已改走 `switchAgent`+`prompt`，SDK 已重生成（提交 8f4919778）使参数从 fork 方法类型消失，plugin/app/tui typecheck 全绿。
 - [ ] external share 与 context share 语义拆分。
 - [ ] custom profile/composition 使用完整 Location identity。
 - [ ] OpenAPI/SDK 单一生成链、required/null/security/error semantic tests 全绿。
