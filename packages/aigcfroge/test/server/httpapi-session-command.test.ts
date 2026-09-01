@@ -143,9 +143,11 @@ describe.serial("Canonical session.command endpoint (S5 leg 3)", () => {
           resume: false,
         })
         expect(response.status).toBe(400)
-        const error = (yield* response.json) as { _tag?: string; message?: string }
+        const error = Schema.decodeUnknownSync(Schema.Struct({ _tag: Schema.String, message: Schema.String }))(
+          yield* response.json,
+        )
         expect(error._tag).toBe("InvalidRequestError")
-        expect(String(error.message)).toContain("unavailable")
+        expect(error.message).toContain("unavailable")
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )
