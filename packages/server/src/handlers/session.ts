@@ -548,6 +548,61 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         }),
       )
       .handle(
+        "session.command",
+        Effect.fn(function* (ctx) {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          return {
+            data: yield* session
+              .command({
+                sessionID: ctx.params.sessionID,
+                id: ctx.payload.id,
+                command: ctx.payload.command,
+                arguments: ctx.payload.arguments,
+                context: ctx.payload.context,
+                resume: ctx.payload.resume,
+              })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Session not found: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("Session.PromptConflictError", (error) =>
+                  Effect.fail(
+                    new ConflictError({
+                      message: `Command message ID conflicts with an existing durable record: ${error.messageID}`,
+                      resource: error.messageID,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("Session.CommandUnavailableError", (error) =>
+                  Effect.fail(new InvalidRequestError({ message: error.message })),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+                  Effect.fail(
+                    new SessionNotFoundError({
+                      sessionID: error.sessionID,
+                      message: `Snapshot not found for custom session: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Invalid custom session snapshot: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+              ),
+          }
+        }),
+      )
+      .handle(
         "session.skill",
         Effect.fn(function* (ctx) {
           const req = yield* HttpServerRequest.HttpServerRequest

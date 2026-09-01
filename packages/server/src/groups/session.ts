@@ -326,6 +326,29 @@ export const SessionGroup = HttpApiGroup.make("server.session")
       ),
   )
   .add(
+    HttpApiEndpoint.post("session.command", "/api/session/:sessionID/command", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        id: SessionMessage.ID.pipe(Schema.optional),
+        command: Schema.String,
+        arguments: Schema.String.pipe(Schema.optional),
+        context: Prompt.pipe(Schema.optional),
+        resume: Schema.Boolean.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({ data: SessionInput.Admitted }),
+      error: [ConflictError, SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.command",
+          summary: "Run snapshot command",
+          description:
+            "Admit a frozen Custom snapshot command to the durable inbox. The runner statically expands the frozen invocation at the next promotion boundary; legacy snapshots and unbound commands fail closed.",
+        }),
+      ),
+  )
+  .add(
     HttpApiEndpoint.post("session.interrupt", "/api/session/:sessionID/interrupt", {
       params: { sessionID: SessionV2.ID },
       success: HttpApiSchema.NoContent,
