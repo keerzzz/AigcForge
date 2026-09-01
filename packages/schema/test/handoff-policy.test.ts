@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { executeHandoff, handoffRequiresApproval, planHandoff } from "../src/handoff"
+import { executeHandoff, handoffAuthorizationKey, handoffRequiresApproval, planHandoff } from "../src/handoff"
 
 const denyEdit = [{ permission: "edit", pattern: "*", action: "deny" as const }]
 const allowEdit = [{ permission: "edit", pattern: "*", action: "allow" as const }]
@@ -95,5 +95,74 @@ describe("planHandoff / executeHandoff ordering (R1)", () => {
     expect(planHandoff({ ...base, currentAgent: "build", currentRules: allowEdit, send: true }).action).toBe(
       "switch-and-send",
     )
+  })
+})
+
+describe("planHandoff authorized grants (S6 always)", () => {
+  const escalating = {
+    session: { mode: "coding", tier: "full" } as const,
+    currentAgent: "plan",
+    targetAgent: "build",
+    currentRules: denyEdit,
+    targetRules: allowEdit,
+  }
+  const location = "/proj/a"
+  const label = "Implement"
+  const grant = handoffAuthorizationKey(location, label, "build")
+
+  const record = async (plan: ReturnType<typeof planHandoff>, approve = false) => {
+    const calls: string[] = []
+    await executeHandoff(plan, {
+      switchAgent: async () => {
+        calls.push("switchAgent")
+      },
+      send: async () => {
+        calls.push("send")
+      },
+      prefill: () => calls.push("prefill"),
+      confirm: async () => {
+        calls.push("confirm")
+        return approve
+      },
+      reject: (reason) => calls.push(`reject:${reason}`),
+    })
+    return calls
+  }
+
+  test("an authorized grant returns the switch action without a confirm", () => {
+    const plan = planHandoff({ ...escalating, send: true, location, label, authorized: new Set([grant]) })
+    expect(plan).toEqual({ action: "switch-and-send" })
+  })
+
+  test("an authorized grant without send switches and prefills without a confirm", () => {
+    const plan = planHandoff({ ...escalating, location, label, authorized: new Set([grant]) })
+    expect(plan).toEqual({ action: "switch-and-prefill" })
+  })
+
+  test("the same handoff in a different location is not authorized", () => {
+    const plan = planHandoff({
+      ...escalating,
+      send: true,
+      location: "/proj/b",
+      label,
+      authorized: new Set([grant]),
+    })
+    expect(plan).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+  })
+
+  test("a grant for another label does not authorize this handoff", () => {
+    const plan = planHandoff({
+      ...escalating,
+      send: true,
+      location,
+      label: "Review",
+      authorized: new Set([grant]),
+    })
+    expect(plan).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+  })
+
+  test("an authorized plan never calls confirm during execution", async () => {
+    const plan = planHandoff({ ...escalating, send: true, location, label, authorized: new Set([grant]) })
+    expect(await record(plan)).toEqual(["switchAgent", "send"])
   })
 })

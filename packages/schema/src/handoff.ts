@@ -122,7 +122,12 @@ export function handoffRequiresApproval(
  * switching would leave the handoff text in the composer aimed at the OLD agent,
  * so sending it would quietly answer with the wrong agent. So it asks first and
  * then carries out the original intent (`then`) — `once` semantics. Remembering
- * the answer (`always`) needs a persisted per-handoff grant and stays in S6.
+ * the answer (`always`) is a persisted per-handoff grant: the client records
+ * `handoffAuthorizationKey(location, label, targetAgent)` only after an
+ * affirmative confirmation and feeds it back as `authorized`, and an exact
+ * (location, label, agent) hit skips the confirmation on the next identical
+ * handoff. The key is Location-qualified so one project's grants never leak
+ * into another.
  */
 export type HandoffPlan =
   | { readonly action: "switch-and-send" }
@@ -132,6 +137,15 @@ export type HandoffPlan =
       readonly reason: "escalation"
       readonly then: "switch-and-send" | "switch-and-prefill"
     }
+
+/**
+ * Identity of a remembered handoff grant. Location (workspace directory), label
+ * and target agent together pin the grant to one project and one handoff config,
+ * so a grant made in one project never authorizes the same-named handoff in
+ * another.
+ */
+export const handoffAuthorizationKey = (location: string, label: string, agent: string) =>
+  [location, label, agent].join("\u0000")
 
 /**
  * Decide before touching the session. Every input must be read from the
@@ -145,9 +159,26 @@ export function planHandoff(input: {
   readonly currentRules: AgentPermissionRuleset
   readonly targetRules: AgentPermissionRuleset
   readonly send?: boolean
+  /** Location identity (workspace directory) of the current handoff. */
+  readonly location?: string
+  /** The handoff's stable label; with `targetAgent` it identifies the grant. */
+  readonly label?: string
+  /**
+   * Handoff grants recorded after previous explicit confirmations, keyed by
+   * `handoffAuthorizationKey`. A hit for the current (location, label, agent)
+   * means the user already approved this exact handoff, so the escalation gate
+   * is skipped the same way a fresh confirmation would be. The decision stays
+   * here; clients only supply the persisted facts.
+   */
+  readonly authorized?: ReadonlySet<string>
 }): HandoffPlan {
   const intent = input.send === true ? "switch-and-send" : "switch-and-prefill"
+  const remembered =
+    input.location !== undefined &&
+    input.label !== undefined &&
+    input.authorized?.has(handoffAuthorizationKey(input.location, input.label, input.targetAgent)) === true
   if (
+    !remembered &&
     handoffRequiresApproval(input.session, input.currentAgent, input.targetAgent, input.currentRules, input.targetRules)
   ) {
     return { action: "confirm", reason: "escalation", then: intent }
