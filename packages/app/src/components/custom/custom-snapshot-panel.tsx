@@ -206,17 +206,18 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           <span class="font-mono text-12-regular text-v2-text-text-base break-all select-all">{digest() || "-"}</span>
         </div>
 
-        {/* Agent ID */}
+        {/* Root agent, as frozen. Custom's root is protocol-fixed (D3), so this
+            reports what the snapshot holds and never falls back to draft state. */}
         <div class="flex items-center justify-between rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
           <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-            {language.t("custom.builder.primaryAgent")}
+            {language.t("custom.snapshot.rootAgent")}
           </span>
           <span class="font-mono text-12-medium text-blue-400">
             {(() => {
               const snap = snapshot()
-              if (!snap) return draft.state.primaryAgent ?? "coder"
+              if (!snap) return "-"
               if (snap.version === 1) return snap.data.agentID
-              return snap.data.agents[0]?.name ?? snap.data.agents[0]?.id ?? draft.state.primaryAgent ?? "coder"
+              return snap.data.agents[0]?.name ?? snap.data.agents[0]?.id ?? "-"
             })()}
           </span>
         </div>

@@ -6,13 +6,12 @@ describe("custom-draft store", () => {
   test("initializes with default state", () => {
     const store = createCustomDraftState()
     expect(store.state.source).toBe("temporary")
-    expect(store.state.primaryAgent).toBe("coder")
     expect(store.state.agents).toEqual([])
     expect(store.state.bindings).toEqual({})
     expect(store.state.requestedCapabilities).toEqual([])
   })
 
-  test("adds and removes agents, automatically updating primary agent", () => {
+  test("adds and removes agents without duplicating a relativePath", () => {
     const store = createCustomDraftState()
     store.reset()
 
@@ -24,7 +23,6 @@ describe("custom-draft store", () => {
     })
 
     expect(store.state.agents.length).toBe(1)
-    expect(store.state.primaryAgent).toBe("agent1")
 
     store.addAgent({
       kind: "agent",
@@ -34,11 +32,10 @@ describe("custom-draft store", () => {
     })
 
     expect(store.state.agents.length).toBe(2)
-    expect(store.state.primaryAgent).toBe("agent1")
 
     store.removeAgent("agent1.md")
     expect(store.state.agents.length).toBe(1)
-    expect(store.state.primaryAgent).toBe("agent2")
+    expect(store.state.agents[0]?.name).toBe("agent2")
   })
 
   test("toggles prompts and skills in bindings", () => {
@@ -185,7 +182,7 @@ describe("custom-draft store", () => {
 
     store.loadFromSnapshot(snapshot)
     expect(store.state.source).toBe("temporary")
-    expect(store.state.primaryAgent).toBe("reviewer")
+    expect(store.state.agents[0]?.name).toBe("reviewer")
     expect(store.state.bindings["orchestrator"]?.prompts[0]?.relativePath).toBe("code-review.md")
     expect(store.state.bindings["orchestrator"]?.skills[0]?.name).toBe("git-diff")
   })
@@ -250,7 +247,6 @@ describe("custom-draft store", () => {
 
     store.loadFromSnapshot(snapshot)
     expect(store.state.source).toBe("temporary")
-    expect(store.state.primaryAgent).toBe("coder")
     expect(store.state.agents.length).toBe(2)
     expect(store.state.workflow?.name).toBe("ci-flow")
     expect(store.state.bindings["orchestrator"]?.prompts[0]?.relativePath).toBe("guide.md")
@@ -323,7 +319,6 @@ describe("custom-draft store", () => {
     const tempState: CustomDraftState = {
       source: "temporary",
       title: "Test Title",
-      primaryAgent: "agent1",
       agents: [{ kind: "agent", relativePath: "agent1.md", revision: "rev1", name: "agent1" }],
       bindings: {
         orchestrator: {

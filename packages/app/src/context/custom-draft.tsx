@@ -53,7 +53,6 @@ export interface CustomDraftState {
   profilePath?: string
   profileRevision?: string
   title: string
-  primaryAgent: string
   agents: CustomDraftAgent[]
   workflow?: CustomDraftWorkflow
   bindings: Record<string, CustomDraftBinding>
@@ -64,7 +63,6 @@ export interface CustomDraftState {
 export const DEFAULT_DRAFT: CustomDraftState = {
   source: "temporary",
   title: "",
-  primaryAgent: "coder",
   agents: [],
   bindings: {},
   requestedCapabilities: [],
@@ -163,9 +161,6 @@ export function createCustomDraftState(
     setTitle(title: string) {
       setState("title", title)
     },
-    setPrimaryAgent(agent: string) {
-      setState("primaryAgent", agent)
-    },
     setWorkflow(workflow: CustomDraftWorkflow | undefined) {
       setState("workflow", workflow)
     },
@@ -178,9 +173,6 @@ export function createCustomDraftState(
           if (!draft.agents.some((a) => a.relativePath === agent.relativePath)) {
             draft.agents.push(agent)
           }
-          if (draft.agents.length === 1 || !draft.primaryAgent) {
-            draft.primaryAgent = agent.name ?? agent.relativePath.replace(/\.md$/, "")
-          }
         }),
       )
     },
@@ -192,13 +184,6 @@ export function createCustomDraftState(
           if (removed) {
             const consumer = `agents/${removed.name ?? removed.relativePath.replace(/\.md$/, "")}`
             delete draft.bindings[consumer]
-          }
-          if (
-            draft.agents.length > 0 &&
-            !draft.agents.some((a) => (a.name ?? a.relativePath.replace(/\.md$/, "")) === draft.primaryAgent)
-          ) {
-            const first = draft.agents[0]
-            draft.primaryAgent = first?.name ?? first?.relativePath.replace(/\.md$/, "") ?? ""
           }
         }),
       )
@@ -272,7 +257,6 @@ export function createCustomDraftState(
           draft.source = "temporary"
           draft.workflow = undefined
           if (snapshot.version === 1) {
-            draft.primaryAgent = snapshot.data.agentID
             draft.agents = [
               {
                 kind: "agent",
@@ -282,7 +266,6 @@ export function createCustomDraftState(
               },
             ]
           } else {
-            draft.primaryAgent = snapshot.data.agents[0]?.name ?? snapshot.data.agents[0]?.id ?? "coder"
             draft.agents = snapshot.data.agents.map((a) => ({
               kind: "agent",
               relativePath: a.relativePath,

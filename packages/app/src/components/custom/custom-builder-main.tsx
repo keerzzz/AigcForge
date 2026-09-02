@@ -63,52 +63,6 @@ export function CustomCompositionConfig() {
           </div>
         }
       >
-        {/* Primary Agent Section */}
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center justify-between">
-            <label class="text-v2-text-text-muted text-12-medium uppercase tracking-wider">
-              {language.t("custom.builder.primaryAgent")}
-            </label>
-          </div>
-          <div class="rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4 flex flex-col gap-3">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="h-8 w-8 rounded-md bg-blue-500/10 flex items-center justify-center text-blue-400">
-                  <Icon name="mode-assistant" size="small" />
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-v2-text-text-base text-14-medium font-mono">
-                    {draft.state.primaryAgent || language.t("custom.builder.noPrimaryAgent")}
-                  </span>
-                  <span class="text-v2-text-text-muted text-11-regular">
-                    {language.t("custom.builder.primaryAgentDescription")}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <Show when={draft.state.agents.length > 1}>
-              <div class="flex items-center gap-2 pt-2 border-t border-v2-border-border-base">
-                <span class="text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.builder.selectPrimary")}:
-                </span>
-                <select
-                  class="rounded bg-v2-background-bg-layer-03 border border-v2-border-border-base px-2 py-1 text-12-regular text-v2-text-text-base focus:outline-none"
-                  value={draft.state.primaryAgent}
-                  onChange={(e) => draft.setPrimaryAgent(e.currentTarget.value)}
-                >
-                  <For each={draft.state.agents}>
-                    {(agent) => {
-                      const name = agent.name ?? agent.relativePath.replace(/\.md$/, "")
-                      return <option value={name}>{name}</option>
-                    }}
-                  </For>
-                </select>
-              </div>
-            </Show>
-          </div>
-        </div>
-
         {/* Workflow selection */}
         <div class="flex flex-col gap-2">
           <label class="text-v2-text-text-muted text-12-medium uppercase tracking-wider">
@@ -168,17 +122,11 @@ export function CustomCompositionConfig() {
               <For each={draft.state.agents}>
                 {(agent) => {
                   const name = agent.name ?? agent.relativePath.replace(/\.md$/, "")
-                  const isPrimary = () => name === draft.state.primaryAgent
 
                   return (
                     <div class="inline-flex items-center gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 px-2.5 py-1.5 text-12-regular">
                       <Icon name="mode-assistant" size="small" class="text-blue-400 shrink-0" />
                       <span class="text-v2-text-text-base font-mono">{name}</span>
-                      <Show when={isPrimary()}>
-                        <span class="rounded bg-blue-500/15 px-1 py-0.2 text-9-bold text-blue-400 uppercase">
-                          {language.t("custom.builder.primaryBadge")}
-                        </span>
-                      </Show>
                       <IconButtonV2
                         variant="ghost-muted"
                         size="small"

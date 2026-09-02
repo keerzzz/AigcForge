@@ -248,8 +248,6 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
               <For each={filteredAgents()}>
                 {(agent) => {
                   const isIncluded = () => draft.state.agents.some((a) => a.relativePath === agent.relativePath)
-                  const isPrimary = () =>
-                    (agent.name ?? agent.relativePath.replace(/\.md$/, "")) === draft.state.primaryAgent
 
                   return (
                     <button
@@ -274,11 +272,6 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                         <span class="text-12-regular text-v2-text-text-base truncate">{agent.name}</span>
                       </div>
                       <div class="flex items-center gap-1 shrink-0">
-                        <Show when={isPrimary()}>
-                          <span class="rounded bg-blue-500/15 px-1 py-0.2 text-9-bold text-blue-400 uppercase">
-                            {language.t("custom.builder.primaryBadge")}
-                          </span>
-                        </Show>
                         <Show when={isIncluded()}>
                           <Icon name="check" size="small" class="text-emerald-400" />
                         </Show>
