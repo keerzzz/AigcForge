@@ -8513,6 +8513,12 @@ export class Session3 extends HeyApiClient {
       prompt?: Prompt
       delivery?: "steer" | "queue"
       resume?: boolean
+      agent?: string
+      model?: {
+        id: string
+        providerID: string
+        variant?: string
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -8526,6 +8532,8 @@ export class Session3 extends HeyApiClient {
             { in: "body", key: "prompt" },
             { in: "body", key: "delivery" },
             { in: "body", key: "resume" },
+            { in: "body", key: "agent" },
+            { in: "body", key: "model" },
           ],
         },
       ],

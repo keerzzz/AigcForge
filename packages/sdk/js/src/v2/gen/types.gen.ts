@@ -17584,6 +17584,12 @@ export type V2SessionPromptData = {
     prompt: Prompt
     delivery?: "steer" | "queue"
     resume?: boolean
+    agent?: string
+    model?: {
+      id: string
+      providerID: string
+      variant?: string
+    }
   }
   path: {
     sessionID: string

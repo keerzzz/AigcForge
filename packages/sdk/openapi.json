@@ -17550,6 +17550,25 @@
                   },
                   "resume": {
                     "type": "boolean"
+                  },
+                  "agent": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "providerID": {
+                        "type": "string"
+                      },
+                      "variant": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["id", "providerID"],
+                    "additionalProperties": false
                   }
                 },
                 "required": ["prompt"],
