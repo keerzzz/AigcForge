@@ -60,17 +60,6 @@ export interface PromptInput {
   readonly delivery?: Delivery
 }
 
-/**
- * S2: selection carried by the same request as the input, so a client never has
- * to compose "switch, then send" across two calls and be left half-applied when
- * the second one fails.
- */
-export interface AdmitWithSelectionInput extends PromptInput {
-  readonly agent?: Agent.ID
-  readonly model?: Model.Ref
-  readonly resume?: boolean
-}
-
 export interface SwitchModelInput {
   readonly sessionID: ID
   readonly model: Model.Ref
@@ -119,18 +108,6 @@ export interface Interface {
     Admission,
     | NotFoundError
     | PromptConflictError
-    | ProductModePolicy.UnsupportedProductModeError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-  >
-  readonly admitWithSelection: (
-    input: AdmitWithSelectionInput,
-  ) => Effect.Effect<
-    Admission,
-    | NotFoundError
-    | PromptConflictError
-    | ProductModeAgentPolicy.AgentNotAllowedError
-    | SessionComposition.AgentDelegationForbiddenError
     | ProductModePolicy.UnsupportedProductModeError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError

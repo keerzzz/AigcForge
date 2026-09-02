@@ -69,16 +69,6 @@ export const layer = Layer.effect(
         list: sessions.list,
         switchModel: sessions.switchModel,
         interrupt: sessions.interrupt,
-        admitWithSelection: (input) =>
-          sessions.admitWithSelection({
-            id: input.id,
-            sessionID: input.sessionID,
-            prompt: input.prompt,
-            delivery: input.delivery,
-            agent: input.agent,
-            model: input.model,
-            resume: input.resume,
-          }),
         prompt: (input) =>
           sessions.prompt({
             id: input.id,

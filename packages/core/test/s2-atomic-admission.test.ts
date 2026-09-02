@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer } from "effect"
+import { DateTime, Effect, Layer } from "effect"
 import { eq } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -106,6 +106,17 @@ const inputRows = Effect.fn("inputRows")(function* (id: SessionMessage.ID) {
 const sessionRow = Effect.fn("sessionRow")(function* (sessionID: SessionV2.ID) {
   const { db } = yield* Database.Service
   return yield* db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie)
+})
+
+const eventCount = Effect.fn("eventCount")(function* (sessionID: SessionV2.ID) {
+  const { db } = yield* Database.Service
+  const rows = yield* db
+    .select({ type: EventTable.type })
+    .from(EventTable)
+    .where(eq(EventTable.aggregate_id, sessionID))
+    .all()
+    .pipe(Effect.orDie)
+  return rows.length
 })
 
 describe("Atomic admission kernel (S2)", () => {
@@ -236,6 +247,91 @@ describe("Atomic admission kernel (S2)", () => {
       // a second AgentSwitched event (the V1 path guarded this; the S4 adapter
       // dropped the guard and wrote one per request).
       expect(yield* eventsOfType(sessionID, storedType(SessionEvent.AgentSwitched))).toHaveLength(1)
+    }),
+  )
+
+  it.effect("a batch that fails partway commits nothing and notifies nobody", () =>
+    Effect.gen(function* () {
+      const sessionID = SessionV2.ID.make("ses_s2_batch_fail")
+      yield* seed(sessionID)
+      const events = yield* EventV2.Service
+      const seen: string[] = []
+      yield* events.listen((event) =>
+        Effect.sync(() => {
+          seen.push(event.type)
+        }),
+      )
+      const before = yield* eventCount(sessionID)
+      const duplicated = "evt_s2_duplicate"
+      const switched = (agent: string, id?: string) =>
+        EventV2.batchEntry(
+          SessionEvent.AgentSwitched,
+          {
+            sessionID,
+            messageID: SessionMessage.ID.create(),
+            timestamp: DateTime.makeUnsafe(Date.now()),
+            agent: AgentV2.ID.make(agent),
+          },
+          id,
+        )
+
+      // The same event id twice: `commitDurableEvent` rejects the second one, and
+      // that rejection has to take the first one down with it.
+      const exit = yield* events
+        .publishBatch([switched("build", duplicated), switched("plan", duplicated)])
+        .pipe(Effect.exit)
+
+      expect(exit._tag).toBe("Failure")
+      expect(yield* eventCount(sessionID)).toBe(before)
+      // Nothing committed, so nothing may have been announced. A `publish` loop
+      // would already have notified subscribers about the first event here.
+      expect(seen).toHaveLength(0)
+    }),
+  )
+
+  it.effect("a batch that succeeds announces every event, and only after the commit", () =>
+    Effect.gen(function* () {
+      const sessionID = SessionV2.ID.make("ses_s2_batch_ok")
+      yield* seed(sessionID)
+      const events = yield* EventV2.Service
+      const { db } = yield* Database.Service
+      const seenAgentRows: Array<number> = []
+      yield* events.listen((event) =>
+        Effect.gen(function* () {
+          if (event.type !== SessionEvent.AgentSwitched.type) return
+          // Read the projected row from inside the notification: if the batch
+          // announced before committing, this read would not see the new agent.
+          const row = yield* db
+            .select({ agent: SessionTable.agent })
+            .from(SessionTable)
+            .where(eq(SessionTable.id, sessionID))
+            .get()
+            .pipe(Effect.orDie)
+          seenAgentRows.push(row?.agent === "build" ? 1 : 0)
+        }),
+      )
+
+      const committed = yield* events.publishBatch([
+        EventV2.batchEntry(SessionEvent.AgentSwitched, {
+          sessionID,
+          messageID: SessionMessage.ID.create(),
+          timestamp: DateTime.makeUnsafe(Date.now()),
+          agent: AgentV2.ID.make("build"),
+        }),
+        EventV2.batchEntry(SessionEvent.ModelSwitched, {
+          sessionID,
+          messageID: SessionMessage.ID.create(),
+          timestamp: DateTime.makeUnsafe(Date.now()),
+          model: { id: ModelV2.ID.make("test-model"), providerID: ProviderV2.ID.make("test") },
+        }),
+      ])
+
+      expect(committed).toHaveLength(2)
+      // Contiguous sequences prove they shared one transaction: the second read
+      // of the aggregate sequence saw the first insert.
+      const seqs = committed.map((event) => event.durable?.seq)
+      expect(seqs[1]).toBe((seqs[0] ?? 0) + 1)
+      expect(seenAgentRows).toEqual([1])
     }),
   )
 })

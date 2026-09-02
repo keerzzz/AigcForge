@@ -15,6 +15,7 @@ const base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
 const capture = () => {
   const published: Array<{ readonly type: string; readonly data: unknown }> = []
   const events = EventV2.Service.of({
+    publishBatch: () => Effect.succeed([]),
     publish: (definition, data) =>
       Effect.sync(() => {
         const event = { id: EventV2.ID.create(), type: definition.type, data } as EventV2.Payload<typeof definition>

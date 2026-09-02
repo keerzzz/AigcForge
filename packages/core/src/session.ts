@@ -819,35 +819,57 @@ export const layer = Layer.effect(
                 ? input.model
                 : undefined
 
-            if (nextAgent !== undefined) {
-              yield* events.publish(SessionEvent.AgentSwitched, {
-                sessionID: input.sessionID,
-                messageID: SessionMessage.ID.create(),
-                timestamp: yield* DateTime.now,
-                agent: nextAgent,
-              })
-            }
-            if (nextModel !== undefined) {
-              yield* events.publish(SessionEvent.ModelSwitched, {
-                sessionID: input.sessionID,
-                messageID: SessionMessage.ID.create(),
-                timestamp: yield* DateTime.now,
-                model: nextModel,
-              })
-            }
-
-            const admitted = yield* SessionInput.admit(db, events, {
-              id: messageID,
-              sessionID: input.sessionID,
-              prompt: input.prompt,
-              delivery,
-            }).pipe(
-              Effect.catchDefect((defect) =>
-                defect instanceof SessionInput.LifecycleConflict
-                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
-                  : Effect.die(defect),
-              ),
-            )
+            // One transaction for selection AND the input. Projectors run inside
+            // it, so the session row updates and the inbox insert land together
+            // or not at all, and no subscriber hears about any of it until the
+            // whole batch has committed.
+            const timestamp = yield* DateTime.now
+            const admitted =
+              existing ??
+              (yield* Effect.gen(function* () {
+                const committed = yield* events.publishBatch([
+                  ...(nextAgent === undefined
+                    ? []
+                    : [
+                        EventV2.batchEntry(SessionEvent.AgentSwitched, {
+                          sessionID: input.sessionID,
+                          messageID: SessionMessage.ID.create(),
+                          timestamp,
+                          agent: nextAgent,
+                        }),
+                      ]),
+                  ...(nextModel === undefined
+                    ? []
+                    : [
+                        EventV2.batchEntry(SessionEvent.ModelSwitched, {
+                          sessionID: input.sessionID,
+                          messageID: SessionMessage.ID.create(),
+                          timestamp,
+                          model: nextModel,
+                        }),
+                      ]),
+                  EventV2.batchEntry(SessionEvent.PromptAdmitted, {
+                    messageID,
+                    sessionID: input.sessionID,
+                    timestamp,
+                    prompt: input.prompt,
+                    delivery,
+                  }),
+                ])
+                const promoted = committed.find((event) => event.type === SessionEvent.PromptAdmitted.type)
+                if (promoted?.durable === undefined) {
+                  return yield* Effect.die("Prompt admission event is missing aggregate sequence")
+                }
+                return SessionInput.Admitted.make({
+                  kind: "prompt",
+                  admittedSeq: promoted.durable.seq,
+                  id: messageID,
+                  sessionID: input.sessionID,
+                  prompt: input.prompt,
+                  delivery,
+                  timeCreated: timestamp,
+                })
+              }))
             if (!SessionInput.equivalent(admitted, expected))
               return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
             // One request, one wake — and an exact retry wakes nothing, because
