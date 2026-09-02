@@ -52,14 +52,10 @@
 | D12            | **已裁决**           | 取 A（收紧域层）：kill switch 下沉到 `execution/local.ts` drain 这一唯一 `SessionRunner.run` 调用点，pending input 保持 pending，`UnsupportedProductModeError` 复用进 `RunError`；归 S3，不需要 S2 kernel。见 §6 D12                                                                                                                                                                                                                                                                                                                                                                             |
 | S3             | **已实施并审批通过** | A（`SyntheticAdmitted` 进 `DurableDefinitions`）、B（`enforcePrimary` 改 typed，verdict 拆 `PrimaryPolicyVerdict`/`CommandPolicyVerdict`，堵住 `CommandDeniedError` 向 create/switchAgent 的泄漏）、B2（`switchAgent` 对 custom root 补 primary gate，custom 子会话按 R6-3 豁免）、C（skill 提升复用 `admitted.timeCreated`）、D（kill switch 下沉为一处门）、E（handoff = `switchAgent`+`prompt`）。复审驳回首版 handoff 顺序缺陷，返工结果见 §6 D13「S3 实施结果」。全仓 `bun typecheck` 15/15 —— 自 `74487f934` 起首次回绿（D5-A 遗漏的 3 处 app fixture 与 2 处 core snapshot fixture 已补） |
 
-在 S-1 结束、下列前提完成且用户作出最终批准前，**不得修改生产代码或创建实施分支**：
+| S4 / D2 探针 | **已实施并审批通过** | S4（`b93897df9` + `54b777cd5`）：`PromptParts` 成为唯一 parts→canonical mapping owner，`admitCanonical` 的 selection 改走 `switchAgent`/`switchModel` 而非手写 publish（复审驳回首版：手写 publish 绕过 S3 刚补的 primary gate），text/plain 与目录附件 typed 拒绝而非 base64 化。D2 探针（`61b414caf`）：同连接原子批次可行、跨连接必死（`SQLiteError: database is locked`），为 S2 路线 1 的设计依据 |
+| S5 / S7 / T4 | **已实施并审批通过** | S5（`cbd18da96` + `fd515c713` + `833a10246`）：`@aigcfroge/schema/command-parse` 单一解析 owner（`submit.ts` 两份 `text.split(" ")` 与两份 `images.map` 计数归零）、`SessionInput.admitCommand` + `SessionV2.command`（custom-only / `isBindingSatisfied` / unbound / ambiguous / legacy `invocation===""` 五道 fail-closed）、runner `promoteCommands` 静态展开、canonical `POST /api/session/:id/command`、迁移 `command_payload`（可空新增列，已注册）。S7（`6eedef23e` + `8f4919778`）：capability 缺失改 typed、blanket control gate 删除（`requireRuntimeSession` + 域层 policy 接管）、fork 参数经 SDK 再生成彻底消失。T4（`de1c9b61b` + `09f3ff64e`）：`planHandoff` 接受 Location 限定授权集，app 侧 remember 落 `Persist.serverWorkspace(..., "handoff-grants")`（per-directory，未重复 custom-draft 的全局 key 错误）。**未做且已登记**：S7 share 拆分、tui handoff always 接线、S2 kernel、附件降级共享 owner |
 
-1. 明确 Snapshot V1、pre-binding V2 和新 consumer-runtime Snapshot 的兼容边界；不能把缺失 `bindings` 解码后的 `{}` 误判为一个合法空 catalog。
-2. 新建稳定 machine consumer key，不能用受 Unicode 限制的 key 反向限制 Agent 的展示名称。
-3. 将 handoff 的 `fork + prompt + agent` 静默失效登记为 P1，并在“原子实现”与“端到端删除”之间作产品裁决；过渡期请求必须 typed fail closed，禁止 2xx 忽略字段。
-4. 在 S-1 ledger 裁定本计划与 `v2-architecture-governance-slice-0-3.md`、`v2-ux-trust-foundation.md`、`mode-page-unification-v2.md` 的代码 owner、文件范围和合并顺序。
-5. 完成 SDK/OpenAPI 生成链证据：tracked spec、V1 gen、V2 gen 的 owner、再生命令和冻结/迁移策略必须可验证。
-6. 先解除会固化既有缺陷的测试契约，并以独立进程验证 `custom-preview-column` 的测试隔离事实。
+在 S-1 结束、下列前提完成且用户作出最终批准前，**不得修改生产代码或创建实施分支**：1. 明确 Snapshot V1、pre-binding V2 和新 consumer-runtime Snapshot 的兼容边界；不能把缺失 `bindings` 解码后的 `{}` 误判为一个合法空 catalog。2. 新建稳定 machine consumer key，不能用受 Unicode 限制的 key 反向限制 Agent 的展示名称。3. 将 handoff 的 `fork + prompt + agent` 静默失效登记为 P1，并在“原子实现”与“端到端删除”之间作产品裁决；过渡期请求必须 typed fail closed，禁止 2xx 忽略字段。4. 在 S-1 ledger 裁定本计划与 `v2-architecture-governance-slice-0-3.md`、`v2-ux-trust-foundation.md`、`mode-page-unification-v2.md` 的代码 owner、文件范围和合并顺序。5. 完成 SDK/OpenAPI 生成链证据：tracked spec、V1 gen、V2 gen 的 owner、再生命令和冻结/迁移策略必须可验证。6. 先解除会固化既有缺陷的测试契约，并以独立进程验证 `custom-preview-column` 的测试隔离事实。
 
 正确实施顺序调整为：
 

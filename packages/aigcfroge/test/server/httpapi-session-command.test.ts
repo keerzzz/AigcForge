@@ -17,7 +17,15 @@ const it = testEffect(Layer.mergeAll(Session.defaultLayer, Database.defaultLayer
 const capableHeaders = { [ProductModePolicy.CAPABILITIES_HEADER]: ProductModePolicy.CAPABILITY_CUSTOM_V1 }
 const AdmittedResponse = Schema.toCodecJson(
   Schema.Struct({
-    data: Schema.Struct({ kind: Schema.Literal("command"), command: Schema.String }),
+    // `admittedSeq` is what makes the exact-retry assertion below real: the
+    // caller supplies `id`, so comparing it proves nothing, while a second inbox
+    // row would necessarily carry a new sequence number.
+    data: Schema.Struct({
+      kind: Schema.Literal("command"),
+      command: Schema.String,
+      id: SessionMessage.ID,
+      admittedSeq: Schema.Number,
+    }),
   }),
 )
 const CustomCreateResponse = Schema.toCodecJson(
@@ -95,8 +103,10 @@ describe.serial("Canonical session.command endpoint (S5 leg 3)", () => {
         expect(decoded.data.kind).toBe("command")
         expect(decoded.data.command).toBe("review")
 
-        // Exact retry with the same message ID is idempotent: same admission,
-        // no second row, no conflict.
+        // Exact retry with the same message ID is idempotent: the same admission
+        // comes back, so no second inbox row was created. `admittedSeq` is the
+        // discriminator — a fresh row would increment it. The durable row/wake
+        // counts themselves are pinned in core (session-command.test.ts:216).
         const retry = yield* post(`/api/session/${sessionID}/command`, test.directory, {
           id: messageID,
           command: "review",
@@ -106,6 +116,8 @@ describe.serial("Canonical session.command endpoint (S5 leg 3)", () => {
         expect(retry.status).toBe(200)
         const retryDecoded = Schema.decodeUnknownSync(AdmittedResponse)(yield* retry.json)
         expect(retryDecoded.data.command).toBe("review")
+        expect(retryDecoded.data.id).toBe(messageID)
+        expect(retryDecoded.data.admittedSeq).toBe(decoded.data.admittedSeq)
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )
