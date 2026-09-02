@@ -1,6 +1,8 @@
-import { createContext, useContext, type ParentProps } from "solid-js"
+import { createContext, createMemo, Show, useContext, type ParentProps } from "solid-js"
 import { createStore, produce, reconcile, type SetStoreFunction } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
+import { customDraftKey, DRAFT_PERSIST_KEY } from "@/context/custom-draft-location"
+import type { ServerScope } from "@/utils/server-scope"
 import type { CompositionTemporaryInput, CompositionProfileInput } from "@aigcfroge/sdk/v2/client"
 import type { Snapshot } from "@aigcfroge/schema/composition"
 
@@ -348,12 +350,27 @@ export function createCustomDraftState(
 
 const sharedStores = new Map<string, ReturnType<typeof createCustomDraftState>>()
 
-export function createCustomDraftStore(directory: () => string) {
-  const key = directory()
+export type CustomDraftLocation = { scope: ServerScope; directory: string }
+
+/** One store per (server scope, normalized directory). */
+export function createCustomDraftStore(location: CustomDraftLocation | undefined) {
+  const key = location === undefined ? undefined : customDraftKey(location)
+  // Location not resolved yet: hand back a throwaway, unpersisted store rather than
+  // caching one under an empty key. The old code keyed on `directory()` alone and
+  // evaluated it once, so a not-yet-ready SDK pinned the store under "" forever.
+  if (key === undefined || location === undefined) return createCustomDraftState()
   const existing = sharedStores.get(key)
   if (existing) return existing
+
+  // The pre-Location global draft (`custom-draft` / `custom-draft.v1`) is NOT
+  // migrated. Passing those keys to `Persist.serverWorkspace`'s `legacy` parameter
+  // migrates per target, so one global draft would be copied into every project the
+  // user opens — the same fan-out the single global key already caused. A one-shot
+  // claim marker would be the correct migration and is not worth inventing here:
+  // Custom Mode sits behind a default-off kill switch, so what is dropped is unsaved
+  // asset picks that essentially nobody has. The old key is left in place, unread.
   const [state, setState] = persisted(
-    Persist.global("custom-draft", ["custom-draft.v1"]),
+    Persist.serverWorkspace(location.scope, location.directory, DRAFT_PERSIST_KEY),
     createStore<CustomDraftState>({ ...DEFAULT_DRAFT }),
   )
   const store = createCustomDraftState(DEFAULT_DRAFT, [state, setState])
@@ -365,9 +382,32 @@ export type CustomDraftStore = ReturnType<typeof createCustomDraftState>
 
 const CustomDraftContext = createContext<CustomDraftStore>()
 
-export function CustomDraftProvider(props: ParentProps<{ directory: () => string }>) {
-  const store = createCustomDraftStore(props.directory)
-  return <CustomDraftContext.Provider value={store}>{props.children}</CustomDraftContext.Provider>
+/**
+ * `location` returns undefined until the server and directory are both known. The
+ * subtree is `keyed` on the resolved identity so it is rebuilt when the Location
+ * changes — including the first transition out of "not ready", which the previous
+ * single evaluation of `directory()` could never recover from.
+ */
+export function CustomDraftProvider(props: ParentProps<{ location: () => CustomDraftLocation | undefined }>) {
+  const key = createMemo(() => {
+    const location = props.location()
+    return location === undefined ? undefined : customDraftKey(location)
+  })
+  return (
+    <Show
+      when={key()}
+      keyed
+      fallback={
+        <CustomDraftContext.Provider value={createCustomDraftStore(props.location())}>
+          {props.children}
+        </CustomDraftContext.Provider>
+      }
+    >
+      <CustomDraftContext.Provider value={createCustomDraftStore(props.location())}>
+        {props.children}
+      </CustomDraftContext.Provider>
+    </Show>
+  )
 }
 
 export function useCustomDraft() {

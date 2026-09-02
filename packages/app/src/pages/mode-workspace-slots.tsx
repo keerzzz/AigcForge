@@ -800,8 +800,13 @@ export function WorkPresetCatalogMain() {
   )
 }
 
-/** Custom location and asset navigation sidebar. */
-export function CustomProjectColumnSidebar() {
+/**
+ * The directory-scoped SDK plus the Custom draft's Location, shared by the two
+ * Custom slots below. `customLocation` is undefined until both the server context
+ * and the directory are known — `CustomDraftProvider` must not key a draft on a
+ * half-resolved Location.
+ */
+function useCustomDirectorySdk() {
   const { directory, ctx } = useModeDirectory()
   const dirSdk = createMemo(() => {
     const dir = directory()
@@ -809,9 +814,19 @@ export function CustomProjectColumnSidebar() {
     if (!dir || !currentCtx) return undefined
     return currentCtx.sdk.ensureDirSdkContext(dir)
   })
+  const customLocation = createMemo(() => {
+    const current = dirSdk()
+    return current ? { scope: current.scope, directory: current.directory } : undefined
+  })
+  return { dirSdk, customLocation }
+}
+
+/** Custom location and asset navigation sidebar. */
+export function CustomProjectColumnSidebar() {
+  const { dirSdk, customLocation } = useCustomDirectorySdk()
 
   return (
-    <CustomDraftProvider directory={() => directory() ?? ""}>
+    <CustomDraftProvider location={customLocation}>
       <CustomSidebar dirSdk={dirSdk} />
     </CustomDraftProvider>
   )
@@ -819,16 +834,10 @@ export function CustomProjectColumnSidebar() {
 
 /** Custom mode builder main workspace. */
 export function CustomSessionListMain() {
-  const { directory, ctx } = useModeDirectory()
-  const dirSdk = createMemo(() => {
-    const dir = directory()
-    const currentCtx = ctx()
-    if (!dir || !currentCtx) return undefined
-    return currentCtx.sdk.ensureDirSdkContext(dir)
-  })
+  const { dirSdk, customLocation } = useCustomDirectorySdk()
 
   return (
-    <CustomDraftProvider directory={() => directory() ?? ""}>
+    <CustomDraftProvider location={customLocation}>
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0 flex-1 overflow-y-auto px-4 pb-8">
         <CustomCompositionConfig />
         <CustomPlanPreviewColumn dirSdk={dirSdk} />
