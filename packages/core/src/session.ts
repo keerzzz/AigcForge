@@ -261,6 +261,28 @@ export interface Interface {
     messageID: SessionMessage.ID
   }) => Effect.Effect<void, NotFoundError>
   readonly setTitle: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
+  /**
+   * S2: selection + input in one all-or-nothing request, so a client never has
+   * to compose "switch, then send" across two calls and be left half-applied.
+   */
+  readonly admitWithSelection: (input: {
+    id?: SessionMessage.ID
+    sessionID: SessionSchema.ID
+    prompt: Prompt
+    delivery?: SessionInput.Delivery
+    resume?: boolean
+    agent?: string
+    model?: ModelV2.Ref
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    | NotFoundError
+    | PromptConflictError
+    | ProductModeAgentPolicy.AgentNotAllowedError
+    | SessionComposition.AgentDelegationForbiddenError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly prompt: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
@@ -727,6 +749,110 @@ export const layer = Layer.effect(
             if (!SessionInput.equivalent(admitted, expected))
               return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
             if (input.resume !== false) yield* execution.wake(admitted.sessionID)
+            return admitted
+          }),
+        ),
+      ),
+      /**
+       * S2: one request that carries selection AND an input, all-or-nothing.
+       *
+       * Everything that can be rejected is decided BEFORE the first durable
+       * write, so a rejected request leaves the session exactly as it was. That
+       * is the defect this replaces: `admitCanonical` committed switchAgent,
+       * then switchModel, then the prompt as three independent commits, so a
+       * prompt the server went on to reject still left the session on a
+       * different agent, and an abort between the writes produced a selection
+       * combination nobody asked for.
+       *
+       * Selection is also idempotent here: re-applying the agent the session
+       * already holds appends no event. The V1 path guarded that
+       * (`prompt.ts` compared against `current.agent`); the S4 adapter dropped
+       * the guard and wrote one AgentSwitched per request.
+       *
+       * Remaining window, deliberately not closed here: a crash BETWEEN the
+       * selection events and the inbox insert still leaves selection applied.
+       * Closing it needs an EventV2 batch primitive that commits N durable
+       * events in one transaction and defers every notification until after
+       * that commit — nesting today's `publish` calls inside an outer
+       * transaction would notify subscribers about events that can still roll
+       * back. Tracked in docs/technical-debt.md.
+       */
+      admitWithSelection: Effect.fn("V2Session.admitWithSelection")((input) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            const session = yield* result.get(input.sessionID)
+            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+            if (session.mode === "custom") {
+              yield* sessionComposition.get(input.sessionID)
+            }
+
+            const messageID = input.id ?? SessionMessage.ID.create()
+            const delivery = input.delivery ?? "steer"
+            const expected = { sessionID: input.sessionID, messageID, prompt: input.prompt, delivery }
+
+            // Validate the input against any row that already holds this ID
+            // before touching selection, so a conflict cannot leave the session
+            // switched. `admit` is idempotent, but it runs after selection.
+            const existing = yield* SessionInput.find(db, messageID)
+            if (existing !== undefined && !SessionInput.equivalent(existing, expected)) {
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            }
+
+            // Validate selection through the same owners `switchAgent` uses.
+            const nextAgent =
+              input.agent !== undefined && input.agent !== session.agent ? AgentV2.ID.make(input.agent) : undefined
+            if (nextAgent !== undefined) {
+              if (session.mode === "custom") {
+                yield* sessionComposition.assertAgentAllowed(input.sessionID, nextAgent)
+              }
+              // Custom children legitimately hold non-primary agents (R6-3);
+              // every other session keeps the five-mode primary gate.
+              if (!(session.mode === "custom" && session.parentID !== undefined)) {
+                yield* ProductModeAgentPolicy.enforcePrimary(session.mode, nextAgent)
+              }
+            }
+            const nextModel =
+              input.model !== undefined &&
+              (session.model?.id !== input.model.id ||
+                session.model?.providerID !== input.model.providerID ||
+                session.model?.variant !== input.model.variant)
+                ? input.model
+                : undefined
+
+            if (nextAgent !== undefined) {
+              yield* events.publish(SessionEvent.AgentSwitched, {
+                sessionID: input.sessionID,
+                messageID: SessionMessage.ID.create(),
+                timestamp: yield* DateTime.now,
+                agent: nextAgent,
+              })
+            }
+            if (nextModel !== undefined) {
+              yield* events.publish(SessionEvent.ModelSwitched, {
+                sessionID: input.sessionID,
+                messageID: SessionMessage.ID.create(),
+                timestamp: yield* DateTime.now,
+                model: nextModel,
+              })
+            }
+
+            const admitted = yield* SessionInput.admit(db, events, {
+              id: messageID,
+              sessionID: input.sessionID,
+              prompt: input.prompt,
+              delivery,
+            }).pipe(
+              Effect.catchDefect((defect) =>
+                defect instanceof SessionInput.LifecycleConflict
+                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                  : Effect.die(defect),
+              ),
+            )
+            if (!SessionInput.equivalent(admitted, expected))
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            // One request, one wake — and an exact retry wakes nothing, because
+            // the row it would have created already existed.
+            if (existing === undefined && input.resume !== false) yield* execution.wake(admitted.sessionID)
             return admitted
           }),
         ),
