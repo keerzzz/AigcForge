@@ -17,50 +17,11 @@ import { useTabs } from "@/context/tabs"
 import { ServerConnection } from "@/context/server"
 import { launchModeSession } from "@/pages/layout/helpers"
 import type { DirectorySDK } from "@/context/sdk"
-import type { CompositionPlan, CompositionDiagnostic } from "@aigcfroge/sdk/v2/client"
+import type { CompositionPlan } from "@aigcfroge/sdk/v2/client"
+import { blockingDiagnostics, classifyPlanFailure, evaluateStartGate, parseErrorDetails } from "./custom-plan-state"
 
 export interface CustomPreviewColumnProps {
   dirSdk: () => DirectorySDK | undefined
-}
-
-function parseErrorDetails(err: unknown): { status?: number; message?: string } {
-  if (typeof err === "object" && err !== null) {
-    const status = "status" in err && typeof err.status === "number" ? err.status : undefined
-    const message = "message" in err && typeof err.message === "string" ? err.message : undefined
-    return { status, message }
-  }
-  return { message: String(err) }
-}
-
-export interface PlanFailure {
-  error: string
-  disabled?: boolean
-  unsupported?: boolean
-}
-
-/**
- * Classifies a failed `customComposition.plan` call.
- *
- * `disabled` is what downgrades the surface from a red error to the amber
- * opt-in notice and what keeps `canStart` false, so misclassifying it
- * re-enables Start against a server that will refuse. It is currently derived by
- * matching the English text of `ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE`,
- * because the four server-side constructions of this error pass only `message` —
- * `InvalidRequestError.kind` exists and is populated elsewhere
- * (`"permission-override"`, `"Query"`), just not on this branch. So the
- * structured signal is available and unadopted, not missing. Until it is
- * adopted, this classification is sensitive to a server-side reword or a
- * localization pass, which is why it is a pinned pure function rather than an
- * inline branch — see technical-debt §4 for the fix and its trigger.
- */
-export const DISABLED_MESSAGE_MARKER = "Custom mode is disabled"
-
-export function classifyPlanFailure(err: unknown): PlanFailure {
-  const { status, message } = parseErrorDetails(err)
-  const msg = message ?? String(err)
-  if (status === 404) return { unsupported: true, error: "This server does not support custom compositions" }
-  if (msg.includes(DISABLED_MESSAGE_MARKER)) return { disabled: true, error: msg }
-  return { error: msg }
 }
 
 export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
@@ -108,17 +69,15 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
    */
   const result = createMemo(() => planResult.latest)
   const plan = createMemo(() => result()?.plan)
-  const blockingCount = createMemo(
-    () => (plan()?.diagnostics ?? []).filter((d: CompositionDiagnostic) => d.severity === "blocking").length,
+  const blockingCount = createMemo(() => blockingDiagnostics(plan()))
+  const startGate = createMemo(() =>
+    evaluateStartGate({
+      starting: starting(),
+      hasSdk: props.dirSdk() !== undefined,
+      result: result(),
+      draft: { source: draft.state.source, agentCount: draft.state.agents.length },
+    }),
   )
-  const canStart = createMemo(() => {
-    if (starting()) return false
-    if (!props.dirSdk()) return false
-    if (result()?.disabled || result()?.unsupported) return false
-    if (blockingCount() > 0) return false
-    if (draft.state.source === "temporary" && draft.state.agents.length === 0) return false
-    return true
-  })
 
   async function handleStart() {
     const sdk = props.dirSdk()
@@ -176,7 +135,7 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
             variant="contrast"
             size="normal"
             icon="enter"
-            disabled={!canStart()}
+            disabled={!startGate().canStart}
             loading={starting()}
             onClick={handleStart}
           >

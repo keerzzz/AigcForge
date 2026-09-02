@@ -12,19 +12,11 @@ import { showToast } from "@/utils/toast"
 import { Schema } from "effect"
 import { Snapshot } from "@aigcfroge/schema/composition"
 import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
+import { classifySnapshotFailure, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
 
 export interface CustomSessionPanelProps {
   sessionID?: string
   directory?: string
-}
-
-function parseErrorDetails(err: unknown): { status?: number; message?: string } {
-  if (typeof err === "object" && err !== null) {
-    const status = "status" in err && typeof err.status === "number" ? err.status : undefined
-    const message = "message" in err && typeof err.message === "string" ? err.message : undefined
-    return { status, message }
-  }
-  return { message: String(err) }
 }
 
 const decodeSnapshot = Schema.decodeUnknownOption(Snapshot)
@@ -52,20 +44,38 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   const [upgradeError, setUpgradeError] = createSignal<string | undefined>()
   const [copied, setCopied] = createSignal(false)
 
-  // Fetch snapshot for the session
-  const [snapshot] = createResource(
+  // Fetch snapshot for the session. `throwOnError: true` so the status reaches
+  // `classifySnapshotFailure`: only a 404 means "this session has no snapshot", and
+  // the panel must not render a 400 (a snapshot the server could not decode) or a
+  // dropped connection as the same thing. See custom-plan-state.ts (P2-11).
+  const [snapshotFetch] = createResource(
     () => ({ sessionID: props.sessionID, directory: props.directory }),
-    async (source): Promise<Snapshot | undefined> => {
-      if (!source.sessionID) return undefined
+    async (source): Promise<SnapshotFetch<Snapshot>> => {
+      if (!source.sessionID) return { state: "absent" }
       try {
         const s = sdk()
-        const res = await s.client.session.composition({ sessionID: source.sessionID }, { throwOnError: false })
-        return extractSnapshot(res.data)
-      } catch {
-        return undefined
+        const res = await s.client.session.composition({ sessionID: source.sessionID }, { throwOnError: true })
+        const decoded = extractSnapshot(res.data)
+        if (decoded === undefined) {
+          // 2xx whose body is not a Snapshot: server/client schema drift, not an
+          // absent composition.
+          return { state: "failed", message: language.t("custom.snapshot.undecodable") }
+        }
+        return { state: "ready", snapshot: decoded }
+      } catch (err: unknown) {
+        return classifySnapshotFailure(err)
       }
     },
   )
+
+  const snapshot = createMemo(() => {
+    const fetched = snapshotFetch.latest
+    return fetched?.state === "ready" ? fetched.snapshot : undefined
+  })
+  const snapshotError = createMemo(() => {
+    const fetched = snapshotFetch.latest
+    return fetched?.state === "failed" ? fetched.message : undefined
+  })
 
   const digest = createMemo(() => snapshot()?.digest ?? "")
   const snapshotV2 = createMemo(() => {
@@ -162,6 +172,16 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
             <Icon name="close" size="small" />
           </button>
         </div>
+      </Show>
+
+      {/* A failed composition read is reported; only a 404 renders as "no snapshot" */}
+      <Show when={snapshotError()}>
+        {(message) => (
+          <div class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-3 text-12-regular text-v2-state-fg-danger">
+            <Icon name="warning" size="small" class="shrink-0" />
+            <span class="min-w-0 flex-1">{language.t("custom.snapshot.loadFailed", { message: message() })}</span>
+          </div>
+        )}
       </Show>
 
       <WorkflowRuntimePanel sessionID={props.sessionID} />

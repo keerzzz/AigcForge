@@ -9,6 +9,7 @@ import { useGlobal } from "@/context/global"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { useCustomDraft } from "@/context/custom-draft"
 import type { DirectorySDK } from "@/context/sdk"
+import { catalogStatus, foldAssetCatalog, listOutcome, showsEmptyState } from "./custom-asset-catalog"
 
 type AssetCategory = "all" | "agents" | "workflows" | "prompts" | "skills" | "commands"
 
@@ -28,46 +29,48 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
   const [commandConsumer, setCommandConsumer] = createSignal("orchestrator")
 
   const [discovered, { refetch }] = createResource(props.dirSdk, async (sdk) => {
-    if (!sdk) return { agents: [], workflows: [], prompts: [], skills: [], commands: [] }
-    try {
-      const [agentsRes, workflowsRes, promptsRes, skillsRes, commandsRes] = await Promise.all([
-        sdk.client.agentAsset.list().catch(() => ({ data: { assets: [] } })),
-        sdk.client.workflowAsset.list().catch(() => ({ data: { assets: [] } })),
-        sdk.client.promptAsset.list().catch(() => ({ data: { assets: [] } })),
-        sdk.client.skillAsset.list().catch(() => ({ data: { assets: [] } })),
-        sdk.client.commandAsset.list().catch(() => ({ data: { assets: [] } })),
-      ])
-
-      return {
-        agents: agentsRes.data?.assets ?? [],
-        workflows: workflowsRes.data?.assets ?? [],
-        prompts: promptsRes.data?.assets ?? [],
-        skills: skillsRes.data?.assets ?? [],
-        commands: commandsRes.data?.assets ?? [],
-      }
-    } catch {
-      return { agents: [], workflows: [], prompts: [], skills: [], commands: [] }
-    }
+    if (!sdk) return undefined
+    // `allSettled`, not `all` with per-call catches: a failing kind has to be
+    // reported as a failure instead of arriving as an empty list. See
+    // custom-asset-catalog.ts (P2-10 / P2-13).
+    const [agents, workflows, prompts, skills, commands] = await Promise.allSettled([
+      sdk.client.agentAsset.list(),
+      sdk.client.workflowAsset.list(),
+      sdk.client.promptAsset.list(),
+      sdk.client.skillAsset.list(),
+      sdk.client.commandAsset.list(),
+    ])
+    return foldAssetCatalog({
+      agents: listOutcome(agents),
+      workflows: listOutcome(workflows),
+      prompts: listOutcome(prompts),
+      skills: listOutcome(skills),
+      commands: listOutcome(commands),
+    })
   })
+
+  const status = createMemo(() => catalogStatus({ loading: discovered.loading, failed: discovered.latest?.failed }))
+  const failedKinds = createMemo(() => discovered.latest?.failed ?? [])
+  const catalog = createMemo(() => discovered.latest)
 
   const query = createMemo(() => search().toLowerCase().trim())
 
   const filteredAgents = createMemo(() => {
-    const list = discovered()?.agents ?? []
+    const list = catalog()?.agents ?? []
     const q = query()
     if (!q) return list
     return list.filter((a) => a.name.toLowerCase().includes(q) || (a.description ?? "").toLowerCase().includes(q))
   })
 
   const filteredPrompts = createMemo(() => {
-    const list = discovered()?.prompts ?? []
+    const list = catalog()?.prompts ?? []
     const q = query()
     if (!q) return list
     return list.filter((p) => p.name.toLowerCase().includes(q) || (p.description ?? "").toLowerCase().includes(q))
   })
 
   const filteredWorkflows = createMemo(() => {
-    const list = discovered()?.workflows ?? []
+    const list = catalog()?.workflows ?? []
     const q = query()
     if (!q) return list
     return list.filter(
@@ -76,14 +79,14 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
   })
 
   const filteredSkills = createMemo(() => {
-    const list = discovered()?.skills ?? []
+    const list = catalog()?.skills ?? []
     const q = query()
     if (!q) return list
     return list.filter((s) => s.name.toLowerCase().includes(q) || (s.description ?? "").toLowerCase().includes(q))
   })
 
   const filteredCommands = createMemo(() => {
-    const list = discovered()?.commands ?? []
+    const list = catalog()?.commands ?? []
     const q = query()
     if (!q) return list
     return list.filter(
@@ -165,6 +168,21 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
         </div>
       </div>
 
+      {/* A failed read is reported instead of being rendered as an empty project */}
+      <Show when={status() === "error" || status() === "partial"}>
+        <div class="mx-3 flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-2 py-1.5">
+          <Icon name="warning" size="small" class="shrink-0 text-v2-state-fg-danger" />
+          <span class="min-w-0 flex-1 text-11-regular text-v2-state-fg-danger">
+            {status() === "error"
+              ? language.t("custom.sidebar.loadFailed")
+              : language.t("custom.sidebar.loadPartial", { kinds: failedKinds().join(", ") })}
+          </span>
+          <ButtonV2 variant="neutral" size="small" onClick={() => refetch()}>
+            {language.t("custom.sidebar.loadRetry")}
+          </ButtonV2>
+        </div>
+      </Show>
+
       {/* Category switcher */}
       <div class="flex items-center gap-1 px-3 overflow-x-auto pb-1">
         <button
@@ -179,35 +197,35 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
           class={`rounded px-2 py-0.5 text-11-medium transition-colors ${activeCategory() === "agents" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
           onClick={() => setActiveCategory("agents")}
         >
-          {language.t("custom.sidebar.agents")} ({discovered()?.agents.length ?? 0})
+          {language.t("custom.sidebar.agents")} ({catalog()?.agents.length ?? 0})
         </button>
         <button
           type="button"
           class={`rounded px-2 py-0.5 text-11-medium transition-colors ${activeCategory() === "workflows" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
           onClick={() => setActiveCategory("workflows")}
         >
-          {language.t("custom.sidebar.workflows")} ({discovered()?.workflows.length ?? 0})
+          {language.t("custom.sidebar.workflows")} ({catalog()?.workflows.length ?? 0})
         </button>
         <button
           type="button"
           class={`rounded px-2 py-0.5 text-11-medium transition-colors ${activeCategory() === "prompts" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
           onClick={() => setActiveCategory("prompts")}
         >
-          {language.t("custom.sidebar.prompts")} ({discovered()?.prompts.length ?? 0})
+          {language.t("custom.sidebar.prompts")} ({catalog()?.prompts.length ?? 0})
         </button>
         <button
           type="button"
           class={`rounded px-2 py-0.5 text-11-medium transition-colors ${activeCategory() === "skills" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
           onClick={() => setActiveCategory("skills")}
         >
-          {language.t("custom.sidebar.skills")} ({discovered()?.skills.length ?? 0})
+          {language.t("custom.sidebar.skills")} ({catalog()?.skills.length ?? 0})
         </button>
         <button
           type="button"
           class={`rounded px-2 py-0.5 text-11-medium transition-colors ${activeCategory() === "commands" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
           onClick={() => setActiveCategory("commands")}
         >
-          {language.t("custom.sidebar.commands")} ({discovered()?.commands.length ?? 0})
+          {language.t("custom.sidebar.commands")} ({catalog()?.commands.length ?? 0})
         </button>
       </div>
 
@@ -485,8 +503,8 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
           </div>
         </Show>
 
-        {/* Zero state: No agents in project */}
-        <Show when={(discovered()?.agents ?? []).length === 0}>
+        {/* Zero state: a clean read that found no agents (never a failed one) */}
+        <Show when={showsEmptyState({ status: status(), agentCount: catalog()?.agents.length ?? 0 })}>
           <div class="flex flex-col gap-2 rounded-md border border-dashed border-v2-border-border-base p-3 text-center mt-2">
             <span class="text-v2-text-text-muted text-12-regular">{language.t("custom.sidebar.emptyStarter")}</span>
             <ButtonV2 variant="neutral" size="small" icon="plus" onClick={handleCreateStarterAgent}>
