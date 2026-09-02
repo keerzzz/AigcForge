@@ -1,4 +1,5 @@
 import type { Component } from "solid-js"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js"
 import { modeDefinition, type Mode, type ModeSurfaceSlot } from "@/context/mode"
 import { useChatFeature, type ChatFeatureID } from "@/context/chat-feature"
@@ -83,8 +84,10 @@ export function ChatFeatureSidebar() {
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   // Keep names with counts so system assets can be deduplicated consistently.
+  // P2-14: hidden mode slots must not issue asset requests.
+  const slotActive = useModeSlotActive()
   const [kindCounts] = createResource(
-    () => ({ sdk: dirSdk(), version: assetVersion() }),
+    () => whenActive(slotActive(), () => ({ sdk: dirSdk(), version: assetVersion() })),
     async (source) => {
       if (!source.sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
       const [p, s, m, c, a, w, pl] = await Promise.all([

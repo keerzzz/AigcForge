@@ -19,6 +19,7 @@ import { launchModeSession } from "@/pages/layout/helpers"
 import type { DirectorySDK } from "@/context/sdk"
 import type { CompositionPlan } from "@aigcfroge/sdk/v2/client"
 import { blockingDiagnostics, classifyPlanFailure, evaluateStartGate, parseErrorDetails } from "./custom-plan-state"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 export interface CustomPreviewColumnProps {
   dirSdk: () => DirectorySDK | undefined
@@ -33,11 +34,10 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
   const [starting, setStarting] = createSignal(false)
   const [errorMessage, setErrorMessage] = createSignal<string | undefined>()
 
+  // P2-14: an object source is always truthy, so gating collapses it to undefined.
+  const slotActive = useModeSlotActive()
   const [planResult, { refetch: refetchPlan }] = createResource(
-    () => ({
-      sdk: props.dirSdk(),
-      composition: draft.composition,
-    }),
+    () => whenActive(slotActive(), () => ({ sdk: props.dirSdk(), composition: draft.composition })),
     async (source): Promise<{ plan?: CompositionPlan; error?: string; disabled?: boolean; unsupported?: boolean }> => {
       if (!source.sdk) return {}
       try {

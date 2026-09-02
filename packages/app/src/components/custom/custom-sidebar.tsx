@@ -10,6 +10,7 @@ import { getFilename } from "@aigcfroge/core/util/path"
 import { useCustomDraft } from "@/context/custom-draft"
 import type { DirectorySDK } from "@/context/sdk"
 import { catalogStatus, foldAssetCatalog, listOutcome, showsEmptyState } from "./custom-asset-catalog"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 type AssetCategory = "all" | "agents" | "workflows" | "prompts" | "skills" | "commands"
 
@@ -28,26 +29,31 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
   const [activeCategory, setActiveCategory] = createSignal<AssetCategory>("all")
   const [commandConsumer, setCommandConsumer] = createSignal("orchestrator")
 
-  const [discovered, { refetch }] = createResource(props.dirSdk, async (sdk) => {
-    if (!sdk) return undefined
-    // `allSettled`, not `all` with per-call catches: a failing kind has to be
-    // reported as a failure instead of arriving as an empty list. See
-    // custom-asset-catalog.ts (P2-10 / P2-13).
-    const [agents, workflows, prompts, skills, commands] = await Promise.allSettled([
-      sdk.client.agentAsset.list(),
-      sdk.client.workflowAsset.list(),
-      sdk.client.promptAsset.list(),
-      sdk.client.skillAsset.list(),
-      sdk.client.commandAsset.list(),
-    ])
-    return foldAssetCatalog({
-      agents: listOutcome(agents),
-      workflows: listOutcome(workflows),
-      prompts: listOutcome(prompts),
-      skills: listOutcome(skills),
-      commands: listOutcome(commands),
-    })
-  })
+  // P2-14: hidden mode slots must not issue asset requests.
+  const slotActive = useModeSlotActive()
+  const [discovered, { refetch }] = createResource(
+    () => whenActive(slotActive(), props.dirSdk),
+    async (sdk) => {
+      if (!sdk) return undefined
+      // `allSettled`, not `all` with per-call catches: a failing kind has to be
+      // reported as a failure instead of arriving as an empty list. See
+      // custom-asset-catalog.ts (P2-10 / P2-13).
+      const [agents, workflows, prompts, skills, commands] = await Promise.allSettled([
+        sdk.client.agentAsset.list(),
+        sdk.client.workflowAsset.list(),
+        sdk.client.promptAsset.list(),
+        sdk.client.skillAsset.list(),
+        sdk.client.commandAsset.list(),
+      ])
+      return foldAssetCatalog({
+        agents: listOutcome(agents),
+        workflows: listOutcome(workflows),
+        prompts: listOutcome(prompts),
+        skills: listOutcome(skills),
+        commands: listOutcome(commands),
+      })
+    },
+  )
 
   const status = createMemo(() => catalogStatus({ loading: discovered.loading, failed: discovered.latest?.failed }))
   const failedKinds = createMemo(() => discovered.latest?.failed ?? [])

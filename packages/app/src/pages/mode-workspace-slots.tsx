@@ -52,6 +52,7 @@ import { CustomProjectColumnSidebar as CustomSidebar } from "@/components/custom
 import { CustomCompositionConfig } from "@/components/custom/custom-builder-main"
 import { CustomPlanPreviewColumn } from "@/components/custom/custom-preview-column"
 import { CustomDraftProvider } from "@/context/custom-draft"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 /** Coding project and server navigation built on HomeProjectColumn. */
 export function CodingProjectColumnSidebar() {
@@ -226,7 +227,9 @@ export function CodingSessionListMain() {
   const search = createMemo(() => state.search.trim())
 
   // Keep one Session cache across mode changes; mode filtering stays in memory.
+  const slotActive = useModeSlotActive()
   const sessionLoad = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: ["home", "sessions", codingSel.selection.server, ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(
@@ -609,7 +612,9 @@ export function WorkPresetCatalogMain() {
     const dir = directory()
     return dir ? [dir] : []
   })
+  const slotActive = useModeSlotActive()
   const sessionLoad = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: [ctx()?.sdk.scope, "home", "work-sessions", ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })))
@@ -651,7 +656,7 @@ export function WorkPresetCatalogMain() {
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   const [workflowAssets] = createResource(
-    () => ({ sdk: dirSdk(), version: assetVersion() }),
+    () => whenActive(slotActive(), () => ({ sdk: dirSdk(), version: assetVersion() })),
     async (source) => {
       if (!source.sdk) return []
       const res = await source.sdk.client.workflowAsset.list()

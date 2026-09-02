@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createResource, createSignal, For } from "solid-js"
 import { createStore } from "solid-js/store"
+import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
 import { modeSurface } from "@/components/mode-surfaces"
 import { LocationApprovalCenter } from "@/components/approval-center"
 import { useServerSync } from "@/context/server-sync"
@@ -178,7 +179,9 @@ export function ModeWorkspace() {
                     const surf = modeSurface(slot)
                     return (
                       <div style={{ display: mode.currentMode === slot ? "" : "none" }}>
-                        <surf.Sidebar />
+                        <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
+                          <surf.Sidebar />
+                        </ModeSlotActiveProvider>
                       </div>
                     )
                   }}
@@ -194,7 +197,9 @@ export function ModeWorkspace() {
                         class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12"
                         style={{ display: mode.currentMode === slot ? "flex" : "none" }}
                       >
-                        <surf.Main />
+                        <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
+                          <surf.Main />
+                        </ModeSlotActiveProvider>
                       </div>
                     )
                   }}
