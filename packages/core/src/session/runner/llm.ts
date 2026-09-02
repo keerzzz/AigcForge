@@ -15,6 +15,7 @@ import {
   Effect,
   Exit,
   FiberSet,
+  FileSystem,
   Layer,
   Option,
   Ref,
@@ -71,6 +72,7 @@ import { CommandParse } from "@aigcfroge/schema/command-parse"
 import { AgentProvenanceError, type RunError, Service, SnapshotDriftError } from "./index"
 import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
+import { AttachmentResolver } from "./attachment-resolver"
 import { toLLMMessages } from "./to-llm-message"
 import { MAX_STEPS_PROMPT } from "./max-steps"
 import { isRecord } from "../../util/record"
@@ -139,6 +141,12 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const events = yield* EventV2.Service
+    // Acquired here, not inside the turn: the turn's declared environment is
+    // service-free by design, and a per-turn requirement would ripple into every
+    // Location-scoped layer. Absent FileSystem leaves deferred URIs unresolved,
+    // and `to-llm-message`'s guard still turns them into an explicit marker — so
+    // the user sees a refusal, never a silently dropped attachment.
+    const filesystem = yield* Effect.serviceOption(FileSystem.FileSystem)
     const llm = yield* LLMClient.Service
     const agents = yield* AgentV2.Service
     const tools = yield* ToolRegistry.Service
@@ -657,7 +665,15 @@ export const layer = Layer.effect(
         (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent, session.id, snapshot), session.id))
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
-      const context = entries.map((entry) => entry.message)
+      // D2 (b): deferred `file://` attachments become data URIs here, confined to
+      // the session's Location. This is the last point before the provider where
+      // the filesystem and the Location are both in scope.
+      const rawContext = entries.map((entry) => entry.message)
+      const context = Option.isNone(filesystem)
+        ? rawContext
+        : yield* AttachmentResolver.resolveDeferred(rawContext, session.location.directory).pipe(
+            Effect.provideService(FileSystem.FileSystem, filesystem.value),
+          )
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       // Derive tool-filtering intent from the latest user message, if available.
       const latestUserText = (() => {
