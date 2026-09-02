@@ -202,7 +202,7 @@ export function ModeWorkspace() {
                     {(slot) => {
                       const surf = modeSurface(slot)
                       return (
-                        <div style={{ display: mode.currentMode === slot ? "" : "none" }}>
+                        <div data-mode-sidebar={slot} style={{ display: mode.currentMode === slot ? "" : "none" }}>
                           <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
                             <surf.Sidebar />
                           </ModeSlotActiveProvider>
@@ -218,6 +218,7 @@ export function ModeWorkspace() {
                       const surf = modeSurface(slot)
                       return (
                         <div
+                          data-mode-main={slot}
                           class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12"
                           style={{ display: mode.currentMode === slot ? "flex" : "none" }}
                         >
