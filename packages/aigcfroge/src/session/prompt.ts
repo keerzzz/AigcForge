@@ -6,6 +6,7 @@ import os from "os"
 import { SessionID, MessageID, PartID } from "./schema"
 import { MessageV2 } from "./message-v2"
 import { SessionRevert } from "./revert"
+import { DecodeDiagnostic } from "./decode-diagnostic"
 import { Session } from "./session"
 import { Agent } from "../agent/agent"
 import { Provider } from "@/provider/provider"
@@ -429,7 +430,9 @@ export const layer = Layer.effect(
             return Effect.logError("subtask execution failed", {
               error,
               agent: task.agent,
-              description: task.description,
+              // `task.description` is model-authored prompt text, so it names the
+              // task instead of quoting it (CLAUDE.md Clean Logs).
+              descriptionLength: task.description.length,
             })
           }),
           Effect.onInterrupt(() =>
@@ -1152,20 +1155,23 @@ export const layer = Layer.effect(
           messageID: info.id,
           agent: info.agent,
           model: info.model,
-          cause: Cause.pretty(parsed.cause),
+          cause: DecodeDiagnostic.describe(parsed.cause),
         })
       }
       for (const [index, part] of parts.entries()) {
         const p = decodeMessagePart(part, { errors: "all", propertyOrder: "original" })
         if (Exit.isSuccess(p)) continue
+        // The part itself is NOT logged, and the cause goes through
+        // `DecodeDiagnostic`: `Cause.pretty` embeds the value that failed, and for
+        // a union discriminator miss it dumps the whole part — for a file
+        // attachment that is the base64 data URL. See decode-diagnostic.ts.
         yield* Effect.logError("invalid user part before save", {
           sessionID: input.sessionID,
           messageID: info.id,
           partID: part.id,
           partType: part.type,
           index,
-          cause: Cause.pretty(p.cause),
-          part,
+          cause: DecodeDiagnostic.describe(p.cause),
         })
       }
 
