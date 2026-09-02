@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createResource, createSignal, For } from "solid-js"
 import { createStore } from "solid-js/store"
 import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
+import { CustomDraftProvider } from "@/context/custom-draft"
 import { modeSurface } from "@/components/mode-surfaces"
 import { LocationApprovalCenter } from "@/components/approval-center"
 import { useServerSync } from "@/context/server-sync"
@@ -41,6 +42,17 @@ export function ModeWorkspace() {
     },
     select: (selection: AssistantNavSelection) => setAssistantSel("selection", selection),
   }
+
+  // S6 RED 4: the Custom draft is owned here, above both slots, so the Sidebar and
+  // the Main share one Provider instead of relying on a module-level map to hand them
+  // the same store. Derived from `ctx.sdk.scope` + directory directly — the same pair
+  // `ensureDirSdkContext` would surface, without building an SDK to read two fields.
+  const customLocation = createMemo(() => {
+    const dir = chatDirectory()
+    const currentCtx = chatCtx()
+    if (!dir || !currentCtx) return undefined
+    return { scope: currentCtx.sdk.scope, directory: dir }
+  })
 
   const [chatDirSdk, setChatDirSdk] = createSignal<DirectorySDK | undefined>()
   createEffect(() => {
@@ -157,56 +169,58 @@ export function ModeWorkspace() {
     <ModeWorkspaceAssetCtx.Provider value={assetCtx}>
       <CodingSelectionCtx.Provider value={codingValue}>
         <AssistantSelectionCtx.Provider value={assistantValue}>
-          <div
-            data-mode-workspace
-            class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col"
-          >
-            <LocationApprovalCenter />
+          <CustomDraftProvider location={customLocation}>
             <div
-              class={
-                "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
-                (mode.currentMode === "chat"
-                  ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
-                  : mode.currentMode === "work"
-                    ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
-                    : " max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]")
-              }
+              data-mode-workspace
+              class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col"
             >
-              {/* Sidebar slot: render-all + display:none */}
-              <div>
-                <For each={ALL_SLOTS}>
-                  {(slot) => {
-                    const surf = modeSurface(slot)
-                    return (
-                      <div style={{ display: mode.currentMode === slot ? "" : "none" }}>
-                        <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
-                          <surf.Sidebar />
-                        </ModeSlotActiveProvider>
-                      </div>
-                    )
-                  }}
-                </For>
+              <LocationApprovalCenter />
+              <div
+                class={
+                  "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
+                  (mode.currentMode === "chat"
+                    ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
+                    : mode.currentMode === "work"
+                      ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
+                      : " max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]")
+                }
+              >
+                {/* Sidebar slot: render-all + display:none */}
+                <div>
+                  <For each={ALL_SLOTS}>
+                    {(slot) => {
+                      const surf = modeSurface(slot)
+                      return (
+                        <div style={{ display: mode.currentMode === slot ? "" : "none" }}>
+                          <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
+                            <surf.Sidebar />
+                          </ModeSlotActiveProvider>
+                        </div>
+                      )
+                    }}
+                  </For>
+                </div>
+                {/* Main slot: render-all + display:none */}
+                <section class="min-h-0 min-w-0 flex-1 flex flex-col" aria-label="Main content">
+                  <For each={ALL_SLOTS}>
+                    {(slot) => {
+                      const surf = modeSurface(slot)
+                      return (
+                        <div
+                          class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12"
+                          style={{ display: mode.currentMode === slot ? "flex" : "none" }}
+                        >
+                          <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
+                            <surf.Main />
+                          </ModeSlotActiveProvider>
+                        </div>
+                      )
+                    }}
+                  </For>
+                </section>
               </div>
-              {/* Main slot: render-all + display:none */}
-              <section class="min-h-0 min-w-0 flex-1 flex flex-col" aria-label="Main content">
-                <For each={ALL_SLOTS}>
-                  {(slot) => {
-                    const surf = modeSurface(slot)
-                    return (
-                      <div
-                        class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12"
-                        style={{ display: mode.currentMode === slot ? "flex" : "none" }}
-                      >
-                        <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
-                          <surf.Main />
-                        </ModeSlotActiveProvider>
-                      </div>
-                    )
-                  }}
-                </For>
-              </section>
             </div>
-          </div>
+          </CustomDraftProvider>
         </AssistantSelectionCtx.Provider>
       </CodingSelectionCtx.Provider>
     </ModeWorkspaceAssetCtx.Provider>

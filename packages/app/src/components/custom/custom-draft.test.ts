@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { createCustomDraftState, toCompositionInput, type CustomDraftState } from "@/context/custom-draft"
+import {
+  createCustomDraftState,
+  createCustomDraftStore,
+  toCompositionInput,
+  type CustomDraftState,
+} from "@/context/custom-draft"
 import { Digest, Revision, type Snapshot } from "@aigcfroge/schema/composition"
 
 describe("custom-draft store", () => {
@@ -354,5 +359,22 @@ describe("custom-draft store", () => {
     if (profComp.source === "profile") {
       expect(profComp.profilePath).toBe(".aigcfroge/profiles/custom.yaml")
     }
+  })
+})
+
+describe("createCustomDraftStore", () => {
+  test("returns an independent store per call, with no instance cache", () => {
+    // The module-level `sharedStores` map is gone: the Custom Sidebar and Main share a
+    // store because `ModeWorkspace` owns one Provider above both slots, not because a
+    // global map hands them the same object. Pinned here because the cache was also
+    // what made an inline `value={createCustomDraftStore(...)}` look harmless — see
+    // `CustomDraftScope`. Only the unresolved-Location path is reachable from a unit
+    // test; the persisted path needs `usePlatform()`.
+    const first = createCustomDraftStore(undefined)
+    const second = createCustomDraftStore(undefined)
+
+    expect(first).not.toBe(second)
+    first.setTitle("only mine")
+    expect(second.state.title).toBe("")
   })
 })

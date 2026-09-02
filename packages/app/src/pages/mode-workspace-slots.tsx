@@ -51,7 +51,6 @@ import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 import { CustomProjectColumnSidebar as CustomSidebar } from "@/components/custom/custom-sidebar"
 import { CustomCompositionConfig } from "@/components/custom/custom-builder-main"
 import { CustomPlanPreviewColumn } from "@/components/custom/custom-preview-column"
-import { CustomDraftProvider } from "@/context/custom-draft"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 /** Coding project and server navigation built on HomeProjectColumn. */
@@ -806,47 +805,34 @@ export function WorkPresetCatalogMain() {
 }
 
 /**
- * The directory-scoped SDK plus the Custom draft's Location, shared by the two
- * Custom slots below. `customLocation` is undefined until both the server context
- * and the directory are known — `CustomDraftProvider` must not key a draft on a
- * half-resolved Location.
+ * The directory-scoped SDK for the two Custom slots. The draft Provider itself is
+ * owned by `ModeWorkspace`, above both slots, so nothing here creates one.
  */
 function useCustomDirectorySdk() {
   const { directory, ctx } = useModeDirectory()
-  const dirSdk = createMemo(() => {
+  return createMemo(() => {
     const dir = directory()
     const currentCtx = ctx()
     if (!dir || !currentCtx) return undefined
     return currentCtx.sdk.ensureDirSdkContext(dir)
   })
-  const customLocation = createMemo(() => {
-    const current = dirSdk()
-    return current ? { scope: current.scope, directory: current.directory } : undefined
-  })
-  return { dirSdk, customLocation }
 }
 
 /** Custom location and asset navigation sidebar. */
 export function CustomProjectColumnSidebar() {
-  const { dirSdk, customLocation } = useCustomDirectorySdk()
+  const dirSdk = useCustomDirectorySdk()
 
-  return (
-    <CustomDraftProvider location={customLocation}>
-      <CustomSidebar dirSdk={dirSdk} />
-    </CustomDraftProvider>
-  )
+  return <CustomSidebar dirSdk={dirSdk} />
 }
 
 /** Custom mode builder main workspace. */
 export function CustomSessionListMain() {
-  const { dirSdk, customLocation } = useCustomDirectorySdk()
+  const dirSdk = useCustomDirectorySdk()
 
   return (
-    <CustomDraftProvider location={customLocation}>
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0 flex-1 overflow-y-auto px-4 pb-8">
-        <CustomCompositionConfig />
-        <CustomPlanPreviewColumn dirSdk={dirSdk} />
-      </div>
-    </CustomDraftProvider>
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0 flex-1 overflow-y-auto px-4 pb-8">
+      <CustomCompositionConfig />
+      <CustomPlanPreviewColumn dirSdk={dirSdk} />
+    </div>
   )
 }

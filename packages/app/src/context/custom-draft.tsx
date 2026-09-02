@@ -348,19 +348,25 @@ export function createCustomDraftState(
   }
 }
 
-const sharedStores = new Map<string, ReturnType<typeof createCustomDraftState>>()
-
 export type CustomDraftLocation = { scope: ServerScope; directory: string }
 
-/** One store per (server scope, normalized directory). */
+/**
+ * The draft store for one Location.
+ *
+ * There is no instance cache. Sharing between the Custom Sidebar and Main is
+ * structural — `ModeWorkspace` owns the single Provider above both slots — so the
+ * module-level map that used to hand them the same object is gone, and with it the
+ * leak of one retained store per Location ever visited. The session route mounts its
+ * own Provider for the same Location; those two are never alive together (different
+ * routes) and `makePersisted` writes on every change, so a fresh store hydrates to
+ * the same state rather than losing edits.
+ */
 export function createCustomDraftStore(location: CustomDraftLocation | undefined) {
   const key = location === undefined ? undefined : customDraftKey(location)
   // Location not resolved yet: hand back a throwaway, unpersisted store rather than
-  // caching one under an empty key. The old code keyed on `directory()` alone and
+  // one keyed on an empty directory. The old code keyed on `directory()` alone and
   // evaluated it once, so a not-yet-ready SDK pinned the store under "" forever.
   if (key === undefined || location === undefined) return createCustomDraftState()
-  const existing = sharedStores.get(key)
-  if (existing) return existing
 
   // The pre-Location global draft (`custom-draft` / `custom-draft.v1`) is NOT
   // migrated. Passing those keys to `Persist.serverWorkspace`'s `legacy` parameter
@@ -373,9 +379,7 @@ export function createCustomDraftStore(location: CustomDraftLocation | undefined
     Persist.serverWorkspace(location.scope, location.directory, DRAFT_PERSIST_KEY),
     createStore<CustomDraftState>({ ...DEFAULT_DRAFT }),
   )
-  const store = createCustomDraftState(DEFAULT_DRAFT, [state, setState])
-  sharedStores.set(key, store)
-  return store
+  return createCustomDraftState(DEFAULT_DRAFT, [state, setState])
 }
 
 export type CustomDraftStore = ReturnType<typeof createCustomDraftState>
@@ -383,10 +387,23 @@ export type CustomDraftStore = ReturnType<typeof createCustomDraftState>
 const CustomDraftContext = createContext<CustomDraftStore>()
 
 /**
+ * Creates the store exactly once per mount and hands it down.
+ *
+ * This has to be a component, not an inline `value={createCustomDraftStore(...)}`:
+ * a Provider's `value` prop is a getter, so an inline call would build a new store
+ * on every reactive read and the draft would keep resetting. The instance cache used
+ * to hide that; it is gone.
+ */
+function CustomDraftScope(props: ParentProps<{ location: CustomDraftLocation | undefined }>) {
+  const store = createCustomDraftStore(props.location)
+  return <CustomDraftContext.Provider value={store}>{props.children}</CustomDraftContext.Provider>
+}
+
+/**
  * `location` returns undefined until the server and directory are both known. The
- * subtree is `keyed` on the resolved identity so it is rebuilt when the Location
- * changes — including the first transition out of "not ready", which the previous
- * single evaluation of `directory()` could never recover from.
+ * subtree is `keyed` on the resolved identity, so it is rebuilt — and the store
+ * recreated for the new Location — when the Location changes, including the first
+ * transition out of "not ready" that a single evaluation could never recover from.
  */
 export function CustomDraftProvider(props: ParentProps<{ location: () => CustomDraftLocation | undefined }>) {
   const key = createMemo(() => {
@@ -397,15 +414,9 @@ export function CustomDraftProvider(props: ParentProps<{ location: () => CustomD
     <Show
       when={key()}
       keyed
-      fallback={
-        <CustomDraftContext.Provider value={createCustomDraftStore(props.location())}>
-          {props.children}
-        </CustomDraftContext.Provider>
-      }
+      fallback={<CustomDraftScope location={props.location()}>{props.children}</CustomDraftScope>}
     >
-      <CustomDraftContext.Provider value={createCustomDraftStore(props.location())}>
-        {props.children}
-      </CustomDraftContext.Provider>
+      <CustomDraftScope location={props.location()}>{props.children}</CustomDraftScope>
     </Show>
   )
 }
