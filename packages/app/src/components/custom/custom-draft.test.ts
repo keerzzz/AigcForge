@@ -111,6 +111,34 @@ describe("custom-draft store", () => {
     expect(store.state.bindings["agents/reviewer"]?.commands).toEqual([])
   })
 
+  test("selects a single workflow: toggling a second one replaces it, toggling the same one clears it", () => {
+    // Replaces the source-string assertions in `custom-builder-contract.test.ts`,
+    // which checked that `custom-sidebar.tsx` contained the text "toggleWorkflow".
+    // The behaviour worth pinning is that this "toggle" is single-select — a draft
+    // holds at most one workflow, so picking a second silently drops the first.
+    const store = createCustomDraftState()
+    store.reset()
+    const first = { kind: "workflow" as const, relativePath: "workflows/a.yaml", revision: "rev-a", name: "a" }
+    const second = { kind: "workflow" as const, relativePath: "workflows/b.yaml", revision: "rev-b", name: "b" }
+
+    store.toggleWorkflow(first)
+    expect(store.state.workflow?.relativePath).toBe("workflows/a.yaml")
+    expect(store.composition).toMatchObject({
+      workflow: { kind: "workflow", relativePath: "workflows/a.yaml", revision: "rev-a" },
+    })
+
+    store.toggleWorkflow(second)
+    expect(store.state.workflow?.relativePath).toBe("workflows/b.yaml")
+
+    store.toggleWorkflow(second)
+    expect(store.state.workflow).toBeUndefined()
+    // `composition` is a union and only the temporary arm carries `workflow`, so
+    // narrow rather than assert.
+    const composition = store.composition
+    if (composition.source !== "temporary") throw new Error("expected a temporary composition")
+    expect(composition.workflow).toBeUndefined()
+  })
+
   test("removes agent-scoped bindings when the agent leaves the pool", () => {
     const store = createCustomDraftState()
     store.reset()

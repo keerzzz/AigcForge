@@ -23,6 +23,8 @@ import {
 } from "./helpers"
 import { pathKey } from "@/utils/path-key"
 import { ServerConnection } from "@/context/server"
+import type { Mode } from "@/context/mode"
+import type { DraftTab } from "@/context/tabs"
 
 const serverKey = ServerConnection.Key.make
 
@@ -144,6 +146,57 @@ describe("layout workspace helpers", () => {
         prompt: "run workflow",
       },
     ])
+  })
+
+  // Replaces the call-site census that used to live in `mode-launch-contract.test.ts`
+  // (it asserted nine files contained the text "launchModeSession"). The behaviour
+  // that census stood in for is the mode default and the override precedence, which
+  // the case above never reached because it always passed an explicit agent.
+  test("launchModeSession defaults the draft agent from the mode when no override is given", () => {
+    const draftFor = (mode: Mode) => {
+      const drafts: Array<Omit<DraftTab, "type" | "draftID">> = []
+      launchModeSession({
+        mode,
+        projects: { list: () => [{ worktree: "/root" }], open: () => {}, touch: () => {} },
+        server: serverKey("server"),
+        directory: "/root",
+        tabs: { newDraft: (draft) => drafts.push(draft) },
+      })
+      return drafts[0]
+    }
+
+    for (const mode of ["coding", "chat", "work", "custom"] as const) {
+      expect(draftFor(mode)).toMatchObject({ mode, agent: "meta" })
+    }
+    // Assistant is the one mode with its own orchestrator.
+    expect(draftFor("assistant")).toMatchObject({ mode: "assistant", agent: "assistant-orchestrator" })
+  })
+
+  test("launchModeSession lets an override win over the mode default", () => {
+    const drafts: Array<Omit<DraftTab, "type" | "draftID">> = []
+    launchModeSession({
+      mode: "assistant",
+      projects: { list: () => [{ worktree: "/root" }], open: () => {}, touch: () => {} },
+      server: serverKey("server"),
+      directory: "/root",
+      tabs: { newDraft: (draft) => drafts.push(draft) },
+      draftOverrides: { agent: "custom-agent", permissionTier: "propose" },
+    })
+
+    expect(drafts[0]).toMatchObject({ agent: "custom-agent", permissionTier: "propose" })
+  })
+
+  test("launchModeSession opens the requested directory when no project claims it", () => {
+    const opened: string[] = []
+    launchModeSession({
+      mode: "coding",
+      projects: { list: () => [{ worktree: "/elsewhere" }], open: (d) => opened.push(d), touch: () => {} },
+      server: serverKey("server"),
+      directory: "/unclaimed",
+      tabs: { newDraft: () => {} },
+    })
+
+    expect(opened).toEqual(["/unclaimed"])
   })
 
   test("normalizes trailing slash in workspace key", () => {
