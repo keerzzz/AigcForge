@@ -1,5 +1,6 @@
 import { useServerSync } from "@/context/server-sync"
-import { decode64 } from "@/utils/base64"
+import { useSDKOptional } from "@/context/sdk"
+import { resolveProviderDirectory } from "@/hooks/provider-location"
 import { useParams } from "@solidjs/router"
 import { Iterable, pipe } from "effect"
 import { createMemo } from "solid-js"
@@ -19,7 +20,10 @@ const popularProviderSet = new Set(popularProviders)
 export function useProviders() {
   const serverSync = useServerSync()
   const params = useParams()
-  const dir = createMemo(() => decode64(params.dir) ?? "")
+  // The SDK context is the Location owner; the route param is the fallback for the
+  // shell above it. See provider-location.ts for why the lookup is optional.
+  const sdk = useSDKOptional()
+  const dir = createMemo(() => resolveProviderDirectory({ sdkDirectory: sdk?.().directory, routeParam: params.dir }))
   const providers = () => {
     if (dir()) {
       const [projectStore] = serverSync().child(dir())
