@@ -176,7 +176,10 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
 
       {/* A failed read is reported instead of being rendered as an empty project */}
       <Show when={status() === "error" || status() === "partial"}>
-        <div class="mx-3 flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-2 py-1.5">
+        <div
+          data-slot="custom-asset-load-error"
+          class="mx-3 flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-2 py-1.5"
+        >
           <Icon name="warning" size="small" class="shrink-0 text-v2-state-fg-danger" />
           <span class="min-w-0 flex-1 text-11-regular text-v2-state-fg-danger">
             {status() === "error"
@@ -504,7 +507,10 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
 
         {/* Zero state: a clean read that found no agents (never a failed one) */}
         <Show when={showsEmptyState({ status: status(), agentCount: catalog()?.agents.length ?? 0 })}>
-          <div class="flex flex-col gap-2 rounded-md border border-dashed border-v2-border-border-base p-3 text-center mt-2">
+          <div
+            data-slot="custom-asset-empty-starter"
+            class="flex flex-col gap-2 rounded-md border border-dashed border-v2-border-border-base p-3 text-center mt-2"
+          >
             <span class="text-v2-text-text-muted text-12-regular">{language.t("custom.sidebar.emptyStarter")}</span>
             <ButtonV2 variant="neutral" size="small" icon="plus" onClick={handleCreateStarterAgent}>
               {language.t("custom.sidebar.createStarterAgent")}

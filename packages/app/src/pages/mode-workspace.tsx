@@ -66,14 +66,25 @@ export function ModeWorkspace() {
   })
 
   const [chatAssetList, { refetch: refetchAssets }] = createResource(chatDirSdk, async (sdk) => {
+    // Each list is settled individually, so one failing endpoint contributes nothing
+    // instead of rejecting the whole resource. That matters because `mergedAssetData`
+    // below reads this resource, and reading a rejected resource throws into the
+    // nearest boundary — the fallback-less `<Suspense>` at `pages/layout.tsx:43`. A
+    // single 500 therefore used to blank the entire mode workspace, for every mode.
+    // The Chat surface has no error affordance of its own yet; see technical-debt.
+    const settle = <T,>(call: Promise<T>): Promise<T | { data: undefined }> =>
+      call.then(
+        (value) => value,
+        () => ({ data: undefined }),
+      )
     const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes, pluginsRes] = await Promise.all([
-      sdk.client.promptAsset.list(),
-      sdk.client.skillAsset.list(),
-      sdk.client.mcpAsset.list(),
-      sdk.client.commandAsset.list(),
-      sdk.client.agentAsset.list(),
-      sdk.client.workflowAsset.list(),
-      sdk.client.pluginAsset.list(),
+      settle(sdk.client.promptAsset.list()),
+      settle(sdk.client.skillAsset.list()),
+      settle(sdk.client.mcpAsset.list()),
+      settle(sdk.client.commandAsset.list()),
+      settle(sdk.client.agentAsset.list()),
+      settle(sdk.client.workflowAsset.list()),
+      settle(sdk.client.pluginAsset.list()),
     ])
     const promptAssets = promptsRes.data?.assets ?? []
     const skillAssets = skillsRes.data?.assets ?? []
