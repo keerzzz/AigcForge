@@ -205,11 +205,18 @@ export const SessionGroup = HttpApiGroup.make("server.session")
   .add(
     HttpApiEndpoint.post("session.prompt", "/api/session/:sessionID/prompt", {
       params: { sessionID: SessionV2.ID },
+      // S2: selection rides along with the input. Without these fields a client
+      // that wants "switch to X and say this" has to POST /agent and /prompt
+      // separately, and a failure on the second call leaves the session switched
+      // with nothing sent — the same partial-failure shape the kernel exists to
+      // remove. `switchAgent`/`switchModel` stay for pure selection changes.
       payload: Schema.Struct({
         id: SessionMessage.ID.pipe(Schema.optional),
         prompt: Prompt,
         delivery: SessionInput.Delivery.pipe(Schema.optional),
         resume: Schema.Boolean.pipe(Schema.optional),
+        agent: AgentV2.ID.pipe(Schema.optional),
+        model: ModelV2.Ref.pipe(Schema.optional),
       }),
       success: Schema.Struct({ data: SessionInput.Admitted }),
       error: [ConflictError, SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],

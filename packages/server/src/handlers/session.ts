@@ -329,12 +329,14 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session
-              .prompt({
+              .admitWithSelection({
                 sessionID: ctx.params.sessionID,
                 id: ctx.payload.id,
                 prompt: ctx.payload.prompt,
                 delivery: ctx.payload.delivery,
                 resume: ctx.payload.resume,
+                agent: ctx.payload.agent,
+                model: ctx.payload.model,
               })
               .pipe(
                 Effect.catchTag("Session.NotFoundError", (error) =>
@@ -365,6 +367,19 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                   Effect.fail(
                     new InvalidRequestError({
                       message: `Invalid custom session snapshot: ${error.sessionID}`,
+                    }),
+                  ),
+                ),
+                // Selection rejected by the mode x agent policy, or by the frozen
+                // custom pool. The caller asked for it, so say what was wrong
+                // rather than collapsing it into a generic failure.
+                Effect.catchTag("AgentNotAllowedError", (error) =>
+                  Effect.fail(new InvalidRequestError({ message: error.message })),
+                ),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
+                  Effect.fail(
+                    new InvalidRequestError({
+                      message: `Agent '${error.agentID}' is not part of the frozen composition pool`,
                     }),
                   ),
                 ),

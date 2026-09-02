@@ -60,7 +60,6 @@ import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionInput } from "@aigcfroge/core/session/input"
 import { PromptParts } from "./prompt-parts"
 import { SessionMessage } from "@aigcfroge/core/session/message"
-import { AgentV2 } from "@aigcfroge/core/agent"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { AgentAttachment, FileAttachment, Prompt, Source } from "@aigcfroge/core/session/prompt"
@@ -1742,30 +1741,28 @@ export const layer = Layer.effect(
           ...(prompt.agents === undefined ? {} : { agents: prompt.agents }),
         })
       }
-      // Selection must be durable before the wake, and it must go through the
-      // policy owners: `switchAgent` carries the five-mode primary-agent gate
-      // plus the custom Snapshot pool check (S3 B2). Publishing `AgentSwitched`
-      // by hand here would reopen exactly the hole that gate closed — a custom
-      // root could persist a non-meta agent and brick its next provider turn.
-      if (input.agent !== undefined) {
-        yield* v2session.switchAgent({ sessionID: input.sessionID, agent: AgentV2.ID.make(input.agent) })
-      }
-      if (input.model !== undefined) {
-        yield* v2session.switchModel({
-          sessionID: input.sessionID,
-          model: {
-            id: ModelV2.ID.make(input.model.modelID),
-            providerID: ProviderV2.ID.make(input.model.providerID),
-            ...(input.model.variant === undefined ? {} : { variant: ModelV2.VariantID.make(input.model.variant) }),
-          },
-        })
-      }
-      return yield* v2session.prompt({
+      // Selection travels with the input through the S2 kernel, which validates
+      // everything that can be rejected before the first durable write and then
+      // commits selection and the inbox row in one transaction. The previous
+      // shape here — switchAgent, then switchModel, then prompt — was three
+      // independent commits, so a prompt the server went on to reject still left
+      // the session on a different agent.
+      return yield* v2session.admitWithSelection({
         id: input.messageID === undefined ? undefined : SessionMessage.ID.make(String(input.messageID)),
         sessionID: input.sessionID,
         prompt: canonical,
         delivery: "steer",
         resume: true,
+        ...(input.agent === undefined ? {} : { agent: input.agent }),
+        ...(input.model === undefined
+          ? {}
+          : {
+              model: {
+                id: ModelV2.ID.make(input.model.modelID),
+                providerID: ProviderV2.ID.make(input.model.providerID),
+                ...(input.model.variant === undefined ? {} : { variant: ModelV2.VariantID.make(input.model.variant) }),
+              },
+            }),
       })
     })
 
