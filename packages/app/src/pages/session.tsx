@@ -1616,16 +1616,19 @@ export default function Page() {
 
     try {
       await executeHandoff(plan, {
-        switchAgent: async () => {
-          await sdk().client.v2.session.switchAgent({ sessionID, agent })
-        },
-        send: async () => {
+        // One request carries the switch and the message (S2): two calls would
+        // leave the session switched with nothing sent when the second fails.
+        submit: async () => {
           await sdk().client.v2.session.prompt({
             sessionID,
+            agent,
             prompt: { text: promptText },
             delivery: "steer",
             resume: true,
           })
+        },
+        switchAgent: async () => {
+          await sdk().client.v2.session.switchAgent({ sessionID, agent })
         },
         prefill: () =>
           prompt.set([{ type: "text", content: promptText, start: 0, end: promptText.length }], promptText.length),

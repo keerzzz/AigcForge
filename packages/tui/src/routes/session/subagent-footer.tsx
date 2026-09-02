@@ -100,16 +100,19 @@ export function SubagentFooter() {
 
     try {
       await executeHandoff(plan, {
-        switchAgent: async () => {
-          await sdk.client.v2.session.switchAgent({ sessionID, agent })
-        },
-        send: async () => {
+        // One request carries the switch and the message (S2): two calls would
+        // leave the session switched with nothing sent when the second fails.
+        submit: async () => {
           await sdk.client.v2.session.prompt({
             sessionID,
+            agent,
             prompt: { text: prompt },
             delivery: "steer",
             resume: true,
           })
+        },
+        switchAgent: async () => {
+          await sdk.client.v2.session.switchAgent({ sessionID, agent })
         },
         prefill: () =>
           navigate({ type: "session", sessionID, prompt: { input: prompt, parts: [{ type: "text", text: prompt }] } }),

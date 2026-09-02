@@ -44,11 +44,11 @@ describe("planHandoff / executeHandoff ordering (R1)", () => {
   const record = async (plan: ReturnType<typeof planHandoff>, approve = false) => {
     const calls: string[] = []
     await executeHandoff(plan, {
+      submit: async () => {
+        calls.push("submit")
+      },
       switchAgent: async () => {
         calls.push("switchAgent")
-      },
-      send: async () => {
-        calls.push("send")
       },
       prefill: () => calls.push("prefill"),
       confirm: async () => {
@@ -68,7 +68,7 @@ describe("planHandoff / executeHandoff ordering (R1)", () => {
 
   test("an approved escalating handoff switches after the confirmation, never before", async () => {
     const plan = planHandoff({ ...base, send: true })
-    expect(await record(plan, true)).toEqual(["confirm", "switchAgent", "send"])
+    expect(await record(plan, true)).toEqual(["confirm", "submit"])
   })
 
   test("an approved escalating handoff without send prefills instead of sending", async () => {
@@ -77,10 +77,10 @@ describe("planHandoff / executeHandoff ordering (R1)", () => {
     expect(await record(plan, true)).toEqual(["confirm", "switchAgent", "prefill"])
   })
 
-  test("a non-escalating handoff with send switches before sending and never asks", async () => {
+  test("a non-escalating handoff with send switches and sends in one request", async () => {
     const plan = planHandoff({ ...base, currentRules: allowEdit, send: true })
     expect(plan).toEqual({ action: "switch-and-send" })
-    expect(await record(plan)).toEqual(["switchAgent", "send"])
+    expect(await record(plan)).toEqual(["submit"])
   })
 
   test("send:false switches then prefills, never sends", async () => {
@@ -113,11 +113,11 @@ describe("planHandoff authorized grants (S6 always)", () => {
   const record = async (plan: ReturnType<typeof planHandoff>, approve = false) => {
     const calls: string[] = []
     await executeHandoff(plan, {
+      submit: async () => {
+        calls.push("submit")
+      },
       switchAgent: async () => {
         calls.push("switchAgent")
-      },
-      send: async () => {
-        calls.push("send")
       },
       prefill: () => calls.push("prefill"),
       confirm: async () => {
@@ -163,6 +163,6 @@ describe("planHandoff authorized grants (S6 always)", () => {
 
   test("an authorized plan never calls confirm during execution", async () => {
     const plan = planHandoff({ ...escalating, send: true, location, label, authorized: new Set([grant]) })
-    expect(await record(plan)).toEqual(["switchAgent", "send"])
+    expect(await record(plan)).toEqual(["submit"])
   })
 })

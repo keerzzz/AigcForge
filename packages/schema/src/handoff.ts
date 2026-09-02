@@ -187,8 +187,18 @@ export function planHandoff(input: {
 }
 
 export interface HandoffOps {
+  /**
+   * Switch and send as ONE request. Two calls — switch, then send — leave the
+   * session switched with nothing sent when the second one fails, which is the
+   * partial-failure shape the S2 kernel exists to remove. The canonical prompt
+   * endpoint carries `agent`/`model` precisely so this can be one call.
+   */
+  readonly submit: () => Promise<void>
+  /**
+   * Selection only, for the prefill path: there is no input to carry, and the
+   * prefill that follows is local, so nothing can fail after the switch lands.
+   */
   readonly switchAgent: () => Promise<void>
-  readonly send: () => Promise<void>
   readonly prefill: () => void
   /** Resolves true only on an explicit approval; dismissal must resolve false. */
   readonly confirm: (reason: "escalation") => Promise<boolean>
@@ -198,8 +208,8 @@ export interface HandoffOps {
 /** Executes a plan. Kept next to `planHandoff` so the ordering is testable once. */
 export async function executeHandoff(plan: HandoffPlan, ops: HandoffOps): Promise<void> {
   const proceed = async (action: "switch-and-send" | "switch-and-prefill") => {
+    if (action === "switch-and-send") return await ops.submit()
     await ops.switchAgent()
-    if (action === "switch-and-send") return await ops.send()
     return ops.prefill()
   }
   if (plan.action !== "confirm") return await proceed(plan.action)
