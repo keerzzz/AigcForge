@@ -84,7 +84,7 @@ const v2OperationUnavailable = () => new HttpApiError.BadRequest({})
 const unsupportedProductMode = (error: ProductModePolicy.UnsupportedProductModeError) =>
   new UnsupportedProductModeError({ mode: error.mode, message: error.message })
 
-// HIGH-4: custom sessions are V2-native. The V1 sync prompt/command/shell
+// Custom sessions are V2-native. The V1 sync prompt/command/shell
 // endpoints run the legacy V1 prompt loop, which has no custom gating — reject
 // typed and point clients at the V2 async admission surface.
 const v1SyncUnsupportedForCustom = (mode: string) =>
@@ -213,7 +213,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* v2task.get(ctx.params.sessionID)
     })
 
-    // Atomic single-task mutations (differential-review HIGH-2): each touches
+    // Atomic single-task mutations: each touches
     // only the named row, so a stale client cache can never delete a task that
     // was appended server-side but whose SSE event hasn't reached the client yet.
     const patchTask = Effect.fn("SessionHttpApi.patchTask")(function* (ctx: {
@@ -265,8 +265,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             expectedRevision: result?.revision ?? ctx.payload.expectedRevision,
           })
           .pipe(
-            // Resuming a schedule-less task to `scheduled` is rejected by the
-            // domain invariant (HIGH-4) - surface it as a client error, not a 500.
+            // Resuming a schedule-less task to `scheduled` is rejected by a
+            // domain invariant - surface it as a client error, not a 500.
             Effect.catchTag("SessionTask.TaskWriteError", (error) =>
               Effect.fail(new InvalidRequestError({ message: error.message })),
             ),
@@ -289,8 +289,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       const v2task = yield* taskService(ctx.params.sessionID)
       // The server owns id generation on create: a client-supplied id on POST
-      // could collide with the global task PK or enable cycle forgery
-      // (differential-review re-review HIGH-2). `append` mints a fresh `tsk_`.
+      // could collide with the global task PK or enable cycle forgery.
+      // `append` mints a fresh `tsk_`.
       const created = yield* v2task
         .append({
           sessionID: ctx.params.sessionID,
@@ -315,7 +315,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           ),
         )
       // `append` returns the full position-ordered list; the newly appended row
-      // carries the highest position (re-review MEDIUM-1), so `.at(-1)` is the
+      // carries the highest position, so `.at(-1)` is the
       // created task even in a pre-populated session. An empty result for a
       // single-item append is an infrastructure invariant violation → 500
       // defect, not a client 404.
@@ -620,7 +620,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload?: typeof ForkPayload.Type
     }) {
       const original = yield* requireSession(ctx.params.sessionID)
-      // MEDIUM-5: the creation gate exists to block generic ROOT creation of
+      // The creation gate exists to block generic ROOT creation of
       // custom sessions; fork is not root creation. A custom parent falls
       // through to the V2 branch, where create({parentID}) copies the frozen
       // snapshot (orphan custom parents fail typed via the SnapshotNotFound

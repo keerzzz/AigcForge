@@ -187,7 +187,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
             })
           }
-          // MEDIUM-1: symmetric with the instance custom-composition/start gate —
+          // Symmetric with the instance custom-composition/start gate —
           // creating custom sessions requires the custom capability header.
           const req = yield* HttpServerRequest.HttpServerRequest
           if (!ProductModePolicy.isCustomCapable(req.headers[ProductModePolicy.CAPABILITIES_HEADER])) {
@@ -698,7 +698,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           const req = yield* HttpServerRequest.HttpServerRequest
           const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
           const parent = yield* requireSessionAndCapability(ctx.params.sessionID, capabilitiesHeader)
-          // MEDIUM-5: the creation gate exists to block generic ROOT creation of
+          // The creation gate exists to block generic ROOT creation of
           // custom sessions; fork is not root creation. A custom parent routes to
           // V2 create({parentID}), which copies the frozen snapshot (orphan custom
           // parents fail typed below: SnapshotNotFound -> InvalidRequestError).

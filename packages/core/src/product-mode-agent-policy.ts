@@ -181,7 +181,7 @@ export function checkCommandAllowed(mode: string): CommandPolicyVerdict {
       allowed: false,
       error: new CommandDeniedError({
         mode,
-        reason: "Shell/command prompts are denied in custom mode without an M1 composition snapshot",
+        reason: "Shell/command prompts are denied in custom mode without a composition snapshot",
       }),
     }
   }
