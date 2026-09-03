@@ -100,10 +100,6 @@ export function assertRuntimeSupported(mode: string | undefined): Effect.Effect<
   )
 }
 
-export function isV2Mode(mode: string | undefined): boolean {
-  return mode === "custom"
-}
-
 export function shouldUseV2Runtime(mode: string | undefined, globalFlag: boolean): boolean {
   if (mode === "custom") return true
   return globalFlag

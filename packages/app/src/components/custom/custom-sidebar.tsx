@@ -17,7 +17,6 @@ type AssetCategory = "all" | "agents" | "workflows" | "prompts" | "skills" | "co
 
 export interface CustomSidebarProps {
   dirSdk: () => DirectorySDK | undefined
-  refetchAssets?: () => void
 }
 
 export function CustomProjectColumnSidebar(props: CustomSidebarProps) {

@@ -137,17 +137,13 @@ export function createCustomDraftState(
   initial: CustomDraftState = DEFAULT_DRAFT,
   customStore?: [get: CustomDraftState, set: SetStoreFunction<CustomDraftState>],
 ) {
-  const [state, setState] =
-    customStore ??
-    createStore<CustomDraftState>({
-      ...initial,
-      bindings: Object.fromEntries(
-        Object.entries(initial.bindings).map(([consumer, binding]) => [
-          consumer,
-          { ...binding, commands: binding.commands ?? [] },
-        ]),
-      ),
-    })
+  // No `commands ?? []` normalization here: it only ever ran on the branch that
+  // builds a store from `initial`, and `initial` is always `DEFAULT_DRAFT`, whose
+  // `bindings` is `{}` — so it normalized nothing. The path that CAN hydrate a
+  // pre-`commands` binding is the persisted one, and it arrives as `customStore`,
+  // which skipped that branch entirely. The per-use `commands ?? []` guards
+  // downstream are therefore reachable, not redundant.
+  const [state, setState] = customStore ?? createStore<CustomDraftState>({ ...initial })
 
   return {
     state,

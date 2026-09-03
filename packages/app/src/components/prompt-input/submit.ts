@@ -245,12 +245,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const [search] = useSearchParams<{ draftId?: string }>()
   const server = useServer()
   const tabs = useTabs()
-  let global: ReturnType<typeof useGlobal> | undefined
-  try {
-    global = useGlobal()
-  } catch {
-    // GlobalProvider not available (e.g. in tests)
-  }
+  const global = useGlobal()
   const pendingKey = (sessionID: string) => ScopedKey.from(sdk().scope, sessionID)
 
   const errorMessage = (err: unknown) => {
@@ -429,7 +424,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         if (shouldAutoAccept) permission.enableAutoAccept(session.id, sessionDirectory)
         local.session.promote(sessionDirectory, session.id)
         layout.handoff.setTabs(base64Encode(sessionDirectory), session.id)
-        global?.sessionPlacement.set({
+        global.sessionPlacement.set({
           server: server.key,
           leafID: created.id,
           rootID: created.parentID ?? created.id,

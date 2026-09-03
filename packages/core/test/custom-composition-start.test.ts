@@ -381,10 +381,8 @@ describe("Phase B: Atomic Custom Session Start and V2 Runtime Policy", () => {
 
   it.effect("pure policy helpers classify custom mode as V2 runtime", () =>
     Effect.gen(function* () {
-      expect(ProductModePolicy.isV2Mode("custom")).toBe(true)
       expect(ProductModePolicy.shouldUseV2Runtime("custom", false)).toBe(true)
       expect(ProductModePolicy.shouldUseV2Runtime("custom", true)).toBe(true)
-      expect(ProductModePolicy.isV2Mode("coding")).toBe(false)
       expect(ProductModePolicy.shouldUseV2Runtime("coding", false)).toBe(false)
       expect(ProductModePolicy.shouldUseV2Runtime("coding", true)).toBe(true)
     }),

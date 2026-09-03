@@ -17,8 +17,9 @@ const optimistic: Array<{
   }
 }> = []
 const optimisticSeeded: boolean[] = []
-const storedSessions: Record<string, Array<{ id: string; title?: string }>> = {}
+const storedSessions: Record<string, Array<{ id: string; title?: string; directory?: string }>> = {}
 const promoted: Array<{ directory: string; sessionID: string }> = []
+const placements: Array<{ server: string; leafID: string; rootID: string; directory: string }> = []
 const sentShell: string[] = []
 const syncedDirectories: string[] = []
 
@@ -54,6 +55,9 @@ const clientFor = (directory: string) => {
           data: {
             id: `session-${createdSessions.length}`,
             title: `New session ${createdSessions.length}`,
+            // The real endpoint answers with the session's own directory, and
+            // `submit.ts` records placement from it.
+            directory,
           },
         }
       },
@@ -128,6 +132,20 @@ beforeAll(async () => {
 
   mock.module("@/context/server", () => ({
     useServer: () => ({ key: "server-key" }),
+  }))
+
+  // Mocked like every other context this module reads. `submit.ts` used to wrap
+  // `useGlobal()` in a try/catch so this file could skip it — a test-only escape in
+  // production code, and one that left the placement write unobserved.
+  mock.module("@/context/global", () => ({
+    useGlobal: () => ({
+      sessionPlacement: {
+        set: (input: { server: string; leafID: string; rootID: string; directory: string }) => {
+          placements.push(input)
+          return input
+        },
+      },
+    }),
   }))
 
   mock.module("@/context/tabs", () => ({
@@ -233,6 +251,7 @@ beforeEach(() => {
   optimistic.length = 0
   optimisticSeeded.length = 0
   promoted.length = 0
+  placements.length = 0
   params = {}
   sentShell.length = 0
   syncedDirectories.length = 0
@@ -306,6 +325,12 @@ describe("prompt submit worktree selection", () => {
     await submit.handleSubmit(event)
 
     expect(enabledAutoAccept).toEqual([{ sessionID: "session-1", directory: "/repo/worktree-a" }])
+    // The placement write that the removed try/catch used to make optional. A new
+    // session is its own root, and it is recorded against the worktree it was created
+    // in, not the directory the composer was opened from.
+    expect(placements).toEqual([
+      { server: "server-key", leafID: "session-1", rootID: "session-1", directory: "/repo/worktree-a" },
+    ])
   })
 
   test("includes the selected variant on optimistic prompts", async () => {
@@ -368,7 +393,9 @@ describe("prompt submit worktree selection", () => {
 
     await submit.handleSubmit(event)
 
-    expect(storedSessions["/repo/worktree-a"]).toEqual([{ id: "session-1", title: "New session 1" }])
+    expect(storedSessions["/repo/worktree-a"]).toEqual([
+      { id: "session-1", title: "New session 1", directory: "/repo/worktree-a" },
+    ])
     expect(optimisticSeeded).toEqual([true])
   })
 })
