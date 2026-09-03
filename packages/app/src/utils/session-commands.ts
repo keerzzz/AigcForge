@@ -35,11 +35,20 @@ export function useSessionSnapshotCommands(session: () => SessionLike | undefine
   const sdk = useSDK()
   const sessionID = () => session()?.id
 
+  // The source stays truthy even with no session, and the fetcher declines instead.
+  // A null source makes Solid's `load()` take a branch that returns before
+  // `Transition.promises.delete(pr)`, while `loadEnd`'s delete is guarded by a
+  // `loadedUnderTransition` the same call has already recomputed as false — so a
+  // registered promise leaks into the running transition and never leaves it. This
+  // component renders inside the session route, whose navigation IS that transition:
+  // one leaked entry and the route never commits. Declining in the fetcher issues no
+  // request either, which is all the null source bought.
   const [snapshot] = createResource(
-    () => (sessionID() ? { sessionID: sessionID(), directory: sdk().directory } : undefined),
+    () => ({ sessionID: sessionID(), directory: sdk().directory }),
     async (source): Promise<Composition.Snapshot | undefined> => {
+      if (!source.sessionID) return undefined
       try {
-        const res = await sdk().client.session.composition({ sessionID: source.sessionID! }, { throwOnError: false })
+        const res = await sdk().client.session.composition({ sessionID: source.sessionID }, { throwOnError: false })
         return extractSnapshot(res.data)
       } catch {
         return undefined

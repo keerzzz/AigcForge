@@ -120,16 +120,12 @@ test.describe("regression: Home is not a Product Mode surface", () => {
     // session), and `currentMode` is persisted, so on the next load chat is the default
     // the Session route has to overrule.
     //
-    // Reached by URL rather than by clicking the Home row, and that is a finding rather
-    // than a shortcut: the click is wedged. Measured — the row's handler runs to
-    // completion (`openSessionRecord` adds the tab and calls `navigate()` with the right
-    // href) but `history` is never written and the old DOM stays up for at least 24s,
-    // because `@solidjs/router` writes history in the `.finally()` of a Solid transition
-    // and that transition never resolves. Stubbing out `<Session />` makes the very same
-    // click land, and so does neutering `Transition.promises.add`, so the transition is
-    // held by a resource inside the session page. See technical-debt: it is pre-existing,
-    // it is not what this spec is for, and asserting the mode through a URL visit pins
-    // the same property without depending on it.
+    // Reached by URL rather than by clicking the Home row on purpose: the property under
+    // test is that the ROUTE adopts its own session's mode, so it should hold however the
+    // route was entered. Home's click path is pinned separately in
+    // `session-open-navigation.spec.ts` — that spec exists because this click used to be
+    // wedged (a resource left registered in `Transition.promises` kept the router
+    // transition from ever resolving), which is fixed.
     await openApp(page)
     await expect(modeButton(page, "Chat")).toHaveAttribute("aria-pressed", "true")
 
