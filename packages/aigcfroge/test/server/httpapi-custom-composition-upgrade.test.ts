@@ -126,8 +126,12 @@ describe("Custom Composition Upgrade HttpApi", () => {
         false,
       )
       expect(response.status).toBe(400)
+      // S7 made a missing capability a typed unsupported-mode error on both the
+      // canonical and the legacy surface, so the tag is asserted, not just the text:
+      // a generic `InvalidRequestError` here would mean the two surfaces drifted again.
       expect(yield* response.json).toMatchObject({
-        _tag: "InvalidRequestError",
+        _tag: "UnsupportedProductModeError",
+        mode: "custom",
         message: expect.stringContaining(ProductModePolicy.CAPABILITY_CUSTOM_V1),
       })
     }),
