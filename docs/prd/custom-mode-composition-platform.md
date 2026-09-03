@@ -36,7 +36,7 @@ ADR-17 接受后需要正式修订：
 - My Agents PRD：启动能力并入 Custom 首页，不再作为相互竞争的产品入口。
 - Assistant PRD §21.2：撤销“不新增第五种 Product Mode”的旧扩展结论。
 
-在 ADR-17 接受前，本 PRD 只定义目标产品契约，不授权实现静默改写现有四模式 Schema 或 Session 兼容语义。
+~~在 ADR-17 接受前，本 PRD 只定义目标产品契约，不授权实现静默改写现有四模式 Schema 或 Session 兼容语义。~~ **前置条件已解除（2026-09-03 复核）**：ADR-17 已接受并实施，`ProductMode.ID`（`packages/schema/src/product-mode.ts:5`）为含 `custom` 的五值，Schema 改写走的是显式的 capable-client 协商而非静默改写。
 
 ### 2.1 协议复核后的范围裁决
 
@@ -416,4 +416,4 @@ M1 实现复核确认：具备 `product-mode-custom-v1` 能力的客户端可将
 - **审批范围**：批准本 PRD §17.1 的 M0/M1 实施准入，不代表 M1 Rollout Exit 已通过。
 - **追加执行授权**：用户后续明确要求 M0 Phase A-F 连续执行，中间只做验证和小结，不设置审批点；M0 完成后由高级全栈顾问统一复审。
 - **未批准范围**：M1 运行时、Custom UI 入口、Snapshot 持久化与 Tool allowlist 的 M1 执行集成、commit、push、PR 和 M1 rollout exit。
-- **状态约束**：生产运行时在 M0 Phase B 代码合入前仍严格保持四值 Product Mode；旧客户端不得将未来的 `custom` 解码为 Coding。
+- **状态约束**：~~生产运行时在 M0 Phase B 代码合入前仍严格保持四值 Product Mode~~ **已解除（2026-09-03 复核）**：M0 Phase B 已合入，`ProductMode.ID` 为五值。旧客户端不得将 `custom` 解码为 Coding 这一条**仍然有效**，由 capable-client 头协商保证。
