@@ -1,6 +1,6 @@
 # ADR-17: Custom Mode Composition Platform
 
-> 状态：Accepted for M0/M1 implementation v1.2（2026-08-18；用户授权 AI 代理代行 Product / Core / App / Security / Schema+SDK 技术审批）；生产运行时仍保持四值，直至 M0 Phase B 合入
+> 状态：Accepted for M0/M1 implementation v1.2（2026-08-18；用户授权 AI 代理代行 Product / Core / App / Security / Schema+SDK 技术审批）。**2026-09-03 复核**：M0 Phase B 已合入，`ProductMode.ID` 与 `MODE_DEFINITIONS` 均为含 `custom` 的五值，`/mode/custom` 为常规入口；M2/M3 的遗留项见 [`docs/technical-debt.md`](../../technical-debt.md) §3
 > 日期：2026-08-18
 > 关联：ADR-11、ADR-12、ADR-14、ADR-15、[Custom PRD](../../prd/custom-mode-composition-platform.md)、[Custom 路线图](../../roadmap/custom-mode-roadmap.md)、[Custom 研究稿](../../research/agent/DeepSeek-Harness四模式借鉴与自定义模式思维风暴.md)
 
@@ -426,4 +426,4 @@ M1 实现复核确认：`session.children` 与 `session.context` 对能力客户
 - **审批范围**：批准 ADR-17 治理契约、Custom PRD §17.1 实施准入，以及 M0 Phase B Schema/capable-client 的 TDD 实施准备。
 - **追加执行授权**：用户后续明确要求 M0 Phase A-F 连续执行，中间只做验证和小结，不设置审批点；M0 完成后由高级全栈顾问统一复审。
 - **未批准范围**：M1 运行时、Custom UI 入口、Snapshot 持久化与 Tool allowlist 的 M1 执行集成、commit、push、PR 和 M1 rollout exit。
-- **状态约束**：生产运行时在 M0 Phase B 代码合入前仍严格保持四值 Product Mode；旧客户端不得将未来的 `custom` 解码为 Coding。
+- **状态约束**：~~生产运行时在 M0 Phase B 代码合入前仍严格保持四值 Product Mode~~ **已解除（2026-09-03 复核）**：M0 Phase B 已合入，`ProductMode.ID` 为五值。旧客户端不得将 `custom` 解码为 Coding 这一条**仍然有效**，由 capable-client 头协商保证（`packages/schema/src/product-mode.ts` 的 capability 段）。

@@ -141,7 +141,18 @@ CI 注记：
 
 1. 不复制 production 逻辑到测试 helper。
 2. 不用 `as any` / `@ts-ignore` / 跳过 hook 强行绿。
-3. 不断言源码字符串代替行为。
+3. 不断言源码字符串代替行为。读一个 `.ts`/`.tsx` 再 `toContain` 它的字符，测的是文本而不是行为：
+   re-export 或换个写法就假绿，重命名或换格式就假红。已批量整改（`170567929` 换掉 14 条）。
+   替代物按性质选：
+   - **行为**（点了会怎样、请求发了什么）→ e2e，或把函数抽成可注入 client 的纯 `.ts` 做单测
+     （例：`components/chat/asset-insert.test.ts` 用记账 client 断言 apply 路由与 payload）。
+   - **类型归属**（谁拥有这个类型）→ 类型级断言，让 `tsgo` 而不是 `toContain` 失败
+     （例：`assistant-session-panel-open.test.ts` 双向 assignable）。
+   - **依赖方向**（这层不许 import 那层）→ `.oxlintrc.json` 的 `no-restricted-imports`
+     override，一次覆盖整层而不是一个文件（例：`packages/app/src/context/**` 不许 import
+     `@/pages/*`）。
+   - **「复用而非分叉」** 目前没有便宜的行为化替代（fork 出来的组件长得一样），Chat/Work 右栏各留
+     一条并在文件头写明，见技术债 §4。新增此类断言前先证明前三条都不适用。
 4. 只测 `assert()` 不测工具定义物化 = 半测（权限类必须成对）。
 5. 不只测 V2 漏 V1（双运行时功能必须 parity）。
 6. 不新增 `Effect.sleep(N)` 等待型测试。

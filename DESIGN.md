@@ -25,13 +25,22 @@ Do not build landing-page hero patterns inside the app shell. Avoid decorative s
 
 ## Product Mode Switching
 
-- Chat, Coding, Work, and Assistant have first-class module entry routes at `/mode/:mode`. Home cards and the global icon rail navigate to those routes, but selection alone must not create a Draft/Session, restore recent work, select a Tab, reclassify work, or change the Agent.
-- ADR-17 (Accepted for M0/M1 implementation v1.2) defines a fifth fixed Custom entry at `/mode/custom` and a Custom typed main slot (desktop 3-column layout: Asset Directory / Composition Canvas / Plan Preview; narrow 1-column responsive layout with drawers). Until M0 Phase B and later App Gates land, the four routes above remain the active implemented contract in production runtime. When implemented, Custom must join the same definition registry and shared `ModeWorkspace` (`render-all + display:none` and resource elevation to guarantee zero remount and zero flash); it must not introduce a parallel shell, Session route, navigation rail, or ad hoc styling system.
+- Chat, Coding, Work, Assistant, and Custom have first-class module entry routes at `/mode/:mode`. The global icon rail navigates to those routes, but selection alone must not create a Draft/Session, restore recent work, select a Tab, reclassify work, or change the Agent.
+- Custom (ADR-17) is implemented: it is the fifth entry in the shared definition registry and renders in the shared `ModeWorkspace` (`render-all + display:none` plus resource elevation, so switching neither remounts nor flashes). It must not introduce a parallel shell, Session route, navigation rail, or ad hoc styling system. Hidden slots must not issue network/SDK/persist effects — gate their resource sources on `whenActive` (`pages/mode-slot-active.ts`).
+- Home (`/`) is not a Mode surface: `pages/layout.tsx` gates the rail behind `pathname !== "/"`, so no switcher mounts there. Home lists sessions of every Mode with its own filter chips, and the Mode a session opens in comes from the canonical Session route reading `Session.mode`, never from Home.
 - Projects and Workspaces remain visible across Mode changes. Session lists, search results, load-more state, empty states, and unread summaries reflect the selected Mode.
 - When the routed Session or current Draft belongs to a different Mode, show a compact contextual indicator. Do not silently reclassify it or interrupt the Composer.
 - An empty Mode provides an explicit, Mode-labelled new-session action; selection alone never creates work.
-- ModeSwitcher, Home cards, and ModeRoute share one definition registry for hrefs, icons, slots, and i18n keys so labels, ordering, and navigation cannot drift.
+- ModeSwitcher and ModeRoute share one definition registry for hrefs, icons, slots, and i18n keys so labels, ordering, and navigation cannot drift.
 - Mode entry navigation must preserve stable rail/sidebar dimensions, predictable keyboard focus, and scroll position where the routed surface remains mounted.
+
+## Router Transitions And Resources
+
+Route navigation runs inside a Solid transition, and `@solidjs/router` only writes history once that transition resolves. A transition resolves when `Transition.promises` empties, so one stray entry silently freezes navigation: no error, no pending request, the old screen simply stays.
+
+- Inside a route subtree, do not write `createResource(() => cond ? source : undefined, …)`. Solid's `load()` returns early for a null source _before_ it removes the in-flight promise from `Transition.promises`, and `loadEnd`'s removal is gated on a flag the same call has already cleared. Keep the source truthy and let the fetcher decline: `createResource(() => ({ id: maybeID() }), async ({ id }) => (id ? fetch(id) : undefined))` issues no request either.
+- The one sanctioned exception is slot gating via `whenActive`, which needs the null source to keep hidden Mode slots from fetching and to preserve their loaded values through `latest`. Those sites are known and tracked in `docs/technical-debt.md`; do not add new ones.
+- Route-level navigation belongs in an e2e assertion on the URL and the rendered surface. A tab-store or handler assertion passes while the navigation is wedged — that is exactly how this defect survived.
 
 ## Tokens And Styling
 
