@@ -26,7 +26,17 @@ const cors = {
   "access-control-allow-methods": "GET,POST,OPTIONS",
 }
 
-const ASSET_PATHS = ["agent-asset", "prompt-asset", "skill-asset", "command-asset", "workflow-asset"] as const
+const ASSET_PATHS = [
+  "agent-asset",
+  "prompt-asset",
+  "skill-asset",
+  "command-asset",
+  "workflow-asset",
+  // Chat's workbench reads seven kinds; Custom's five are a subset. The two extra are
+  // here so a Chat-only failure can be armed, and they are answered like the rest.
+  "mcp-asset",
+  "plugin-asset",
+] as const
 type AssetPath = (typeof ASSET_PATHS)[number]
 
 type Wire = {
@@ -159,6 +169,7 @@ async function openMode(page: Page, state: Wire, mode: "chat" | "custom", sessio
 // list is not slot-gated (it lives in the parent, which is why P2-14 never covered it),
 // so an unscoped locator matches two elements.
 const loadError = (page: Page) => page.locator('[data-mode-sidebar="custom"] [data-slot="asset-load-error"]')
+const chatLoadError = (page: Page) => page.locator('[data-mode-main="chat"] [data-slot="asset-load-error"]')
 const emptyStarter = (page: Page) => page.locator('[data-slot="custom-asset-empty-starter"]')
 const assetsTitle = (page: Page) => page.getByText("Project Assets", { exact: true })
 const startButton = (page: Page) => page.getByRole("button", { name: "Start Session" })
@@ -191,6 +202,43 @@ test.describe("regression: Custom Builder request and failure states", () => {
     await expectAppVisible(assetsTitle(page))
 
     await expect.poll(() => state.hits["plan"] ?? 0).toBeGreaterThan(0)
+  })
+
+  test("a failed Chat asset list reports itself in the workbench, not as a short list", async ({ page }) => {
+    // The Chat half of the same hole. `ModeWorkspace`'s seven lists used to arrive as
+    // `Promise.all`, so one 500 rejected the resource and blanked the whole workspace
+    // through the fallback-less `<Suspense>` at `pages/layout.tsx:43`; settling them
+    // individually stopped the blanking but left the failure invisible — a table one
+    // kind short, with nothing to say so. Both surfaces now render the same
+    // `AssetLoadError`, which is why its keys are `asset.load.*` and not `custom.*`.
+    //
+    // Only `skill-asset` fails, so this is the partial branch: the message has to name
+    // the kind rather than claim the whole project failed to load.
+    const state = wire({ fail: new Set(["skill-asset"]) })
+    await openMode(page, state, "chat", "chat")
+
+    await expectAppVisible(chatLoadError(page))
+    await expect(chatLoadError(page)).toContainText("Some assets could not be loaded: skills")
+    await expect(chatLoadError(page).getByRole("button", { name: "Retry" })).toBeVisible()
+    // The other six answered, so this must not be the "everything failed" wording.
+    await expect(chatLoadError(page)).not.toContainText("Could not load project assets")
+    // And the surface is still standing. `ChatFeatureSidebar`'s own seven-kind read was
+    // a bare `Promise.all`, so the 500 rejected its resource and threw out of the
+    // fallback-less `<Suspense>` — measured: before that read was settled this whole
+    // workspace rendered nothing, for every mode, which is why the banner above could
+    // never be seen.
+    await expect(page.locator('[data-mode-sidebar="chat"]').getByText("Features", { exact: true })).toBeVisible()
+  })
+
+  test("a healthy Chat asset read shows no banner at all", async ({ page }) => {
+    // The banner renders nothing when `failed` is empty, so mounting it unconditionally
+    // is safe. Without this the test above would pass against a banner that is simply
+    // always on screen.
+    const state = wire()
+    await openMode(page, state, "chat", "chat")
+
+    await expectAppVisible(page.getByText("Project", { exact: true }).first())
+    await expect(chatLoadError(page)).toHaveCount(0)
   })
 
   test("a partly failed asset read shows an error with Retry, not an empty project", async ({ page }) => {

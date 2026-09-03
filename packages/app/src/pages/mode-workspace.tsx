@@ -71,7 +71,9 @@ export function ModeWorkspace() {
     // below reads this resource, and reading a rejected resource throws into the
     // nearest boundary — the fallback-less `<Suspense>` at `pages/layout.tsx:43`. A
     // single 500 therefore used to blank the entire mode workspace, for every mode.
-    // The Chat surface has no error affordance of its own yet; see technical-debt.
+    // The failed kinds below feed the workbench's `AssetLoadError`. `ChatFeatureSidebar`
+    // reads the same seven kinds through its own resource and settles them for exactly
+    // the same reason — merging the two reads is recorded as debt, not done here.
     const settle = <T,>(call: Promise<T>): Promise<T | { data: undefined }> =>
       call.then(
         (value) => value,
