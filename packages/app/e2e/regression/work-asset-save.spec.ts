@@ -106,4 +106,10 @@ test("work draft -> save as asset injects the candidate into the chat propose st
   // 不自动切 mode：mode 仍为 work（session 页以 session.mode 为权威）。
   const storedMode = await page.evaluate(() => localStorage.getItem("aigcfroge.global.dat:mode-view"))
   expect(storedMode).toContain("work")
+
+  // A work candidate carries `exists: false` and an empty `relativePath`
+  // (work-asset-capture.ts:52) — apply derives the path from the name server-side.
+  // So the review pane shows the plain preview, not the overwrite branch with its
+  // diff: there is no existing file to diff against.
+  await expect(page.getByText("File already exists")).toHaveCount(0)
 })

@@ -157,6 +157,8 @@ test("code tab shows the raw html source and apply writes an .html with the csp 
   await page.getByRole("tab", { name: "Code" }).click()
   await expect(page.locator('[data-component="html-artifact-code"]')).toBeVisible()
   await expect(page.locator('[data-component="html-artifact-code"]')).toContainText("new vis.Network")
+  // Present while the candidate is unapplied; asserted absent after the apply below.
+  await expect(page.getByRole("button", { name: "Save as asset" })).toBeVisible()
 
   const applied = page.waitForResponse(
     (response) =>
@@ -174,4 +176,9 @@ test("code tab shows the raw html source and apply writes an .html with the csp 
   expect(payload.content).not.toContain("```html")
 
   await expect(page.getByText("Applied", { exact: true })).toBeVisible()
+
+  // The other half of the save-as-asset visibility rule (`candidate() !== null &&
+  // !appliedCurrent()`): once this candidate is applied the affordance is gone, so
+  // the same draft cannot be proposed again. It was visible before the apply above.
+  await expect(page.getByRole("button", { name: "Save as asset" })).toHaveCount(0)
 })

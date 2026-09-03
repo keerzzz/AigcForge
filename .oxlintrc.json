@@ -61,6 +61,27 @@
         // The incremental lint gate ignores only those matcher diagnostics and catches other new sync awaits.
         "typescript/await-thenable": "off"
       }
+    },
+    {
+      // The app's context layer is below pages: a context that reaches up into a page
+      // makes the page's module graph load for anything that touches the context, and
+      // it inverts the ownership of shared types. Shared shapes belong in `@/utils`.
+      // This replaces three `toContain` assertions on `layout.tsx`'s source text, which
+      // any re-export or formatting change would have fooled.
+      "files": ["packages/app/src/context/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/pages/*", "@/pages/**"],
+                "message": "The context layer must not import from pages. Put shared types in @/utils."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": [
