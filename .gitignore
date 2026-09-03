@@ -67,3 +67,6 @@ tsconfig.tsbuildinfo
 .fuse_hidden*
 **/.fuse_hidden*
 
+
+# dogfood/QA run output (report + text evidence are committed under docs/review/)
+dogfood-output/
