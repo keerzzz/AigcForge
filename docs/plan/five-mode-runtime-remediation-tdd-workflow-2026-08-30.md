@@ -1387,6 +1387,24 @@ V1 缺 refs 时 fail closed，不伪造空 revision。
 - 证明仅测试消费的 dead helper，例如 `isV2Mode`；
 - 证明无消费者的重复 Source 类型。
 
+#### 9.1 执行结果（2026-09-03 逐项核实）
+
+本清单写于 2026-08-30；到 S9 开工时 S1–S8 已经顺路解决了其中五项。逐项证据：
+
+| 候选                                        | 结果                                                                                                                                                                                                     |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| legacy handler first-text + `Effect.ignore` | **已在前序 slice 消失** —— legacy session handler 里两者均无匹配；仓内剩下的 `Effect.ignore` 全在 `mcp/` 的 close/cleanup 路径，是正当用法                                                               |
+| `primaryAgent`                              | **已消失** —— 全仓零匹配                                                                                                                                                                                 |
+| command image-only adapter + 重复 parser    | **S5 已归并** —— `submit.ts:98`/`:518` 的注释就是那次归并的记录（"never an images-only adapter"、"no second parser"）                                                                                    |
+| test-only GlobalProvider catch              | **已删（`77c7965c6`）** —— 删掉 `submit.ts` 的 `try { useGlobal() } catch {}` 与随之而来的 `global?.`；4 个用例因此转红，改为在测试里真提供 provider                                                     |
+| asset discovery 外层 catch                  | **已消失** —— `custom-sidebar.tsx` 现在是 `Promise.allSettled` + `listOutcome`，P2-10/P2-13 那轮已换掉                                                                                                   |
+| 未使用 `refetchAssets?`                     | **已删（`77c7965c6`）** —— `CustomSidebarProps` 只在本文件使用，唯一渲染点不传它，文件内零读取                                                                                                           |
+| fake Starter Agent button                   | **已删（`77c7965c6`）** —— 它 `addAgent` 一个 `custom-assistant.md`，而该文件全仓不存在（`revision: ""`），即凭空造一条不可满足的 binding；`custom-asset-catalog.ts` 的注释本来就把它叫 "fake asset"     |
+| S0.5 替代的源码字符串 tests                 | **部分完成** —— S9 换掉 3 个文件 14 条（`170567929`）；清点发现共 18 个文件、上限约 295 条，剩 15 个文件按新债条排期                                                                                     |
+| 重复 `commands ?? []`                       | **未删，判定为防御分支** —— 落在 `custom-draft.tsx`/`custom-builder-main.tsx`/`custom-sidebar.tsx`，喂它们的 persisted draft 与 snapshot 都可能缺字段，符合 §9.4「防御分支需先证明入口全 Schema-decode」 |
+| `isV2Mode`                                  | **已删（`77c7965c6`）** —— 生产零调用，仅一处测试断言；`shouldUseV2Runtime`（13 处生产调用）保留                                                                                                         |
+| 无消费者的重复 Source 类型                  | **未找到具体目标** —— app 内的 `Source` 同名类型（`context/language.tsx:31`、`global-sync/permission-pending.ts:33`）语义不同且各自本地使用，不构成重复；本条缺 S-1 证据，按计划规定不动                 |
+
 ### 9.2 必须迁移/替换后才能删除
 
 - `sharedStores`：先迁移至 Server + normalized directory + workspaceID 的 key、写 migration marker、验证 Sidebar/Main 单 owner 和 legacy key 清理条件；随后删除旧 Map，不把它误报为真死代码。
@@ -1407,6 +1425,15 @@ V1 缺 refs 时 fail closed，不伪造空 revision。
 - typed asset resource state；
 - domain error → canonical/legacy transport mapping；
 - SDK transport/generation pipeline。
+
+#### 9.3 执行结果（2026-09-03）
+
+这 11 项归并的 owner 是 S1–S7，各自在所属 slice 里连同门禁一起交付；S9 **没有**逐项重新验证，只做了两处抽样，用来确认「归并」不是纸面动作：
+
+- **Prompt/Command Composer context normalizer** —— `components/prompt-input/build-request-parts.ts` 是唯一 owner，`submit.ts` 三条提交路径（prompt / command / followup）都调它，且它自己有单测。S5 在 `submit.ts:98`、`:518` 留了两处注释说明「不再有第二个 parser 或 images-only adapter」。
+- **typed asset resource state** —— `components/asset-load-error.tsx` 是 Chat workbench 与 Custom 侧栏共用的同一个组件（两处 import），i18n key 也随之从 `custom.sidebar.load*` 改成中性的 `asset.load.*`。
+
+其余九项以其所属 slice 的门禁为证；若要独立复核，应按 owner 文件逐个查调用点，而不是相信本清单。
 
 ### 9.4 暂不得删除
 
