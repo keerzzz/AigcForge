@@ -14,9 +14,9 @@ import { expectAppVisible } from "../utils/waits"
  * call sites, all in `app.tsx` (the Session route, the draft route, and the mode
  * route) and none in the Home path.
  *
- * The observable form: with the app in one mode, opening a session of a different mode
- * from Home must land in the SESSION's mode. If Home carried its own `setMode` it
- * would set the mode it was showing, and this would land in the wrong one.
+ * The observable form: Home renders no ModeSwitcher at all and lists sessions of every
+ * mode, and a session route shows the switcher pressed on the mode of the session it
+ * resolved — even when the app's persisted last-mode says otherwise.
  *
  * The current mode is read off `ModeSwitcher`'s `aria-pressed`, which is the app's own
  * indicator (`mode-switcher.tsx:42-52`) rather than a marker added for the test.
@@ -106,14 +106,37 @@ test.describe("regression: Home is not a Product Mode surface", () => {
   test("Home lists sessions of every mode, without adopting any of them", async ({ page }) => {
     // Home is mode-agnostic: both seeded sessions are listed whatever mode the app was
     // last in. Paired with the absence of a switcher above, this is the observable half
-    // of "Home does not own Product Mode"; the other half — that opening a session from
-    // here lands in the SESSION's mode — is structural rather than rendered, and
-    // `setCurrentMode` having exactly three call sites, all in `app.tsx`, is what
-    // carries it. See technical-debt for why it is not asserted here.
+    // of "Home does not own Product Mode".
     await openApp(page)
     await page.goto("/")
 
     await expectAppVisible(homeRow(page, chatTitle))
     await expect(homeRow(page, workTitle)).toBeVisible()
+  })
+
+  test("a session route adopts that session's mode, not the mode the app was last in", async ({ page }) => {
+    // The other half: the mode a session opens in comes from the SESSION, not from
+    // whatever the app was showing. `openApp` leaves the app in chat (it visits the chat
+    // session), and `currentMode` is persisted, so on the next load chat is the default
+    // the Session route has to overrule.
+    //
+    // Reached by URL rather than by clicking the Home row, and that is a finding rather
+    // than a shortcut: the click is wedged. Measured — the row's handler runs to
+    // completion (`openSessionRecord` adds the tab and calls `navigate()` with the right
+    // href) but `history` is never written and the old DOM stays up for at least 24s,
+    // because `@solidjs/router` writes history in the `.finally()` of a Solid transition
+    // and that transition never resolves. Stubbing out `<Session />` makes the very same
+    // click land, and so does neutering `Transition.promises.add`, so the transition is
+    // held by a resource inside the session page. See technical-debt: it is pre-existing,
+    // it is not what this spec is for, and asserting the mode through a URL visit pins
+    // the same property without depending on it.
+    await openApp(page)
+    await expect(modeButton(page, "Chat")).toHaveAttribute("aria-pressed", "true")
+
+    await page.goto(`/${base64Encode(directory)}/session/${workSessionID}`)
+    await expectAppVisible(page.getByRole("heading", { name: workTitle }))
+
+    await expect(modeButton(page, "Work")).toHaveAttribute("aria-pressed", "true")
+    await expect(modeButton(page, "Chat")).toHaveAttribute("aria-pressed", "false")
   })
 })
