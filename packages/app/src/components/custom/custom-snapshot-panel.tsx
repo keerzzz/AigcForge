@@ -9,27 +9,14 @@ import { useServer, ServerConnection } from "@/context/server"
 import { launchModeSession } from "@/pages/layout/helpers"
 import { useCustomDraft } from "@/context/custom-draft"
 import { showToast } from "@/utils/toast"
-import { Schema } from "effect"
-import { Snapshot } from "@aigcfroge/schema/composition"
+import type { Snapshot } from "@aigcfroge/schema/composition"
+import { decodeSnapshotResponse } from "@/utils/snapshot-decode"
 import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
 import { classifySnapshotFailure, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
 
 export interface CustomSessionPanelProps {
   sessionID?: string
   directory?: string
-}
-
-const decodeSnapshot = Schema.decodeUnknownOption(Snapshot)
-
-function extractSnapshot(data: unknown): Snapshot | undefined {
-  if (typeof data !== "object" || data === null) return undefined
-  const directDecoded = decodeSnapshot(data)
-  if (directDecoded._tag === "Some") return directDecoded.value
-  if ("snapshot" in data) {
-    const nestedDecoded = decodeSnapshot((data as { snapshot: unknown }).snapshot)
-    if (nestedDecoded._tag === "Some") return nestedDecoded.value
-  }
-  return undefined
 }
 
 export function CustomSessionPanel(props: CustomSessionPanelProps) {
@@ -55,7 +42,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       try {
         const s = sdk()
         const res = await s.client.session.composition({ sessionID: source.sessionID }, { throwOnError: true })
-        const decoded = extractSnapshot(res.data)
+        const decoded = decodeSnapshotResponse(res.data)
         if (decoded === undefined) {
           // 2xx whose body is not a Snapshot: server/client schema drift, not an
           // absent composition.

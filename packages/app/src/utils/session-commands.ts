@@ -1,21 +1,8 @@
 import { createMemo, createResource } from "solid-js"
-import { Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
+import type { Composition } from "@aigcfroge/schema/composition"
 import { CompositionConsumerView } from "@aigcfroge/schema/composition-consumer-view"
 import { useSDK } from "@/context/sdk"
-
-const decodeSnapshot = Schema.decodeUnknownOption(Composition.Snapshot)
-
-function extractSnapshot(data: unknown): Composition.Snapshot | undefined {
-  if (typeof data !== "object" || data === null) return undefined
-  const direct = decodeSnapshot(data)
-  if (direct._tag === "Some") return direct.value
-  if ("snapshot" in data) {
-    const nested = decodeSnapshot((data as { snapshot: unknown }).snapshot)
-    if (nested._tag === "Some") return nested.value
-  }
-  return undefined
-}
+import { decodeSnapshotResponse } from "@/utils/snapshot-decode"
 
 type SessionLike = {
   readonly id?: string | undefined
@@ -49,7 +36,7 @@ export function useSessionSnapshotCommands(session: () => SessionLike | undefine
       if (!source.sessionID) return undefined
       try {
         const res = await sdk().client.session.composition({ sessionID: source.sessionID }, { throwOnError: false })
-        return extractSnapshot(res.data)
+        return decodeSnapshotResponse(res.data)
       } catch {
         return undefined
       }
