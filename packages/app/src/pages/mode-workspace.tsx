@@ -86,6 +86,19 @@ export function ModeWorkspace() {
       settle(sdk.client.workflowAsset.list()),
       settle(sdk.client.pluginAsset.list()),
     ])
+    // Which kinds did not answer. Without this the workspace no longer blanks but the
+    // failure is invisible — "silently one kind short" instead of an error.
+    const failed = (
+      [
+        ["prompts", promptsRes],
+        ["skills", skillsRes],
+        ["mcp", mcpsRes],
+        ["commands", cmdsRes],
+        ["agents", agentsRes],
+        ["workflows", workflowsRes],
+        ["plugins", pluginsRes],
+      ] as const
+    ).flatMap(([kind, result]) => (result.data === undefined ? [kind] : []))
     const promptAssets = promptsRes.data?.assets ?? []
     const skillAssets = skillsRes.data?.assets ?? []
     const mcpAssets = mcpsRes.data?.assets ?? []
@@ -136,6 +149,7 @@ export function ModeWorkspace() {
     )
 
     return {
+      failed,
       assets: allAssets,
       invalid: invalidRows,
     }
@@ -153,7 +167,7 @@ export function ModeWorkspace() {
     if (!project && !system) {
       const emptyAssets: AssetWorkbench.AssetInput[] = []
       const emptyInvalid: AssetWorkbench.AssetRow[] = []
-      return { assets: emptyAssets, invalid: emptyInvalid }
+      return { assets: emptyAssets, invalid: emptyInvalid, failed: [] as readonly string[] }
     }
     const merged = AssetWorkbench.mergeAssets(
       project?.assets ?? [],
@@ -165,7 +179,7 @@ export function ModeWorkspace() {
           })
         : [],
     )
-    return { assets: merged, invalid: project?.invalid ?? [] }
+    return { assets: merged, invalid: project?.invalid ?? [], failed: (project?.failed ?? []) as readonly string[] }
   })
 
   const assetCtx = {

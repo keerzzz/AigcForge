@@ -154,7 +154,11 @@ async function openMode(page: Page, state: Wire, mode: "chat" | "custom", sessio
   await page.goto(`/mode/${mode}`)
 }
 
-const loadError = (page: Page) => page.locator('[data-slot="custom-asset-load-error"]')
+// Scoped to the Custom slot: the banner is now the shared `AssetLoadError`, and the Chat
+// workbench renders one too. Both are present here because `ModeWorkspace`'s own asset
+// list is not slot-gated (it lives in the parent, which is why P2-14 never covered it),
+// so an unscoped locator matches two elements.
+const loadError = (page: Page) => page.locator('[data-mode-sidebar="custom"] [data-slot="asset-load-error"]')
 const emptyStarter = (page: Page) => page.locator('[data-slot="custom-asset-empty-starter"]')
 const assetsTitle = (page: Page) => page.getByText("Project Assets", { exact: true })
 const startButton = (page: Page) => page.getByRole("button", { name: "Start Session" })

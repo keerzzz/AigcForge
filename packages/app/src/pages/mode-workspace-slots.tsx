@@ -52,6 +52,7 @@ import { CustomProjectColumnSidebar as CustomSidebar } from "@/components/custom
 import { CustomCompositionConfig } from "@/components/custom/custom-builder-main"
 import { CustomPlanPreviewColumn } from "@/components/custom/custom-preview-column"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
+import { AssetLoadError } from "@/components/asset-load-error"
 
 /** Coding project and server navigation built on HomeProjectColumn. */
 export function CodingProjectColumnSidebar() {
@@ -537,15 +538,24 @@ export function ChatAssetWorkbenchMain() {
   }
 
   return (
-    <AssetWorkbench.AssetWorkbenchTable
-      assets={assets?.mergedAssetData().assets ?? []}
-      invalid={assets?.mergedAssetData().invalid ?? []}
-      kindFilter={chatFeature() as AssetWorkbench.AssetKind}
-      onNew={onNewAsset}
-      onImport={onImportAsset}
-      onDelete={onDeleteAsset}
-      onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
-    />
+    <div class="flex min-h-0 flex-1 flex-col gap-2">
+      {/* The seven workspace asset lists settle individually, so a failing kind is
+          otherwise invisible rather than blanking the page. */}
+      <AssetLoadError
+        failed={assets?.mergedAssetData().failed ?? []}
+        total={7}
+        onRetry={() => assets?.refetchAssets()}
+      />
+      <AssetWorkbench.AssetWorkbenchTable
+        assets={assets?.mergedAssetData().assets ?? []}
+        invalid={assets?.mergedAssetData().invalid ?? []}
+        kindFilter={chatFeature() as AssetWorkbench.AssetKind}
+        onNew={onNewAsset}
+        onImport={onImportAsset}
+        onDelete={onDeleteAsset}
+        onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
+      />
+    </div>
   )
 }
 

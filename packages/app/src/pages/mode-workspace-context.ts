@@ -10,9 +10,16 @@ import type { State } from "@/context/global-sync/types"
 
 export type ModeWorkspaceAssetContext = {
   chatDirSdk: Accessor<DirectorySDK | undefined>
-  chatAssetList: Accessor<{ assets: AssetWorkbench.AssetInput[]; invalid: AssetWorkbench.AssetRow[] } | undefined>
+  chatAssetList: Accessor<
+    { assets: AssetWorkbench.AssetInput[]; invalid: AssetWorkbench.AssetRow[]; failed: readonly string[] } | undefined
+  >
   chatSystemData: Accessor<State | undefined>
-  mergedAssetData: Accessor<{ assets: AssetWorkbench.AssetInput[]; invalid: AssetWorkbench.AssetRow[] }>
+  mergedAssetData: Accessor<{
+    assets: AssetWorkbench.AssetInput[]
+    invalid: AssetWorkbench.AssetRow[]
+    /** Asset kinds whose list request did not answer; see components/asset-load-error.tsx. */
+    failed: readonly string[]
+  }>
   refetchAssets: () => void
 }
 

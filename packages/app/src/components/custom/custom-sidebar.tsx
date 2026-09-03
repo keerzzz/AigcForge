@@ -9,7 +9,8 @@ import { useGlobal } from "@/context/global"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { useCustomDraft } from "@/context/custom-draft"
 import type { DirectorySDK } from "@/context/sdk"
-import { catalogStatus, foldAssetCatalog, listOutcome, showsEmptyState } from "./custom-asset-catalog"
+import { ASSET_KINDS, catalogStatus, foldAssetCatalog, listOutcome, showsEmptyState } from "./custom-asset-catalog"
+import { AssetLoadError } from "@/components/asset-load-error"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 type AssetCategory = "all" | "agents" | "workflows" | "prompts" | "skills" | "commands"
@@ -175,22 +176,9 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
       </div>
 
       {/* A failed read is reported instead of being rendered as an empty project */}
-      <Show when={status() === "error" || status() === "partial"}>
-        <div
-          data-slot="custom-asset-load-error"
-          class="mx-3 flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-2 py-1.5"
-        >
-          <Icon name="warning" size="small" class="shrink-0 text-v2-state-fg-danger" />
-          <span class="min-w-0 flex-1 text-11-regular text-v2-state-fg-danger">
-            {status() === "error"
-              ? language.t("custom.sidebar.loadFailed")
-              : language.t("custom.sidebar.loadPartial", { kinds: failedKinds().join(", ") })}
-          </span>
-          <ButtonV2 variant="neutral" size="small" onClick={() => refetch()}>
-            {language.t("custom.sidebar.loadRetry")}
-          </ButtonV2>
-        </div>
-      </Show>
+      <div class="px-3">
+        <AssetLoadError failed={failedKinds()} total={ASSET_KINDS.length} onRetry={() => refetch()} />
+      </div>
 
       {/* Category switcher */}
       <div class="flex items-center gap-1 px-3 overflow-x-auto pb-1">
