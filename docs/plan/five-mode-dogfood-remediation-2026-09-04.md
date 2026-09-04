@@ -152,6 +152,21 @@ S8c 因此收窄为「只补 S3a 停滞态与 S4 fallback 这两个本计划新�
 **关闭标准**：如果某一缺陷只在 V2 修好而默认 V1 仍复现，状态只能记为“V2 已修、V1 开放”，不能移出 §4.1 已开放表。
 如果产品决定本批只做 V2，必须在实施前把计划标题、缺陷列表和 DoD 明确改为 V2-only，并单独登记 V1 遗留债。
 
+### 0.7 实施期修订（随证据回写，替代本节以外的旧结论）
+
+实测台账：[`docs/review/five-mode-dogfood-2026-09-03/red-baseline.md`](../review/five-mode-dogfood-2026-09-03/red-baseline.md)。下列条目**以实测为准，推翻本计划正文的对应表述**。
+
+| #   | 旧结论                                                                 | 实测修订                                                                                                                                                                              | 处置                                                                                                                 |
+| --- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| R1  | §8 preflight：`session-ui typecheck` 基线红（`@shikijs/types` 多版本） | 本 worktree 独立 `bun install` 后 **0 error / exit 0**；隔离前报的是另一组 `@pierre/diffs` 重复声明。属父 worktree 依赖树老化，非代码事实                                             | §16 门禁无需豁免；worktree 必须独立安装依赖，否则跨包 import 解析到父 worktree 源码                                  |
+| R2  | §2.1 只有「还原目标错」一条 P0                                         | 同一条链上还有第二条：`store.setRevert` 把缺省字段写成 `null`（`as any` 掩盖），而 `SessionV2.Revert` 是 `Schema.optional`，于是 `revert()` 写完 marker 回读即 die；`unrevert` 同路径 | 新增 **S1b** 独立切片（写侧删 null 占位，不放宽公共 schema）；已随 S1 落地                                           |
+| R3  | §2.2 权限 outcome 的丢失边界待定，倾向 Registry                        | 抵达形状 RED 实测：`DeniedError` 与 `CorrectedError` 都在 **leaf** 被兜底 `mapError` 压成同一句 `Unable to execute command: …`，Registry 拿到时已无 typed 信息                        | S2 的 GREEN owner 定在 leaf 共用边界；不得在 `registry.ts` 用 `catchCause` 逆推                                      |
+| R4  | §5/S8a 推荐「保留 Titlebar 全局 owner、删除 Session 重复注册」         | 实测三格行为矩阵：有 context 子 tab 时 `mod+w` 关的是**子 tab** 且会话保留（活下来的是 Session 那条），无子 tab 时关顶层 tab——两条都通过。删 Session 注册会把通过的用例弄红           | S8a 改判：收敛为单一上下文感知 owner，或给两者不同 id/keybind。债的性质从「可能错关」改为「重复注册 + 依赖挂载顺序」 |
+| R5  | §2.1 「V1/V2 都可能复现还原目标错」                                    | V1 `aigcfroge/src/session/revert.ts:55` 按 `messageID`/`partID` 命中，并用逆向 patch 而非整树快照还原；`revert-compact` 7 pass                                                        | P0-REVERT-TARGET 与 R2 均为 **V2-only**，V1 无需修，也不得用 V1 结果代替 V2 验收                                     |
+| R6  | §S0 六条基线的层级（含 app unit）                                      | 基线 3 与 6 只能落 e2e：stall 的纯判定 seam 尚不存在，`tab.close` 的碰撞只在真实会话打开子 tab 后出现                                                                                 | 六条均已冻结；`e2e/utils/mock-server.ts` 加了一个纯附加的 `sessionStatus` 字段作为前置                               |
+
+方法学：`packages/core` 的 `test` 脚本带 `--only-failures`，**新增断言在包脚本下不执行**（同一文件 `2 pass / 0 fail` vs 原始命令 `2 pass / 2 fail`）。本批所有 RED/GREEN 判定一律用去掉该开关的原始命令。
+
 ## 1. 强制协议、Skills 与事实源
 
 | 类别     | 事实源                                                                                                                                  |
