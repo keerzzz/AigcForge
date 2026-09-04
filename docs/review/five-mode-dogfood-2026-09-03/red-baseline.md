@@ -90,8 +90,8 @@ test/config/provider.test.ts:
 | 1   | revert 到第 N 条用户消息 → `snap.restore` 收到第 N 轮快照 | core 单测      | **RED 已确认** |
 | 2   | 真实 permission leaf 拒绝/纠正 → 可见 error 且反馈不丢    | core 单测      | **RED 已确认** |
 | 3   | `MessageTimeline` busy 且无输出超阈值 → stalled 出口      | app unit + e2e | `PENDING`      |
-| 4   | 冷加载 `/mode/work` 主区出现 loading                      | app e2e        | `PENDING`      |
-| 5   | 无项目点「新建会话」有反馈且不 POST session               | app e2e        | `PENDING`      |
+| 4   | 冷加载 `/mode/work` 主区出现 loading                      | app e2e        | **RED 已确认** |
+| 5   | 无项目点「新建会话」有反馈且不 POST session               | app e2e        | **RED 已确认** |
 | 6   | `tab.close` 每上下文恰一个有效 owner                      | app 单测/e2e   | `PENDING`      |
 
 ### 3.1 基线 1 — P0-REVERT-TARGET（RED）
@@ -152,16 +152,64 @@ $ bun test --timeout 30000 test/tool-bash.test.ts             # cwd=packages/cor
 
 `AskExpiredError` / `RejectedError` / `GrantEvent.CommitRejected` / `NotFoundError` 的抵达形状与操作语义仍需在 S2 单独取证，本基线未覆盖，不得默认按 `ToolFailure` 处理。
 
-### 3.3 基线 3–6（`PENDING`，S0 剩余工作）
+### 3.3 基线 4 — P1-MODE-MOUNT 的 pending 表示（RED）
 
-| #   | 需要的前置                                                                                                                            |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 3   | Playwright 真实详情页 + busy 无输出场景（`e2e/utils/mock-server.ts` 已有 `messageDelay`）；纯判定 seam 尚不存在，故 S0 只做路由级 e2e |
-| 4   | Playwright 冷加载 `/mode/work`，断言 `<main>` 在内容就绪前有 loading 表示                                                             |
-| 5   | Playwright 无项目态点「新建会话」，断言有反馈且无 `POST /session`                                                                     |
-| 6   | `tab.close` 行为矩阵（Home 当前 tab / Draft / Session / Session context 子 tab / 无可关闭 tab / 快捷键 / palette / 关闭按钮）         |
+文件：`packages/app/e2e/regression/mode-surface-wiring.spec.ts`（扩展既有 spec 与其 `openWorkspace` fixture，复用它已有的 `data-mode-sidebar` / `data-mode-main` 选择器，不新建 spec）
 
-四条都要跑 `bun --cwd packages/app test:e2e`（会由 Playwright 自己拉 dev server）。按计划 §7，它们归 `test(app)` 提交，与本文件的 `test(core)` 基线分开回滚。
+pending 窗口被做成确定性的：Work 主槽读 `workflowAsset.list()`（`mode-workspace-slots.tsx:668-676`，经 `whenActive` 门控）→ `GET /workflow-asset`；把该响应按住即长期停在 pending。**实测的 pending 期 DOM（3s→25s 稳定不变）**：
+
+```text
+mainCount=1  [data-mode-main="work"]=0  [data-mode-sidebar="work"]=0
+roles=["button","region"]   body.innerText = "DEV M <session title> ● 127.0.0.1:4096 … FPS 60 …"
+（放开响应后）mainCount=1  [data-mode-main="work"]=1  Work 预设内容出现
+```
+
+即 `<main>` 在，但**内容为空、无任何 `status`/`progressbar` 语义**，页面上只剩顶栏与 dev 调试条——与报告 BUG-MODE-REENTRY「URL 已是 `/mode/work`，主区只有顶栏」一致。RED 输出：
+
+```text
+$ bun --cwd packages/app test:e2e e2e/regression/mode-surface-wiring.spec.ts --workers=1 -g "pending representation"
+
+1) cold /mode/work shows a loading indication in main before the surface is ready
+   expect(locator).toBeVisible() failed
+   Locator: locator('main').getByRole('status').or(locator('main').getByRole('progressbar')).first()
+   Error: element(s) not found
+
+整文件回归：6 passed / 1 failed（既有 6 条未受影响）
+```
+
+**对 S4 的约束（实测得出，计划未写）**：pending 期两个 work 槽**都不在 DOM 里**。所以「槽仍保留在 DOM 并显示局部 loading」不能只靠 slot 内 fallback 实现——fallback 必须落在槽之外（`layout.tsx` 或 `ModeWorkspace` 边界）或为每个槽各建边界。
+
+两条写法上的坑（都已实测并写进注释，避免后人重踩）：
+
+- 用 `**/workflow-asset**` glob 拦截会连 dev server 的模块请求一起吞掉，页面根本不启动——那是「为错误原因而白屏」。必须用精确 pathname 谓词 + API 端口。
+- 按住响应后 `page.goto` 的默认 `waitUntil: "load"` 永不返回（实测撞 180s 超时）。pending 窗口本身就是被测对象，所以必须用 `waitUntil: "commit"`。
+
+### 3.4 基线 5 — P2-HOME-EMPTY（RED）
+
+文件：`packages/app/e2e/regression/home-empty-new-session.spec.ts`（新建；复用 `mockAigcfrogeServer` 与 `home-mode-ownership.spec.ts:70-80` 的 `aigcfroge.global.dat:server` 播种方式，把 `projects.local` 设为 `[]`——服务端仍有项目，空的是客户端「已打开项目」列表，正是新档案上可复现的路径）
+
+```text
+$ bun --cwd packages/app test:e2e e2e/regression/home-empty-new-session.spec.ts --workers=1
+
+1) clicking new session with no opened project gives visible feedback
+   expect(locator).toBeVisible() failed
+   Locator: getByRole('dialog').or(getByRole('alert')).first()
+   Error: element(s) not found
+
+1 failed / 1 passed (3.0m)
+```
+
+- 按钮存在且唯一（`[data-component="home-overview"] [data-action="home-new-session"]` count=1），点击后**无 dialog、无 alert**；
+- 第二条用例通过，记录未回归的一半：点击后 URL 仍是 `/`，且 `POST /session` 计数为 `0`。修好反馈后这条必须继续通过——不能靠「照样建会话」来掩盖缺目录。
+
+### 3.5 基线 3 与 6（`PENDING`，S0 剩余）
+
+| #   | 需要的前置                                                                                                                                                                                                                               |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3   | 需要给 `e2e/utils/mock-server.ts` 加一个 `sessionStatus` 配置（当前 `/session/status` 被硬编码成 `{}`，会话永远 idle，`rows.ts:197` 的 Thinking 分支进不去）；阈值推进用 Playwright `page.clock.fastForward`，因为生产端今天没有任何时钟 |
+| 6   | `tab.close` 行为矩阵：两处注册已核实（`titlebar.tsx:412-420` 关**顶层 tab**，`use-session-commands.tsx:442-446` 关 `closableTab()` 即**会话内子 tab**，且仅在有子 tab 时才注册），`command.tsx:263-272` **保留第一条并 warn**            |
+
+**基线 6 的预判已被代码推翻，必须在 S8a 更正**：计划 §5「推荐保留 Titlebar 全局 owner、删除 Session 重复注册」会把**唯一能关子 tab 的路径删掉**——两者语义不同（顶层 tab vs 会话内子 tab），不是重复实现。收敛手段应是让单一 owner 变成上下文感知（有聚焦子 tab 先关子 tab，否则关顶层 tab），或给两者不同 id/keybind；不能直接删一处。
 
 ---
 
@@ -195,10 +243,19 @@ $ bun test --timeout 30000 test/tool-bash.test.ts             # cwd=packages/cor
 
 ```text
 bun --cwd packages/core typecheck                                  → exit 0
-LINT_BASE_REF=origin/main bun run script/lint-changed.ts           → passed（2 changed files / 139 added lines）
+bun --cwd packages/app typecheck                                   → 0 error（含 e2e/tsconfig.json）
+bun --cwd packages/session-ui typecheck                            → 0 error
+LINT_BASE_REF=origin/main bun run script/lint-changed.ts           → passed
+bash .aigcfroge/skills/protocols/scripts/check-refs.sh             → All 32 paths OK
 git diff --check                                                   → clean
+bun --cwd packages/app test:e2e e2e/regression/mode-surface-wiring.spec.ts        → 6 passed / 1 failed（新增 RED）
+bun --cwd packages/app test:e2e e2e/regression/home-empty-new-session.spec.ts     → 1 passed / 1 failed（新增 RED）
 ```
 
-未跑：`packages/app` / `ui` / `session-ui` / `schema` / `aigcfroge` 的 test（本阶段未触达这些包的代码；基线 3–6 落地后补 app 侧）。
+未跑：`packages/ui` / `packages/schema` / `packages/aigcfroge` 的 test（本阶段未触达这些包）；`packages/app test:unit`（本阶段只加 e2e spec，未加单测）。
 
-**停止点**：基线 3–6 未取证前不进入 S1；§4 的范围问题需用户裁决后才动 `store.ts`。
+**停止点**
+
+- 基线 3、6 未取证前不进入 S1；
+- §4 的范围问题（新缺陷归 S1 还是独立 S1b）需用户裁决后才动 `store.ts`；
+- 基线 6 的 owner 选择必须先跑完行为矩阵，计划里的「删掉 Session 注册」已被 §3.5 的代码事实否掉，不得照旧执行。
