@@ -20,6 +20,25 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionRevert") {}
 
+/**
+ * The assistant message whose start snapshot represents "the state just before the target
+ * message's turn": the first one at or after `messageID` that captured a snapshot.
+ *
+ * `store.context` returns history in ascending `seq` order, so scanning forward from the
+ * target is what ties the restored snapshot to the message the user actually clicked.
+ * Searching the whole history instead would always return the session's earliest snapshot.
+ */
+function findTurnSnapshotOwner(msgs: SessionMessage.Message[], messageID: SessionMessage.ID) {
+  const targetIndex = msgs.findIndex((m) => m.id === messageID)
+  if (targetIndex < 0) return undefined
+  return msgs
+    .slice(targetIndex)
+    .find(
+      (m): m is Extract<SessionMessage.Message, { type: "assistant" }> =>
+        m.type === "assistant" && m.snapshot?.start != null,
+    )
+}
+
 function revert(store: SessionStore.Interface, snap: V2Snapshot.Interface): Interface["revert"] {
   return Effect.fn("V2SessionRevert.revert")(function* (input: RevertInput) {
     const session = yield* store.get(input.sessionID).pipe(Effect.orDie)
@@ -28,11 +47,7 @@ function revert(store: SessionStore.Interface, snap: V2Snapshot.Interface): Inte
     // Load context to find the assistant message for this user message
     const msgs = yield* store.context(input.sessionID).pipe(Effect.orDie)
 
-    // Find the assistant message produced in response to the target user message
-    const assistantMsg = msgs.find(
-      (m): m is Extract<SessionMessage.Message, { type: "assistant" }> =>
-        m.type === "assistant" && m.snapshot?.start != null,
-    )
+    const assistantMsg = findTurnSnapshotOwner(msgs, input.messageID)
 
     if (!assistantMsg?.snapshot?.start) return session
 
