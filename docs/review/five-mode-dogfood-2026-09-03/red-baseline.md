@@ -85,14 +85,14 @@ test/config/provider.test.ts:
 
 ## 3. 六条核心基线
 
-| #   | 断言                                                      | 层           | 状态           |
-| --- | --------------------------------------------------------- | ------------ | -------------- |
-| 1   | revert 到第 N 条用户消息 → `snap.restore` 收到第 N 轮快照 | core 单测    | **RED 已确认** |
-| 2   | 真实 permission leaf 拒绝/纠正 → 可见 error 且反馈不丢    | core 单测    | **RED 已确认** |
-| 3   | `MessageTimeline` busy 且无输出超阈值 → stalled 出口      | app e2e      | **RED 已确认** |
-| 4   | 冷加载 `/mode/work` 主区出现 loading                      | app e2e      | **RED 已确认** |
-| 5   | 无项目点「新建会话」有反馈且不 POST session               | app e2e      | **RED 已确认** |
-| 6   | `tab.close` 每上下文恰一个有效 owner                      | app 单测/e2e | `PENDING`      |
+| #   | 断言                                                      | 层        | 状态           |
+| --- | --------------------------------------------------------- | --------- | -------------- |
+| 1   | revert 到第 N 条用户消息 → `snap.restore` 收到第 N 轮快照 | core 单测 | **RED 已确认** |
+| 2   | 真实 permission leaf 拒绝/纠正 → 可见 error 且反馈不丢    | core 单测 | **RED 已确认** |
+| 3   | `MessageTimeline` busy 且无输出超阈值 → stalled 出口      | app e2e   | **RED 已确认** |
+| 4   | 冷加载 `/mode/work` 主区出现 loading                      | app e2e   | **RED 已确认** |
+| 5   | 无项目点「新建会话」有反馈且不 POST session               | app e2e   | **RED 已确认** |
+| 6   | `tab.close` 每上下文恰一个有效 owner                      | app e2e   | **RED 已确认** |
 
 ### 3.1 基线 1 — P0-REVERT-TARGET（RED）
 
@@ -224,22 +224,35 @@ $ bun --cwd packages/app test:e2e e2e/regression/session-turn-stall.spec.ts --wo
 
 `[data-timeline-row="<tag>"]` 是时间线自己的行契约（`message-timeline.tsx:1115` 输出 `data-timeline-row={row()._tag}`），所以 `Stalled` 是这条缺失状态的自然 tag，不是为测试造的标记。
 
-### 3.6 基线 6（`PENDING`，S0 剩余唯一一条）
+### 3.6 基线 6 — D-CMD-DUP（RED，且测量推翻了两个预判）
 
-代码事实已核实，缺的只是可执行断言：
+文件：`packages/app/e2e/regression/tab-close-owner.spec.ts`（新建，三条用例即 S8a 行为矩阵的前三格）
 
-| 注册点                             | 行为                                                    |
-| ---------------------------------- | ------------------------------------------------------- |
-| `titlebar.tsx:412-420`             | `hidden: true`，`mod+w`，关**顶层 tab**（`removeTab`）  |
-| `use-session-commands.tsx:442-446` | 不隐藏，`mod+w`，关 `closableTab()` 即**会话内子 tab**  |
-| `command.tsx:263-272`              | 同 id **保留第一条**并 `console.warn`，后到的整条被丢弃 |
+子 tab 用产品自己的路径打开：`message-timeline.tsx:58` 渲染 `SessionContextUsage`，其按钮（`session-context-usage.tsx:104-105`，`aria-label` = `context.usage.view` → "View context usage"）调 `openSessionContext` → `tabs.open("context")`（`open-session-context.ts:17`），随后 `helpers.ts:65-70` 让 `closableTab()` 返回 `"context"`，Session 侧那条条件注册才生效。
 
-`closableTab()`（`pages/session/helpers.ts:65`）在会话内 tab 列表含 `"context"` 时返回 `"context"`；Session 侧那条是**条件注册**（`:447` 的 `.filter(v => !!v)`），所以只有会话打开了子 tab 时两条才同时存在。
+```text
+$ bun --cwd packages/app test:e2e e2e/regression/tab-close-owner.spec.ts --workers=1
 
-**未写断言的原因（不是跳过）**：断言必须先让会话打开 `context` 子 tab，而 `contextOpen` 只是 `openTabs().includes("context")`（`session-side-panel.tsx:131`、`assistant-session-panel.tsx:41`），把它加进列表的入口尚未定位。这正是计划 S8a 的第一步「行为矩阵」，现在写一半、S8a 再重写属重复建设。**已冻结的结论**：
+(fail) opening a context tab does not register a second tab.close
+   expect(received).toEqual(expected)
+   + Array ["[command] duplicate command id \"tab.close\" registered; keeping first entry"]   (3 次)
+(pass) with a context tab open, the shortcut closes that tab and keeps the session
+(pass) with no closable child tab, the shortcut still closes the session tab
 
-- 两者不是重复实现，是**两种不同行为撞在同一个 id 上**；
-- 计划 §5 的「保留 Titlebar 全局 owner、删除 Session 重复注册」会删掉**唯一能关子 tab 的路径**，S8a 必须改判：让单一 owner 变成上下文感知（有聚焦子 tab 先关子 tab，否则关顶层 tab），或给两者不同 id/keybind。
+1 failed / 2 passed (41.2s)
+```
+
+| 注册点                             | 行为                                                   |
+| ---------------------------------- | ------------------------------------------------------ |
+| `titlebar.tsx:412-420`             | `hidden: true`，`mod+w`，关**顶层 tab**（`removeTab`） |
+| `use-session-commands.tsx:442-446` | 不隐藏，`mod+w`，关 `closableTab()` 即**会话内子 tab** |
+| `command.tsx:263-272`              | 同 id **保留第一条**并 `console.warn`，后到的整条丢弃  |
+
+**被测量推翻的预判一（我自己的）**：我先前推断「titlebar 先注册所以会连整个会话 tab 一起关」。实测第二条用例**通过**——有 context 子 tab 时 `mod+w` 关的正是子 tab、会话保留，所以活下来的是 **Session 那条**。今天的行为在两种上下文里都是对的。
+
+**被测量推翻的预判二（计划的）**：因此计划 §5「保留 Titlebar 全局 owner、删除 `use-session-commands.tsx` 的重复注册」会**直接把上面那条通过的用例弄红**。S8a 必须改判：收敛成单一上下文感知 owner（有可关子 tab 先关子 tab，否则关顶层 tab），或给两者不同 id/keybind；不能直接删一处。
+
+**所以这条债的真实性质**：当前**不是**行为缺陷，而是重复注册本身——日志噪声 + 对挂载顺序的隐式依赖（没有任何东西钉住谁先注册，将来改动挂载顺序会静默换掉 `mod+w` 的语义）。严重度按此记，不要写成用户可见的错关。
 
 ---
 
@@ -281,6 +294,7 @@ git diff --check                                                   → clean
 bun --cwd packages/app test:e2e e2e/regression/mode-surface-wiring.spec.ts        → 6 passed / 1 failed（新增 RED）
 bun --cwd packages/app test:e2e e2e/regression/home-empty-new-session.spec.ts     → 1 passed / 1 failed（新增 RED）
 bun --cwd packages/app test:e2e e2e/regression/session-turn-stall.spec.ts         → 1 passed / 1 failed（新增 RED）
+bun --cwd packages/app test:e2e e2e/regression/tab-close-owner.spec.ts            → 2 passed / 1 failed（新增 RED）
 bun --cwd packages/app test:e2e e2e/regression/session-open-navigation.spec.ts    → 1 passed（mock-server 改动冒烟）
 ```
 
@@ -288,6 +302,6 @@ bun --cwd packages/app test:e2e e2e/regression/session-open-navigation.spec.ts  
 
 **停止点**
 
-- 基线 6 未取证前不进入 S1（其余五条已冻结）；
+- 六条基线已全部冻结，S0 出口条件达成；
 - §4 的范围问题（新缺陷归 S1 还是独立 S1b）需用户裁决后才动 `store.ts`；
 - 基线 6 的 owner 选择必须先跑完行为矩阵，计划里的「删掉 Session 注册」已被 §3.5 的代码事实否掉，不得照旧执行。
