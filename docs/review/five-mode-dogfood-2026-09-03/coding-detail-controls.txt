@@ -253,6 +253,6 @@
 [debug] [vite] connecting...
 [debug] [vite] connected.
 [warning] [command] duplicate command id "tab.close" registered; keeping first entry
-✗ 
-✗ 
-✗ 
+✗
+✗
+✗

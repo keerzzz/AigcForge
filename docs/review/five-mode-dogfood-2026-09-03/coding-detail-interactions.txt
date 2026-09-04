@@ -214,6 +214,6 @@
 [warning] [command] duplicate command id "tab.close" registered; keeping first entry
 [error] {stack: "TypeError: Failed to fetch dynamically imported mo…de_modules/.vite/deps/wasm-RTMEAGTG.js?v=17cd2672", message: "Failed to fetch dynamically imported module: http:…de_modules/.vite/deps/wasm-RTMEAGTG.js?v=17cd2672"}
 [error] {stack: "TypeError: Failed to fetch dynamically imported mo…de_modules/.vite/deps/wasm-RTMEAGTG.js?v=17cd2672", message: "Failed to fetch dynamically imported module: http:…de_modules/.vite/deps/wasm-RTMEAGTG.js?v=17cd2672"}
-✗ 
-✗ 
-✗ 
+✗
+✗
+✗
