@@ -8,10 +8,14 @@ export const DelegationStatus = Schema.Literals([
   "draft",
   "running",
   "waiting_review",
+  "changes_requested",
   "approved",
+  "failed",
+  "recovery_required",
+  "closing",
   "completed",
-  "cancelled",
   "archived",
+  "cancelled",
 ]).annotate({ identifier: "DelegationStatus" })
 export type DelegationStatus = typeof DelegationStatus.Type
 
@@ -20,7 +24,7 @@ export const ParticipantRole = Schema.Literals(["implementer", "reviewer", "appr
 })
 export type ParticipantRole = typeof ParticipantRole.Type
 
-export const ParticipantPhase = Schema.Literals(["provisioning", "active", "failed"]).annotate({
+export const ParticipantPhase = Schema.Literals(["provisioning", "active", "failed", "closed"]).annotate({
   identifier: "ParticipantPhase",
 })
 export type ParticipantPhase = typeof ParticipantPhase.Type
@@ -35,7 +39,16 @@ export const ParticipantContext = Schema.Literals(["fresh", "fork"]).annotate({
 })
 export type ParticipantContext = typeof ParticipantContext.Type
 
-export const TurnStatus = Schema.Literals(["admitted", "running", "settled", "failed", "cancelled"]).annotate({
+export const TurnStatus = Schema.Literals([
+  "admitted",
+  "queued",
+  "running",
+  "partially_completed",
+  "completed",
+  "failed",
+  "cancelled",
+  "recovery_required",
+]).annotate({
   identifier: "TurnStatus",
 })
 export type TurnStatus = typeof TurnStatus.Type
@@ -53,12 +66,11 @@ export type DeliveryIntent = typeof DeliveryIntent.Type
 export const DeliveryStatus = Schema.Literals([
   "admitted",
   "queued",
-  "dispatching",
   "running",
-  "settled",
+  "completed",
   "failed",
-  "recovery_required",
   "cancelled",
+  "recovery_required",
 ]).annotate({ identifier: "DeliveryStatus" })
 export type DeliveryStatus = typeof DeliveryStatus.Type
 
@@ -67,24 +79,36 @@ export const ReviewVerdict = Schema.Literals(["approved", "changes_requested", "
 })
 export type ReviewVerdict = typeof ReviewVerdict.Type
 
+export const ReviewSeverity = Schema.Literals(["blocking", "major", "minor", "note"]).annotate({
+  identifier: "ReviewSeverity",
+})
+export type ReviewSeverity = typeof ReviewSeverity.Type
+
+export const RevisionDigest = Schema.String.check(Schema.isPattern(/^rev_[a-f0-9]{64}$/)).annotate({
+  identifier: "RevisionDigest",
+})
+export type RevisionDigest = typeof RevisionDigest.Type
+
 export const ChangeKind = Schema.Literals(["no_change", "no_code_change", "formatting_only", "rework"]).annotate({
   identifier: "ChangeKind",
 })
 export type ChangeKind = typeof ChangeKind.Type
 
 export const ReviewFinding = Schema.Struct({
-  file: Schema.optional(Schema.String),
-  line: Schema.optional(Schema.Number),
-  severity: Schema.Literals(["info", "warning", "error"]),
-  message: Schema.String,
+  file: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),
+  line: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
+  severity: ReviewSeverity,
+  summary: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(2048)),
+  message: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
 }).annotate({ identifier: "DelegationReviewFinding" })
 export type ReviewFinding = typeof ReviewFinding.Type
 
 export const ReviewEnvelope = Schema.Struct({
-  reviewedRevisionDigest: Schema.String,
+  kind: Schema.optional(Schema.Literal("aigcfroge.review.v1")),
+  reviewed_revision_digest: RevisionDigest,
   verdict: ReviewVerdict,
-  findings: Schema.Array(ReviewFinding),
-  summary: Schema.optional(Schema.String),
+  findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
 }).annotate({ identifier: "DelegationReviewEnvelope" })
 export type ReviewEnvelope = typeof ReviewEnvelope.Type
 
@@ -99,9 +123,8 @@ export class Info extends Schema.Class<Info>("Delegation.Info")({
   id: DelegationID,
   parentSessionID: SessionID,
   metaAgentID: Schema.optional(Schema.String),
-  title: Schema.String.check(Schema.isMinLength(1)),
+  title: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(255)),
   status: DelegationStatus,
-  activeTurnID: Schema.optional(TurnID),
   latestRevisionDigest: Schema.optional(Schema.String),
   rejectionBlocked: Schema.Boolean,
   rejectionReason: Schema.optional(Schema.String),
@@ -122,7 +145,7 @@ export class ParticipantInfo extends Schema.Class<ParticipantInfo>("Delegation.P
   role: ParticipantRole,
   context: ParticipantContext,
   phase: ParticipantPhase,
-  runtimeStatus: ParticipantRuntimeStatus,
+  runtimeStatus: Schema.optional(ParticipantRuntimeStatus),
   childSessionID: Schema.optional(SessionID),
   externalThreadID: Schema.optional(Schema.String),
   lastActivityAt: Schema.Number,
@@ -214,6 +237,33 @@ export class DelegationBarrierNotMetError extends Schema.TaggedErrorClass<Delega
   {
     delegationID: DelegationID,
     missingRoles: Schema.Array(ParticipantRole),
+    reason: Schema.String,
+  },
+) {}
+
+export class DelegationCorruptedEventError extends Schema.TaggedErrorClass<DelegationCorruptedEventError>()(
+  "Delegation.DelegationCorruptedEventError",
+  {
+    delegationID: Schema.optional(DelegationID),
+    eventType: Schema.String,
+    reason: Schema.String,
+  },
+) {}
+
+export class DelegationAggregateMismatchError extends Schema.TaggedErrorClass<DelegationAggregateMismatchError>()(
+  "Delegation.DelegationAggregateMismatchError",
+  {
+    expectedDelegationID: DelegationID,
+    actualDelegationID: Schema.String,
+  },
+) {}
+
+export class DelegationSequenceError extends Schema.TaggedErrorClass<DelegationSequenceError>()(
+  "Delegation.DelegationSequenceError",
+  {
+    delegationID: DelegationID,
+    expectedSeq: Schema.Number,
+    actualSeq: Schema.Number,
     reason: Schema.String,
   },
 ) {}

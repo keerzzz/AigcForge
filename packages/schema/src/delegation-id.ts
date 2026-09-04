@@ -4,7 +4,7 @@ import { Schema } from "effect"
 import { descending } from "./identifier"
 import { withStatics } from "./schema"
 
-export const ID = Schema.String.check(Schema.isStartsWith("dlg")).pipe(
+export const ID = Schema.String.check(Schema.isStartsWith("dlg_")).pipe(
   Schema.brand("DelegationID"),
   withStatics((schema) => {
     const create = () => schema.make("dlg_" + descending())
@@ -16,7 +16,7 @@ export const ID = Schema.String.check(Schema.isStartsWith("dlg")).pipe(
 )
 export type ID = typeof ID.Type
 
-export const ParticipantID = Schema.String.check(Schema.isStartsWith("par")).pipe(
+export const ParticipantID = Schema.String.check(Schema.isStartsWith("par_")).pipe(
   Schema.brand("ParticipantID"),
   withStatics((schema) => {
     const create = () => schema.make("par_" + descending())
@@ -28,7 +28,7 @@ export const ParticipantID = Schema.String.check(Schema.isStartsWith("par")).pip
 )
 export type ParticipantID = typeof ParticipantID.Type
 
-export const TurnID = Schema.String.check(Schema.isStartsWith("trn")).pipe(
+export const TurnID = Schema.String.check(Schema.isStartsWith("trn_")).pipe(
   Schema.brand("TurnID"),
   withStatics((schema) => {
     const create = () => schema.make("trn_" + descending())

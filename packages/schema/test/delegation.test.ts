@@ -17,10 +17,13 @@ describe("Delegation Schema and Branded IDs", () => {
     expect(String(ParticipantID.make("par_test_1"))).toBe("par_test_1")
     expect(String(TurnID.make("trn_test_1"))).toBe("trn_test_1")
 
-    // Invalid prefix throws or fails decode
+    // Invalid prefix throws or fails decode (must have trailing underscore)
     expect(() => Schema.decodeUnknownSync(DelegationID.ID)("ses_not_delegation")).toThrow()
+    expect(() => Schema.decodeUnknownSync(DelegationID.ID)("dlgBAD")).toThrow()
     expect(() => Schema.decodeUnknownSync(ParticipantID)("dlg_not_participant")).toThrow()
+    expect(() => Schema.decodeUnknownSync(ParticipantID)("parBAD")).toThrow()
     expect(() => Schema.decodeUnknownSync(TurnID)("par_not_turn")).toThrow()
+    expect(() => Schema.decodeUnknownSync(TurnID)("trnBAD")).toThrow()
   })
 
   test("Delegation.Info validates valid structures and rejects invalid states/titles", () => {
@@ -40,6 +43,15 @@ describe("Delegation Schema and Branded IDs", () => {
     expect(decoded.id).toBe(DelegationID.ID.make("dlg_01"))
     expect(decoded.title).toBe("Fix bug in parser")
     expect(decoded.status).toBe("draft")
+
+    // ADR-22 approved statuses must decode
+    for (const status of ["changes_requested", "failed", "recovery_required", "closing"] as const) {
+      const s = Schema.decodeUnknownSync(Delegation.Info)({
+        ...validRaw,
+        status,
+      })
+      expect(s.status).toBe(status)
+    }
 
     // Empty title rejected
     expect(() =>
@@ -86,6 +98,13 @@ describe("Delegation Schema and Branded IDs", () => {
     expect(decoded.phase).toBe("provisioning")
     expect(decoded.runtimeStatus).toBe("idle")
 
+    // Phase closed is supported
+    const closed = Schema.decodeUnknownSync(Delegation.ParticipantInfo)({
+      ...validParticipant,
+      phase: "closed",
+    })
+    expect(closed.phase).toBe("closed")
+
     // Unknown role rejected
     expect(() =>
       Schema.decodeUnknownSync(Delegation.ParticipantInfo)({
@@ -104,15 +123,16 @@ describe("Delegation Schema and Branded IDs", () => {
   })
 
   test("ReviewEnvelope validates verdict, findings, and revision digest", () => {
+    const dummyDigest = "rev_" + "a".repeat(64)
     const validEnvelope = {
-      reviewedRevisionDigest: "rev_sha256_abcdef",
+      reviewed_revision_digest: dummyDigest,
       verdict: "approved",
       findings: [
         {
           file: "src/index.ts",
           line: 42,
-          severity: "info",
-          message: "Looks good",
+          severity: "blocking",
+          summary: "Looks good",
         },
       ],
       summary: "Review completed with approval",
@@ -120,8 +140,44 @@ describe("Delegation Schema and Branded IDs", () => {
 
     const decoded = Schema.decodeUnknownSync(Delegation.ReviewEnvelope)(validEnvelope)
     expect(decoded.verdict).toBe("approved")
-    expect(decoded.reviewedRevisionDigest).toBe("rev_sha256_abcdef")
+    expect(decoded.reviewed_revision_digest).toBe(dummyDigest)
     expect(decoded.findings.length).toBe(1)
+    expect(decoded.findings[0]?.severity).toBe("blocking")
+
+    // Invalid severity "info" must be rejected (only blocking | major | minor | note)
+    expect(() =>
+      Schema.decodeUnknownSync(Delegation.ReviewEnvelope)({
+        ...validEnvelope,
+        findings: [
+          {
+            severity: "info",
+            summary: "info not allowed",
+          },
+        ],
+      }),
+    ).toThrow()
+
+    // Negative line number rejected
+    expect(() =>
+      Schema.decodeUnknownSync(Delegation.ReviewEnvelope)({
+        ...validEnvelope,
+        findings: [
+          {
+            severity: "blocking",
+            summary: "Negative line",
+            line: -1,
+          },
+        ],
+      }),
+    ).toThrow()
+
+    // Invalid revision digest format rejected
+    expect(() =>
+      Schema.decodeUnknownSync(Delegation.ReviewEnvelope)({
+        ...validEnvelope,
+        reviewed_revision_digest: "not_a_valid_digest",
+      }),
+    ).toThrow()
 
     // Unknown verdict rejected
     expect(() =>
