@@ -1,3 +1,6 @@
+> **状态：HISTORICAL PROTOCOL-CARD PLAN / EXTENDED BY ADR-22（2026-08-31）**
+> 本文仍是 Agent Card/Protocol Card 的历史实施记录。新的 implementer/reviewer participant 输出、turn、evidence/revision digest 和 close 协议，以 [ADR-22](../architecture/adr/ADR-22-meta-agent-persistent-delegation.md) 与 [唯一实施计划](meta-agent-persistent-delegation-closed-loop.md) 为准。
+
 # AigcForge 子智能体协议卡片实施计划
 
 > 日期：2026-06-29
@@ -329,10 +332,10 @@ scripts/check-agent-protocols.sh
 
 ## 八、参考
 
-- [现有 meta agent 系统提示词](../packages/aigcfroge/src/agent/prompt/meta.txt)
-- [现有 delegation-protocol 工具](../packages/aigcfroge/src/tool/delegation-protocol.ts)
-- [现有 context-builder 模板](../packages/aigcfroge/src/agent/meta/context-builder.ts)
-- [V1 agent 注册表](../packages/aigcfroge/src/agent/agent.ts)
-- [V2 agent 注册表](../packages/core/src/plugin/agent.ts)
+- [现有 meta agent 系统提示词](../../packages/core/src/plugin/agent.ts)
+- [现有 delegation-protocol 工具](../../packages/aigcfroge/src/tool/delegation-protocol.ts)
+- [现有 context-builder 模板](../../packages/aigcfroge/src/agent/meta/context-builder.ts)
+- [V1 agent 注册表](../../packages/aigcfroge/src/agent/agent.ts)
+- [V2 agent 注册表](../../packages/core/src/plugin/agent.ts)
 - [Harness Engineering 学习指南](https://github.com/deusyu/harness-engineering)
-- [AI 智能体协议研究白皮书](../docs/research/industry/AI智能体协议研究.md)
+- [AI 智能体协议研究白皮书](../research/industry/AI智能体协议研究.md)

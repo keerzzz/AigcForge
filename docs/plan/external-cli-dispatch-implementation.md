@@ -1,3 +1,6 @@
+> **状态：HISTORICAL TRANSPORT BASELINE / SCOPE TRANSFERRED（2026-08-31）**
+> 本文完成并记录 External CLI M1–M5 的 transport、resume、权限桥和 UI 任务卡工作；它不再拥有“持久委派对话”的生命周期语义。participant、multi-turn、revision/review barrier、steer/interrupt、close/archive 和恢复由 [Meta-Agent 持久委派对话闭环升级实施计划](meta-agent-persistent-delegation-closed-loop.md) 统一规划。
+
 # 外部 CLI 调度 M1–M5 完整实施方案（已批准 2026-08-05）
 
 > 依据：`CLAUDE.md`（第一性原理/门禁/改完即审）、`AGENTS.md`（Effect/Schema/测试/codegraph 分层）、`ARCHITECTURE.md`（五层拓扑）、`DESIGN.md`（v2 token/i18n/a11y）、`packages/aigcfroge/AGENTS.md`（模块形态）、skills（effect / database / frontend-theming）、TDD 成文约定（`docs/plan/work-mode-m1-tdd-prompt.md` 红→绿→重构、`docs/plan/prompt-todo-task-fix-review-2026-08-06.md` 修复类 TDD 变体）。

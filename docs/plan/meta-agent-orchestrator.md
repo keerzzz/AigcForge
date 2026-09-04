@@ -1,6 +1,9 @@
+> **状态：HISTORICAL / SUPERSEDED（2026-08-31）**
+> 本文记录 Meta-Agent MVP 的历史实施过程。新的持久委派、多参与者、多轮追加、revision barrier、close/archive 和恢复闭环统一由 [Meta-Agent 持久委派对话闭环升级实施计划](meta-agent-persistent-delegation-closed-loop.md) 定义。本文保留为历史参考，不再作为施工入口。
+
 # Meta-Agent Orchestrator — Implementation Plan
 
-> 状态：READY（审计通过，v1.1 修复版）
+> 本文已由上方的 `HISTORICAL / SUPERSEDED` 标记封存；不得按原实施状态或实施入口使用。
 > 分支：`meta-agent-orchestrator`
 > 目标版本：v0.1.0
 > PRD 参考：`docs/prd/meta-agent-orchestrator.md`

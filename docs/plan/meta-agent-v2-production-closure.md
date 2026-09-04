@@ -1,3 +1,6 @@
+> **状态：HISTORICAL BASELINE / SUPERSEDED（2026-08-31）**
+> 本文的 v6 结论只覆盖既有 V1→V2 接线、基础 CLI resume、Judge、摘要和生产加固，不代表 Meta-Agent 已具备“持久多参与者委派闭环”。其中“外部 CLI 会话恢复已完成”仅表示 resume_hint/SDK resume 基础能力；thread/turn 控制、participant 绑定、revision barrier、close/archive 和重启恢复由 [Meta-Agent 持久委派对话闭环升级实施计划](meta-agent-persistent-delegation-closed-loop.md) 接管。本文保留为历史迁移记录，不再作为新功能施工入口。
+
 # Meta-Agent V2 生产级闭环升级方案
 
 > **状态**: v6 — 2026-07-09 更新，Phase 4-6 全部完成，AIGCFROGE_V2_RUNTIME 默认 true，21/26 handler 有 V2 路径
@@ -5,7 +8,7 @@
 > **日期**: 2026-07-05（v5 更新 2026-07-08，v6 2026-07-09）
 > **审批**: 有条件批准 → 已修正 3 项事实错误 + 4 项重大遗漏，详见各章修订注记
 > **范围**: 弃 V1，全切 V2，接线闭合到生产级闭环（V1 源码保留但不再默认运行）
-> **关联文档**: [meta-agent-orchestrator.md](meta-agent-orchestrator.md) · [cache-miss-diagnostics-and-agent-upgrade.md](cache-miss-diagnostics-and-agent-upgrade.md) · [subagent-protocol-cards.md](subagent-protocol-cards.md) · [../architecture/global-stats-design.md](../architecture/global-stats-design.md) · [../../specs/v2/todo.md](../../specs/v2/todo.md) · [meta-agent-v2-session-endpoints-handoff.md](meta-agent-v2-session-endpoints-handoff.md) · [../主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md)
+> **关联文档**: [meta-agent-orchestrator.md](meta-agent-orchestrator.md) · [cache-miss-diagnostics-and-agent-upgrade.md](cache-miss-diagnostics-and-agent-upgrade.md) · [subagent-protocol-cards.md](subagent-protocol-cards.md) · [../architecture/global-stats-design.md](../architecture/global-stats-design.md) · [../../specs/v2/todo.md](../../specs/v2/todo.md) · [meta-agent-v2-session-endpoints-handoff.md](meta-agent-v2-session-endpoints-handoff.md) · [../research/agent/主流编程及 CIL 智能体架构深度调研方案.md](../research/agent/主流编程及 CIL 智能体架构深度调研方案.md)
 
 ---
 
@@ -23,7 +26,7 @@
 
 **v5 修订要点**：
 
-- R13：基于业界调研报告（[主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md)）新增 5 个关键发现维度：Judge 多模型仲裁模式、安全三层防护缺失、PreToolUse 钩子空壳实现、外部 CLI 会话恢复能力缺失、冷存储归档机制缺失
+- R13：基于业界调研报告（[主流编程及 CIL 智能体架构深度调研方案.md](../research/agent/主流编程及 CIL 智能体架构深度调研方案.md)）新增 5 个关键发现维度：Judge 多模型仲裁模式、安全三层防护缺失、PreToolUse 钩子空壳实现、外部 CLI 会话恢复能力缺失、冷存储归档机制缺失
 - R14：Fork 功能决策——**不需要独立新建 Fork 服务**，现有 `SessionV2.create({parentID})` + `SessionShareV2.share({scope:"full"})` 组合即可覆盖 Fork 用例。缺的是 `/fork` CLI 命令 + UI 交互入口，独立为 P6.5
 - R15：新增 Phase 6（智能体增强），聚焦缓存优化、安全加固、摘要压缩、Judge 模式等业界已验证的方向
 - R16：INTENT_TOOL_FILTERS 死代码接入（P3.8）优先级提升至 P0——直接影响前缀缓存和工具裁剪
@@ -93,15 +96,15 @@
 
 ### 1.2 已实现未接线（孤岛）
 
-| 子系统                | 位置                                                                                                | 问题                                                                                                                                                                                                          |
-| --------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V2 runner 本身        | [runner/llm.ts](../../packages/core/src/session/runner/llm.ts)                                      | aigcfroge 运行时不 provide 它                                                                                                                                                                                 |
-| `INTENT_TOOL_FILTERS` | [tool/registry.ts:15-40](../../packages/core/src/tool/registry.ts#L15)                              | runner 不传 intent（[llm.ts:205](../../packages/core/src/session/runner/llm.ts#L205) 仅传 permissions），死代码                                                                                               |
-| intent 选模型桩       | [runner/model.ts:75,213](../../packages/core/src/session/runner/model.ts#L75)                       | 同上，dead                                                                                                                                                                                                    |
-| cache-warmth          | [aigcfroge/src/agent/meta/cache-warmth.ts](../../packages/aigcfroge/src/agent/meta/cache-warmth.ts) | 无 src 调用方                                                                                                                                                                                                 |
-| workflow engine       | [aigcfroge/src/agent/meta/workflow/](../../packages/aigcfroge/src/agent/meta/workflow/)             | 无 src 调用方                                                                                                                                                                                                 |
-| `meta_agent_step` 表  | [core/src/meta-agent/sql.ts:46](../../packages/core/src/meta-agent/sql.ts#L46)                      | ✅ 已有写入方：`task-driver-fill.ts`（`create` 写 subagent step；M1 2026-08-06 起 `executeCLI` 写 `type:"external-cli"` step 并经 `updateStep` 归位 completed/failed，`writeStep` 序号改为表内 `MAX(seq)+1`） |
-| TUI EventV2 消费      | [tui/src/context/data.tsx:132-345](../../packages/tui/src/context/data.tsx#L132)                    | 已就绪（V2 切换后无需改）                                                                                                                                                                                     |
+| 子系统                | 位置                                                                                                            | 问题                                                                                                                                                                                                          |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V2 runner 本身        | [runner/llm.ts](../../packages/core/src/session/runner/llm.ts)                                                  | aigcfroge 运行时不 provide 它                                                                                                                                                                                 |
+| `INTENT_TOOL_FILTERS` | [tool/registry.ts:15-40](../../packages/core/src/tool/registry.ts#L15)                                          | runner 不传 intent（[llm.ts:205](../../packages/core/src/session/runner/llm.ts#L205) 仅传 permissions），死代码                                                                                               |
+| intent 选模型桩       | [runner/model.ts:75,213](../../packages/core/src/session/runner/model.ts#L75)                                   | 同上，dead                                                                                                                                                                                                    |
+| cache-warmth          | [aigcfroge/src/agent/meta/meta-prompt-filler.ts](../../packages/aigcfroge/src/agent/meta/meta-prompt-filler.ts) | 无 src 调用方                                                                                                                                                                                                 |
+| workflow engine       | [Meta-Agent 持久委派对话闭环升级实施计划](meta-agent-persistent-delegation-closed-loop.md)                      | 无 src 调用方；新闭环由 ADR-22 定义                                                                                                                                                                           |
+| `meta_agent_step` 表  | [core/src/meta-agent/sql.ts:46](../../packages/core/src/meta-agent/sql.ts#L46)                                  | ✅ 已有写入方：`task-driver-fill.ts`（`create` 写 subagent step；M1 2026-08-06 起 `executeCLI` 写 `type:"external-cli"` step 并经 `updateStep` 归位 completed/failed，`writeStep` 序号改为表内 `MAX(seq)+1`） |
+| TUI EventV2 消费      | [tui/src/context/data.tsx:132-345](../../packages/tui/src/context/data.tsx#L132)                                | 已就绪（V2 切换后无需改）                                                                                                                                                                                     |
 
 ### 1.3 已完成（原缺失已补建）
 
@@ -123,7 +126,7 @@
 
 ### 1.3b 缺失（必须新建 — 基于业界调研发现）
 
-**调研依据**：[../主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md) §4-5
+**调研依据**：[../research/agent/主流编程及 CIL 智能体架构深度调研方案.md](../research/agent/主流编程及 CIL 智能体架构深度调研方案.md) §4-5
 
 | 缺口                                                                 | 严重度 | 依赖                        | 调研来源                                                                       |
 | -------------------------------------------------------------------- | ------ | --------------------------- | ------------------------------------------------------------------------------ |
@@ -140,7 +143,7 @@
 | 文档                                                                        | 漂移                                                      |
 | --------------------------------------------------------------------------- | --------------------------------------------------------- |
 | [ARCHITECTURE.md:244](../../ARCHITECTURE.md#L244)                           | 标 MetaAgent/ModeSwitcher/StatusBar "Planned"，实际已实现 |
-| [v1-removal-and-v2-migration-plan.md](v1-removal-and-v2-migration-plan.md)  | 标题误导：是 UI Token 迁移，非 Agent Runtime 迁移         |
+| [specs/v2/todo.md](../../specs/v2/todo.md)                                  | 标题误导：是 UI Token 迁移，非 Agent Runtime 迁移         |
 | [specs/v2/todo.md](../../specs/v2/todo.md)                                  | 非结构化叙述，无 done/in-progress/planned 标记            |
 | [specs/v2/schema-changelog.md:674](../../specs/v2/schema-changelog.md#L674) | 声明 V2 数据 "disposable"，未达生产级向前兼容             |
 
@@ -248,7 +251,7 @@ Phase 6 — 全部完成（摘要投递+Judge仲裁+CLI恢复+符号链接+Fork�
 | 任务                                                                         | 文件                                                                        | 验收                                                                                                                                                                                                                                                       | 协议约束                                                                                          |
 | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | P0.1 建分支 `meta-v2-closure` + 加 flag `AIGCFROGE_V2_RUNTIME`（默认 false） | [effect/app-runtime.ts](../../packages/aigcfroge/src/effect/app-runtime.ts) | flag 可读，V1/V2 可切                                                                                                                                                                                                                                      | effect: Effect.gen + Effect.fn                                                                    |
-| **P0.2 smoke test 验证 packages/server V2 端到端**                           | 新建 [packages/server/test/smoke-v2.test.ts](../../packages/server/test/)   | 最小 prompt 走通 `SessionV2.prompt → SessionExecution.wake → SessionRunner.run`；**确认 SessionRunner.layer 解析路径**（[execution/local.ts:38](../../packages/core/src/session/execution/local.ts#L38) 仅 provide SessionStore，runner layer 来源待验证） | test: `testEffect()` + `it.live`；禁 `Effect.sleep`，用 `pollWithTimeout`/`SessionStatus.Service` |
+| **P0.2 smoke test 验证 packages/server V2 端到端**                           | 在 [packages/server/src/](../../packages/server/src/) 新建 smoke test       | 最小 prompt 走通 `SessionV2.prompt → SessionExecution.wake → SessionRunner.run`；**确认 SessionRunner.layer 解析路径**（[execution/local.ts:38](../../packages/core/src/session/execution/local.ts#L38) 仅 provide SessionStore，runner layer 来源待验证） | test: `testEffect()` + `it.live`；禁 `Effect.sleep`，用 `pollWithTimeout`/`SessionStatus.Service` |
 | P0.3 V2 schema 基线快照 + 跑全量 V2 session 测试基线                         | [specs/v2/schema-changelog.md](../../specs/v2/schema-changelog.md)          | 13 个 session-\* 测试全绿，记录基线                                                                                                                                                                                                                        | test: 包内 `bun --cwd packages/core test`                                                         |
 
 **P0.2 失败处置**：若 smoke test 证明 `packages/server` V2 路径跑不通（SessionRunner.Service 解析失败），则方案暂停，先在 core 修复 runner layer 提供链，再重启 Phase 1。**这是 R3 的硬门槛**。
@@ -359,7 +362,7 @@ Phase 6 — 全部完成（摘要投递+Judge仲裁+CLI恢复+符号链接+Fork�
 | `{{CLI_LIST}}`       | 从 AdapterRegistry（aigcfroge 层注入）取已注册 CLI                                                                                    |
 | 接入点               | [plugin/agent.ts:174,177](../../packages/core/src/plugin/agent.ts#L174) PROMPT_META 渲染时                                            |
 
-**验收**：meta 启动时 LLM 看到实际子 agent + CLI 清单（非字面量）。更新 [meta-agent.test.ts:18-19](../../packages/aigcfroge/test/agent/meta/meta-agent.test.ts#L18) 断言被填充。
+**验收**：meta 启动时 LLM 看到实际子 agent + CLI 清单（非字面量）。更新 [meta-agent-e2e.test.ts](../../packages/aigcfroge/test/meta-agent-e2e.test.ts) 断言被填充。
 
 #### P2.5 MetaAgent 服务层（1 天）
 
@@ -382,11 +385,11 @@ Phase 6 — 全部完成（摘要投递+Judge仲裁+CLI恢复+符号链接+Fork�
 
 #### P2.7 PROMPT_META 单源化 + CLI 适配器归属（0.5 天，R4 修订）
 
-| 动作                                                                                                                                                                                   | 文件             |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| core 内联抽到 [packages/core/src/agent/prompt/meta.txt](../../packages/core/src/agent/) 单源                                                                                           | V2 plugin import |
-| 删除 [aigcfroge/src/agent/prompt/meta.txt](../../packages/aigcfroge/src/agent/prompt/meta.txt) + [aigcfroge/src/agent/meta-agent.ts](../../packages/aigcfroge/src/agent/meta-agent.ts) | 双源漂移消除     |
-| CLI 适配器归属                                                                                                                                                                         | 见 P2.2 R4 决策  |
+| 动作                                                                                                                                          | 文件                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| core 内联抽到 [packages/core/src/agent/prompt/meta.txt](../../packages/core/src/agent/) 单源                                                  | V2 plugin import                                                                                      |
+| 删除 `aigcfroge/src/agent/prompt/meta.txt`（历史文件）+ [aigcfroge/src/agent/meta-agent.ts](../../packages/aigcfroge/src/agent/meta-agent.ts) | 双源漂移消除；V2 PROMPT_META 来自 [core/src/plugin/agent.ts](../../packages/core/src/plugin/agent.ts) |
+| CLI 适配器归属                                                                                                                                | 见 P2.2 R4 决策                                                                                       |
 
 **验收**：grep `PROMPT_META` 单一来源。
 
@@ -517,7 +520,7 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 #### P3.8 INTENT_TOOL_FILTERS 接线 — 工具按需加载（1 天，v5 新增，P0）
 
-**调研来源**：[调研报告 §4.3](../../research/agent/主流编程及 CIL 智能体架构深度调研方案.md) — Kimi Code `select_tools` 机制，业界已验证的工具按需加载减少前缀 Token 30%+。
+**调研来源**：[调研报告 §4.3](../research/agent/主流编程及 CIL 智能体架构深度调研方案.md) — Kimi Code `select_tools` 机制，业界已验证的工具按需加载减少前缀 Token 30%+。
 
 **现状**：INTENT_TOOL_FILTERS 在 [registry.ts:15-40](../../packages/core/src/tool/registry.ts#L15) 已定义但 runner 不传 intent（[llm.ts:205](../../packages/core/src/session/runner/llm.ts#L205) 仅传 permissions），死代码。PreRouter 的 `preRoute` 已迁移到 core 但未接入。
 
@@ -532,7 +535,7 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 #### P3.9 PreToolUse/PostToolUse 钩子实现（1.5 天，v5 新增，P0）
 
-**调研来源**：[调研报告 §5.2](../../research/agent/主流编程及 CIL 智能体架构深度调研方案.md) — PreToolUse 在工具执行前拦截决策，PostToolUse 在工具执行后检查上下文阈值触发压缩。
+**调研来源**：[调研报告 §5.2](../research/agent/主流编程及 CIL 智能体架构深度调研方案.md) — PreToolUse 在工具执行前拦截决策，PostToolUse 在工具执行后检查上下文阈值触发压缩。
 
 **现状**：MetaHooks 的 `middleware.register` 在 [host.ts](../../packages/core/src/plugin/host.ts) 中是空函数。需要填入真实拦截逻辑。
 
@@ -541,7 +544,7 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 | 实现 `middleware.register` 存储 | [host.ts](../../packages/core/src/plugin/host.ts)                                       | 维护已注册 middleware 列表，按注册顺序执行                |
 | PreToolUse 拦截点               | [registry.ts:76-108](../../packages/core/src/tool/registry.ts#L76) settle 前            | 遍历 middleware.before 钩子，返回 `{ action: "allow"      | "deny", reason?: string }` |
 | PostToolUse 触发点              | [runner/llm.ts:174-435](../../packages/core/src/session/runner/llm.ts#L174) turn 结束后 | 遍历 middleware.after 钩子，检查上下文阈值触发 compaction |
-| 测试                            | [plugin/test/](../../packages/plugin/test/)                                             | 录制测试覆盖 allow/deny/compact 三种路径                  |
+| 测试                            | 在 [packages/plugin/src/](../../packages/plugin/src/) 录制测试                          | 录制测试覆盖 allow/deny/compact 三种路径                  |
 
 **验收**：plugin 注册 middleware 后，PreToolUse 能拦截指定工具调用并返回 deny；PostToolUse 能在上下文超过阈值时触发 compaction。
 
@@ -558,7 +561,7 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 #### P3.7 MetaAgentSource 接入 Status Bar（0.5 天，R8 修订）
 
-**R8 修订**：Mode Switcher viewport 死循环 bug **拆出独立 plan**（[mode-switcher-viewport-fix.md](mode-switcher-viewport-fix.md) 另建），与 V2 runtime 闭环无直接依赖。本方案仅保留与 V2 闭环相关的 MetaAgentSource：
+**R8 修订**：Mode Switcher viewport 死循环 bug **拆出独立 plan**（[mode-switcher-implementation.md](mode-switcher-implementation.md) 另建），与 V2 runtime 闭环无直接依赖。本方案仅保留与 V2 闭环相关的 MetaAgentSource：
 
 | 动作                            | 文件                                                                            | 对标                                                                    |
 | ------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
@@ -607,7 +610,7 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 | ------------------------------------ | ----------------------------------------------------------------------- | ------ | ----------------------------------- |
 | MetaAgent 服务层                     | 新建 [packages/core/test/meta-agent.test.ts](../../packages/core/test/) | P0     | `testEffect()` + `Layer.mock`       |
 | meta_agent_step 写入                 | 同上                                                                    | P0     | 禁 `Effect.sleep`                   |
-| Plugin MetaHooks                     | [packages/plugin/test/](../../packages/plugin/test/)                    | P1     |                                     |
+| Plugin MetaHooks                     | [packages/plugin/test/](../../packages/plugin/src/)                     | P1     |                                     |
 | subagent-permissions parentAgentName | [packages/core/test/](../../packages/core/test/)                        | P0     |                                     |
 | PreRouter V2 runner 集成             | [session-runner.test.ts](../../packages/core/test/) 扩展                | P1     |                                     |
 | **SessionRevert V2**                 | 新建                                                                    | P0     | `it.live`（真实 fs Snapshot）       |
@@ -635,13 +638,13 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 #### P5.2 孤岛清理
 
-| 删除目标                                         | 文件                                                                                                               |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| cache-warmth V1 副本                             | [aigcfroge/src/agent/meta/cache-warmth.ts](../../packages/aigcfroge/src/agent/meta/cache-warmth.ts)（P2.3 迁移后） |
-| workflow V1 副本                                 | [aigcfroge/src/agent/meta/workflow/](../../packages/aigcfroge/src/agent/meta/workflow/)                            |
-| INTENT_TOOL_FILTERS 死代码（若 P2.3 不接线则删） | [tool/registry.ts:15-40](../../packages/core/src/tool/registry.ts#L15)                                             |
-| aigcfroge Session 服务（noopLayer 依赖）         | [session/session.ts:923-930](../../packages/aigcfroge/src/session/session.ts#L923)                                 |
-| 14 个无对等且确认丢弃的 Layer                    | §1.5 清单逐项决策                                                                                                  |
+| 删除目标                                         | 文件                                                                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| cache-warmth V1 副本                             | [aigcfroge/src/agent/meta/cache-warmth.ts](../../packages/aigcfroge/src/agent/meta/meta-prompt-filler.ts)（P2.3 迁移后） |
+| workflow V1 副本                                 | [aigcfroge/src/agent/meta/workflow/](../../docs/plan/meta-agent-persistent-delegation-closed-loop.md)                    |
+| INTENT_TOOL_FILTERS 死代码（若 P2.3 不接线则删） | [tool/registry.ts:15-40](../../packages/core/src/tool/registry.ts#L15)                                                   |
+| aigcfroge Session 服务（noopLayer 依赖）         | [session/session.ts:923-930](../../packages/aigcfroge/src/session/session.ts#L923)                                       |
+| 14 个无对等且确认丢弃的 Layer                    | §1.5 清单逐项决策                                                                                                        |
 
 #### P5.3 event-v2-bridge 降级 + 双 SSE 统一（R9 修订）
 
@@ -658,20 +661,20 @@ V1 通用字符串 trigger 需对等迁移到 V2 域 transform 或 aisdk hook：
 
 #### P5.4 文档同步
 
-| 文档                                                                       | 动作                                                         |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [ARCHITECTURE.md:244](../../ARCHITECTURE.md#L244)                          | MetaAgent/ModeSwitcher/StatusBar 改 Implemented + 指向本方案 |
-| [v1-removal-and-v2-migration-plan.md](v1-removal-and-v2-migration-plan.md) | 重命名为 `ui-token-v1-v2-migration.md`                       |
-| [specs/v2/todo.md](../../specs/v2/todo.md)                                 | 重构为 done/in-progress/planned 表格                         |
-| [specs/v2/schema-changelog.md](../../specs/v2/schema-changelog.md)         | P4.1 后更新兼容承诺                                          |
-| 5 篇 meta-agent 计划                                                       | 标注被本方案 supersede                                       |
-| **新建 mode-switcher-viewport-fix.md**                                     | Mode Switcher viewport 死循环独立 plan（R8）                 |
+| 文档                                                               | 动作                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| [ARCHITECTURE.md:244](../../ARCHITECTURE.md#L244)                  | MetaAgent/ModeSwitcher/StatusBar 改 Implemented + 指向本方案 |
+| [../../specs/v2/todo.md](../../specs/v2/todo.md)                   | 重命名为 `ui-token-v1-v2-migration.md`                       |
+| [specs/v2/todo.md](../../specs/v2/todo.md)                         | 重构为 done/in-progress/planned 表格                         |
+| [specs/v2/schema-changelog.md](../../specs/v2/schema-changelog.md) | P4.1 后更新兼容承诺                                          |
+| 5 篇 meta-agent 计划                                               | 标注被本方案 supersede                                       |
+| **新建 mode-switcher-implementation.md**                           | Mode Switcher viewport 死循环独立 plan（R8）                 |
 
 ---
 
 ### Phase 6 — 智能体增强与业界对齐（5-7 天，v5 新增）
 
-**目标**：基于业界调研报告（[../主流编程及 CIL 智能体架构深度调研方案.md](../主流编程及 CIL 智能体架构深度调研方案.md)）将 V2 智能体能力对齐业界前沿水平。本 Phase 不影响 V1→V2 闭环，可独立排期。
+**目标**：基于业界调研报告（[../research/agent/主流编程及 CIL 智能体架构深度调研方案.md](../research/agent/主流编程及 CIL 智能体架构深度调研方案.md)）将 V2 智能体能力对齐业界前沿水平。本 Phase 不影响 V1→V2 闭环，可独立排期。
 
 **关键原则**：复用优先，新增即负债。优先利用 V2 已有基础设施（EventV2、SessionShareV2、TaskDriver）扩展能力，不重复建轮子。
 
@@ -929,7 +932,7 @@ Day 24+:    灰度运行 1 周 → 移除 feature flag → V1 物理删除
 | v2   | 2026-07-05 | R10 §8 协议合规约束                                         | [CLAUDE.md](../../CLAUDE.md) 八荣八耻                                                                                                            |
 | v4   | 2026-07-08 | R11 Share 方案变更：外网→内部分享                           | 产品分析决策                                                                                                                                     |
 | v4   | 2026-07-08 | R12 V2 闭环接近完成，Fork 独立                              | 实现状态检查                                                                                                                                     |
-| v5   | 2026-07-08 | R13 基于业界调研新增 5 维度优化                             | [调研报告](../../research/agent/主流编程及 CIL 智能体架构深度调研方案.md)                                                                        |
+| v5   | 2026-07-08 | R13 基于业界调研新增 5 维度优化                             | [调研报告](../research/agent/主流编程及 CIL 智能体架构深度调研方案.md)                                                                           |
 | v5   | 2026-07-08 | R14 Fork 决策：不建新服务，复用 create({parentID}) + share  | 复用优先原则                                                                                                                                     |
 | v5   | 2026-07-08 | R15 新增 Phase 6（智能体增强）                              | 业界对齐                                                                                                                                         |
 | v5   | 2026-07-08 | R16 INTENT_TOOL_FILTERS 接线升至 P0                         | 缓存优化                                                                                                                                         |

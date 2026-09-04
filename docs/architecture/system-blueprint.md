@@ -266,7 +266,19 @@ SystemContext.make(source<A>) → SystemContext (opaque)
 
 Schema 定义: session_input/session_message/session_context_epoch (core/src/session/sql.ts) + event/event_sequence (core/src/event/sql.ts)。
 
-### 11.6 前端集成 (app 包)
+### 11.6 Meta-Agent 委派生命周期（目标态）
+
+当前 Meta-Agent 已支持基本的 child Session/task_id 续接、外部 CLI resume、PermissionV2 bridge 与 AgentTaskHub 投影；这些能力还不是统一的持久委派生命周期。目标态使用 [ADR-22](adr/ADR-22-meta-agent-persistent-delegation.md) 定义的：
+
+```text
+Delegation → Participant → Turn → Delivery
+  internal Build participant → child Session
+  external Codex/Claude participant → external thread
+```
+
+EventV2 负责 durable delegation events，Drizzle 表负责查询投影，SessionV2/TaskDriver/CliAdapter 负责实际执行。`task_id`、`external_cli_session` 与 `meta_agent_step` 在迁移期间保留为兼容投影，不能作为新的聚合根。
+
+### 11.7 前端集成 (app 包)
 
 在前端 app.tsx 中，Session 页面通过以下 Provider 链接入 V2 核心：
 

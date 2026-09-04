@@ -1,3 +1,6 @@
+> **状态：HISTORICAL / SUPERSEDED（2026-08-31）**
+> 本文是旧版 MVP 执行提示词，不能指导新的持久委派闭环。请使用 [唯一实施计划](meta-agent-persistent-delegation-closed-loop.md)；本文保留用于追溯早期协议卡片、意图和适配器设计。
+
 # Meta-Agent Orchestrator Implementation Prompt
 
 > 目标：实现元智能体编排系统 Phase 1（MVP），为后续 Phase 2-5 打好基础。

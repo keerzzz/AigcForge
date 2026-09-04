@@ -5,6 +5,8 @@
 > **Amends:** [ADR-13: Chat Work Mode Boundary](./ADR-13-chat-work-mode-boundary.md)
 > **Context:** 2026-08-11 元智能体调度架构决议（《元智能体调度架构讨论总结》§3.4 & §3.8）、2026-08-14 Chat 模式安全审计，以及 2026-08-15 Chat Session `full` 权限裁决
 
+> **生命周期边界（2026-08-31）**：本 ADR 只决定 Meta-Agent 默认路由与 Chat/Work 权限信封，不定义持久多参与者委派的聚合、turn、review barrier 或 close/archive。上述生命周期由 [ADR-22](ADR-22-meta-agent-persistent-delegation.md) 与[唯一实施计划](../../plan/meta-agent-persistent-delegation-closed-loop.md)定义。
+
 > **§1c 实施状态（2026-08-16）**：meta V1/V2 基线已收敛 fail-closed（`PermissionEffective` 唯一 owner）；`chat/work/assistant × meta` 支持持久档位 `propose`（默认）/`full`，**两档下已物化的写/命令工具均逐次 `ask`（propose 档为 2026-08-16 人类裁决修订，原提案 deny；两档差异在未知 action 基线 deny vs ask）**；当前有人值守 Chat 根 Session 主动开启 `meta + full` 后可直接使用物化的写/命令工具，危险 action（bash/edit/write/apply_patch 及未知）逐次 `ask`，saved approval 与 always 预授权不得跳过；unattended 根会话 ask 全降 deny、不可启用 break-glass；Session 级 break-glass（60s 租约，不持久化）仅根 Session 可用，break-glass 放开一般动作（含基线敏感文件 ask）但 Chat 危险 action 仍逐次确认；external CLI 委派 Chat 全档拒绝、Work/Assistant 仅 full 放行、未知 mode deny。
 
 ## Amendment

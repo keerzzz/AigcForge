@@ -84,6 +84,19 @@
 
 ## 🔄 In Progress
 
+### Meta-Agent Persistent Delegation (ADR-22)
+
+- [ ] Delegation/Participant/Turn/Delivery Schema + migration + EventV2 aggregate
+- [ ] Build participant multi-turn continuation with parent ownership validation
+- [ ] Codex/CLI participant binding independent of parent+target latest-active lookup
+- [ ] Multi-participant append/fan-out with evidence and revision digests
+- [ ] Structured Codex review envelope and latest-revision barrier
+- [ ] Participant steer/queue/interrupt/close/archive lifecycle
+- [ ] Restart reconciliation without automatic replay of unknown side effects
+- [ ] Delegation HTTP/SDK/UI surface and generated SDK parity
+
+> 施工真源：[Meta-Agent 持久委派对话闭环升级实施计划](../../docs/plan/meta-agent-persistent-delegation-closed-loop.md)。
+
 ### V2 Config
 
 - Schema defined in core/src/config.ts (agents, providers, mcp, skills, permissions...)

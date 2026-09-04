@@ -169,12 +169,14 @@ AigcForge enforces durable `Product Mode` classification. Switching modes preser
 
 ### Meta-Agent Unified Orchestrator
 
+> **Current boundary (2026-08-31):** Meta-Agent already supports basic internal task continuation and external CLI resume. The durable multi-participant, multi-turn Build + Codex review/approval lifecycle is planned in [ADR-22](docs/architecture/adr/ADR-22-meta-agent-persistent-delegation.md) and is not yet shipped as a complete runtime.
+
 - **Single Point of Interaction**: The default orchestrator `meta` routes intents without requiring manual agent juggling.
 - **Three-Tier System Prompt Architecture**:
   - **L1 Constant**: Byte-locked role definitions & routing rules (maximizing LLM prompt prefix cache).
   - **L2 Session**: Fixed workspace tools, subagents, and available external CLIs.
   - **L3 Dynamic**: Dynamic session context and delegation history.
-- **Flexible Execution Modes**: Single-intent routing, serial pipelines (Plan → Build → Review), and `@mention` parallel fan-out.
+- **Flexible Execution Modes**: Basic intent routing and `@mention` target detection are shipped; durable multi-participant pipelines and fan-out are defined by [ADR-22](docs/architecture/adr/ADR-22-meta-agent-persistent-delegation.md) and remain an implementation target.
 
 ### External CLI Dispatch System (ACP / SDK)
 

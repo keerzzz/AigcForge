@@ -210,7 +210,7 @@ All five values are shipped in `packages/schema/src/product-mode.ts` (`ProductMo
 - Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` (Accepted; main-area typed slot, Chat asset-centric; ADR-13 Amendment-1 assigns workflow definition→Chat, execution→Work), `docs/architecture/adr/ADR-16-global-home-overview.md` (Accepted; `/` renders the global aggregate home page, titlebar left gains a global home entry).
 - Accepted extension under implementation: `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md` (Accepted for M0/M1 implementation v1.2; `.aigcfroge/custom-profiles/*.yaml`, independent `session_composition_snapshot` table, `x-aigcfroge-capabilities: product-mode-custom-v1` header negotiation, V2-native runtime policy, task + child create dual gate, and M1 single-agent scope; production activation remains gated by M0/M1 exits).
 
-### 4.11 External CLI Dispatch
+### 4.11 External CLI Dispatch and Persistent Delegation
 
 Delegates `task` tool executions to external coding CLIs (claude-code, codex, gemini, opencode) over three transports sharing one adapter seam. The `task` built-in writes a child Session per delegation; the child's messages surface the CLI result.
 
@@ -223,6 +223,10 @@ Delegates `task` tool executions to external coding CLIs (claude-code, codex, ge
   - `codex-sdk` — never takes `canUseTool` at all; it is unattended-safe only because it sets `approvalPolicy: "never"`, which is the SDK denying its own prompts rather than PermissionV2 deciding anything.
     So "absent PermissionV2 → auto-deny" is true for ACP, incidental for Codex, and false for the Claude SDK path. Unifying it means routing the Claude SDK through the same reject-by-default seam as ACP.
 - Implementation: `packages/core/src/session/task-driver-fill.ts`, `packages/core/src/tool/{cli-adapter, cli-timeout, claude-code, codex, gemini, opencode, claude-code-sdk, codex-sdk, claude-code-acp, codex-acp, acp}.ts`. Plan: `docs/plan/external-cli-dispatch-implementation.md`.
+- Compatibility limitation: `task_id` and `external_cli_session` are continuation keys, not a unified multi-participant delegation aggregate. They do not by themselves provide durable multi-turn fan-out, revision-bound review, restart reconciliation, or close/archive semantics.
+- Target architecture: [ADR-22 — Meta-Agent persistent delegation](docs/architecture/adr/ADR-22-meta-agent-persistent-delegation.md) and [the canonical implementation plan](docs/plan/meta-agent-persistent-delegation-closed-loop.md).
+
+The target model keeps EventV2 as the durable event source and introduces a core-owned `Delegation → Participant → Turn` relation. Internal Build participants bind to child Sessions; external Codex/Claude participants bind to external thread IDs. In the first implementation slice, delivery facts remain `delegation.delivery_*` events rather than a separate projection table; the aggregate fold is the source for barrier decisions, and Codex app-server `thread/*` and `turn/*` capabilities remain optional transport controls. Participant capability is discovered from optional-method presence, and a reviewer's approval is scoped to the code revision and change kind it reviewed (ADR-22 §2.3, §2.5, §2.6).
 
 ## 5. src/ Directory Index
 

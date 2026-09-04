@@ -63,6 +63,18 @@ The four values above remain the current Accepted runtime vocabulary in producti
 The Agent role classification Primary, Subagent, or All, used for Agent visibility and execution policy. It is orthogonal to **Product Mode**.
 _Avoid_: Product module
 
+**Delegation Conversation**:
+A durable Meta-Agent collaboration aggregate containing one or more **Delegation Participants**, ordered **Delegation Turns**, and per-participant **Delegation Deliveries**. It is distinct from one Tool call, one Session Drain, or one Background Job.
+
+**Delegation Participant**:
+One internal child Session or external CLI thread bound to a **Delegation Conversation** with a stable role, target, capability set, and lifecycle.
+
+**Delegation Turn**:
+One durable task, evidence, repair, review, or close command admitted to a **Delegation Conversation**. A turn may fan out into multiple participant deliveries.
+
+**Review Barrier**:
+The condition that a reviewer approved the latest producer revision by matching its `revisionDigest`. A stale review never completes a Delegation.
+
 **Model Tool Output**:
 The bounded projection of a Core-executed tool result persisted in Session history and replayed to the model. A tool may shape this projection semantically, but the Tool Registry enforces the final size limit.
 

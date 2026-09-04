@@ -169,12 +169,14 @@ AigcForge 采用持久化的 `Product Mode` 分类体系。切换模式不会丢
 
 ### Meta-Agent 元智能体统一编排
 
+> **当前边界（2026-08-31）**：Meta-Agent 已支持内部 task 续接和外部 CLI 基础 resume；持久多参与者、多轮 Build + Codex 审查/批准闭环由 [ADR-22](docs/architecture/adr/ADR-22-meta-agent-persistent-delegation.md) 与[实施计划](docs/plan/meta-agent-persistent-delegation-closed-loop.md)定义，当前尚未作为完整运行时交付。
+
 - **单一统一交互入口**：用户无需频繁手动切换模型或底层 Agent，由 `meta` 统一接收指令。
 - **三层 System Prompt 架构**：
   - **L1 恒定区**：字节级锁定系统角色与路由框架（最大化激发 LLM Prompt Cache，大幅降低成本与延迟）。
   - **L2 会话区**：固化当前工作区可用 CLI 与智能体列表。
   - **L3 动态区**：动态注入会话即时上下文与委派历史。
-- **灵活的调度策略**：支持单任务精准路由、工作流串行流水线（Plan → Build → Review）以及 `@mention` 多智能体并行分发（Fan-out）。
+- **灵活的调度策略**：当前已交付单任务意图路由与 `@mention` 目标识别；持久多参与者流水线与 Fan-out 由 [ADR-22](docs/architecture/adr/ADR-22-meta-agent-persistent-delegation.md) 定义，仍属于待实施闭环。
 
 ### External CLI 跨工具调度体系（ACP / SDK）
 

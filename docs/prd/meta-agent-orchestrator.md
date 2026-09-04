@@ -1,585 +1,356 @@
 # Meta-Agent Orchestrator PRD
 
-> 状态：DRAFT v0.1
-> 创建：2026-06-29
-> 来源对话：智能体架构调研 + 三仓库对照分析
+> **版本**：v2.1（2026-09-04）
+> **状态**：Implementation-ready proposal（当前有效，不是历史文档）
+> **需求真源**：本文负责产品目标、用户故事和用户可见行为；领域实现形状以 [ADR-22](../architecture/adr/ADR-22-meta-agent-persistent-delegation.md) 为准，施工顺序以 [唯一实施计划](../plan/meta-agent-persistent-delegation-closed-loop.md) 为准。
+> **取证基线**：`CLAUDE.md`、`AGENTS.md`、`ARCHITECTURE.md`、`CONTEXT.md`、相关 package AGENTS、`.aigcfroge/skills/`、当前 V2 源码与测试、以及本机 `codex-cli 0.150.1` app-server schema 快照。
 
 ---
 
-## 1. 背景与目标
+## 1. 产品背景
 
-### 1.1 问题
+AigcForge 已有 `meta` 作为统一入口，也已有内部 child Session、TaskDriver、外部 CLI adapter、Codex resume、MetaAgentService、EventV2 和 AgentTaskHub。但这些能力目前是**单次任务委派 + 基础续接**，还不是一个可以持续协作、审查、恢复和关闭的产品级委派对话。
 
-当前系统有 7 个内置智能体（build/plan/general/explore/compaction/title/summary），但：
+目标用户场景是：
 
-- 用户必须**手动选择**智能体，系统没有统一的入口层
-- 无法**并行或编排**多个智能体协同工作
-- 不支持**外部 CLI 智能体**（Claude Code、Codex、Gemini 等）
-- 没有**工作流**概念（plan → build → review 的流水线）
-- 无法在对话中**@mention** 特定智能体分配任务
+```text
+用户只与 Meta-Agent 交互
 
-### 1.2 目标
+Meta-Agent
+  ├─ 委派 Build：修改代码
+  └─ 委派 Codex CLI：只读审查 Build 的修改
 
-构建一个**元智能体编排层**，作为用户与所有智能体之间的统一入口，具备：
+Meta-Agent 发现新证据
+  ├─ 继续向同一个 Build 对话追加任务
+  └─ 继续向同一个 Codex 对话追加审查上下文
 
-1. **统一入口** — 所有对话通过元智能体，用户不与子智能体直接对话
-2. **意图分类** — 分析用户需求，判断类型和复杂度
-3. **智能路由** — 根据意图分发到最合适的子智能体或外部 CLI
-4. **并行分发** — 支持 `@mention` 语法同时调度多个智能体
-5. **工作流引擎** — 串行 pipeline（plan→build→review）和并行 fan-out
-6. **全权限兜底** — 元智能体自身拥有全权限，必要时直接执行
-7. **CLI 适配器** — 对接 claude-code、codex、gemini 等外部 CLI
-8. **CLI 发现** — 扫描系统可用的 CLI 智能体，用户设置页开关控制
-9. **缓存极致优化** — L1/L2/L3 三级缓存策略
-10. **插件系统** — 可扩展的插件接口，支持 chat 模式生成插件
-
-### 1.3 非目标
-
-- 不替代现有子智能体的独立执行路径（build/plan 等仍可单独使用）
-- 不改变现有权限系统架构
-- 不引入新的技术栈（全部基于 Effect-TS + Schema）
-
----
-
-## 2. 架构概览
-
-### 2.1 整体架构
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                       用户 (唯一入口)                       │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-┌────────────────────────▼─────────────────────────────────┐
-│                   Meta Agent (编排层)                      │
-│                                                           │
-│  System Prompt ┌──── L1 恒定区 ────┬── L2 会话区 ──┬── L3 动态区 │
-│                │ 角色定义/路由框架   │ 可用CLI列表    │ 对话上下文   │
-│                │ 不变规则          │ 子智能体列表   │ 委派历史     │
-│                │ (字节级锁定前缀)   │ (会话启动时固定)│ (每次变化)   │
-│                └──────────────────┴───────────────┴────────────┘
-│                         │
-│  Intent Classifier ──── 正则分类器 (插件可扩展)
-│                         │
-│  Engine Selector ────── 子智能体 / CLI / 工作流
-│                         │
-│  Workflow Engine ────── 串行 pipeline / 并行 fan-out
-│                         │
-│  Task Dispatcher ────── task 工具 + cache-warmth + 错误策略
-│                         │
-│  Result Collector ───── 汇总 → 摘要 → 呈现
-│                                                           │
-│  权限: 全权限 (兜底执行)                                    │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-    ┌────────────────────┼────────────────────┐
-    │                    │                    │
-    ▼                    ▼                    ▼
-┌──────────┐      ┌──────────┐      ┌──────────────┐
-│ 子智能体   │      │ 子智能体   │      │ 外部 CLI     │
-│ build    │      │ explore  │      │ claude-code  │
-│ plan     │      │ general  │      │ gemini       │
-│ ...      │      │ ...      │      │ codex        │
-└──────────┘      └──────────┘      └──────────────┘
-                         │
-┌────────────────────────▼─────────────────────────────────┐
-│                   插件系统 (Plugin System)                  │
-│  agent · aisdk · catalog · command · skill · meta(NEW)   │
-│  meta.intent · meta.adapter · meta.workflow               │
-│  meta.middleware · meta.policy                            │
-└──────────────────────────────────────────────────────────┘
+两者收敛后
+  ├─ Meta-Agent 验证完成条件
+  ├─ 停止活动 turn
+  ├─ 关闭参与者
+  └─ 归档完整委派历史
 ```
 
-### 2.2 来源分析
+## 2. 规范层级与范围
 
-本架构综合三个仓库的最佳实践：
+本文是当前有效 PRD，但不直接定义 Core 的表结构、EventV2 聚合字段或 adapter 内部接口。为防止“两个有效文档各自规定一套实现”，规范职责固定如下：
 
-| 模块         | 来源仓库         | 借鉴内容                                 |
-| ------------ | ---------------- | ---------------------------------------- |
-| 元智能体定义 | `/web/aigcfroge` | meta-agent.ts、meta.txt 系统提示模式     |
-| 意图分类     | `/web/aigcfroge` | intent.ts 正则分类器                     |
-| 引擎路由     | `/web/aigcfroge` | engine-selector.ts 调度映射              |
-| CLI 适配器   | `/web/aigcfroge` | CliAdapter 接口 + claude-code/codex 实现 |
-| 缓存预热     | `/web/aigcfroge` | cache-warmth.ts 三区缓存 + SHA 追踪      |
-| 委派上下文   | `/web/aigcfroge` | ContextBuilder + dialog-context.txt      |
-| 并行分发     | `/cc`            | AgentTool 并行 spawn + 协调器模式        |
-| 系统提示缓存 | `/cc`            | 分叉子智能体字节级前缀锁定的方法         |
-| 会话复用     | 当前项目         | task.ts 的 task_id 复用                  |
-| 子智能体权限 | 当前项目         | deriveSubagentSessionPermission          |
-| 全权限兜底   | 当前项目         | build agent 的全权限模型                 |
+| 文档         | 规范职责                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------ |
+| 本 PRD       | 产品目标、用户故事、用户可见行为、发布范围和 UX 结果                                       |
+| ADR-22       | Delegation/Participant/Turn/Delivery 领域模型、状态机、事件真源、权限边界和 transport 语义 |
+| 唯一实施计划 | TDD 阶段、owner、测试证据、命令、迁移、回滚和提交顺序                                      |
+| 源码与测试   | 当前事实基线；实施前必须用它们复核文档声明                                                 |
 
----
+如果 PRD 的产品目标与 ADR 冲突，需要产品裁决；如果 PRD 的实现形状与 ADR 冲突，先修订 PRD，不允许靠“ADR 默默覆盖 PRD”掩盖冲突。
 
-## 3. 详细设计
+## 3. 问题定义
 
-### 3.1 元智能体定义
+### 3.1 当前用户无法可靠管理什么
 
-新增 `packages/aigcfroge/src/agent/meta-agent.ts`，基于 build agent 的全权限基座：
+- 一次委派里同时有哪些内部/外部参与者；
+- Build 与 Codex 是否属于同一个长期协作；
+- 新证据追加到了哪一个已有对话；
+- Codex 审查的是哪一个 Build revision；
+- 某个参与者失败后是否可以只重试它；
+- 进程重启后任务是在运行、已完成、未知还是需要人工恢复；
+- “完成任务”“关闭运行资源”“归档历史”“删除数据”之间的区别。
 
-```ts
-// 元智能体权限：全权限 = build 的权限 + 编排相关工具
-export const permission = Permission.merge(
-  buildPermissions,
-  Permission.fromConfig({
-    task: "allow", // 委派任务
-    question: "allow", // 询问用户
-    write: "allow", // 直接写文件 (AGENTS.md, 插件等)
-    create_command: "allow",
-    create_agent: "allow",
-    configure_mcp: "allow",
-    create_workflow: "allow",
-  }),
-)
+### 3.2 根因
+
+现有 `task_id`、`external_cli_session`、`meta_agent_step` 和 `BackgroundJob` 分别解决了部分问题，但没有统一的 `Delegation → Participant → Turn` 持久关系。因此继续增加零散字段不能形成闭环。
+
+## 4. 产品目标
+
+### 4.1 P0 目标
+
+1. 创建一个持久 Delegation；
+2. 在同一 Delegation 下绑定 Build implementer 和 Codex **只读** reviewer；
+3. 两个 participant 都能保留自己的对话历史；
+4. Meta-Agent 可以追加多个 turn；
+5. 同一份新证据可以使用 `steer` 或 `queue` 意图 fan-out 到多个 participant；
+6. Build revision 与 Codex review verdict 必须绑定；
+7. Codex 只能批准它实际审查过的、且仍满足 copy policy 的 revision；
+8. 失败、取消、超时和 recovery 状态可见；
+9. Meta-Agent 可以 interrupt、close、complete、archive；
+10. 默认保留历史，delete 只做显式 purge；
+11. flag off 时现有 `task_id`、CLI resume 和 `meta_agent_step` 行为不变。
+
+### 4.2 P1 目标
+
+- Codex app-server transport 的 thread/turn 控制；
+- 统一委派列表、详情、参与者和 turn UI；
+- AgentTaskHub 与 Session Timeline 联动；
+- 进程重启后的 safe reconciliation；
+- 外部 CLI 工具调用进度和可用控制能力结构化呈现；
+- 自建 Agent、Claude Code、Gemini、opencode 复用相同 participant contract；
+- 可配置的软过期列表状态。
+
+### 4.3 非目标
+
+- 本期不实现集群级多节点 ownership；
+- 不以 PTY 驱动外部 CLI；
+- 不让 review verdict 绕过 PermissionV2；
+- 不允许 child Session 递归委派；
+- 不把项目级 Meta-Agent memory 与 assistant 个人 memory 合并；
+- 不一次性删除 V1/V2 compatibility path；
+- 不在 Codex SDK 尚未提供 callback 的情况下实现可写 Codex participant；
+- 不在本期承诺完整 dark theme、三语和全量窄视口测试矩阵；该矩阵另作为 UI 基础设施任务管理。
+
+## 5. 用户故事与验收标准
+
+### Story A：启动协作
+
+**作为**用户，**我希望** Meta-Agent 能同时启动 Build 和 Codex 两个持久参与者，**以便**一个修改代码、一个独立只读审查。
+
+验收：
+
+- 返回 `delegationID`、两个 `participantID`；
+- Build participant 绑定 child Session；
+- Codex participant 绑定 external thread，或在尚未启动时明确显示 `pending`；
+- 两个 participant 的 role 分别为 `implementer` 和 `reviewer`；
+- participant 的 provider/target 可识别，不能依赖 `internal | external_cli` 字段判断类型。
+
+### Story B：持续追加
+
+**作为** Meta-Agent，**我希望**在发现新证据时继续使用原有 Build/Codex 对话，而不是每次新建一次性任务。
+
+验收：
+
+- `appendTurn` 生成新的 durable `turnID`；
+- 一个 Turn 可以为多个 participant 生成独立 delivery facts；
+- Build 复用原 child Session；
+- Codex 复用原 external thread；
+- delivery 可以独立成功、失败、重试或进入 recovery；
+- 同一 turn 的 evidence digest 可追踪；
+- 默认 `steer` 和显式 `queue` 的行为遵守 Session V2 语义，不根据 transport capability 在两者之间猜测。
+
+### Story C：版本化审查
+
+**作为** Meta-Agent，**我希望** Codex 的批准明确对应 Build 的 revision，**以便**不会把旧审查误用于新代码。
+
+验收：
+
+- Build 产出 `revisionDigest`；
+- Codex 返回 `reviewedRevisionDigest`；
+- digest 不匹配时 review disposition 为 `changes_requested` 或 `outdated`，不是不存在的顶层 `stale_review` 状态；
+- `approved` 是否可以复制到新 revision 由 `copyable(changeKind, verdict)` 决定；
+- `rejected` 是 Delegation 级阻塞，不能被新 revision 自动清掉；
+- 只有最新 revision 的有效 approved 才能通过 completion barrier。
+
+本期 copy policy：
+
+| verdict             |                  `no_change` |             `no_code_change` |                `formatting_only` |                     `rework` |
+| ------------------- | ---------------------------: | ---------------------------: | -------------------------------: | ---------------------------: |
+| `approved`          |                         复制 |                         复制 | 不复制，本期按 `rework` 保守处理 |                       不复制 |
+| `changes_requested` |                       不复制 |                       不复制 |                           不复制 |                       不复制 |
+| `rejected`          | 不复制且保持 Delegation 阻塞 | 不复制且保持 Delegation 阻塞 |     不复制且保持 Delegation 阻塞 | 不复制且保持 Delegation 阻塞 |
+
+`formatting_only` 的 formatter 判定属于后续能力；在可靠 formatter service 可用前，必须保守降级为 `rework`，不得把它判断为可复制。
+
+### Story D：失败与恢复
+
+**作为**用户，**我希望**一个参与者失败不会抹掉另一个参与者的结果，并且重启后系统能告诉我是否可以恢复。
+
+验收：
+
+- delivery fact 独立记录 attempt/status/error code；
+- safe resume 才允许自动继续；
+- 未知副作用进入 `recovery_required`；
+- 不因进程重启直接标记 completed；
+- HTTP/SDK/UI 提供 retry 和 reconcile 入口；
+- 多候选 legacy external thread 不自动猜测。
+
+### Story E：结束协作
+
+**作为** Meta-Agent，**我希望**两个参与者完成后关闭这次委派并保留历史。
+
+验收：
+
+- 关闭前禁止新 turn；
+- 活动 turn 先 interrupt/cancel；
+- participants 进入关闭终态；
+- Delegation 进入 `completed` 或 `cancelled`；
+- 默认进入 `archived`，历史仍可读；
+- delete 需要显式 purge 权限。
+
+## 6. 产品状态模型
+
+### 6.1 Delegation
+
+```text
+draft → running → waiting_review → changes_requested → running
+running → approved → closing → completed → archived
+running → failed → recovery_required → running | failed | closing
+running → cancelled → archived
 ```
 
-#### 与 `/web/aigcfroge` 的 key 区别
+`stale_review` 不属于 Delegation status。`outdated` 是 review receipt 的派生 disposition。
 
-```
-/web/aigcfroge 的 meta:                     我们的 meta:
-  bash: deny  (不能执行代码)                    bash: allow (全权限兜底)
-  read: deny                                   read: allow
-  edit: deny                                   edit: allow
-  glob: deny                                   glob: allow
-  grep: deny                                   grep: allow
-  task: allow (必须委派)                        task: allow (优先委派, 必要时自干)
-```
+`soft_expired` 也不属于 Delegation status。它是由 `lastActivityAt + expiry policy` 派生的列表/可见性状态；过期不关闭外部 thread，显式 resume/reopen 才能继续。
 
-行为模式不同：**委派优先，兜底自干**。而非"必须委派，绝不执行"。
+### 6.2 Participant
 
-### 3.2 意图分类器
+Participant 的持久 roster phase 与运行时状态分开：
 
-**位置**：`packages/aigcfroge/src/agent/meta/intent.ts`
+```text
+phase: provisioning → active | failed
+active → failed | closed
+failed → active（显式 retry 且 reconciliation 通过）| closed
 
-**分类维度**：
-
-| 类别                 | 触发模式                                     | 默认路由             |
-| -------------------- | -------------------------------------------- | -------------------- |
-| `content_creation`   | `create/generate/write/make/生成/创建`       | lightweight          |
-| `code_understanding` | `explain/how/what/why/解释/怎么`             | explore              |
-| `code_modification`  | `refactor/fix/add/change/重构/修复`          | build                |
-| `configuration`      | `configure/setup/connect/agent/mcp/workflow` | general              |
-| `workflow`           | `先...然后.../pipeline/工作流/并行/同时`     | workflow engine      |
-| `@mention`           | `@claude-code @gemini @build`                | 显式指定目标         |
-| `unknown`            | 以上都不匹配                                 | 元智能体自处理或询问 |
-
-**插件扩展**：`plugin.meta.intent.register(pattern, category)` — 注册新的分类规则。
-
-### 3.3 引擎选择器
-
-**位置**：`packages/aigcfroge/src/agent/meta/engine-selector.ts`
-
-```typescript
-interface EngineDispatch {
-  type: "subagent" | "external-cli" | "workflow"
-  target: string
-}
-
-const ENGINE_DISPATCH: Record<string, EngineDispatch> = {
-  content_creation: { type: "subagent", target: "lightweight" },
-  code_understanding: { type: "subagent", target: "explore" },
-  code_modification: { type: "subagent", target: "build" },
-  configuration: { type: "subagent", target: "general" },
-  "claude-code": { type: "external-cli", target: "claude-code" },
-  gemini: { type: "external-cli", target: "gemini" },
-  codex: { type: "external-cli", target: "codex" },
-}
+runtime status: running | idle | inactive
 ```
 
-### 3.4 @mention 解析器
-
-**位置**：`packages/aigcfroge/src/agent/meta/mention.ts`
+`recovery_required` 是 delivery/turn 的恢复状态，不是 participant phase。
 
-解析用户输入中的 `@name` 语法：
-
-```typescript
-// 输入: "@claude-code 分析内存泄漏, @gemini 检查类型安全"
-// 输出:
-[
-  { target: "claude-code", type: "external-cli", prompt: "分析内存泄漏" },
-  { target: "gemini",      type: "external-cli", prompt: "检查类型安全" },
-]
-
-// 输入: "先 @plan 写方案，然后 @build 实现"
-// 输出:
-{
-  workflow: "pipeline",
-  steps: [
-    { target: "plan", type: "subagent", prompt: "写方案" },
-    { target: "build", type: "subagent", prompt: "实现" },
-  ]
-}
-```
-
-### 3.5 工作流引擎
-
-**位置**：`packages/aigcfroge/src/agent/meta/workflow.ts`
-
-支持两种模式：
-
-| 模式          | 语法                  | 语义                             | 实现                                         |
-| ------------- | --------------------- | -------------------------------- | -------------------------------------------- |
-| 并行          | `@A @B 同时...`       | 同时分发，各自执行，结果汇总     | 多个 `task()` 同时发起，用 `Effect.all` 等待 |
-| 串行 pipeline | `先 @A 再 @B 最后 @C` | 按序执行，前一步输出是后一步输入 | `Effect.flatMap` 链或状态机                  |
-
-**工作流状态**：每个工作流有独立的 `WorkflowState` 跟踪：
-
-```typescript
-interface WorkflowState {
-  id: string
-  status: "running" | "completed" | "failed"
-  steps: WorkflowStep[]
-  results: Map<string, StepResult>
-  createdAt: number
-}
-```
-
-### 3.6 CLI 适配器 & 发现
-
-#### CLI 适配器接口
-
-**位置**：`packages/aigcfroge/src/agent/meta/adapters/interface.ts`
-
-```typescript
-interface CliAdapter {
-  readonly name: string
-  readonly command: string
-  readonly detect: () => Effect<boolean> // 系统是否有这个 CLI
-  readonly buildArgs: (input: { prompt: string; cwd: string }) => Effect<readonly string[]>
-  readonly parseOutput: (stdout: string, stderr: string) => Effect<DelegationResult>
-  readonly cancel?: (cwd: string) => Effect<void> // 可选中断
-  readonly timeout?: number // 可选超时 (ms)
-}
+### 6.3 Turn 与 Delivery fact
 
-interface DelegationResult {
-  status: "success" | "partial" | "failed"
-  summary: string
-  files?: { created?: string[]; modified?: string[]; deleted?: string[] }
-  errors?: string[]
-}
-```
+一个 Delegation 可以有多个 Turn，一个 Turn 可以为多个 Participant 生成 delivery fact。Delivery fact 保留 attempt/status/result/review 信息，但不铸造独立 `deliveryID`，也不要求独立 projection table；它通过 `(turnID, participantID, deliveryOrigin, senderParticipantID)` 等来源事实折叠和去重。
 
-#### CLI 发现机制
+## 7. 领域模型
 
-**位置**：`packages/aigcfroge/src/agent/meta/adapters/registry.ts`
+### 7.1 Delegation
 
-- 启动时扫描：对已注册的适配器调用 `detect()`，记录可用性
-- 用户配置开关：在设置页勾选哪些 CLI 可用
-- 动态注册：插件可以注册新的适配器
+- 稳定 `delegationID`、标题、父 Session、可选 MetaAgent 关联；
+- 总体状态、turn 序号、关闭/归档时间；
+- 不保存外部工具权限凭证；
+- EventV2 durable aggregate 使用 payload 字段 `delegationID`。
+- EventV2 定义固定使用 `durable: { version: 1, aggregate: "delegationID" }`；不得使用 `aggregate: "delegation"` 或把 `parentSessionID` 当作 Delegation aggregate id。
 
-内置适配器（第一阶段）：
+### 7.2 Participant
 
-| CLI         | 命令     | 默认启用        |
-| ----------- | -------- | --------------- |
-| Claude Code | `claude` | 若检测到        |
-| Gemini CLI  | `gemini` | 若检测到 (TODO) |
-| Codex       | `codex`  | 若检测到 (TODO) |
+- `provider`、`target` 与 role；
+- child Session ID 或 external thread ID；
+- `phase`、最后活动时间和关闭时间；
+- transport capability 由 provider descriptor 和可选控制方法派生，不保存平行 capability 布尔表。
 
-**插件扩展**：`plugin.meta.adapter.register(name, factory)` — 注册新的 CLI 适配器。
-
-### 3.7 缓存策略 (L1/L2/L3)
-
-#### L1: 绝对稳定区 — 系统提示前缀
-
-```typescript
-// system prompt 结构 (字节级顺序固定):
-
-// ═══════════════ L1: 100% 恒定 ═══════════════
-const L1_STABLE = `
-你是 AigcForge 元智能体 — 统一编排入口。
-
-你的角色:
-- 理解用户意图
-- 拆解任务，选择最合适的执行引擎
-- 通过 task 工具委派给子智能体或外部 CLI
-- 汇总委派结果给用户
-
-规则:
-- 委派优先: 代码执行优先通过 task 委派
-- 兜底执行: 必要时可直接使用所有工具
-- 保持回应简短 — 你的工作是路由，不是创作
-- 委派完成后，用 1-3 句摘要呈现结果
-`
-
-// ═══════════════ L2: 会话级固定 ═══════════════
-const L2_SESSION = `
-可用子智能体:
-{{SUBAGENTS_LIST}}
-
-可用 CLI 智能体:
-{{CLI_AGENTS_LIST}}
-
-工作流模板:
-{{WORKFLOW_TEMPLATES}}
-`
-
-// ═══════════════ L3: 动态 ═══════════════
-const L3_DYNAMIC = `
-当前上下文:
-{{RECENT_CONTEXT}}
-`
-```
-
-**L2 在会话启动时渲染一次**，在会话生命周期内不变，通过 `{{placeholder}}` 在最后注入，不破坏 L1 前缀。
-
-#### 缓存预热 (cache-warmth)
-
-参考 `/web/aigcfroge` 的 cache-warmth.ts，跟踪：
-
-```typescript
-interface CacheWarmthEntry {
-  engineId: string
-  lastContextSha: string // 上下文哈希，用于比较缓存是否有效
-  lastUsed: number // last used timestamp
-  hitRate: number // 命中率 (0-1)
-  taskCategory: IntentCategory // 按分类统计
-}
-```
-
-策略：
-
-- 当 `hitRate > 0.5` 时在委派上下文中加入 `<cache-warm/>` 信号
-- 基于意图分类**预测下一引擎**，在等待用户输入时预构造上下文
-- 字节级前缀锁定：system prompt 的 L1 区**任何情况下不允许动态内容**
-
-### 3.8 插件系统扩展
-
-#### 新增 `MetaHooks`
-
-在 `packages/plugin/src/v2/effect/context.ts` 的 `PluginContext` 中新增：
-
-```typescript
-interface MetaHooks {
-  /** 注册新的意图分类规则 */
-  intent: (pattern: RegExp, category: IntentCategory) => Effect<Registration, never, Scope>
-
-  /** 注册新的 CLI 适配器 */
-  adapter: (name: string, factory: CliAdapterFactory) => Effect<Registration, never, Scope>
-
-  /** 注册工作流模板 */
-  workflow: (name: string, template: WorkflowTemplate) => Effect<Registration, never, Scope>
-
-  /** 注册编排中间件 (拦截/dispatch/审计) */
-  middleware: (hook: MetaMiddlewareHook) => Effect<Registration, never, Scope>
-
-  /** 注册编排策略规则 */
-  policy: (rule: MetaPolicy) => Effect<Registration, never, Scope>
-}
-```
-
-#### 插件示例
-
-```typescript
-// 审计插件: 每次 dispatch 记录日志
-define({
-  id: "audit-logger",
-  effect: (ctx) =>
-    Effect.gen(function* () {
-      yield* ctx.meta.middleware({
-        name: "audit",
-        onDispatch: (input) =>
-          Effect.gen(function* () {
-            yield* log(`[AUDIT] dispatch: ${input.target} - ${input.prompt}`)
-          }),
-      })
-    }),
-})
-
-// Gemini 适配器插件
-define({
-  id: "gemini-adapter",
-  effect: (ctx) =>
-    Effect.gen(function* () {
-      yield* ctx.meta.adapter.register("gemini", () => GeminiAdapter)
-    }),
-})
-
-// Code review 工作流插件
-define({
-  id: "code-review-workflow",
-  effect: (ctx) =>
-    Effect.gen(function* () {
-      yield* ctx.meta.workflow.register("code-review", {
-        name: "代码审查",
-        steps: [
-          { target: "plan", prompt: "审查代码变更计划" },
-          { target: "build", prompt: "执行必要的修改" },
-          { target: "explore", prompt: "验证修改正确性" },
-        ],
-        mode: "pipeline",
-      })
-    }),
-})
-```
-
-### 3.9 Chat 模式生成插件
-
-分阶段实现：
-
-| 阶段 | 能力                          | 用户交互                                            |
-| ---- | ----------------------------- | --------------------------------------------------- |
-| P1   | 通过对话描述 → 生成插件配置   | 元智能体生成 `.md` 插件定义，写入 `config/plugins/` |
-| P2   | 生成后 → 自动加载 & 可用      | 插件写入后热加载生效                                |
-| P3   | 生成 → 测试沙箱 → 验证 → 上线 | 插件先加载到沙箱环境测试，通过后正式注册            |
-
-### 3.10 错误处理策略
-
-| 错误场景         | 策略                                                    |
-| ---------------- | ------------------------------------------------------- |
-| 子智能体执行失败 | 元智能体收到 `<task-error>` → 判断是否重试 or 换引擎    |
-| 外部 CLI 超时    | `CliAdapter.timeout` 配置 → 超时后 kill 进程 → 报告失败 |
-| 外部 CLI 不可用  | `detect()` 返回 false → 从可用列表移除 → 推荐替代       |
-| 工作流某步骤失败 | 跳过后续步骤 → 报告部分完成 → 用户决定是否继续          |
-| 元智能体自身中断 | 子任务继续后台执行（后台模式）或 一并取消（前台模式）   |
-
----
-
-## 4. 分阶段实施路线图
-
-### 阶段 1：元智能体基础 (MVP)
-
-**目标**：元智能体作为默认入口，能分类意图、路由到子智能体、支持 `@mention`
-
-| 编号 | 任务                                     | 影响文件                                               | 预估复杂度 |
-| ---- | ---------------------------------------- | ------------------------------------------------------ | ---------- |
-| 1.1  | 创建 `meta/` 目录和 intent.ts 分类器     | `packages/aigcfroge/src/agent/meta/intent.ts`          | S          |
-| 1.2  | 创建 engine-selector.ts 路由             | `packages/aigcfroge/src/agent/meta/engine-selector.ts` | S          |
-| 1.3  | 创建 mention.ts @mention 解析            | `packages/aigcfroge/src/agent/meta/mention.ts`         | M          |
-| 1.4  | 创建 meta-agent.ts 定义                  | `packages/aigcfroge/src/agent/meta-agent.ts`           | M          |
-| 1.5  | 创建 meta.txt 系统提示（L1+L2 缓存结构） | `packages/aigcfroge/src/agent/prompt/meta.txt`         | M          |
-| 1.6  | 在 Agent 注册表中注册元智能体            | `packages/aigcfroge/src/agent/agent.ts`                | S          |
-| 1.7  | 改默认智能体为 meta                      | `packages/core/src/plugin/agent.ts`                    | S          |
-| 1.8  | 扩展 `deriveSubagentSessionPermission`   | `packages/aigcfroge/src/agent/subagent-permissions.ts` | S          |
-| 1.9  | L1/L2 缓存结构实现                       | `packages/aigcfroge/src/agent/meta/cache-warmth.ts`    | M          |
-
-**验证标准**：
-
-- 新会话默认使用 meta agent
-- meta agent 能分类意图并路由到正确的子智能体
-- `@build xxx` 能直接转发到 build
-- L1 system prompt 前缀字节级锁定（写测试验证）
-
-### 阶段 2：外部 CLI 集成
-
-**目标**：元智能体可以调用外部 CLI 智能体
-
-| 编号 | 任务                        | 影响文件                                                    | 预估复杂度 |
-| ---- | --------------------------- | ----------------------------------------------------------- | ---------- |
-| 2.1  | CLI 适配器接口              | `packages/aigcfroge/src/agent/meta/adapters/interface.ts`   | S          |
-| 2.2  | Claude Code 适配器          | `packages/aigcfroge/src/agent/meta/adapters/claude-code.ts` | M          |
-| 2.3  | 适配器注册表                | `packages/aigcfroge/src/agent/meta/adapters/registry.ts`    | M          |
-| 2.4  | CLI 扫描 & detect()         | `packages/aigcfroge/src/agent/meta/adapters/scanner.ts`     | M          |
-| 2.5  | 扩展 task 工具支持 CLI 模式 | `packages/aigcfroge/src/tool/task.ts`                       | L          |
-| 2.6  | CLI 超时 & 中断处理         | `packages/aigcfroge/src/agent/meta/adapters/timeout.ts`     | M          |
-
-**验证标准**：
-
-- 系统有 `claude` 命令时，元智能体能检测到并路由给它
-- `@claude-code xxx` 启动 Claude Code 子进程并返回结果
-- 超时能中断外部 CLI 进程
-
-### 阶段 3：工作流引擎
-
-**目标**：支持并行和串行工作流
-
-| 编号 | 任务                      | 影响文件                                                 | 预估复杂度 |
-| ---- | ------------------------- | -------------------------------------------------------- | ---------- |
-| 3.1  | 工作流状态管理            | `packages/aigcfroge/src/agent/meta/workflow/state.ts`    | M          |
-| 3.2  | 串行 pipeline 执行器      | `packages/aigcfroge/src/agent/meta/workflow/pipeline.ts` | M          |
-| 3.3  | 并行 fan-out 执行器       | `packages/aigcfroge/src/agent/meta/workflow/fanout.ts`   | M          |
-| 3.4  | 工作流系统提示表述        | `packages/aigcfroge/src/agent/prompt/meta.txt` (更新)    | S          |
-| 3.5  | `@mention` 工作流解析增强 | `packages/aigcfroge/src/agent/meta/mention.ts`           | S          |
-
-**验证标准**：
-
-- `先 @plan 设计方案，再 @build 实现` 能按序执行
-- `@claude-code 分析, @gemini 检查(同时)` 能并行分发
-- 工作流步骤失败能正确处理
-
-### 阶段 4：插件系统扩展
-
-**目标**：完整的 meta 插件扩展点 + chat 模式生成
-
-| 编号 | 任务                              | 影响文件                                    | 预估复杂度 |
-| ---- | --------------------------------- | ------------------------------------------- | ---------- |
-| 4.1  | 新增 `MetaHooks` 到 PluginContext | `packages/plugin/src/v2/effect/context.ts`  | M          |
-| 4.2  | 实现 meta.intent 注册             | `packages/plugin/src/v2/effect/meta.ts`     | M          |
-| 4.3  | 实现 meta.adapter 注册            | `packages/plugin/src/v2/effect/meta.ts`     | M          |
-| 4.4  | 实现 meta.workflow 注册           | `packages/plugin/src/v2/effect/meta.ts`     | M          |
-| 4.5  | 实现 meta.middleware 注册         | `packages/plugin/src/v2/effect/meta.ts`     | M          |
-| 4.6  | 实现 meta.policy 注册             | `packages/plugin/src/v2/effect/meta.ts`     | M          |
-| 4.7  | Chat 模式生成插件 — 基础          | 元智能体生成插件 .md 写入 `config/plugins/` | L          |
-| 4.8  | 插件热加载                        | 插件文件变更 → 自动注册                     | L          |
-
-**验证标准**：
-
-- 插件能注册新的意图分类规则
-- 插件能注册新的 CLI 适配器
-- 插件能注册工作流模板
-- 插件 middleware 能拦截 dispatch 事件
-- Chat 生成的插件能写入并生效
-
-### 阶段 5：优化 & 完善
-
-**目标**：缓存优化、审计、文档
-
-| 编号 | 任务                                    | 影响文件                                               | 预估复杂度 |
-| ---- | --------------------------------------- | ------------------------------------------------------ | ---------- |
-| 5.1  | cache-warmth 全面集成                   | `packages/aigcfroge/src/agent/meta/cache-warmth.ts`    | M          |
-| 5.2  | `meta_agent_session` 表集成（层级会话） | `packages/core/src/meta-agent/`                        | L          |
-| 5.3  | Gemini CLI 适配器                       | `packages/aigcfroge/src/agent/meta/adapters/gemini.ts` | M          |
-| 5.4  | Codex CLI 适配器                        | `packages/aigcfroge/src/agent/meta/adapters/codex.ts`  | M          |
-| 5.5  | Chat 生成插件 → 沙箱测试                | P3 完善                                                | L          |
-| 5.6  | 用户设置页 CLI 开关集成                 | `packages/app/` + `packages/server/`                   | M          |
-| 5.7  | 审计日志 & telemetry                    | `packages/core/src/agent/meta/audit.ts`                | M          |
-
----
-
-## 5. 关键设计决策
-
-### 5.1 为什么元智能体要全权限
-
-与 `/web/aigcfroge` 的 meta（拒绝所有代码工具）不同，我们的元智能体是全权限的。理由：
-
-1. **兜底执行**：当子智能体不可用或任务足够简单时，元智能体可以直接执行
-2. **单一会话**：简化用户心智模型 — "我只需要和元智能体对话"
-3. **插件生成**：写插件文件需要 Write 权限
-
-**行为约定**（通过系统提示约束，而非权限硬限制）：
-
-- 委派优先：99% 的代码执行通过 task 委派
-- 兜底自干：仅在子智能体不可用或任务足够简单时直接执行
-
-### 5.2 为什么在 packagages/aigcfroge/ 层实现
-
-当前项目的架构是分层的：
-
-| 层                    | 用途         | 内容                                  |
-| --------------------- | ------------ | ------------------------------------- |
-| `packages/schema/`    | 数据类型定义 | meta-agent.ts (已有)                  |
-| `packages/core/`      | 核心服务     | AgentV2, plugin, meta-agent sql       |
-| `packages/aigcfroge/` | 应用逻辑     | Agent 服务, Tool 注册表, Session 处理 |
-
-元智能体的编排逻辑属于**应用层行为**（因为它依赖 Tool 注册表、Session 系统、子智能体定义），所以放在 `packages/aigcfroge/src/agent/meta/` 最合理。`packages/core/` 中的 `meta-agent/sql.ts` 作为数据层支持。
-
-### 5.3 为什么第一阶段走平面会话
-
-`meta_agent_session` 表已经支持层级会话，但第一阶段使用平面会话（子任务作为 tool_call 记录在主会话中）。理由：
-
-1. 现有 `task.ts` 直接用，零改造
-2. 复杂度最低，快速验证元智能体的编排价值
-3. 数据表已经准备好，未来随时可以升级
-4. 断点恢复可以先做"恢复整个会话"再做"按子任务恢复"
-
----
-
-## 6. 参考文档
-
-- [系统蓝图](../architecture/system-blueprint.md)
-- [Agent 实现](../../packages/aigcfroge/src/agent/agent.ts)
-- [Task 工具](../../packages/aigcfroge/src/tool/task.ts)
-- [插件上下文](../../packages/plugin/src/v2/effect/context.ts)
-- [/web/aigcfroge meta-agent](../../../web/aigcfroge/packages/opencode/src/agent/meta-agent.ts) (外部参考)
-- [/web/aigcfroge intent.ts](../../../web/aigcfroge/packages/opencode/src/agent/meta/intent.ts) (外部参考)
-- [/web/aigcfroge engine-selector.ts](../../../web/aigcfroge/packages/opencode/src/agent/meta/engine-selector.ts) (外部参考)
-- [/web/aigcfroge CliAdapter](../../../web/aigcfroge/packages/opencode/src/agent/meta/adapters/interface.ts) (外部参考)
-- [/cc 协调器模式](../../../cc/src/coordinator/coordinatorMode.ts) (外部参考)
+### 7.3 Turn
+
+- task/evidence/review/repair/close 类型；
+- prompt、evidence digest、revision digest；
+- Delegation 内递增 seq 和 durable status。
+
+### 7.4 Delivery fact
+
+- Turn 与 Participant 的连接；
+- attempt、status、结果摘要、错误码；
+- review verdict、reviewed revision digest 和 review disposition；
+- 由 EventV2 `delegation.delivery_*` 事件承载，不对外暴露 `deliveryID`。
+
+## 8. 权限与安全要求
+
+1. Meta-Agent 只能在当前 Session/Location/Product Mode policy 允许的范围内创建 participant；
+2. Build 写代码的权限由 Build participant 规则决定；
+3. Codex reviewer 默认只读，第一期依靠 `approvalPolicy: "never"`，不是伪造的 PermissionV2 callback；
+4. 对具备真实 permission callback 的 transport，外部 CLI 工具调用必须经过父 Session 的 PermissionV2；不具备 callback 的 transport 必须显式保持只读/拒绝，不得声称统一桥接；
+5. review approved 不是工具授权，不创建 grant；
+6. delegation archive 可由拥有委派的用户执行；
+7. delegation purge 默认 deny，需要明确授权；
+8. parent Session、Location、Workspace 不匹配时，task_id/externalThreadID 续接必须失败；
+9. 日志不输出完整 prompt、token、Authorization、环境变量、完整 diff 和文件正文；
+10. malformed review envelope 默认不批准；
+11. 模型调用路径必须传递 canonical PermissionV2 source `{ type: "tool", messageID, callID }`，不能用 child Session ID 或 cli target 伪造来源。
+
+## 9. Codex 与外部 CLI 产品能力
+
+### 9.1 能力来源
+
+所有 CLI 继续通过现有 `CliAdapter` 注册表接入。能力不使用平行布尔表：
+
+- provider descriptor 提供启动前可判断的静态能力；
+- `control`、`steer`、`interrupt`、`fork`、`archive`、`delete` 等能力由可选方法存在性派生；
+- `liveUpdates` 只有存在真实 progress callback/stream 时才可显示；
+- 不支持的能力显示为 `unavailable`，但不得把“未实现”降级成假成功。
+
+### 9.2 Codex
+
+本机 `codex-cli 0.150.1` 提供两层能力：
+
+- CLI/SDK：start/resume/one turn；
+- app-server：thread/turn 分层、steer、interrupt、fork、archive、delete、状态通知。
+
+AigcForge 分阶段接入：
+
+1. P0 使用现有 SDK/JSONL 实现只读 reviewer 的 start/resume/turn；
+2. P1 使用 app-server transport 补充真实 control lifecycle；
+3. 版本不匹配时仅降级到实际支持的 SDK/JSONL 操作，并返回 capability/unavailable 状态；
+4. 未提供 permission callback 的 Codex SDK 不承担可写 participant。
+
+### 9.3 Claude Code
+
+复用现有 SDK `persistSession: true`、`resume` 和 `canUseTool`，纳入同一个 Participant/Turn/Delivery contract。Claude 特有能力只通过真实 descriptor/可选方法宣告。
+
+## 10. 委派中心与 UI
+
+### 10.1 委派中心
+
+展示：
+
+- Delegation 标题、总体状态、当前 turn；
+- Build/Codex participant 的 provider、target、role 和 phase/runtime status；
+- 当前 revision、review verdict、review disposition、是否通过 barrier；
+- recovery_required、changes_requested、failed、soft_expired 等可解释状态；
+- append、steer、queue、interrupt、close、archive、retry、reconcile 操作；
+- 不支持的 control 显示 `unavailable`，不渲染成可点击的假成功按钮。
+
+### 10.2 Session Timeline
+
+保留现有 Task card 隐喻，但增加：
+
+- delegation/participant/turn 标识；
+- Build/Codex 标签；
+- review status/disposition；
+- 结果链接；
+- 归档后只读展示。
+
+### 10.3 UI 不做的推断
+
+UI 不通过正则解析 summary 推断状态，不通过最近 task 猜 participant，不把 review approved 渲染成 Permission approved，不从缺失字段猜 transport capability。
+
+本期 UI 验收只承诺功能性、错误态、键盘焦点和一个窄视口行为证据；完整 dark theme、三语和全量窄视口矩阵另行建设。
+
+## 11. 非功能要求
+
+- SQLite migration 向前兼容；
+- EventV2 replay 与 projection 一致；
+- 单一 canonical owner；
+- 不同 Delegation 可并发，同一 Delegation command 串行；
+- append 必须 durable first；
+- 重启后状态可解释；
+- 不重跑未知副作用；
+- 受影响包 typecheck/test/lint 全绿；
+- API/SDK/文档同步；
+- 测试报告必须包含真实执行的测试文件、用例计数、pass/fail/skip 和 exit code。
+
+## 12. 发布与回滚
+
+新增 feature flags：
+
+- `AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS=false`；
+- `AIGCFROGE_EXPERIMENTAL_DELEGATION_RECOVERY=false`。
+
+保持既有：
+
+- `AIGCFROGE_DISABLE_META_AGENT` 回退 build；
+- V1 `task_id`；
+- V2 external CLI resume；
+- `meta_agent_step` 兼容投影。
+
+关闭新 flag 时，不暴露新的 Delegation command，不改变旧 task/CLI 行为。
+
+## 13. 关联文档
+
+- [ADR-22](../architecture/adr/ADR-22-meta-agent-persistent-delegation.md)
+- [唯一实施计划](../plan/meta-agent-persistent-delegation-closed-loop.md)
+- [CLAUDE.md](../../CLAUDE.md)
+- [AGENTS.md](../../AGENTS.md)
+- [ARCHITECTURE.md](../../ARCHITECTURE.md)
+- [CONTEXT.md](../../CONTEXT.md)
+- [docs/testing.md](../testing.md)
+- [External CLI dispatch 历史实施](../plan/external-cli-dispatch-implementation.md)
+- [Subagent protocol cards](../plan/subagent-protocol-cards.md)
+- [V2 status](../../specs/v2/todo.md)
+
+## 14. 当前实现边界
+
+本文不宣称当前 runtime 已经完成上述闭环。当前源码仍然主要提供基础 child Session/CLI resume 和 MetaAgent step 能力；Delegation aggregate、multi-participant fan-out、revision barrier、recovery、HTTP/SDK/UI 闭环需要按唯一实施计划实施并通过其验收门禁。

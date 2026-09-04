@@ -1,3 +1,6 @@
+> **状态：HISTORICAL TRANSPORT ROADMAP / SCOPE TRANSFERRED（2026-08-31）**
+> 本路线图只维护外部 CLI transport、detect、resume 和 ACP 基线。新的 Meta-Agent 持久委派、多参与者协作、Codex review barrier 与 close/archive 由 [Meta-Agent 持久委派对话闭环升级实施计划](../plan/meta-agent-persistent-delegation-closed-loop.md) 统一维护。
+
 # 实施计划：外部 CLI 调度演进路线（B+D 先行，ACP 终态）
 
 > 目标：修复外部 CLI 委派链路的现存 bug 与 UI 断头，把适配器层收敛为声明式配置 + 实时探测，最终以 ACP client 侧统一传输层。
