@@ -28,6 +28,9 @@ const runs: Array<{
   readonly options?: AppProcess.RunOptions
 }> = []
 let denyAction: string | undefined
+// When the denied action fires, fail with this typed permission outcome instead
+// of a plain denial, so a test can assert which outcome reaches settlement.
+let permissionFailure: PermissionV2.Error | undefined
 let result: AppProcess.RunResult = {
   command: "mock",
   exitCode: 0,
@@ -47,7 +50,9 @@ const permission = Layer.succeed(
       Effect.sync(() => assertions.push(input)).pipe(
         Effect.andThen(Effect.suspend(() => afterPermission(input))),
         Effect.andThen(
-          input.action === denyAction ? Effect.fail(new PermissionV2.DeniedError({ rules: [] })) : Effect.void,
+          input.action === denyAction
+            ? Effect.fail(permissionFailure ?? new PermissionV2.DeniedError({ rules: [] }))
+            : Effect.void,
         ),
       ),
     ask: () => Effect.die("unused"),
@@ -79,6 +84,7 @@ const reset = () => {
   assertions.length = 0
   runs.length = 0
   denyAction = undefined
+  permissionFailure = undefined
   runFailure = undefined
   afterPermission = () => Effect.void
   result = {
@@ -393,6 +399,51 @@ describe("BashTool", () => {
           ),
         )
       },
+      (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+    ),
+  )
+
+  it.live("settles a permission denial differently from an execution failure", () =>
+    Effect.acquireUseRelease(
+      Effect.promise(() => tmpdir()),
+      (tmp) =>
+        Effect.gen(function* () {
+          reset()
+          denyAction = "bash"
+          const denied = yield* withTool(tmp.path, (registry) => settleTool(registry, call({ command: "pwd" })))
+          expect(runs).toEqual([])
+
+          reset()
+          runFailure = new AppProcess.AppProcessError({ command: "pwd", cause: new Error("spawn failed") })
+          const crashed = yield* withTool(tmp.path, (registry) =>
+            settleTool(registry, call({ command: "pwd" }, "call-bash-crash")),
+          )
+
+          expect(denied.result).toMatchObject({ type: "error" })
+          expect(crashed.result).toMatchObject({ type: "error" })
+          // "Stopped because you denied it" and "the command blew up" must not be
+          // the same durable outcome; today both collapse to the leaf's generic message.
+          expect(denied.result).not.toEqual(crashed.result)
+        }),
+      (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+    ),
+  )
+
+  it.live("keeps correction feedback in the settled tool result", () =>
+    Effect.acquireUseRelease(
+      Effect.promise(() => tmpdir()),
+      (tmp) =>
+        Effect.gen(function* () {
+          reset()
+          denyAction = "bash"
+          permissionFailure = new PermissionV2.CorrectedError({ feedback: "use git status instead of pwd" })
+          const settled = yield* withTool(tmp.path, (registry) => settleTool(registry, call({ command: "pwd" })))
+          expect(runs).toEqual([])
+          expect(settled.result).toMatchObject({
+            type: "error",
+            value: expect.stringContaining("use git status instead of pwd"),
+          })
+        }),
       (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
     ),
   )
