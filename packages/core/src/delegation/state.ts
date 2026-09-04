@@ -6,16 +6,20 @@ import type { ID as DelegationID } from "@aigcfroge/schema/delegation-id"
 
 const VALID_TRANSITIONS: Record<DelegationStatus, readonly DelegationStatus[]> = {
   draft: ["running", "cancelled"],
-  running: ["waiting_review", "completed", "cancelled"],
-  waiting_review: ["approved", "running", "cancelled"],
-  approved: ["completed", "waiting_review", "running", "cancelled"],
+  running: ["waiting_review", "changes_requested", "approved", "failed", "closing", "cancelled"],
+  waiting_review: ["changes_requested", "approved", "failed", "closing"],
+  changes_requested: ["running", "closing", "cancelled"],
+  approved: ["waiting_review", "closing"],
+  failed: ["running", "recovery_required", "closing"],
+  recovery_required: ["running", "failed", "closing"],
+  closing: ["completed", "cancelled", "failed"],
   completed: ["archived"],
   cancelled: ["archived"],
-  archived: ["running"],
+  archived: ["completed"],
 }
 
 /**
- * Validates whether a delegation status transition is allowed.
+ * Validates whether a delegation status transition is allowed per ADR-22 §4.1.
  */
 export function canTransition(from: DelegationStatus, to: DelegationStatus): boolean {
   if (!VALID_TRANSITIONS[from]) return false
@@ -41,15 +45,16 @@ export function assertTransition(
 }
 
 /**
- * Validates whether a participant roster phase transition is allowed.
- * Monotonic: provisioning -> active | failed, active -> failed.
+ * Validates whether a participant roster phase transition is allowed per ADR-22 §4.2.
+ * Monotonic: provisioning -> active | failed; active -> failed | closed; failed -> active | closed.
  */
 export function canAdvancePhase(from: ParticipantPhase, to: ParticipantPhase): boolean {
   if (from === "provisioning") return to === "active" || to === "failed"
-  if (from === "active") return to === "failed"
+  if (from === "active") return to === "failed" || to === "closed"
+  if (from === "failed") return to === "active" || to === "closed"
   return false
 }
 
 export function isTerminalPhase(phase: ParticipantPhase): boolean {
-  return phase === "failed"
+  return phase === "closed"
 }

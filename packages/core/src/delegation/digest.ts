@@ -13,11 +13,7 @@ export interface RevisionDigestInput {
  * Non-code parameters (tokens, timestamps, authorizations) are strictly excluded.
  */
 export function calculateRevisionDigest(input: RevisionDigestInput): string {
-  const hash = createHash("sha256")
-    .update(input.commitSha.trim())
-    .update("\n")
-    .update(input.normalizedDiff.trim())
-    .digest("hex")
+  const hash = createHash("sha256").update(input.commitSha).update("\n").update(input.normalizedDiff).digest("hex")
   return `rev_${hash}`
 }
 
@@ -33,14 +29,11 @@ export interface ClassifyChangeKindInput {
  * Note: formatting_only is conservatively classified as rework in this phase.
  */
 export function classifyChangeKind(input: ClassifyChangeKindInput): ChangeKind {
-  const normBaseDiff = input.baseDiff.trim()
-  const normTargetDiff = input.targetDiff.trim()
-
-  if (input.baseCommitSha === input.targetCommitSha && normBaseDiff === normTargetDiff) {
+  if (input.baseCommitSha === input.targetCommitSha && input.baseDiff === input.targetDiff) {
     return "no_change"
   }
 
-  if (normBaseDiff === normTargetDiff) {
+  if (input.baseDiff === input.targetDiff) {
     return "no_code_change"
   }
 

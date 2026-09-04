@@ -65,25 +65,51 @@ export function evaluateReviewBarrier(params: ReviewBarrierParams): ReviewBarrie
     }
   }
 
-  // Check if any reviewer rejected
-  const hasRejection = params.reviews.some((r) => r.verdict === "rejected")
-  if (hasRejection) {
-    return {
-      passed: false,
-      reason: "Reviewer rejected revision",
-    }
-  }
-
-  // Each reviewer must have an approved review on the latest revision
+  // Each reviewer/approver must have their latest effective review approved on the latest revision
   for (const reviewer of reviewers) {
-    const approved = params.reviews.find(
-      (r) =>
-        r.participantID === reviewer.id &&
-        r.reviewedRevisionDigest === params.latestRevisionDigest &&
-        r.verdict === "approved",
-    )
+    const reviewerReviews = params.reviews.filter((r) => r.participantID === reviewer.id)
+    if (reviewerReviews.length === 0) {
+      return {
+        passed: false,
+        reason: `Reviewer ${reviewer.id} has not reviewed revision ${params.latestRevisionDigest}`,
+        missingRoles: [reviewer.role],
+      }
+    }
 
-    if (!approved) {
+    const latestReview = reviewerReviews[reviewerReviews.length - 1]
+    if (!latestReview) {
+      return {
+        passed: false,
+        reason: `Reviewer ${reviewer.id} has no valid review`,
+        missingRoles: [reviewer.role],
+      }
+    }
+
+    if (latestReview.verdict === "rejected") {
+      return {
+        passed: false,
+        reason: `Reviewer ${reviewer.id} rejected revision`,
+        missingRoles: [reviewer.role],
+      }
+    }
+
+    if (latestReview.verdict === "changes_requested") {
+      return {
+        passed: false,
+        reason: `Reviewer ${reviewer.id} requested changes`,
+        missingRoles: [reviewer.role],
+      }
+    }
+
+    if (latestReview.verdict !== "approved") {
+      return {
+        passed: false,
+        reason: `Reviewer ${reviewer.id} has not approved revision`,
+        missingRoles: [reviewer.role],
+      }
+    }
+
+    if (latestReview.reviewedRevisionDigest !== params.latestRevisionDigest) {
       return {
         passed: false,
         reason: `Reviewer ${reviewer.id} has not approved revision ${params.latestRevisionDigest}`,
@@ -98,12 +124,14 @@ export function evaluateReviewBarrier(params: ReviewBarrierParams): ReviewBarrie
 /**
  * Retracts an active rejection blocker upon explicit authorization or review retraction (G4).
  */
-export function retractRejection(delegation: DelegationInfo, _reason: string): DelegationInfo {
+export function retractRejection(delegation: DelegationInfo, _reason: string, timestamp?: number): DelegationInfo {
+  const ts = timestamp ?? delegation.updatedAt
   return new Delegation.Info({
     ...delegation,
     rejectionBlocked: false,
     rejectionReason: undefined,
     rejectionParticipantID: undefined,
-    updatedAt: Date.now(),
+    lastActivityAt: ts,
+    updatedAt: ts,
   })
 }

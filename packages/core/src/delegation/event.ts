@@ -9,184 +9,319 @@ import {
   ParticipantRole,
   ParticipantContext,
   ParticipantPhase,
-  ParticipantRuntimeStatus,
   TurnKind,
   DeliveryIntent,
-  DeliveryStatus,
-  ReviewVerdict,
   ReviewFinding,
   ChangeKind,
+  RevisionDigest,
 } from "@aigcfroge/schema/delegation"
 
+const options = {
+  durable: {
+    version: 1,
+    aggregate: "delegationID",
+  },
+} as const
+
+export const CreatedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  parentSessionID: SessionID,
+  metaAgentID: Schema.optional(Schema.String),
+  title: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(255)),
+  status: DelegationStatus,
+  timestamp: Schema.Number,
+})
+export type CreatedData = typeof CreatedData.Type
 export const Created = EventV2.define({
   type: "delegation.created",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    parentSessionID: SessionID,
-    metaAgentID: Schema.optional(Schema.String),
-    title: Schema.String,
-    status: DelegationStatus,
-  },
+  ...options,
+  schema: CreatedData.fields,
 })
 
+export const ParticipantAddedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  participantID: ParticipantID,
+  provider: Schema.String.check(Schema.isMinLength(1)),
+  target: Schema.String.check(Schema.isMinLength(1)),
+  role: ParticipantRole,
+  context: ParticipantContext,
+  phase: ParticipantPhase,
+  childSessionID: Schema.optional(SessionID),
+  externalThreadID: Schema.optional(Schema.String),
+  timestamp: Schema.Number,
+})
+export type ParticipantAddedData = typeof ParticipantAddedData.Type
 export const ParticipantAdded = EventV2.define({
   type: "delegation.participant_added",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    participantID: ParticipantID,
-    provider: Schema.String,
-    target: Schema.String,
-    role: ParticipantRole,
-    context: ParticipantContext,
-    phase: ParticipantPhase,
-    runtimeStatus: ParticipantRuntimeStatus,
-    childSessionID: Schema.optional(SessionID),
-    externalThreadID: Schema.optional(Schema.String),
-  },
+  ...options,
+  schema: ParticipantAddedData.fields,
 })
 
+export const ParticipantInterruptedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  participantID: ParticipantID,
+  reason: Schema.optional(Schema.String.check(Schema.isMaxLength(1000))),
+  timestamp: Schema.Number,
+})
+export type ParticipantInterruptedData = typeof ParticipantInterruptedData.Type
+export const ParticipantInterrupted = EventV2.define({
+  type: "delegation.participant_interrupted",
+  ...options,
+  schema: ParticipantInterruptedData.fields,
+})
+
+export const ParticipantClosedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  participantID: ParticipantID,
+  reason: Schema.optional(Schema.String.check(Schema.isMaxLength(1000))),
+  timestamp: Schema.Number,
+})
+export type ParticipantClosedData = typeof ParticipantClosedData.Type
+export const ParticipantClosed = EventV2.define({
+  type: "delegation.participant_closed",
+  ...options,
+  schema: ParticipantClosedData.fields,
+})
+
+export const TurnAdmittedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  seq: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  kind: TurnKind,
+  prompt: Schema.optional(Schema.String),
+  evidenceDigest: Schema.optional(Schema.String),
+  revisionDigest: Schema.optional(RevisionDigest),
+  participantIDs: Schema.Array(ParticipantID),
+  delivery: DeliveryIntent,
+  timestamp: Schema.Number,
+})
+export type TurnAdmittedData = typeof TurnAdmittedData.Type
 export const TurnAdmitted = EventV2.define({
   type: "delegation.turn_admitted",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    turnID: TurnID,
-    seq: Schema.Number,
-    kind: TurnKind,
-    prompt: Schema.optional(Schema.String),
-    evidenceDigest: Schema.optional(Schema.String),
-    revisionDigest: Schema.optional(Schema.String),
-    participantIDs: Schema.Array(ParticipantID),
-    delivery: DeliveryIntent,
-  },
+  ...options,
+  schema: TurnAdmittedData.fields,
 })
 
-export const DeliveryAdmitted = EventV2.define({
-  type: "delegation.delivery_admitted",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    turnID: TurnID,
-    participantID: ParticipantID,
-    deliveryOrigin: Schema.String,
-    senderParticipantID: Schema.optional(ParticipantID),
-    attempt: Schema.Number,
-    status: DeliveryStatus,
-  },
+export const TurnAppendedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  seq: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  kind: TurnKind,
+  prompt: Schema.optional(Schema.String),
+  evidenceDigest: Schema.optional(Schema.String),
+  revisionDigest: Schema.optional(RevisionDigest),
+  participantIDs: Schema.Array(ParticipantID),
+  delivery: DeliveryIntent,
+  timestamp: Schema.Number,
+})
+export type TurnAppendedData = typeof TurnAppendedData.Type
+export const TurnAppended = EventV2.define({
+  type: "delegation.turn_appended",
+  ...options,
+  schema: TurnAppendedData.fields,
 })
 
-export const DeliveryUpdated = EventV2.define({
-  type: "delegation.delivery_updated",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    turnID: TurnID,
-    participantID: ParticipantID,
-    deliveryOrigin: Schema.String,
-    attempt: Schema.Number,
-    status: DeliveryStatus,
-    externalTurnID: Schema.optional(Schema.String),
-    summary: Schema.optional(Schema.String),
-    errorCode: Schema.optional(Schema.String),
-    runtimeStatus: Schema.optional(ParticipantRuntimeStatus),
-  },
+export const DeliveryStartedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  deliveryOrigin: Schema.String,
+  senderParticipantID: Schema.optional(ParticipantID),
+  attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  timestamp: Schema.Number,
+})
+export type DeliveryStartedData = typeof DeliveryStartedData.Type
+export const DeliveryStarted = EventV2.define({
+  type: "delegation.delivery_started",
+  ...options,
+  schema: DeliveryStartedData.fields,
 })
 
+export const DeliveryCompletedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  deliveryOrigin: Schema.String,
+  attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  externalTurnID: Schema.optional(Schema.String),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  timestamp: Schema.Number,
+})
+export type DeliveryCompletedData = typeof DeliveryCompletedData.Type
+export const DeliveryCompleted = EventV2.define({
+  type: "delegation.delivery_completed",
+  ...options,
+  schema: DeliveryCompletedData.fields,
+})
+
+export const DeliveryFailedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  deliveryOrigin: Schema.String,
+  attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  errorCode: Schema.optional(Schema.String),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  timestamp: Schema.Number,
+})
+export type DeliveryFailedData = typeof DeliveryFailedData.Type
+export const DeliveryFailed = EventV2.define({
+  type: "delegation.delivery_failed",
+  ...options,
+  schema: DeliveryFailedData.fields,
+})
+
+export const DeliveryRecoveryRequiredData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  deliveryOrigin: Schema.String,
+  attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  errorCode: Schema.optional(Schema.String),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  timestamp: Schema.Number,
+})
+export type DeliveryRecoveryRequiredData = typeof DeliveryRecoveryRequiredData.Type
+export const DeliveryRecoveryRequired = EventV2.define({
+  type: "delegation.delivery_recovery_required",
+  ...options,
+  schema: DeliveryRecoveryRequiredData.fields,
+})
+
+export const RevisionRecordedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  commitSha: Schema.String.check(Schema.isMaxLength(100)),
+  revisionDigest: RevisionDigest,
+  changeKind: ChangeKind,
+  diffSummary: Schema.optional(Schema.String.check(Schema.isMaxLength(1000))),
+  timestamp: Schema.Number,
+})
+export type RevisionRecordedData = typeof RevisionRecordedData.Type
 export const RevisionRecorded = EventV2.define({
   type: "delegation.revision_recorded",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    turnID: TurnID,
-    participantID: ParticipantID,
-    commitSha: Schema.String,
-    normalizedDiff: Schema.String,
-    revisionDigest: Schema.String,
-    changeKind: ChangeKind,
-  },
+  ...options,
+  schema: RevisionRecordedData.fields,
 })
 
-export const ReviewRecorded = EventV2.define({
-  type: "delegation.review_recorded",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    turnID: TurnID,
-    participantID: ParticipantID,
-    reviewedRevisionDigest: Schema.String,
-    verdict: ReviewVerdict,
-    findings: Schema.Array(ReviewFinding),
-    summary: Schema.optional(Schema.String),
-  },
+export const ReviewApprovedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  reviewedRevisionDigest: RevisionDigest,
+  findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  timestamp: Schema.Number,
+})
+export type ReviewApprovedData = typeof ReviewApprovedData.Type
+export const ReviewApproved = EventV2.define({
+  type: "delegation.review_approved",
+  ...options,
+  schema: ReviewApprovedData.fields,
 })
 
+export const ReviewChangesRequestedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  reviewedRevisionDigest: RevisionDigest,
+  findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  timestamp: Schema.Number,
+})
+export type ReviewChangesRequestedData = typeof ReviewChangesRequestedData.Type
+export const ReviewChangesRequested = EventV2.define({
+  type: "delegation.review_changes_requested",
+  ...options,
+  schema: ReviewChangesRequestedData.fields,
+})
+
+export const ReviewRejectedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  reviewedRevisionDigest: RevisionDigest,
+  findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  timestamp: Schema.Number,
+})
+export type ReviewRejectedData = typeof ReviewRejectedData.Type
+export const ReviewRejected = EventV2.define({
+  type: "delegation.review_rejected",
+  ...options,
+  schema: ReviewRejectedData.fields,
+})
+
+export const RejectionRetractedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  participantID: Schema.optional(ParticipantID),
+  reason: Schema.String.check(Schema.isMaxLength(1000)),
+  timestamp: Schema.Number,
+})
+export type RejectionRetractedData = typeof RejectionRetractedData.Type
 export const RejectionRetracted = EventV2.define({
   type: "delegation.rejection_retracted",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    participantID: Schema.optional(ParticipantID),
-    reason: Schema.String,
-  },
+  ...options,
+  schema: RejectionRetractedData.fields,
 })
 
+export const ClosingData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  reason: Schema.optional(Schema.String.check(Schema.isMaxLength(1000))),
+  timestamp: Schema.Number,
+})
+export type ClosingData = typeof ClosingData.Type
+export const Closing = EventV2.define({
+  type: "delegation.closing",
+  ...options,
+  schema: ClosingData.fields,
+})
+
+export const CompletedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  timestamp: Schema.Number,
+})
+export type CompletedData = typeof CompletedData.Type
 export const Completed = EventV2.define({
   type: "delegation.completed",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    summary: Schema.optional(Schema.String),
-  },
+  ...options,
+  schema: CompletedData.fields,
 })
 
-export const Closed = EventV2.define({
-  type: "delegation.closed",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-    reason: Schema.optional(Schema.String),
-  },
+export const CancelledData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  reason: Schema.optional(Schema.String.check(Schema.isMaxLength(1000))),
+  timestamp: Schema.Number,
+})
+export type CancelledData = typeof CancelledData.Type
+export const Cancelled = EventV2.define({
+  type: "delegation.cancelled",
+  ...options,
+  schema: CancelledData.fields,
 })
 
+export const ArchivedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  timestamp: Schema.Number,
+})
+export type ArchivedData = typeof ArchivedData.Type
 export const Archived = EventV2.define({
   type: "delegation.archived",
-  durable: {
-    version: 1,
-    aggregate: "delegationID",
-  },
-  schema: {
-    delegationID: DelegationID.ID,
-  },
+  ...options,
+  schema: ArchivedData.fields,
+})
+
+export const ForkedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  forkedDelegationID: DelegationID.ID,
+  reason: Schema.optional(Schema.String.check(Schema.isMaxLength(1000))),
+  timestamp: Schema.Number,
+})
+export type ForkedData = typeof ForkedData.Type
+export const Forked = EventV2.define({
+  type: "delegation.forked",
+  ...options,
+  schema: ForkedData.fields,
 })

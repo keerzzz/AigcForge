@@ -2,7 +2,7 @@ import { Effect } from "effect"
 import type { DatabaseMigration } from "../migration"
 
 export default {
-  id: "20260904152313_add_delegation_tables",
+  id: "20260904160809_add_delegation_tables",
   up(tx) {
     return Effect.gen(function* () {
       yield* tx.run(`
@@ -14,7 +14,6 @@ export default {
           \`role\` text NOT NULL,
           \`context\` text NOT NULL,
           \`phase\` text NOT NULL,
-          \`runtime_status\` text DEFAULT 'idle' NOT NULL,
           \`child_session_id\` text,
           \`external_thread_id\` text,
           \`last_activity_at\` integer NOT NULL,
@@ -31,7 +30,6 @@ export default {
           \`meta_agent_id\` text,
           \`title\` text NOT NULL,
           \`status\` text NOT NULL,
-          \`active_turn_id\` text,
           \`latest_revision_digest\` text,
           \`rejection_blocked\` integer DEFAULT 0 NOT NULL,
           \`rejection_reason\` text,
