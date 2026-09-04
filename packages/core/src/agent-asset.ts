@@ -11,6 +11,7 @@ import { KeyedMutex } from "./effect/keyed-mutex"
 import { Location } from "./location"
 import { AssetMigration } from "./asset-migration"
 import { AgentAssetPath } from "./agent-asset/path"
+import { parseAgentAssetConfig } from "./agent/asset-bridge"
 import { Hash } from "./util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { AGENTS_DIR } from "./constants"
@@ -29,6 +30,13 @@ export interface Info {
   readonly config: string
   readonly source: string
   readonly revision: string
+  readonly handoffs: ReadonlyArray<{
+    readonly label: string
+    readonly agent: string
+    readonly prompt: string
+    readonly send?: boolean
+    readonly model?: string
+  }>
 }
 
 export interface InvalidEntry {
@@ -104,6 +112,10 @@ function loadDir(
         config: frontmatter.config || "",
         source: parsed.content,
         revision,
+        // D13 (S3): handoffs ride the asset config YAML (ConfigAgent.Info) and/or a
+        // top-level frontmatter key; surface them as a typed field so consumers
+        // (asset-bridge, the workbench) read them from the asset itself.
+        handoffs: frontmatter.handoffs ?? parseAgentAssetConfig(frontmatter.config)?.handoffs ?? [],
       })
     }
 

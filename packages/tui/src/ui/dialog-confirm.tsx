@@ -2,7 +2,7 @@ import { TextAttributes } from "@opentui/core"
 import { useTheme } from "../context/theme"
 import { useDialog, type DialogContext } from "./dialog"
 import { createStore } from "solid-js/store"
-import { For } from "solid-js"
+import { createSignal, For, Show } from "solid-js"
 import { Locale } from "../util/locale"
 import { useBindings } from "../keymap"
 
@@ -12,6 +12,16 @@ export type DialogConfirmProps = {
   onConfirm?: () => void
   onCancel?: () => void
   label?: string
+  /**
+   * Optional "remember this answer" toggle. Existing callers pass nothing and
+   * behave exactly as before — `show`'s signature and return type are untouched,
+   * so `app.tsx` and the plugin adapter are unaffected.
+   */
+  remember?: {
+    readonly label: string
+    readonly value: boolean
+    readonly onToggle: () => void
+  }
 }
 
 export type DialogConfirmResult = boolean | undefined
@@ -51,6 +61,16 @@ export function DialogConfirm(props: DialogConfirmProps) {
           setStore("active", store.active === "confirm" ? "cancel" : "confirm")
         },
       },
+      ...(props.remember
+        ? [
+            {
+              key: "r",
+              desc: "Toggle remembering this answer",
+              group: "Dialog",
+              cmd: () => props.remember?.onToggle(),
+            },
+          ]
+        : []),
     ],
   }))
   return (
@@ -66,6 +86,16 @@ export function DialogConfirm(props: DialogConfirmProps) {
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>{props.message}</text>
       </box>
+      <Show when={props.remember}>
+        {(remember) => (
+          <box paddingBottom={1} onMouseUp={() => remember().onToggle()}>
+            <text fg={remember().value ? theme.text : theme.textMuted}>
+              {remember().value ? "[x] " : "[ ] "}
+              {remember().label} <span style={{ fg: theme.textMuted }}>(r)</span>
+            </text>
+          </box>
+        )}
+      </Show>
       <box flexDirection="row" justifyContent="flex-end" paddingBottom={1}>
         <For each={["cancel", "confirm"] as const}>
           {(key) => (
@@ -100,6 +130,42 @@ DialogConfirm.show = (dialog: DialogContext, title: string, message: string, lab
           onConfirm={() => resolve(true)}
           onCancel={() => resolve(false)}
           label={label}
+        />
+      ),
+      () => resolve(undefined),
+    )
+  })
+}
+
+/**
+ * Confirm with a "remember this answer" toggle. Separate from `show` so the
+ * existing callers keep their `boolean | undefined` contract; a dismissal still
+ * resolves `undefined`, and `remember` is only meaningful when `confirmed`.
+ */
+DialogConfirm.showWithRemember = (
+  dialog: DialogContext,
+  title: string,
+  message: string,
+  rememberLabel: string,
+  label?: string,
+) => {
+  return new Promise<{ readonly confirmed: boolean; readonly remember: boolean } | undefined>((resolve) => {
+    const [remember, setRemember] = createSignal(false)
+    dialog.replace(
+      () => (
+        <DialogConfirm
+          title={title}
+          message={message}
+          onConfirm={() => resolve({ confirmed: true, remember: remember() })}
+          onCancel={() => resolve({ confirmed: false, remember: false })}
+          label={label}
+          remember={{
+            label: rememberLabel,
+            get value() {
+              return remember()
+            },
+            onToggle: () => setRemember((value) => !value),
+          }}
         />
       ),
       () => resolve(undefined),

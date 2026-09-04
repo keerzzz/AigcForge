@@ -9,11 +9,19 @@ import type { AssistantMessage } from "@aigcfroge/sdk/v2"
 import { Locale } from "../../util/locale"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useCommandShortcut, useAigcfrogeKeymap } from "../../keymap"
+import { executeHandoff, handoffAuthorizationKey, planHandoff } from "@aigcfroge/schema/handoff"
+import { useToast } from "../../ui/toast"
+import { useDialog } from "../../ui/dialog"
+import { useKV } from "../../context/kv"
+import { DialogConfirm } from "../../ui/dialog-confirm"
 
 export function SubagentFooter() {
   const route = useRouteData("session")
   const sync = useSync()
   const sdk = useSDK()
+  const toast = useToast()
+  const dialog = useDialog()
+  const kv = useKV()
   const { navigate } = useRoute()
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
   const session = createMemo(() => sync.session.get(route.sessionID))
@@ -67,22 +75,105 @@ export function SubagentFooter() {
     return undefined
   })
 
-  const handoffActions = createMemo<{ label: string; agent: string; prompt: string }[]>(() => {
+  const handoffActions = createMemo<{ label: string; agent: string; prompt: string; send?: boolean }[]>(() => {
     const name = currentAgentName()
     if (!name) return []
     const agent = sync.data.agent.find((a) => a.name === name)
     return (agent?.handoffs ?? []).filter((h) => h.label && h.agent && h.prompt)
   })
 
-  const handleHandoff = async (agent: string, prompt: string) => {
+  // Remembered handoff grants (S6 "always"). One flat list is enough because the
+  // grant key already carries the Location, so a grant made in one project cannot
+  // match a handoff in another — the mistake `custom-draft`'s single global key
+  // made was storing project-scoped data under one key, not storing keys that
+  // name their own scope.
+  const GRANTS_KEY = "handoff.grants.v1"
+  const grants = () => {
+    // `kv.get` is `any`-typed by design (it fronts a JSON file), so narrow here
+    // rather than assert: a hand-edited kv.json must not crash the footer.
+    const stored: unknown = kv.get(GRANTS_KEY, [])
+    return new Set(Array.isArray(stored) ? stored.filter((item): item is string => typeof item === "string") : [])
+  }
+  const remember = (key: string) => {
+    const next = grants()
+    next.add(key)
+    kv.set(GRANTS_KEY, [...next])
+  }
+
+  const handleHandoff = async (label: string, agent: string, prompt: string, send?: boolean) => {
     const sessionID = route.sessionID
     if (!sessionID) return
+
+    // D13 (S3): handoff = switchAgent + prompt on the SAME session (no fork, no
+    // navigation). The plan is computed from the PRE-switch state and decides
+    // whether the switch may happen at all — see @aigcfroge/schema/handoff.
+    const current = session()
+    const agents = sync.data.agent ?? []
+    const location = current?.directory ?? ""
+    const context = { mode: current?.mode, tier: current?.permissionTier, attended: current?.attended } as const
+    const currentRules = agents.find((a) => a.name === current?.agent)?.permission ?? []
+    const targetRules = agents.find((a) => a.name === agent)?.permission ?? []
+    const plan = planHandoff({
+      session: context,
+      currentAgent: current?.agent,
+      targetAgent: agent,
+      currentRules,
+      targetRules,
+      send,
+      location,
+      label,
+      prompt,
+      authorized: grants(),
+    })
+
     try {
-      const result = await sdk.client.v2.session.fork({ sessionID, prompt, agent })
-      const childID = result.data?.sessionID
-      if (childID) navigate({ type: "session", sessionID: childID })
+      await executeHandoff(plan, {
+        // One request carries the switch and the message (S2): two calls would
+        // leave the session switched with nothing sent when the second fails.
+        submit: async () => {
+          await sdk.client.v2.session.prompt({
+            sessionID,
+            agent,
+            prompt: { text: prompt },
+            delivery: "steer",
+            resume: true,
+          })
+        },
+        switchAgent: async () => {
+          await sdk.client.v2.session.switchAgent({ sessionID, agent })
+        },
+        prefill: () =>
+          navigate({ type: "session", sessionID, prompt: { input: prompt, parts: [{ type: "text", text: prompt }] } }),
+        confirm: async () => {
+          const answer = await DialogConfirm.showWithRemember(
+            dialog,
+            "This handoff widens permissions",
+            `${agent} is allowed to do things this session currently is not. Switch to it for this handoff?`,
+            "Remember for this handoff",
+            "switch",
+          )
+          if (answer?.confirmed !== true) return false
+          // Recorded only after an affirmative answer, so a dismissal never
+          // leaves a grant behind.
+          if (answer.remember)
+            remember(
+              handoffAuthorizationKey({
+                location,
+                session: context,
+                sourceAgent: current?.agent,
+                label,
+                targetAgent: agent,
+                prompt,
+                currentRules,
+                targetRules,
+              }),
+            )
+          return true
+        },
+        reject: () => toast.show({ message: "Handoff cancelled — agent unchanged", variant: "info" }),
+      })
     } catch {
-      // handoff failed silently
+      toast.show({ message: `Handoff to ${agent} failed`, variant: "error" })
     }
   }
 
@@ -168,7 +259,7 @@ export function SubagentFooter() {
                   <box
                     onMouseOver={() => setHandoffHover(index())}
                     onMouseOut={() => setHandoffHover(null)}
-                    onMouseUp={() => handleHandoff(action.agent, action.prompt)}
+                    onMouseUp={() => handleHandoff(action.label, action.agent, action.prompt, action.send)}
                     backgroundColor={handoffHover() === index() ? theme.backgroundElement : theme.backgroundPanel}
                   >
                     <text fg={theme.text}>{action.label}</text>

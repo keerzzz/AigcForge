@@ -269,6 +269,10 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
   // -- Result view --
 
   function ResultView() {
+    // Read once on purpose, and safe only because of how this view is mounted: the
+    // `<Show>` below re-creates it every time the phase flips back to "result", and
+    // `parseResult` is written in the same `setState` batch as the phase. It is NOT a
+    // reactive read — do not start updating `parseResult` without the phase.
     const pr = state.parseResult
     if (!pr) return null
 
@@ -339,203 +343,222 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
 
   // -- Input view (original) --
 
-  if (state.phase === "result") return <ResultView />
+  /**
+   * Both views are selected through `<Show>`, not a bare `if` in the component body.
+   * A Solid component function runs ONCE, so `if (state.phase === "result") return
+   * <ResultView />` was evaluated only at creation time, when the phase is always
+   * "input" — `setState({ phase: "result" })` after a successful parse changed the store
+   * and nothing on screen. The dialog stayed on the paste form forever and the parsed
+   * candidates were unreachable (BUG-CHAT-IMPORT, 2026-09-03 dogfood run).
+   */
+  function InputView() {
+    return (
+      <Dialog
+        title={language.t("chatImport.title")}
+        description={language.t("chatImport.description")}
+        size="large"
+        fit
+      >
+        <div class="flex min-h-[280px] flex-1 flex-col gap-3 px-4 pb-3">
+          <div class="grid grid-cols-3 gap-1 rounded-[6px] bg-v2-background-bg-layer-02 p-0.5" role="group">
+            <button
+              type="button"
+              class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
+              classList={{
+                "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
+                  state.mode === "paste",
+                "text-v2-text-text-muted hover:text-v2-text-text-base": state.mode !== "paste",
+              }}
+              aria-pressed={state.mode === "paste"}
+              onClick={() => setState("mode", "paste")}
+            >
+              {language.t("chatImport.source.paste")}
+            </button>
+            <button
+              type="button"
+              class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
+              classList={{
+                "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
+                  state.mode === "file",
+                "text-v2-text-text-muted hover:text-v2-text-text-base": state.mode !== "file",
+              }}
+              aria-pressed={state.mode === "file"}
+              onClick={openFilePicker}
+            >
+              {language.t("chatImport.source.file")}
+            </button>
+            <button
+              type="button"
+              class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
+              classList={{
+                "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
+                  state.mode === "folder",
+                "text-v2-text-text-muted hover:text-v2-text-text-base": state.mode !== "folder",
+              }}
+              aria-pressed={state.mode === "folder"}
+              onClick={openFolderPicker}
+            >
+              {language.t("chatImport.source.folder")}
+            </button>
+          </div>
 
-  return (
-    <Dialog title={language.t("chatImport.title")} description={language.t("chatImport.description")} size="large" fit>
-      <div class="flex min-h-[280px] flex-1 flex-col gap-3 px-4 pb-3">
-        <div class="grid grid-cols-3 gap-1 rounded-[6px] bg-v2-background-bg-layer-02 p-0.5" role="group">
-          <button
-            type="button"
-            class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
-            classList={{
-              "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
-                state.mode === "paste",
-              "text-v2-text-text-muted hover:text-v2-text-text-base": state.mode !== "paste",
+          <input
+            ref={(element) => {
+              fileInput = element
             }}
-            aria-pressed={state.mode === "paste"}
-            onClick={() => setState("mode", "paste")}
-          >
-            {language.t("chatImport.source.paste")}
-          </button>
-          <button
-            type="button"
-            class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
-            classList={{
-              "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
-                state.mode === "file",
-              "text-v2-text-text-muted hover:text-v2-text-text-base": state.mode !== "file",
-            }}
-            aria-pressed={state.mode === "file"}
-            onClick={openFilePicker}
-          >
-            {language.t("chatImport.source.file")}
-          </button>
-          <button
-            type="button"
-            class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
-            classList={{
-              "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
-                state.mode === "folder",
-              "text-v2-text-text-muted hover:text-v2-text-text-base": state.mode !== "folder",
-            }}
-            aria-pressed={state.mode === "folder"}
-            onClick={openFolderPicker}
-          >
-            {language.t("chatImport.source.folder")}
-          </button>
-        </div>
-
-        <input
-          ref={(element) => {
-            fileInput = element
-          }}
-          type="file"
-          accept=".md,.txt,.yaml,.yml,.json,.toml,.env,.ini,.cfg,.conf,.ts,.tsx,.js,.jsx,.py,.go,.rs,.java,.c,.cpp,.h,.hpp,.css,.scss,.less,.sh,.zsh,text/*,application/json"
-          class="hidden"
-          onChange={handleSingleFile}
-        />
-        <input
-          ref={(element) => {
-            folderInput = element
-            element.setAttribute("webkitdirectory", "")
-          }}
-          type="file"
-          class="hidden"
-          multiple
-          onChange={handleFolderSelect}
-        />
-
-        <Show when={state.mode === "paste"}>
-          <textarea
-            autofocus
-            class="min-h-0 flex-1 resize-none rounded-[6px] border border-v2-border-border-base bg-v2-background-bg-layer-03 p-3 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint focus-visible:border-v2-border-border-focus text-13-regular"
-            value={state.text}
-            onInput={(event) => setState("text", event.currentTarget.value)}
-            placeholder={language.t("chatImport.pastePlaceholder")}
+            type="file"
+            accept=".md,.txt,.yaml,.yml,.json,.toml,.env,.ini,.cfg,.conf,.ts,.tsx,.js,.jsx,.py,.go,.rs,.java,.c,.cpp,.h,.hpp,.css,.scss,.less,.sh,.zsh,text/*,application/json"
+            class="hidden"
+            onChange={handleSingleFile}
           />
-        </Show>
+          <input
+            ref={(element) => {
+              folderInput = element
+              element.setAttribute("webkitdirectory", "")
+            }}
+            type="file"
+            class="hidden"
+            multiple
+            onChange={handleFolderSelect}
+          />
 
-        <Show when={state.mode !== "paste"}>
-          <Show
-            when={!state.loading}
-            fallback={
-              <div class="flex min-h-0 flex-1 items-center justify-center rounded-[6px] border border-v2-border-border-base text-v2-text-text-muted text-12-regular">
-                {language.t("common.loading")}
-              </div>
-            }
-          >
+          <Show when={state.mode === "paste"}>
+            <textarea
+              autofocus
+              class="min-h-0 flex-1 resize-none rounded-[6px] border border-v2-border-border-base bg-v2-background-bg-layer-03 p-3 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint focus-visible:border-v2-border-border-focus text-13-regular"
+              value={state.text}
+              onInput={(event) => setState("text", event.currentTarget.value)}
+              placeholder={language.t("chatImport.pastePlaceholder")}
+            />
+          </Show>
+
+          <Show when={state.mode !== "paste"}>
             <Show
-              when={state.entries.length > 0}
+              when={!state.loading}
               fallback={
-                <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-v2-border-border-base px-6 text-center">
-                  <span class="text-v2-text-text-muted text-12-regular">
-                    {state.skippedFiles > 0
-                      ? language.t("chatImport.unsupported")
-                      : language.t(state.mode === "file" ? "chatImport.empty.file" : "chatImport.empty.folder")}
-                  </span>
-                  <ButtonV2
-                    variant="neutral"
-                    size="small"
-                    onClick={state.mode === "file" ? openFilePicker : openFolderPicker}
-                  >
-                    {language.t("chatImport.chooseAgain")}
-                  </ButtonV2>
+                <div class="flex min-h-0 flex-1 items-center justify-center rounded-[6px] border border-v2-border-border-base text-v2-text-text-muted text-12-regular">
+                  {language.t("common.loading")}
                 </div>
               }
             >
-              <div class="flex min-h-0 flex-1 flex-col gap-2">
-                <div class="flex shrink-0 items-center gap-3 rounded-[6px] border border-v2-border-border-base px-3 py-2">
-                  <Icon
-                    name={state.mode === "folder" ? "folder-add-left" : fileTypeIcon(state.entries[0].type)}
-                    size="large"
-                    class="shrink-0 text-v2-icon-icon-muted"
-                  />
-                  <div class="min-w-0 flex-1">
-                    <div class="truncate text-v2-text-text-base text-12-semibold">
-                      {state.mode === "folder"
-                        ? language.t("chatImport.folderSummary", {
-                            count: state.entries.length,
-                            size: formatSize(totalSize()),
-                          })
-                        : state.entries[0].name}
-                    </div>
-                    <div class="text-v2-text-text-faint text-11-regular">
-                      {state.mode === "folder"
-                        ? state.entries[0].relativePath.split("/")[0]
-                        : formatSize(state.entries[0].size)}
-                    </div>
+              <Show
+                when={state.entries.length > 0}
+                fallback={
+                  <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-v2-border-border-base px-6 text-center">
+                    <span class="text-v2-text-text-muted text-12-regular">
+                      {state.skippedFiles > 0
+                        ? language.t("chatImport.unsupported")
+                        : language.t(state.mode === "file" ? "chatImport.empty.file" : "chatImport.empty.folder")}
+                    </span>
+                    <ButtonV2
+                      variant="neutral"
+                      size="small"
+                      onClick={state.mode === "file" ? openFilePicker : openFolderPicker}
+                    >
+                      {language.t("chatImport.chooseAgain")}
+                    </ButtonV2>
                   </div>
-                  <ButtonV2
-                    variant="ghost"
-                    size="small"
-                    onClick={state.mode === "file" ? openFilePicker : openFolderPicker}
+                }
+              >
+                <div class="flex min-h-0 flex-1 flex-col gap-2">
+                  <div class="flex shrink-0 items-center gap-3 rounded-[6px] border border-v2-border-border-base px-3 py-2">
+                    <Icon
+                      name={state.mode === "folder" ? "folder-add-left" : fileTypeIcon(state.entries[0].type)}
+                      size="large"
+                      class="shrink-0 text-v2-icon-icon-muted"
+                    />
+                    <div class="min-w-0 flex-1">
+                      <div class="truncate text-v2-text-text-base text-12-semibold">
+                        {state.mode === "folder"
+                          ? language.t("chatImport.folderSummary", {
+                              count: state.entries.length,
+                              size: formatSize(totalSize()),
+                            })
+                          : state.entries[0].name}
+                      </div>
+                      <div class="text-v2-text-text-faint text-11-regular">
+                        {state.mode === "folder"
+                          ? state.entries[0].relativePath.split("/")[0]
+                          : formatSize(state.entries[0].size)}
+                      </div>
+                    </div>
+                    <ButtonV2
+                      variant="ghost"
+                      size="small"
+                      onClick={state.mode === "file" ? openFilePicker : openFolderPicker}
+                    >
+                      {language.t("chatImport.chooseAgain")}
+                    </ButtonV2>
+                  </div>
+
+                  <Show when={state.skippedFiles > 0}>
+                    <div class="shrink-0 text-v2-state-fg-warning text-11-regular">
+                      {language.t("chatImport.skipped", { count: state.skippedFiles })}
+                    </div>
+                  </Show>
+
+                  <Show
+                    when={state.mode === "folder"}
+                    fallback={
+                      <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[6px] border border-v2-border-border-base">
+                        <div class="shrink-0 border-b border-v2-border-border-base px-3 py-2 text-v2-text-text-muted text-11-semibold">
+                          {language.t("chatImport.preview")}
+                        </div>
+                        <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-v2-text-text-base text-12-regular">
+                          {state.entries[0].content}
+                        </pre>
+                      </div>
+                    }
                   >
-                    {language.t("chatImport.chooseAgain")}
-                  </ButtonV2>
+                    <div class="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-[6px] border border-v2-border-border-base">
+                      <div class="min-h-0 overflow-y-auto border-r border-v2-border-border-base p-1">
+                        <For each={state.entries}>
+                          {(entry) => (
+                            <FileTreeRow
+                              entry={entry}
+                              selected={selectedEntry()?.relativePath === entry.relativePath}
+                              onSelect={() => setState("selectedPath", entry.relativePath)}
+                            />
+                          )}
+                        </For>
+                      </div>
+                      <div class="flex min-h-0 min-w-0 flex-col">
+                        <div class="shrink-0 truncate border-b border-v2-border-border-base px-3 py-2 text-v2-text-text-muted text-11-semibold">
+                          {selectedEntry()?.relativePath}
+                        </div>
+                        <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-v2-text-text-base text-12-regular">
+                          {selectedEntry()?.content}
+                        </pre>
+                      </div>
+                    </div>
+                  </Show>
                 </div>
-
-                <Show when={state.skippedFiles > 0}>
-                  <div class="shrink-0 text-v2-state-fg-warning text-11-regular">
-                    {language.t("chatImport.skipped", { count: state.skippedFiles })}
-                  </div>
-                </Show>
-
-                <Show
-                  when={state.mode === "folder"}
-                  fallback={
-                    <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[6px] border border-v2-border-border-base">
-                      <div class="shrink-0 border-b border-v2-border-border-base px-3 py-2 text-v2-text-text-muted text-11-semibold">
-                        {language.t("chatImport.preview")}
-                      </div>
-                      <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-v2-text-text-base text-12-regular">
-                        {state.entries[0].content}
-                      </pre>
-                    </div>
-                  }
-                >
-                  <div class="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-[6px] border border-v2-border-border-base">
-                    <div class="min-h-0 overflow-y-auto border-r border-v2-border-border-base p-1">
-                      <For each={state.entries}>
-                        {(entry) => (
-                          <FileTreeRow
-                            entry={entry}
-                            selected={selectedEntry()?.relativePath === entry.relativePath}
-                            onSelect={() => setState("selectedPath", entry.relativePath)}
-                          />
-                        )}
-                      </For>
-                    </div>
-                    <div class="flex min-h-0 min-w-0 flex-col">
-                      <div class="shrink-0 truncate border-b border-v2-border-border-base px-3 py-2 text-v2-text-text-muted text-11-semibold">
-                        {selectedEntry()?.relativePath}
-                      </div>
-                      <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-v2-text-text-base text-12-regular">
-                        {selectedEntry()?.content}
-                      </pre>
-                    </div>
-                  </div>
-                </Show>
-              </div>
+              </Show>
             </Show>
           </Show>
-        </Show>
 
-        <Show when={state.parseError}>
-          <div class="rounded-[6px] border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2 text-v2-state-fg-danger text-11-regular">
-            {state.parseError}
-          </div>
-        </Show>
-      </div>
+          <Show when={state.parseError}>
+            <div class="rounded-[6px] border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2 text-v2-state-fg-danger text-11-regular">
+              {state.parseError}
+            </div>
+          </Show>
+        </div>
 
-      <DialogFooter>
-        <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
-          {language.t("common.cancel")}
-        </ButtonV2>
-        <ButtonV2 variant="contrast" disabled={!canImport() || state.parsing || state.loading} onClick={handleParse}>
-          {state.parsing ? language.t("common.loading") : language.t("chatImport.review")}
-        </ButtonV2>
-      </DialogFooter>
-    </Dialog>
+        <DialogFooter>
+          <ButtonV2 variant="ghost" onClick={() => dialog.close()}>
+            {language.t("common.cancel")}
+          </ButtonV2>
+          <ButtonV2 variant="contrast" disabled={!canImport() || state.parsing || state.loading} onClick={handleParse}>
+            {state.parsing ? language.t("common.loading") : language.t("chatImport.review")}
+          </ButtonV2>
+        </DialogFooter>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Show when={state.phase === "result"} fallback={<InputView />}>
+      <ResultView />
+    </Show>
   )
 }

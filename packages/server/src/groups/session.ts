@@ -205,11 +205,18 @@ export const SessionGroup = HttpApiGroup.make("server.session")
   .add(
     HttpApiEndpoint.post("session.prompt", "/api/session/:sessionID/prompt", {
       params: { sessionID: SessionV2.ID },
+      // S2: selection rides along with the input. Without these fields a client
+      // that wants "switch to X and say this" has to POST /agent and /prompt
+      // separately, and a failure on the second call leaves the session switched
+      // with nothing sent — the same partial-failure shape the kernel exists to
+      // remove. `switchAgent`/`switchModel` stay for pure selection changes.
       payload: Schema.Struct({
         id: SessionMessage.ID.pipe(Schema.optional),
         prompt: Prompt,
         delivery: SessionInput.Delivery.pipe(Schema.optional),
         resume: Schema.Boolean.pipe(Schema.optional),
+        agent: AgentV2.ID.pipe(Schema.optional),
+        model: ModelV2.Ref.pipe(Schema.optional),
       }),
       success: Schema.Struct({ data: SessionInput.Admitted }),
       error: [ConflictError, SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
@@ -326,6 +333,29 @@ export const SessionGroup = HttpApiGroup.make("server.session")
       ),
   )
   .add(
+    HttpApiEndpoint.post("session.command", "/api/session/:sessionID/command", {
+      params: { sessionID: SessionV2.ID },
+      payload: Schema.Struct({
+        id: SessionMessage.ID.pipe(Schema.optional),
+        command: Schema.String,
+        arguments: Schema.String.pipe(Schema.optional),
+        context: Prompt.pipe(Schema.optional),
+        resume: Schema.Boolean.pipe(Schema.optional),
+      }),
+      success: Schema.Struct({ data: SessionInput.Admitted }),
+      error: [ConflictError, SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.command",
+          summary: "Run snapshot command",
+          description:
+            "Admit a frozen Custom snapshot command to the durable inbox. The runner statically expands the frozen invocation at the next promotion boundary; legacy snapshots and unbound commands fail closed.",
+        }),
+      ),
+  )
+  .add(
     HttpApiEndpoint.post("session.interrupt", "/api/session/:sessionID/interrupt", {
       params: { sessionID: SessionV2.ID },
       success: HttpApiSchema.NoContent,
@@ -364,9 +394,16 @@ export const SessionGroup = HttpApiGroup.make("server.session")
   .add(
     HttpApiEndpoint.post("session.fork", "/api/session/:sessionID/fork", {
       params: { sessionID: SessionV2.ID },
+      // D13 (2026-09-01): fork no longer carries prompt/agent modifiers. Handoff
+      // is switchAgent + prompt on the SAME session (two existing durable
+      // primitives), never a fork. The two removed keys are declared as `never`
+      // rather than dropped from the struct: a bare `Schema.Struct({})` ignores
+      // excess properties, so an older SDK sending `prompt` would get 2xx and a
+      // silently discarded prompt — exactly the failure mode P1-14 recorded.
+      // Declaring them fails the payload decode instead, so the client learns.
       payload: Schema.Struct({
-        prompt: Schema.String.pipe(Schema.optional),
-        agent: Schema.String.pipe(Schema.optional),
+        prompt: Schema.optional(Schema.Never),
+        agent: Schema.optional(Schema.Never),
       }),
       success: Schema.Struct({ sessionID: SessionV2.ID }),
       error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],

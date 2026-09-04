@@ -13,12 +13,24 @@ import { CommandAsset } from "./command-asset"
 import { MCPAsset } from "./mcp-asset"
 import { McpConnection } from "./mcp/connection"
 import { McpScope } from "@aigcfroge/schema/mcp-scope"
+import path from "path"
 import { computeCompositionDigest, computeDigest } from "./composition/digest"
 import { Location } from "./location"
 import { ToolRegistry } from "./tool/registry"
 import { InstallationVersion } from "./installation/version"
 
 const SUPPORTED_CAPABILITIES = new Set(["workspace.read", "workspace.write", "terminal.exec", "browser.navigate"])
+
+function makeConsumerKey(name: string, relativePath: string): string {
+  const trimmed = name.trim()
+  if (/^[a-zA-Z0-9_-]+$/.test(trimmed)) return `agents/${trimmed}`
+  const base = path.basename(relativePath, path.extname(relativePath))
+  const sanitized = base.replaceAll(/[^a-zA-Z0-9_-]/g, "_").replace(/^_+|_+$/g, "")
+  if (sanitized.length > 0 && /^[a-zA-Z0-9_-]+$/.test(sanitized)) return `agents/${sanitized}`
+  // deterministic fallback: hex of relativePath+name
+  const fallback = Buffer.from(`${relativePath}:${name}`).toString("hex").slice(0, 12)
+  return `agents/${fallback}`
+}
 
 export interface Interface {
   readonly resolve: (input: Composition.CompositionInput) => Effect.Effect<Composition.Plan>
@@ -46,13 +58,26 @@ export const layer = Layer.effect(
     const location = yield* Location.Service
     const tools = yield* ToolRegistry.Service
 
-    const resolve = Effect.fn("CompositionResolver.resolve")(function* (input: Composition.CompositionInput) {
+    const resolveInternal = Effect.fn("CompositionResolver.resolveInternal")(function* (
+      input: Composition.CompositionInput,
+    ) {
       const digest = computeCompositionDigest(input)
       const diagnostics: Composition.Diagnostic[] = []
       const instructions: Composition.Instruction[] = []
       const skills: Composition.SkillInfo[] = []
       const commands: Composition.CommandInfo[] = []
       const capabilities: Composition.CapabilityInfo[] = []
+      const perConsumerInstructions = new Map<string, Composition.Instruction[]>()
+      const perConsumerPrompts = new Map<string, Composition.SnapshotPromptData[]>()
+      const perConsumerSkills = new Map<string, Composition.SkillInfo[]>()
+      const perConsumerCommands = new Map<string, Composition.CommandInfo[]>()
+      const promptData = new Map<string, Composition.SnapshotPromptData>()
+      const ensureConsumer = (key: string) => {
+        if (!perConsumerInstructions.has(key)) perConsumerInstructions.set(key, [])
+        if (!perConsumerPrompts.has(key)) perConsumerPrompts.set(key, [])
+        if (!perConsumerSkills.has(key)) perConsumerSkills.set(key, [])
+        if (!perConsumerCommands.has(key)) perConsumerCommands.set(key, [])
+      }
 
       let resolvedAgents: readonly Composition.AgentRef[] = []
       let resolvedWorkflow: Composition.WorkflowRef | undefined
@@ -131,6 +156,10 @@ export const layer = Layer.effect(
 
       // 1. Cardinality check (1..16 agents supported in M2)
       const resolvedAgentInfos: Composition.AgentInfo[] = []
+      // Agents whose asset body is non-empty, i.e. those that must contribute an `agent:<name>`
+      // instruction to their own consumer binding. Recorded during resolution because the live
+      // asset is only in scope there.
+      const agentsWithBody = new Set<string>()
       if (resolvedAgents.length < 1) {
         diagnostics.push(
           new Composition.Diagnostic({
@@ -199,22 +228,26 @@ export const layer = Layer.effect(
             )
           }
 
+          const consumerKey = makeConsumerKey(a.name, a.relativePath)
           const agentInfo = new Composition.AgentInfo({
             id: a.name,
             name: a.name,
             description: a.description,
             relativePath: a.relativePath,
             revision: Schema.decodeUnknownSync(Composition.Revision)(a.revision),
+            consumerKey,
           })
           resolvedAgentInfos.push(agentInfo)
 
+          ensureConsumer(consumerKey)
           if (a.source && a.source.trim()) {
-            instructions.push(
-              new Composition.Instruction({
-                source: `agent:${a.name}`,
-                content: a.source.trim(),
-              }),
-            )
+            agentsWithBody.add(a.name)
+            const instr = new Composition.Instruction({
+              source: `agent:${a.name}`,
+              content: a.source.trim(),
+            })
+            instructions.push(instr)
+            perConsumerInstructions.get(consumerKey)!.push(instr)
           }
         }
       }
@@ -307,7 +340,13 @@ export const layer = Layer.effect(
       }
 
       // 3. Bindings & Consumer keys validation
-      const allowedConsumerKeys = new Set(["orchestrator", ...resolvedAgentInfos.map((a) => `agents/${a.name}`)])
+      const allowedConsumerKeys = new Set<string>(["orchestrator"])
+      for (const a of resolvedAgentInfos) {
+        if (a.consumerKey) allowedConsumerKeys.add(a.consumerKey)
+        else allowedConsumerKeys.add(`agents/${a.name}`)
+      }
+      // ensure per-consumer maps have entry for each allowed key (even if empty)
+      for (const key of allowedConsumerKeys) ensureConsumer(key)
 
       if (resolvedBindings) {
         for (const [consumerKey, binding] of Object.entries(resolvedBindings)) {
@@ -335,6 +374,7 @@ export const layer = Layer.effect(
 
       for (const [consumer, binding] of Object.entries(resolvedBindings)) {
         if (!allowedConsumerKeys.has(consumer)) continue
+        ensureConsumer(consumer)
         // Prompts in binding
         for (const promptRef of binding.prompts) {
           if ((promptRef as { kind?: string }).kind !== "prompt") {
@@ -373,13 +413,20 @@ export const layer = Layer.effect(
                 }),
               )
             }
+            const snapshotPrompt = new Composition.SnapshotPromptData({
+              relativePath: p.relativePath,
+              revision: promptRef.revision,
+              content: p.template ?? "",
+            })
+            perConsumerPrompts.get(consumer)!.push(snapshotPrompt)
+            promptData.set(`${p.relativePath}:${String(promptRef.revision)}`, snapshotPrompt)
             if (p.template && p.template.trim()) {
-              instructions.push(
-                new Composition.Instruction({
-                  source: `prompt:${p.name}`,
-                  content: p.template.trim(),
-                }),
-              )
+              const instr = new Composition.Instruction({
+                source: `prompt:${p.name}`,
+                content: p.template.trim(),
+              })
+              instructions.push(instr)
+              perConsumerInstructions.get(consumer)!.push(instr)
             }
           }
         }
@@ -422,14 +469,14 @@ export const layer = Layer.effect(
                 }),
               )
             }
-            skills.push(
-              new Composition.SkillInfo({
-                name: s.name,
-                description: s.description,
-                relativePath: s.relativePath,
-                revision: Schema.decodeUnknownSync(Composition.Revision)(s.revision),
-              }),
-            )
+            const skillInfo = new Composition.SkillInfo({
+              name: s.name,
+              description: s.description,
+              relativePath: s.relativePath,
+              revision: Schema.decodeUnknownSync(Composition.Revision)(s.revision),
+            })
+            skills.push(skillInfo)
+            perConsumerSkills.get(consumer)!.push(skillInfo)
           }
         }
 
@@ -471,16 +518,20 @@ export const layer = Layer.effect(
               }),
             )
           }
-          if (commands.some((item) => item.relativePath === command.relativePath)) continue
-          commands.push(
-            new Composition.CommandInfo({
-              name: command.name,
-              description: command.description,
-              relativePath: command.relativePath,
-              revision: Schema.decodeUnknownSync(Composition.Revision)(command.revision),
-              template: command.source,
-            }),
-          )
+          const alreadyGlobal = commands.some((item) => item.relativePath === command.relativePath)
+          const cmdInfo = new Composition.CommandInfo({
+            name: command.name,
+            description: command.description,
+            relativePath: command.relativePath,
+            revision: Schema.decodeUnknownSync(Composition.Revision)(command.revision),
+            invocation: command.invocation,
+            args: command.args,
+            source: command.source,
+          })
+          if (!alreadyGlobal) commands.push(cmdInfo)
+          if (!perConsumerCommands.get(consumer)!.some((c) => c.relativePath === cmdInfo.relativePath)) {
+            perConsumerCommands.get(consumer)!.push(cmdInfo)
+          }
         }
       }
 
@@ -663,7 +714,7 @@ export const layer = Layer.effect(
       const isV2 = resolvedAgentInfos.length > 1 || workflowInfo !== undefined || commands.length > 0
       const planVersion = isV2 ? 2 : 1
 
-      return new Composition.Plan({
+      const plan = new Composition.Plan({
         version: planVersion,
         digest,
         valid,
@@ -679,6 +730,51 @@ export const layer = Layer.effect(
         mcp,
         diagnostics,
       })
+
+      // Build per-consumer snapshot bindings from the already-read assets (no second live read).
+      //
+      // Every addressable consumer gets an entry, even when it binds nothing: the orchestrator and
+      // one per frozen agent. "Present but empty" and "absent" must stay distinguishable, because
+      // the runtime fails closed on absent — emitting entries only when they have content would
+      // make a legitimate composition (everything bound to child agents, nothing to the
+      // orchestrator) unrunnable at its root.
+      const snapshotBindings: Record<string, Composition.SnapshotBindingData> = {}
+      const addressableConsumers = new Set<string>([
+        "orchestrator",
+        ...resolvedAgentInfos.map((a) => a.consumerKey ?? `agents/${a.name}`),
+        ...Object.keys(resolvedBindings),
+        ...perConsumerInstructions.keys(),
+      ])
+      for (const key of addressableConsumers) {
+        snapshotBindings[key] = new Composition.SnapshotBindingData({
+          instructions: perConsumerInstructions.get(key) ?? [],
+          prompts: perConsumerPrompts.get(key) ?? [],
+          skills: perConsumerSkills.get(key) ?? [],
+          commands: perConsumerCommands.get(key) ?? [],
+        })
+      }
+
+      // Freeze-time completeness: an agent with a non-empty asset body must have its system prompt
+      // in its own consumer's binding. assertDependency cannot check this later — from the snapshot
+      // alone, "the prompt was dropped" and "this agent has no body" are indistinguishable. Here
+      // both the live asset and the binding are in hand, so a drop is a defect, not a data shape.
+      for (const info of resolvedAgentInfos) {
+        if (!agentsWithBody.has(info.name)) continue
+        const key = info.consumerKey ?? `agents/${info.name}`
+        const landed = snapshotBindings[key]?.instructions.some((i) => i.source === `agent:${info.name}`)
+        if (!landed) {
+          return yield* Effect.die(
+            `Composition freeze dropped the system prompt for agent '${info.name}' (consumer '${key}')`,
+          )
+        }
+      }
+
+      return { plan, snapshotBindings, promptData }
+    })
+
+    const resolve = Effect.fn("CompositionResolver.resolve")(function* (input: Composition.CompositionInput) {
+      const { plan } = yield* resolveInternal(input)
+      return plan
     })
 
     const checkHealth = Effect.fn("CompositionResolver.checkHealth")(function* (profile: SchemaCustomProfile.Profile) {
@@ -811,72 +907,12 @@ export const layer = Layer.effect(
     })
 
     const freeze: Interface["freeze"] = Effect.fn("CompositionResolver.freeze")(function* (input) {
-      const plan = yield* resolve(input.input)
+      const { plan, snapshotBindings, promptData } = yield* resolveInternal(input.input)
       if (!plan.valid) {
         return yield* new Composition.ResolveError({
           code: "invalid_composition_plan",
           message: "Cannot freeze an invalid composition plan",
           diagnostics: plan.diagnostics,
-        })
-      }
-
-      const promptData = new Map<string, Composition.SnapshotPromptData>()
-      const snapshotBindings: Record<string, Composition.SnapshotBindingData> = {}
-      let bindingsObj: Record<string, Composition.Binding> = {}
-      if (plan.input.source === "temporary") {
-        bindingsObj = plan.input.bindings as Record<string, Composition.Binding>
-      } else {
-        const pOpt = yield* customProfiles.getByPath(plan.input.profilePath).pipe(Effect.option)
-        if (Option.isSome(pOpt)) {
-          bindingsObj = pOpt.value.profile.bindings as Record<string, Composition.Binding>
-        }
-      }
-
-      for (const [consumer, binding] of Object.entries(bindingsObj)) {
-        const bindingPrompts: Composition.SnapshotPromptData[] = []
-        const bindingSkills: Composition.SkillInfo[] = []
-        const bindingCommands: Composition.CommandInfo[] = []
-        for (const p of binding.prompts) {
-          const pInfo = yield* promptAssets.getByPath(p.relativePath).pipe(Effect.option)
-          const prompt = new Composition.SnapshotPromptData({
-            relativePath: p.relativePath,
-            revision: p.revision,
-            content: Option.getOrUndefined(pInfo)?.template ?? "",
-          })
-          bindingPrompts.push(prompt)
-          promptData.set(`${p.relativePath}:${p.revision}`, prompt)
-        }
-        for (const skillRef of binding.skills) {
-          const skillOpt = yield* skillAssets.getByPath(skillRef.relativePath).pipe(Effect.option)
-          const skill = Option.getOrUndefined(skillOpt)
-          if (!skill) continue
-          bindingSkills.push(
-            new Composition.SkillInfo({
-              name: skill.name,
-              description: skill.description,
-              relativePath: skill.relativePath,
-              revision: Schema.decodeUnknownSync(Composition.Revision)(skill.revision),
-            }),
-          )
-        }
-        for (const commandRef of binding.commands) {
-          const commandOpt = yield* commandAssets.getByPath(commandRef.relativePath).pipe(Effect.option)
-          const command = Option.getOrUndefined(commandOpt)
-          if (!command) continue
-          bindingCommands.push(
-            new Composition.CommandInfo({
-              name: command.name,
-              description: command.description,
-              relativePath: command.relativePath,
-              revision: Schema.decodeUnknownSync(Composition.Revision)(command.revision),
-              template: command.source,
-            }),
-          )
-        }
-        snapshotBindings[consumer] = new Composition.SnapshotBindingData({
-          prompts: bindingPrompts,
-          skills: bindingSkills,
-          commands: bindingCommands,
         })
       }
 

@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test"
-import fs from "fs"
-import path from "path"
 import { computeAutoSync } from "./secondary-sidebar-autosync"
 
 // Tests for the auto-sync decision logic extracted from SecondarySidebar's
@@ -63,30 +61,12 @@ describe("computeAutoSync", () => {
   })
 })
 
-describe("SecondarySidebar mode dispatch contract (Phase 5)", () => {
-  const secondary = fs.readFileSync(path.resolve(__dirname, "secondary-sidebar.tsx"), "utf-8")
-  const workspace = fs.readFileSync(path.resolve(__dirname, "../pages/mode-workspace.tsx"), "utf-8")
-
-  test("ModeWorkspace keeps all mode slots mounted with display:none switching", () => {
-    expect(workspace).toContain("For each={ALL_SLOTS}")
-    expect(workspace).toContain('style={{ display: mode.currentMode === slot ? "" : "none" }}')
-    expect(workspace).toContain('style={{ display: mode.currentMode === slot ? "flex" : "none" }}')
-  })
-
-  test("SecondarySidebar keeps explicit Chat/Work/Assistant owners", () => {
-    expect(secondary).toContain("<ChatFeatureSidebar />")
-    expect(secondary).toContain("<WorkSecondarySidebar")
-    expect(secondary).toContain("<AssistantSessionSidebar")
-    expect(secondary).not.toContain("MODE_SURFACES")
-    expect(secondary).not.toContain("ModeRegistry")
-  })
-
-  test("SecondarySidebar does not use HomeSessionSearch for project or asset navigation", () => {
-    expect(secondary).not.toContain("HomeSessionSearch")
-  })
-
-  test("documents the separate ChatFeatureSidebar secondary instance", () => {
-    expect(secondary).toContain("secondary-sidebar instance")
-    expect(secondary).toContain("ModeWorkspace mounts the primary slot instance")
-  })
-})
+// The "SecondarySidebar mode dispatch contract (Phase 5)" block that used to
+// follow was removed as part of S0.5. It read `secondary-sidebar.tsx` and
+// `mode-workspace.tsx` as text and asserted, among other things, that
+// `mode-workspace.tsx` contained `style={{ display: mode.currentMode === slot ?
+// "" : "none" }}`. That is the render-all behaviour P2-14 exists to change, so the
+// test pinned the defect in place; it also asserted that a prose comment
+// ("secondary-sidebar instance") was present, which no behaviour can justify.
+// The mode→sidebar wiring it stood in for is only observable by rendering, which
+// belongs to S6/S8 — see the debt row for the missing coverage.

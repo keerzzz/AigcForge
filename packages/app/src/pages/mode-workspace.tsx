@@ -1,5 +1,7 @@
 import { createEffect, createMemo, createResource, createSignal, For } from "solid-js"
 import { createStore } from "solid-js/store"
+import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
+import { CustomDraftProvider } from "@/context/custom-draft"
 import { modeSurface } from "@/components/mode-surfaces"
 import { LocationApprovalCenter } from "@/components/approval-center"
 import { useServerSync } from "@/context/server-sync"
@@ -41,6 +43,17 @@ export function ModeWorkspace() {
     select: (selection: AssistantNavSelection) => setAssistantSel("selection", selection),
   }
 
+  // S6 RED 4: the Custom draft is owned here, above both slots, so the Sidebar and
+  // the Main share one Provider instead of relying on a module-level map to hand them
+  // the same store. Derived from `ctx.sdk.scope` + directory directly — the same pair
+  // `ensureDirSdkContext` would surface, without building an SDK to read two fields.
+  const customLocation = createMemo(() => {
+    const dir = chatDirectory()
+    const currentCtx = chatCtx()
+    if (!dir || !currentCtx) return undefined
+    return { scope: currentCtx.sdk.scope, directory: dir }
+  })
+
   const [chatDirSdk, setChatDirSdk] = createSignal<DirectorySDK | undefined>()
   createEffect(() => {
     const dir = chatDirectory()
@@ -53,15 +66,41 @@ export function ModeWorkspace() {
   })
 
   const [chatAssetList, { refetch: refetchAssets }] = createResource(chatDirSdk, async (sdk) => {
+    // Each list is settled individually, so one failing endpoint contributes nothing
+    // instead of rejecting the whole resource. That matters because `mergedAssetData`
+    // below reads this resource, and reading a rejected resource throws into the
+    // nearest boundary — the fallback-less `<Suspense>` at `pages/layout.tsx:43`. A
+    // single 500 therefore used to blank the entire mode workspace, for every mode.
+    // The failed kinds below feed the workbench's `AssetLoadError`. `ChatFeatureSidebar`
+    // reads the same seven kinds through its own resource and settles them for exactly
+    // the same reason — merging the two reads is recorded as debt, not done here.
+    const settle = <T,>(call: Promise<T>): Promise<T | { data: undefined }> =>
+      call.then(
+        (value) => value,
+        () => ({ data: undefined }),
+      )
     const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes, pluginsRes] = await Promise.all([
-      sdk.client.promptAsset.list(),
-      sdk.client.skillAsset.list(),
-      sdk.client.mcpAsset.list(),
-      sdk.client.commandAsset.list(),
-      sdk.client.agentAsset.list(),
-      sdk.client.workflowAsset.list(),
-      sdk.client.pluginAsset.list(),
+      settle(sdk.client.promptAsset.list()),
+      settle(sdk.client.skillAsset.list()),
+      settle(sdk.client.mcpAsset.list()),
+      settle(sdk.client.commandAsset.list()),
+      settle(sdk.client.agentAsset.list()),
+      settle(sdk.client.workflowAsset.list()),
+      settle(sdk.client.pluginAsset.list()),
     ])
+    // Which kinds did not answer. Without this the workspace no longer blanks but the
+    // failure is invisible — "silently one kind short" instead of an error.
+    const failed = (
+      [
+        ["prompts", promptsRes],
+        ["skills", skillsRes],
+        ["mcp", mcpsRes],
+        ["commands", cmdsRes],
+        ["agents", agentsRes],
+        ["workflows", workflowsRes],
+        ["plugins", pluginsRes],
+      ] as const
+    ).flatMap(([kind, result]) => (result.data === undefined ? [kind] : []))
     const promptAssets = promptsRes.data?.assets ?? []
     const skillAssets = skillsRes.data?.assets ?? []
     const mcpAssets = mcpsRes.data?.assets ?? []
@@ -112,6 +151,7 @@ export function ModeWorkspace() {
     )
 
     return {
+      failed,
       assets: allAssets,
       invalid: invalidRows,
     }
@@ -129,7 +169,7 @@ export function ModeWorkspace() {
     if (!project && !system) {
       const emptyAssets: AssetWorkbench.AssetInput[] = []
       const emptyInvalid: AssetWorkbench.AssetRow[] = []
-      return { assets: emptyAssets, invalid: emptyInvalid }
+      return { assets: emptyAssets, invalid: emptyInvalid, failed: [] as readonly string[] }
     }
     const merged = AssetWorkbench.mergeAssets(
       project?.assets ?? [],
@@ -141,7 +181,7 @@ export function ModeWorkspace() {
           })
         : [],
     )
-    return { assets: merged, invalid: project?.invalid ?? [] }
+    return { assets: merged, invalid: project?.invalid ?? [], failed: (project?.failed ?? []) as readonly string[] }
   })
 
   const assetCtx = {
@@ -156,52 +196,59 @@ export function ModeWorkspace() {
     <ModeWorkspaceAssetCtx.Provider value={assetCtx}>
       <CodingSelectionCtx.Provider value={codingValue}>
         <AssistantSelectionCtx.Provider value={assistantValue}>
-          <div
-            data-mode-workspace
-            class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col"
-          >
-            <LocationApprovalCenter />
+          <CustomDraftProvider location={customLocation}>
             <div
-              class={
-                "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
-                (mode.currentMode === "chat"
-                  ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
-                  : mode.currentMode === "work"
-                    ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
-                    : " max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]")
-              }
+              data-mode-workspace
+              class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col"
             >
-              {/* Sidebar slot: render-all + display:none */}
-              <div>
-                <For each={ALL_SLOTS}>
-                  {(slot) => {
-                    const surf = modeSurface(slot)
-                    return (
-                      <div style={{ display: mode.currentMode === slot ? "" : "none" }}>
-                        <surf.Sidebar />
-                      </div>
-                    )
-                  }}
-                </For>
+              <LocationApprovalCenter />
+              <div
+                class={
+                  "mx-auto grid h-full w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-3 pb-3 lg:grid-rows-1 lg:px-6 lg:pb-16 lg:gap-8" +
+                  (mode.currentMode === "chat"
+                    ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
+                    : mode.currentMode === "work"
+                      ? " max-w-[1080px] lg:grid-cols-[280px_minmax(0,960px)]"
+                      : " max-w-[1080px] lg:grid-cols-[280px_minmax(0,720px)]")
+                }
+              >
+                {/* Sidebar slot: render-all + display:none */}
+                <div>
+                  <For each={ALL_SLOTS}>
+                    {(slot) => {
+                      const surf = modeSurface(slot)
+                      return (
+                        <div data-mode-sidebar={slot} style={{ display: mode.currentMode === slot ? "" : "none" }}>
+                          <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
+                            <surf.Sidebar />
+                          </ModeSlotActiveProvider>
+                        </div>
+                      )
+                    }}
+                  </For>
+                </div>
+                {/* Main slot: render-all + display:none */}
+                <section class="min-h-0 min-w-0 flex-1 flex flex-col" aria-label="Main content">
+                  <For each={ALL_SLOTS}>
+                    {(slot) => {
+                      const surf = modeSurface(slot)
+                      return (
+                        <div
+                          data-mode-main={slot}
+                          class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12"
+                          style={{ display: mode.currentMode === slot ? "flex" : "none" }}
+                        >
+                          <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
+                            <surf.Main />
+                          </ModeSlotActiveProvider>
+                        </div>
+                      )
+                    }}
+                  </For>
+                </section>
               </div>
-              {/* Main slot: render-all + display:none */}
-              <section class="min-h-0 min-w-0 flex-1 flex flex-col" aria-label="Main content">
-                <For each={ALL_SLOTS}>
-                  {(slot) => {
-                    const surf = modeSurface(slot)
-                    return (
-                      <div
-                        class="flex min-h-0 flex-1 flex-col pt-6 lg:pt-12"
-                        style={{ display: mode.currentMode === slot ? "flex" : "none" }}
-                      >
-                        <surf.Main />
-                      </div>
-                    )
-                  }}
-                </For>
-              </section>
             </div>
-          </div>
+          </CustomDraftProvider>
         </AssistantSelectionCtx.Provider>
       </CodingSelectionCtx.Provider>
     </ModeWorkspaceAssetCtx.Provider>

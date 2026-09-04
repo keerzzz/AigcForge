@@ -304,6 +304,31 @@ export const layer = Layer.effect(
         )
       }
       if (snapshot.version === 2) {
+        // A scoped graph must carry every addressable consumer, so that "present but binds nothing"
+        // stays distinguishable from "absent" — the runtime fails closed only on absent.
+        //
+        // Whether an agent's own system prompt actually survived the freeze cannot be decided from
+        // the snapshot alone (an agent whose asset body is empty legitimately contributes no
+        // instruction). That invariant is enforced at freeze time in composition-resolver, where the
+        // live asset and the binding are both in hand.
+        const bindings = snapshot.data.bindings
+        if (bindings !== undefined) {
+          if (!("orchestrator" in bindings)) {
+            return yield* missing(
+              "missing_orchestrator_binding",
+              "a scoped binding graph must carry an orchestrator entry, even when it binds nothing",
+            )
+          }
+          for (const agent of snapshot.data.agents) {
+            const key = agent.consumerKey ?? `agents/${agent.name}`
+            if (bindings[key] === undefined) {
+              return yield* missing(
+                "missing_agent_binding",
+                `frozen agent '${agent.name}' has no binding entry for consumer '${key}'`,
+              )
+            }
+          }
+        }
         const audit = Composition.mcpAuditMatchesCatalog({
           catalog: snapshot.data.tools.catalog,
           auditToolNames: snapshot.data.mcp.tools.map((tool) => tool.canonicalName),

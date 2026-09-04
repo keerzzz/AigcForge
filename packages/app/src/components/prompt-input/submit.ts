@@ -1,4 +1,5 @@
-import type { Message, Session } from "@aigcfroge/sdk/v2/client"
+import type { FilePartInput, Message, Session } from "@aigcfroge/sdk/v2/client"
+import { CommandParse } from "@aigcfroge/schema/command-parse"
 import { showToast } from "@/utils/toast"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { Binary } from "@aigcfroge/core/util/binary"
@@ -48,6 +49,12 @@ type FollowupSendInput = {
   messageID?: string
   optimisticBusy?: boolean
   before?: () => Promise<boolean> | boolean
+  /**
+   * Known command catalog used to route slash lines to the command endpoint.
+   * For a Custom session this is the current Snapshot's consumer catalog; when
+   * omitted the live command store is used (non-custom behavior).
+   */
+  commands?: () => ReadonlyArray<{ name: string }> | undefined
 }
 
 const draftText = (prompt: Prompt) => prompt.map((part) => ("content" in part ? part.content : "")).join("")
@@ -75,9 +82,11 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
     return true
   }
 
-  const [head, ...tail] = text.split(" ")
-  const cmd = head?.startsWith("/") ? head.slice(1) : undefined
-  if (cmd && input.sync.data.command.find((item) => item.name === cmd)) {
+  // Single parser owner (S5 leg 1): the same CommandParse.splitCommandLine used
+  // by the composer decides the command name and the raw argument remainder.
+  const slash = CommandParse.splitCommandLine(text)
+  const knownCommands = input.commands?.() ?? input.sync.data.command
+  if (slash && knownCommands.some((item) => item.name === slash.command)) {
     setBusy()
     try {
       if (!(await wait())) {
@@ -85,20 +94,30 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
         return false
       }
 
+      // Command submission reuses the same context normalization as a plain
+      // prompt (files / images / context selections), never an images-only
+      // adapter. The SDK command endpoint currently carries file parts only;
+      // agent and comment-note parts ride the same normalizer once the
+      // canonical endpoint accepts them (S5 D8).
+      const messageID = input.messageID ?? Identifier.ascending("message")
+      const { requestParts } = buildRequestParts({
+        prompt: input.draft.prompt,
+        context: input.draft.context,
+        images,
+        text,
+        sessionID: input.draft.sessionID,
+        messageID,
+        sessionDirectory: input.draft.sessionDirectory,
+      })
+
       await input.client.session.command({
         sessionID: input.draft.sessionID,
-        command: cmd,
-        arguments: tail.join(" "),
+        command: slash.command,
+        arguments: slash.arguments,
         agent: input.draft.agent,
         model: `${input.draft.model.providerID}/${input.draft.model.modelID}`,
         variant: input.draft.variant,
-        parts: images.map((attachment) => ({
-          id: Identifier.ascending("part"),
-          type: "file" as const,
-          mime: attachment.mime,
-          url: attachment.dataUrl,
-          filename: attachment.filename,
-        })),
+        parts: requestParts.filter((part): part is FilePartInput & { id: string } => part.type === "file"),
       })
       return true
     } catch (err) {
@@ -195,6 +214,12 @@ type PromptSubmitInput = {
   onQueue?: (draft: FollowupDraft) => void
   onAbort?: () => void
   onSubmit?: () => void
+  /**
+   * Known command catalog for routing slash lines to the command endpoint.
+   * Custom sessions pass the Snapshot's consumer catalog; when omitted the
+   * live command store is used.
+   */
+  commands?: () => ReadonlyArray<{ name: string }> | undefined
 }
 
 type CommentItem = {
@@ -220,12 +245,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const [search] = useSearchParams<{ draftId?: string }>()
   const server = useServer()
   const tabs = useTabs()
-  let global: ReturnType<typeof useGlobal> | undefined
-  try {
-    global = useGlobal()
-  } catch {
-    // GlobalProvider not available (e.g. in tests)
-  }
+  const global = useGlobal()
   const pendingKey = (sessionID: string) => ScopedKey.from(sdk().scope, sessionID)
 
   const errorMessage = (err: unknown) => {
@@ -404,7 +424,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         if (shouldAutoAccept) permission.enableAutoAccept(session.id, sessionDirectory)
         local.session.promote(sessionDirectory, session.id)
         layout.handoff.setTabs(base64Encode(sessionDirectory), session.id)
-        global?.sessionPlacement.set({
+        global.sessionPlacement.set({
           server: server.key,
           leafID: created.id,
           rootID: created.parentID ?? created.id,
@@ -486,38 +506,11 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       return
     }
 
-    if (text.startsWith("/")) {
-      const [cmdName, ...args] = text.split(" ")
-      const commandName = cmdName.slice(1)
-      const customCommand = sync().data.command.find((c) => c.name === commandName)
-      if (customCommand) {
-        clearInput()
-        client.session
-          .command({
-            sessionID: session.id,
-            command: commandName,
-            arguments: args.join(" "),
-            agent,
-            model: `${model.providerID}/${model.modelID}`,
-            variant,
-            parts: images.map((attachment) => ({
-              id: Identifier.ascending("part"),
-              type: "file" as const,
-              mime: attachment.mime,
-              url: attachment.dataUrl,
-              filename: attachment.filename,
-            })),
-          })
-          .catch((err) => {
-            showToast({
-              title: language.t("prompt.toast.commandSendFailed.title"),
-              description: formatServerError(err, language.t, language.t("common.requestFailed")),
-            })
-            restoreInput()
-          })
-        return
-      }
-    }
+    // Slash commands (including Custom Snapshot commands) flow through the same
+    // sender as a plain prompt: sendFollowupDraft routes them with the shared
+    // parser owner, the shared context normalizer, and the same optimistic
+    // message / error handling. There is deliberately no second parser or
+    // images-only adapter here (S5 leg 4).
 
     const commentItems = context.filter((item) => item.type === "file" && !!item.comment?.trim())
     const messageID = Identifier.ascending("message")
@@ -600,6 +593,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       messageID,
       optimisticBusy: sessionDirectory === projectDirectory,
       before: waitForWorktree,
+      ...(input.commands === undefined ? {} : { commands: input.commands }),
     }).catch((err) => {
       pending.delete(pendingKey(session.id))
       if (sessionDirectory === projectDirectory) {

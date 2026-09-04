@@ -27,6 +27,7 @@ import {
   SessionBusyError,
   InvalidRequestError,
   UnsupportedProductModeError,
+  UnknownError,
 } from "../errors"
 import { described } from "./metadata"
 import { QueryBoolean } from "./query"
@@ -237,7 +238,7 @@ export const SessionApi = HttpApi.make("session")
               "Retrieve a session's task list with stable ids and persisted output digests (reload-recovery source for the TaskPanel).",
           }),
         ),
-        // Single-task atomic mutations (differential-review HIGH-2): the UI must
+        // Single-task atomic mutations: the UI must
         // never PATCH a stale full-list snapshot — the reconcile above deletes
         // rows the client hasn't seen yet (a concurrent append between SSE
         // delivery and the write would be silently dropped). These three ops
@@ -479,7 +480,7 @@ export const SessionApi = HttpApi.make("session")
           query: WorkspaceRoutingQuery,
           payload: PromptPayload,
           success: described(HttpApiSchema.NoContent, "Prompt accepted"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError, UnknownError],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.prompt_async",

@@ -162,4 +162,73 @@ requestedCapabilities: []
     expect(body.profiles).toHaveLength(1)
     expect(String(body.profiles[0].name)).toBe("Coder Profile")
   })
+
+  test("start maps a composition resolve failure to a typed 422 CompositionResolveError", async () => {
+    await using tmp = await tmpdir({ git: true })
+
+    const response = await request(CustomCompositionApiGroup.CustomCompositionPaths.start, tmp.path, {
+      method: "POST",
+      headers: {
+        "x-aigcfroge-capabilities": "product-mode-custom-v1",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        composition: {
+          source: "temporary",
+          agents: [{ kind: "agent", relativePath: "missing.md", revision: Hash.sha256(Buffer.from("missing")) }],
+          bindings: {},
+          presentation: "native",
+          requestedCapabilities: [],
+        },
+      }),
+    })
+
+    // S7 parity: canonical /api/session/custom maps resolve failures to a
+    // typed 422 CompositionResolveError; the legacy surface must do the same
+    // instead of folding it into a generic 400.
+    expect(response.status).toBe(422)
+    expect(await response.json()).toMatchObject({ _tag: "CompositionResolveError" })
+  })
+
+  test("start maps a session-id conflict to a typed 409 ConflictError", async () => {
+    await using tmp = await tmpdir({ git: true })
+
+    const agentDir = path.join(tmp.path, ".aigcfroge", "agents")
+    await fs.mkdir(agentDir, { recursive: true })
+    const agentRaw = `---\nkind: agent\nname: coder\ndescription: Coder agent\n---\nYou write code.\n`
+    await fs.writeFile(path.join(agentDir, "coder.md"), agentRaw)
+    const agentRev = Hash.sha256(Buffer.from(agentRaw))
+
+    // Reserve the id with a NON-custom session: createCustom rejects an
+    // existing non-custom session with PromptConflictError.
+    const chat = await request("/api/session", tmp.path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: "ses_parity", mode: "chat", location: { directory: tmp.path } }),
+    })
+    expect(chat.status).toBe(200)
+
+    const start = await request(CustomCompositionApiGroup.CustomCompositionPaths.start, tmp.path, {
+      method: "POST",
+      headers: {
+        "x-aigcfroge-capabilities": "product-mode-custom-v1",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sessionID: "ses_parity",
+        composition: {
+          source: "temporary",
+          agents: [{ kind: "agent", relativePath: "coder.md", revision: agentRev }],
+          bindings: {},
+          presentation: "native",
+          requestedCapabilities: [],
+        },
+      }),
+    })
+
+    // S7 parity: canonical /api/session/custom maps prompt/session conflicts
+    // to a typed 409 ConflictError, not a generic 400.
+    expect(start.status).toBe(409)
+    expect(await start.json()).toMatchObject({ _tag: "ConflictError", resource: "ses_parity" })
+  })
 })

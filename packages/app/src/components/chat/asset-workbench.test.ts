@@ -266,6 +266,10 @@ describe("isNewButtonDisabled", () => {
   })
 })
 
+// Still source-level, and knowingly so: both assert that the panel REUSES the shared
+// file-tab strip and diff variant rather than forking its own, which is a property of the
+// module graph, not of a render. The behavioural equivalent needs an overwrite-diff e2e
+// (recorded in docs/technical-debt.md alongside the Work panel's twin block).
 describe("Chat right panel shared detail mechanisms (Phase 3)", () => {
   const panel = fs.readFileSync(path.resolve(__dirname, "chat-right-panel.tsx"), "utf-8")
 

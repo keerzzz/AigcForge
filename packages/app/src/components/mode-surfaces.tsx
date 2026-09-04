@@ -1,4 +1,5 @@
 import type { Component } from "solid-js"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js"
 import { modeDefinition, type Mode, type ModeSurfaceSlot } from "@/context/mode"
 import { useChatFeature, type ChatFeatureID } from "@/context/chat-feature"
@@ -83,18 +84,33 @@ export function ChatFeatureSidebar() {
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   // Keep names with counts so system assets can be deduplicated consistently.
+  // P2-14: hidden mode slots must not issue asset requests.
+  const slotActive = useModeSlotActive()
   const [kindCounts] = createResource(
-    () => ({ sdk: dirSdk(), version: assetVersion() }),
+    () => whenActive(slotActive(), () => ({ sdk: dirSdk(), version: assetVersion() })),
     async (source) => {
       if (!source.sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
+      // Settled per call, for the same reason `mode-workspace.tsx`'s workbench list is:
+      // reading a REJECTED resource throws into the fallback-less `<Suspense>` at
+      // `pages/layout.tsx:43`, so one 500 here blanked the whole mode workspace — every
+      // mode, not just Chat. Measured while pinning the Chat failure banner: with
+      // `skill-asset` answering 500 the chat surface rendered nothing at all, which is
+      // why that banner could never be observed. The counts fall back to 0 for a kind
+      // that did not answer; the workbench's `AssetLoadError` is what names it, and
+      // duplicating that report in the sidebar would put two banners on one screen.
+      const settle = <T,>(call: Promise<T>): Promise<T | { data: undefined }> =>
+        call.then(
+          (value) => value,
+          () => ({ data: undefined }),
+        )
       const [p, s, m, c, a, w, pl] = await Promise.all([
-        source.sdk.client.promptAsset.list(),
-        source.sdk.client.skillAsset.list(),
-        source.sdk.client.mcpAsset.list(),
-        source.sdk.client.commandAsset.list(),
-        source.sdk.client.agentAsset.list(),
-        source.sdk.client.workflowAsset.list(),
-        source.sdk.client.pluginAsset.list(),
+        settle(source.sdk.client.promptAsset.list()),
+        settle(source.sdk.client.skillAsset.list()),
+        settle(source.sdk.client.mcpAsset.list()),
+        settle(source.sdk.client.commandAsset.list()),
+        settle(source.sdk.client.agentAsset.list()),
+        settle(source.sdk.client.workflowAsset.list()),
+        settle(source.sdk.client.pluginAsset.list()),
       ])
       const byKind = {
         prompt: p.data?.assets ?? [],

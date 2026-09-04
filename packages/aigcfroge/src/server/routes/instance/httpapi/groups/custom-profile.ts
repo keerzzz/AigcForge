@@ -6,7 +6,7 @@ import { WorkspaceRoutingMiddleware, WorkspaceRoutingQueryFields } from "../midd
 import { described } from "./metadata"
 import { SessionID } from "@/session/schema"
 import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import { ConflictError, InvalidRequestError } from "../errors"
+import { ApiNotFoundError, ConflictError, InvalidRequestError, UnknownError } from "../errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 
@@ -62,7 +62,7 @@ export const CustomProfileApi = HttpApi.make("custom-profile").add(
       HttpApiEndpoint.get("content", CustomProfilePaths.content, {
         query: ContentQuery,
         success: described(CustomProfile.Info, "Custom profile content"),
-        error: InvalidRequestError,
+        error: [InvalidRequestError, ApiNotFoundError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "custom-profile.content",
@@ -75,7 +75,7 @@ export const CustomProfileApi = HttpApi.make("custom-profile").add(
         query: Schema.Struct(WorkspaceRoutingQueryFields),
         payload: ApplyPayload,
         success: described(CustomProfile.Info, "Applied custom profile"),
-        error: [InvalidRequestError, ConflictError],
+        error: [InvalidRequestError, ConflictError, UnknownError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "custom-profile.apply",
@@ -88,7 +88,7 @@ export const CustomProfileApi = HttpApi.make("custom-profile").add(
         query: Schema.Struct(WorkspaceRoutingQueryFields),
         payload: DeletePayload,
         success: described(CustomProfile.DeleteResult, "Delete result with referencing profiles"),
-        error: [InvalidRequestError, ConflictError],
+        error: [InvalidRequestError, ConflictError, ApiNotFoundError, UnknownError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "custom-profile.delete",

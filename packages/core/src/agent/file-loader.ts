@@ -55,14 +55,21 @@ export function parseAgentFile(sourcePath: string, raw: string): FileAgent | und
     ? data.tools.map((tool) => ({ action: tool, resource: "*", effect: "allow" as const }))
     : []
 
-  // Map handoffs from frontmatter — validate against Handoff schema
-  const handoffs: Array<{ label: string; agent: string; prompt: string; send?: boolean; model?: string }> =
-    Array.isArray(data.handoffs)
-      ? data.handoffs.filter(
-          (h): h is { label: string; agent: string; prompt: string } =>
-            typeof h.label === "string" && typeof h.agent === "string" && typeof h.prompt === "string",
+  // Map handoffs from frontmatter — validate label/agent/prompt and carry
+  // `send` through (D13: send must reach the handoff surface). `model` is
+  // deliberately dropped: model selection ownership is entangled with the
+  // model chooser (docs/technical-debt.md §3.x, S3 handoff note).
+  const handoffs: Array<{ label: string; agent: string; prompt: string; send?: boolean }> = Array.isArray(data.handoffs)
+    ? data.handoffs
+        .filter(
+          (h): h is { label: string; agent: string; prompt: string; send?: boolean } =>
+            typeof h.label === "string" &&
+            typeof h.agent === "string" &&
+            typeof h.prompt === "string" &&
+            (h.send === undefined || typeof h.send === "boolean"),
         )
-      : []
+        .map(({ label, agent, prompt, send }) => ({ label, agent, prompt, ...(send !== undefined ? { send } : {}) }))
+    : []
 
   return {
     sourcePath,

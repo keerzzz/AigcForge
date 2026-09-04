@@ -139,6 +139,24 @@ Recent work
     ])
   })
 
+  test("fails closed for a non-data file URI instead of sending it to the provider", () => {
+    const messages = toLLMMessages(
+      [
+        SessionMessage.User.make({
+          id: id("user-raw-uri"),
+          type: "user",
+          text: "read this",
+          files: [FileAttachment.make({ uri: "file:///project/note.txt", mime: "text/plain", name: "note.txt" })],
+          time: { created },
+        }),
+      ],
+      model,
+    )
+    const content = messages[0]?.content
+    expect(content?.some((part) => part.type === "media")).toBe(false)
+    expect(content?.some((part) => part.type === "text" && part.text.includes("not provider-lowerable"))).toBe(true)
+  })
+
   test("replays durable tool media into canonical tool messages without structured base64", () => {
     const messages = toLLMMessages(
       [

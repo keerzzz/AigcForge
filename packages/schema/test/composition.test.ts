@@ -291,8 +291,8 @@ describe("Composition Schema", () => {
     if (snap.version === 2) {
       expect(snap.data.agents.length).toBe(1)
       expect(snap.data.workflow?.name).toBe("review-flow")
-      expect(snap.data.bindings.orchestrator.commands[0].name).toBe("lint")
-      expect(snap.data.bindings["agents/reviewer"].skills[0].name).toBe("review-skill")
+      expect(snap.data.bindings!.orchestrator.commands[0].name).toBe("lint")
+      expect(snap.data.bindings!["agents/reviewer"].skills[0].name).toBe("review-skill")
       expect(snap.data.maxConcurrency).toBe(4)
     }
   })

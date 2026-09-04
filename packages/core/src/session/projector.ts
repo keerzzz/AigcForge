@@ -404,6 +404,26 @@ export const layer = Layer.effectDiscard(
         })
       }),
     )
+    yield* events.project(SessionEvent.CommandAdmitted, (event) =>
+      Effect.gen(function* () {
+        if (event.durable === undefined) return yield* Effect.die("Durable Session event is missing aggregate sequence")
+        yield* SessionInput.projectCommandAdmitted(db, {
+          admittedSeq: event.durable.seq,
+          id: event.data.messageID,
+          sessionID: event.data.sessionID,
+          command: event.data.command,
+          relativePath: event.data.relativePath,
+          revision: event.data.revision,
+          consumer: event.data.consumer,
+          arguments: event.data.arguments,
+          context: event.data.context,
+          snapshotDigest: event.data.snapshotDigest,
+          delivery: event.data.delivery,
+          timeCreated: event.data.timestamp,
+        })
+        return undefined
+      }),
+    )
     yield* events.project(SessionEvent.SyntheticAdmitted, (event) =>
       Effect.gen(function* () {
         if (event.durable === undefined) return yield* Effect.die("Durable Session event is missing aggregate sequence")

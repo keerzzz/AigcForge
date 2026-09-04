@@ -1,12 +1,9 @@
 export * as CustomCompositionHandlers from "./custom-composition"
 
-import { InstanceState } from "@/effect/instance-state"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { CompositionResolver } from "@aigcfroge/core/composition-resolver"
 import { CustomProfile } from "@aigcfroge/core/custom-profile"
 import { Composition } from "@aigcfroge/schema/composition"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionSchema } from "@aigcfroge/core/session/schema"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
@@ -14,7 +11,15 @@ import { Effect, Layer } from "effect"
 import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { InvalidRequestError, SessionBusyError, SessionNotFoundError } from "../errors"
+import {
+  InvalidRequestError,
+  SessionBusyError,
+  SessionNotFoundError,
+  ConflictError,
+  CompositionResolveError,
+  UnsupportedProductModeError,
+} from "../errors"
+import { locationRefForRoute, WorkspaceRouteContext } from "../middleware/workspace-routing"
 
 export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "custom-composition", (handlers) =>
   Effect.gen(function* () {
@@ -22,10 +27,15 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
 
     const plan = Effect.fn("CustomCompositionHttpApi.plan")(function* (ctx: { payload: Composition.CompositionInput }) {
       if (!ProductModePolicy.isCustomModeEnabled()) {
-        return yield* new InvalidRequestError({ message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE })
+        // S7: runtime disabled is a typed disabled error on every custom
+        // endpoint, matching the canonical surface.
+        return yield* new UnsupportedProductModeError({
+          mode: "custom",
+          message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+        })
       }
-      const ctx2 = yield* InstanceState.context
-      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
+      const route = yield* WorkspaceRouteContext
+      const layer = locations.get(locationRefForRoute(route))
       const resolver = yield* CompositionResolver.Service.pipe(Effect.provide(layer), Effect.orDie)
       const res = yield* resolver.resolve(ctx.payload)
       return res
@@ -33,19 +43,25 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
 
     const start = Effect.fn("CustomCompositionHttpApi.start")(function* (ctx: { payload: Composition.StartInput }) {
       if (!ProductModePolicy.isCustomModeEnabled()) {
-        return yield* new InvalidRequestError({ message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE })
+        return yield* new UnsupportedProductModeError({
+          mode: "custom",
+          message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+        })
       }
       const request = yield* HttpServerRequest.HttpServerRequest
       const caps = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
       if (!ProductModePolicy.isCustomCapable(caps)) {
+        // S7 parity: capability missing is a typed unsupported-mode error on
+        // both the canonical (/api/session/custom) and legacy surfaces.
         return yield* Effect.fail(
-          new InvalidRequestError({
+          new UnsupportedProductModeError({
+            mode: "custom",
             message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
           }),
         )
       }
-      const ctx2 = yield* InstanceState.context
-      const location = Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) })
+      const route = yield* WorkspaceRouteContext
+      const location = locationRefForRoute(route)
       const v2session = yield* SessionV2.Service
       const res = yield* v2session
         .createCustom({
@@ -57,16 +73,26 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
         })
         .pipe(
           Effect.catchTag("Composition.ResolveError", (err) =>
-            Effect.fail(new InvalidRequestError({ message: `${err.code}: ${err.message}` })),
+            // S7 parity: canonical session.custom maps resolve failures to a
+            // typed 422 CompositionResolveError, not a generic 400.
+            Effect.fail(
+              new CompositionResolveError({ code: err.code, message: err.message, diagnostics: err.diagnostics }),
+            ),
           ),
           Effect.catchTag("Session.PromptConflictError", (err) =>
-            Effect.fail(new InvalidRequestError({ message: `Session conflict: ${err.sessionID}` })),
+            // S7 parity: canonical session.custom maps conflicts to 409.
+            Effect.fail(new ConflictError({ message: `Session conflict: ${err.sessionID}`, resource: err.sessionID })),
           ),
           Effect.catchTag("UnsupportedProductModeError", (err) =>
-            Effect.fail(new InvalidRequestError({ message: err.message })),
+            Effect.fail(new UnsupportedProductModeError({ mode: err.mode, message: err.message })),
           ),
           Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", (err) =>
-            Effect.fail(new InvalidRequestError({ message: `Snapshot already exists for session ${err.sessionID}` })),
+            Effect.fail(
+              new ConflictError({
+                message: `Snapshot already exists for session ${err.sessionID}`,
+                resource: err.sessionID,
+              }),
+            ),
           ),
           Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
             Effect.fail(new InvalidRequestError({ message: `Snapshot decode error: ${err.message}` })),
@@ -82,14 +108,21 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
       payload: Composition.UpgradeInput
     }) {
       if (!ProductModePolicy.isCustomModeEnabled()) {
-        return yield* new InvalidRequestError({ message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE })
+        return yield* new UnsupportedProductModeError({
+          mode: "custom",
+          message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+        })
       }
       const request = yield* HttpServerRequest.HttpServerRequest
       const caps = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
       if (!ProductModePolicy.isCustomCapable(caps)) {
-        return yield* new InvalidRequestError({
-          message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
-        })
+        // S7 parity: capability missing is a typed unsupported-mode error.
+        return yield* Effect.fail(
+          new UnsupportedProductModeError({
+            mode: "custom",
+            message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
+          }),
+        )
       }
       const v2session = yield* SessionV2.Service
       const res = yield* v2session
@@ -124,16 +157,25 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
             ),
           ),
           Effect.catchTag("Composition.ResolveError", (err) =>
-            Effect.fail(new InvalidRequestError({ message: `${err.code}: ${err.message}` })),
+            // S7 parity: resolve failures are a typed 422, matching the
+            // canonical create surface.
+            Effect.fail(
+              new CompositionResolveError({ code: err.code, message: err.message, diagnostics: err.diagnostics }),
+            ),
           ),
           Effect.catchTag("Session.PromptConflictError", (err) =>
-            Effect.fail(new InvalidRequestError({ message: `Session conflict: ${err.sessionID}` })),
+            Effect.fail(new ConflictError({ message: `Session conflict: ${err.sessionID}`, resource: err.sessionID })),
           ),
           Effect.catchTag("UnsupportedProductModeError", (err) =>
-            Effect.fail(new InvalidRequestError({ message: err.message })),
+            Effect.fail(new UnsupportedProductModeError({ mode: err.mode, message: err.message })),
           ),
           Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", (err) =>
-            Effect.fail(new InvalidRequestError({ message: `Snapshot already exists for session ${err.sessionID}` })),
+            Effect.fail(
+              new ConflictError({
+                message: `Snapshot already exists for session ${err.sessionID}`,
+                resource: err.sessionID,
+              }),
+            ),
           ),
           Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
             Effect.fail(new InvalidRequestError({ message: `Snapshot decode error: ${err.message}` })),
@@ -146,8 +188,8 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
     })
 
     const health = Effect.fn("CustomCompositionHttpApi.health")(function* (ctx: { query: { path: string } }) {
-      const ctx2 = yield* InstanceState.context
-      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
+      const route = yield* WorkspaceRouteContext
+      const layer = locations.get(locationRefForRoute(route))
       const customProfiles = yield* CustomProfile.Service.pipe(Effect.provide(layer), Effect.orDie)
       const resolver = yield* CompositionResolver.Service.pipe(Effect.provide(layer), Effect.orDie)
 
@@ -164,8 +206,8 @@ export const customCompositionHandlers = HttpApiBuilder.group(InstanceHttpApi, "
     const references = Effect.fn("CustomCompositionHttpApi.references")(function* (ctx: {
       query: { kind: string; path: string }
     }) {
-      const ctx2 = yield* InstanceState.context
-      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
+      const route = yield* WorkspaceRouteContext
+      const layer = locations.get(locationRefForRoute(route))
       const resolver = yield* CompositionResolver.Service.pipe(Effect.provide(layer), Effect.orDie)
       const profiles = yield* resolver.findReferencingProfiles(ctx.query.kind, ctx.query.path)
       return {

@@ -64,7 +64,10 @@ export function agentAssetToAgentInfo(asset: AgentAsset.Info): AgentV2.Info | un
     color: config?.color,
     steps: config?.steps,
     permissions: config?.permissions ? Array.from(config.permissions) : [],
-    handoffs: config?.handoffs ? Array.from(config.handoffs) : [],
+    // D13 (S3): read handoffs from the asset itself (AgentAsset.Info.handoffs,
+    // surfaced by the loader from config YAML and/or top-level frontmatter),
+    // falling back to the config parse for callers with stale in-memory assets.
+    handoffs: Array.from(asset.handoffs ?? config?.handoffs ?? []),
     originRelativePath: asset.relativePath,
     originRevision: asset.revision,
   }

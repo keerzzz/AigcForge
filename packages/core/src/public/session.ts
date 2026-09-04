@@ -86,6 +86,7 @@ export interface EventsInput {
 }
 
 import { SessionComposition } from "../session/composition"
+import { ProductModeAgentPolicy } from "../product-mode-agent-policy"
 
 export interface Interface {
   readonly create: (
@@ -93,6 +94,7 @@ export interface Interface {
   ) => Effect.Effect<
     Info,
     | ProductModePolicy.UnsupportedProductModeError
+    | ProductModeAgentPolicy.AgentNotAllowedError
     | PromptConflictError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError

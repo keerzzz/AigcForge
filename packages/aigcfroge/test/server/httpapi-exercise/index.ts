@@ -2356,6 +2356,14 @@ const scenarios: Scenario[] = [
     }))
     .status(400, undefined, "none"),
   http.protected
+    .post("/api/session/{sessionID}/command", "v2.session.command")
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/command", { sessionID: "ses_httpapi_missing" }),
+      headers: { ...ctx.headers(), "content-type": "application/json" },
+      body: { command: "init", resume: false },
+    }))
+    .status(404, undefined, "status"),
+  http.protected
     .post("/api/session/{sessionID}/prompt", "v2.session.prompt.invalid")
     .seeded((ctx) => ctx.session({ title: "Invalid prompt owner" }))
     .at((ctx) => ({

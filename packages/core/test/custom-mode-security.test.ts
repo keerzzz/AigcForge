@@ -665,8 +665,18 @@ describe("Custom Mode Security & Delegation Two-Tier Gate", () => {
           .pipe(Effect.orDie)
         yield* comp.attach(rootSessionID, mockSnapshot(rootSessionID, "custom-coder"))
 
-        // An in-pool agent switches cleanly.
-        yield* sessionService.switchAgent({ sessionID: rootSessionID, agent: "custom-coder" })
+        // P1-4: an in-pool non-meta agent may NOT take over a custom root — the
+        // root=meta invariant is enforced at switch time now, not only at the
+        // next provider turn. The old contract (switch succeeds, next turn dies)
+        // is the bricking path this replaces; the new failure is typed and
+        // precedes the AgentSwitched event.
+        const rootSwitch = yield* sessionService
+          .switchAgent({ sessionID: rootSessionID, agent: "custom-coder" })
+          .pipe(Effect.exit)
+        expect(rootSwitch._tag).toBe("Failure")
+        if (rootSwitch._tag === "Failure") {
+          expect(Cause.squash(rootSwitch.cause) instanceof ProductModeAgentPolicy.AgentNotAllowedError).toBe(true)
+        }
 
         // An out-of-pool agent fails closed with the delegation error.
         const forbiddenSwitch = yield* sessionService

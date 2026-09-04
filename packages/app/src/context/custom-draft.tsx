@@ -1,6 +1,8 @@
-import { createContext, useContext, type ParentProps } from "solid-js"
+import { createContext, createMemo, Show, useContext, type ParentProps } from "solid-js"
 import { createStore, produce, reconcile, type SetStoreFunction } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
+import { customDraftKey, DRAFT_PERSIST_KEY } from "@/context/custom-draft-location"
+import type { ServerScope } from "@/utils/server-scope"
 import type { CompositionTemporaryInput, CompositionProfileInput } from "@aigcfroge/sdk/v2/client"
 import type { Snapshot } from "@aigcfroge/schema/composition"
 
@@ -53,7 +55,6 @@ export interface CustomDraftState {
   profilePath?: string
   profileRevision?: string
   title: string
-  primaryAgent: string
   agents: CustomDraftAgent[]
   workflow?: CustomDraftWorkflow
   bindings: Record<string, CustomDraftBinding>
@@ -64,7 +65,6 @@ export interface CustomDraftState {
 export const DEFAULT_DRAFT: CustomDraftState = {
   source: "temporary",
   title: "",
-  primaryAgent: "coder",
   agents: [],
   bindings: {},
   requestedCapabilities: [],
@@ -137,17 +137,13 @@ export function createCustomDraftState(
   initial: CustomDraftState = DEFAULT_DRAFT,
   customStore?: [get: CustomDraftState, set: SetStoreFunction<CustomDraftState>],
 ) {
-  const [state, setState] =
-    customStore ??
-    createStore<CustomDraftState>({
-      ...initial,
-      bindings: Object.fromEntries(
-        Object.entries(initial.bindings).map(([consumer, binding]) => [
-          consumer,
-          { ...binding, commands: binding.commands ?? [] },
-        ]),
-      ),
-    })
+  // No `commands ?? []` normalization here: it only ever ran on the branch that
+  // builds a store from `initial`, and `initial` is always `DEFAULT_DRAFT`, whose
+  // `bindings` is `{}` — so it normalized nothing. The path that CAN hydrate a
+  // pre-`commands` binding is the persisted one, and it arrives as `customStore`,
+  // which skipped that branch entirely. The per-use `commands ?? []` guards
+  // downstream are therefore reachable, not redundant.
+  const [state, setState] = customStore ?? createStore<CustomDraftState>({ ...initial })
 
   return {
     state,
@@ -163,9 +159,6 @@ export function createCustomDraftState(
     setTitle(title: string) {
       setState("title", title)
     },
-    setPrimaryAgent(agent: string) {
-      setState("primaryAgent", agent)
-    },
     setWorkflow(workflow: CustomDraftWorkflow | undefined) {
       setState("workflow", workflow)
     },
@@ -178,9 +171,6 @@ export function createCustomDraftState(
           if (!draft.agents.some((a) => a.relativePath === agent.relativePath)) {
             draft.agents.push(agent)
           }
-          if (draft.agents.length === 1 || !draft.primaryAgent) {
-            draft.primaryAgent = agent.name ?? agent.relativePath.replace(/\.md$/, "")
-          }
         }),
       )
     },
@@ -192,13 +182,6 @@ export function createCustomDraftState(
           if (removed) {
             const consumer = `agents/${removed.name ?? removed.relativePath.replace(/\.md$/, "")}`
             delete draft.bindings[consumer]
-          }
-          if (
-            draft.agents.length > 0 &&
-            !draft.agents.some((a) => (a.name ?? a.relativePath.replace(/\.md$/, "")) === draft.primaryAgent)
-          ) {
-            const first = draft.agents[0]
-            draft.primaryAgent = first?.name ?? first?.relativePath.replace(/\.md$/, "") ?? ""
           }
         }),
       )
@@ -272,7 +255,6 @@ export function createCustomDraftState(
           draft.source = "temporary"
           draft.workflow = undefined
           if (snapshot.version === 1) {
-            draft.primaryAgent = snapshot.data.agentID
             draft.agents = [
               {
                 kind: "agent",
@@ -282,7 +264,6 @@ export function createCustomDraftState(
               },
             ]
           } else {
-            draft.primaryAgent = snapshot.data.agents[0]?.name ?? snapshot.data.agents[0]?.id ?? "coder"
             draft.agents = snapshot.data.agents.map((a) => ({
               kind: "agent",
               relativePath: a.relativePath,
@@ -325,7 +306,11 @@ export function createCustomDraftState(
           const bindings =
             snapshot.version === 2
               ? Object.fromEntries(
-                  Object.entries(snapshot.data.bindings).map(([consumer, binding]) => [
+                  // `bindings` is absent on pre-binding V2 snapshots (schema
+                  // decodes the key as optional, so `{}` and "missing" stay
+                  // distinguishable). A missing map means no per-consumer view
+                  // to project, not an empty one.
+                  Object.entries(snapshot.data.bindings ?? {}).map(([consumer, binding]) => [
                     consumer,
                     {
                       prompts: binding.prompts.map((prompt) => ({
@@ -359,28 +344,77 @@ export function createCustomDraftState(
   }
 }
 
-const sharedStores = new Map<string, ReturnType<typeof createCustomDraftState>>()
+export type CustomDraftLocation = { scope: ServerScope; directory: string }
 
-export function createCustomDraftStore(directory: () => string) {
-  const key = directory()
-  const existing = sharedStores.get(key)
-  if (existing) return existing
+/**
+ * The draft store for one Location.
+ *
+ * There is no instance cache. Sharing between the Custom Sidebar and Main is
+ * structural — `ModeWorkspace` owns the single Provider above both slots — so the
+ * module-level map that used to hand them the same object is gone, and with it the
+ * leak of one retained store per Location ever visited. The session route mounts its
+ * own Provider for the same Location; those two are never alive together (different
+ * routes) and `makePersisted` writes on every change, so a fresh store hydrates to
+ * the same state rather than losing edits.
+ */
+export function createCustomDraftStore(location: CustomDraftLocation | undefined) {
+  const key = location === undefined ? undefined : customDraftKey(location)
+  // Location not resolved yet: hand back a throwaway, unpersisted store rather than
+  // one keyed on an empty directory. The old code keyed on `directory()` alone and
+  // evaluated it once, so a not-yet-ready SDK pinned the store under "" forever.
+  if (key === undefined || location === undefined) return createCustomDraftState()
+
+  // The pre-Location global draft (`custom-draft` / `custom-draft.v1`) is NOT
+  // migrated. Passing those keys to `Persist.serverWorkspace`'s `legacy` parameter
+  // migrates per target, so one global draft would be copied into every project the
+  // user opens — the same fan-out the single global key already caused. A one-shot
+  // claim marker would be the correct migration and is not worth inventing here:
+  // Custom Mode sits behind a default-off kill switch, so what is dropped is unsaved
+  // asset picks that essentially nobody has. The old key is left in place, unread.
   const [state, setState] = persisted(
-    Persist.global("custom-draft", ["custom-draft.v1"]),
+    Persist.serverWorkspace(location.scope, location.directory, DRAFT_PERSIST_KEY),
     createStore<CustomDraftState>({ ...DEFAULT_DRAFT }),
   )
-  const store = createCustomDraftState(DEFAULT_DRAFT, [state, setState])
-  sharedStores.set(key, store)
-  return store
+  return createCustomDraftState(DEFAULT_DRAFT, [state, setState])
 }
 
 export type CustomDraftStore = ReturnType<typeof createCustomDraftState>
 
 const CustomDraftContext = createContext<CustomDraftStore>()
 
-export function CustomDraftProvider(props: ParentProps<{ directory: () => string }>) {
-  const store = createCustomDraftStore(props.directory)
+/**
+ * Creates the store exactly once per mount and hands it down.
+ *
+ * This has to be a component, not an inline `value={createCustomDraftStore(...)}`:
+ * a Provider's `value` prop is a getter, so an inline call would build a new store
+ * on every reactive read and the draft would keep resetting. The instance cache used
+ * to hide that; it is gone.
+ */
+function CustomDraftScope(props: ParentProps<{ location: CustomDraftLocation | undefined }>) {
+  const store = createCustomDraftStore(props.location)
   return <CustomDraftContext.Provider value={store}>{props.children}</CustomDraftContext.Provider>
+}
+
+/**
+ * `location` returns undefined until the server and directory are both known. The
+ * subtree is `keyed` on the resolved identity, so it is rebuilt — and the store
+ * recreated for the new Location — when the Location changes, including the first
+ * transition out of "not ready" that a single evaluation could never recover from.
+ */
+export function CustomDraftProvider(props: ParentProps<{ location: () => CustomDraftLocation | undefined }>) {
+  const key = createMemo(() => {
+    const location = props.location()
+    return location === undefined ? undefined : customDraftKey(location)
+  })
+  return (
+    <Show
+      when={key()}
+      keyed
+      fallback={<CustomDraftScope location={props.location()}>{props.children}</CustomDraftScope>}
+    >
+      <CustomDraftScope location={props.location()}>{props.children}</CustomDraftScope>
+    </Show>
+  )
 }
 
 export function useCustomDraft() {

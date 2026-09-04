@@ -48,21 +48,29 @@ export function resolvePrimaryAgent(mode: string, agent?: string) {
 }
 
 /**
- * Resolve + check + die on failure in one step. Returns the resolved agent
- * on success; dies with a typed error on any policy violation.
+ * Resolve + check + fail on failure in one step. Returns the resolved agent
+ * on success; fails with a typed error on any policy violation.
  * Use this at every session/turn entry-point instead of repeating the pattern.
  */
 export const enforcePrimary = (mode: string, agent?: string) =>
   Effect.gen(function* () {
     const resolved = resolvePrimaryAgent(mode, agent)
     const verdict = checkPrimaryAgent(mode, resolved)
-    if (!verdict.allowed) return yield* Effect.die(verdict.error)
+    if (!verdict.allowed) return yield* verdict.error
     return resolved
   })
 
 export type PolicyVerdict =
   | { readonly allowed: true }
   | { readonly allowed: false; readonly error: AgentNotAllowedError | CommandDeniedError }
+
+export type PrimaryPolicyVerdict =
+  | { readonly allowed: true }
+  | { readonly allowed: false; readonly error: AgentNotAllowedError }
+
+export type CommandPolicyVerdict =
+  | { readonly allowed: true }
+  | { readonly allowed: false; readonly error: CommandDeniedError }
 
 /**
  * Check whether the given agent is valid as a root/primary agent for the mode.
@@ -71,7 +79,7 @@ export type PolicyVerdict =
  * chat/work: meta is the default primary; the mode orchestrator remains a valid
  * primary choice (and a task delegation target for meta).
  */
-export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
+export function checkPrimaryAgent(mode: string, agent?: string): PrimaryPolicyVerdict {
   if (mode === "chat") {
     if (agent !== META && agent !== CHAT_ORCHESTRATOR) {
       return {
@@ -155,7 +163,7 @@ export function checkPrimaryAgent(mode: string, agent?: string): PolicyVerdict {
 /**
  * Check whether a command/shell prompt is allowed in the given mode.
  */
-export function checkCommandAllowed(mode: string): PolicyVerdict {
+export function checkCommandAllowed(mode: string): CommandPolicyVerdict {
   if (mode === "chat") {
     return {
       allowed: false,
@@ -173,7 +181,7 @@ export function checkCommandAllowed(mode: string): PolicyVerdict {
       allowed: false,
       error: new CommandDeniedError({
         mode,
-        reason: "Shell/command prompts are denied in custom mode without an M1 composition snapshot",
+        reason: "Shell/command prompts are denied in custom mode without a composition snapshot",
       }),
     }
   }
@@ -197,7 +205,7 @@ export function checkCommandAllowed(mode: string): PolicyVerdict {
 export function checkCliDelegationAllowed(
   mode: string,
   tier: PermissionTier.ID = PermissionTier.Default,
-): PolicyVerdict {
+): CommandPolicyVerdict {
   if (mode === "chat") {
     return {
       allowed: false,

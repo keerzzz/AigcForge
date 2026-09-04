@@ -9,37 +9,37 @@ import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { DateTime } from "luxon"
 import type { LocalProject } from "@/context/layout"
 import { sessionHasOpenTab, useTabs } from "@/context/tabs"
-import type { ServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
-import { displayName, projectForSession, sortedRootSessions } from "@/pages/layout/helpers"
 import { SessionTabAvatar } from "@/pages/layout/session-tab-avatar"
 import { sessionTitle } from "@/utils/session-title"
-import { pathKey } from "@/utils/path-key"
 import type { ServerConnection } from "@/context/server"
 
-// Home Session shared owner (ADR-16 extraction): the Session records pipeline,
-// search, grouping and presentation components used by Coding/Work/Assistant mode
-// homes and the global HomeOverview. This module is NOT a page shell; the Coding
-// project/server tree lives in coding-project-column.tsx.
+// Home Session shared owner (ADR-16 extraction): the presentation components used
+// by Coding/Work/Assistant mode homes and the global HomeOverview. This module is
+// NOT a page shell; the Coding project/server tree lives in
+// coding-project-column.tsx, and the records/search/grouping pipeline lives in
+// home-sessions.ts (a JSX-free module so it can be tested directly).
+//
+// Re-exported here because three pages already import the data owner through this
+// path; new consumers should import from "@/pages/home-sessions".
+export {
+  HOME_SESSION_LIMIT,
+  buildHomeSessionRecords,
+  groupSessions,
+  homeSessionSearchKey,
+  matchesHomeSessionSearch,
+  type HomeSessionGroup,
+  type HomeSessionRecord,
+} from "@/pages/home-sessions"
+// `export … from` does not bind the names locally, and the components below take
+// records as props and key their rows, so both are imported as well as re-exported.
+import { homeSessionSearchKey, type HomeSessionRecord } from "@/pages/home-sessions"
 
-export const HOME_SESSION_LIMIT = 64
 const HOME_ROW_LAYOUT =
   "flex min-w-0 w-full shrink-0 cursor-default items-center rounded-[6px] bg-transparent text-left transition-[background-color,color,box-shadow] duration-[120ms] ease-in-out focus-visible:outline-none"
 const HOME_ROW_BASE = `${HOME_ROW_LAYOUT} border-0`
 export const HOME_ROW = `${HOME_ROW_BASE} [font-weight:530] text-v2-text-text-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover`
 export const HOME_SECTION_LABEL = "text-v2-text-text-muted [font-weight:440]"
-
-export type HomeSessionRecord = {
-  session: Session
-  project: LocalProject
-  projectName: string
-}
-
-export type HomeSessionGroup = {
-  id: "today" | "yesterday" | "older"
-  title: string
-  sessions: HomeSessionRecord[]
-}
 
 export const HOME_SESSION_SEARCH_RESULTS_ID = "home-session-search-results"
 export const HOME_SEARCH_RESULT_ROW =
@@ -48,40 +48,6 @@ export const HOME_SEARCH_RESULT_TITLE =
   "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-base [font-weight:530]"
 export const HOME_SEARCH_RESULT_META =
   "min-w-0 flex-[1_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-muted [font-weight:440]"
-
-export function buildHomeSessionRecords(input: {
-  sync: Pick<ServerSync, "child">
-  projectDirectories: () => string[]
-  projects: () => LocalProject[]
-  projectByID: () => Map<string, LocalProject>
-}) {
-  return [
-    ...new Map(
-      input
-        .projectDirectories()
-        .flatMap((directory) => sortedRootSessions(input.sync.child(directory, { bootstrap: false })[0], Date.now()))
-        .map((session) => [`${pathKey(session.directory)}:${session.id}`, session] as const),
-    ).values(),
-  ]
-    .sort((a, b) => (b.time.updated ?? b.time.created) - (a.time.updated ?? a.time.created))
-    .flatMap((session) => {
-      const project = projectForSession(session, input.projects(), input.projectByID())
-      if (!project) return []
-      return {
-        session,
-        project,
-        projectName: displayName(project),
-      }
-    })
-}
-
-export function matchesHomeSessionSearch(record: HomeSessionRecord, query: string) {
-  return `${record.session.title} ${record.projectName}`.toLowerCase().includes(query)
-}
-
-export function homeSessionSearchKey(record: HomeSessionRecord) {
-  return `${pathKey(record.session.directory)}:${record.session.id}`
-}
 
 export function HomeSessionLeading(props: {
   project: LocalProject
@@ -447,33 +413,4 @@ export function HomeSessionSkeleton(props: { label: string }) {
       </div>
     </div>
   )
-}
-
-export function groupSessions(
-  records: HomeSessionRecord[],
-  language: ReturnType<typeof useLanguage>,
-): HomeSessionGroup[] {
-  records = records ?? []
-  const now = DateTime.local()
-  const yesterday = now.minus({ days: 1 })
-  const todaySessions = records.filter((record) =>
-    DateTime.fromMillis(record.session.time.updated ?? record.session.time.created).hasSame(now, "day"),
-  )
-  const yesterdaySessions = records.filter((record) =>
-    DateTime.fromMillis(record.session.time.updated ?? record.session.time.created).hasSame(yesterday, "day"),
-  )
-  const olderSessions = records.filter((record) => {
-    const time = DateTime.fromMillis(record.session.time.updated ?? record.session.time.created)
-    return !time.hasSame(now, "day") && !time.hasSame(yesterday, "day")
-  })
-  const olderTitle =
-    todaySessions.length === 0 && yesterdaySessions.length === 0
-      ? language.t("sidebar.project.recentSessions")
-      : language.t("home.sessions.group.older")
-
-  return [
-    { id: "today" as const, title: language.t("home.sessions.group.today"), sessions: todaySessions },
-    { id: "yesterday" as const, title: language.t("home.sessions.group.yesterday"), sessions: yesterdaySessions },
-    { id: "older" as const, title: olderTitle, sessions: olderSessions },
-  ].filter((group) => group.sessions.length > 0)
 }

@@ -1,5 +1,14 @@
 # 4 模式页面归一化收尾实施计划：首页底座 + 详情页底座 + 横切件
 
+> **⚠️ Owner 仲裁（2026-09-01）**：本计划与 [five-mode-runtime-remediation-tdd-workflow-2026-08-30.md](five-mode-runtime-remediation-tdd-workflow-2026-08-30.md) 声明了重叠的 owner。裁决结果：**重叠切片归五模式修整计划**，本计划保留非重叠部分。
+>
+> 依据：`CLAUDE.md` 的极致减法 —— 两个 owner 抢同一件事本身就是双事实源（正是那份计划要修的 R1/R2 同类问题），协议答案是**归并**而非「选赢家让另一方 rebase」。证据不对称：本计划分支不存在、零产物；五模式计划已在 `five-mode-tdd` 落盘 4 个提交（`d24b7035a` / `74487f934` / `7a431619c` / `ad4f9ca7f`），含 9 条可复现 RED 与已实施的 D4-A + D5-A。
+>
+> 重叠明细见下表。开工前先读该计划 §5 owner 地图。
+> **本计划让出**：`pages/mode-workspace.tsx` 与 `mode-workspace-slots.tsx` 的 ModeWorkspace owner（= 五模式计划 S6）。首页底座、详情页底座、横切件中不触及 ModeWorkspace 的部分仍属本计划。
+>
+> **注意**：五模式计划 S6 会改 Start/Upgrade 导航，而 `pages/mode-launch-contract.test.ts` 与 `pages/location-owner-contract.test.tsx` 曾用源码字符串把当前行为钉成契约，两个计划都会触及这两个测试文件。
+
 > 状态：**main 基线复审修订版，待执行审批（2026-08-15）**
 > 基线：`main` / `origin/main`，提交 `a4b0485aa435f7aaa957f796758fb5baeb077fa8`
 > 范围：`packages/app` + `packages/storybook` Storybook runner（App-local shared UI stories）+ `docs/`；不动 `packages/core`、无 DB migration、无新 HTTP API

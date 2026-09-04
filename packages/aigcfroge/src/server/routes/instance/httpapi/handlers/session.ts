@@ -59,7 +59,13 @@ import {
   WorkflowRetryStepPayload,
   WorkflowRunPayload,
 } from "../groups/session"
-import { ConflictError, PermissionNotFoundError, InvalidRequestError, UnsupportedProductModeError } from "../errors"
+import {
+  ConflictError,
+  PermissionNotFoundError,
+  InvalidRequestError,
+  UnsupportedProductModeError,
+  UnknownError,
+} from "../errors"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { notFound } from "../errors"
 import * as SessionError from "./session-errors"
@@ -78,7 +84,7 @@ const v2OperationUnavailable = () => new HttpApiError.BadRequest({})
 const unsupportedProductMode = (error: ProductModePolicy.UnsupportedProductModeError) =>
   new UnsupportedProductModeError({ mode: error.mode, message: error.message })
 
-// HIGH-4: custom sessions are V2-native. The V1 sync prompt/command/shell
+// Custom sessions are V2-native. The V1 sync prompt/command/shell
 // endpoints run the legacy V1 prompt loop, which has no custom gating — reject
 // typed and point clients at the V2 async admission surface.
 const v1SyncUnsupportedForCustom = (mode: string) =>
@@ -207,7 +213,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* v2task.get(ctx.params.sessionID)
     })
 
-    // Atomic single-task mutations (differential-review HIGH-2): each touches
+    // Atomic single-task mutations: each touches
     // only the named row, so a stale client cache can never delete a task that
     // was appended server-side but whose SSE event hasn't reached the client yet.
     const patchTask = Effect.fn("SessionHttpApi.patchTask")(function* (ctx: {
@@ -259,8 +265,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             expectedRevision: result?.revision ?? ctx.payload.expectedRevision,
           })
           .pipe(
-            // Resuming a schedule-less task to `scheduled` is rejected by the
-            // domain invariant (HIGH-4) - surface it as a client error, not a 500.
+            // Resuming a schedule-less task to `scheduled` is rejected by a
+            // domain invariant - surface it as a client error, not a 500.
             Effect.catchTag("SessionTask.TaskWriteError", (error) =>
               Effect.fail(new InvalidRequestError({ message: error.message })),
             ),
@@ -283,8 +289,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       const v2task = yield* taskService(ctx.params.sessionID)
       // The server owns id generation on create: a client-supplied id on POST
-      // could collide with the global task PK or enable cycle forgery
-      // (differential-review re-review HIGH-2). `append` mints a fresh `tsk_`.
+      // could collide with the global task PK or enable cycle forgery.
+      // `append` mints a fresh `tsk_`.
       const created = yield* v2task
         .append({
           sessionID: ctx.params.sessionID,
@@ -309,7 +315,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           ),
         )
       // `append` returns the full position-ordered list; the newly appended row
-      // carries the highest position (re-review MEDIUM-1), so `.at(-1)` is the
+      // carries the highest position, so `.at(-1)` is the
       // created task even in a pre-populated session. An empty result for a
       // single-item append is an infrastructure invariant violation → 500
       // defect, not a client 404.
@@ -435,7 +441,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       // session.create() without passing directory. V1 shareSvc.create resolves the
       // directory via the V1 Session service's workspace context. Re-enable V2 create
       // once the client passes directory or V2 create can resolve it from context.
-      return yield* shareSvc.create(ctx.payload)
+      return yield* shareSvc.create(ctx.payload).pipe(
+        // AgentNotAllowedError (mode × agent policy rejection) surfaces as a typed
+        // failure from V1 create since P1-3; map it to 400 like the prompt endpoints.
+        Effect.catchTag("AgentNotAllowedError", () => Effect.fail(new HttpApiError.BadRequest({}))),
+      )
     })
 
     const createRaw = Effect.fn("SessionHttpApi.createRaw")(function* (ctx: {
@@ -610,7 +620,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload?: typeof ForkPayload.Type
     }) {
       const original = yield* requireSession(ctx.params.sessionID)
-      // MEDIUM-5: the creation gate exists to block generic ROOT creation of
+      // The creation gate exists to block generic ROOT creation of
       // custom sessions; fork is not root creation. A custom parent falls
       // through to the V2 branch, where create({parentID}) copies the frozen
       // snapshot (orphan custom parents fail typed via the SnapshotNotFound
@@ -637,6 +647,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", () =>
               Effect.fail(new HttpApiError.BadRequest({})),
             ),
+            Effect.catchTag("AgentNotAllowedError", () => Effect.fail(new HttpApiError.BadRequest({}))),
             Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
               Effect.fail(new HttpApiError.BadRequest({})),
             ),
@@ -730,23 +741,15 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     // (matches the legacy route behavior which routed any failure through
     // ErrorMiddleware → NamedError.Unknown 500) instead of blanket-mapping
     // every failure to a 400 BadRequest.
+    //
+    // S7 / D14: this legacy /session/:id/share endpoint is the EXTERNAL
+    // share-link owner (SessionShare → ShareNext URL). It must never route to
+    // SessionShareV2 (the canonical context share): that would publish a
+    // synthetic self-injection into the session timeline. The canonical
+    // context share lives only on /api/session/:id/share in packages/server.
     const share = Effect.fn("SessionHttpApi.share")(function* (ctx: { params: { sessionID: SessionID } }) {
-      const info = yield* requireRuntimeSession(ctx.params.sessionID)
-      if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
-        const shareSvc2 = yield* SessionShareV2.Service
-        yield* shareSvc2
-          .share({
-            sourceSessionID: ctx.params.sessionID,
-            targetSessionID: ctx.params.sessionID,
-            scope: "full",
-            trigger: false,
-          })
-          .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
-      } else {
-        yield* shareSvc
-          .share(ctx.params.sessionID)
-          .pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
-      }
+      yield* requireRuntimeSession(ctx.params.sessionID)
+      yield* shareSvc.share(ctx.params.sessionID).pipe(Effect.mapError(() => new HttpApiError.InternalServerError({})))
       return yield* requireRuntimeSession(ctx.params.sessionID)
     })
 
@@ -819,24 +822,108 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
-        const v2session = yield* SessionV2.Service
-        // Extract text from the V1 prompt payload's first text part.
-        const parts = ctx.payload.parts as Array<{ type: string; text?: string }> | undefined
-        const textPart = parts?.find((p) => p.type === "text")
-        const promptText = textPart?.text ?? ""
-        if (promptText) {
-          yield* v2session
-            .prompt({
-              sessionID: ctx.params.sessionID,
-              prompt: { text: promptText },
-              delivery: "steer",
-              resume: true,
-            })
-            .pipe(Effect.ignore)
+        // S4: legacy PromptPayload → canonical durable submission. A truly empty
+        // payload (no parts) is a typed 400; empty text with attachments is legal.
+        // Selection (agent/model/variant) and the durable prompt row are written
+        // before we return 204, and errors are typed, never swallowed.
+        if (ctx.payload.parts.length === 0) {
+          return yield* new InvalidRequestError({ message: "Prompt payload is empty" })
         }
+        yield* promptSvc
+          .admitCanonical({
+            sessionID: ctx.params.sessionID,
+            messageID: ctx.payload.messageID,
+            parts: ctx.payload.parts,
+            agent: ctx.payload.agent,
+            model: ctx.payload.model
+              ? {
+                  providerID: ctx.payload.model.providerID,
+                  modelID: ctx.payload.model.modelID,
+                  variant: ctx.payload.variant,
+                }
+              : undefined,
+          })
+          .pipe(
+            Effect.catchTag("Session.NotFoundError", () =>
+              Effect.fail(notFound(`Session not found: ${ctx.params.sessionID}`)),
+            ),
+            Effect.catchTag("Session.PromptConflictError", () =>
+              Effect.fail(new InvalidRequestError({ message: `Prompt conflict for session ${ctx.params.sessionID}` })),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotNotFoundError", () =>
+              Effect.fail(notFound(`Snapshot not found for session ${ctx.params.sessionID}`)),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotDecodeError", () =>
+              Effect.fail(new InvalidRequestError({ message: "Snapshot decode failed" })),
+            ),
+            Effect.catchTag("UnsupportedProductModeError", () =>
+              Effect.fail(new InvalidRequestError({ message: "Unsupported product mode" })),
+            ),
+            Effect.catchTag("PromptParts.UnmaterializedUriError", (error) =>
+              Effect.fail(new InvalidRequestError({ message: error.message })),
+            ),
+            // The mode × agent policy rejected the requested selection (for
+            // example a custom root asked for a non-meta agent). Surface the real
+            // reason: this is the caller's mistake, not an internal failure.
+            Effect.catchTag("AgentNotAllowedError", (error) =>
+              Effect.fail(new InvalidRequestError({ message: error.message })),
+            ),
+            Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
+              Effect.fail(
+                new InvalidRequestError({
+                  message: `Agent '${error.agentID}' is not part of the frozen composition pool`,
+                }),
+              ),
+            ),
+            // S7: no 4xx catch-all. The catchTag handlers above already mapped
+            // the reachable domain errors to InvalidRequestError. The remaining
+            // SessionV2.Error members are not reachable from prompt admission;
+            // if one ever escapes it is a server-side inconsistency and must
+            // surface as a typed 500, not be disguised as a client error.
+            Effect.catchTag("Session.MessageDecodeError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.OperationUnavailableError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.SyntheticConflictError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.UpgradeSourceModeError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.SessionBusyError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Composition.ResolveError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+            Effect.catchTag("Session.CommandUnavailableError", () =>
+              Effect.fail(new UnknownError({ message: "Prompt admission failed unexpectedly" })),
+            ),
+          )
         return HttpApiSchema.NoContent.make()
       }
       yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID }).pipe(
+        // Typed failures (AgentNotAllowedError from the mode × agent policy,
+        // image errors) publish their real message instead of a defect dump.
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            yield* Effect.logError("prompt_async failed", { sessionID: ctx.params.sessionID, error })
+            yield* events.publish(Session.Event.Error, {
+              sessionID: ctx.params.sessionID,
+              error: new NamedError.Unknown({ message: error.message }).toObject(),
+            })
+            // A V1 prompt failure never reaches Runner.onIdle, so set idle
+            // explicitly — otherwise the frontend working() stays true and the
+            // spinner hangs. status.set(idle) publishes session.status +
+            // session.idle events, which the frontend uses to clear loading.
+            yield* statusSvc.set(ctx.params.sessionID, { type: "idle" })
+          }),
+        ),
         Effect.catchCause((cause) =>
           Effect.gen(function* () {
             yield* Effect.logError("prompt_async failed", { sessionID: ctx.params.sessionID, cause })
@@ -844,10 +931,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
               sessionID: ctx.params.sessionID,
               error: new NamedError.Unknown({ message: Cause.pretty(cause) }).toObject(),
             })
-            // When prompt fails (including enforcePrimary dying outside runLoop), Runner.onIdle
-            // never fires, so set idle explicitly — otherwise the frontend working() stays true
-            // and the spinner hangs. status.set(idle) publishes session.status + session.idle
-            // events, which the frontend uses to clear loading.
+            // Same idle settlement as the typed branch above: defects also
+            // bypass Runner.onIdle.
             yield* statusSvc.set(ctx.params.sessionID, { type: "idle" })
           }),
         ),

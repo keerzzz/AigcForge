@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "digest": "8f3dc2ada5599d5ba9802f2e1c44b88d1b6b4c9eacfff1afaa011ca346b74022",
+  "sessionID": "ses_f9802d2d5ffe2hUpbmVXsoUhHI",
+  "profilePath": null,
+  "profileRevision": null,
+  "createdAt": 1788451040578,
+  "data": {
+    "agentID": "qa-reviewer",
+    "instructions": [
+      {
+        "source": "agent:qa-reviewer",
+        "content": "You are a concise read-only reviewer. Respond directly, do not modify files, and do not invoke shell commands."
+      }
+    ],
+    "prompts": [],
+    "skills": [],
+    "tools": {
+      "fingerprints": [
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "apply_patch",
+          "digest": "d84ab06f655c0472bd690690088e618a770bb5186c397f51f0f1534c1beca7db",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "bash",
+          "digest": "455c81a62e736488ffca58f74de221ed0c38839fc5885a34bc07b92dead7d854",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "edit",
+          "digest": "3f12fa09898f6a78830df6f24dff99bee4a5f8276d383d82d23d59642f2709b2",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "glob",
+          "digest": "0f3e94225e21a76e4ff521444fbb42e38a5817d3783c2d04097033f39f521404",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "grep",
+          "digest": "9619681b3ff58f7130670714f4d0b87758ebc32c7fb36f0d2f9430b0d3adc628",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "kb_create",
+          "digest": "fe232aa89fa242d3ba1c1eb06bff45d5e5f81af548903fcf6c510fe0cb9783b8",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "kb_delete",
+          "digest": "48f4dd224495e0db031539d898eaf3ff8d287c8e50229efc980cabdeeefeb657",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "kb_list_dangling",
+          "digest": "1500cc3004cc27317cbdded6678a6559e7eb79fe19474628b3bf71955439e2be",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "kb_read",
+          "digest": "0b9404555aecef247525073e606e9e53f4866312869895134e3bfc5f86753d1e",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "kb_search",
+          "digest": "d06af78cd1513bd57cba8ff380538e4f944c732a77a44e4a1c70906a75640d55",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "kb_update",
+          "digest": "0ce5e787d1d008201273abb29d7e626e2fbe6128941f8b30b4b5a82356bd409f",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "list_assets",
+          "digest": "52cb18b6ceac56213e2fa4fc82fd560fabecf19cbe85c159845936b1af57ee6c",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "memory_propose",
+          "digest": "792986dd1e7b256239d3ae36be11bb3f9d7876a916a964a99feffcb521efadbf",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "memory_record",
+          "digest": "2dd890b2830dac63fe3f3ae80d9fd51d8fd8f21a518c43a09c88af900f9c798a",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "memory_search",
+          "digest": "06117ccbbc95d3d7639e53377654be33042c5174020ffc7bb412c8ff320644ae",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "propose_agent_asset",
+          "digest": "4dde128ec0eda1e6bc8a711cca99ab341b682e4799bc421f59d0268fdef3f90c",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "propose_command_asset",
+          "digest": "cda556a22800754d54f28a6267263aca1db4e03b1eb6028dd678bdbcc89e3cc8",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "propose_mcp_asset",
+          "digest": "dd585d89c3e0a05b676c1ae3e5b8a35ccbc032c01001d1d02ed1f9390c60a536",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "propose_note",
+          "digest": "a430266f21d0f0bb3d86539960e5cd4c830091b091e635c74e5d998295b4f791",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "propose_plugin_asset",
+          "digest": "dba0405a077cca9ecd08fc6e6f35852d2c7351a9418a11331881136a39305b25",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "propose_prompt_asset",
+          "digest": "6ba2e235201574de8bd94db4e1e025378592b723b32be4b2fd8da52e8f8741c2",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "propose_skill_asset",
+          "digest": "9d58fa94d11d351abae4b3e92f07bc544b89582807415fd384437ac4fcd3722d",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "propose_workflow_asset",
+          "digest": "699b22c812ae9ddff2d04a15fa990d7af564d1d9983550e0f891f99ad17585a4",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "question",
+          "digest": "a15a8339352a271ff1f4df7daed017d21ec2ba99295ab892b492ea4cb8e013a8",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "read",
+          "digest": "3fea591f0125da565c71d7574d4f514bafaebc90db2a6b18896e2b3986dc1d90",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "reminder_cancel",
+          "digest": "d63e6acea8e38ff152a5e5ee3e3d3757fc9d51c8e87dfb8f409d55f476b7c914",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "reminder_create",
+          "digest": "d85349e7fbb324b6c931c1705b6d965ae0cd2a60a2bb382cce3b4c1b832590c7",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "reminder_update",
+          "digest": "52ecc97ba2803166159d33b4614a98ea655d99e2b6417928067a4e702d2de65f",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "skill",
+          "digest": "a2e34661855011c6a2fdf2571a6878ce75761c939ede391a70980bec11072934",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "task",
+          "digest": "dd1b65be132a562c8a72e328fd6e6a5d969ad1ec1c18e0b633be3e178ae2d1cf",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "task_create",
+          "digest": "2c69381664990e705092cb32861eb69e3456707e7bb4793517ef69a2c647ca8a",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "task_delete",
+          "digest": "89a66cf65794fe295cdf59b4e7cb616201f87320cdf2212cfceee058830ed4d9",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "task_reorder",
+          "digest": "577197a14540ad8cf076deeb1c533981f6f75654aa7a18bf6b530993ad63a445",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "task_schedule",
+          "digest": "53e55b51976a329a547e126689c292605254d30034b67b30c067a127118eed7e",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "task_spawn",
+          "digest": "703da3e7f197912c3143ea6326fa775104d17d84daeb62ea3ffbc64d9c087c42",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "task_update",
+          "digest": "afd5dcbf361e4a5ecd15ae1b870d50d82fa4ffa2eefbc8f91d50c8fe7150e902",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "taskwrite",
+          "digest": "a9d3bbd25fe0d34a6be2d235642a21b1b3870e289360b3cf574829c0f28b7c63",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "todowrite",
+          "digest": "a8bd1bc5bc6ea1bf2254588b800a6625a9f488b1e5d51565d0feef973854c33c",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "webfetch",
+          "digest": "075a51ac7366fb71483b09d91e742b0bd8ba2abcb616c1010520ed4aecb1a5ff",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "websearch",
+          "digest": "2ddf881bdade0403b09c6fa754427633268621145f179f3435bb5e4a1a18c6ce",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "work-preset",
+          "digest": "232658ad8ddd016de58d6bd2f5dbc62c78af9b73d26e6d182bcbdc914911cdba",
+          "installationVersion": "local"
+        },
+        {
+          "placement": "/home/keer/Desktop/aigcfroge-custom-fixture-20260903-rbNlGH",
+          "name": "write",
+          "digest": "645e0617f0deea23c2979c70eb22034675b6db2d804c4ff383826f27b7c78b99",
+          "installationVersion": "local"
+        }
+      ],
+      "catalogDigest": "e8a076abc875d632d0e51e8a7a1619eb27653fbeab97a0a1ab8df75f3bee32ca",
+      "catalog": [
+        "apply_patch",
+        "bash",
+        "edit",
+        "glob",
+        "grep",
+        "kb_create",
+        "kb_delete",
+        "kb_list_dangling",
+        "kb_read",
+        "kb_search",
+        "kb_update",
+        "list_assets",
+        "memory_propose",
+        "memory_record",
+        "memory_search",
+        "propose_agent_asset",
+        "propose_command_asset",
+        "propose_mcp_asset",
+        "propose_note",
+        "propose_plugin_asset",
+        "propose_prompt_asset",
+        "propose_skill_asset",
+        "propose_workflow_asset",
+        "question",
+        "read",
+        "reminder_cancel",
+        "reminder_create",
+        "reminder_update",
+        "skill",
+        "task",
+        "task_create",
+        "task_delete",
+        "task_reorder",
+        "task_schedule",
+        "task_spawn",
+        "task_update",
+        "taskwrite",
+        "todowrite",
+        "webfetch",
+        "websearch",
+        "work-preset",
+        "write"
+      ]
+    }
+  }
+}

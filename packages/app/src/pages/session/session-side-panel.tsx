@@ -322,7 +322,12 @@ export function SessionSidePanel(props: {
         <AssistantSessionPanel />
       </div>
       <div style={{ display: mode.currentMode === "custom" ? "" : "none" }} class="flex-1 min-w-0">
-        <CustomDraftProvider directory={() => sdk()?.directory ?? ""}>
+        <CustomDraftProvider
+          location={() => {
+            const current = sdk()
+            return current ? { scope: current.scope, directory: current.directory } : undefined
+          }}
+        >
           <CustomSessionPanel sessionID={params.id} />
         </CustomDraftProvider>
       </div>

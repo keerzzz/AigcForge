@@ -1196,7 +1196,7 @@ steps:
             expect(plan.valid).toBe(true)
             expect(plan.commands).toHaveLength(1)
             expect(plan.commands[0].name).toBe("review")
-            expect(plan.commands[0].template).toContain("without executing it")
+            expect(plan.commands[0].source).toContain("without executing it")
             expect(plan.capabilities).toEqual([])
             expect(plan.costPreview?.effectiveToolCount).toBe(1)
             expect(plan.instructions.some((instruction) => instruction.content.includes("without executing it"))).toBe(
@@ -1207,14 +1207,190 @@ steps:
             expect(snapshot.version).toBe(2)
             if (snapshot.version === 2) {
               expect(snapshot.data.maxConcurrency).toBe(1)
-              expect(snapshot.data.bindings.orchestrator.prompts).toHaveLength(1)
-              expect(snapshot.data.bindings.orchestrator.skills).toEqual([])
-              expect(snapshot.data.bindings.orchestrator.commands[0].name).toBe("review")
-              expect(snapshot.data.bindings["agents/coder"].prompts).toEqual([])
-              expect(snapshot.data.bindings["agents/coder"].skills[0].name).toBe("review")
-              expect(snapshot.data.bindings["agents/coder"].commands[0].name).toBe("review")
+              expect(snapshot.data.bindings!.orchestrator.prompts).toHaveLength(1)
+              expect(snapshot.data.bindings!.orchestrator.skills).toEqual([])
+              expect(snapshot.data.bindings!.orchestrator.commands[0].name).toBe("review")
+              expect(snapshot.data.bindings!["agents/coder"].prompts).toEqual([])
+              expect(snapshot.data.bindings!["agents/coder"].skills[0].name).toBe("review")
+              expect(snapshot.data.bindings!["agents/coder"].commands[0].name).toBe("review")
               expect(snapshot.data.tools.catalog).toEqual(["read"])
             }
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("freezes the full CommandAsset identity (invocation/args/source) in the snapshot", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nYou code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+
+        const commandDir = path.join(dir, ".aigcfroge", "commands")
+        await fs.mkdir(commandDir, { recursive: true })
+        const commandRaw = `---\nkind: command\nname: review\ndescription: Review the change\ninvocation: /review $1\nargs: "$1: path"\n---\nReview it without executing.\n`
+        await fs.writeFile(path.join(commandDir, "review.md"), commandRaw)
+        const commandRev = Hash.sha256(Buffer.from(commandRaw))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const commandRef = { kind: "command" as const, relativePath: "review.md", revision: commandRev }
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [{ kind: "agent", relativePath: "coder.md", revision: coderRev }],
+              bindings: {
+                orchestrator: { prompts: [], skills: [], commands: [commandRef] },
+              },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+            expect(snapshot.version).toBe(2)
+            if (snapshot.version === 2) {
+              const commands = snapshot.data.bindings!.orchestrator.commands
+              expect(commands[0]?.invocation).toBe("/review $1")
+              expect(commands[0]?.args).toBe("$1: path")
+              expect(commands[0]?.source).toContain("Review it without executing")
+            }
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("legacy CommandInfo snapshots decode with an empty invocation (fail closed)", () => {
+      // A snapshot written before S5 carries the body under the retired `template`
+      // key. It must still decode (excess keys are ignored) and must be
+      // identifiable as legacy: `invocation` is the discriminator, because
+      // `CommandAsset.Invocation` requires >= 1 code point so a real freeze can
+      // never produce "".
+      const legacy = Schema.decodeUnknownSync(Composition.CommandInfo)({
+        name: "review",
+        description: "Review",
+        relativePath: "review.md",
+        revision: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+        template: "old template",
+      })
+      expect(legacy.invocation).toBe("")
+      expect(legacy.args).toBeUndefined()
+      expect(legacy.source).toBeUndefined()
+    })
+
+    test("freezes an orchestrator entry even when nothing is bound to it", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        const coderRaw = `---\nkind: agent\nname: coder\ndescription: Coder\n---\nYou code.\n`
+        await fs.writeFile(path.join(agentDir, "coder.md"), coderRaw)
+        const coderRev = Hash.sha256(Buffer.from(coderRaw))
+        // A second agent puts the composition on the V2 (scoped graph) freeze path; a single-agent
+        // composition with no workflow or command still freezes as V1 by design.
+        const writerRaw = `---\nkind: agent\nname: writer\ndescription: Writer\n---\nYou write.\n`
+        await fs.writeFile(path.join(agentDir, "writer.md"), writerRaw)
+        const writerRev = Hash.sha256(Buffer.from(writerRaw))
+
+        const skillDir = path.join(dir, ".aigcfroge", "skills", "review")
+        await fs.mkdir(skillDir, { recursive: true })
+        const skillRaw = `---\nname: review\ndescription: Review checklist\n---\nCheck correctness.\n`
+        await fs.writeFile(path.join(skillDir, "SKILL.md"), skillRaw)
+        const skillRev = Hash.sha256(Buffer.from(skillRaw))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            // Everything bound to the child agent, nothing to the orchestrator. The frozen graph must
+            // still carry an orchestrator entry: the runtime fails closed on an absent consumer, so
+            // omitting it would make this legitimate composition unrunnable at its root.
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [
+                { kind: "agent", relativePath: "coder.md", revision: coderRev },
+                { kind: "agent", relativePath: "writer.md", revision: writerRev },
+              ],
+              bindings: {
+                "agents/coder": {
+                  prompts: [],
+                  skills: [{ kind: "skill", relativePath: "review/SKILL.md", revision: skillRev }],
+                },
+              },
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+            expect(snapshot.version).toBe(2)
+            if (snapshot.version === 2) {
+              expect(snapshot.data.bindings).toBeDefined()
+              const keys = Object.keys(snapshot.data.bindings!)
+              // Every addressable consumer gets an entry, bound or not.
+              expect(keys).toContain("orchestrator")
+              expect(keys).toContain("agents/writer")
+              expect(snapshot.data.bindings!.orchestrator.skills).toEqual([])
+              expect(snapshot.data.bindings!.orchestrator.prompts).toEqual([])
+              expect(snapshot.data.bindings!["agents/coder"].skills[0].name).toBe("review")
+              expect(snapshot.data.bindings!["agents/writer"].skills).toEqual([])
+              // Each agent's own system prompt lands in its own consumer, never the orchestrator's.
+              expect(snapshot.data.bindings!["agents/coder"].instructions.map((i) => i.source)).toContain("agent:coder")
+              expect(snapshot.data.bindings!["agents/writer"].instructions.map((i) => i.source)).toContain(
+                "agent:writer",
+              )
+              expect(snapshot.data.bindings!.orchestrator.instructions.map((i) => i.source)).not.toContain(
+                "agent:coder",
+              )
+            }
+          }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
+        )
+      })
+    })
+
+    test("derives a machine consumer key for agent names ConsumerKey cannot express", async () => {
+      await withTmp(async (dir) => {
+        const agentDir = path.join(dir, ".aigcfroge", "agents")
+        await fs.mkdir(agentDir, { recursive: true })
+        // ConsumerKey only accepts [a-zA-Z0-9_-]; AgentAsset.Name accepts any 1-80 code points. The
+        // key is therefore derived, not copied: an ASCII filename supplies it, and a filename that
+        // sanitizes to nothing falls back to a deterministic hex digest.
+        const asciiFileRaw = `---\nkind: agent\nname: 测试 代理.1\ndescription: Unicode name, ASCII file\n---\nYou test.\n`
+        await fs.writeFile(path.join(agentDir, "reviewer.md"), asciiFileRaw)
+        const asciiFileRev = Hash.sha256(Buffer.from(asciiFileRaw))
+        const unicodeFileRaw = `---\nkind: agent\nname: 写手\ndescription: Unicode name and file\n---\nYou write.\n`
+        await fs.writeFile(path.join(agentDir, "写手.md"), unicodeFileRaw)
+        const unicodeFileRev = Hash.sha256(Buffer.from(unicodeFileRaw))
+
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const resolver = yield* CompositionResolver.Service
+            const input = Schema.decodeUnknownSync(Composition.CompositionInput)({
+              source: "temporary",
+              agents: [
+                { kind: "agent", relativePath: "reviewer.md", revision: asciiFileRev },
+                { kind: "agent", relativePath: "写手.md", revision: unicodeFileRev },
+              ],
+              bindings: {},
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+
+            const snapshot = yield* resolver.freeze(new Composition.FreezeInput({ input }))
+            expect(snapshot.version).toBe(2)
+            if (snapshot.version !== 2) return
+            const keyFor = (name: string) => snapshot.data.agents.find((a) => a.name === name)?.consumerKey
+            const asciiKey = keyFor("测试 代理.1")
+            const hexKey = keyFor("写手")
+            // Display names survive untouched; the keys are ASCII and ConsumerKey-decodable.
+            expect(asciiKey).toBe("agents/reviewer")
+            expect(hexKey).toMatch(/^agents\/[0-9a-f]{1,12}$/)
+            for (const key of [asciiKey, hexKey]) {
+              expect(() => Schema.decodeUnknownSync(Composition.ConsumerKey)(key!)).not.toThrow()
+              expect(Object.keys(snapshot.data.bindings!)).toContain(key!)
+            }
+            // Distinct agents never collapse onto one consumer.
+            expect(asciiKey).not.toBe(hexKey)
+            // Each agent's own prompt is scoped to its own derived key.
+            expect(snapshot.data.bindings![asciiKey!].instructions.map((i) => i.source)).toContain("agent:测试 代理.1")
+            expect(snapshot.data.bindings![hexKey!].instructions.map((i) => i.source)).toContain("agent:写手")
           }).pipe(Effect.provide(fullResolverLayer(dir)), Effect.scoped),
         )
       })

@@ -65,6 +65,7 @@ import { ModelV2 } from "@aigcfroge/core/model"
 import { Location } from "@aigcfroge/core/location"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { Cause, DateTime, Deferred, Duration, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+import * as TestClock from "effect/testing/TestClock"
 import { asc, eq } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
 
@@ -3400,6 +3401,30 @@ describe("SessionRunnerLLM", () => {
 
       const message = yield* session.message({ sessionID, messageID: admitted.id })
       expect(message?.type).toBe("user")
+    }),
+  )
+
+  // P1-5 RED: the skill promotion must reuse the admission timestamp. promoteSkills
+  // (runner/llm.ts) publishes Prompted with DateTime.now; projectPrompted's
+  // matchesProjection compares that against the inbox row's time_created for every
+  // kind (session/input.ts:563), so promotion under an advanced clock dies with
+  // LifecycleConflict. Driving the drain synchronously via SessionRunner.run keeps
+  // the failure deterministic under TestClock (no stream timeouts to trigger).
+  it.effect("promotes a skill with the admission timestamp after the clock advances (P1-5)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* insertSession(sessionID)
+      const session = yield* SessionV2.Service
+      yield* session.skill({ sessionID, skill: "test-skill", resume: false })
+      // Advance the virtual clock so promotion time differs from admission time
+      // under the buggy DateTime.now implementation.
+      yield* TestClock.adjust("1 second")
+      const runner = yield* SessionRunner.Service
+      const exit = yield* runner.run({ sessionID, force: true }).pipe(Effect.exit)
+      expect(Exit.isSuccess(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        throw Cause.squash(exit.cause)
+      }
     }),
   )
 })

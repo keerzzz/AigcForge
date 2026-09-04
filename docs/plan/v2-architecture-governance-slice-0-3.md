@@ -1,5 +1,14 @@
 # V2 架构治理实施计划：Slice 0–3
 
+> **⚠️ Owner 仲裁（2026-09-01）**：本计划与 [five-mode-runtime-remediation-tdd-workflow-2026-08-30.md](five-mode-runtime-remediation-tdd-workflow-2026-08-30.md) 声明了重叠的 owner。裁决结果：**重叠切片归五模式修整计划**，本计划保留非重叠部分。
+>
+> 依据：`CLAUDE.md` 的极致减法 —— 两个 owner 抢同一件事本身就是双事实源（正是那份计划要修的 R1/R2 同类问题），协议答案是**归并**而非「选赢家让另一方 rebase」。证据不对称：本计划分支不存在、零产物；五模式计划已在 `five-mode-tdd` 落盘 4 个提交（`d24b7035a` / `74487f934` / `7a431619c` / `ad4f9ca7f`），含 9 条可复现 RED 与已实施的 D4-A + D5-A。
+>
+> 重叠明细见下表。开工前先读该计划 §5 owner 地图。
+> **本计划让出**：`packages/core/src/session/input.ts`、`session.ts`、`session/event.ts`、`session/projector.ts` 的 durable admission / lifecycle owner（= 五模式计划 S2 Durable Admission Kernel）。Slice 1 的 `session/lifecycle.ts` 新建、Slice 0 红线止血、Slice 2 Recovery 边界、Slice 3 Composition identity 中不触及上述四文件的部分仍属本计划。
+>
+> **注意**：五模式计划的 D4-A/D5-A 已重写 `composition-resolver.ts` 与 `schema/composition.ts`（`74487f934`），Slice 3 Composition identity 开工前必须先读该提交。
+
 > **来源路线图**：[docs/roadmap/v2-architecture-roadmap.md](../roadmap/v2-architecture-roadmap.md)（2026-08-29，**有条件批准架构方向**）
 >
 > **范围**：Slice 0 红线止血 · Slice 1 Session lifecycle owner · Slice 2 Recovery 边界 · Slice 3 Composition identity。关闭路线图的 F1（已证实 P1）、F2（已证实 P1，只做最小诚实恢复）、F4（较高概率 P2，只做 probe 不做大重构）、F7 的代码侧半边。

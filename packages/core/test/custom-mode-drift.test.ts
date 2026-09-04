@@ -2,6 +2,7 @@ import { describe, expect } from "bun:test"
 import { LLMClient, LLMEvent, Model, type LLMRequest } from "@aigcfroge/llm"
 import { route } from "@aigcfroge/llm/protocols/openai-chat"
 import { Cause, Effect, Exit, Layer, Option, Schema, Scope, Stream } from "effect"
+import { eq } from "drizzle-orm"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { AppProcess } from "@aigcfroge/core/process"
 import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
@@ -32,7 +33,9 @@ import { SessionRunner } from "@aigcfroge/core/session/runner"
 import { layer as runnerLayer } from "@aigcfroge/core/session/runner/llm"
 import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionTable } from "@aigcfroge/core/session/sql"
+import { EventTable } from "@aigcfroge/core/event/sql"
+import { AgentAttachment, FileAttachment } from "@aigcfroge/core/session/prompt"
+import { SessionCompositionSnapshotTable, SessionTable } from "@aigcfroge/core/session/sql"
 import { SkillV2 } from "@aigcfroge/core/skill"
 import { SkillGuidance } from "@aigcfroge/core/skill/guidance"
 import { ReferenceGuidance } from "@aigcfroge/core/reference/guidance"
@@ -338,7 +341,18 @@ const makeMcpSnapshot = (sessionID: SessionV2.ID, tools: Composition.SnapshotToo
     createdAt: Date.now(),
     data: new Composition.SnapshotDataV2({
       agents: [],
-      bindings: {},
+      // Real resolver output always emits the orchestrator entry (D5-A), even
+      // when nothing is bound. An empty `{}` here trips the runner's
+      // consumer-binding gate before the MCP drift check, masking the reasons
+      // these tests assert. Keep the binding present-but-empty.
+      bindings: {
+        orchestrator: new Composition.SnapshotBindingData({
+          instructions: [],
+          prompts: [],
+          skills: [],
+          commands: [],
+        }),
+      },
       instructions: [],
       prompts: [],
       skills: [],
@@ -593,7 +607,15 @@ describe("Custom Mode Runner Drift Fail-Closed (MEDIUM-3)", () => {
           createdAt: Date.now(),
           data: new Composition.SnapshotDataV2({
             agents: [],
-            bindings: {},
+            // Real resolver output always emits the orchestrator entry (D5-A).
+            bindings: {
+              orchestrator: new Composition.SnapshotBindingData({
+                instructions: [],
+                prompts: [],
+                skills: [],
+                commands: [],
+              }),
+            },
             instructions: [],
             prompts: [],
             skills: [],
@@ -776,6 +798,235 @@ describe("Custom Mode Skill Steer Snapshot-Local (MEDIUM-2b)", () => {
       const texts = requests.flatMap(userTexts)
       expect(texts).toContain("BOUND SKILL CONTENT")
       expect(texts.join("\n")).not.toContain("OUTSIDE SKILL CONTENT")
+    }),
+  )
+})
+
+describe("Custom Mode Command Steer Snapshot-Local (S5)", () => {
+  const reviewCommand = new Composition.CommandInfo({
+    name: "review",
+    description: "Review the change",
+    relativePath: "commands/review.md",
+    revision: mockRevision,
+    invocation: "/review $1",
+    args: "$1: path",
+  })
+
+  const makeCommandSnapshot = Effect.fnUntraced(function* (
+    sessionID: SessionV2.ID,
+    tools: Composition.SnapshotToolInfo,
+    commands: Composition.CommandInfo[],
+  ) {
+    return new Composition.SnapshotV2({
+      version: 2,
+      digest: mockDigest,
+      sessionID,
+      createdAt: Date.now(),
+      data: new Composition.SnapshotDataV2({
+        agents: [
+          new Composition.AgentInfo({
+            id: "meta",
+            name: "meta",
+            description: "",
+            relativePath: "meta.md",
+            revision: mockRevision,
+            consumerKey: "orchestrator",
+          }),
+        ],
+        bindings: {
+          orchestrator: new Composition.SnapshotBindingData({
+            instructions: [],
+            prompts: [],
+            skills: [],
+            commands,
+          }),
+        },
+        instructions: [],
+        prompts: [],
+        skills: [],
+        tools,
+        mcp: new Composition.SnapshotMcpInfo({ bindings: [], tools: [] }),
+      }),
+    })
+  })
+
+  const attachCommands = (sessionID: SessionV2.ID, commands: Composition.CommandInfo[]) =>
+    Effect.gen(function* () {
+      yield* insertCustomSession(sessionID)
+      // ADR-20 provenance: the frozen agent entry must match the live registry
+      // origin, otherwise the runner fails the turn before any command steer.
+      const agents = yield* AgentV2.Service
+      yield* agents.transform((editor) =>
+        editor.update(AgentV2.ID.make("meta"), (agent) => {
+          agent.originRelativePath = "meta.md"
+          agent.originRevision = mockRevision
+        }),
+      )
+      const tools = yield* buildToolInfo()
+      const composition = yield* SessionComposition.Service
+      yield* composition.attach(sessionID, yield* makeCommandSnapshot(sessionID, tools, commands))
+    })
+
+  it.effect("promotes a bound command steer into a canonical user prompt expanded from the frozen catalog", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-cmd-ok", "Done")
+      const sessionID = SessionV2.ID.make("ses_cmd_promote")
+      yield* attachCommands(sessionID, [reviewCommand])
+      const session = yield* SessionV2.Service
+      yield* session.command({ sessionID, command: "review", arguments: "src/main.ts", resume: false })
+      const sessionRunner = yield* SessionRunner.Service
+
+      yield* sessionRunner.run({ sessionID, force: true })
+
+      expect(requests).toHaveLength(1)
+      const texts = requests.flatMap(userTexts)
+      expect(texts).toContain("/review src/main.ts")
+      // No agent/model override can enter the runtime from a command admission.
+      const { db } = yield* Database.Service
+      const events = yield* db
+        .select()
+        .from(EventTable)
+        .where(eq(EventTable.aggregate_id, sessionID))
+        .all()
+        .pipe(Effect.orDie)
+      expect(
+        events.some(
+          (event) => event.type === "session.next.agent.switched" || event.type === "session.next.model.switched",
+        ),
+      ).toBe(false)
+    }),
+  )
+
+  it.effect("carries the canonical context files and agents into the promoted user message", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-cmd-ctx", "Done")
+      const sessionID = SessionV2.ID.make("ses_cmd_context")
+      yield* attachCommands(sessionID, [reviewCommand])
+      const session = yield* SessionV2.Service
+      yield* session.command({
+        sessionID,
+        command: "review",
+        arguments: "src",
+        context: Prompt.make({
+          text: "",
+          files: [FileAttachment.make({ uri: "file:///project/src/main.ts", mime: "text/plain" })],
+          agents: [AgentAttachment.make({ name: "coder" })],
+        }),
+        resume: false,
+      })
+      const sessionRunner = yield* SessionRunner.Service
+
+      yield* sessionRunner.run({ sessionID, force: true })
+
+      const context = yield* session.context(sessionID)
+      const user = context.findLast((message) => message.type === "user")
+      expect(user?.type === "user" && user.text).toBe("/review src")
+      if (user?.type !== "user") return
+      expect(user.files?.map((file) => file.uri)).toContain("file:///project/src/main.ts")
+      expect(user.agents?.map((agent) => agent.name)).toContain("coder")
+    }),
+  )
+
+  it.effect("a command steer whose frozen entry was replaced fails closed with not-found text", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-cmd-gone", "Done")
+      const sessionID = SessionV2.ID.make("ses_cmd_replaced")
+      yield* attachCommands(sessionID, [reviewCommand])
+      const session = yield* SessionV2.Service
+      yield* session.command({ sessionID, command: "review", arguments: "src", resume: false })
+      // The frozen asset is replaced after admission: the current snapshot now
+      // carries a different revision of the same command name.
+      const replacedRevision = Schema.decodeUnknownSync(Composition.Revision)(
+        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      )
+      const replaced = new Composition.CommandInfo({
+        name: "review",
+        description: "Review the change",
+        relativePath: "commands/review.md",
+        revision: replacedRevision,
+        invocation: "/review2 $1",
+        args: "$1: path",
+      })
+      const next = yield* makeCommandSnapshot(sessionID, yield* buildToolInfo(), [replaced])
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionCompositionSnapshotTable)
+        .set({ data: next.data })
+        .where(eq(SessionCompositionSnapshotTable.session_id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
+      const sessionRunner = yield* SessionRunner.Service
+
+      yield* sessionRunner.run({ sessionID, force: true })
+
+      expect(requests).toHaveLength(1)
+      const texts = requests.flatMap(userTexts)
+      expect(texts).toContain("Command not found: review")
+      expect(texts.join("\n")).not.toContain("/review2")
+      expect(texts.join("\n")).not.toContain("Review the change")
+    }),
+  )
+
+  it.effect("delivers a shell-fenced command body as text and never executes it", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-cmd-fence", "Done")
+      const sessionID = SessionV2.ID.make("ses_cmd_fence")
+      const fenced = new Composition.CommandInfo({
+        name: "run",
+        description: "Run",
+        relativePath: "commands/run.md",
+        revision: mockRevision,
+        invocation: "Explain this bash:\n```bash\necho $1\n```",
+      })
+      yield* attachCommands(sessionID, [fenced])
+      const session = yield* SessionV2.Service
+      yield* session.command({ sessionID, command: "run", arguments: "hi", resume: false })
+      const sessionRunner = yield* SessionRunner.Service
+
+      yield* sessionRunner.run({ sessionID, force: true })
+
+      expect(requests).toHaveLength(1)
+      const texts = requests.flatMap(userTexts)
+      expect(texts.join("\n")).toContain("```bash")
+      expect(texts.join("\n")).toContain("echo hi")
+      const { db } = yield* Database.Service
+      const events = yield* db
+        .select()
+        .from(EventTable)
+        .where(eq(EventTable.aggregate_id, sessionID))
+        .all()
+        .pipe(Effect.orDie)
+      expect(events.some((event) => event.type.startsWith("session.next.shell"))).toBe(false)
+    }),
+  )
+
+  it.effect("a command steer for a missing consumer binding fails the turn closed", () =>
+    Effect.gen(function* () {
+      reset()
+      response = textResponse("text-cmd-unbound", "Done")
+      const sessionID = SessionV2.ID.make("ses_cmd_unbound")
+      yield* attachCommands(sessionID, [reviewCommand])
+      const session = yield* SessionV2.Service
+      yield* session.command({ sessionID, command: "review", arguments: "src", resume: false })
+      // The session's agent is rewritten to an agent absent from the frozen
+      // pool after admission, so promotion cannot map the consumer.
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ agent: AgentV2.ID.make("impostor") })
+        .where(eq(SessionTable.id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
+      const sessionRunner = yield* SessionRunner.Service
+
+      const exit = yield* sessionRunner.run({ sessionID, force: true }).pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(requests).toHaveLength(0)
     }),
   )
 })

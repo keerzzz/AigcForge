@@ -319,14 +319,14 @@ export function MessageTimeline(props: {
   })
 
   const handoffs = createMemo<
-    ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string }>
+    ReadonlyArray<{ readonly label: string; readonly agent: string; readonly prompt: string; readonly send?: boolean }>
   >(() => {
     const name = currentAgentName()
     if (!name) return []
     const agent = (
       sync().data.agent as ReadonlyArray<{
         name: string
-        handoffs?: Array<{ label: string; agent: string; prompt: string }>
+        handoffs?: Array<{ label: string; agent: string; prompt: string; send?: boolean }>
       }>
     ).find((a) => a.name === name)
     return agent?.handoffs ?? []
@@ -1227,7 +1227,7 @@ export function MessageTimeline(props: {
                         label: h.label,
                         agent: h.agent,
                         prompt: h.prompt,
-                        onClick: () => props.actions!.handoff!(h.agent, h.prompt),
+                        onClick: () => props.actions!.handoff!(h.label, h.agent, h.prompt, h.send),
                       }))}
                     />
                   </div>

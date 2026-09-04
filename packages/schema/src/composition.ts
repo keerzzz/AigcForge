@@ -145,6 +145,7 @@ export class AgentInfo extends Schema.Class<AgentInfo>("Composition.AgentInfo")(
   description: Schema.String,
   relativePath: Schema.String,
   revision: Revision,
+  consumerKey: Schema.optional(ConsumerKey),
 }) {}
 
 export class WorkflowInfo extends Schema.Class<WorkflowInfo>("Composition.WorkflowInfo")({
@@ -160,7 +161,22 @@ export class CommandInfo extends Schema.Class<CommandInfo>("Composition.CommandI
   description: Schema.String,
   relativePath: Schema.String,
   revision: Revision,
-  template: Schema.String,
+  // S5 snapshot fidelity: freeze the CommandAsset identity under the asset's own
+  // field names, so nothing has to translate on the way in or out. `source` is
+  // the command body — it used to be frozen as `template`, which had no reader
+  // anywhere (the `command.template` in asset-migration is the V1 config shape,
+  // not this class), so that name is gone rather than kept alongside a duplicate.
+  //
+  // `invocation` is the single legacy discriminator: `CommandAsset.Invocation`
+  // requires at least one code point, so a freeze can never produce "". A
+  // snapshot written before these fields existed decodes to "" and must fail
+  // closed in the runtime instead of inheriting execution ability (D6). There is
+  // deliberately no constructor default — new code must supply it, otherwise
+  // omitting the field would silently forge that legacy marker, which is the
+  // mistake `withDecodingDefaultKey({})` made for `bindings` (D5-A).
+  invocation: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed(""))),
+  args: Schema.optional(Schema.String),
+  source: Schema.optional(Schema.String),
 }) {}
 
 export class Instruction extends Schema.Class<Instruction>("Composition.Instruction")({
@@ -284,6 +300,10 @@ export class SnapshotPromptData extends Schema.Class<SnapshotPromptData>("Compos
 }) {}
 
 export class SnapshotBindingData extends Schema.Class<SnapshotBindingData>("Composition.SnapshotBindingData")({
+  instructions: Schema.Array(Instruction).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([])),
+    Schema.withConstructorDefault(Effect.succeed([])),
+  ),
   prompts: Schema.Array(SnapshotPromptData),
   skills: Schema.Array(SkillInfo),
   commands: Schema.Array(CommandInfo),
@@ -317,10 +337,7 @@ export class SnapshotDataV1 extends Schema.Class<SnapshotDataV1>("Composition.Sn
 export class SnapshotDataV2 extends Schema.Class<SnapshotDataV2>("Composition.SnapshotDataV2")({
   agents: Schema.Array(AgentInfo),
   workflow: Schema.optional(Schema.NullOr(WorkflowInfo)),
-  bindings: Schema.Record(ConsumerKey, SnapshotBindingData).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed({})),
-    Schema.withConstructorDefault(Effect.succeed({})),
-  ),
+  bindings: Schema.optional(Schema.Record(ConsumerKey, SnapshotBindingData)),
   maxConcurrency: Schema.Int.check(
     Schema.isGreaterThanOrEqualTo(1),
     Schema.isLessThanOrEqualTo(WorkflowAsset.MAX_PARALLEL),

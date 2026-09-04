@@ -61,6 +61,7 @@ import {
   promptLength,
 } from "./prompt-input/history"
 import { createPromptSubmit, type FollowupDraft } from "./prompt-input/submit"
+import { useSessionSnapshotCommands } from "@/utils/session-commands"
 import { PromptPopover, type AtOption, type SlashCommand } from "./prompt-input/slash-popover"
 import { PromptContextItems } from "./prompt-input/context-items"
 import { PromptImageAttachments } from "./prompt-input/image-attachments"
@@ -339,6 +340,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
   const info = createMemo(() => (props.controls.session.id ? sync().session.get(props.controls.session.id) : undefined))
   const working = createMemo(() => sync().data.session_working(props.controls.session.id ?? ""))
+  // S5 leg 4: the slash popover reads the current Session Snapshot's consumer
+  // command catalog for Custom sessions, never the live command store.
+  const sessionCommands = useSessionSnapshotCommands(info)
   const imageAttachments = createMemo(() =>
     prompt.current().filter((part): part is ImageAttachmentPart => part.type === "image"),
   )
@@ -726,14 +730,29 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         type: "builtin" as const,
       }))
 
-    const custom = sync().data.command.map((cmd) => ({
-      id: `custom.${cmd.name}`,
-      trigger: cmd.name,
-      title: cmd.name,
-      description: cmd.description,
-      type: "custom" as const,
-      source: cmd.source,
-    }))
+    // Custom sessions list only the frozen consumer catalog. The live store is
+    // the source for every other mode; a custom session never falls back to it
+    // (P1-7: commands must be frozen, not merely configured), even while the
+    // snapshot is still loading.
+    const customSource = info()?.mode === "custom" ? (sessionCommands.commands() ?? []) : sync().data.command
+    const custom = customSource.map((cmd) =>
+      "template" in cmd
+        ? {
+            id: `custom.${cmd.name}`,
+            trigger: cmd.name,
+            title: cmd.name,
+            description: cmd.description,
+            type: "custom" as const,
+            source: cmd.source,
+          }
+        : {
+            id: `custom.${cmd.name}`,
+            trigger: cmd.name,
+            title: cmd.name,
+            description: cmd.description,
+            type: "custom" as const,
+          },
+    )
 
     return [...custom, ...builtin]
   })
@@ -1207,6 +1226,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       onQueue: props.onQueue,
       onAbort: props.onAbort,
       onSubmit: props.onSubmit,
+      commands: sessionCommands.commands,
     })
 
   const handleKeyDown = (event: KeyboardEvent) => {

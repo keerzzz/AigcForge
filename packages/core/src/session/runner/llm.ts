@@ -15,6 +15,7 @@ import {
   Effect,
   Exit,
   FiberSet,
+  FileSystem,
   Layer,
   Option,
   Ref,
@@ -66,9 +67,12 @@ import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
 import { SessionStore } from "../store"
 import { SessionComposition } from "../composition"
+import { CompositionConsumerView } from "../../composition/consumer-view"
+import { CommandParse } from "@aigcfroge/schema/command-parse"
 import { AgentProvenanceError, type RunError, Service, SnapshotDriftError } from "./index"
 import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
+import { AttachmentResolver } from "./attachment-resolver"
 import { toLLMMessages } from "./to-llm-message"
 import { MAX_STEPS_PROMPT } from "./max-steps"
 import { isRecord } from "../../util/record"
@@ -137,6 +141,12 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const events = yield* EventV2.Service
+    // Acquired here, not inside the turn: the turn's declared environment is
+    // service-free by design, and a per-turn requirement would ripple into every
+    // Location-scoped layer. Absent FileSystem leaves deferred URIs unresolved,
+    // and `to-llm-message`'s guard still turns them into an explicit marker — so
+    // the user sees a refusal, never a silently dropped attachment.
+    const filesystem = yield* Effect.serviceOption(FileSystem.FileSystem)
     const llm = yield* LLMClient.Service
     const agents = yield* AgentV2.Service
     const tools = yield* ToolRegistry.Service
@@ -500,8 +510,9 @@ export const layer = Layer.effect(
     ) =>
       Effect.gen(function* () {
         const session = yield* store.get(sessionID)
+        const scope = snapshot && session ? CompositionConsumerView.resolveScope(snapshot, session) : undefined
         const [sysContext, skillCtx, refGuidance] = yield* Effect.all(
-          [systemContext.load(), skillGuidance.load(agent, { snapshot }), referenceGuidance.load()],
+          [systemContext.load(), skillGuidance.load(agent, { snapshot, scope }), referenceGuidance.load()],
           { concurrency: "unbounded" },
         )
         let combined = SystemContext.combine([sysContext, skillCtx, refGuidance])
@@ -533,18 +544,28 @@ export const layer = Layer.effect(
           ])
         }
 
-        if (snapshot && snapshot.data.instructions.length > 0) {
-          const customInstructions = snapshot.data.instructions.map((i) => i.content).join("\n\n")
-          combined = SystemContext.combine([
-            combined,
-            SystemContext.make({
-              key: SystemContext.Key.make("core/custom-instructions"),
-              codec: Schema.toCodecJson(Schema.String),
-              load: Effect.succeed(customInstructions),
-              baseline: (content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
-              update: (_previous, content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
-            }),
-          ])
+        if (snapshot) {
+          // Per-consumer instructions only. There is deliberately no fallback to the flat
+          // `data.instructions` array here: for a scoped graph that array spans every consumer, so
+          // falling back would hand a child agent the whole composition's system prompts. An
+          // unresolvable consumer is rejected upstream by runTurnAttempt's binding check.
+          const scopeForInstructions = session
+            ? CompositionConsumerView.resolveScope(snapshot, session)
+            : ({ _tag: "unscoped" } as const)
+          const instr = CompositionConsumerView.getInstructions(snapshot, scopeForInstructions)
+          const customInstructions = instr.length > 0 ? instr.map((i) => i.content).join("\n\n") : undefined
+          if (customInstructions) {
+            combined = SystemContext.combine([
+              combined,
+              SystemContext.make({
+                key: SystemContext.Key.make("core/custom-instructions"),
+                codec: Schema.toCodecJson(Schema.String),
+                load: Effect.succeed(customInstructions),
+                baseline: (content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
+                update: (_previous, content) => `<custom_instructions>\n${content}\n</custom_instructions>`,
+              }),
+            ])
+          }
         }
 
         return combined
@@ -575,6 +596,20 @@ export const layer = Layer.effect(
       // typed error before any context, tool, or provider work (MEDIUM-3a/3b).
       const snapshot = session.mode === "custom" ? yield* readCustomSnapshot(session.id) : undefined
       if (snapshot) {
+        // Fail closed before any context, tool or provider work when the session cannot be mapped
+        // onto a consumer binding. `unresolved` (agent absent from the frozen pool) and a scoped
+        // key with no entry are both rejected; only V1 / pre-binding snapshots are exempt.
+        const scope = CompositionConsumerView.resolveScope(snapshot, session)
+        if (!CompositionConsumerView.isBindingSatisfied(snapshot, scope)) {
+          return yield* new SnapshotDriftError({
+            sessionID,
+            reason: "consumer_binding_missing",
+            details:
+              scope._tag === "unresolved"
+                ? `Agent '${scope.agent}' is not part of the frozen composition pool`
+                : `Missing binding for consumer '${scope._tag === "scoped" ? scope.key : "unknown"}'`,
+          })
+        }
         yield* verifySnapshotMcp(session.id, snapshot)
         yield* verifySnapshotTools(session.id, snapshot)
       }
@@ -614,12 +649,14 @@ export const layer = Layer.effect(
           promoted = yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
           promoted += yield* promoteSkills(session.id, cutoff)
           promoted += yield* promoteSynthetics(session.id, cutoff)
+          promoted += yield* promoteCommands(session.id, cutoff)
         }
         if (promotion === "queue") {
           promoted += Number(yield* SessionInput.promoteNextQueued(db, events, session.id))
           promoted += yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
           promoted += yield* promoteSkills(session.id, cutoff)
           promoted += yield* promoteSynthetics(session.id, cutoff)
+          promoted += yield* promoteCommands(session.id, cutoff)
         }
         if (promoted > 0) currentStep = 1
       }
@@ -628,7 +665,15 @@ export const layer = Layer.effect(
         (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent, session.id, snapshot), session.id))
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
-      const context = entries.map((entry) => entry.message)
+      // D2 (b): deferred `file://` attachments become data URIs here, confined to
+      // the session's Location. This is the last point before the provider where
+      // the filesystem and the Location are both in scope.
+      const rawContext = entries.map((entry) => entry.message)
+      const context = Option.isNone(filesystem)
+        ? rawContext
+        : yield* AttachmentResolver.resolveDeferred(rawContext, session.location.directory).pipe(
+            Effect.provideService(FileSystem.FileSystem, filesystem.value),
+          )
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       // Derive tool-filtering intent from the latest user message, if available.
       const latestUserText = (() => {
@@ -875,13 +920,25 @@ export const layer = Layer.effect(
       // MEDIUM-2b: custom sessions resolve steers against the snapshot-bound skill
       // catalog; out-of-snapshot names publish the standard not-found text.
       const session = yield* store.get(sessionID)
-      const available =
-        session?.mode === "custom"
-          ? CompositionCatalog.createCompositionSkillCatalog(
-              (yield* readCustomSnapshot(sessionID)).data.skills,
-              yield* skills.list(),
-            )
-          : yield* skills.list()
+      const snapshotForSkills = session?.mode === "custom" ? yield* readCustomSnapshot(sessionID) : undefined
+      let available: ReadonlyArray<import("../../skill").SkillV2.Info>
+      if (session?.mode === "custom" && snapshotForSkills) {
+        const scope = CompositionConsumerView.resolveScope(snapshotForSkills, session)
+        if (!CompositionConsumerView.isBindingSatisfied(snapshotForSkills, scope)) {
+          return yield* new SnapshotDriftError({
+            sessionID,
+            reason: "consumer_binding_missing",
+            details:
+              scope._tag === "unresolved"
+                ? `Agent '${scope.agent}' is not part of the frozen composition pool`
+                : `Missing binding for consumer '${scope._tag === "scoped" ? scope.key : "unknown"}'`,
+          })
+        }
+        const perConsumerSkills = CompositionConsumerView.getSkills(snapshotForSkills, scope)
+        available = CompositionCatalog.createCompositionSkillCatalog(perConsumerSkills, yield* skills.list())
+      } else {
+        available = yield* skills.list()
+      }
       for (const admitted of pending) {
         if (admitted.kind !== "skill") continue
         const skill = available.find((candidate) => candidate.name === admitted.skill)
@@ -892,7 +949,7 @@ export const layer = Layer.effect(
         yield* events.publish(SessionEvent.Prompted, {
           sessionID,
           messageID: admitted.id,
-          timestamp: yield* DateTime.now,
+          timestamp: admitted.timeCreated,
           prompt: Prompt.make({ text }),
           delivery: admitted.delivery,
         })
@@ -917,6 +974,99 @@ export const layer = Layer.effect(
       return pending.length
     })
 
+    const promoteCommands = Effect.fn("SessionRunner.promoteCommands")(function* (
+      sessionID: SessionSchema.ID,
+      cutoff: number,
+    ) {
+      const pending = yield* SessionInput.pendingCommandSteers(db, sessionID, cutoff)
+      if (pending.length === 0) return 0
+      // Snapshot commands are a Custom Mode capability (S10 matrix). The frozen
+      // catalog is the only source of truth for expansion; the live command
+      // store and the flat `data.commands` array are never a fallback (P1-7).
+      const session = yield* store.get(sessionID)
+      if (!session) return yield* Effect.die(`Session not found: ${sessionID}`)
+      const snapshot = session.mode === "custom" ? yield* readCustomSnapshot(sessionID) : undefined
+      if (session.mode !== "custom" || snapshot === undefined) {
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "consumer_binding_missing",
+          details: "Command steers require a frozen Custom snapshot",
+        })
+      }
+      const scope = CompositionConsumerView.resolveScope(snapshot, session)
+      if (!CompositionConsumerView.isBindingSatisfied(snapshot, scope)) {
+        return yield* new SnapshotDriftError({
+          sessionID,
+          reason: "consumer_binding_missing",
+          details:
+            scope._tag === "unresolved"
+              ? `Agent '${scope.agent}' is not part of the frozen composition pool`
+              : `Missing binding for consumer '${scope._tag === "scoped" ? scope.key : "unknown"}'`,
+        })
+      }
+      const catalog = CompositionConsumerView.getCommands(snapshot, scope)
+      for (const admitted of pending) {
+        if (admitted.kind !== "command") continue
+        // The frozen entry is matched by its full identity (name + relativePath
+        // + revision), never by name alone: a same-name impostor from a
+        // replaced snapshot must fail closed instead of running new content
+        // under an old admission.
+        const entry = catalog.find(
+          (candidate) =>
+            candidate.name === admitted.command &&
+            candidate.relativePath === admitted.relativePath &&
+            candidate.revision === admitted.revision,
+        )
+        if (!entry || entry.invocation === "") {
+          // Fail closed with the standard not-found text; the frozen body is
+          // never delivered for an entry that is gone or legacy (D6).
+          yield* events.publish(SessionEvent.Prompted, {
+            sessionID,
+            messageID: admitted.id,
+            timestamp: admitted.timeCreated,
+            prompt: Prompt.make({ text: `Command not found: ${admitted.command}` }),
+            delivery: admitted.delivery,
+          })
+          continue
+        }
+        const expanded = CommandParse.expandInvocation({
+          invocation: entry.invocation,
+          argsSchema: entry.args,
+          arguments: admitted.arguments,
+        })
+        if (expanded._tag !== "ok") {
+          yield* events.publish(SessionEvent.Prompted, {
+            sessionID,
+            messageID: admitted.id,
+            timestamp: admitted.timeCreated,
+            prompt: Prompt.make({ text: `Command rejected: ${expanded.error.message}` }),
+            delivery: admitted.delivery,
+          })
+          continue
+        }
+        // Static expansion only: the canonical prompt is a user turn. Shell
+        // fences inside the template stay text and are never executed, and no
+        // agent/model override can enter from the frozen catalog (the frozen
+        // CommandInfo carries no such fields).
+        yield* events.publish(SessionEvent.Prompted, {
+          sessionID,
+          messageID: admitted.id,
+          timestamp: admitted.timeCreated,
+          prompt: Prompt.make({
+            text: expanded.text,
+            ...(admitted.context.files !== undefined && admitted.context.files.length > 0
+              ? { files: admitted.context.files }
+              : {}),
+            ...(admitted.context.agents !== undefined && admitted.context.agents.length > 0
+              ? { agents: admitted.context.agents }
+              : {}),
+          }),
+          delivery: admitted.delivery,
+        })
+      }
+      return pending.length
+    })
+
     const drainShell = Effect.fn("SessionRunner.drainShell")(function* (admitted: SessionInput.Admitted) {
       if (admitted.kind !== "shell") return
       // Fence shell execution to the session's owning Location, mirroring runTurnAttempt.
@@ -924,7 +1074,10 @@ export const layer = Layer.effect(
       // V2 shell policy guard: deny shell in chat mode (defense in depth, shell method
       // also checks this, but drainShell executes independently via the runner loop).
       const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode)
-      if (!commandVerdict.allowed) return yield* Effect.die(commandVerdict.error)
+      if (!commandVerdict.allowed) {
+        yield* Effect.fail(commandVerdict.error)
+        return
+      }
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       // Spawn is interruptible; Shell.Ended is published from an uninterruptible tail so the
@@ -1012,7 +1165,11 @@ export const layer = Layer.effect(
         hasPromptSteer || hasSkillSteer
           ? false
           : yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic")
-      const hasSteer = hasPromptSteer || hasSkillSteer || hasSyntheticSteer
+      const hasCommandSteer =
+        hasPromptSteer || hasSkillSteer || hasSyntheticSteer
+          ? false
+          : yield* SessionInput.hasPending(db, input.sessionID, "steer", "command")
+      const hasSteer = hasPromptSteer || hasSkillSteer || hasSyntheticSteer || hasCommandSteer
       const hasQueue = hasSteer ? false : yield* SessionInput.hasPending(db, input.sessionID, "queue")
       const hasShell = hasQueue ? false : (yield* SessionInput.nextPendingShell(db, input.sessionID)) !== undefined
       if (!input.force && !hasSteer && !hasQueue && !hasShell) return
@@ -1036,7 +1193,8 @@ export const layer = Layer.effect(
               needsContinuation =
                 (yield* SessionInput.hasPending(db, input.sessionID, "steer", "prompt")) ||
                 (yield* SessionInput.hasPending(db, input.sessionID, "steer", "skill")) ||
-                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic"))
+                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "synthetic")) ||
+                (yield* SessionInput.hasPending(db, input.sessionID, "steer", "command"))
           }
         }
         // Drain queued shell inputs at the idle boundary.

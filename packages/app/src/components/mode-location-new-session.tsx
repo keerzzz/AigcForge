@@ -54,7 +54,9 @@ export function ModeLocationNewSession(props: { directory: Accessor<string | und
   }
 
   return (
-    <div class="flex min-h-0 shrink-0 flex-col">
+    // The mode is carried into the DOM because Work and Assistant both render this
+    // component, so nothing else in their sidebars tells the two apart.
+    <div data-mode-location={props.mode} class="flex min-h-0 shrink-0 flex-col">
       <div class="flex items-center gap-1.5 border-b border-v2-border-border-base px-3 pb-3 pt-3">
         <Icon name={`mode-${props.mode}`} size="small" class="shrink-0 text-v2-icon-icon-muted" />
         <span class="shrink-0 text-v2-text-text-muted text-11-regular">{language.t("chat.feature.project")}</span>

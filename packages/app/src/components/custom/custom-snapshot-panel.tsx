@@ -9,35 +9,14 @@ import { useServer, ServerConnection } from "@/context/server"
 import { launchModeSession } from "@/pages/layout/helpers"
 import { useCustomDraft } from "@/context/custom-draft"
 import { showToast } from "@/utils/toast"
-import { Schema } from "effect"
-import { Snapshot } from "@aigcfroge/schema/composition"
+import type { Snapshot } from "@aigcfroge/schema/composition"
+import { decodeSnapshotResponse } from "@/utils/snapshot-decode"
 import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
+import { classifySnapshotFailure, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
 
 export interface CustomSessionPanelProps {
   sessionID?: string
   directory?: string
-}
-
-function parseErrorDetails(err: unknown): { status?: number; message?: string } {
-  if (typeof err === "object" && err !== null) {
-    const status = "status" in err && typeof err.status === "number" ? err.status : undefined
-    const message = "message" in err && typeof err.message === "string" ? err.message : undefined
-    return { status, message }
-  }
-  return { message: String(err) }
-}
-
-const decodeSnapshot = Schema.decodeUnknownOption(Snapshot)
-
-function extractSnapshot(data: unknown): Snapshot | undefined {
-  if (typeof data !== "object" || data === null) return undefined
-  const directDecoded = decodeSnapshot(data)
-  if (directDecoded._tag === "Some") return directDecoded.value
-  if ("snapshot" in data) {
-    const nestedDecoded = decodeSnapshot((data as { snapshot: unknown }).snapshot)
-    if (nestedDecoded._tag === "Some") return nestedDecoded.value
-  }
-  return undefined
 }
 
 export function CustomSessionPanel(props: CustomSessionPanelProps) {
@@ -52,25 +31,53 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   const [upgradeError, setUpgradeError] = createSignal<string | undefined>()
   const [copied, setCopied] = createSignal(false)
 
-  // Fetch snapshot for the session
-  const [snapshot] = createResource(
+  // Fetch snapshot for the session. `throwOnError: true` so the status reaches
+  // `classifySnapshotFailure`: only a 404 means "this session has no snapshot", and
+  // the panel must not render a 400 (a snapshot the server could not decode) or a
+  // dropped connection as the same thing. See custom-plan-state.ts (P2-11).
+  const [snapshotFetch] = createResource(
     () => ({ sessionID: props.sessionID, directory: props.directory }),
-    async (source): Promise<Snapshot | undefined> => {
-      if (!source.sessionID) return undefined
+    async (source): Promise<SnapshotFetch<Snapshot>> => {
+      if (!source.sessionID) return { state: "absent" }
       try {
         const s = sdk()
-        const res = await s.client.session.composition({ sessionID: source.sessionID }, { throwOnError: false })
-        return extractSnapshot(res.data)
-      } catch {
-        return undefined
+        const res = await s.client.session.composition({ sessionID: source.sessionID }, { throwOnError: true })
+        const decoded = decodeSnapshotResponse(res.data)
+        if (decoded === undefined) {
+          // 2xx whose body is not a Snapshot: server/client schema drift, not an
+          // absent composition.
+          return { state: "failed", message: language.t("custom.snapshot.undecodable") }
+        }
+        return { state: "ready", snapshot: decoded }
+      } catch (err: unknown) {
+        return classifySnapshotFailure(err)
       }
     },
   )
+
+  const snapshot = createMemo(() => {
+    const fetched = snapshotFetch.latest
+    return fetched?.state === "ready" ? fetched.snapshot : undefined
+  })
+  const snapshotError = createMemo(() => {
+    const fetched = snapshotFetch.latest
+    return fetched?.state === "failed" ? fetched.message : undefined
+  })
 
   const digest = createMemo(() => snapshot()?.digest ?? "")
   const snapshotV2 = createMemo(() => {
     const s = snapshot()
     return s && s.version === 2 ? s : undefined
+  })
+
+  // Commands are consumer-bound in the V2 binding graph; the panel shows each
+  // command next to the consumer it is frozen for (S5 leg 4).
+  const commandEntries = createMemo(() => {
+    const snap = snapshot()
+    if (!snap || snap.version !== 2) return []
+    return Object.entries(snap.data.bindings ?? {}).flatMap(([consumer, binding]) =>
+      binding.commands.map((command) => ({ consumer, command })),
+    )
   })
 
   function handleCopyDigest() {
@@ -154,6 +161,16 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         </div>
       </Show>
 
+      {/* A failed composition read is reported; only a 404 renders as "no snapshot" */}
+      <Show when={snapshotError()}>
+        {(message) => (
+          <div class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-3 text-12-regular text-v2-state-fg-danger">
+            <Icon name="warning" size="small" class="shrink-0" />
+            <span class="min-w-0 flex-1">{language.t("custom.snapshot.loadFailed", { message: message() })}</span>
+          </div>
+        )}
+      </Show>
+
       <WorkflowRuntimePanel sessionID={props.sessionID} />
 
       {/* Snapshot Metadata Cards */}
@@ -176,17 +193,18 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           <span class="font-mono text-12-regular text-v2-text-text-base break-all select-all">{digest() || "-"}</span>
         </div>
 
-        {/* Agent ID */}
+        {/* Root agent, as frozen. Custom's root is protocol-fixed (D3), so this
+            reports what the snapshot holds and never falls back to draft state. */}
         <div class="flex items-center justify-between rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
           <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-            {language.t("custom.builder.primaryAgent")}
+            {language.t("custom.snapshot.rootAgent")}
           </span>
           <span class="font-mono text-12-medium text-blue-400">
             {(() => {
               const snap = snapshot()
-              if (!snap) return draft.state.primaryAgent ?? "coder"
+              if (!snap) return "-"
               if (snap.version === 1) return snap.data.agentID
-              return snap.data.agents[0]?.name ?? snap.data.agents[0]?.id ?? draft.state.primaryAgent ?? "coder"
+              return snap.data.agents[0]?.name ?? snap.data.agents[0]?.id ?? "-"
             })()}
           </span>
         </div>
@@ -275,6 +293,32 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
                   <span class="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 font-mono text-11-regular text-emerald-300">
                     {skill.name}
                   </span>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+
+        {/* Commands list (per consumer binding) */}
+        <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+          <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+            {language.t("custom.sidebar.commands")} ({commandEntries().length})
+          </span>
+          <Show
+            when={commandEntries().length > 0}
+            fallback={
+              <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.sidebar.noCommands")}</span>
+            }
+          >
+            <div class="flex flex-col gap-1.5">
+              <For each={commandEntries()}>
+                {(entry) => (
+                  <div class="flex items-center justify-between rounded bg-v2-background-bg-layer-01 px-2 py-1 text-11-regular border border-v2-border-border-faint">
+                    <span class="font-medium text-v2-text-text-base">{entry.command.name}</span>
+                    <span class="font-mono text-10-regular text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded">
+                      {entry.consumer}
+                    </span>
+                  </div>
                 )}
               </For>
             </div>

@@ -10,13 +10,26 @@ import {
 import { SessionMessage } from "../message"
 import type { FileAttachment } from "../prompt"
 
-const media = (file: FileAttachment): ContentPart => ({
-  type: "media",
-  mediaType: file.mime,
-  data: file.uri,
-  filename: file.name,
-  metadata: file.description === undefined ? undefined : { description: file.description },
-})
+const media = (file: FileAttachment): ContentPart => {
+  // Lowering guard (S4 debt): only data: URIs are provider-lowerable media.
+  // Anything else (file://, http(s), resource:) must never reach a provider's
+  // base64 validator — the adapter materializes at admission, but any future
+  // path that writes a raw URI into a FileAttachment would otherwise surface
+  // as a cryptic provider error. Fail closed to an explicit text marker.
+  if (!file.uri.startsWith("data:")) {
+    return {
+      type: "text",
+      text: `[Attachment omitted: ${file.name ?? file.uri} is not provider-lowerable media]`,
+    }
+  }
+  return {
+    type: "media",
+    mediaType: file.mime,
+    data: file.uri,
+    filename: file.name,
+    metadata: file.description === undefined ? undefined : { description: file.description },
+  }
+}
 
 const toolInput = (tool: SessionMessage.AssistantTool) => {
   if (tool.state.status !== "pending") return tool.state.input

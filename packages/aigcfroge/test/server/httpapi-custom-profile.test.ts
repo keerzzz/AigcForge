@@ -113,4 +113,31 @@ describe("custom profile HttpApi", () => {
     expect(body.relativePath).toBe("to-delete.yaml")
     expect(body.referencingProfiles).toHaveLength(0)
   })
+
+  test("returns 404 for a missing profile instead of disguising it as 400", async () => {
+    await using tmp = await tmpdir({ git: true })
+
+    // S7: missing profile is a 404 (plan: "missing 404"), not a generic 400.
+    const contentResponse = await request(
+      `${CustomProfileApiGroup.CustomProfilePaths.content}?path=missing.yaml`,
+      tmp.path,
+    )
+    expect(contentResponse.status).toBe(404)
+    expect(await contentResponse.json()).toMatchObject({ name: "NotFoundError" })
+
+    const sessionRes = await request("/session", tmp.path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "chat" }),
+    })
+    const session = Schema.decodeUnknownSync(Schema.Struct({ id: Schema.String }))(await sessionRes.json())
+
+    const deleteResponse = await request(`/session/${session.id}/custom-profile/delete`, tmp.path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ relativePath: "missing.yaml" }),
+    })
+    expect(deleteResponse.status).toBe(404)
+    expect(await deleteResponse.json()).toMatchObject({ name: "NotFoundError" })
+  })
 })

@@ -6,11 +6,15 @@ import { Config } from "@/config/config"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ShareNext } from "./share-next"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 
 export interface Interface {
   readonly create: (
     input?: Session.CreateInput,
-  ) => Effect.Effect<Session.Info, ProductModePolicy.UnsupportedProductModeError>
+  ) => Effect.Effect<
+    Session.Info,
+    ProductModePolicy.UnsupportedProductModeError | ProductModeAgentPolicy.AgentNotAllowedError
+  >
   readonly share: (sessionID: SessionID) => Effect.Effect<{ url: string }, unknown>
   readonly unshare: (sessionID: SessionID) => Effect.Effect<void, unknown>
 }

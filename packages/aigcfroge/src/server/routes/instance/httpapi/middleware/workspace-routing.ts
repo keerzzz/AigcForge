@@ -1,4 +1,6 @@
 import { WorkspaceV2 } from "@aigcfroge/core/workspace"
+import { Location } from "@aigcfroge/core/location"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import type { Target } from "@/control-plane/types"
 import { Workspace } from "@/control-plane/workspace"
 import { WorkspaceAdapterRuntime } from "@/control-plane/workspace-adapter-runtime"
@@ -49,6 +51,24 @@ export class WorkspaceRouteContext extends Context.Service<
     readonly workspaceID?: WorkspaceV2.ID
   }
 >()("@aigcfroge/ExperimentalHttpApiWorkspaceRouteContext") {}
+
+// S7 GREEN 4: build the full Location.Ref (directory + workspaceID) from a
+// routed WorkspaceRouteContext. route.directory may be URL-encoded (it comes
+// from the x-aigcfroge-directory header / directory query param in the
+// non-session case), so it is decoded here — same convention as the
+// instance-context middleware.
+export function locationRefForRoute(route: { directory: string; workspaceID?: WorkspaceV2.ID }) {
+  let directory = route.directory
+  try {
+    directory = decodeURIComponent(route.directory)
+  } catch {
+    // keep the raw value when it is not valid percent-encoding
+  }
+  return Location.Ref.make({
+    directory: AbsolutePath.make(directory),
+    ...(route.workspaceID ? { workspaceID: route.workspaceID } : {}),
+  })
+}
 
 export class WorkspaceRoutingMiddleware extends HttpApiMiddleware.Service<
   WorkspaceRoutingMiddleware,

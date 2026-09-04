@@ -130,7 +130,7 @@ describe("Session Fork ProductMode Gate", () => {
   )
 
   it.instance(
-    "V2 fork hides orphan custom parents from old clients and reports missing snapshots to capable clients",
+    "V2 fork rejects orphan custom parents as unsupported for old clients and reports missing snapshots to capable clients",
     () =>
       Effect.gen(function* () {
         yield* enableCustomMode
@@ -139,9 +139,16 @@ describe("Session Fork ProductMode Gate", () => {
         const orphan = yield* Session.use.create({ title: "legacy custom parent" })
         yield* markCustom(orphan.id)
 
+        // Not 404. S7 made capability-missing a typed unsupported-mode error on BOTH the
+        // canonical and the legacy surface (`requireSessionAndCapability` in
+        // packages/server, `requireSession` in the legacy adapter), so 404 now means only
+        // "no such session". The capability header is client compatibility negotiation,
+        // not authorization — the same user owns both clients — so hiding an existing
+        // session behind a 404 bought nothing and made an upgraded client's history
+        // confusing. The first test in this file pins the identical shape on V1.
         const hidden = yield* post(`/api/session/${orphan.id}/fork`, test.directory, {})
-        expect(hidden.status).toBe(404)
-        expect(yield* hidden.json).toMatchObject({ _tag: "SessionNotFoundError", sessionID: orphan.id })
+        expect(hidden.status).toBe(400)
+        expect(yield* hidden.json).toMatchObject({ _tag: "UnsupportedProductModeError", mode: "custom" })
 
         const rejected = yield* post(`/api/session/${orphan.id}/fork`, test.directory, {}, true)
         expect(rejected.status).toBe(400)

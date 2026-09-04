@@ -118,6 +118,7 @@ describe("PromptAssetService.apply creates", () => {
       const mockEvents = Layer.succeed(
         EventV2.Service,
         EventV2.Service.of({
+          publishBatch: () => Effect.succeed([]),
           publish: (definition: any, data: any) =>
             Effect.sync(() => {
               published.push({ type: definition.type, data })

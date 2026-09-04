@@ -139,4 +139,4 @@ ModeSwitcher / SecondarySidebar / StatusBar / 路由 / 同步 / 通知 / 空 loa
 1. **主区 Slot 扩充**：`ModeWorkspace` 主区 typed slot 扩充第五项：
    - `Custom` | 组合工作台（Profile 列表 + 组合 Builder + 依赖/权限/指令预览） | ADR-17: Custom 核心对象=资产组合配置 (`custom-profile`)
 2. **保持外壳共享与零闪烁**：Custom slot 严格遵守本 ADR 的外壳共享、Resource 上提与 `render-all + display:none` 不 remount 原则，严禁为 Custom 创建平行的页面 Shell。
-3. **现行基准**：在 M0 Phase B 与后续 App gate 完成前，本 ADR §决策 1 的四模式 Slot 注册表仍为生产运行时的有效规范。
+3. **现行基准**：~~在 M0 Phase B 与后续 App gate 完成前，本 ADR §决策 1 的四模式 Slot 注册表仍为生产运行时的有效规范。~~ **已 superseded（2026-09-03 复核）**：五档 Slot 注册表已是生产事实（`MODE_DEFINITIONS` 的 `surface` 字段，`packages/app/src/context/mode.tsx:6`），Custom slot 与其余四个同构挂在 `ModeWorkspace` 下。§决策 1 的四模式表作为历史论证保留。**本条 2 的外壳共享约束仍然有效且已被门禁覆盖**：`e2e/regression/mode-surface-wiring.spec.ts` 钉住「切模式只移动可见 slot，不 unmount 其余」，`pages/mode-slot-active.ts` 的 `whenActive` 保证隐藏 slot 不发请求。

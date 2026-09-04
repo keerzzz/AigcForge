@@ -29,6 +29,7 @@ import { ProductModePolicy } from "./product-mode-policy"
 import { ProjectTable } from "./project/sql"
 import { SessionComposition } from "./session/composition"
 import { CompositionResolver } from "./composition-resolver"
+import { CompositionConsumerView } from "./composition/consumer-view"
 import { LocationServiceMap } from "./location-layer"
 import path from "path"
 import { fromRow } from "./session/info"
@@ -127,6 +128,19 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   messageID: SessionMessage.ID,
 }) {}
 
+export class CommandUnavailableError extends Schema.TaggedErrorClass<CommandUnavailableError>()(
+  "Session.CommandUnavailableError",
+  {
+    sessionID: SessionSchema.ID,
+    command: Schema.String,
+    reason: Schema.Literals(["not-custom", "unbound", "ambiguous", "legacy"]),
+  },
+) {
+  override get message() {
+    return `Command ${this.command} is unavailable for session ${this.sessionID}: ${this.reason}`
+  }
+}
+
 export class SyntheticConflictError extends Schema.TaggedErrorClass<SyntheticConflictError>()(
   "Session.SyntheticConflictError",
   {
@@ -156,6 +170,7 @@ export type Error =
   | MessageDecodeError
   | OperationUnavailableError
   | PromptConflictError
+  | CommandUnavailableError
   | SyntheticConflictError
   | UpgradeSourceModeError
   | SessionBusyError
@@ -173,6 +188,7 @@ export interface Interface {
   ) => Effect.Effect<
     SessionSchema.Info,
     | ProductModePolicy.UnsupportedProductModeError
+    | ProductModeAgentPolicy.AgentNotAllowedError
     | PromptConflictError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError
@@ -230,6 +246,7 @@ export interface Interface {
     void,
     | NotFoundError
     | ProductModePolicy.UnsupportedProductModeError
+    | ProductModeAgentPolicy.AgentNotAllowedError
     | SessionComposition.AgentDelegationForbiddenError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError
@@ -244,6 +261,28 @@ export interface Interface {
     messageID: SessionMessage.ID
   }) => Effect.Effect<void, NotFoundError>
   readonly setTitle: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
+  /**
+   * S2: selection + input in one all-or-nothing request, so a client never has
+   * to compose "switch, then send" across two calls and be left half-applied.
+   */
+  readonly admitWithSelection: (input: {
+    id?: SessionMessage.ID
+    sessionID: SessionSchema.ID
+    prompt: Prompt
+    delivery?: SessionInput.Delivery
+    resume?: boolean
+    agent?: string
+    model?: ModelV2.Ref
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    | NotFoundError
+    | PromptConflictError
+    | ProductModeAgentPolicy.AgentNotAllowedError
+    | SessionComposition.AgentDelegationForbiddenError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
   readonly prompt: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
@@ -267,6 +306,7 @@ export interface Interface {
     SessionInput.Admitted,
     | NotFoundError
     | PromptConflictError
+    | ProductModeAgentPolicy.CommandDeniedError
     | ProductModePolicy.UnsupportedProductModeError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError
@@ -280,6 +320,22 @@ export interface Interface {
     SessionInput.Admitted,
     | NotFoundError
     | PromptConflictError
+    | ProductModePolicy.UnsupportedProductModeError
+    | SessionComposition.SnapshotNotFoundError
+    | SessionComposition.SnapshotDecodeError
+  >
+  readonly command: (input: {
+    id?: SessionMessage.ID
+    sessionID: SessionSchema.ID
+    command: string
+    arguments?: string
+    context?: Prompt
+    resume?: boolean
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    | NotFoundError
+    | PromptConflictError
+    | CommandUnavailableError
     | ProductModePolicy.UnsupportedProductModeError
     | SessionComposition.SnapshotNotFoundError
     | SessionComposition.SnapshotDecodeError
@@ -697,6 +753,132 @@ export const layer = Layer.effect(
           }),
         ),
       ),
+      /**
+       * S2: one request that carries selection AND an input, all-or-nothing.
+       *
+       * Everything that can be rejected is decided BEFORE the first durable
+       * write, so a rejected request leaves the session exactly as it was. That
+       * is the defect this replaces: `admitCanonical` committed switchAgent,
+       * then switchModel, then the prompt as three independent commits, so a
+       * prompt the server went on to reject still left the session on a
+       * different agent, and an abort between the writes produced a selection
+       * combination nobody asked for.
+       *
+       * Selection is also idempotent here: re-applying the agent the session
+       * already holds appends no event. The V1 path guarded that
+       * (`prompt.ts` compared against `current.agent`); the S4 adapter dropped
+       * the guard and wrote one AgentSwitched per request.
+       *
+       * Remaining window, deliberately not closed here: a crash BETWEEN the
+       * selection events and the inbox insert still leaves selection applied.
+       * Closing it needs an EventV2 batch primitive that commits N durable
+       * events in one transaction and defers every notification until after
+       * that commit — nesting today's `publish` calls inside an outer
+       * transaction would notify subscribers about events that can still roll
+       * back. Tracked in docs/technical-debt.md.
+       */
+      admitWithSelection: Effect.fn("V2Session.admitWithSelection")((input) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            const session = yield* result.get(input.sessionID)
+            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+            if (session.mode === "custom") {
+              yield* sessionComposition.get(input.sessionID)
+            }
+
+            const messageID = input.id ?? SessionMessage.ID.create()
+            const delivery = input.delivery ?? "steer"
+            const expected = { sessionID: input.sessionID, messageID, prompt: input.prompt, delivery }
+
+            // Validate the input against any row that already holds this ID
+            // before touching selection, so a conflict cannot leave the session
+            // switched. `admit` is idempotent, but it runs after selection.
+            const existing = yield* SessionInput.find(db, messageID)
+            if (existing !== undefined && !SessionInput.equivalent(existing, expected)) {
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            }
+
+            // Validate selection through the same owners `switchAgent` uses.
+            const nextAgent =
+              input.agent !== undefined && input.agent !== session.agent ? AgentV2.ID.make(input.agent) : undefined
+            if (nextAgent !== undefined) {
+              if (session.mode === "custom") {
+                yield* sessionComposition.assertAgentAllowed(input.sessionID, nextAgent)
+              }
+              // Custom children legitimately hold non-primary agents (R6-3);
+              // every other session keeps the five-mode primary gate.
+              if (!(session.mode === "custom" && session.parentID !== undefined)) {
+                yield* ProductModeAgentPolicy.enforcePrimary(session.mode, nextAgent)
+              }
+            }
+            const nextModel =
+              input.model !== undefined &&
+              (session.model?.id !== input.model.id ||
+                session.model?.providerID !== input.model.providerID ||
+                session.model?.variant !== input.model.variant)
+                ? input.model
+                : undefined
+
+            // One transaction for selection AND the input. Projectors run inside
+            // it, so the session row updates and the inbox insert land together
+            // or not at all, and no subscriber hears about any of it until the
+            // whole batch has committed.
+            const timestamp = yield* DateTime.now
+            const admitted =
+              existing ??
+              (yield* Effect.gen(function* () {
+                const committed = yield* events.publishBatch([
+                  ...(nextAgent === undefined
+                    ? []
+                    : [
+                        EventV2.batchEntry(SessionEvent.AgentSwitched, {
+                          sessionID: input.sessionID,
+                          messageID: SessionMessage.ID.create(),
+                          timestamp,
+                          agent: nextAgent,
+                        }),
+                      ]),
+                  ...(nextModel === undefined
+                    ? []
+                    : [
+                        EventV2.batchEntry(SessionEvent.ModelSwitched, {
+                          sessionID: input.sessionID,
+                          messageID: SessionMessage.ID.create(),
+                          timestamp,
+                          model: nextModel,
+                        }),
+                      ]),
+                  EventV2.batchEntry(SessionEvent.PromptAdmitted, {
+                    messageID,
+                    sessionID: input.sessionID,
+                    timestamp,
+                    prompt: input.prompt,
+                    delivery,
+                  }),
+                ])
+                const promoted = committed.find((event) => event.type === SessionEvent.PromptAdmitted.type)
+                if (promoted?.durable === undefined) {
+                  return yield* Effect.die("Prompt admission event is missing aggregate sequence")
+                }
+                return SessionInput.Admitted.make({
+                  kind: "prompt",
+                  admittedSeq: promoted.durable.seq,
+                  id: messageID,
+                  sessionID: input.sessionID,
+                  prompt: input.prompt,
+                  delivery,
+                  timeCreated: timestamp,
+                })
+              }))
+            if (!SessionInput.equivalent(admitted, expected))
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            // One request, one wake — and an exact retry wakes nothing, because
+            // the row it would have created already existed.
+            if (existing === undefined && input.resume !== false) yield* execution.wake(admitted.sessionID)
+            return admitted
+          }),
+        ),
+      ),
       shell: Effect.fn("V2Session.shell")((input) =>
         Effect.uninterruptible(
           Effect.gen(function* () {
@@ -707,7 +889,7 @@ export const layer = Layer.effect(
             }
             // V2 shell policy guard: deny shell in chat mode
             const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode ?? "coding")
-            if (!commandVerdict.allowed) return yield* Effect.die(commandVerdict.error)
+            if (!commandVerdict.allowed) return yield* commandVerdict.error
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery: SessionInput.Delivery = "queue"
             const expected = { sessionID: input.sessionID, messageID, command: input.command, delivery }
@@ -758,6 +940,99 @@ export const layer = Layer.effect(
           }),
         ),
       ),
+      command: Effect.fn("V2Session.command")((input) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            const session = yield* result.get(input.sessionID)
+            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+            // Snapshot commands are a Custom Mode capability (S10 matrix). Every
+            // other mode must fail closed: a live-store name is not a frozen
+            // catalog entry, so it must never inherit Custom runtime behavior.
+            if (session.mode !== "custom") {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "not-custom",
+              })
+            }
+            const snapshot = yield* sessionComposition.get(input.sessionID)
+            const scope = CompositionConsumerView.resolveScope(snapshot, session)
+            // Fail closed on any consumer that cannot be mapped onto the frozen
+            // binding graph; the flat arrays are never a fallback (D5-A).
+            if (!CompositionConsumerView.isBindingSatisfied(snapshot, scope)) {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "unbound",
+              })
+            }
+            const catalog = CompositionConsumerView.getCommands(snapshot, scope)
+            const matches = catalog.filter((entry) => entry.name === input.command)
+            if (matches.length === 0) {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "unbound",
+              })
+            }
+            if (matches.length > 1) {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "ambiguous",
+              })
+            }
+            const entry = matches[0]
+            // D6: a legacy snapshot decodes invocation to "" and must fail
+            // closed instead of inheriting execution ability.
+            if (entry.invocation === "") {
+              return yield* new CommandUnavailableError({
+                sessionID: input.sessionID,
+                command: input.command,
+                reason: "legacy",
+              })
+            }
+            const messageID = input.id ?? SessionMessage.ID.create()
+            const delivery: SessionInput.Delivery = "steer"
+            const expected = {
+              sessionID: input.sessionID,
+              messageID,
+              command: entry.name,
+              relativePath: entry.relativePath,
+              revision: entry.revision,
+              consumer: scope._tag === "scoped" ? scope.key : "orchestrator",
+              arguments: input.arguments ?? "",
+              context: input.context ?? Prompt.make({ text: "" }),
+              snapshotDigest: snapshot.digest,
+              delivery,
+            }
+            const admission = yield* SessionInput.admitCommand(db, events, {
+              id: messageID,
+              sessionID: input.sessionID,
+              command: expected.command,
+              relativePath: expected.relativePath,
+              revision: expected.revision,
+              consumer: expected.consumer,
+              arguments: expected.arguments,
+              context: expected.context,
+              snapshotDigest: expected.snapshotDigest,
+              delivery: expected.delivery,
+            }).pipe(
+              Effect.catchDefect((defect) =>
+                defect instanceof SessionInput.LifecycleConflict
+                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                  : Effect.die(defect),
+              ),
+            )
+            if (!SessionInput.equivalentCommand(admission.admitted, expected))
+              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+            // Exact retry with the same message ID creates no second row and no
+            // second wake: the wake fires only for a fresh admission.
+            if (admission.created && input.resume !== false) yield* execution.wake(input.sessionID)
+            return admission.admitted
+          }),
+        ),
+      ),
       switchAgent: Effect.fn("V2Session.switchAgent")(function* (input) {
         const session = yield* result.get(input.sessionID)
         yield* ProductModePolicy.assertRuntimeSupported(session.mode)
@@ -766,6 +1041,15 @@ export const layer = Layer.effect(
         // allowlist that guards `create` and delegated dispatch.
         if (session.mode === "custom") {
           yield* sessionComposition.assertAgentAllowed(input.sessionID, input.agent)
+        }
+        // P1-4: enforce the five-mode primary-agent policy at switch time for
+        // every session except custom children. Custom children legitimately
+        // hold non-primary agents (R6-3: authorized at creation against the
+        // parent Snapshot allowlist), so they keep the pool check only. Custom
+        // roots must stay `meta`; without this gate a post-creation swap would
+        // persist an agent that bricks the next provider turn.
+        if (!(session.mode === "custom" && session.parentID !== undefined)) {
+          yield* ProductModeAgentPolicy.enforcePrimary(session.mode, input.agent)
         }
         yield* events.publish(SessionEvent.AgentSwitched, {
           sessionID: input.sessionID,
@@ -818,6 +1102,10 @@ export const layer = Layer.effect(
       }),
       resume: Effect.fn("V2Session.resume")(function* (sessionID) {
         const session = yield* result.get(sessionID)
+        // D12 (S3): same kill-switch gate as the drain — resume must not be a
+        // silent no-op when custom mode is off; the HTTP layer maps the typed
+        // UnsupportedProductModeError to 400.
+        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
         if (session.mode === "custom") {
           yield* sessionComposition.get(sessionID)
         }

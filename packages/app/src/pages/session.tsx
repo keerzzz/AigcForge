@@ -34,6 +34,8 @@ import { useLocation, useSearchParams, useNavigate } from "@solidjs/router"
 import { NewSessionView, SessionHeader, createGitState, GitStatusBar, GitCommitBar } from "@/components/session"
 import { useComments } from "@/context/comments"
 import { useServerSync } from "@/context/server-sync"
+import { executeHandoff, handoffAuthorizationKey, planHandoff } from "@aigcfroge/schema/handoff"
+import { confirmHandoffEscalation } from "@/pages/session/handoff-confirm"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { usePrompt, type ContentPart } from "@/context/prompt"
@@ -43,6 +45,7 @@ import { useSettings } from "@/context/settings"
 import { useSync } from "@/context/sync"
 import { useTerminal } from "@/context/terminal"
 import { type FollowupDraft, sendFollowupDraft } from "@/components/prompt-input/submit"
+import { useSessionSnapshotCommands } from "@/utils/session-commands"
 import { createSessionComposerState, SessionComposerRegion } from "@/pages/session/composer"
 import {
   createOpenReviewFile,
@@ -66,7 +69,6 @@ import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
-import { sessionHref, requireServerKey } from "@/utils/session-route"
 import { useChatWorkspace } from "@/context/chat-workspace"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
@@ -255,6 +257,7 @@ export default function Page() {
   }
 
   const info = createMemo(() => (params.id ? sync().session.get(params.id) : undefined))
+  const sessionCommands = useSessionSnapshotCommands(info)
   const isChildSession = createMemo(() => !!info()?.parentID)
   const canReview = createMemo(() => !!sync().project)
   const reviewTab = createMemo(() => isDesktop())
@@ -329,6 +332,15 @@ export default function Page() {
       paused: {},
       edit: {},
     }),
+  )
+
+  // D13 `always`: grants remembered after an escalated handoff confirmation,
+  // keyed by the exact handoff configuration. The storage
+  // is workspace-scoped (per directory), so one project's grants never leak
+  // into another (the custom-draft single-global-key bug is not copied here).
+  const [handoffGrants, setHandoffGrants] = persisted(
+    Persist.serverWorkspace(serverSDK().scope, sdk().directory, "handoff-grants", ["handoff-grants.v1"]),
+    createStore<string[]>([]),
   )
 
   createComputed((prev) => {
@@ -1388,6 +1400,7 @@ export default function Page() {
         serverSync: serverSync(),
         draft: item,
         optimisticBusy: item.sessionDirectory === sdk().directory,
+        commands: sessionCommands.commands,
       }).catch((err) => {
         setFollowup("failed", input.sessionID, input.id)
         fail(err)
@@ -1569,30 +1582,83 @@ export default function Page() {
       .map((item) => ({ id: item.id, text: line(item.id) }))
   })
 
-  const handoff = async (agent: string, prompt: string) => {
+  const handoff = async (label: string, agent: string, promptText: string, send?: boolean) => {
     const sessionID = params.id
     if (!sessionID) return
 
+    // D13 (S3): handoff = switchAgent + prompt on the SAME session, never a
+    // fork. The plan is computed from the PRE-switch state and decides whether
+    // the switch may happen at all — the agent is what carries the permissions,
+    // so an escalating handoff must not switch and then ask.
+    const sessionInfo = info()
+    const agents = sync().data.agent ?? []
+    // D13 `always`: a grant remembered for this (location, label, agent) makes
+    // planHandoff return the switch action directly, skipping the confirm. The
+    // grant storage is workspace-scoped, and the key embeds the location, so a
+    // grant from one project never authorizes the same handoff elsewhere.
+    const location = sdk().directory
+    const session = {
+      mode: sessionInfo?.mode,
+      tier: sessionInfo?.permissionTier,
+      attended: sessionInfo?.attended,
+    } as const
+    const currentRules = agents.find((a) => a.name === sessionInfo?.agent)?.permission ?? []
+    const targetRules = agents.find((a) => a.name === agent)?.permission ?? []
+    const authorized = new Set(handoffGrants)
+    const plan = planHandoff({
+      session,
+      currentAgent: sessionInfo?.agent,
+      targetAgent: agent,
+      currentRules,
+      targetRules,
+      send,
+      location,
+      label,
+      prompt: promptText,
+      authorized,
+    })
+
     try {
-      const result = await sdk().client.v2.session.fork({
-        sessionID,
-        prompt,
-        agent,
+      await executeHandoff(plan, {
+        // One request carries the switch and the message (S2): two calls would
+        // leave the session switched with nothing sent when the second fails.
+        submit: async () => {
+          await sdk().client.v2.session.prompt({
+            sessionID,
+            agent,
+            prompt: { text: promptText },
+            delivery: "steer",
+            resume: true,
+          })
+        },
+        switchAgent: async () => {
+          await sdk().client.v2.session.switchAgent({ sessionID, agent })
+        },
+        prefill: () =>
+          prompt.set([{ type: "text", content: promptText, start: 0, end: promptText.length }], promptText.length),
+        confirm: async () => {
+          const result = await confirmHandoffEscalation(dialog, language, agent)
+          if (result.approved && result.remember) {
+            const grant = handoffAuthorizationKey({
+              location,
+              session,
+              sourceAgent: sessionInfo?.agent,
+              label,
+              targetAgent: agent,
+              prompt: promptText,
+              currentRules,
+              targetRules,
+            })
+            if (!handoffGrants.includes(grant)) setHandoffGrants([...handoffGrants, grant])
+          }
+          return result.approved
+        },
+        reject: () =>
+          showToast({
+            title: language.t("session.handoff.declined.title"),
+            description: language.t("session.handoff.declined.description"),
+          }),
       })
-
-      const childID = result.data?.sessionID
-      if (!childID) {
-        showToast({
-          title: language.t("common.requestFailed"),
-          description: language.t("session.handoff.failed"),
-        })
-        return
-      }
-
-      const key = params.serverKey
-      if (!key) return
-
-      navigate(sessionHref(requireServerKey(key), childID))
     } catch (err) {
       showToast({
         title: language.t("common.requestFailed"),

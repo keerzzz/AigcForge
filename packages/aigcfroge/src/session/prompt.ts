@@ -6,6 +6,7 @@ import os from "os"
 import { SessionID, MessageID, PartID } from "./schema"
 import { MessageV2 } from "./message-v2"
 import { SessionRevert } from "./revert"
+import { DecodeDiagnostic } from "./decode-diagnostic"
 import { Session } from "./session"
 import { Agent } from "../agent/agent"
 import { Provider } from "@/provider/provider"
@@ -56,6 +57,9 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionInput } from "@aigcfroge/core/session/input"
+import { PromptParts } from "./prompt-parts"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { ProviderV2 } from "@aigcfroge/core/provider"
@@ -73,14 +77,8 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 
 const decodeMessageInfo = Schema.decodeUnknownExit(SessionV1.Info)
 const decodeMessagePart = Schema.decodeUnknownExit(SessionV1.Part)
-const MAX_MCP_RESOURCE_BLOB_BYTES = 10 * 1024 * 1024
-const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = new Set([
-  "application/pdf",
-  "image/gif",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-])
+const MAX_MCP_RESOURCE_BLOB_BYTES = PromptParts.MAX_MCP_RESOURCE_BLOB_BYTES
+const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = PromptParts.SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES
 
 const STRUCTURED_OUTPUT_DESCRIPTION = `Use this tool to return your final response in the requested structured format.
 
@@ -92,31 +90,45 @@ IMPORTANT:
 
 const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
 
-function mcpResourceBase64Size(value: string) {
-  const trimmed = value.replace(/\s/g, "")
-  const padding = trimmed.endsWith("==") ? 2 : trimmed.endsWith("=") ? 1 : 0
-  return Math.max(0, Math.floor((trimmed.length * 3) / 4) - padding)
-}
-
-function formatMcpResourceBytes(value: number) {
-  if (value < 1024) return `${value} B`
-  if (value < 1024 * 1024) return `${Math.ceil(value / 1024)} KB`
-  return `${Math.ceil(value / (1024 * 1024))} MB`
-}
-
 function isOrphanedInterruptedTool(part: SessionV1.ToolPart) {
   // cleanup() marks abandoned tool_use blocks this way after retries/aborts.
   // They are not pending work and must not trigger an assistant-prefill request.
   return part.state.status === "error" && part.state.metadata?.interrupted === true
 }
 
+export type PromptError = Image.Error | ProductModeAgentPolicy.AgentNotAllowedError
+
 export interface Interface {
   readonly cancel: (sessionID: SessionID) => Effect.Effect<void>
-  readonly prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, Image.Error>
+  readonly prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, PromptError>
   readonly loop: (input: LoopInput) => Effect.Effect<SessionV1.WithParts>
   readonly shell: (input: ShellInput) => Effect.Effect<SessionV1.WithParts, Session.BusyError>
-  readonly command: (input: CommandInput) => Effect.Effect<SessionV1.WithParts, Image.Error>
+  readonly command: (
+    input: CommandInput,
+  ) => Effect.Effect<
+    SessionV1.WithParts,
+    Image.Error | ProductModeAgentPolicy.CommandDeniedError | ProductModeAgentPolicy.AgentNotAllowedError
+  >
   readonly resolvePromptParts: (template: string) => Effect.Effect<PromptInput["parts"]>
+  /**
+   * Legacy PromptPayload → canonical durable submission (S4). The single
+   * parts→canonical mapping lives in `PromptParts`; file parts are materialized
+   * at this effect boundary so `file://` never reaches a provider base64
+   * validator. Selection (agent/model/variant) is durable before the wake.
+   */
+  readonly admitCanonical: (input: {
+    sessionID: SessionID
+    messageID?: MessageID
+    parts: PromptInput["parts"]
+    agent?: string
+    model?: { providerID: string; modelID: string; variant?: string }
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    // `switchAgent` runs the primary-agent policy, so its typed rejections are
+    // part of this contract rather than something the handler can ignore.
+    PromptParts.UnmaterializedUriError | ProductModeAgentPolicy.AgentNotAllowedError | SessionV2.Error,
+    SessionV2.Service
+  >
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionPrompt") {}
@@ -418,7 +430,9 @@ export const layer = Layer.effect(
             return Effect.logError("subtask execution failed", {
               error,
               agent: task.agent,
-              description: task.description,
+              // `task.description` is model-authored prompt text, so it names the
+              // task instead of quoting it (CLAUDE.md Clean Logs).
+              descriptionLength: task.description.length,
             })
           }),
           Effect.onInterrupt(() =>
@@ -845,14 +859,14 @@ export const layer = Layer.effect(
                 } else if ("blob" in c && typeof c.blob === "string" && c.blob) {
                   const mime = "mimeType" in c && typeof c.mimeType === "string" ? c.mimeType : part.mime
                   const filename = "uri" in c && typeof c.uri === "string" ? c.uri : part.filename
-                  const size = mcpResourceBase64Size(c.blob)
+                  const size = PromptParts.mcpResourceBase64Size(c.blob)
                   if (!SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES.has(mime)) {
                     pieces.push({
                       messageID: info.id,
                       sessionID: input.sessionID,
                       type: "text",
                       synthetic: true,
-                      text: `[Binary MCP resource omitted: ${filename ?? uri} (${mime}, ${formatMcpResourceBytes(size)}) is not a supported attachment type]`,
+                      text: `[Binary MCP resource omitted: ${filename ?? uri} (${mime}, ${PromptParts.formatMcpResourceBytes(size)}) is not a supported attachment type]`,
                     })
                     continue
                   }
@@ -862,7 +876,7 @@ export const layer = Layer.effect(
                       sessionID: input.sessionID,
                       type: "text",
                       synthetic: true,
-                      text: `[Binary MCP resource omitted: ${filename ?? uri} (${mime}, ${formatMcpResourceBytes(size)}) exceeds ${formatMcpResourceBytes(MAX_MCP_RESOURCE_BLOB_BYTES)}]`,
+                      text: `[Binary MCP resource omitted: ${filename ?? uri} (${mime}, ${PromptParts.formatMcpResourceBytes(size)}) exceeds ${PromptParts.formatMcpResourceBytes(MAX_MCP_RESOURCE_BLOB_BYTES)}]`,
                     })
                     continue
                   }
@@ -1141,20 +1155,23 @@ export const layer = Layer.effect(
           messageID: info.id,
           agent: info.agent,
           model: info.model,
-          cause: Cause.pretty(parsed.cause),
+          cause: DecodeDiagnostic.describe(parsed.cause),
         })
       }
       for (const [index, part] of parts.entries()) {
         const p = decodeMessagePart(part, { errors: "all", propertyOrder: "original" })
         if (Exit.isSuccess(p)) continue
+        // The part itself is NOT logged, and the cause goes through
+        // `DecodeDiagnostic`: `Cause.pretty` embeds the value that failed, and for
+        // a union discriminator miss it dumps the whole part — for a file
+        // attachment that is the base64 data URL. See decode-diagnostic.ts.
         yield* Effect.logError("invalid user part before save", {
           sessionID: input.sessionID,
           messageID: info.id,
           partID: part.id,
           partType: part.type,
           index,
-          cause: Cause.pretty(p.cause),
-          part,
+          cause: DecodeDiagnostic.describe(p.cause),
         })
       }
 
@@ -1234,7 +1251,7 @@ export const layer = Layer.effect(
       return { info, parts }
     }, Effect.scoped)
 
-    const prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, Image.Error> = Effect.fn(
+    const prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, PromptError> = Effect.fn(
       "SessionPrompt.prompt",
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
@@ -1566,7 +1583,12 @@ export const layer = Layer.effect(
       return yield* state.startShell(input.sessionID, lastAssistant(input.sessionID), shellImpl(input, ready), ready)
     })
 
-    const command = Effect.fn("SessionPrompt.command")(function* (input: CommandInput) {
+    const command: (
+      input: CommandInput,
+    ) => Effect.Effect<
+      SessionV1.WithParts,
+      Image.Error | ProductModeAgentPolicy.CommandDeniedError | ProductModeAgentPolicy.AgentNotAllowedError
+    > = Effect.fn("SessionPrompt.command")(function* (input: CommandInput) {
       yield* Effect.logInfo("command", {
         "session.id": input.sessionID,
         command: input.command,
@@ -1576,7 +1598,7 @@ export const layer = Layer.effect(
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       if (session.mode) {
         const verdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode)
-        if (!verdict.allowed) return yield* Effect.die(verdict.error)
+        if (!verdict.allowed) return yield* verdict.error
       }
       const cmd = yield* commands.get(input.command)
       if (!cmd) {
@@ -1699,6 +1721,57 @@ export const layer = Layer.effect(
       return result
     })
 
+    // S4: the legacy→canonical durable submission adapter. Lives next to
+    // createUserMessage so both the V1 sync path and the V2 admission path
+    // share `PromptParts` as their single parts mapping.
+    const admitCanonical = Effect.fn("SessionPrompt.admitCanonical")(function* (input: {
+      sessionID: SessionID
+      messageID?: MessageID
+      parts: PromptInput["parts"]
+      agent?: string
+      model?: { providerID: string; modelID: string; variant?: string }
+    }) {
+      const v2session = yield* SessionV2.Service
+      const prompt = PromptParts.canonicalPromptFromParts(input.parts)
+      const fileParts = input.parts.filter((part) => part.type === "file")
+      let canonical = prompt
+      if (fileParts.length > 0) {
+        // `materializeFilePart` already fails with UnmaterializedUriError and
+        // carries the underlying reason; re-wrapping here would erase it.
+        const attachments = yield* Effect.forEach(fileParts, (part) => PromptParts.materializeFilePart(fsys, part), {
+          discard: false,
+        })
+        canonical = Prompt.make({
+          text: prompt.text,
+          files: attachments,
+          ...(prompt.agents === undefined ? {} : { agents: prompt.agents }),
+        })
+      }
+      // Selection travels with the input through the S2 kernel, which validates
+      // everything that can be rejected before the first durable write and then
+      // commits selection and the inbox row in one transaction. The previous
+      // shape here — switchAgent, then switchModel, then prompt — was three
+      // independent commits, so a prompt the server went on to reject still left
+      // the session on a different agent.
+      return yield* v2session.admitWithSelection({
+        id: input.messageID === undefined ? undefined : SessionMessage.ID.make(String(input.messageID)),
+        sessionID: input.sessionID,
+        prompt: canonical,
+        delivery: "steer",
+        resume: true,
+        ...(input.agent === undefined ? {} : { agent: input.agent }),
+        ...(input.model === undefined
+          ? {}
+          : {
+              model: {
+                id: ModelV2.ID.make(input.model.modelID),
+                providerID: ProviderV2.ID.make(input.model.providerID),
+                ...(input.model.variant === undefined ? {} : { variant: ModelV2.VariantID.make(input.model.variant) }),
+              },
+            }),
+      })
+    })
+
     return Service.of({
       cancel,
       prompt,
@@ -1706,6 +1779,7 @@ export const layer = Layer.effect(
       shell,
       command,
       resolvePromptParts,
+      admitCanonical,
     })
   }),
 )

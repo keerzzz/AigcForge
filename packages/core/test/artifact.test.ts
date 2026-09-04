@@ -20,6 +20,7 @@ const published: Array<{ type: string; data: unknown }> = []
 const events = Layer.succeed(
   EventV2.Service,
   EventV2.Service.of({
+    publishBatch: () => Effect.succeed([]),
     publish: (definition: any, data: any) =>
       Effect.sync(() => {
         const event = { id: EventV2.ID.create(), type: definition.type, data } as EventV2.Payload<typeof definition>

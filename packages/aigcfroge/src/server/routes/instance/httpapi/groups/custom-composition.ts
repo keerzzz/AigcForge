@@ -6,7 +6,14 @@ import { WorkspaceRoutingMiddleware, WorkspaceRoutingQueryFields } from "../midd
 import { described } from "./metadata"
 import { Composition } from "@aigcfroge/schema/composition"
 import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import { InvalidRequestError, SessionBusyError, SessionNotFoundError } from "../errors"
+import {
+  ConflictError,
+  CompositionResolveError,
+  InvalidRequestError,
+  SessionBusyError,
+  SessionNotFoundError,
+  UnsupportedProductModeError,
+} from "../errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 
@@ -42,7 +49,7 @@ export const CustomCompositionApi = HttpApi.make("custom-composition").add(
         query: Schema.Struct(WorkspaceRoutingQueryFields),
         payload: Composition.CompositionInput,
         success: described(Composition.Plan, "Composition plan"),
-        error: InvalidRequestError,
+        error: [UnsupportedProductModeError, InvalidRequestError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "custom-composition.plan",
@@ -54,7 +61,7 @@ export const CustomCompositionApi = HttpApi.make("custom-composition").add(
         query: Schema.Struct(WorkspaceRoutingQueryFields),
         payload: Composition.StartInput,
         success: described(Composition.StartResponse, "Started custom session and snapshot"),
-        error: InvalidRequestError,
+        error: [UnsupportedProductModeError, InvalidRequestError, ConflictError, CompositionResolveError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "custom-composition.start",
@@ -66,7 +73,14 @@ export const CustomCompositionApi = HttpApi.make("custom-composition").add(
         query: Schema.Struct(WorkspaceRoutingQueryFields),
         payload: Composition.UpgradeInput,
         success: described(Composition.StartResponse, "Upgraded custom session and snapshot"),
-        error: [InvalidRequestError, SessionNotFoundError, SessionBusyError],
+        error: [
+          UnsupportedProductModeError,
+          InvalidRequestError,
+          SessionNotFoundError,
+          SessionBusyError,
+          ConflictError,
+          CompositionResolveError,
+        ],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "custom-composition.upgrade",

@@ -51,7 +51,8 @@ import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 import { CustomProjectColumnSidebar as CustomSidebar } from "@/components/custom/custom-sidebar"
 import { CustomCompositionConfig } from "@/components/custom/custom-builder-main"
 import { CustomPlanPreviewColumn } from "@/components/custom/custom-preview-column"
-import { CustomDraftProvider } from "@/context/custom-draft"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
+import { AssetLoadError } from "@/components/asset-load-error"
 
 /** Coding project and server navigation built on HomeProjectColumn. */
 export function CodingProjectColumnSidebar() {
@@ -226,7 +227,9 @@ export function CodingSessionListMain() {
   const search = createMemo(() => state.search.trim())
 
   // Keep one Session cache across mode changes; mode filtering stays in memory.
+  const slotActive = useModeSlotActive()
   const sessionLoad = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: ["home", "sessions", codingSel.selection.server, ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(
@@ -535,15 +538,24 @@ export function ChatAssetWorkbenchMain() {
   }
 
   return (
-    <AssetWorkbench.AssetWorkbenchTable
-      assets={assets?.mergedAssetData().assets ?? []}
-      invalid={assets?.mergedAssetData().invalid ?? []}
-      kindFilter={chatFeature() as AssetWorkbench.AssetKind}
-      onNew={onNewAsset}
-      onImport={onImportAsset}
-      onDelete={onDeleteAsset}
-      onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
-    />
+    <div class="flex min-h-0 flex-1 flex-col gap-2">
+      {/* The seven workspace asset lists settle individually, so a failing kind is
+          otherwise invisible rather than blanking the page. */}
+      <AssetLoadError
+        failed={assets?.mergedAssetData().failed ?? []}
+        total={7}
+        onRetry={() => assets?.refetchAssets()}
+      />
+      <AssetWorkbench.AssetWorkbenchTable
+        assets={assets?.mergedAssetData().assets ?? []}
+        invalid={assets?.mergedAssetData().invalid ?? []}
+        kindFilter={chatFeature() as AssetWorkbench.AssetKind}
+        onNew={onNewAsset}
+        onImport={onImportAsset}
+        onDelete={onDeleteAsset}
+        onInsert={(row) => dialog.show(() => <AssetSessionSelector asset={row} />)}
+      />
+    </div>
   )
 }
 
@@ -609,7 +621,9 @@ export function WorkPresetCatalogMain() {
     const dir = directory()
     return dir ? [dir] : []
   })
+  const slotActive = useModeSlotActive()
   const sessionLoad = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: [ctx()?.sdk.scope, "home", "work-sessions", ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })))
@@ -651,7 +665,7 @@ export function WorkPresetCatalogMain() {
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
   const [workflowAssets] = createResource(
-    () => ({ sdk: dirSdk(), version: assetVersion() }),
+    () => whenActive(slotActive(), () => ({ sdk: dirSdk(), version: assetVersion() })),
     async (source) => {
       if (!source.sdk) return []
       const res = await source.sdk.client.workflowAsset.list()
@@ -800,39 +814,35 @@ export function WorkPresetCatalogMain() {
   )
 }
 
-/** Custom location and asset navigation sidebar. */
-export function CustomProjectColumnSidebar() {
+/**
+ * The directory-scoped SDK for the two Custom slots. The draft Provider itself is
+ * owned by `ModeWorkspace`, above both slots, so nothing here creates one.
+ */
+function useCustomDirectorySdk() {
   const { directory, ctx } = useModeDirectory()
-  const dirSdk = createMemo(() => {
+  return createMemo(() => {
     const dir = directory()
     const currentCtx = ctx()
     if (!dir || !currentCtx) return undefined
     return currentCtx.sdk.ensureDirSdkContext(dir)
   })
+}
 
-  return (
-    <CustomDraftProvider directory={() => directory() ?? ""}>
-      <CustomSidebar dirSdk={dirSdk} />
-    </CustomDraftProvider>
-  )
+/** Custom location and asset navigation sidebar. */
+export function CustomProjectColumnSidebar() {
+  const dirSdk = useCustomDirectorySdk()
+
+  return <CustomSidebar dirSdk={dirSdk} />
 }
 
 /** Custom mode builder main workspace. */
 export function CustomSessionListMain() {
-  const { directory, ctx } = useModeDirectory()
-  const dirSdk = createMemo(() => {
-    const dir = directory()
-    const currentCtx = ctx()
-    if (!dir || !currentCtx) return undefined
-    return currentCtx.sdk.ensureDirSdkContext(dir)
-  })
+  const dirSdk = useCustomDirectorySdk()
 
   return (
-    <CustomDraftProvider directory={() => directory() ?? ""}>
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0 flex-1 overflow-y-auto px-4 pb-8">
-        <CustomCompositionConfig />
-        <CustomPlanPreviewColumn dirSdk={dirSdk} />
-      </div>
-    </CustomDraftProvider>
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0 flex-1 overflow-y-auto px-4 pb-8">
+      <CustomCompositionConfig />
+      <CustomPlanPreviewColumn dirSdk={dirSdk} />
+    </div>
   )
 }

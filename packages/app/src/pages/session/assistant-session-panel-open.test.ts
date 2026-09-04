@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import fs from "fs"
-import path from "path"
 import { openEntityPanel, type AssistantPanelHandle, type AssistantPanelTab } from "./assistant-session-panel-open"
+// The shared panel shapes are owned by the utils layer, not by this page: the context
+// layer needs them and must not import upward. Naming them here is the check — the
+// import fails typecheck if the ownership moves back. The direction itself is enforced
+// by the `no-restricted-imports` override for `packages/app/src/context/**`, which
+// replaces the `toContain` assertions on `layout.tsx`'s source text that used to live
+// at the bottom of this file.
+import type { AssistantPanelState, AssistantPanelTab as UtilsPanelTab } from "@/utils/assistant-panel"
 
 // openEntityPanel follows the same pure state-transition pattern as
 // open-session-context.ts; the layout handles are injected so this file only
@@ -62,20 +67,15 @@ describe("openEntityPanel", () => {
   })
 })
 
-describe("panel types location (LOW-1: context layer must not import pages)", () => {
-  const layout = fs.readFileSync(path.resolve(__dirname, "../../context/layout.tsx"), "utf-8")
-  const utils = fs.readFileSync(path.resolve(__dirname, "../../utils/assistant-panel.ts"), "utf-8")
-
-  test("layout imports the panel types from utils", () => {
-    expect(layout).toContain('from "@/utils/assistant-panel"')
-  })
-
-  test("layout no longer imports from the pages layer", () => {
-    expect(layout).not.toContain('from "@/pages/session/assistant-session-panel-open"')
-  })
-
-  test("utils/assistant-panel owns the shared entity tab and state types", () => {
-    expect(utils).toContain("export type AssistantPanelTab")
-    expect(utils).toContain("export type AssistantPanelState")
+describe("panel types location", () => {
+  test("the page's tab union is the one utils owns", () => {
+    // A type-level assertion, so it is `tsgo` that fails if the page starts
+    // declaring its own union again: both directions must be assignable.
+    const fromUtils: UtilsPanelTab = "reminders"
+    const fromPage: AssistantPanelTab = fromUtils
+    const backToUtils: UtilsPanelTab = fromPage
+    const state: AssistantPanelState = { target: "item-reminders" }
+    expect(backToUtils).toBe("reminders")
+    expect(state.target).toBe("item-reminders")
   })
 })

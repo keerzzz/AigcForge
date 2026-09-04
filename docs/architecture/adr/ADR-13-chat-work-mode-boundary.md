@@ -62,4 +62,4 @@ ADR-11/12 已确定四类 Product Mode 的持久分类和模块入口，但没�
 
 1. **§边界规则 4 迁移**：“我的智能体”独立启动台概念并入 Custom 模式。用户通过 `/mode/custom`、Custom Profile 与组合 Builder 启动基于自建 Agent 的会话，Session 分类持久化为 `mode=custom`，消除 `/my-agents` 作为独立伪模式与四模式之间的张力。
 2. **Chat 与 Custom 职责分离**：Chat 保持为 Prompt、Skill、Agent 等七类资产的创建、管理与编辑中心；Custom 作为资产组合、绑定、解析、冻结与运行的消费平台。
-3. **现行基准**：在 M0 Phase B 与后续 App gate 完成前，本 ADR 的四模式定位表与 §边界规则 4 仍为生产运行时的有效决策。
+3. **现行基准**：~~在 M0 Phase B 与后续 App gate 完成前，本 ADR 的四模式定位表与 §边界规则 4 仍为生产运行时的有效决策。~~ **已 superseded（2026-09-03 复核）**：M0 Phase B 已合入，`ProductMode.ID`（`packages/schema/src/product-mode.ts:5`）与 `MODE_DEFINITIONS`（`packages/app/src/context/mode.tsx:6`）都是含 `custom` 的五值，`/mode/custom` 是切换器上的常规入口。本 ADR 的四模式定位表作为历史论证保留，不再是运行时基准；当前基准见本条 1、2 与 [ADR-17](ADR-17-custom-mode-composition-platform.md)。
