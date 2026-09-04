@@ -152,4 +152,64 @@ describe("Delegation Review Barrier and Copyability (Phase 1)", () => {
     expect(unblocked.rejectionBlocked).toBe(false)
     expect(unblocked.rejectionReason).toBeUndefined()
   })
+
+  test("evaluateReviewBarrier passes when historical rejection was followed by approved review after retraction (G4)", () => {
+    const reviewerParticipant = Schema.decodeUnknownSync(Delegation.ParticipantInfo)({
+      id: "par_codex_1",
+      delegationID: "dlg_01",
+      provider: "codex",
+      target: "codex-reviewer",
+      role: "reviewer",
+      context: "fresh",
+      phase: "active",
+      runtimeStatus: "idle",
+      lastActivityAt: 1000,
+      createdAt: 1000,
+      updatedAt: 1000,
+    })
+
+    const implementerParticipant = Schema.decodeUnknownSync(Delegation.ParticipantInfo)({
+      id: "par_build_1",
+      delegationID: "dlg_01",
+      provider: "internal",
+      target: "build",
+      role: "implementer",
+      context: "fresh",
+      phase: "active",
+      runtimeStatus: "idle",
+      lastActivityAt: 1000,
+      createdAt: 1000,
+      updatedAt: 1000,
+    })
+
+    // Review history: initial rejection, then subsequent approval on the same revision
+    const reviews = [
+      {
+        participantID: reviewerParticipant.id,
+        reviewedRevisionDigest: "rev_digest_1",
+        verdict: "rejected" as const,
+      },
+      {
+        participantID: reviewerParticipant.id,
+        reviewedRevisionDigest: "rev_digest_1",
+        verdict: "approved" as const,
+      },
+      // Implementer submitting a rejected record must NOT block the review barrier
+      {
+        participantID: implementerParticipant.id,
+        reviewedRevisionDigest: "rev_digest_1",
+        verdict: "rejected" as const,
+      },
+    ]
+
+    // When rejectionBlocked is false (e.g. retracted or superseded by approved), barrier MUST pass!
+    const result = evaluateReviewBarrier({
+      participants: [implementerParticipant, reviewerParticipant],
+      reviews,
+      latestRevisionDigest: "rev_digest_1",
+      rejectionBlocked: false,
+    })
+
+    expect(result.passed).toBe(true)
+  })
 })

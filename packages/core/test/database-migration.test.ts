@@ -27,6 +27,7 @@ import scopedGrantLevelIndexMigration from "@aigcfroge/core/database/migration/2
 import scopedGrantLocationMigration from "@aigcfroge/core/database/migration/20260826074345_scoped_grant_location"
 import mcpCredentialBindingMigration from "@aigcfroge/core/database/migration/20260825033229_secret_rachel_grey"
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
+import addDelegationTablesMigration from "@aigcfroge/core/database/migration/20260904160809_add_delegation_tables"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -1444,6 +1445,62 @@ describe("DatabaseMigration", () => {
         ).toEqual({
           name: "mcp_binding_credential_ref_idx",
         })
+      }),
+    )
+  })
+
+  test("applies delegation tables migration to an existing database with sessions and rejects forbidden columns", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing_delegation')`)
+
+        yield* DatabaseMigration.applyOnly(db, [addDelegationTablesMigration])
+
+        // Exactly 3 delegation tables exist
+        const tables = yield* db.all<{ name: string }>(sql`
+          SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'delegation%' ORDER BY name
+        `)
+        expect(tables.map((t) => t.name)).toEqual(["delegation", "delegation_participant", "delegation_turn"])
+
+        // Delivery projection table MUST NEVER exist
+        expect(tables.map((t) => t.name)).not.toContain("delegation_delivery")
+
+        // Assert forbidden persisted derived fields are NOT in sqlite schema
+        const delegationCols = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation)`)
+        const participantCols = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation_participant)`)
+        expect(delegationCols.map((c) => c.name)).not.toContain("active_turn_id")
+        expect(participantCols.map((c) => c.name)).not.toContain("runtime_status")
+
+        // Verify pre-existing session is preserved
+        expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing_delegation" }])
+
+        // Verify insert and foreign key cascade
+        yield* db.run(sql`
+          INSERT INTO delegation (id, parent_session_id, title, status, rejection_blocked, last_activity_at, time_created, time_updated)
+          VALUES ('dlg_mig', 'ses_pre_existing_delegation', 'Title', 'draft', 0, 1000, 1000, 1000)
+        `)
+        yield* db.run(sql`
+          INSERT INTO delegation_participant (id, delegation_id, provider, target, role, context, phase, last_activity_at, time_created, time_updated)
+          VALUES ('par_mig', 'dlg_mig', 'internal', 'build', 'implementer', 'fresh', 'active', 1000, 1000, 1000)
+        `)
+        yield* db.run(sql`
+          INSERT INTO delegation_turn (id, delegation_id, seq, kind, status, participant_ids, delivery, time_created, time_updated)
+          VALUES ('trn_mig', 'dlg_mig', 1, 'task', 'admitted', '["par_mig"]', 'steer', 1000, 1000)
+        `)
+
+        // Idempotency: applying again is a safe no-op that does not fail or erase data
+        yield* DatabaseMigration.applyOnly(db, [addDelegationTablesMigration])
+        expect(yield* db.all(sql`SELECT id FROM delegation`)).toEqual([{ id: "dlg_mig" }])
+        expect(yield* db.all(sql`SELECT id FROM delegation_participant`)).toEqual([{ id: "par_mig" }])
+        expect(yield* db.all(sql`SELECT id FROM delegation_turn`)).toEqual([{ id: "trn_mig" }])
+
+        // Cascading delete
+        yield* db.run(sql`DELETE FROM delegation WHERE id = 'dlg_mig'`)
+        expect(yield* db.all(sql`SELECT id FROM delegation_participant`)).toEqual([])
+        expect(yield* db.all(sql`SELECT id FROM delegation_turn`)).toEqual([])
       }),
     )
   })

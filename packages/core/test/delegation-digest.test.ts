@@ -17,9 +17,15 @@ describe("Delegation Revision Digest and ChangeKind (Phase 1)", () => {
     const digestB = calculateRevisionDigest(inputB)
     const digestC = calculateRevisionDigest(inputC)
 
-    expect(digestA.length).toBeGreaterThan(10)
+    expect(digestA.length).toBe(68)
+    expect(/^rev_[a-f0-9]{64}$/.test(digestA)).toBe(true)
     expect(digestA).toBe(digestB) // Deterministic
     expect(digestA).not.toBe(digestC) // Sensitive to commitSha
+
+    // Exact-byte sensitivity: whitespace differences MUST produce different digests (no .trim() collision)
+    const digestX = calculateRevisionDigest({ commitSha: "sha_1", normalizedDiff: "x" })
+    const digestXSpaced = calculateRevisionDigest({ commitSha: "sha_1", normalizedDiff: " x " })
+    expect(digestX).not.toBe(digestXSpaced)
   })
 
   test("classifyChangeKind distinguishes no_change, no_code_change, and rework (G3)", () => {
