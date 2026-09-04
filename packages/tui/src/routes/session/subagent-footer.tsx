@@ -85,7 +85,7 @@ export function SubagentFooter() {
   // Remembered handoff grants (S6 "always"). One flat list is enough because the
   // grant key already carries the Location, so a grant made in one project cannot
   // match a handoff in another — the mistake `custom-draft`'s single global key
-  // made was storing project-scoped DATA under one key, not storing keys that
+  // made was storing project-scoped data under one key, not storing keys that
   // name their own scope.
   const GRANTS_KEY = "handoff.grants.v1"
   const grants = () => {
@@ -110,15 +110,19 @@ export function SubagentFooter() {
     const current = session()
     const agents = sync.data.agent ?? []
     const location = current?.directory ?? ""
+    const context = { mode: current?.mode, tier: current?.permissionTier, attended: current?.attended } as const
+    const currentRules = agents.find((a) => a.name === current?.agent)?.permission ?? []
+    const targetRules = agents.find((a) => a.name === agent)?.permission ?? []
     const plan = planHandoff({
-      session: { mode: current?.mode, tier: current?.permissionTier, attended: current?.attended },
+      session: context,
       currentAgent: current?.agent,
       targetAgent: agent,
-      currentRules: agents.find((a) => a.name === current?.agent)?.permission ?? [],
-      targetRules: agents.find((a) => a.name === agent)?.permission ?? [],
+      currentRules,
+      targetRules,
       send,
       location,
       label,
+      prompt,
       authorized: grants(),
     })
 
@@ -151,7 +155,19 @@ export function SubagentFooter() {
           if (answer?.confirmed !== true) return false
           // Recorded only after an affirmative answer, so a dismissal never
           // leaves a grant behind.
-          if (answer.remember) remember(handoffAuthorizationKey(location, label, agent))
+          if (answer.remember)
+            remember(
+              handoffAuthorizationKey({
+                location,
+                session: context,
+                sourceAgent: current?.agent,
+                label,
+                targetAgent: agent,
+                prompt,
+                currentRules,
+                targetRules,
+              }),
+            )
           return true
         },
         reject: () => toast.show({ message: "Handoff cancelled — agent unchanged", variant: "info" }),
