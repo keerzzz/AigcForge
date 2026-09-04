@@ -335,7 +335,7 @@ export default function Page() {
   )
 
   // D13 `always`: grants remembered after an escalated handoff confirmation,
-  // keyed by handoffAuthorizationKey(location, label, targetAgent). The storage
+  // keyed by the exact handoff configuration. The storage
   // is workspace-scoped (per directory), so one project's grants never leak
   // into another (the custom-draft single-global-key bug is not copied here).
   const [handoffGrants, setHandoffGrants] = persisted(
@@ -1597,20 +1597,24 @@ export default function Page() {
     // grant storage is workspace-scoped, and the key embeds the location, so a
     // grant from one project never authorizes the same handoff elsewhere.
     const location = sdk().directory
+    const session = {
+      mode: sessionInfo?.mode,
+      tier: sessionInfo?.permissionTier,
+      attended: sessionInfo?.attended,
+    } as const
+    const currentRules = agents.find((a) => a.name === sessionInfo?.agent)?.permission ?? []
+    const targetRules = agents.find((a) => a.name === agent)?.permission ?? []
     const authorized = new Set(handoffGrants)
     const plan = planHandoff({
-      session: {
-        mode: sessionInfo?.mode,
-        tier: sessionInfo?.permissionTier,
-        attended: sessionInfo?.attended,
-      },
+      session,
       currentAgent: sessionInfo?.agent,
       targetAgent: agent,
-      currentRules: agents.find((a) => a.name === sessionInfo?.agent)?.permission ?? [],
-      targetRules: agents.find((a) => a.name === agent)?.permission ?? [],
+      currentRules,
+      targetRules,
       send,
       location,
       label,
+      prompt: promptText,
       authorized,
     })
 
@@ -1635,7 +1639,16 @@ export default function Page() {
         confirm: async () => {
           const result = await confirmHandoffEscalation(dialog, language, agent)
           if (result.approved && result.remember) {
-            const grant = handoffAuthorizationKey(location, label, agent)
+            const grant = handoffAuthorizationKey({
+              location,
+              session,
+              sourceAgent: sessionInfo?.agent,
+              label,
+              targetAgent: agent,
+              prompt: promptText,
+              currentRules,
+              targetRules,
+            })
             if (!handoffGrants.includes(grant)) setHandoffGrants([...handoffGrants, grant])
           }
           return result.approved

@@ -108,7 +108,16 @@ describe("planHandoff authorized grants (S6 always)", () => {
   }
   const location = "/proj/a"
   const label = "Implement"
-  const grant = handoffAuthorizationKey(location, label, "build")
+  const grant = handoffAuthorizationKey({
+    location,
+    session: escalating.session,
+    sourceAgent: escalating.currentAgent,
+    label,
+    targetAgent: escalating.targetAgent,
+    prompt: "Implement it",
+    currentRules: escalating.currentRules,
+    targetRules: escalating.targetRules,
+  })
 
   const record = async (plan: ReturnType<typeof planHandoff>, approve = false) => {
     const calls: string[] = []
@@ -130,12 +139,25 @@ describe("planHandoff authorized grants (S6 always)", () => {
   }
 
   test("an authorized grant returns the switch action without a confirm", () => {
-    const plan = planHandoff({ ...escalating, send: true, location, label, authorized: new Set([grant]) })
+    const plan = planHandoff({
+      ...escalating,
+      send: true,
+      location,
+      label,
+      prompt: "Implement it",
+      authorized: new Set([grant]),
+    })
     expect(plan).toEqual({ action: "switch-and-send" })
   })
 
   test("an authorized grant without send switches and prefills without a confirm", () => {
-    const plan = planHandoff({ ...escalating, location, label, authorized: new Set([grant]) })
+    const plan = planHandoff({
+      ...escalating,
+      location,
+      label,
+      prompt: "Implement it",
+      authorized: new Set([grant]),
+    })
     expect(plan).toEqual({ action: "switch-and-prefill" })
   })
 
@@ -145,6 +167,7 @@ describe("planHandoff authorized grants (S6 always)", () => {
       send: true,
       location: "/proj/b",
       label,
+      prompt: "Implement it",
       authorized: new Set([grant]),
     })
     expect(plan).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
@@ -156,13 +179,72 @@ describe("planHandoff authorized grants (S6 always)", () => {
       send: true,
       location,
       label: "Review",
+      prompt: "Implement it",
       authorized: new Set([grant]),
     })
     expect(plan).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
   })
 
+  test("a grant for changed session context or permissions does not authorize this handoff", () => {
+    expect(
+      planHandoff({
+        ...escalating,
+        session: { mode: "coding", tier: "propose" },
+        send: true,
+        location,
+        label,
+        prompt: "Implement it",
+        authorized: new Set([grant]),
+      }),
+    ).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+
+    expect(
+      planHandoff({
+        ...escalating,
+        targetRules: [...allowEdit, { permission: "bash", pattern: "*", action: "allow" }],
+        send: true,
+        location,
+        label,
+        prompt: "Implement it",
+        authorized: new Set([grant]),
+      }),
+    ).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+  })
+
+  test("a grant for another source agent or prompt does not authorize this handoff", () => {
+    expect(
+      planHandoff({
+        ...escalating,
+        send: true,
+        location,
+        label,
+        prompt: "Changed prompt",
+        authorized: new Set([grant]),
+      }),
+    ).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+
+    expect(
+      planHandoff({
+        ...escalating,
+        currentAgent: "meta",
+        send: true,
+        location,
+        label,
+        prompt: "Implement it",
+        authorized: new Set([grant]),
+      }),
+    ).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+  })
+
   test("an authorized plan never calls confirm during execution", async () => {
-    const plan = planHandoff({ ...escalating, send: true, location, label, authorized: new Set([grant]) })
+    const plan = planHandoff({
+      ...escalating,
+      send: true,
+      location,
+      label,
+      prompt: "Implement it",
+      authorized: new Set([grant]),
+    })
     expect(await record(plan)).toEqual(["submit"])
   })
 })

@@ -123,11 +123,10 @@ export function handoffRequiresApproval(
  * so sending it would quietly answer with the wrong agent. So it asks first and
  * then carries out the original intent (`then`) — `once` semantics. Remembering
  * the answer (`always`) is a persisted per-handoff grant: the client records
- * `handoffAuthorizationKey(location, label, targetAgent)` only after an
- * affirmative confirmation and feeds it back as `authorized`, and an exact
- * (location, label, agent) hit skips the confirmation on the next identical
- * handoff. The key is Location-qualified so one project's grants never leak
- * into another.
+ * `handoffAuthorizationKey` only after an affirmative confirmation and feeds it
+ * back as `authorized`; an exact handoff-configuration hit skips confirmation on
+ * the next identical handoff. The key is Location-qualified so one project's
+ * grants never leak into another.
  */
 export type HandoffPlan =
   | { readonly action: "switch-and-send" }
@@ -139,13 +138,35 @@ export type HandoffPlan =
     }
 
 /**
- * Identity of a remembered handoff grant. Location (workspace directory), label
- * and target agent together pin the grant to one project and one handoff config,
- * so a grant made in one project never authorizes the same-named handoff in
- * another.
+ * Identity of a remembered handoff grant. Location, session context, source and
+ * target rules, agents, label, and prompt together pin the grant to one exact
+ * authorization context. JSON encoding avoids delimiter collisions and
+ * intentionally makes old, less-specific grants fail closed. The send/prefill
+ * choice is execution intent, not a permission change, so one approval covers
+ * both paths.
  */
-export const handoffAuthorizationKey = (location: string, label: string, agent: string) =>
-  [location, label, agent].join("\u0000")
+export const handoffAuthorizationKey = (input: {
+  readonly location: string
+  readonly session: HandoffSessionContext
+  readonly sourceAgent: string | undefined
+  readonly label: string
+  readonly targetAgent: string
+  readonly prompt: string
+  readonly currentRules: AgentPermissionRuleset
+  readonly targetRules: AgentPermissionRuleset
+}) =>
+  JSON.stringify([
+    input.location,
+    input.session.mode ?? "",
+    input.session.tier ?? "",
+    input.session.attended ?? false,
+    input.sourceAgent ?? "",
+    input.label,
+    input.targetAgent,
+    input.prompt,
+    input.currentRules,
+    input.targetRules,
+  ])
 
 /**
  * Decide before touching the session. Every input must be read from the
@@ -161,12 +182,14 @@ export function planHandoff(input: {
   readonly send?: boolean
   /** Location identity (workspace directory) of the current handoff. */
   readonly location?: string
-  /** The handoff's stable label; with `targetAgent` it identifies the grant. */
+  /** The handoff's stable label. */
   readonly label?: string
+  /** The exact configured handoff prompt, used to invalidate stale remembered grants. */
+  readonly prompt?: string
   /**
    * Handoff grants recorded after previous explicit confirmations, keyed by
-   * `handoffAuthorizationKey`. A hit for the current (location, label, agent)
-   * means the user already approved this exact handoff, so the escalation gate
+   * `handoffAuthorizationKey`. A hit for the current exact handoff configuration
+   * means the user already approved this handoff, so the escalation gate
    * is skipped the same way a fresh confirmation would be. The decision stays
    * here; clients only supply the persisted facts.
    */
@@ -176,7 +199,19 @@ export function planHandoff(input: {
   const remembered =
     input.location !== undefined &&
     input.label !== undefined &&
-    input.authorized?.has(handoffAuthorizationKey(input.location, input.label, input.targetAgent)) === true
+    input.prompt !== undefined &&
+    input.authorized?.has(
+      handoffAuthorizationKey({
+        location: input.location,
+        session: input.session,
+        sourceAgent: input.currentAgent,
+        label: input.label,
+        targetAgent: input.targetAgent,
+        prompt: input.prompt,
+        currentRules: input.currentRules,
+        targetRules: input.targetRules,
+      }),
+    ) === true
   if (
     !remembered &&
     handoffRequiresApproval(input.session, input.currentAgent, input.targetAgent, input.currentRules, input.targetRules)
