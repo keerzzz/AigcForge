@@ -149,4 +149,53 @@ describe("V2 SessionRevert", () => {
       expect(Exit.isSuccess(exit)).toBe(true)
     }),
   )
+
+  it.effect("revert refuses to restore when the target turn captured no snapshot", () =>
+    Effect.gen(function* () {
+      restoreCalls.length = 0
+      // Turn 2's assistant has no `snapshot.start` — the runner never tracked one. Scanning
+      // on to turn 3's snapshot would restore a LATER state and silently leave turn 2's
+      // edits in place, so "the state before this turn" is unknowable and nothing may be
+      // written to disk.
+      const session = yield* (yield* SessionV2.Service).create({
+        location: { directory: AbsolutePath.make("/tmp/revert-gap-test") },
+      })
+      const { db } = yield* Database.Service
+      const rows = [
+        userMessage("msg_gap_user_1", "first"),
+        assistantMessage("msg_gap_asst_1", "snap_turn_1"),
+        userMessage("msg_gap_user_2", "second"),
+        SessionMessage.Assistant.make({
+          id: SessionMessage.ID.make("msg_gap_asst_2"),
+          type: "assistant",
+          agent: "build",
+          model,
+          content: [],
+          time: { created },
+        }),
+        userMessage("msg_gap_user_3", "third"),
+        assistantMessage("msg_gap_asst_3", "snap_turn_3"),
+      ].map((message, seq) => {
+        const { id: _, type, ...data } = encodeMessage(message)
+        return {
+          id: message.id,
+          session_id: session.id,
+          type,
+          seq,
+          time_created: DateTime.toEpochMillis(created),
+          data,
+        }
+      })
+      yield* db.insert(SessionMessageTable).values(rows).run().pipe(Effect.orDie)
+
+      const result = yield* (yield* SessionRevert.Service).revert({
+        sessionID: session.id,
+        messageID: SessionMessage.ID.make("msg_gap_user_2"),
+      })
+
+      expect(restoreCalls).toEqual([])
+      // No marker either: refusing has to leave the session exactly as it was.
+      expect(result.revert).toBeUndefined()
+    }),
+  )
 })

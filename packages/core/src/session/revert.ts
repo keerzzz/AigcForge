@@ -21,22 +21,26 @@ export interface Interface {
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionRevert") {}
 
 /**
- * The assistant message whose start snapshot represents "the state just before the target
- * message's turn": the first one at or after `messageID` that captured a snapshot.
+ * The assistant message whose start snapshot is "the state just before the target
+ * message's turn": the first assistant at or after `messageID`.
  *
  * `store.context` returns history in ascending `seq` order, so scanning forward from the
  * target is what ties the restored snapshot to the message the user actually clicked.
  * Searching the whole history instead would always return the session's earliest snapshot.
+ *
+ * Stopping at that turn's own assistant is deliberate. If it captured no snapshot, the
+ * state before it is unknowable, and continuing to a later turn's snapshot would restore a
+ * LATER state and silently leave this turn's edits on disk. Returning nothing keeps the
+ * caller's existing no-op instead.
  */
 function findTurnSnapshotOwner(msgs: SessionMessage.Message[], messageID: SessionMessage.ID) {
   const targetIndex = msgs.findIndex((m) => m.id === messageID)
   if (targetIndex < 0) return undefined
-  return msgs
+  const owner = msgs
     .slice(targetIndex)
-    .find(
-      (m): m is Extract<SessionMessage.Message, { type: "assistant" }> =>
-        m.type === "assistant" && m.snapshot?.start != null,
-    )
+    .find((m): m is Extract<SessionMessage.Message, { type: "assistant" }> => m.type === "assistant")
+  if (!owner?.snapshot?.start) return undefined
+  return owner
 }
 
 function revert(store: SessionStore.Interface, snap: V2Snapshot.Interface): Interface["revert"] {
