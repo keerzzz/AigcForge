@@ -14,8 +14,9 @@ import {
 } from "./custom-preview-tabs"
 import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { useTabs } from "@/context/tabs"
+import { useGlobal } from "@/context/global"
 import { ServerConnection } from "@/context/server"
-import { launchModeSession } from "@/pages/layout/helpers"
+import { openSessionByID } from "@/pages/layout/helpers"
 import type { DirectorySDK } from "@/context/sdk"
 import type { CompositionPlan } from "@aigcfroge/sdk/v2/client"
 import { blockingDiagnostics, classifyPlanFailure, evaluateStartGate, parseErrorDetails } from "./custom-plan-state"
@@ -28,6 +29,7 @@ export interface CustomPreviewColumnProps {
 export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
   const language = useLanguage()
   const tabs = useTabs()
+  const global = useGlobal()
   const { conn, ctx, directory } = useModeDirectory()
   const draft = useCustomDraft()
   const [activeTab, setActiveTab] = createSignal("workflow")
@@ -102,15 +104,25 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
         { throwOnError: true },
       )
 
-      if (res.data?.session?.id) {
-        launchModeSession({
-          mode: "custom",
-          projects: currentCtx.projects,
-          server: ServerConnection.key(currentConn),
-          directory: dir,
-          tabs,
-        })
+      // Start is atomic on the server: it creates the Session AND freezes its snapshot,
+      // and returns both. Open that Session. Handing off to `launchModeSession` instead
+      // opened a blank draft, so the frozen session was orphaned and the draft's first
+      // send went to plain `POST /session`, which custom mode rejects with 400
+      // (BUG-CUSTOM-START, 2026-09-03 dogfood run).
+      const started = res.data?.session
+      if (!started?.id) {
+        setErrorMessage(language.t("common.requestFailed"))
+        return
       }
+      openSessionByID({
+        sessionID: started.id,
+        sessionDirectory: started.location.directory,
+        projectDirectory: dir,
+        server: ServerConnection.key(currentConn),
+        global,
+        tabs,
+        projects: currentCtx.projects,
+      })
     } catch (err: unknown) {
       const { message } = parseErrorDetails(err)
       setErrorMessage(message ?? String(err))

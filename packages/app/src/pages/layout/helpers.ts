@@ -219,6 +219,42 @@ export function launchModeSession(input: {
 }
 
 /**
+ * Opens an existing Session: records its placement, makes sure its project is open, then
+ * adds and selects its tab. The canonical Session route owns Product Mode sync, so this
+ * deliberately does not set a mode.
+ *
+ * Separate from `openSessionRecord` because callers that already hold a Session — the
+ * Custom Builder's start response, for one — have no `HomeSessionRecord` and no project
+ * map to resolve a worktree from. Both funnel through here so "open a session" stays one
+ * implementation.
+ */
+export function openSessionByID(input: {
+  sessionID: string
+  /** Session's own directory: what placement is keyed on. */
+  sessionDirectory: string
+  /** Project worktree to open, when it differs from the session's directory. */
+  projectDirectory?: string
+  server: ServerConnection.Key
+  global: ReturnType<typeof useGlobal>
+  tabs: Pick<ReturnType<typeof useTabs>, "addSessionTab" | "select">
+  projects: Pick<ProjectActions, "open" | "touch">
+}) {
+  input.global.sessionPlacement.set({
+    server: input.server,
+    leafID: input.sessionID,
+    rootID: input.sessionID,
+    directory: input.sessionDirectory,
+  })
+  const directory = input.projectDirectory ?? input.sessionDirectory
+  input.projects.open(directory)
+  input.projects.touch(directory)
+  void startTransition(() => {
+    const tab = input.tabs.addSessionTab({ server: input.server, sessionId: input.sessionID })
+    input.tabs.select(tab)
+  })
+}
+
+/**
  * Shared "open session record" flow, extracted from CodingSessionListMain.openSession
  * (mode-workspace-slots.tsx:287-305) so the global home page and the mode home pages
  * share one implementation. The canonical Session route owns Product Mode sync.
@@ -233,17 +269,13 @@ export function openSessionRecord(input: {
 }) {
   const { session } = input.record
   const project = projectForSession(session, input.projects.list(), input.projectByID)
-  const directory = project?.worktree ?? session.directory
-  input.global.sessionPlacement.set({
+  openSessionByID({
+    sessionID: session.id,
+    sessionDirectory: session.directory,
+    ...(project?.worktree ? { projectDirectory: project.worktree } : {}),
     server: input.server,
-    leafID: session.id,
-    rootID: session.id,
-    directory: session.directory,
-  })
-  input.projects.open(directory)
-  input.projects.touch(directory)
-  void startTransition(() => {
-    const tab = input.tabs.addSessionTab({ server: input.server, sessionId: session.id })
-    input.tabs.select(tab)
+    global: input.global,
+    tabs: input.tabs,
+    projects: input.projects,
   })
 }

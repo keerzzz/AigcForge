@@ -124,7 +124,13 @@ async function mockBuilderRoutes(page: Page, state: Wire) {
  * undefined, no request is ever issued, and every assertion below would pass against
  * an empty panel.
  */
-async function openMode(page: Page, state: Wire, mode: "chat" | "custom", sessionMode = "custom") {
+async function openMode(
+  page: Page,
+  state: Wire,
+  mode: "chat" | "custom",
+  sessionMode = "custom",
+  extraSessions: ({ id: string } & Record<string, unknown>)[] = [],
+) {
   await mockAigcfrogeServer(page, {
     directory,
     project: {
@@ -148,6 +154,7 @@ async function openMode(page: Page, state: Wire, mode: "chat" | "custom", sessio
         version: "dev",
         time: { created: 1700000000000, updated: 1700000000000 },
       },
+      ...extraSessions,
     ],
     pageMessages: () => ({ items: [] }),
     events: () => [],
@@ -311,5 +318,88 @@ test.describe("regression: Custom Builder request and failure states", () => {
     await page.getByText("reviewer", { exact: true }).first().click()
 
     await expect(startButton(page)).toBeEnabled()
+  })
+
+  test("Start opens the session the server created, not a blank draft", async ({ page }) => {
+    // BUG-CUSTOM-START (2026-09-03 dogfood run): start returned 200 with a real session
+    // and a frozen snapshot, and the UI navigated to `/new-session?draftId=...` instead.
+    // The session was orphaned, and the draft's first send went to plain `POST /session`,
+    // which custom mode rejects with 400 — so the user saw a blank composer and then an
+    // error, with a paid-for session left behind.
+    //
+    // Both halves are asserted, because either alone would have passed before the fix:
+    // the URL is the canonical session route for the id the server returned, AND no
+    // plain `POST /session` is issued.
+    const startedID = "ses_custom_started"
+    const started = {
+      id: startedID,
+      slug: "custom-started",
+      projectID,
+      directory,
+      title: "Started custom session",
+      mode: "custom",
+      agent: "meta",
+      version: "dev",
+      time: { created: 1700000002000, updated: 1700000002000 },
+    }
+    const state = wire()
+    await openMode(page, state, "custom", "custom", [started])
+
+    let plainSessionPosts = 0
+    await page.route("**/session", async (route: Route) => {
+      if (route.request().method() !== "POST") return route.fallback()
+      plainSessionPosts += 1
+      return route.fulfill({
+        status: 400,
+        headers: { "content-type": "application/json", ...cors },
+        body: JSON.stringify({ message: "custom mode requires the composition path" }),
+      })
+    })
+    await page.route("**/custom-composition/start*", async (route: Route) => {
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors, body: "" })
+      return route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json", ...cors },
+        body: JSON.stringify({
+          session: {
+            id: startedID,
+            slug: started.slug,
+            version: "dev",
+            projectID,
+            cost: 0,
+            tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            time: { created: 1700000002000, updated: 1700000002000 },
+            title: started.title,
+            location: { directory },
+            mode: "custom",
+          },
+          snapshot: {
+            version: 1,
+            digest: "d".repeat(64),
+            sessionID: startedID,
+            profilePath: null,
+            profileRevision: null,
+            createdAt: 1700000002000,
+            data: {
+              agentID: "reviewer",
+              instructions: [],
+              prompts: [],
+              skills: [],
+              tools: { fingerprints: [], catalogDigest: "e".repeat(64), catalog: [] },
+            },
+          },
+        }),
+      })
+    })
+
+    await expectAppVisible(assetsTitle(page))
+    await page.getByText("reviewer", { exact: true }).first().click()
+    await expect(startButton(page)).toBeEnabled()
+
+    await startButton(page).click()
+
+    await expect(page).toHaveURL(new RegExp(`/server/[^/]+/session/${startedID}$`))
+    await expectAppVisible(page.getByRole("heading", { name: started.title }))
+    expect(plainSessionPosts).toBe(0)
   })
 })
