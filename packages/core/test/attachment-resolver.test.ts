@@ -26,13 +26,16 @@ const userMessage = (uri: string, mime = "image/png") =>
     time: { created: DateTime.makeUnsafe(1) },
   })
 
+const temp = (prefix: string) =>
+  fs.mkdtemp(path.join(process.env["TMPDIR"] ?? process.env["TEMP"] ?? process.env["TMP"] ?? "/tmp", prefix))
+
 const resolveIn = (root: string, uri: string, mime?: string) =>
   AttachmentResolver.resolveDeferred([userMessage(uri, mime)], root)
 
 describe("AttachmentResolver.resolveDeferred", () => {
   it.effect("an in-project file becomes a data URI", () =>
     Effect.gen(function* () {
-      const dir = yield* Effect.promise(() => fs.mkdtemp(path.join(process.env["TMPDIR"] ?? "/tmp", "attach-")))
+      const dir = yield* Effect.promise(() => temp("attach-"))
       const file = path.join(dir, "shot.png")
       yield* Effect.promise(() => fs.writeFile(file, Buffer.from([1, 2, 3])))
 
@@ -48,8 +51,8 @@ describe("AttachmentResolver.resolveDeferred", () => {
 
   it.effect("a file outside the project is refused and never read", () =>
     Effect.gen(function* () {
-      const dir = yield* Effect.promise(() => fs.mkdtemp(path.join(process.env["TMPDIR"] ?? "/tmp", "attach-")))
-      const outside = yield* Effect.promise(() => fs.mkdtemp(path.join(process.env["TMPDIR"] ?? "/tmp", "outside-")))
+      const dir = yield* Effect.promise(() => temp("attach-"))
+      const outside = yield* Effect.promise(() => temp("outside-"))
       const secret = path.join(outside, "secret.png")
       yield* Effect.promise(() => fs.writeFile(secret, "top secret"))
 
@@ -66,7 +69,7 @@ describe("AttachmentResolver.resolveDeferred", () => {
 
   it.effect("a traversal path is refused", () =>
     Effect.gen(function* () {
-      const dir = yield* Effect.promise(() => fs.mkdtemp(path.join(process.env["TMPDIR"] ?? "/tmp", "attach-")))
+      const dir = yield* Effect.promise(() => temp("attach-"))
       const nested = path.join(dir, "nested")
       yield* Effect.promise(() => fs.mkdir(nested))
       const escape = path.join(nested, "..", "..", "etc-passwd-stand-in")
@@ -82,8 +85,8 @@ describe("AttachmentResolver.resolveDeferred", () => {
 
   it.effect("a symlink pointing out of the project is refused", () =>
     Effect.gen(function* () {
-      const dir = yield* Effect.promise(() => fs.mkdtemp(path.join(process.env["TMPDIR"] ?? "/tmp", "attach-")))
-      const outside = yield* Effect.promise(() => fs.mkdtemp(path.join(process.env["TMPDIR"] ?? "/tmp", "outside-")))
+      const dir = yield* Effect.promise(() => temp("attach-"))
+      const outside = yield* Effect.promise(() => temp("outside-"))
       const secret = path.join(outside, "secret.png")
       yield* Effect.promise(() => fs.writeFile(secret, "top secret"))
       const link = path.join(dir, "innocent.png")
@@ -101,7 +104,7 @@ describe("AttachmentResolver.resolveDeferred", () => {
 
   it.effect("a directory is refused rather than read", () =>
     Effect.gen(function* () {
-      const dir = yield* Effect.promise(() => fs.mkdtemp(path.join(process.env["TMPDIR"] ?? "/tmp", "attach-")))
+      const dir = yield* Effect.promise(() => temp("attach-"))
       const nested = path.join(dir, "nested")
       yield* Effect.promise(() => fs.mkdir(nested))
 
