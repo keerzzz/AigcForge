@@ -2,6 +2,7 @@ export * as AISDK from "./aisdk"
 
 import type { LanguageModelV3 } from "@ai-sdk/provider"
 import { Cause, Context, Effect, Layer, Schema, Scope } from "effect"
+import { AISDKTransport } from "./aisdk/transport"
 import { ModelV2 } from "./model"
 import { ProviderV2 } from "./provider"
 import { State } from "./state"
@@ -22,78 +23,46 @@ export interface LanguageEvent {
   language?: LanguageModelV3
 }
 
-function wrapSSE(res: Response, ms: number, ctl: AbortController) {
-  if (typeof ms !== "number" || ms <= 0) return res
-  if (!res.body) return res
-  if (!res.headers.get("content-type")?.includes("text/event-stream")) return res
-
-  const reader = res.body.getReader()
-  const body = new ReadableStream<Uint8Array>({
-    async pull(ctrl) {
-      const part = await new Promise<Awaited<ReturnType<typeof reader.read>>>((resolve, reject) => {
-        const id = setTimeout(() => {
-          const err = new Error("SSE read timed out")
-          ctl.abort(err)
-          void reader.cancel(err)
-          reject(err)
-        }, ms)
-
-        reader.read().then(
-          (part) => {
-            clearTimeout(id)
-            resolve(part)
-          },
-          (err) => {
-            clearTimeout(id)
-            reject(err)
-          },
-        )
-      })
-
-      if (part.done) {
-        ctrl.close()
-        return
-      }
-
-      ctrl.enqueue(part.value)
-    },
-    async cancel(reason) {
-      ctl.abort(reason)
-      await reader.cancel(reason)
-    },
-  })
-
-  return new Response(body, {
-    headers: new Headers(res.headers),
-    status: res.status,
-    statusText: res.statusText,
-  })
-}
-
-function prepareOptions(model: ModelV2.Info, pkg: string) {
+/**
+ * Build the option bag a provider package is constructed with.
+ *
+ * Exported and structurally typed so the deadline precedence can be asserted without standing
+ * up a provider: it reads a provider id, the api and the model-level request body, nothing
+ * else. `ModelV2.Info` satisfies it.
+ */
+export function prepareOptions(
+  model: {
+    readonly providerID: string
+    readonly api: { readonly type: string; readonly settings?: Record<string, unknown>; readonly url?: string }
+    readonly request: { readonly body: Record<string, unknown> }
+  },
+  pkg: string,
+): Record<string, any> & { fetch: AISDKTransport.Fetch } {
+  const settings = model.api.type === "aisdk" ? (model.api.settings ?? {}) : {}
+  // Deadlines are read from the provider api settings only. The request body is model-level
+  // and is spread over the settings below, so without reading them first a body field named
+  // `timeout` would silently change the transport deadline for the whole provider.
+  const deadlines = AISDKTransport.pick(settings)
   const options: Record<string, any> = {
     name: model.providerID,
-    ...(model.api.type === "aisdk" ? (model.api.settings ?? {}) : {}),
+    ...settings,
     ...model.request.body,
   }
   if (model.api.type === "aisdk" && model.api.url) options.baseURL = model.api.url
 
-  const customFetch = options.fetch
-  const chunkTimeout = options.chunkTimeout
+  const custom = options.fetch
+  // The three are ours to enforce; a provider package that saw them would apply its own.
+  delete options.timeout
+  delete options.headerTimeout
   delete options.chunkTimeout
-  options.fetch = async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+
+  const send = AISDKTransport.withDeadlines({
+    deadlines,
+    fetch: typeof custom === "function" ? custom : fetch,
+  })
+
+  const wrapped: AISDKTransport.Fetch = async (input, init) => {
     const opts = { ...init }
-    const signals = [
-      opts.signal,
-      typeof chunkTimeout === "number" && chunkTimeout > 0 ? new AbortController() : undefined,
-      options.timeout !== undefined && options.timeout !== null && options.timeout !== false
-        ? AbortSignal.timeout(options.timeout)
-        : undefined,
-    ].filter((item): item is AbortSignal | AbortController => Boolean(item))
-    const chunkAbortCtl = signals.find((item): item is AbortController => item instanceof AbortController)
-    const abortSignals = signals.map((item) => (item instanceof AbortController ? item.signal : item))
-    if (abortSignals.length === 1) opts.signal = abortSignals[0]
-    if (abortSignals.length > 1) opts.signal = AbortSignal.any(abortSignals)
 
     if (
       (pkg === "@ai-sdk/openai" || pkg === "@ai-sdk/azure" || pkg === "@ai-sdk/amazon-bedrock/mantle") &&
@@ -109,15 +78,14 @@ function prepareOptions(model: ModelV2.Info, pkg: string) {
       }
     }
 
-    const res = await (typeof customFetch === "function" ? customFetch : fetch)(input, {
-      ...opts,
-      timeout: false,
-    })
-    if (!chunkAbortCtl || typeof chunkTimeout !== "number") return res
-    return wrapSSE(res, chunkTimeout, chunkAbortCtl)
+    // `timeout: false` is Bun's own fetch knob, switched off so the deadlines above are the
+    // only ones in play. Assign rather than a literal: it is not part of `RequestInit`.
+    return send(input, Object.assign({}, opts, { timeout: false }))
   }
 
-  return options
+  // Assigned through `Object.assign` rather than by index: writing to a `Record<string, any>`
+  // key does not tell the type system the bag now carries a fetch, and callers rely on it.
+  return Object.assign(options, { fetch: wrapped })
 }
 
 export class InitError extends Schema.TaggedErrorClass<InitError>()("AISDK.InitError", {
