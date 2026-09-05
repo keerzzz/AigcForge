@@ -182,7 +182,7 @@ test.describe("regression: mode surface pending representation", () => {
       // workspace and all five slot containers now mount, and only the waiting slot's content
       // is replaced. Kept as an assertion so a regression back to the blank window is caught.
       await expect(page.locator('[data-mode-main="work"]')).toHaveCount(1)
-      await expect(page.locator('[data-component="mode-slot-pending"]').first()).toBeVisible({ timeout: 15_000 })
+      await expect(page.locator('[data-surface-pending="slot"]').first()).toBeVisible({ timeout: 15_000 })
 
       // The user-facing invariant, whichever boundary answers: `main` is never silently empty.
       // `role="status"` is the semantics a screen reader needs during the wait and what
@@ -353,7 +353,9 @@ test.describe("regression: one slot's pending resource stays that slot's problem
         await expect(slot(page, mode)).toHaveCount(1)
       }
       // And the workspace is not replaced by the route-level fallback.
-      await expect(page.locator('[data-component="route-pending"]')).toHaveCount(0)
+      // The slot says it is waiting; the route boundary must not have replaced the workspace.
+      await expect(page.locator('[data-surface-pending="slot"]').first()).toBeVisible()
+      await expect(page.locator('[data-surface-pending="route"]')).toHaveCount(0)
     } finally {
       release?.()
     }

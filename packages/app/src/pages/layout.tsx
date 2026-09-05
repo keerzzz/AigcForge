@@ -15,29 +15,7 @@ import { SecondarySidebar } from "@/components/secondary-sidebar"
 import { StatusBar } from "@/components/status-bar/status-bar"
 import { createCurrentSessionSource } from "@/components/status-bar/current-session-source"
 import { useLayout } from "@/context/layout"
-import { Spinner } from "@aigcfroge/ui/spinner"
-import { useLanguage } from "@/context/language"
-
-/**
- * What `<main>` shows while a route is still resolving.
- *
- * `role="status"` with a name is the part that cannot be skipped: a bare spinner leaves
- * assistive tech with nothing to announce during a wait that can last seconds. `common.loading`
- * already exists in all three dictionaries, so this adds no new key.
- */
-function RoutePending() {
-  const language = useLanguage()
-  return (
-    <div
-      class="flex flex-1 items-center justify-center self-stretch text-v2-text-text-muted"
-      data-component="route-pending"
-      role="status"
-      aria-label={language.t("common.loading")}
-    >
-      <Spinner class="size-4" />
-    </div>
-  )
-}
+import { SurfacePending } from "@/pages/surface-pending"
 
 function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   const mode = useMode()
@@ -74,7 +52,7 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
             comments in this repo already point here as the hazard. If a future route suspends
             above the slots, it shows a spinner instead of nothing.
           */}
-          <Suspense fallback={<RoutePending />}>{props.children}</Suspense>
+          <Suspense fallback={<SurfacePending owner="route" class="flex-1 self-stretch" />}>{props.children}</Suspense>
         </main>
       </div>
       <StatusBar source={statusSource} />

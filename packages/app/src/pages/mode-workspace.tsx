@@ -1,8 +1,9 @@
 import { createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, Suspense } from "solid-js"
-import { Spinner } from "@aigcfroge/ui/spinner"
+import * as Sentry from "@sentry/solid"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { useLanguage } from "@/context/language"
+import { SurfacePending } from "@/pages/surface-pending"
 import { createStore } from "solid-js/store"
 import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
 import { CustomDraftProvider } from "@/context/custom-draft"
@@ -47,8 +48,12 @@ const ALL_SLOTS = ["chat", "coding", "work", "assistant", "custom"] as const
  * something untrue. `reset` remounts the slot's subtree, which is what gives the resource a
  * second attempt.
  */
-function SlotError(props: { reset: () => void }) {
+function SlotError(props: { error: unknown; reset: () => void }) {
   const language = useLanguage()
+  // Containing the failure must not also hide it: `app.tsx:376-379` reports what reaches the
+  // top-level boundary, and without this the slot boundary would swallow exactly the errors it
+  // was added to catch — quieter logs, same broken surface.
+  Sentry.captureException(props.error)
   return (
     <div
       data-component="mode-slot-error"
@@ -60,18 +65,6 @@ function SlotError(props: { reset: () => void }) {
       <ButtonV2 variant="neutral" size="small" onClick={props.reset}>
         {language.t("asset.load.retry")}
       </ButtonV2>
-    </div>
-  )
-}
-
-function SlotPending() {
-  return (
-    <div
-      class="flex flex-1 items-center justify-center py-6 text-v2-text-text-muted"
-      data-component="mode-slot-pending"
-      role="status"
-    >
-      <Spinner class="size-4" />
     </div>
   )
 }
@@ -294,8 +287,8 @@ export function ModeWorkspace() {
                       return (
                         <div data-mode-sidebar={slot} style={{ display: mode.currentMode === slot ? "" : "none" }}>
                           <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
-                            <ErrorBoundary fallback={(_error, reset) => <SlotError reset={reset} />}>
-                              <Suspense fallback={<SlotPending />}>
+                            <ErrorBoundary fallback={(error, reset) => <SlotError error={error} reset={reset} />}>
+                              <Suspense fallback={<SurfacePending owner="slot" class="flex-1 py-6" />}>
                                 <surf.Sidebar />
                               </Suspense>
                             </ErrorBoundary>
@@ -317,8 +310,8 @@ export function ModeWorkspace() {
                           style={{ display: mode.currentMode === slot ? "flex" : "none" }}
                         >
                           <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
-                            <ErrorBoundary fallback={(_error, reset) => <SlotError reset={reset} />}>
-                              <Suspense fallback={<SlotPending />}>
+                            <ErrorBoundary fallback={(error, reset) => <SlotError error={error} reset={reset} />}>
+                              <Suspense fallback={<SurfacePending owner="slot" class="flex-1 py-6" />}>
                                 <surf.Main />
                               </Suspense>
                             </ErrorBoundary>
