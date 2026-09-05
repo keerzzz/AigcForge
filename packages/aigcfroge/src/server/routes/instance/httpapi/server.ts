@@ -54,6 +54,7 @@ import { Database } from "@aigcfroge/core/database/database"
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import { httpClient } from "@aigcfroge/core/effect/layer-node-platform"
 import { EventV2 } from "@aigcfroge/core/event"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
 import { ModelsDev } from "@aigcfroge/core/models-dev"
 import { Npm } from "@aigcfroge/core/npm"
 import { ProjectV2 } from "@aigcfroge/core/project"
@@ -217,6 +218,7 @@ const v2ShareWithTaskDriver = v2ShareLayer.pipe(Layer.provideMerge(v2TaskDriverR
 const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
   Layer.provideMerge(v2RuntimeWithTaskDriver),
   Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
   Layer.provide(EventV2.defaultLayer),
   Layer.provideMerge(v2TaskDriverRuntimeLayer),
 )
@@ -328,6 +330,7 @@ const app = LayerNode.group([
   InstanceStore.node,
   httpClient,
   EventV2.node,
+  DelegationService.node,
   ProjectV2.node,
   ProjectCopy.node,
   PtyTicket.node,

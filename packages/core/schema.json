@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "818842de-06b1-44b1-bcf8-40e96721351a",
-  "prevIds": ["dddb84ee-322e-4161-90f3-c4555b03c1bf"],
+  "id": "049c476f-e440-4f72-ab5a-4f8736e2c7f4",
+  "prevIds": ["818842de-06b1-44b1-bcf8-40e96721351a"],
   "ddl": [
     {
       "name": "workspace",
@@ -2713,6 +2713,16 @@
       "default": null,
       "generated": null,
       "name": "command_payload",
+      "entityType": "columns",
+      "table": "session_input"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "delegation_origin",
       "entityType": "columns",
       "table": "session_input"
     },

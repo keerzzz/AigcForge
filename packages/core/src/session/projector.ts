@@ -359,6 +359,7 @@ export const layer = Layer.effectDiscard(
           sessionID: event.data.sessionID,
           prompt: event.data.prompt,
           delivery: event.data.delivery,
+          delegationOrigin: event.data.delegationOrigin,
           timeCreated: event.data.timestamp,
           promotedSeq: event.durable.seq,
         })
@@ -374,6 +375,7 @@ export const layer = Layer.effectDiscard(
           sessionID: event.data.sessionID,
           prompt: event.data.prompt,
           delivery: event.data.delivery,
+          delegationOrigin: event.data.delegationOrigin,
           timeCreated: event.data.timestamp,
         })
       }),

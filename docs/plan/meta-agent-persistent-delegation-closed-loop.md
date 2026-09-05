@@ -313,6 +313,7 @@ delegation.delivery_admitted
 delegation.delivery_started
 delegation.delivery_completed
 delegation.delivery_failed
+delegation.delivery_cancelled
 delegation.delivery_recovery_required
 delegation.review_changes_requested
 delegation.review_approved
@@ -383,7 +384,7 @@ failed → active (显式 retry 且 reconciliation 通过) | closed
 9. `parentSessionID` 归属、Location 和 Product Mode policy 每次 command 都检查；
 10. child Session 不得通过 task 工具递归创建 participant；
 11. 目标侧在 pending inbox item 与最终落库消息上都保留 `{ turnID, deliveryOrigin, senderParticipantID }`；把该来源在 inbox 与历史上 fold 即去重键。恢复邮箱 = **已入队 − 已确认落库**；
-12. **重试只对未结算的投递开放。** 已结算投递的返回值可能已经流向下游消费者，重跑会产生第二份副作用；已结算的只能通过新 Turn 重做；
+12. **重试按投递尝试与最终投递结果分层。** `failed`、`cancelled`、`recovery_required` 表示当前 attempt 已结算但仍可重试；retry 只递增 `attempt`、复用同一 Turn，不重复 durable Turn。`completed` 表示结果已确认落库，不得原地重跑，只能通过新 Turn 重做，以免下游收到第二份副作用；
 13. 外部 CLI 的 `externalThreadID` 不得跨 parent Session 自动复用。
 
 ### 4.4 Review barrier
@@ -744,7 +745,7 @@ Turn 与投递不变量：
 - `turn.seq` 在同一 Delegation 内单调递增；
 - 去重键由被投递物自身携带（`turnID` / `deliveryOrigin` / `senderParticipantID`），在 inbox 与历史上 fold 后判重，**不使用独立 idempotency 表**；
 - 恢复邮箱 = 已入队 − 已确认落库；
-- **重试只对未结算投递开放**；已结算投递只能通过新 Turn 重做；
+- **重试只对仍可重试的最新 attempt 开放**：最新状态为 `failed`、`cancelled` 或 `recovery_required` 时递增 `attempt` 并复用同一 Turn；`completed` 不得原地重跑，只能通过新 Turn 重做；
 - `recovery_required` 只能经 reconciliation 进入 running；
 - close / archive / purge 三者语义分离。
 
@@ -854,7 +855,7 @@ Revision snapshot（§5.6）：
 6. Codex 只审查 R1（`rework` 判定）时，不能让 D1 completed；
 7. **Build 只做了 `formatting_only` 改动时，本期按 `rework` 保守处理**：Codex 对 R1 的批准不能被错误复制，必须重新审查；可靠 formatter service 的正向豁免另行立项；
 8. 一条投递失败时，另一条仍可完成；
-9. 重试只增加 attempt，不重复 durable turn；且**只对未结算投递开放**；
+9. 重试只增加 attempt，不重复 durable turn；且只允许从 `failed`、`cancelled` 或 `recovery_required` 的最新 attempt 继续，`completed` 只能通过新 Turn 重做；
 10. 默认 `delivery: steer` 在安全 provider-turn 边界 promote；显式 `delivery: queue` 在 Session 将要 idle 时才 promote；二者都是消息意图，不根据 transport capability 猜测（§2.6）；
 11. **目标无 Activation（进程已退出）时**：cold resume 重建 Activation；`steer` 在安全边界 promote，`queue` 等到 Session 将要 idle 时 promote，不把两种意图混为一谈；
 12. 投递完成顺序任意时，Delegation 状态仍按 barrier 正确收敛；
@@ -959,7 +960,7 @@ POST /delegation/:delegationID/review/retract-rejection
   { participantID?, reason }
 ```
 
-`retry` 只允许未结算投递；`reconcile` 是人工选择的恢复动作；`retract-rejection` 必须校验 reviewer/人工 override 权限并产生审计事件。
+`retry` 只允许最新 attempt 为 `failed`、`cancelled` 或 `recovery_required` 的投递；`completed` 投递只能通过新 Turn 重做。`reconcile` 是人工选择的恢复动作；`retract-rejection` 必须校验 reviewer/人工 override 权限并产生审计事件。
 
 **TDD 红**：
 
@@ -1194,7 +1195,7 @@ startup
 - `packages/core/test/delegation-fold.test.ts`
 - `packages/core/test/delegation-service.test.ts`
 
-覆盖：Schema 与 branded ID 不可互换、状态转换（含 `approved → waiting_review` 回路与 `deleted` 非状态）、roster phase 不被 runtime status 覆盖、barrier 按 role 计算且 `rework` / `formatting_only` 两侧都测、`rejected` 跨 revision 阻塞、barrier 纯函数性、revision digest 输入不含事件序号、来源携带式去重、重试只对未结算开放、脱敏。
+覆盖：Schema 与 branded ID 不可互换、状态转换（含 `approved → waiting_review` 回路与 `deleted` 非状态）、roster phase 不被 runtime status 覆盖、barrier 按 role 计算且 `rework` / `formatting_only` 两侧都测、`rejected` 跨 revision 阻塞、barrier 纯函数性、revision digest 输入不含事件序号、来源携带式去重、重试仅从 `failed` / `cancelled` / `recovery_required` 最新 attempt 开放且不重复 durable Turn、脱敏。
 
 `delegation-review.test.ts` 与 `delegation-fold.test.ts` 必须是**纯单测**——barrier 吃折叠状态、不吃数据库句柄（§4.4），所以这两个文件不应出现任何数据库或 Layer 装配。若发现必须起实例才能测 barrier，说明实现把数据库句柄漏进了纯函数，要回头改实现而不是改测试。
 
@@ -1672,7 +1673,7 @@ packages/aigcfroge/test/tool/task.test.ts（扩展兼容回归）
 - 同一 parent Session 下两个并存委派互不串台；
 - child Session 内调用 task 仍被拒绝；
 - foreground、background、queued append、cancel、failed、retry 都产生正确 delivery event；
-- retry 只重试未结算 delivery，已结算 delivery 只能创建新 Turn；
+- retry 只从 `failed` / `cancelled` / `recovery_required` 的最新 attempt 继续并复用同一 Turn；`completed` delivery 只能创建新 Turn；
 - parent interrupt 只中断本地活动执行，不把 Delegation 自动 archive；
 - `meta_agent_step` 兼容投影不会永久停在 `running`，但不会取代 Delegation 真源。
 

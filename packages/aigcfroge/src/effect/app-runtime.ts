@@ -62,6 +62,7 @@ import { ProjectV2 as CoreProject } from "@aigcfroge/core/project"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { EventV2 } from "@aigcfroge/core/event"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
 import { HotReloadSessionExecution } from "@/session/hot-reload-execution"
 import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
@@ -170,6 +171,7 @@ const v2SessionShareLayer = SessionShareV2.layer.pipe(
 const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
   Layer.provideMerge(v2SessionLayer),
   Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
   Layer.provide(CrossSpawnSpawner.defaultLayer),
   // The fill writes child messages through EventV2; v2SessionLayer consumes its
   // own EventV2 internally, so provide the shared default explicitly.

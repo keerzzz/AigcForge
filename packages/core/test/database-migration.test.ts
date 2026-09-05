@@ -28,6 +28,7 @@ import scopedGrantLocationMigration from "@aigcfroge/core/database/migration/202
 import mcpCredentialBindingMigration from "@aigcfroge/core/database/migration/20260825033229_secret_rachel_grey"
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
 import addDelegationTablesMigration from "@aigcfroge/core/database/migration/20260904160809_add_delegation_tables"
+import delegationOriginMigration from "@aigcfroge/core/database/migration/20260905135615_delegation_origin"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -1515,6 +1516,37 @@ describe("DatabaseMigration", () => {
         expect(yield* db.all(sql`SELECT id FROM delegation`)).toEqual([])
         expect(yield* db.all(sql`SELECT id FROM delegation_participant`)).toEqual([])
         expect(yield* db.all(sql`SELECT id FROM delegation_turn`)).toEqual([])
+      }),
+    )
+  })
+
+  test("adds delegation origin to an existing session inbox without changing prior rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(
+          sql`CREATE TABLE session_input (id text PRIMARY KEY, session_id text NOT NULL, prompt text, delivery text NOT NULL, admitted_seq integer NOT NULL, promoted_seq integer, time_created integer NOT NULL)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, time_created) VALUES ('inp_existing', 'ses_existing', '{}', 'steer', 1, 10)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [delegationOriginMigration])
+
+        expect(
+          (yield* db.all<{ name: string }>(sql`PRAGMA table_info(session_input)`)).map((column) => column.name),
+        ).toContain("delegation_origin")
+        expect(yield* db.get(sql`SELECT id, delegation_origin FROM session_input WHERE id = 'inp_existing'`)).toEqual({
+          id: "inp_existing",
+          delegation_origin: null,
+        })
+
+        yield* DatabaseMigration.applyOnly(db, [delegationOriginMigration])
+        expect(yield* db.get(sql`SELECT id, delegation_origin FROM session_input WHERE id = 'inp_existing'`)).toEqual({
+          id: "inp_existing",
+          delegation_origin: null,
+        })
       }),
     )
   })

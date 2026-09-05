@@ -2,6 +2,8 @@ import { NodeFileSystem } from "@effect/platform-node"
 import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Database } from "@aigcfroge/core/database/database"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { eq } from "drizzle-orm"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { FetchHttpClient } from "effect/unstable/http"
@@ -58,6 +60,7 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { CliAdapterRegistry } from "../../src/agent/meta/adapters/registry"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
+import { ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
 
 const summary = Layer.succeed(
   SessionSummary.Service,
@@ -197,6 +200,8 @@ function makePrompt(input?: { processor?: "blocking" }) {
     Layer.provide(Ripgrep.defaultLayer),
     Layer.provide(Format.defaultLayer),
     Layer.provide(RuntimeFlags.layer({ experimentalEventSystem: true })),
+    Layer.provide(DelegationService.defaultLayer),
+    Layer.provide(SessionTask.defaultLayer),
     Layer.provideMerge(todo),
     Layer.provideMerge(question),
     Layer.provideMerge(deps),
@@ -485,6 +490,30 @@ it.instance("loop calls LLM and returns assistant message", () =>
     const parts = result.parts.filter((p) => p.type === "text")
     expect(parts.some((p) => p.type === "text" && p.text === "world")).toBe(true)
     expect(yield* llm.hits).toHaveLength(1)
+  }),
+)
+
+it.instance("persists delegation origin on V1 user message history", () =>
+  Effect.gen(function* () {
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({ title: "Delegation origin" })
+    const delegationOrigin = {
+      turnID: TurnID.make("trn_test_origin"),
+      deliveryOrigin: "meta",
+      senderParticipantID: ParticipantID.make("par_test_origin"),
+    }
+
+    yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      noReply: true,
+      delegationOrigin,
+      parts: [{ type: "text", text: "delegated prompt" }],
+    })
+
+    const user = (yield* sessions.messages({ sessionID: chat.id })).find((message) => message.info.role === "user")
+    expect(user?.info.role === "user" ? user.info.delegationOrigin : undefined).toEqual(delegationOrigin)
   }),
 )
 

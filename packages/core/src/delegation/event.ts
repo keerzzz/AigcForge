@@ -190,6 +190,23 @@ export const DeliveryFailed = EventV2.define({
   schema: DeliveryFailedData.fields,
 })
 
+export const DeliveryCancelledData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  deliveryOrigin: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(512)),
+  senderParticipantID: ParticipantID,
+  attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
+  timestamp: Schema.Number,
+})
+export type DeliveryCancelledData = typeof DeliveryCancelledData.Type
+export const DeliveryCancelled = EventV2.define({
+  type: "delegation.delivery_cancelled",
+  ...options,
+  schema: DeliveryCancelledData.fields,
+})
+
 export const DeliveryRecoveryRequiredData = Schema.Struct({
   delegationID: DelegationID.ID,
   turnID: TurnID,

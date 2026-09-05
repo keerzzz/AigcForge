@@ -1,7 +1,7 @@
 export * as DelegationService from "./service"
 
 import { Context, DateTime, Effect, Layer } from "effect"
-import { eq } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
 import { LayerNode } from "../effect/layer-node"
@@ -20,12 +20,20 @@ import { DelegationEvent } from "./event"
 import { DelegationProjector } from "./projector"
 import { foldDelegation, type DelegationFoldState } from "./fold"
 import { SessionTable } from "../session/sql"
+import { DelegationParticipantTable, DelegationTable } from "./sql"
 
 export interface CreateInput {
   readonly parentSessionID: SessionIDType
   readonly metaAgentID?: string
   readonly title: string
   readonly delegationID?: DelegationIDType
+}
+
+export interface ResolveInput {
+  readonly parentSessionID: SessionIDType
+  readonly title: string
+  readonly delegationID?: DelegationIDType
+  readonly newDelegation?: boolean
 }
 
 export interface AddParticipantInput {
@@ -59,7 +67,7 @@ export interface RecordDeliveryInput {
   readonly deliveryOrigin: string
   readonly senderParticipantID: ParticipantID
   readonly attempt: number
-  readonly status: "started" | "completed" | "failed" | "recovery_required"
+  readonly status: "started" | "completed" | "failed" | "cancelled" | "recovery_required"
   readonly externalTurnID?: string
   readonly summary?: string
   readonly errorCode?: string
@@ -97,12 +105,16 @@ export type ServiceError =
 
 export interface Interface {
   readonly create: (input: CreateInput) => Effect.Effect<Delegation.Info, ServiceError>
+  readonly resolve: (input: ResolveInput) => Effect.Effect<DelegationFoldState, ServiceError>
   readonly addParticipant: (input: AddParticipantInput) => Effect.Effect<Delegation.ParticipantInfo, ServiceError>
   readonly appendTurn: (input: AppendTurnInput) => Effect.Effect<Delegation.TurnInfo, ServiceError>
   readonly recordDelivery: (input: RecordDeliveryInput) => Effect.Effect<void, ServiceError>
   readonly recordRevision: (input: RecordRevisionInput) => Effect.Effect<void, ServiceError>
   readonly recordReview: (input: RecordReviewInput) => Effect.Effect<void, ServiceError>
   readonly foldState: (delegationID: DelegationIDType) => Effect.Effect<DelegationFoldState | undefined, ServiceError>
+  readonly resolveActive: (
+    parentSessionID: SessionIDType,
+  ) => Effect.Effect<DelegationFoldState | undefined, ServiceError>
   readonly get: (delegationID: DelegationIDType) => Effect.Effect<Delegation.Info | undefined, ServiceError>
   readonly retractRejection: (input: {
     readonly delegationID: DelegationIDType
@@ -119,6 +131,7 @@ export const layer = Layer.effect(
     const { db } = yield* Database.Service
     const events = yield* EventV2.Service
     const turnAdmissionLocks = KeyedMutex.makeUnsafe<DelegationIDType>()
+    const resolutionLocks = KeyedMutex.makeUnsafe<SessionIDType>()
 
     const now = DateTime.nowAsDate.pipe(Effect.map((date) => date.getTime()))
 
@@ -201,6 +214,58 @@ export const layer = Layer.effect(
           attemptedTransition: "addParticipant",
           reason: `Cannot add a participant while delegation is ${state.delegation.status}`,
         })
+      }
+      if (input.childSessionID !== undefined) {
+        const [childSession, parentSession, existingBinding] = yield* Effect.all([
+          db
+            .select({
+              id: SessionTable.id,
+              parent_id: SessionTable.parent_id,
+              project_id: SessionTable.project_id,
+              workspace_id: SessionTable.workspace_id,
+              directory: SessionTable.directory,
+              mode: SessionTable.mode,
+            })
+            .from(SessionTable)
+            .where(eq(SessionTable.id, input.childSessionID))
+            .get()
+            .pipe(Effect.orDie),
+          db
+            .select({
+              id: SessionTable.id,
+              project_id: SessionTable.project_id,
+              workspace_id: SessionTable.workspace_id,
+              directory: SessionTable.directory,
+              mode: SessionTable.mode,
+            })
+            .from(SessionTable)
+            .where(eq(SessionTable.id, state.delegation.parentSessionID))
+            .get()
+            .pipe(Effect.orDie),
+          db
+            .select({ delegation_id: DelegationParticipantTable.delegation_id })
+            .from(DelegationParticipantTable)
+            .where(eq(DelegationParticipantTable.child_session_id, input.childSessionID))
+            .get()
+            .pipe(Effect.orDie),
+        ])
+        if (
+          childSession === undefined ||
+          parentSession === undefined ||
+          childSession.parent_id !== state.delegation.parentSessionID ||
+          childSession.project_id !== parentSession.project_id ||
+          childSession.workspace_id !== parentSession.workspace_id ||
+          childSession.directory !== parentSession.directory ||
+          childSession.mode !== parentSession.mode ||
+          (existingBinding !== undefined && existingBinding.delegation_id !== input.delegationID)
+        ) {
+          return yield* new Delegation.DelegationInvalidStateError({
+            delegationID: input.delegationID,
+            currentStatus: state.delegation.status,
+            attemptedTransition: "addParticipant",
+            reason: `Child session ${input.childSessionID} does not belong to parent session ${state.delegation.parentSessionID}`,
+          })
+        }
       }
       const id = ParticipantID.create()
       const timestamp = yield* now
@@ -373,6 +438,20 @@ export const layer = Layer.effect(
           })
           .pipe(Effect.asVoid)
       }
+      if (input.status === "cancelled") {
+        return yield* events
+          .publish(DelegationEvent.DeliveryCancelled, {
+            delegationID: input.delegationID,
+            turnID: input.turnID,
+            participantID: input.participantID,
+            deliveryOrigin: input.deliveryOrigin,
+            senderParticipantID: input.senderParticipantID,
+            attempt: input.attempt,
+            summary: input.summary,
+            timestamp,
+          })
+          .pipe(Effect.asVoid)
+      }
       return yield* events
         .publish(DelegationEvent.DeliveryRecoveryRequired, {
           delegationID: input.delegationID,
@@ -458,14 +537,59 @@ export const layer = Layer.effect(
         .pipe(Effect.asVoid)
     })
 
+    const resolveActive = Effect.fn("DelegationService.resolveActive")(function* (parentSessionID: SessionIDType) {
+      const row = yield* db
+        .select({ id: DelegationTable.id })
+        .from(DelegationTable)
+        .where(
+          and(
+            eq(DelegationTable.parent_session_id, parentSessionID),
+            inArray(DelegationTable.status, ["draft", "running", "waiting_review", "changes_requested", "approved"]),
+          ),
+        )
+        .orderBy(desc(DelegationTable.last_activity_at))
+        .limit(1)
+        .get()
+        .pipe(Effect.orDie)
+      if (!row) return undefined
+      return yield* foldState(row.id)
+    })
+
+    const resolve = Effect.fn("DelegationService.resolve")(function* (input: ResolveInput) {
+      return yield* resolutionLocks.withLock(input.parentSessionID)(
+        Effect.gen(function* () {
+          if (input.delegationID) {
+            const state = yield* requireState(input.delegationID)
+            if (state.delegation.parentSessionID !== input.parentSessionID) {
+              return yield* new Delegation.DelegationInvalidStateError({
+                delegationID: input.delegationID,
+                currentStatus: state.delegation.status,
+                attemptedTransition: "resolve",
+                reason: `Delegation ${input.delegationID} does not belong to parent session ${input.parentSessionID}`,
+              })
+            }
+            return state
+          }
+          if (!input.newDelegation) {
+            const active = yield* resolveActive(input.parentSessionID)
+            if (active) return active
+          }
+          const created = yield* create({ parentSessionID: input.parentSessionID, title: input.title })
+          return yield* requireState(created.id)
+        }),
+      )
+    })
+
     return Service.of({
       create,
+      resolve,
       addParticipant,
       appendTurn,
       recordDelivery,
       recordRevision,
       recordReview,
       foldState,
+      resolveActive,
       get,
       retractRejection,
     })

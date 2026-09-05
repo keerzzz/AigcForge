@@ -2,8 +2,10 @@ export * as TaskTool from "./task"
 
 import { ToolFailure } from "@aigcfroge/llm"
 import { Cause, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect"
+import { DelegationID } from "@aigcfroge/schema/delegation-id"
 import { AgentV2 } from "../agent"
 import { Config } from "../config"
+import { DelegationService } from "../delegation/service"
 import { EventV2 } from "../event"
 import { PermissionV2 } from "../permission"
 import { ProductModeAgentPolicy } from "../product-mode-agent-policy"
@@ -70,11 +72,20 @@ export const Input = Schema.Struct({
     description:
       "Model IDs when execution_type is 'judge'. Each entry is a model ID (e.g. openai/gpt-5, anthropic/claude-sonnet-4). A judge model merges the results. Defaults to the session's model and one alternative. Max 5.",
   }),
+  delegation_id: Schema.optional(Schema.String).annotate({
+    description: "Optional persistent delegation ID to route this task turn into an existing delegation",
+  }),
+  new_delegation: Schema.optional(Schema.Boolean).annotate({
+    description: "When true, create a fresh persistent delegation instead of reusing the currently active one",
+  }),
 })
 
 export const Output = Schema.Struct({
   sessionID: Schema.String,
   output: Schema.String,
+  delegationID: Schema.optional(Schema.String),
+  turnID: Schema.optional(Schema.String),
+  participantID: Schema.optional(Schema.String),
   // External-CLI dispatches carry structured metadata so session-ui / TUI task
   // cards can render a CLI badge, status, and a link into the child Session.
   metadata: Schema.optional(
@@ -151,6 +162,7 @@ export const layer = Layer.effectDiscard(
     const agents = yield* AgentV2.Service
     const permission = yield* PermissionV2.Service
     const config = yield* Config.Service
+    const delegation = yield* DelegationService.Service
     const tasks = yield* SessionTask.Service
     const events = yield* EventV2.Service
     const configEntries = yield* config.entries()
@@ -386,15 +398,90 @@ export const layer = Layer.effectDiscard(
                 }
               }
 
-              // Resume a prior subagent Session when a well-formed task_id is
-              // supplied; a malformed id is ignored and a fresh child is created.
-              // The id is only a branded string here — createChild is idempotent,
-              // so a never-seen id mints a fresh child under it and an existing one
-              // is returned as-is (then rejected below if it belongs elsewhere).
-              const resumeID = input.task_id
+              const requestedDelegationID = input.delegation_id
+                ? Option.getOrUndefined(Schema.decodeUnknownOption(DelegationID.ID)(input.delegation_id))
+                : undefined
+              if (input.delegation_id && requestedDelegationID === undefined) {
+                return yield* new ToolFailure({ message: `Invalid delegation_id: ${input.delegation_id}` })
+              }
+              const state = yield* delegation
+                .resolve({
+                  parentSessionID: context.sessionID,
+                  title: input.description,
+                  delegationID: requestedDelegationID,
+                  newDelegation: input.new_delegation,
+                })
+                .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+              const delegationInfo = state.delegation
+
+              // task_id is a compatibility locator only. Durable participant
+              // ownership is authoritative and rejects cross-Delegation reuse.
+              const requestedChildID = input.task_id
                 ? Option.getOrUndefined(Schema.decodeUnknownOption(SessionSchema.ID)(input.task_id))
                 : undefined
-
+              const matchingParticipants = [...state.participants.values()].filter(
+                (participant) =>
+                  participant.provider === "internal" &&
+                  participant.target === subagent.id &&
+                  participant.role === "implementer",
+              )
+              const requestedParticipant = requestedChildID
+                ? [...state.participants.values()].find(
+                    (participant) => participant.childSessionID === requestedChildID,
+                  )
+                : undefined
+              if (requestedChildID && requestedParticipant === undefined && state.participants.size > 0) {
+                return yield* new ToolFailure({
+                  message: `task_id ${input.task_id} does not belong to delegation ${delegationInfo.id}`,
+                })
+              }
+              if (
+                requestedParticipant &&
+                !matchingParticipants.some((participant) => participant.id === requestedParticipant.id)
+              ) {
+                return yield* new ToolFailure({
+                  message: `task_id ${input.task_id} is not the requested participant in delegation ${delegationInfo.id}`,
+                })
+              }
+              const boundParticipant =
+                requestedParticipant ?? matchingParticipants.find((participant) => participant.childSessionID)
+              if (
+                requestedChildID &&
+                boundParticipant?.childSessionID &&
+                boundParticipant.childSessionID !== requestedChildID
+              ) {
+                return yield* new ToolFailure({
+                  message: `task_id ${input.task_id} does not belong to delegation ${delegationInfo.id}`,
+                })
+              }
+              const child = yield* TaskDriver.createChild({
+                parentID: context.sessionID,
+                agent: subagent.id,
+                id: requestedChildID ?? boundParticipant?.childSessionID,
+                attended: input.attended ?? subagent.attended ?? configAttendedDefault ?? false,
+              })
+              if (child.parentID !== context.sessionID) {
+                return yield* new ToolFailure({
+                  message: `task_id ${input.task_id ?? child.id} does not belong to this session`,
+                })
+              }
+              const participant = boundParticipant
+                ? boundParticipant
+                : yield* delegation
+                    .addParticipant({
+                      delegationID: delegationInfo.id,
+                      provider: "internal",
+                      target: subagent.id,
+                      role: "implementer",
+                      context: "fresh",
+                      childSessionID: child.id,
+                    })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+              if (participant.childSessionID !== child.id) {
+                return yield* new ToolFailure({
+                  message: `Child Session ${child.id} is not bound to delegation ${delegationInfo.id}`,
+                })
+              }
               // ── Dual-track todo linkage ──
               // Track A: an explicit parent_task_id links to an existing task
               // minted by taskwrite. Track B: a fresh delegation auto-creates an
@@ -405,7 +492,7 @@ export const layer = Layer.effectDiscard(
               // task was already settled by its own delegation's onSettle (or stays
               // in_progress if that delegation was interrupted — M2 closes this gap).
               let taskID: string | undefined = input.parent_task_id
-              if (taskID === undefined && resumeID === undefined) {
+              if (taskID === undefined) {
                 // Track B: append atomically in one transaction so concurrent
                 // task calls in the same provider turn never drop each other's rows.
                 // The write is a plain in_progress task (no recurrence), so the
@@ -436,32 +523,36 @@ export const layer = Layer.effectDiscard(
                     .pipe(Effect.orDie, Effect.asVoid)
               }
 
-              // Tracks the current attempt's child so an abort can stop it and a
-              // retry can cancel the orphan a failed prior attempt left behind.
-              const activeChild = yield* Ref.make(Option.none<SessionSchema.ID>())
+              const shouldQueue =
+                input.background === true && backgroundEnabled() && (yield* TaskDriver.isRunning(child.id))
+              const turn = yield* delegation
+                .appendTurn({
+                  delegationID: delegationInfo.id,
+                  kind: "task",
+                  promptSummary: input.description,
+                  participantIDs: [participant.id],
+                  delivery: shouldQueue ? "queue" : "steer",
+                  origin: { deliveryOrigin: "meta", senderParticipantID: participant.id },
+                })
+                .pipe(
+                  Effect.mapError((error) => new ToolFailure({ message: error.message, error })),
+                  Effect.tapError(() =>
+                    onSettle ? onSettle({ status: "failed", outputDigest: "turn admission failed" }) : Effect.void,
+                  ),
+                )
+
+              const attempt = yield* Ref.make(1)
 
               const delegateOnce = Effect.gen(function* () {
-                // Before a retry, cancel the orphan child a prior fresh attempt
-                // created and abandoned. A resumed task_id keeps the same id across
-                // attempts, so there is no orphan to clean up.
-                if (resumeID === undefined) {
-                  const previous = yield* Ref.getAndSet(activeChild, Option.none())
-                  if (Option.isSome(previous)) yield* TaskDriver.cancel(previous.value)
+                const delivery = {
+                  delegationID: delegationInfo.id,
+                  participantID: participant.id,
+                  turnID: turn.id,
+                  deliveryOrigin: "meta",
+                  senderParticipantID: participant.id,
+                  delivery: turn.delivery,
+                  attempt: yield* Ref.getAndUpdate(attempt, (current) => current + 1),
                 }
-
-                const child = yield* TaskDriver.createChild({
-                  parentID: context.sessionID,
-                  agent: subagent.id,
-                  id: resumeID,
-                  attended: input.attended ?? subagent.attended ?? configAttendedDefault ?? false,
-                })
-                // A resumed id must belong to this session; refuse to drive
-                // another Session on the model's behalf.
-                if (child.parentID !== context.sessionID)
-                  return yield* new ToolFailure({
-                    message: `task_id ${input.task_id} does not belong to this session`,
-                  })
-                yield* Ref.set(activeChild, Option.some(child.id))
 
                 // Background delegation: schedule the child, inject its result into
                 // the parent when it settles, and return immediately. Gated by the
@@ -470,16 +561,23 @@ export const layer = Layer.effectDiscard(
                 if (input.background === true && backgroundEnabled()) {
                   // Resume against an in-flight background task: append the prompt
                   // to the running job's queue rather than starting a new one.
-                  if (resumeID !== undefined) {
+                  if (shouldQueue) {
                     const extended = yield* TaskDriver.extendBackground({
                       parentID: context.sessionID,
                       sessionID: child.id,
                       prompt: input.prompt,
                       description: input.description,
+                      taskID,
+                      stepID: child.stepID,
+                      delivery,
+                      onSettle,
                     })
                     if (extended) {
                       return {
                         sessionID: child.id,
+                        delegationID: delegationInfo.id,
+                        participantID: participant.id,
+                        turnID: turn.id,
                         output: renderOutput({
                           sessionID: child.id,
                           state: "running",
@@ -497,10 +595,15 @@ export const layer = Layer.effectDiscard(
                     prompt: input.prompt,
                     description: input.description,
                     taskID,
+                    stepID: child.stepID,
+                    delivery,
                     onSettle,
                   })
                   return {
                     sessionID: child.id,
+                    delegationID: delegationInfo.id,
+                    participantID: participant.id,
+                    turnID: turn.id,
                     output: renderOutput({ sessionID: child.id, state: "running", text: BACKGROUND_STARTED }),
                   }
                 }
@@ -537,11 +640,16 @@ export const layer = Layer.effectDiscard(
                     parentID: context.sessionID,
                     prompt: input.prompt,
                     taskID,
+                    stepID: child.stepID,
+                    delivery,
                     onSettle,
                   })
                 }).pipe(Effect.scoped)
                 return {
                   sessionID: child.id,
+                  delegationID: delegationInfo.id,
+                  participantID: participant.id,
+                  turnID: turn.id,
                   output: renderOutput({ sessionID: child.id, state: "completed", text }),
                 }
               })
@@ -559,13 +667,7 @@ export const layer = Layer.effectDiscard(
                   "TaskDriver.DelegateError",
                   (error) => new ToolFailure({ message: `Subagent task ${error.reason}`, error }),
                 ),
-                Effect.onInterrupt(() =>
-                  Ref.get(activeChild).pipe(
-                    Effect.flatMap((current) =>
-                      Option.isSome(current) ? TaskDriver.cancel(current.value) : Effect.void,
-                    ),
-                  ),
-                ),
+                Effect.onInterrupt(() => TaskDriver.cancel(child.id)),
               )
             }),
         }),

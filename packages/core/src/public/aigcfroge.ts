@@ -3,6 +3,7 @@ export * as Aigcfroge from "./aigcfroge"
 import { Context, Effect, Layer } from "effect"
 import { BackgroundJob } from "../background-job"
 import { Database } from "../database/database"
+import { DelegationService } from "../delegation/service"
 import { EventV2 } from "../event"
 import { LocationServiceMap } from "../location-layer"
 import { ProjectV2 } from "../project"
@@ -47,6 +48,7 @@ const SessionsLayer = SessionV2.layer.pipe(
 const FillerLayer = TaskDriverFill.layer.pipe(
   Layer.provideMerge(SessionsLayer),
   Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
   Layer.provide(EventV2.defaultLayer),
 )
 // TODO: Accept explicit storage so tests and embeddings can select disposable or application-owned persistence.

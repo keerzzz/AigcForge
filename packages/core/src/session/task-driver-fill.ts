@@ -24,6 +24,7 @@ import { adapter as codexSdkAdapter } from "../tool/codex-sdk"
 import { adapter as claudeCodeAcpAdapter } from "../tool/claude-code-acp"
 import { adapter as codexAcpAdapter } from "../tool/codex-acp"
 import { MetaAgentService } from "../meta-agent/service"
+import { DelegationService } from "../delegation/service"
 import { Database } from "../database/database"
 import { Config } from "../config"
 import { PermissionV2 } from "../permission"
@@ -114,6 +115,7 @@ export const layer = Layer.effectDiscard(
       }).pipe(Effect.orDie)
     }
     const metaAgent = yield* Effect.serviceOption(MetaAgentService.Service)
+    const delegation = yield* DelegationService.Service
     yield* TaskDriver.initialize(
       TaskDriver.make(
         {
@@ -121,11 +123,12 @@ export const layer = Layer.effectDiscard(
           create: (input) =>
             Effect.gen(function* () {
               const child = yield* sessions.create(input)
+              let stepID: string | undefined
               // Record meta agent step if the parent session is associated with a meta agent.
               if (metaAgent._tag === "Some" && input.parentID) {
                 const parentMeta = yield* metaAgent.value.findBySession(input.parentID)
                 if (parentMeta) {
-                  yield* metaAgent.value.writeStep({
+                  stepID = yield* metaAgent.value.writeStep({
                     metaAgentSessionID: parentMeta.sessionID,
                     seq: yield* Effect.sync(() => Date.now()),
                     engine: input.agent ? input.agent.toString() : "default",
@@ -134,13 +137,35 @@ export const layer = Layer.effectDiscard(
                   })
                 }
               }
-              return child
+              return Object.assign(child, { stepID })
             }),
           prompt: sessions.prompt,
           resume: sessions.resume,
-          messages: (input) => sessions.messages({ sessionID: input.sessionID }),
+          messages: sessions.messages,
+          children: sessions.children,
           injectSynthetic: sessions.injectSynthetic,
           interrupt: sessions.interrupt,
+          settleStep: (input) =>
+            Effect.gen(function* () {
+              if (metaAgent._tag !== "Some") return
+              yield* metaAgent.value.updateStep({
+                stepID: input.stepID,
+                status: input.status,
+              })
+            }),
+          settleDelivery: (input) =>
+            delegation
+              .recordDelivery({
+                delegationID: input.delegationID,
+                turnID: input.turnID,
+                participantID: input.participantID,
+                deliveryOrigin: input.deliveryOrigin,
+                senderParticipantID: input.senderParticipantID,
+                attempt: input.attempt,
+                status: input.status,
+                summary: input.summary,
+              })
+              .pipe(Effect.orDie),
         },
         {
           start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
@@ -160,6 +185,7 @@ export const layer = Layer.effectDiscard(
               ),
           cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
           extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+          isRunning: (sessionID) => background.get(sessionID).pipe(Effect.map((info) => info?.status === "running")),
         },
         {
           execute: (input) =>

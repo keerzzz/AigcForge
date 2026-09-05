@@ -8,8 +8,8 @@
  */
 
 import { describe, expect } from "bun:test"
-import { and, eq } from "drizzle-orm"
-import { Deferred, Effect, Exit, Layer, Schema } from "effect"
+import { eq } from "drizzle-orm"
+import { DateTime, Deferred, Effect, Exit, Layer, Schema } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { BackgroundJob } from "@aigcfroge/core/background-job"
 import { Database } from "@aigcfroge/core/database/database"
@@ -17,6 +17,8 @@ import { EventV2 } from "@aigcfroge/core/event"
 import { Location } from "@aigcfroge/core/location"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
 import { MetaAgentStepTable } from "@aigcfroge/core/meta-agent/sql"
+import { ModelV2 } from "@aigcfroge/core/model"
+import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
@@ -24,7 +26,8 @@ import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionComposition } from "@aigcfroge/core/session/composition"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionInputTable, SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionInputTable, SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionMessage } from "@aigcfroge/core/session/message"
 import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
 import { TaskTool } from "@aigcfroge/core/tool/task"
 import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
@@ -65,6 +68,7 @@ const fillLayer = TaskDriverFill.layer.pipe(
   Layer.provide(sessionsLayer),
   Layer.provide(rootServices),
   Layer.provide(metaAgentLayer),
+  Layer.provide(delegationServiceLayer),
   Layer.provideMerge(TaskDriver.runtimeLayer),
 )
 
@@ -378,30 +382,46 @@ describe("Phase 2: Internal Build Participant (TDD RED)", () => {
         origin: { deliveryOrigin: "meta", senderParticipantID: participant.id },
       })
 
-      yield* delegationService.recordDelivery({
-        delegationID: delegation.id,
-        turnID: turn.id,
-        participantID: participant.id,
-        deliveryOrigin: "meta",
-        senderParticipantID: participant.id,
-        attempt: 1,
-        status: "started",
+      const msg = SessionMessage.Assistant.make({
+        id: SessionMessage.ID.create(),
+        type: "assistant",
+        agent: "build",
+        model: { id: ModelV2.ID.make("test"), providerID: ProviderV2.ID.make("test") },
+        content: [{ id: "prt_1", type: "text", text: "Build succeeded" }],
+        time: { created: DateTime.makeUnsafe(Date.now()) },
       })
-      const started = yield* DelegationProjector.readEvents(db, delegation.id)
-      expect(started.some((event) => event.type === DelegationEvent.DeliveryStarted.type)).toBe(true)
+      const { id: _, type, ...data } = Schema.encodeSync(SessionMessage.Message)(msg)
+      yield* db
+        .insert(SessionMessageTable)
+        .values({
+          id: msg.id,
+          session_id: childSession.id,
+          type,
+          seq: 1,
+          time_created: DateTime.toEpochMillis(msg.time.created),
+          data,
+        })
+        .run()
+        .pipe(Effect.orDie)
 
-      yield* delegationService.recordDelivery({
-        delegationID: delegation.id,
-        turnID: turn.id,
-        participantID: participant.id,
-        deliveryOrigin: "meta",
-        senderParticipantID: participant.id,
-        attempt: 1,
-        status: "completed",
-        summary: "Build succeeded",
-      })
-      const completed = yield* DelegationProjector.readEvents(db, delegation.id)
-      expect(completed.some((event) => event.type === DelegationEvent.DeliveryCompleted.type)).toBe(true)
+      yield* TaskDriver.delegate({
+        sessionID: childSession.id,
+        parentID: parentSessionID,
+        prompt: "echo done",
+        delivery: {
+          delegationID: delegation.id,
+          participantID: participant.id,
+          turnID: turn.id,
+          deliveryOrigin: "meta",
+          senderParticipantID: participant.id,
+          delivery: "steer",
+          attempt: 1,
+        },
+      }).pipe(Effect.exit)
+
+      const events = yield* DelegationProjector.readEvents(db, delegation.id)
+      expect(events.some((event) => event.type === DelegationEvent.DeliveryStarted.type)).toBe(true)
+      expect(events.some((event) => event.type === DelegationEvent.DeliveryCompleted.type)).toBe(true)
     }),
   )
 
@@ -458,6 +478,8 @@ describe("Phase 2: Internal Build Participant (TDD RED)", () => {
         type: "task",
         run: Deferred.await(done).pipe(Effect.as("in-flight work")),
       })
+      expect((yield* background.get(childSession.id))?.status).toBe("running")
+
       yield* sessions.prompt({
         sessionID: childSession.id,
         prompt: { text: "pending child input" },
@@ -470,6 +492,8 @@ describe("Phase 2: Internal Build Participant (TDD RED)", () => {
 
       yield* sessions.interrupt(parentSessionID)
 
+      expect((yield* background.get(childSession.id))?.status).toBe("cancelled")
+
       const state = yield* delegationService.foldState(delegation.id)
       expect(state?.delegation.status).not.toBe("archived")
       expect(state?.delegation.status).not.toBe("completed")
@@ -478,9 +502,6 @@ describe("Phase 2: Internal Build Participant (TDD RED)", () => {
         .from(SessionInputTable)
         .where(eq(SessionInputTable.session_id, childSession.id))
       expect(inputsAfter.length).toBe(inputsBefore.length)
-
-      yield* Deferred.succeed(done, undefined)
-      yield* background.cancel(childSession.id)
     }),
   )
 
@@ -582,13 +603,14 @@ describe("Phase 2: Internal Build Participant (TDD RED)", () => {
     }),
   )
 
-  it.effect("11. keeps delegationID and turnID in the output contract without deliveryID", () =>
+  it.effect("11. keeps delegationID, turnID, and participantID in the output contract without deliveryID", () =>
     Effect.gen(function* () {
       const outputFields = TaskTool.Output.fields
       expect("sessionID" in outputFields).toBe(true)
       expect("output" in outputFields).toBe(true)
       expect("delegationID" in outputFields).toBe(true)
       expect("turnID" in outputFields).toBe(true)
+      expect("participantID" in outputFields).toBe(true)
       expect("deliveryID" in outputFields).toBe(false)
 
       const decoded = decodeRecord(
@@ -597,10 +619,12 @@ describe("Phase 2: Internal Build Participant (TDD RED)", () => {
           output: "Build completed successfully",
           delegationID: "dlg_sample_123",
           turnID: "trn_sample_456",
+          participantID: "prt_sample_789",
         }),
       )
       expect(decoded.delegationID).toBe("dlg_sample_123")
       expect(decoded.turnID).toBe("trn_sample_456")
+      expect(decoded.participantID).toBe("prt_sample_789")
       expect(decoded.deliveryID).toBeUndefined()
     }),
   )
@@ -625,14 +649,10 @@ describe("Phase 2: Internal Build Participant (TDD RED)", () => {
         parentID: parentSessionID,
         agent: AgentV2.ID.make("build"),
       })
+      assertDefined(child.stepID)
 
-      const initialSteps = yield* db
-        .select()
-        .from(MetaAgentStepTable)
-        .where(
-          and(eq(MetaAgentStepTable.meta_agent_session_id, parentSessionID), eq(MetaAgentStepTable.engine, "build")),
-        )
-      expect(initialSteps.length).toBeGreaterThan(0)
+      const initialSteps = yield* db.select().from(MetaAgentStepTable).where(eq(MetaAgentStepTable.id, child.stepID))
+      expect(initialSteps).toHaveLength(1)
       const targetStep = initialSteps[0]
       assertDefined(targetStep)
       expect(targetStep.status).toBe("running")
@@ -641,14 +661,75 @@ describe("Phase 2: Internal Build Participant (TDD RED)", () => {
         sessionID: child.id,
         parentID: parentSessionID,
         prompt: "echo done",
+        stepID: child.stepID,
       }).pipe(Effect.exit)
 
-      const settledRows = yield* db.select().from(MetaAgentStepTable).where(eq(MetaAgentStepTable.id, targetStep.id))
+      const settledRows = yield* db.select().from(MetaAgentStepTable).where(eq(MetaAgentStepTable.id, child.stepID))
       expect(settledRows).toHaveLength(1)
       const settledStep = settledRows[0]
       assertDefined(settledStep)
       expect(settledStep.status).not.toBe("running")
       expect(["completed", "failed"]).toContain(settledStep.status)
+    }),
+  )
+
+  it.effect("13. isolates concurrent steps under the same parent meta agent session", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const metaAgent = yield* MetaAgentService.Service
+      yield* seedDelegationParentSession(db, parentSessionID)
+
+      const parentMeta = yield* metaAgent.create({
+        title: "Meta parent concurrent",
+        agent: "meta",
+        model: { id: "gpt-4", providerID: "openai" },
+      })
+      yield* metaAgent.attach({
+        metaID: parentMeta.id,
+        sessionID: parentSessionID,
+        role: "orchestrator",
+      })
+
+      const child1 = yield* TaskDriver.createChild({
+        parentID: parentSessionID,
+        agent: AgentV2.ID.make("build"),
+      })
+      const child2 = yield* TaskDriver.createChild({
+        parentID: parentSessionID,
+        agent: AgentV2.ID.make("build"),
+      })
+
+      assertDefined(child1.stepID)
+      assertDefined(child2.stepID)
+      expect(child1.stepID).not.toBe(child2.stepID)
+
+      // Settle child 1 only
+      yield* TaskDriver.delegate({
+        sessionID: child1.id,
+        parentID: parentSessionID,
+        prompt: "echo step 1 done",
+        stepID: child1.stepID,
+      }).pipe(Effect.exit)
+
+      // Verify child 1 is settled, while child 2 remains running (isolated!)
+      const step1Rows = yield* db.select().from(MetaAgentStepTable).where(eq(MetaAgentStepTable.id, child1.stepID))
+      const step2Rows = yield* db.select().from(MetaAgentStepTable).where(eq(MetaAgentStepTable.id, child2.stepID))
+
+      expect(step1Rows).toHaveLength(1)
+      expect(step1Rows[0]?.status).not.toBe("running")
+      expect(step2Rows).toHaveLength(1)
+      expect(step2Rows[0]?.status).toBe("running")
+
+      // Now settle child 2
+      yield* TaskDriver.delegate({
+        sessionID: child2.id,
+        parentID: parentSessionID,
+        prompt: "echo step 2 done",
+        stepID: child2.stepID,
+      }).pipe(Effect.exit)
+
+      const step2Settled = yield* db.select().from(MetaAgentStepTable).where(eq(MetaAgentStepTable.id, child2.stepID))
+      expect(step2Settled[0]?.status).not.toBe("running")
     }),
   )
 })

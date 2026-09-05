@@ -1,6 +1,8 @@
 import { afterEach, describe, expect } from "bun:test"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Database } from "@aigcfroge/core/database/database"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { Deferred, Effect, Exit, Fiber, Layer, Schema } from "effect"
 import { Agent } from "../../src/agent/agent"
 import { BackgroundJob } from "@/background/job"
@@ -52,6 +54,8 @@ const layer = (flags: Partial<RuntimeFlags.Info> = {}) =>
     adapterRegistryLayer,
     ToolRegistry.defaultLayer,
     Database.defaultLayer,
+    DelegationService.defaultLayer,
+    SessionTask.defaultLayer,
     RuntimeFlags.layer(flags),
   ).pipe(Layer.provide(Ripgrep.defaultLayer))
 

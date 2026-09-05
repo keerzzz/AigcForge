@@ -547,9 +547,23 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
         updatedAt: data.timestamp,
       })
       turns.set(data.turnID, refreshTurnStatus(turn, deliveries.values()))
+      const participant = participants.get(data.participantID)
+      if (participant?.phase === "failed" && data.attempt > 1) {
+        participants.set(
+          data.participantID,
+          new Delegation.ParticipantInfo({
+            ...participant,
+            phase: "active",
+            lastActivityAt: data.timestamp,
+            updatedAt: data.timestamp,
+          }),
+        )
+      }
       if (delegation) {
+        if (delegation.status === "failed" && data.attempt > 1) requireTransition(delegation, "running", type)
         delegation = new Delegation.Info({
           ...delegation,
+          status: delegation.status === "failed" && data.attempt > 1 ? "running" : delegation.status,
           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
           updatedAt: data.timestamp,
         })
@@ -586,33 +600,50 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
           updatedAt: data.timestamp,
         })
       }
-    } else if (type === DelegationEvent.DeliveryFailed.type) {
-      const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.DeliveryFailedData),
-        event.data,
-        type,
-        expectedDelegationID,
-      )
+    } else if (type === DelegationEvent.DeliveryFailed.type || type === DelegationEvent.DeliveryCancelled.type) {
+      const cancelled = type === DelegationEvent.DeliveryCancelled.type
+      const data = cancelled
+        ? {
+            ...parseEvent(
+              Schema.decodeUnknownOption(DelegationEvent.DeliveryCancelledData),
+              event.data,
+              type,
+              expectedDelegationID,
+            ),
+            errorCode: undefined,
+          }
+        : parseEvent(
+            Schema.decodeUnknownOption(DelegationEvent.DeliveryFailedData),
+            event.data,
+            type,
+            expectedDelegationID,
+          )
       expectedDelegationID = checkDataDelegationID(data.delegationID, expectedDelegationID)
       const turn = requireTurn(turns, data.turnID, expectedDelegationID, type)
       requireTurnParticipant(turn, data.participantID, expectedDelegationID, type)
       requireParticipant(participants, data.senderParticipantID, expectedDelegationID, type)
       const key = deliveryKey(data.turnID, data.participantID, data.deliveryOrigin, data.senderParticipantID)
-      requireDeliveryAttempt(deliveries, key, data.attempt, "failed", expectedDelegationID, type)
+      const status = cancelled ? "cancelled" : "failed"
+      requireDeliveryAttempt(deliveries, key, data.attempt, status, expectedDelegationID, type)
       deliveries.set(key, {
         turnID: data.turnID,
         participantID: data.participantID,
         deliveryOrigin: data.deliveryOrigin,
         senderParticipantID: data.senderParticipantID,
         attempt: data.attempt,
-        status: "failed",
+        status,
         errorCode: data.errorCode,
         summary: data.summary,
         updatedAt: data.timestamp,
       })
       turns.set(data.turnID, refreshTurnStatus(turn, deliveries.values()))
       const failedParticipant = participants.get(data.participantID)
-      if (failedParticipant && failedParticipant.phase !== "closed" && failedParticipant.phase !== "failed") {
+      if (
+        !cancelled &&
+        failedParticipant &&
+        failedParticipant.phase !== "closed" &&
+        failedParticipant.phase !== "failed"
+      ) {
         if (canAdvancePhase(failedParticipant.phase, "failed")) {
           participants.set(
             data.participantID,
@@ -625,7 +656,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
           )
         }
       }
-      if (delegation) {
+      if (!cancelled && delegation) {
         if (["completed", "cancelled", "archived"].includes(delegation.status)) {
           corrupted(expectedDelegationID, type, `Cannot fail a delegation while it is ${delegation.status}`)
         }

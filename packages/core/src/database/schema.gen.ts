@@ -405,6 +405,7 @@ export default {
           \`command\` text,
           \`skill\` text,
           \`command_payload\` text,
+          \`delegation_origin\` text,
           \`delivery\` text NOT NULL,
           \`admitted_seq\` integer NOT NULL,
           \`promoted_seq\` integer,

@@ -9,7 +9,7 @@
 
 import { afterEach, describe, expect } from "bun:test"
 import { eq } from "drizzle-orm"
-import { Effect, Exit, Layer, Schema } from "effect"
+import { Deferred, Effect, Exit, Layer, Schema } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
@@ -18,6 +18,9 @@ import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { DelegationID } from "@aigcfroge/schema/delegation-id"
 import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "@aigcfroge/core/delegation/sql"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { SessionTask } from "@aigcfroge/core/session/task"
+import type { SessionPrompt } from "@/session/prompt"
 import { Agent } from "@/agent/agent"
 import { BackgroundJob } from "@/background/job"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -74,11 +77,15 @@ const layer = (flags: Partial<RuntimeFlags.Info> = {}) =>
     adapterRegistryLayer,
     ToolRegistry.defaultLayer,
     Database.defaultLayer,
-    RuntimeFlags.layer(flags),
+    DelegationService.defaultLayer,
+    SessionTask.defaultLayer,
+    RuntimeFlags.layer({ experimentalPersistentDelegations: true, ...flags }),
   ).pipe(Layer.provide(Ripgrep.defaultLayer))
 
 const it = testEffect(layer())
 const backgroundIt = testEffect(layer({ experimentalBackgroundSubagents: true }))
+const flagOffIt = testEffect(layer({ experimentalPersistentDelegations: false }))
+const productionIt = testEffect(ToolRegistry.defaultLayer.pipe(Layer.provide(Ripgrep.defaultLayer)))
 
 const seed = Effect.fn("DelegationTaskTest.seed")(function* (title = "Delegation Parent") {
   const session = yield* Session.Service
@@ -110,12 +117,20 @@ const seed = Effect.fn("DelegationTaskTest.seed")(function* (title = "Delegation
   return { chat, assistant }
 })
 
-function stubOps(opts?: { text?: string }): TaskPromptOps {
+function stubOps(opts?: {
+  text?: string
+  started?: Deferred.Deferred<void>
+  release?: Deferred.Deferred<void>
+  onPrompt?: (input: SessionPrompt.PromptInput) => void
+}): TaskPromptOps {
   return {
     cancel: () => Effect.void,
     resolvePromptParts: (template) => Effect.succeed([{ type: "text" as const, text: template }]),
     prompt: (input) =>
-      Effect.sync(() => {
+      Effect.gen(function* () {
+        opts?.onPrompt?.(input)
+        if (opts?.started) yield* Deferred.succeed(opts.started, undefined)
+        if (opts?.release) yield* Deferred.await(opts.release)
         const id = MessageID.ascending()
         return {
           info: {
@@ -148,6 +163,13 @@ function stubOps(opts?: { text?: string }): TaskPromptOps {
 }
 
 describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
+  productionIt.instance("production ToolRegistry composes the task tool with delegation owners", () =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      expect((yield* registry.named()).task.id).toBe("task")
+    }),
+  )
+
   it.instance("1. first task dispatch creates Delegation, Build participant, and child Session", () =>
     Effect.gen(function* () {
       const { db } = yield* Database.Service
@@ -155,7 +177,11 @@ describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
       const { chat, assistant } = yield* seed()
       const tool = yield* TaskTool
       const def = yield* tool.init()
-      const promptOps = stubOps({ text: "initial build result" })
+      let seenPrompt: SessionPrompt.PromptInput | undefined
+      const promptOps = stubOps({
+        text: "initial build result",
+        onPrompt: (input) => (seenPrompt = input),
+      })
 
       const result = yield* def.execute(
         phase2Input({
@@ -180,7 +206,17 @@ describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
       expect(yield* sessions.children(chat.id)).toHaveLength(1)
       expect(metadata.delegationID).toBeDefined()
       expect(metadata.turnID).toBeDefined()
+      expect(metadata.participantID).toBeDefined()
       expect(metadata.deliveryID).toBeUndefined()
+      const metadataTurnID = stringField(metadata, "turnID")
+      const metadataParticipantID = stringField(metadata, "participantID")
+      assertDefined(metadataTurnID)
+      assertDefined(metadataParticipantID)
+      expect(seenPrompt?.delegationOrigin?.turnID).toBeDefined()
+      expect(String(seenPrompt?.delegationOrigin?.turnID)).toBe(metadataTurnID)
+      expect(seenPrompt?.delegationOrigin?.deliveryOrigin).toBe("meta")
+      expect(seenPrompt?.delegationOrigin?.senderParticipantID).toBeDefined()
+      expect(String(seenPrompt?.delegationOrigin?.senderParticipantID)).toBe(metadataParticipantID)
 
       const delegations = yield* db.select().from(DelegationTable).where(eq(DelegationTable.parent_session_id, chat.id))
       expect(delegations).toHaveLength(1)
@@ -189,7 +225,47 @@ describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
         .from(DelegationParticipantTable)
         .where(eq(DelegationParticipantTable.delegation_id, delegations[0].id))
       expect(participants).toHaveLength(1)
-      expect(participants[0]?.child_session_id).toBe((yield* sessions.children(chat.id))[0]?.id)
+      const childSessionID = (yield* sessions.children(chat.id))[0]?.id
+      expect(participants[0]?.child_session_id).toBe(childSessionID)
+      const linkedTasks = yield* (yield* SessionTask.Service).get(chat.id)
+      expect(linkedTasks).toHaveLength(1)
+      expect(linkedTasks[0]?.status).toBe("completed")
+      expect(linkedTasks[0]?.outputDigest).toBe(childSessionID)
+    }),
+  )
+
+  it.instance("missing prompt runtime fails before creating delegation side effects", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const { chat, assistant } = yield* seed()
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+
+      const exit = yield* def
+        .execute(
+          phase2Input({
+            description: "missing runtime",
+            prompt: "must not be admitted",
+            subagent_type: "general",
+          }),
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build",
+            abort: new AbortController().signal,
+            extra: {},
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(yield* (yield* SessionTask.Service).get(chat.id)).toHaveLength(0)
+      expect(
+        yield* db.select().from(DelegationTable).where(eq(DelegationTable.parent_session_id, chat.id)),
+      ).toHaveLength(0)
     }),
   )
 
@@ -234,12 +310,65 @@ describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
     }),
   )
 
+  it.instance("concurrent first dispatches share one Delegation participant and child Session", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const sessions = yield* Session.Service
+      const { chat, assistant } = yield* seed()
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+      const execute = (description: string) =>
+        def.execute(
+          phase2Input({
+            description,
+            prompt: `run ${description}`,
+            subagent_type: "general",
+          }),
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build",
+            abort: new AbortController().signal,
+            extra: { promptOps: stubOps({ text: `${description} done` }) },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+
+      const results = yield* Effect.all([execute("concurrent one"), execute("concurrent two")], {
+        concurrency: "unbounded",
+      })
+      const metadata = results.map((result) => decodeRecord(result.metadata))
+      expect(new Set(metadata.map((entry) => entry.delegationID)).size).toBe(1)
+      expect(new Set(metadata.map((entry) => entry.participantID)).size).toBe(1)
+      expect(new Set(metadata.map((entry) => entry.sessionId)).size).toBe(1)
+      expect(new Set(metadata.map((entry) => entry.turnID)).size).toBe(2)
+      expect(yield* sessions.children(chat.id)).toHaveLength(1)
+
+      const delegations = yield* db.select().from(DelegationTable).where(eq(DelegationTable.parent_session_id, chat.id))
+      expect(delegations).toHaveLength(1)
+      const participants = yield* db
+        .select()
+        .from(DelegationParticipantTable)
+        .where(eq(DelegationParticipantTable.delegation_id, delegations[0].id))
+      expect(participants).toHaveLength(1)
+      const turns = yield* db
+        .select()
+        .from(DelegationTurnTable)
+        .where(eq(DelegationTurnTable.delegation_id, delegations[0].id))
+      expect(turns.map((turn) => turn.seq).sort((left, right) => left - right)).toEqual([1, 2])
+    }),
+  )
+
   it.instance("3. explicit delegation_id not owned by the parent is rejected fail-closed", () =>
     Effect.gen(function* () {
+      const delegation = yield* DelegationService.Service
+      const { chat: foreignParent } = yield* seed("Parent A")
       const { chat, assistant } = yield* seed("Parent B")
       const tool = yield* TaskTool
       const def = yield* tool.init()
-      const foreignDelegationID = DelegationID.ID.make("dlg_foreign_parent")
+      const foreignDelegationID = (yield* delegation.create({ parentSessionID: foreignParent.id, title: "Foreign" })).id
       const exit = yield* def
         .execute(
           phase2Input({
@@ -313,6 +442,20 @@ describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
       const id2 = DelegationID.ID.make(delegationID2)
       expect(id1).not.toBe(id2)
 
+      const childSessionID2 = stringField(metadata2, "sessionId")
+      expect(childSessionID2).toBeDefined()
+      assertDefined(childSessionID2)
+      const hijack = yield* execute(
+        phase2Input({
+          description: "cross-delegation hijack",
+          prompt: "reuse delegation 2 child in delegation 1",
+          subagent_type: "general",
+          delegation_id: id1,
+          task_id: childSessionID2,
+        }),
+      ).pipe(Effect.exit)
+      expect(Exit.isFailure(hijack)).toBe(true)
+
       yield* execute(
         phase2Input({
           description: "turn for delegation 1",
@@ -354,11 +497,12 @@ describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
       const metadata = decodeRecord(result.metadata)
       expect(metadata.delegationID).toBeDefined()
       expect(metadata.turnID).toBeDefined()
+      expect(metadata.participantID).toBeDefined()
       expect(metadata.deliveryID).toBeUndefined()
     }),
   )
 
-  backgroundIt.instance("6. background dispatch reuses the child Session for a subsequent task", () =>
+  backgroundIt.instance("6. settled background dispatch reuses the child Session and settles compatibility tasks", () =>
     Effect.gen(function* () {
       const { chat, assistant } = yield* seed()
       const sessions = yield* Session.Service
@@ -390,6 +534,7 @@ describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
       expect(first.output).toContain("background")
       expect(childSessionID).toBeDefined()
       assertDefined(childSessionID)
+      expect((yield* background.wait({ id: childSessionID })).info?.status).toBe("completed")
 
       const second = yield* def.execute(
         phase2Input({
@@ -403,11 +548,98 @@ describe("Delegation Task Tool Integration (Phase 2 RED)", () => {
       )
       expect(second.output).toContain("background")
       expect(yield* sessions.children(chat.id)).toHaveLength(1)
-      yield* background.cancel(childSessionID)
+      expect((yield* background.wait({ id: childSessionID })).info?.status).toBe("completed")
 
       expect(firstMetadata.delegationID).toBeDefined()
       expect(firstMetadata.deliveryID).toBeUndefined()
       expect(decodeRecord(second.metadata).deliveryID).toBeUndefined()
+      const linkedTasks = yield* (yield* SessionTask.Service).get(chat.id)
+      expect(linkedTasks).toHaveLength(2)
+      expect(linkedTasks.every((task) => task.status === "completed")).toBe(true)
+      expect(linkedTasks.every((task) => task.outputDigest === childSessionID)).toBe(true)
+    }),
+  )
+
+  backgroundIt.instance("background cancellation settles the compatibility task as cancelled", () =>
+    Effect.gen(function* () {
+      const { chat, assistant } = yield* seed()
+      const background = yield* BackgroundJob.Service
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+      const started = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+
+      const result = yield* def.execute(
+        phase2Input({
+          description: "cancelled task",
+          prompt: "wait until cancelled",
+          subagent_type: "general",
+          background: true,
+        }),
+        {
+          sessionID: chat.id,
+          messageID: assistant.id,
+          agent: "build",
+          abort: new AbortController().signal,
+          extra: { promptOps: stubOps({ started, release }) },
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.void,
+        },
+      )
+      const childSessionID = stringField(decodeRecord(result.metadata), "sessionId")
+      expect(childSessionID).toBeDefined()
+      assertDefined(childSessionID)
+      yield* Deferred.await(started)
+      expect((yield* background.cancel(childSessionID))?.status).toBe("cancelled")
+
+      const linkedTasks = yield* (yield* SessionTask.Service).get(chat.id)
+      expect(linkedTasks).toHaveLength(1)
+      expect(linkedTasks[0]?.status).toBe("cancelled")
+    }),
+  )
+
+  flagOffIt.instance("7. flag-off retains 100% legacy behavior without delegation side-effects", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const sessions = yield* Session.Service
+      const { chat, assistant } = yield* seed("Legacy Parent")
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+      const promptOps = stubOps({ text: "legacy result" })
+      expect("delegation_id" in def.parameters.fields).toBe(false)
+      expect("new_delegation" in def.parameters.fields).toBe(false)
+      expect(def.jsonSchema?.properties?.delegation_id).toBeUndefined()
+      expect(def.jsonSchema?.properties?.new_delegation).toBeUndefined()
+
+      const result = yield* def.execute(
+        phase2Input({
+          description: "legacy task",
+          prompt: "do legacy work",
+          subagent_type: "general",
+        }),
+        {
+          sessionID: chat.id,
+          messageID: assistant.id,
+          agent: "build",
+          abort: new AbortController().signal,
+          extra: { promptOps },
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.void,
+        },
+      )
+
+      const metadata = decodeRecord(result.metadata)
+      expect(result).toBeDefined()
+      expect(yield* sessions.children(chat.id)).toHaveLength(1)
+      expect(metadata.delegationID).toBeUndefined()
+      expect(metadata.turnID).toBeUndefined()
+      expect(metadata.participantID).toBeUndefined()
+
+      const delegations = yield* db.select().from(DelegationTable).where(eq(DelegationTable.parent_session_id, chat.id))
+      expect(delegations).toHaveLength(0)
+      expect(yield* (yield* SessionTask.Service).get(chat.id)).toHaveLength(0)
     }),
   )
 })

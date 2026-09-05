@@ -203,6 +203,7 @@ export const layer = Layer.effectDiscard(
     yield* events.project(DelegationEvent.DeliveryStarted, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.DeliveryCompleted, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.DeliveryFailed, (event, tx) => projectEvent(tx, event))
+    yield* events.project(DelegationEvent.DeliveryCancelled, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.DeliveryRecoveryRequired, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.RevisionRecorded, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.ReviewApproved, (event, tx) => projectEvent(tx, event))
