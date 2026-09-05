@@ -69,11 +69,16 @@ export function ToolErrorCard(props: ToolErrorCardProps) {
 
   const subtitle = createMemo(() => {
     if (split.subtitle) return split.subtitle
-    const parts = tail().split(": ")
-    if (parts.length <= 1) return i18n.t("ui.toolErrorCard.failed")
-    const head = (parts[0] ?? "").trim()
-    if (!head) return i18n.t("ui.toolErrorCard.failed")
-    return head[0] ? head[0].toUpperCase() + head.slice(1) : i18n.t("ui.toolErrorCard.failed")
+    // The reason has to survive collapse. The trigger row is everything a user sees until
+    // they decide to expand, and a failed card gives them no hint that there is anything
+    // behind the arrow — which is how a denied shell call read as "failed" and nothing else.
+    // Splitting on ": " used to drop everything after the first colon, and messages with no
+    // colon at all became a bare "Failed". First line only, so a stack trace still shows
+    // its message; the slot already ellipsises what does not fit.
+    const line = tail().split("\n")[0]?.trim()
+    const first = line?.[0]
+    if (!line || !first) return i18n.t("ui.toolErrorCard.failed")
+    return first.toUpperCase() + line.slice(1)
   })
 
   const body = createMemo(() => {
