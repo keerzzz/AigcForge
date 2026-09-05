@@ -301,3 +301,19 @@ test.describe("regression: a failed revert says so and puts the timeline back", 
     await expect(page.locator('[data-component="user-message"]')).toHaveCount(2)
   })
 })
+
+test.describe("regression: the confirmation defaults to the safe action", () => {
+  test("Enter on the fresh dialog cancels rather than reverts", async ({ page }) => {
+    const counters = await openSession(page, { diffFiles: 3 })
+
+    await (await revertButton(page)).click()
+    await expect(page.getByRole("dialog")).toBeVisible()
+
+    // Whatever has focus when the dialog opens is what a keyboard user triggers first, and this
+    // dialog exists because the action writes to disk.
+    await page.keyboard.press("Enter")
+
+    await expect(page.getByRole("dialog")).toHaveCount(0)
+    expect(counters).toEqual({ revert: 0, unrevert: 0, abort: 0 })
+  })
+})

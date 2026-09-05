@@ -1204,12 +1204,14 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
               )}
             </Show>
             <DialogFooter>
-              <ButtonV2 variant="neutral" onClick={() => dialog.close()}>
+              {/* Focus starts on Cancel, not on the destructive action: the dialog exists because
+                  this writes to disk, and autofocusing the confirm button would let a stray Enter
+                  do the thing the confirmation was added to prevent. */}
+              <ButtonV2 variant="neutral" autofocus onClick={() => dialog.close()}>
                 {i18n.t("ui.common.cancel")}
               </ButtonV2>
               <ButtonV2
                 variant="contrast"
-                autofocus
                 onClick={() => {
                   dialog.close()
                   runRevert()
