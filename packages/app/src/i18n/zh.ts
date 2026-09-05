@@ -262,6 +262,7 @@ export const dict = {
   "prompt.mode.shell.exit": "按 esc 退出",
   "session.stalled.title": "还没有响应",
   "session.stalled.description": "模型已接收本轮请求，但一直没有返回内容。可能仍在路上，也可能是提供商不可达。",
+  "session.stalled.restorePrompt": "放回提示词",
   "session.stalled.stop": "停止",
   "session.stalled.changeModel": "切换模型",
   "session.child.promptDisabled": "子智能体会话无法发送提示。",

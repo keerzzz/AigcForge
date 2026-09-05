@@ -1702,7 +1702,20 @@ export default function Page() {
     if (!sessionID) return
     void halt(sessionID)
   }
-  const actions = { revert, handoff, capture: sessionMode() !== "chat" ? capture : undefined, stop: stopTurn }
+  // Reuses the same extractor the revert flow and the message preview already use, so a
+  // stalled turn's text comes back without touching the working tree — a revert would be
+  // both destructive and, for a turn that captured no snapshot, a no-op.
+  const restorePrompt = (userMessageID: string) => {
+    const value = draft(userMessageID)
+    prompt.set(value)
+  }
+  const actions = {
+    revert,
+    handoff,
+    capture: sessionMode() !== "chat" ? capture : undefined,
+    stop: stopTurn,
+    restorePrompt,
+  }
 
   createEffect(() => {
     const sessionID = params.id

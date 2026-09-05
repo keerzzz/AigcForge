@@ -181,6 +181,11 @@ export type UserActions = {
   capture?: () => void
   /** Abort the running turn. Present only where the caller owns a live session. */
   stop?: () => void
+  /**
+   * Put a past turn's prompt back into the composer, without sending it and without
+   * reverting anything. The caller keeps ownership of the draft store.
+   */
+  restorePrompt?: (userMessageID: string) => void
 }
 
 export interface MessagePartProps {

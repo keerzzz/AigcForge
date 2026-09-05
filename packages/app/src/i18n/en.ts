@@ -245,6 +245,7 @@ export const dict = {
   "session.stalled.title": "No response yet",
   "session.stalled.description":
     "The model accepted this turn but has not sent anything back. It may still arrive, or the provider may be unreachable.",
+  "session.stalled.restorePrompt": "Put the prompt back",
   "session.stalled.stop": "Stop",
   "session.stalled.changeModel": "Change model",
   "session.child.promptDisabled": "Subagent sessions cannot be prompted.",

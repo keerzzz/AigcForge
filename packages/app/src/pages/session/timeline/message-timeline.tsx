@@ -1283,6 +1283,13 @@ export function MessageTimeline(props: {
                       </Button>
                     )}
                   </Show>
+                  <Show when={props.actions?.restorePrompt}>
+                    {(restore) => (
+                      <Button size="small" variant="secondary" onClick={() => restore()(row().userMessageID)}>
+                        {language.t("session.stalled.restorePrompt")}
+                      </Button>
+                    )}
+                  </Show>
                   <Button size="small" variant="ghost" onClick={() => command.trigger("model.choose", "palette")}>
                     {language.t("session.stalled.changeModel")}
                   </Button>
