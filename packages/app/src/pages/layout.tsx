@@ -46,11 +46,15 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
             was a mode slot's resource suspending to this boundary, and the fix for that is the
             per-slot boundary in `mode-workspace.tsx`, which is what the e2e now pins.
 
-            This fallback is unreachable today — no route component reads a resource above those
-            slot boundaries — so it is insurance, not a tested path. It stays because a boundary
-            with no fallback is what produced the P1 in the first place, and three separate
-            comments in this repo already point here as the hazard. If a future route suspends
-            above the slots, it shows a spinner instead of nothing.
+            It has exactly one reachable trigger, and it is not tested yet: `app.tsx:64` loads
+            `NewSession` through `lazy()`, so `/new-session` can suspend here while its module
+            loads. Driving that from a test needs the Home new-session action to navigate, which
+            is the P2-HOME-EMPTY defect — it silently returns today — so the coverage lands with
+            that fix. Every other route is eagerly imported and reads no resource above the slot
+            boundaries, so nothing else reaches this fallback.
+
+            It stays regardless: a boundary with no fallback is what produced the P1, and three
+            separate comments in this repo already point here as the hazard.
           */}
           <Suspense fallback={<SurfacePending owner="route" class="flex-1 self-stretch" />}>{props.children}</Suspense>
         </main>

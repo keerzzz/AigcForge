@@ -7,6 +7,7 @@ import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { type DirectorySDK } from "@/context/sdk"
+import * as Sentry from "@sentry/solid"
 import { useModeDirectory, useModeWorkspaceAssets, useCodingSelection } from "@/pages/mode-workspace-context"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { AssetSessionSelector } from "@/components/chat/asset-session-selector"
@@ -664,14 +665,28 @@ export function WorkPresetCatalogMain() {
     }
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
-  const [workflowAssets] = createResource(
+  // Settled here rather than left to throw. The SDK interceptor rejects on a non-2xx, and a
+  // rejection read from a resource escapes to the nearest boundary — which used to be the
+  // fallback-less one in `layout.tsx`, and is now the slot's. The boundary is the right net for
+  // an unexpected throw, but a provider that answered 500 is an expected outcome, and recovering
+  // from it through the boundary means remounting the slot and losing the mode's UI state. This
+  // is the same shape the chat asset lists already use, one level up.
+  const [workflowAssetState, { refetch: refetchWorkflowAssets }] = createResource(
     () => whenActive(slotActive(), () => ({ sdk: dirSdk(), version: assetVersion() })),
     async (source) => {
-      if (!source.sdk) return []
-      const res = await source.sdk.client.workflowAsset.list()
-      return res.data?.assets ?? []
+      if (!source.sdk) return { assets: [] as WorkflowAssetSummary[], failed: false }
+      try {
+        const res = await source.sdk.client.workflowAsset.list()
+        return { assets: res.data?.assets ?? [], failed: false }
+      } catch (cause) {
+        // Surfaced in the UI below and reported, so containing it is not the same as hiding it.
+        Sentry.captureException(cause)
+        return { assets: [] as WorkflowAssetSummary[], failed: true }
+      }
     },
   )
+  const workflowAssets = () => workflowAssetState()?.assets
+  const workflowAssetsFailed = () => workflowAssetState()?.failed === true
 
   function startWorkflow(asset: WorkflowAssetSummary) {
     const c = conn()
@@ -761,6 +776,10 @@ export function WorkPresetCatalogMain() {
               </For>
             </div>
           </section>
+        </Show>
+
+        <Show when={workflowAssetsFailed()}>
+          <AssetLoadError failed={["workflows"]} total={1} onRetry={() => void refetchWorkflowAssets()} />
         </Show>
 
         <Show when={(workflowAssets() ?? []).length > 0}>

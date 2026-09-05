@@ -228,7 +228,7 @@ test.describe("regression: mode surface pending representation", () => {
 // badge on the Assistant nav item, which only means anything while you are in another mode.
 // So it is a shared call with a named owner, not a hidden-slot leak, and it is accounted for
 // separately below instead of being gated away.
-const ASSISTANT_SLOT_PATHS = ["/delivery/recent", "/memory", "/kb"] as const
+const ASSISTANT_SLOT_PATHS = ["/delivery/recent", "/memory", "/kb", "/kb/dangling"] as const
 const ASSISTANT_BADGE_PATH = "/schedule/pending"
 const CHAT_ASSET_PATHS = [
   "/prompt-asset",
@@ -384,11 +384,16 @@ test.describe("regression: one failing endpoint stays one failing endpoint", () 
 
     await page.goto("/mode/work")
 
-    // Measured before the slot boundary existed: this reached the app's top-level
-    // `ErrorBoundary` and the whole application became "Something went wrong". The failure has
-    // to stay inside the slot that caused it.
-    await expectAppVisible(page.locator('[data-component="mode-slot-error"]').first())
+    // Measured in three states, and the assertion tracks the last one. Before any boundary:
+    // this reached the app's top-level `ErrorBoundary` and the whole application became
+    // "Something went wrong". With the slot boundary: contained, but recovering meant
+    // remounting the slot. Now the resource settles it, so the surface stays up and the failure
+    // is reported next to the assets it belongs to.
+    await expectAppVisible(sidebarMarker.work(page))
     await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0)
+    await expect(page.locator('[data-slot="asset-load-error"]').first()).toBeVisible()
+    // The slot's own boundary is the net for an unexpected throw, and this is not one.
+    await expect(page.locator('[data-component="mode-slot-error"]')).toHaveCount(0)
     // The workspace and every other slot survive it.
     await expect(page.locator("[data-mode-workspace]")).toHaveCount(1)
     for (const mode of MODES) {
