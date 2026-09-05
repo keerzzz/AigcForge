@@ -16,10 +16,19 @@ export function SessionRevertDock(props: {
     collapsed: true,
   })
 
+  // Open it when a revert actually happens, and only then.
+  //
+  // This used to collapse on the same signal, which folded the undo away at the one moment it
+  // matters: reverting writes to the working tree, and the per-message Restore here is how that
+  // is taken back. Keyed on the revert's identity rather than on any change, so a manual
+  // collapse is not undone by an unrelated update — measured: the effect only re-runs when the
+  // list's length or head id moves, so nothing else re-opens it.
+  let shown: string | undefined
   createEffect(() => {
-    props.items.length
-    props.items[0]?.id
-    setStore("collapsed", true)
+    const key = props.items.length === 0 ? undefined : `${props.items.length}:${props.items[0]?.id ?? ""}`
+    if (key === shown) return
+    shown = key
+    setStore("collapsed", key === undefined)
   })
 
   const toggle = () => setStore("collapsed", (value) => !value)

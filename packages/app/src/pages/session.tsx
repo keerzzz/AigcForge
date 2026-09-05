@@ -1709,8 +1709,29 @@ export default function Page() {
     const value = draft(userMessageID)
     prompt.set(value)
   }
+  // The session's own changed-file count, and only when there is one. `session_diff` is what
+  // the session has changed so far, not what this revert will rewrite — the client has no source
+  // for that second number, so the dialog labels the one it does have and shows nothing
+  // otherwise. Passing the message count off as a file count is the failure mode being avoided.
+  const revertPreview = () => {
+    const id = params.id
+    if (!id) return undefined
+    const diffs = sync().data.session_diff[id]
+    if (!diffs || diffs.length === 0) return undefined
+    return { changedFiles: diffs.length }
+  }
+
+  // Read-only, cached by `sync().session.diff` itself, and only on an actual confirmation.
+  const requestRevertPreview = () => {
+    const id = params.id
+    if (!id) return
+    void sync().session.diff(id)
+  }
+
   const actions = {
     revert,
+    revertPreview,
+    requestRevertPreview,
     handoff,
     capture: sessionMode() !== "chat" ? capture : undefined,
     stop: stopTurn,
