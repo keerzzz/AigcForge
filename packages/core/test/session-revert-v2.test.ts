@@ -19,6 +19,16 @@ import { testEffect } from "./lib/effect"
 // `restoreCalls` records which snapshot the service asked to restore, so a test
 // can assert the *target* of a revert instead of only that a revert happened.
 const restoreCalls: string[] = []
+// Per-snapshot diffs, so the persisted summary shows WHICH snapshot it was computed
+// against. `revert()` calls `diffFull(target, current)`, so a summary derived from the
+// wrong turn is visible in additions/deletions/files rather than only in `restoreCalls`.
+const diffsBySnapshot: Record<string, V2Snapshot.FileDiff[]> = {
+  snap_turn_1: [
+    { file: "one.txt", additions: 1, deletions: 10 },
+    { file: "two.txt", additions: 1, deletions: 10 },
+  ],
+  snap_turn_3: [{ file: "three.txt", additions: 3, deletions: 30 }],
+}
 const snapshotMock = Layer.succeed(
   V2Snapshot.Service,
   V2Snapshot.Service.of({
@@ -28,7 +38,7 @@ const snapshotMock = Layer.succeed(
         restoreCalls.push(snapshot)
       }),
     revert: () => Effect.void,
-    diffFull: () => Effect.succeed([]),
+    diffFull: (from) => Effect.succeed(diffsBySnapshot[from] ?? []),
   }),
 )
 
@@ -131,12 +141,16 @@ describe("V2 SessionRevert", () => {
     Effect.gen(function* () {
       restoreCalls.length = 0
       const seeded = yield* seedThreeTurns("/tmp/revert-target-test", "msg_target")
-      // Exit, not the value: the marker write currently dies on its own decode
-      // (asserted separately), and that must not hide which snapshot was restored.
-      yield* (yield* SessionRevert.Service)
-        .revert({ sessionID: seeded.session.id, messageID: seeded.targetUserID })
-        .pipe(Effect.exit)
+      const updated = yield* (yield* SessionRevert.Service).revert({
+        sessionID: seeded.session.id,
+        messageID: seeded.targetUserID,
+      })
+      // Asserted before `restoreCalls` on purpose: the summary is the derived fact that
+      // reaches the user (the dock's file count), so it should be what fails first when the
+      // wrong snapshot is chosen. Turn 1's diff would be 2 files / 2 additions / 20 deletions.
+      expect(updated.summary).toEqual({ additions: 3, deletions: 30, files: 1 })
       expect(restoreCalls).toEqual(["snap_turn_3"])
+      expect(updated.revert?.messageID).toBe(seeded.targetUserID)
     }),
   )
 
