@@ -35,18 +35,34 @@
 
 ---
 
-## 1. 方法学发现：`--only-failures` 把新增 RED 吞成绿
+## 1. 方法学更正：`--only-failures` 不吞测试，之前的归因是错的
 
-`packages/core` 的 `test` 脚本是 `bun test --timeout 30000 --only-failures`。同一文件两种跑法结果不同：
+本节原先断言「`--only-failures` 让新增断言根本不执行」，并据此把两条命令的差异归因于该开关。**该结论已被实测推翻，此处保留原文以免下游沿用错误结论。**
+
+原始观测（两条命令确实给出不同结果）：
 
 | 命令                                                                             | 结果              |
 | -------------------------------------------------------------------------------- | ----------------- |
 | `bun --cwd packages/core test test/session-revert-v2.test.ts`（走包脚本）        | `2 pass / 0 fail` |
 | `bun test --timeout 30000 test/session-revert-v2.test.ts`（cwd=`packages/core`） | `2 pass / 2 fail` |
 
-两条新增断言在包脚本下**根本没有执行**。同理 `test/tool-bash.test.ts` 的两条新断言也只在原始命令下现形。
+真实原因是**两次运行的文件内容不同**：第一条命令跑在 S0 早期，磁盘上还是 `origin/main` 的 68 行 2 用例版本；第二条跑在同一会话稍晚，此时四用例版本（`mtime 00:10`，本会话自己写入的未提交改动）已落盘。差异来自 4 个用例 vs 2 个用例，与开关无关。
 
-**本批规则**：所有 RED 判定输出一律用去掉 `--only-failures` 的原始命令；包脚本形式只用于回归对照。带 `--only-failures` 的“全绿”不作为任何 DoD 证据。
+`--only-failures` 的实际语义（`bun test --help` 原文）：
+
+```text
+--only-failures    Only display test failures, hiding passing tests.
+```
+
+即**只影响输出显示，不影响执行**。对照实验（在 12 用例全绿的 `stall.test.ts` 末尾追加一条必失败断言）：
+
+| 命令                       | 结果                               |
+| -------------------------- | ---------------------------------- |
+| 带 `--only-failures`       | `12 pass / 1 fail`，`Ran 13 tests` |
+| 不带                       | `12 pass / 1 fail`，`Ran 13 tests` |
+| 再带一次（已有失败记录后） | `12 pass / 1 fail`，`Ran 13 tests` |
+
+**本批规则（修订）**：新增测试文件仍用显式路径的原始命令取 RED 证据——理由不再是「开关会吞测试」，而是包脚本会隐藏通过用例的明细，读不到「哪些跑了」。包脚本的绿仍然是有效证据。
 
 ---
 

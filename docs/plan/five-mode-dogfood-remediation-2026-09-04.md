@@ -170,7 +170,7 @@ S8c 因此收窄为「只补 S3a 停滞态与 S4 fallback 这两个本计划新�
 | R10 | （无对应旧结论）§3 面 B 说「各自给一个出口动作」，但只有 S3a 排了出口     | `PermissionV2.RejectedError` 一个类承载两件相反的事：`permission.ts:280` 的 `no_responder`（没人可问）与 `:352` 的裸 `RejectedError`（人答了「不」）。S2 初版 translator 把两者都写成「无人应答」，与 V1 措辞和构造点同时矛盾——是本切片自己引入的缺陷，已修并双行钉住                            | 修 translator 的同时补测量表两行；`DeniedError` 保持「规则拒绝」措辞不变                                                                                   |
 | R11 | 报告第三项诉求「重试/改用无工具模式」无 slice 归属                        | S3a 的 RED 前置是 `busy + 无输出 + 超阈值`，而被拒终止的轮次是 **idle**，结构上落不进 S3a 的判据；S2 只让原因可见，没给出口。面 B 的「各自给一个出口动作」因此有一档无人认领                                                                                                                     | **归入 S3a**：出口动作集（stop/retry/change-model）复用同一套 `UserActions` 接线，S3a 的 RED 需额外覆盖「idle + 末轮被拒」这一档，不另起 slice、不重复建设 |
 
-方法学：`packages/core` 的 `test` 脚本带 `--only-failures`，**新增断言在包脚本下不执行**（同一文件 `2 pass / 0 fail` vs 原始命令 `2 pass / 2 fail`）。本批所有 RED/GREEN 判定一律用去掉该开关的原始命令。
+方法学更正：本节原先写「`--only-failures` 让新增断言在包脚本下不执行」，**该归因已被实测推翻**。`bun test --help` 原文为 `Only display test failures, hiding passing tests.`，对照实验（12 用例全绿文件追加一条必失败断言）在带与不带该开关时都是 `12 pass / 1 fail`、`Ran 13 tests`。当初两条命令结果不同的真实原因是**文件内容不同**——先跑的是 `origin/main` 的 2 用例版本，后跑的是本会话已落盘的 4 用例版本。新增测试仍用显式路径的原始命令取证，理由改为「包脚本隐藏通过明细，读不到哪些跑了」；包脚本的绿仍是有效证据。详见 [`red-baseline.md` §1](../review/five-mode-dogfood-2026-09-03/red-baseline.md)。
 
 ## 1. 强制协议、Skills 与事实源
 
