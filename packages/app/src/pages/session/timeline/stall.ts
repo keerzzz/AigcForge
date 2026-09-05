@@ -1,4 +1,3 @@
-import type { AssistantMessage, UserMessage } from "@aigcfroge/sdk/v2"
 
 /**
  * How long a turn may show nothing at all before the timeline calls it stalled.
@@ -17,6 +16,14 @@ export const STALL_THRESHOLD_MS = 60_000
  */
 export const STALL_TICK_MS = 5_000
 
+/**
+ * Only the timestamps are needed, so the parameters are structural rather than the full SDK
+ * message types. That keeps this module free of the session-ui import graph, which is what
+ * makes it unit testable at all, and lets a test build a literal instead of casting one.
+ */
+type Sent = { readonly time: { readonly created?: number } }
+type Produced = { readonly time: { readonly created?: number; readonly completed?: number } }
+
 const finite = (value: number | undefined) => (typeof value === "number" && Number.isFinite(value) ? value : undefined)
 
 /**
@@ -27,7 +34,7 @@ const finite = (value: number | undefined) => (typeof value === "number" && Numb
  * ignored rather than treated as zero, because a missing timestamp must not read as
  * "silent since the epoch" and instantly trip the threshold.
  */
-export function lastActivityAt(userMessage: UserMessage, assistantMessages: readonly AssistantMessage[]) {
+export function lastActivityAt(userMessage: Sent, assistantMessages: readonly Produced[]) {
   let latest: number | undefined
   for (const message of assistantMessages) {
     const created = finite(message.time.created)

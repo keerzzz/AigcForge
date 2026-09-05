@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test"
-import type { AssistantMessage, UserMessage } from "@aigcfroge/sdk/v2"
 import { lastActivityAt, stalled, STALL_THRESHOLD_MS } from "./stall"
 
 // The row builder itself cannot be unit tested: `rows.ts` imports
@@ -11,11 +10,11 @@ import { lastActivityAt, stalled, STALL_THRESHOLD_MS } from "./stall"
 
 const sent = 1_700_000_000_000
 
-const userMessage = (created: number | undefined) =>
-  ({ id: "msg_user", role: "user", time: { created } } as unknown as UserMessage)
+// No casts: `stall.ts` takes only the timestamps it reads, so these are real values of the
+// parameter types rather than SDK messages forced into shape.
+const userMessage = (created: number | undefined) => ({ time: { created } })
 
-const assistantMessage = (time: { created?: number; completed?: number }) =>
-  ({ id: "msg_assistant", role: "assistant", time } as unknown as AssistantMessage)
+const assistantMessage = (time: { created?: number; completed?: number }) => ({ time })
 
 describe("lastActivityAt", () => {
   test("falls back to when the user sent the turn if no assistant message exists", () => {

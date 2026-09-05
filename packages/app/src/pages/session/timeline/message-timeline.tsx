@@ -93,7 +93,6 @@ const emptyTools: ToolPart[] = []
 const emptyAssistantMessages: AssistantMessage[] = []
 const idle = { type: "idle" as const }
 
-type FramedTimelineRow = Exclude<TimelineRow.TimelineRow, { _tag: "TurnGap" }>
 type TimelineRowByTag<T extends TimelineRow.TimelineRow["_tag"]> = Extract<TimelineRow.TimelineRow, { _tag: T }>
 
 const timelineFallbackItemSize = 60
@@ -1116,7 +1115,7 @@ export function MessageTimeline(props: {
     )
   }
 
-  function TimelineRowFrame(input: { row: Accessor<FramedTimelineRow>; children: JSX.Element }) {
+  function TimelineRowFrame(input: { row: Accessor<TimelineRow.TimelineRow>; children: JSX.Element }) {
     const anchor = () => {
       const row = input.row()
       return row._tag === "CommentStrip" || (row._tag === "UserMessage" && row.anchor)
@@ -1269,9 +1268,9 @@ export function MessageTimeline(props: {
         )
       }
       case "Stalled": {
-        const stalledRow = row as Accessor<TimelineRowByTag<"Stalled">>
+        // No narrowing: this row carries nothing beyond the id the frame already reads.
         return (
-          <TimelineRowFrame row={stalledRow}>
+          <TimelineRowFrame row={row}>
             <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
               <Card variant="warning" data-slot="session-turn-stalled">
                 <CardTitle variant="warning">{language.t("session.stalled.title")}</CardTitle>
