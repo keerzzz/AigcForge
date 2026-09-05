@@ -277,10 +277,20 @@ function agentInfo(value: AgentV2.Info) {
   }
 }
 
+// Branch on `type` rather than copying settings off the union: `native` requires settings and
+// `aisdk` does not, so a single `settings && {...}` expression produced `Settings | undefined`
+// for both and lost the native guarantee. That was invisible while core typed this field as
+// `any` — `any | undefined` is assignable to anything — and surfaced the moment it was narrowed.
+function copyApi<T extends { readonly type: string; readonly settings?: object }>(api: T) {
+  return api.type === "native"
+    ? { ...api, settings: { ...api.settings } }
+    : { ...api, settings: api.settings && { ...api.settings } }
+}
+
 function providerInfo(value: ProviderV2.MutableInfo) {
   return {
     ...value,
-    api: { ...value.api, settings: value.api.settings && { ...value.api.settings } },
+    api: copyApi(value.api),
     request: { headers: { ...value.request.headers }, body: { ...value.request.body } },
   }
 }
@@ -288,7 +298,7 @@ function providerInfo(value: ProviderV2.MutableInfo) {
 function modelInfo(value: ModelV2.Info | ModelV2.MutableInfo) {
   return {
     ...value,
-    api: { ...value.api, settings: value.api.settings && { ...value.api.settings } },
+    api: copyApi(value.api),
     capabilities: {
       ...value.capabilities,
       input: [...value.capabilities.input],
