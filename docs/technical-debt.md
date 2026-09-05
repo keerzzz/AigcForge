@@ -164,6 +164,8 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 | V2 revert 静默丢弃 `partID`：同一公共端点在两套运行时行为不同 | aigcfroge / core | **来源：五模式 dogfood 修整 S1（2026-09-05）。** `RevertPayload` 沿用 V1 语义、`core/src/v1/session.ts:536` 的 marker 有 `partID`，V1 分支 `handlers/session.ts:979` 整包 spread 因而支持 part 级回滚；V2 分支 `:973-975` 只挑 `messageID`，`partID` 被静默丢掉，退化成 message 级。**触发条件**：任何客户端在 `AIGCFROGE_V2_RUNTIME=true` 下带 `partID` 调 `session.revert`。当前 App 两处调用点（`session.tsx:1500`、`:1544`）都只传 `messageID`，所以 UI 上不可达；TUI/SDK/未来 UI 可达。修法要么给 V2 `RevertInput` 补 `partID`，要么在 V2 分支对 `partID` 显式 typed 拒绝——不能继续静默丢。 | core | 与 V1 退役同批 |
 | V2 session 表的 `revert` 列仍用 V1 的 id 品牌 | core | **来源：五模式 dogfood 修整 S1b（2026-09-05）。** `session/sql.ts:11` 从 `../v1/session` 取 `MessageID`/`PartID` 作为列类型，而 V2 用自己的 `SessionMessage.ID`，于是读写各需一处窄 cast（`info.ts:60`、`store.ts` 的 `RevertColumn`）。**触发条件**：V1 退役删除 `core/src/v1/session.ts` 时该列类型会断。已从整块 `as any` 收窄为单字段 cast 并注明原因，剩余成本是两处 cast 本身。 | core | 与 V1 退役同批 |
 
+| V2 无法复现 V1 的权限轮次分档：纠正应继续、拒绝应停止 | core | **来源：五模式 dogfood 修整 S2（2026-09-05）。** V1 `processor.ts:241` 只对 `RejectedError` 置 `ctx.blocked`，实测因此 `CorrectedError → continue`、`RejectedError → stop`（`processor-effect.test.ts` 已钉住）——纠正带指令所以继续，硬拒绝结束本轮。V2 侧五种 outcome 统一以 `ToolFailure` 离开 leaf（`Tool.make` 的 execute 错误通道只允许它），runner 只看到一种形状，无法分档。**触发条件**：V1 退役、或 `AIGCFROGE_V2_RUNTIME` 默认转 true——两者都会让这条分档静默消失，属退役前必须补齐项，不是退役后清理项。修法需要给 V2 一条 typed 的“停止本轮”信号（扩 `Tool.make` 契约或在 settlement 侧带 policy 元数据），不能靠读消息字符串判断。 | core | V1 退役前 |
+
 ### 4.1 五模式 dogfood 发现（来源：[2026-09-03 真实浏览器 + 真实后端走查报告](review/five-mode-dogfood-2026-09-03/report.md)）
 
 一次真实 Chromium + 真实本地后端（含 `AIGCFROGE_CUSTOM_MODE=true` 的第二台）走查，八项发现。**三项已在 2026-09-04 修复并带红证**，五项仍开放。这批的共同教训写在最后一行。
