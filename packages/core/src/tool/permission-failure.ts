@@ -29,7 +29,17 @@ export function translate(action: string, error: unknown): ToolFailure | undefin
   if (error instanceof PermissionV2.CorrectedError)
     return new ToolFailure({ message: `Permission denied: ${action} — ${error.feedback}` })
   if (error instanceof PermissionV2.RejectedError)
-    return new ToolFailure({ message: `Permission request for ${action} went unanswered` })
+    // Two different events share this class, and only one of them is nobody answering.
+    // `permission.ts:280` sets `no_responder` when there was no one to ask; `:352` raises a
+    // bare `RejectedError` when a person answered and the answer was no, with no note
+    // attached. Reporting that second case as unanswered tells the model the opposite of
+    // what happened, and V1 words it as a refusal for the same reason.
+    return new ToolFailure({
+      message:
+        error.reason === "no_responder"
+          ? `Permission request for ${action} had no one to answer it`
+          : `Permission denied: ${action} — the user refused this call`,
+    })
   if (error instanceof PermissionV2.AskExpiredError)
     return new ToolFailure({
       message: `Permission request for ${action} expired after ${error.ttlMs}ms without an answer`,

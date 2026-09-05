@@ -486,6 +486,7 @@ describe("BashTool", () => {
               deny(new PermissionV2.CorrectedError({ feedback: "run git status instead" })),
             ),
             rejected: yield* settle("rejected", deny(new PermissionV2.RejectedError({ reason: "no_responder" }))),
+            refused: yield* settle("refused", deny(new PermissionV2.RejectedError())),
             expired: yield* settle(
               "expired",
               deny(new PermissionV2.AskExpiredError({ requestID: PermissionV2.ID.make("per_probe"), ttlMs: 1_000 })),
@@ -499,14 +500,18 @@ describe("BashTool", () => {
             }),
           }
 
-          // Every row has to name what actually happened. The two operational outcomes are
+          // Every row has to name what actually happened. Two of these come from the same
+          // error class and mean opposite things — `permission.ts:352` raises a bare
+          // `RejectedError` when a person said no, `:280` sets `no_responder` when there was
+          // nobody to ask — so they must not read alike. The two operational outcomes are
           // held to a stricter rule than the recoverable ones: they must not read as "the
           // user denied you", because nobody denied anything — one request aged out and one
           // lost a revision race.
           expect(outcomes).toEqual({
             denied: "error: Permission denied: bash",
             corrected: "error: Permission denied: bash — run git status instead",
-            rejected: "error: Permission request for bash went unanswered",
+            rejected: "error: Permission request for bash had no one to answer it",
+            refused: "error: Permission denied: bash — the user refused this call",
             expired: "error: Permission request for bash expired after 1000ms without an answer",
             conflict: "error: Permission state for bash changed while the request was open; retry the tool call",
             crashed: "error: Unable to execute command: pwd",
