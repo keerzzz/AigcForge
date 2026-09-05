@@ -168,6 +168,8 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 
 | 停滞轮次的恢复是「重开一轮」，不是「续跑原轮」 | app / core | **来源：五模式 dogfood 修整 S3a（2026-09-05），用户裁决选简单实现。** 停滞卡片的「放回提示词」复用 `session.tsx` 的 `draft(messageID)` 把文本还给 composer，用户自行发送——因此原来那条卡死的轮次留在历史里，不会被接续。健壮做法是服务端 resume turn（runner 需要能把一个已 admit 但无输出的轮次重新驱动），规模远超本切片。**触发条件**：用户对「历史里留一条空轮次」不可接受，或产品要求一键重试；届时按 resume 设计做，不要在客户端串 abort→idle→send 假装续跑。 | app | 未定 |
 
+| V2 三档 provider deadline 全部默认关闭 | core | **来源：五模式 dogfood 修整 S3b（2026-09-05）。** V1 给 OpenAI 系 `headerTimeout` 默认 10,000ms、给所有 provider `chunkTimeout` 默认 60,000ms（`aigcfroge/src/provider/provider.ts:35,41,214`）；V2 的 `AISDKTransport.pick` 只读用户配置，未配置即三档全关，所以默认配置下服务端不会中断一个永不作声的 provider。**为什么本批不加默认**：默认值会杀掉合法长轮次，且 V1 的 header 默认是按 provider 家族分档的，V2 的 provider 集合不同，照搬即臆想；同时 S3a 已让客户端在 60s 后给出停滞态与出口，报告症状在用户路径上已闭环，服务端 deadline 属加固而非止血。**触发条件**：需要服务端而非客户端中断（如无人值守 run、CLI 非交互）时必须显式配置三档。定默认值需要真实 provider 延迟分布，与 S3a 阈值同批裁决。 | 产品 + core | 与 S3a 阈值同批 |
+
 ### 4.1 五模式 dogfood 发现（来源：[2026-09-03 真实浏览器 + 真实后端走查报告](review/five-mode-dogfood-2026-09-03/report.md)）
 
 一次真实 Chromium + 真实本地后端（含 `AIGCFROGE_CUSTOM_MODE=true` 的第二台）走查，八项发现。**三项已在 2026-09-04 修复并带红证**，五项仍开放。这批的共同教训写在最后一行。
