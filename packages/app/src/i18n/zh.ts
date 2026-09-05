@@ -590,6 +590,7 @@ export const dict = {
   "custom.builder.diagnostics.cleanTitle": "组合计划检查通过",
   "custom.builder.diagnostics.cleanSubtitle": "未检测到阻塞性错误或警告",
   "custom.sidebar.assetsTitle": "项目资产",
+  "mode.slot.error": "此视图加载失败",
   "asset.load.failed": "无法加载项目资产",
   "asset.load.partial": "部分资产加载失败：{{kinds}}",
   "asset.load.retry": "重试",

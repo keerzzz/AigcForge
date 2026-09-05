@@ -1119,6 +1119,7 @@ export const dict = {
   "custom.builder.diagnostics.cleanTitle": "組合計劃檢查通過",
   "custom.builder.diagnostics.cleanSubtitle": "未檢測到阻塞性錯誤或警告",
   "custom.sidebar.assetsTitle": "專案資產",
+  "mode.slot.error": "此檢視載入失敗",
   "asset.load.failed": "無法載入專案資產",
   "asset.load.partial": "部分資產載入失敗：{{kinds}}",
   "asset.load.retry": "重試",

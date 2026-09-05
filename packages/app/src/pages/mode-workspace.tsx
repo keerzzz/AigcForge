@@ -1,4 +1,8 @@
-import { createEffect, createMemo, createResource, createSignal, For } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, Suspense } from "solid-js"
+import { Spinner } from "@aigcfroge/ui/spinner"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { Icon } from "@aigcfroge/ui/v2/icon"
+import { useLanguage } from "@/context/language"
 import { createStore } from "solid-js/store"
 import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
 import { CustomDraftProvider } from "@/context/custom-draft"
@@ -16,6 +20,61 @@ import type { HomeProjectSelection } from "@/pages/layout/helpers"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
 const ALL_SLOTS = ["chat", "coding", "work", "assistant", "custom"] as const
+
+/**
+ * What one slot shows while its own resources resolve.
+ *
+ * Each slot gets its own boundary because otherwise a pending read escapes to the route
+ * boundary in `layout.tsx` and every slot disappears behind the route fallback — measured: with
+ * `/workflow-asset` held open, arriving at Work made all five slots vanish. Render-all exists so
+ * that switching modes keeps each mode's UI state, and losing every slot to one mode's request
+ * is exactly what it is supposed to prevent.
+ *
+ * Solid's `Suspense` keeps its children alive while showing the fallback, so this contains the
+ * wait without unmounting anything.
+ */
+/**
+ * What one slot shows when its own resources reject.
+ *
+ * Measured before this existed: a 500 from `/workflow-asset` reached the app's top-level
+ * `ErrorBoundary` and replaced the entire application with "Something went wrong" — one asset
+ * endpoint took down every mode. The per-kind settling in `mode-workspace.tsx` and
+ * `mode-surfaces.tsx` covers the chat asset lists; work's `workflowAsset.list()` resource is
+ * read directly, and the SDK's interceptor throws on a non-2xx, so it had nothing above it.
+ *
+ * Borrows the danger vocabulary from `AssetLoadError` rather than that component itself: its
+ * contract is which asset *kinds* failed, and reporting a slot failure through it would say
+ * something untrue. `reset` remounts the slot's subtree, which is what gives the resource a
+ * second attempt.
+ */
+function SlotError(props: { reset: () => void }) {
+  const language = useLanguage()
+  return (
+    <div
+      data-component="mode-slot-error"
+      class="m-3 flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-2 py-1.5"
+      role="alert"
+    >
+      <Icon name="warning" size="small" class="shrink-0 text-v2-state-fg-danger" />
+      <span class="min-w-0 flex-1 text-11-regular text-v2-state-fg-danger">{language.t("mode.slot.error")}</span>
+      <ButtonV2 variant="neutral" size="small" onClick={props.reset}>
+        {language.t("asset.load.retry")}
+      </ButtonV2>
+    </div>
+  )
+}
+
+function SlotPending() {
+  return (
+    <div
+      class="flex flex-1 items-center justify-center py-6 text-v2-text-text-muted"
+      data-component="mode-slot-pending"
+      role="status"
+    >
+      <Spinner class="size-4" />
+    </div>
+  )
+}
 
 export function ModeWorkspace() {
   const mode = useMode()
@@ -54,8 +113,22 @@ export function ModeWorkspace() {
     return { scope: currentCtx.sdk.scope, directory: dir }
   })
 
+  // `chatAssetList` and `chatSystemData` are Chat-only — `ModeWorkspaceAssetCtx` has one
+  // consumer, `ChatAssetWorkbenchMain` — but they are declared here, above every slot, so no
+  // `ModeSlotActiveProvider` can reach them. Without a gate, opening any mode fetched Chat's
+  // seven asset lists and started its MCP child sync.
+  //
+  // A latch rather than a live gate: clearing them on the way out of Chat would drop exactly
+  // what render-all exists to preserve, and would refetch on every return. So nothing runs
+  // until Chat is shown once, and after that behaviour is unchanged.
+  const [chatShown, setChatShown] = createSignal(false)
+  createEffect(() => {
+    if (mode.currentMode === "chat") setChatShown(true)
+  })
+
   const [chatDirSdk, setChatDirSdk] = createSignal<DirectorySDK | undefined>()
   createEffect(() => {
+    if (!chatShown()) return
     const dir = chatDirectory()
     const currentCtx = chatCtx()
     if (!dir || !currentCtx) {
@@ -158,6 +231,7 @@ export function ModeWorkspace() {
   })
 
   const chatSystemData = createMemo(() => {
+    if (!chatShown()) return undefined
     const dir = chatDirectory()
     if (!dir) return undefined
     return sync().child(dir, { mcp: true })[0]
@@ -220,7 +294,11 @@ export function ModeWorkspace() {
                       return (
                         <div data-mode-sidebar={slot} style={{ display: mode.currentMode === slot ? "" : "none" }}>
                           <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
-                            <surf.Sidebar />
+                            <ErrorBoundary fallback={(_error, reset) => <SlotError reset={reset} />}>
+                              <Suspense fallback={<SlotPending />}>
+                                <surf.Sidebar />
+                              </Suspense>
+                            </ErrorBoundary>
                           </ModeSlotActiveProvider>
                         </div>
                       )
@@ -239,7 +317,11 @@ export function ModeWorkspace() {
                           style={{ display: mode.currentMode === slot ? "flex" : "none" }}
                         >
                           <ModeSlotActiveProvider value={() => mode.currentMode === slot}>
-                            <surf.Main />
+                            <ErrorBoundary fallback={(_error, reset) => <SlotError reset={reset} />}>
+                              <Suspense fallback={<SlotPending />}>
+                                <surf.Main />
+                              </Suspense>
+                            </ErrorBoundary>
                           </ModeSlotActiveProvider>
                         </div>
                       )

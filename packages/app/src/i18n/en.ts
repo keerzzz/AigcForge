@@ -675,6 +675,7 @@ export const dict = {
   "custom.builder.diagnostics.cleanTitle": "Clean Composition Plan",
   "custom.builder.diagnostics.cleanSubtitle": "No blocking errors or warnings detected",
   "custom.sidebar.assetsTitle": "Project Assets",
+  "mode.slot.error": "This view could not be loaded",
   "asset.load.failed": "Could not load project assets",
   "asset.load.partial": "Some assets could not be loaded: {{kinds}}",
   "asset.load.retry": "Retry",
