@@ -42,7 +42,13 @@ export function prepareOptions(
   // Deadlines are read from the provider api settings only. The request body is model-level
   // and is spread over the settings below, so without reading them first a body field named
   // `timeout` would silently change the transport deadline for the whole provider.
-  const deadlines = AISDKTransport.pick(settings)
+  const deadlines = AISDKTransport.withFallbacks(AISDKTransport.pick(settings), {
+    // Every provider gets the chunk deadline, as in V1: a stream that goes quiet mid-answer is
+    // never legitimate. The header deadline is scoped to the OpenAI package for the same reason
+    // V1 scopes it to that provider — elsewhere it is opt-in.
+    chunk: AISDKTransport.DEFAULT_CHUNK_TIMEOUT,
+    header: pkg === "@ai-sdk/openai" ? AISDKTransport.DEFAULT_HEADER_TIMEOUT : undefined,
+  })
   const options: Record<string, any> = {
     name: model.providerID,
     ...settings,

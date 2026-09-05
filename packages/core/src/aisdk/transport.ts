@@ -45,6 +45,34 @@ export function pick(settings: Record<string, unknown> | undefined): Deadlines {
 }
 
 /**
+ * The values V1 has shipped in production, reused rather than re-derived.
+ *
+ * V1 applies the chunk deadline to every provider and the header deadline only to the OpenAI
+ * package, and those are the two facts being mirrored — not the constants themselves, which
+ * stay on the retiring side.
+ */
+export const DEFAULT_CHUNK_TIMEOUT = 60_000
+export const DEFAULT_HEADER_TIMEOUT = 10_000
+
+/**
+ * Fill in the deadlines nobody declared.
+ *
+ * `false` is a decision, so it is never overwritten — only an absent field takes a fallback.
+ * Without this, V2 shipped every deadline off by default and a provider that went quiet was
+ * bounded on the client alone.
+ */
+export function withFallbacks(
+  deadlines: Deadlines,
+  fallbacks: { readonly header?: number; readonly chunk?: number; readonly total?: number },
+): Deadlines {
+  return {
+    timeout: deadlines.timeout ?? fallbacks.total,
+    headerTimeout: deadlines.headerTimeout ?? fallbacks.header,
+    chunkTimeout: deadlines.chunkTimeout ?? fallbacks.chunk,
+  }
+}
+
+/**
  * Guard the stream so a provider that stops mid-answer aborts instead of hanging.
  *
  * Only SSE bodies are watched: a non-streaming response is already complete when it arrives,

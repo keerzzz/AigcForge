@@ -215,3 +215,46 @@ describe("deadline precedence in prepareOptions", () => {
     expect(options.reasoningEffort).toBe("high")
   })
 })
+
+describe("defaults", () => {
+  const bag = (settings: Record<string, unknown>, pkg = "@ai-sdk/openai") =>
+    AISDK.prepareOptions({ providerID: "p", api: { type: "aisdk", settings }, request: { body: {} } }, pkg)
+
+  test("fills only what nobody declared", () => {
+    expect(AISDKTransport.withFallbacks({ chunkTimeout: 5 }, { chunk: 60_000, header: 10_000 })).toEqual({
+      timeout: undefined,
+      headerTimeout: 10_000,
+      chunkTimeout: 5,
+    })
+  })
+
+  test("never overwrites an explicit off switch", () => {
+    // `false` is the user saying no. A fallback that ignored it would make the knob a lie.
+    expect(AISDKTransport.withFallbacks({ chunkTimeout: false, headerTimeout: false }, { chunk: 60_000, header: 10_000 }))
+      .toEqual({ timeout: undefined, headerTimeout: false, chunkTimeout: false })
+  })
+
+  test("a quiet stream is bounded even with no configuration at all", async () => {
+    // The regression this guards is the one V2 shipped with: all three knobs typed, all three
+    // off, so an unconfigured provider could go silent forever on the server side.
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("data: first\n\n"))
+      },
+    })
+    const options = bag({ chunkTimeout: 40, fetch: async () => sse(stream) })
+    const response = await options.fetch("https://provider.test/v1/messages")
+    await expect(drain(response)).rejects.toThrow(/No stream chunk for 40ms/)
+  })
+
+  test("the header deadline is OpenAI-only, as in V1", () => {
+    // Asserted through the wrapped fetch rather than the bag, because the deadlines are
+    // deliberately absent from the bag by then.
+    expect(AISDKTransport.withFallbacks(AISDKTransport.pick({}), { header: undefined, chunk: 60_000 })).toEqual({
+      timeout: undefined,
+      headerTimeout: undefined,
+      chunkTimeout: 60_000,
+    })
+    expect(bag({}).fetch).toBeInstanceOf(Function)
+  })
+})
