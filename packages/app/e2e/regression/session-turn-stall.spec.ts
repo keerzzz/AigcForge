@@ -94,6 +94,17 @@ async function openBusySession(page: Page) {
   })
   await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
   await expectSessionTitle(page, title)
+  // The heading comes from the session shell, which mounts before the timeline's own chunk
+  // finishes compiling on a cold dev server — so waiting for the heading alone left the row
+  // assertions racing a build. Any row proves the timeline itself mounted; that is the real
+  // readiness signal, and it absorbs the compile inside the documented budget instead of
+  // pushing every later assertion onto a longer timeout.
+  await expectAppVisible(page.locator("[data-timeline-row]").first())
+  // `clock.install` freezes the page's timers, so deferred boot work that landed on a timer
+  // would never run. One second of the fake clock releases it deterministically — far below
+  // the stall threshold, so no assertion below changes meaning. Advancing the clock the test
+  // installed is not a sleep: nothing waits on wall time.
+  await page.clock.runFor(1_000)
 }
 
 test.describe("regression: silent turn has an exit", () => {
@@ -145,6 +156,30 @@ test.describe("regression: silent turn has an exit", () => {
     await expect.poll(() => aborts.length, { timeout: 10_000 }).toBeGreaterThan(0)
   })
 
+  test("putting the prompt back refills the composer without sending it", async ({ page }) => {
+    // The report's third complaint: after a dead turn the user could only retype the whole
+    // request. This returns the text and nothing else — no send, and no revert, which for a
+    // turn that captured no snapshot would be a no-op anyway (and destructive when it is not).
+    const prompts: string[] = []
+    page.on("request", (request) => {
+      const url = request.url()
+      if (request.method() === "POST" && (url.includes("/prompt") || url.endsWith("/message"))) prompts.push(url)
+    })
+
+    await page.clock.install({ time: new Date(created) })
+    await openBusySession(page)
+    await page.clock.fastForward("03:00")
+
+    const stalled = page.locator('[data-timeline-row="Stalled"]')
+    await expect(stalled).toHaveCount(1, { timeout: 15_000 })
+
+    await stalled.getByRole("button", { name: "Put the prompt back" }).click()
+
+    // The composer is a contenteditable, so the text is asserted where the user would read it.
+    await expect(page.locator("[contenteditable]").first()).toContainText("What does this repository do?")
+    expect(prompts).toEqual([])
+  })
+
   test("the stalled actions are keyboard reachable and survive a narrow viewport", async ({ page }) => {
     // The two surfaces this plan adds have to be usable without a mouse and at the width the
     // report used (390x844), so the fix does not trade one dead end for another.
@@ -158,8 +193,10 @@ test.describe("regression: silent turn has an exit", () => {
     await expect(stalled).toBeVisible()
 
     const stop = stalled.getByRole("button", { name: "Stop" })
+    const restore = stalled.getByRole("button", { name: "Put the prompt back" })
     const changeModel = stalled.getByRole("button", { name: "Change model" })
     await expect(stop).toBeVisible()
+    await expect(restore).toBeVisible()
     await expect(changeModel).toBeVisible()
 
     // Focusable and operable by keyboard: focus the control, then activate it with Enter.
