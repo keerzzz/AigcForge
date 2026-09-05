@@ -170,6 +170,8 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 
 | V2 `timeout`（整轮）仍无默认值，三档默认值本身未经实测分布校准 | core | **来源：五模式 dogfood 修整 S3b（2026-09-05）。** V2 已镜像 V1 的两个默认：`chunkTimeout` 全局 60,000ms、`headerTimeout` 仅 `@ai-sdk/openai` 10,000ms（`core/src/aisdk/transport.ts` + `aisdk.ts`）。**仍开放的**：① 整轮 `timeout` 两侧都无默认，一个既发头又持续吐字节但永不收尾的 provider 只能靠客户端停滞态兜；② 60,000/10,000 沿用 V1 生产经验值，不是按真实 provider 延迟分布定的，长推理模型若出现 >60s 的 SSE 静默会被误杀。**触发条件**：上线后出现「明明在算却被中断」的申诉，或需要服务端强制整轮上限。与 S3a 的 60s 停滞阈值同批按真实延迟分布回调。 | 产品 + core | 与 S3a 阈值同批 |
 
+| 破坏性确认对话框有两份同形实现，未归并 | app / session-ui | **来源：五模式 dogfood 修整 S5（2026-09-05）。** `message-timeline.tsx:981-1008` 的 `DialogDeleteSession` 与 `message-part.tsx` 新增的 revert 确认是同一形状：`Dialog` + 说明 + `DialogFooter(Cancel/危险动作)`。`DESIGN.md` 的规则是「跨表面复用才提升到 packages/ui」，现在正好两处，够条件但不够紧迫。**本批不做的理由**：归并要同时改 app 侧的删除对话框，超出 S5 影响面（`改完即审` #1 禁止顺手改无关代码），且删除对话框的回归覆盖未核。**触发条件**：出现第三个破坏性确认，或删除对话框因别的原因要改时，抽 `packages/ui` 的 `ConfirmDialog({title, body, confirmLabel, onConfirm})` 并让两处消费。 | app | 第三个确认框出现时 |
+
 ### 4.1 五模式 dogfood 发现（来源：[2026-09-03 真实浏览器 + 真实后端走查报告](review/five-mode-dogfood-2026-09-03/report.md)）
 
 一次真实 Chromium + 真实本地后端（含 `AIGCFROGE_CUSTOM_MODE=true` 的第二台）走查，八项发现。**三项已在 2026-09-04 修复并带红证**，五项仍开放。这批的共同教训写在最后一行。

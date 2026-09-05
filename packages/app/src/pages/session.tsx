@@ -1722,10 +1722,18 @@ export default function Page() {
   }
 
   // Read-only, cached by `sync().session.diff` itself, and only on an actual confirmation.
+  //
+  // The rejection is caught rather than left to `void`: `util/retry` rethrows after its attempts,
+  // so this would be an unhandled rejection. Swallowing it is deliberate and not silent — the
+  // dialog's documented behaviour without a diff is to describe the effect and show no count, so
+  // a failed preview lands in a state the user can already be in, and the destructive action
+  // still needs confirming either way.
   const requestRevertPreview = () => {
     const id = params.id
     if (!id) return
-    void sync().session.diff(id)
+    void sync()
+      .session.diff(id)
+      .catch(() => {})
   }
 
   const actions = {

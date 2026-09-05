@@ -1199,7 +1199,10 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
             <Show when={props.actions?.revertPreview?.()}>
               {(facts) => (
                 <span class="text-12-regular text-text-weak">
-                  {i18n.t("ui.message.revert.files", { count: String(facts().changedFiles) })}
+                  {i18n.t(
+                    facts().changedFiles === 1 ? "ui.message.revert.files.one" : "ui.message.revert.files.other",
+                    { count: String(facts().changedFiles) },
+                  )}
                 </span>
               )}
             </Show>
