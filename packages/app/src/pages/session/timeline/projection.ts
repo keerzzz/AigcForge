@@ -47,8 +47,9 @@ export function createTimelineProjection(input: {
   })
   const messageRowMemos = createMemo(
     mapArray(input.userMessages, (userMessage, indexAccessor) =>
-      createMemo((previous: TimelineRow.TimelineRow[] | undefined) =>
-        reuseTimelineRows(
+      createMemo((previous: TimelineRow.TimelineRow[] | undefined) => {
+        const active = activeMessageID() === userMessage.id
+        return reuseTimelineRows(
           previous,
           Timeline.constructMessageRows(
             userMessage,
@@ -57,11 +58,14 @@ export function createTimelineProjection(input: {
             indexAccessor(),
             input.showReasoningSummaries(),
             input.status().type,
-            activeMessageID() === userMessage.id,
-            input.now(),
+            active,
+            // Read the clock only for the turn that can actually stall. Solid subscribes at
+            // read time, so an inactive turn's memo never depends on the tick and a long
+            // session does not rebuild every row every few seconds while one turn runs.
+            active ? input.now() : undefined,
           ),
-        ),
-      ),
+        )
+      }),
     ),
   )
   const rows = createMemo((previous: TimelineRow.TimelineRow[] | undefined) =>
