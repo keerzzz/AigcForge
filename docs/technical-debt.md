@@ -166,6 +166,8 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 
 | V2 无法复现 V1 的权限轮次分档：纠正应继续、拒绝应停止 | core | **来源：五模式 dogfood 修整 S2（2026-09-05）。** V1 `processor.ts:241` 只对 `RejectedError` 置 `ctx.blocked`，实测因此 `CorrectedError → continue`、`RejectedError → stop`（`processor-effect.test.ts` 已钉住）——纠正带指令所以继续，硬拒绝结束本轮。V2 侧五种 outcome 统一以 `ToolFailure` 离开 leaf（`Tool.make` 的 execute 错误通道只允许它），runner 只看到一种形状，无法分档。**触发条件**：V1 退役、或 `AIGCFROGE_V2_RUNTIME` 默认转 true——两者都会让这条分档静默消失，属退役前必须补齐项，不是退役后清理项。修法需要给 V2 一条 typed 的“停止本轮”信号（扩 `Tool.make` 契约或在 settlement 侧带 policy 元数据），不能靠读消息字符串判断。 | core | V1 退役前 |
 
+| 停滞轮次的恢复是「重开一轮」，不是「续跑原轮」 | app / core | **来源：五模式 dogfood 修整 S3a（2026-09-05），用户裁决选简单实现。** 停滞卡片的「放回提示词」复用 `session.tsx` 的 `draft(messageID)` 把文本还给 composer，用户自行发送——因此原来那条卡死的轮次留在历史里，不会被接续。健壮做法是服务端 resume turn（runner 需要能把一个已 admit 但无输出的轮次重新驱动），规模远超本切片。**触发条件**：用户对「历史里留一条空轮次」不可接受，或产品要求一键重试；届时按 resume 设计做，不要在客户端串 abort→idle→send 假装续跑。 | app | 未定 |
+
 ### 4.1 五模式 dogfood 发现（来源：[2026-09-03 真实浏览器 + 真实后端走查报告](review/five-mode-dogfood-2026-09-03/report.md)）
 
 一次真实 Chromium + 真实本地后端（含 `AIGCFROGE_CUSTOM_MODE=true` 的第二台）走查，八项发现。**三项已在 2026-09-04 修复并带红证**，五项仍开放。这批的共同教训写在最后一行。
