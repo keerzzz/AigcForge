@@ -6,11 +6,11 @@
  */
 export * as WriteTool from "./write"
 
-import { ToolFailure } from "@aigcfroge/llm"
 import { Effect, Layer, Schema } from "effect"
 import { FileMutation } from "../file-mutation"
 import { LocationMutation } from "../location-mutation"
 import { PermissionV2 } from "../permission"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -83,7 +83,7 @@ export const layer = Layer.effectDiscard(
                   source,
                 })
                 return yield* files.writeTextPreservingBom({ target, content: input.content })
-              }).pipe(Effect.mapError(() => new ToolFailure({ message: `Unable to write ${input.path}` }))),
+              }).pipe(Effect.mapError(ToolPermissionFailure.toToolFailure(name, `Unable to write ${input.path}`))),
           }),
           "edit",
         ),

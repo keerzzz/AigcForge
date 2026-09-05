@@ -1,12 +1,12 @@
 export * as WebFetchTool from "./webfetch"
 
-import { ToolFailure } from "@aigcfroge/llm"
 import { Duration, Effect, Layer, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { Parser } from "htmlparser2"
 import TurndownService from "turndown"
 import { PermissionV2 } from "../permission"
 import { collectBoundedResponseBody } from "./http-body"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -170,7 +170,7 @@ export const layer = Layer.effectDiscard(
                 format: input.format,
                 output,
               }
-            }).pipe(Effect.mapError(() => new ToolFailure({ message: `Unable to fetch ${input.url}` }))),
+            }).pipe(Effect.mapError(ToolPermissionFailure.toToolFailure(name, `Unable to fetch ${input.url}`))),
         }),
       })
       .pipe(Effect.orDie)

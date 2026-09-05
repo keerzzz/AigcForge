@@ -494,7 +494,7 @@ describe("ReadTool", () => {
           ...toolIdentity,
           call: { type: "tool-call", id: "call-read", name: "read", input: { path: "README.md" } },
         }),
-      ).toEqual({ type: "error", value: "Unable to read README.md" })
+      ).toEqual({ type: "error", value: "Permission denied: read" })
       expect(readCalls).toEqual([])
     }),
   )
@@ -549,7 +549,7 @@ describe("ReadTool", () => {
           ...toolIdentity,
           call: { type: "tool-call", id: "call-read-directory-denied", name: "read", input: { path: "src" } },
         }),
-      ).toEqual({ type: "error", value: "Unable to read src" })
+      ).toEqual({ type: "error", value: "Permission denied: read" })
       expect(listCalls).toEqual([])
     }),
   )

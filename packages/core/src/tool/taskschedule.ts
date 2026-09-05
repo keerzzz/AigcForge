@@ -6,6 +6,7 @@ import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task
 import { PermissionV2 } from "../permission"
 import { nextRun } from "../session/schedule"
 import { SessionTask } from "../session/task"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -157,18 +158,10 @@ export const layer = Layer.effectDiscard(
                 error instanceof SessionTask.TaskWriteError ? new ToolFailure({ message: error.message }) : error,
               ),
               // ToolFailure passes through (validation, permission, the
-              // TaskWriteError mapping above); a permission denial keeps its
-              // context instead of the generic fallback (mirroring question.ts);
-              // only infrastructure failures get the generic fallback. The
-              // message stays action-neutral because one call may mix
-              // schedule/pause/resume/remove.
-              Effect.mapError((error) =>
-                error instanceof ToolFailure
-                  ? error
-                  : error instanceof PermissionV2.DeniedError
-                    ? new ToolFailure({ message: "Permission denied: task_schedule" })
-                    : new ToolFailure({ message: "Unable to update scheduled tasks" }),
-              ),
+              // TaskWriteError mapping above); a permission outcome keeps its own wording;
+              // only infrastructure failures get the generic fallback. That fallback stays
+              // action-neutral because one call may mix schedule/pause/resume/remove.
+              Effect.mapError(ToolPermissionFailure.toToolFailure(name, "Unable to update scheduled tasks")),
             ),
         }),
       })
