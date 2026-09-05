@@ -2,10 +2,11 @@ import fs from "fs/promises"
 import { realpathSync } from "node:fs"
 import path from "path"
 import { describe, expect, test } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Cause, Effect, Layer } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Config } from "@aigcfroge/core/config"
+import { GrantEvent } from "@aigcfroge/core/grant/event"
 import { Location } from "@aigcfroge/core/location"
 import { LocationMutation } from "@aigcfroge/core/location-mutation"
 import { PermissionV2 } from "@aigcfroge/core/permission"
@@ -442,6 +443,73 @@ describe("BashTool", () => {
           expect(settled.result).toMatchObject({
             type: "error",
             value: expect.stringContaining("use git status instead of pwd"),
+          })
+        }),
+      (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+    ),
+  )
+
+  it.live("gives every permission outcome its own settled result", () =>
+    Effect.acquireUseRelease(
+      Effect.promise(() => tmpdir()),
+      (tmp) =>
+        Effect.gen(function* () {
+          // `PermissionV2.Error` has five members and `permission.assert` can fail with any
+          // of them. The leaf currently ends in `Effect.mapError(() => ToolFailure)`
+          // (`bash.ts:198`), which discards the error without looking at it, so all five —
+          // plus a genuine execution failure — collapse into one string. This settles each
+          // outcome through the real leaf, the real `Tool.make` contract and the real
+          // registry, and records what the durable tool part ends up saying.
+          const settle = (label: string, arrange: () => void) =>
+            Effect.suspend(() => {
+              reset()
+              arrange()
+              return withTool(tmp.path, (registry) =>
+                settleTool(registry, call({ command: "pwd" }, `call-${label}`)),
+              ).pipe(
+                Effect.map((settled) => `${settled.result.type}: ${settled.result.value}`),
+                // Not `catchAll`: a defect or an interrupt has to stay visible as such,
+                // otherwise this measurement would hide the very thing it measures.
+                Effect.catchCause((cause) => Effect.succeed(`unsettled: ${Cause.pretty(cause)}`)),
+              )
+            })
+
+          const deny = (failure: PermissionV2.Error) => () => {
+            denyAction = "bash"
+            permissionFailure = failure
+          }
+
+          const outcomes = {
+            denied: yield* settle("denied", deny(new PermissionV2.DeniedError({ rules: [] }))),
+            corrected: yield* settle(
+              "corrected",
+              deny(new PermissionV2.CorrectedError({ feedback: "run git status instead" })),
+            ),
+            rejected: yield* settle("rejected", deny(new PermissionV2.RejectedError({ reason: "no_responder" }))),
+            expired: yield* settle(
+              "expired",
+              deny(new PermissionV2.AskExpiredError({ requestID: PermissionV2.ID.make("per_probe"), ttlMs: 1_000 })),
+            ),
+            conflict: yield* settle(
+              "conflict",
+              deny(new GrantEvent.CommitRejected({ grantID: "grant_probe", revision: 2 })),
+            ),
+            crashed: yield* settle("crashed", () => {
+              runFailure = new AppProcess.AppProcessError({ command: "pwd", cause: new Error("spawn failed") })
+            }),
+          }
+
+          // Every row has to name what actually happened. The two operational outcomes are
+          // held to a stricter rule than the recoverable ones: they must not read as "the
+          // user denied you", because nobody denied anything — one request aged out and one
+          // lost a revision race.
+          expect(outcomes).toEqual({
+            denied: "error: Permission denied: bash",
+            corrected: "error: Permission denied: bash — run git status instead",
+            rejected: "error: Permission request for bash went unanswered",
+            expired: "error: Permission request for bash expired after 1000ms without an answer",
+            conflict: "error: Permission state for bash changed while the request was open; retry the tool call",
+            crashed: "error: Unable to execute command: pwd",
           })
         }),
       (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
