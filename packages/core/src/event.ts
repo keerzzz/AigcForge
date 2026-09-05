@@ -96,6 +96,19 @@ const codec = (schema: Schema.Top) =>
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- see above
   schema as unknown as Schema.Codec<unknown, Record<string, unknown>>
 
+export function decodeSerialized(event: SerializedEvent): Payload {
+  const definition = durableRegistry.get(event.type)
+  if (!definition?.durable) {
+    throw new InvalidDurableEventError({ type: event.type, message: `Unknown durable event type ${event.type}` })
+  }
+  return {
+    id: event.id,
+    type: definition.type,
+    durable: { aggregateID: event.aggregateID, seq: event.seq, version: definition.durable.version },
+    data: Schema.decodeUnknownSync(codec(definition.data))(event.data),
+  }
+}
+
 export function define<const Type extends string, Fields extends Schema.Struct.Fields>(input: {
   readonly type: Type
   readonly durable?: {
@@ -137,6 +150,8 @@ export function definitions() {
 }
 
 export type Transaction = SQLiteEffectTransaction<EffectSQLiteQueryEffectHKT, EffectSQLiteRunResult, EmptyRelations>
+
+export type Projector<D extends Definition = Definition> = (event: Payload<D>, tx: Transaction) => Effect.Effect<void>
 
 export interface PublishOptions {
   readonly id?: ID
@@ -192,7 +207,7 @@ export interface Interface {
   readonly durable: (input: { readonly aggregateID: string; readonly after?: number }) => Stream.Stream<Payload>
   /** @deprecated Use `all()` and consume the returned stream. */
   readonly listen: (listener: Subscriber) => Effect.Effect<Unsubscribe>
-  readonly project: <D extends Definition>(definition: D, projector: Subscriber<D>) => Effect.Effect<void>
+  readonly project: <D extends Definition>(definition: D, projector: Projector<D>) => Effect.Effect<void>
   readonly replay: (
     event: SerializedEvent,
     options?: { readonly publish?: boolean; readonly ownerID?: string; readonly strictOwner?: boolean },
@@ -220,7 +235,7 @@ export const layerWith = (options?: LayerOptions) =>
         durable: new Map<string, Set<PubSub.PubSub<void>>>(),
         typed: new Map<string, PubSub.PubSub<Payload>>(),
       }
-      const projectors = new Map<string, Subscriber[]>()
+      const projectors = new Map<string, Projector[]>()
       const listeners = new Array<Subscriber>()
       const { db } = yield* Database.Service
 
@@ -355,7 +370,7 @@ export const layerWith = (options?: LayerOptions) =>
                     durable: { aggregateID, seq, version: durable.version },
                   } as Payload
                   for (const projector of list) {
-                    yield* projector(committed)
+                    yield* projector(committed, tx)
                   }
                   if (commit) yield* commit(seq, tx)
                   yield* tx
@@ -643,19 +658,6 @@ export const layerWith = (options?: LayerOptions) =>
 
       const streamAll = (): Stream.Stream<Payload> => Stream.fromPubSub(pubsub.all)
 
-      const decodeSerializedEvent = (event: SerializedEvent): Payload => {
-        const definition = durableRegistry.get(event.type)
-        if (!definition?.durable) {
-          throw new InvalidDurableEventError({ type: event.type, message: `Unknown durable event type ${event.type}` })
-        }
-        return {
-          id: event.id,
-          type: definition.type,
-          durable: { aggregateID: event.aggregateID, seq: event.seq, version: definition.durable.version },
-          data: Schema.decodeUnknownSync(codec(definition.data))(event.data),
-        }
-      }
-
       const readAfter = (aggregateID: string, after: number) =>
         (options?.beforeAggregateRead?.(aggregateID) ?? Effect.void).pipe(
           Effect.andThen(
@@ -669,7 +671,7 @@ export const layerWith = (options?: LayerOptions) =>
           Effect.orDie,
           Effect.map((rows) =>
             rows.map((event) =>
-              decodeSerializedEvent({
+              decodeSerialized({
                 id: event.id,
                 aggregateID: event.aggregate_id,
                 seq: event.seq,
@@ -730,10 +732,18 @@ export const layerWith = (options?: LayerOptions) =>
           })
         })
 
-      const project = <D extends Definition>(definition: D, projector: Subscriber<D>): Effect.Effect<void> =>
+      const project = <D extends Definition>(definition: D, projector: Projector<D>): Effect.Effect<void> =>
         Effect.sync(() => {
           const list = projectors.get(definition.type) ?? []
-          list.push((event) => projector(event as Payload<D>))
+          // The event has already crossed the definition's schema boundary in
+          // publish/replay. Decoding it again would treat transformed Type-side
+          // values (for example DateTime) as Encoded-side input and reject
+          // otherwise valid existing projectors. The registry is existential;
+          // this cast only restores the type paired with this registration.
+          list.push((event, tx) =>
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- existential registry entry is paired with this projector at registration time
+            projector(event as Payload<D>, tx),
+          )
           projectors.set(definition.type, list)
         })
 

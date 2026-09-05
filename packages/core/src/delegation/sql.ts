@@ -2,6 +2,7 @@ export * as DelegationSql from "./sql"
 
 import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { Timestamps } from "../database/schema.sql"
+import { SessionTable } from "../session/sql"
 import type { ID as DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
 import type { ID as SessionID } from "@aigcfroge/schema/session-id"
 import type {
@@ -12,17 +13,21 @@ import type {
   TurnKind,
   TurnStatus,
   DeliveryIntent,
+  RevisionDigest,
 } from "@aigcfroge/schema/delegation"
 
 export const DelegationTable = sqliteTable(
   "delegation",
   {
     id: text().$type<DelegationID>().primaryKey(),
-    parent_session_id: text().$type<SessionID>().notNull(),
+    parent_session_id: text()
+      .$type<SessionID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
     meta_agent_id: text(),
     title: text().notNull(),
     status: text().$type<DelegationStatus>().notNull(),
-    latest_revision_digest: text(),
+    latest_revision_digest: text().$type<RevisionDigest>(),
     rejection_blocked: integer().$type<0 | 1>().notNull().default(0),
     rejection_reason: text(),
     rejection_participant_id: text().$type<ParticipantID>(),
@@ -74,7 +79,7 @@ export const DelegationTurnTable = sqliteTable(
     seq: integer().notNull(),
     kind: text().$type<TurnKind>().notNull(),
     status: text().$type<TurnStatus>().notNull(),
-    prompt: text(),
+    prompt_summary: text(),
     evidence_digest: text(),
     revision_digest: text(),
     participant_ids: text({ mode: "json" }).$type<ParticipantID[]>().notNull(),

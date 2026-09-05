@@ -112,7 +112,7 @@ durable: {
 
 事件 payload 必须包含 `delegationID`。`aggregate: "delegation"`、payload 字段 `delegation`、或复用 `parentSessionID` 作为 Delegation aggregate id 均禁止；前者会让 EventV2 聚合字段与 payload 语义漂移，后者会把 Session 与 Delegation 事件焊进同一序号空间。
 
-禁止 handler、adapter、UI 直接写委派表；禁止以内存 Map、日志文本或 BackgroundJob 状态作为唯一真源。
+禁止 handler、adapter、UI 直接写委派表；禁止以内存 Map、日志文本或 BackgroundJob 状态作为唯一真源。Turn 事件只允许携带有界、脱敏的 `promptSummary`；完整 prompt 继续由 Session input/history 持有，不进入 Delegation durable event。`appendTurn` 的单个 durable commit 必须同时产生 `delegation.turn_admitted` 与每个目标 participant 的 `delegation.delivery_admitted` 事实；provider 唤醒只能发生在该 commit 之后。
 
 ### 2.5 Review 与 Permission 分离
 
@@ -172,7 +172,7 @@ Codex `approved` 是代码审查结论，不是 PermissionV2 grant，也不是�
 
 第三条是原设计缺失的。participant 的执行进程消失后，原设计只能排队等一个永不到来的唤醒，或直接失败。
 
-**投递的至多一次由被投递物自身携带来源保证，不引入独立 idempotency 表。** 目标侧在 pending inbox item 和最终落库的消息上都保留 `{ turnID, deliveryOrigin, senderParticipantID }`；把这个来源在 inbox 与历史上做 fold 就是去重键。恢复邮箱 = **已入队 − 已确认落库**，不需要为「投递中」再造一个状态。
+**投递的至多一次由被投递物自身携带来源保证，不引入独立 idempotency 表。** 目标侧在 pending inbox item 和最终落库的消息上都保留 `{ turnID, deliveryOrigin, senderParticipantID }`；三项都是必填，系统发起的投递也必须绑定到一个明确的 participant，禁止用缺省 sender 形成第二种 identity。把这个来源在 inbox 与历史上做 fold 就是去重键。恢复邮箱 = **已入队 − 已确认落库**，不需要为「投递中」再造一个状态。
 
 **投递不建独立投影表。** 投递事实由 `delegation.delivery_*` 事件承载，聚合状态用**增量折叠**计算：活跃委派的折叠状态随 Activation 生命周期驻留、随新事件增量推进；冷启动时借 `event_aggregate_type_seq_idx`（`aggregate_id, type, seq`）一次性折叠。
 

@@ -13,7 +13,11 @@
 import { Effect, Layer, type Scope } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
+import { DelegationProjector } from "../src/delegation/projector"
 import { Location } from "@aigcfroge/core/location"
+import { ProjectV2 } from "@aigcfroge/core/project"
+import { ProjectTable } from "../src/project/sql"
+import { SessionTable } from "../src/session/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import type { CliAdapter, DelegationResult } from "@aigcfroge/core/tool/cli-adapter"
@@ -84,6 +88,37 @@ export function makeTestLocation(directory = "/project"): Location.Ref {
   return Location.Ref.make({ directory: AbsolutePath.make(directory) })
 }
 
+/** Seeds the minimum real parent rows required by the delegation foreign key. */
+export function seedDelegationParentSession(
+  db: Database.Interface["db"],
+  sessionID: SessionV2.ID,
+  directory = "/project",
+) {
+  return Effect.gen(function* () {
+    yield* db
+      .insert(ProjectTable)
+      .values({ id: ProjectV2.ID.global, worktree: AbsolutePath.make(directory), sandboxes: [] })
+      .onConflictDoNothing()
+      .run()
+      .pipe(Effect.orDie)
+    yield* db
+      .insert(SessionTable)
+      .values({
+        id: sessionID,
+        project_id: ProjectV2.ID.global,
+        slug: sessionID,
+        directory: AbsolutePath.make(directory),
+        title: "Delegation test parent",
+        version: "test",
+        mode: "coding",
+        agent: "plan",
+      })
+      .onConflictDoNothing()
+      .run()
+      .pipe(Effect.orDie)
+  })
+}
+
 /**
  * Scoped temporary directory fixture for tests, supporting optional git initialization.
  * Reuses packages/core/test/fixture/tmpdir.ts and git.ts without swallowing errors.
@@ -111,4 +146,8 @@ export function tmpdirScoped(options?: { git?: boolean }): Effect.Effect<string,
 /**
  * Minimal common test layer with in-memory database and EventV2.
  */
-export const testDelegationBaseLayer = Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)
+export const testDelegationBaseLayer = Layer.mergeAll(
+  Database.defaultLayer,
+  EventV2.defaultLayer,
+  DelegationProjector.layer.pipe(Layer.provide(EventV2.defaultLayer), Layer.provide(Database.defaultLayer)),
+)

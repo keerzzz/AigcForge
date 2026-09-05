@@ -254,7 +254,7 @@ id: DelegationTurn.ID
 delegationID: Delegation.ID
 seq: number
 kind: task | evidence | review | repair | close
-prompt: string
+promptSummary?: string (bounded/redacted; full prompt remains in Session input/history)
 evidenceDigest?: string
 revisionDigest?: string
 status: admitted | queued | running | partially_completed | completed |
@@ -309,6 +309,7 @@ durable: {
 delegation.created
 delegation.participant_added
 delegation.turn_admitted
+delegation.delivery_admitted
 delegation.delivery_started
 delegation.delivery_completed
 delegation.delivery_failed
@@ -324,7 +325,7 @@ delegation.archived
 delegation.forked
 ```
 
-事件 payload 必须是 Schema，不能塞完整 prompt、Authorization header、token 或原始工具输出。日志只允许 ID、状态、目标和经过清理的错误码/摘要。
+事件 payload 必须是 Schema，不能塞完整 prompt、Authorization header、token 或原始工具输出；Turn 事件最多携带有界、脱敏的 `promptSummary`，canonical prompt 留在 Session input/history。日志只允许 ID、状态、目标和经过清理的错误码/摘要。
 
 ---
 
@@ -1534,7 +1535,7 @@ create({ parentSessionID, metaAgentID?, title, requestedBy })
 addParticipant({ delegationID, role, provider, target, context: "fresh" | "fork" })
   -> { participantID, phase: "provisioning" }
 
-appendTurn({ delegationID, kind, prompt?, evidenceDigest?, revisionDigest?, participantIDs, delivery, origin })
+appendTurn({ delegationID, kind, promptSummary?, evidenceDigest?, revisionDigest?, participantIDs, delivery, origin })
   -> { turnID, seq, deliveries, status: "admitted" | "queued" }
 
 recordDelivery({ delegationID, turnID, participantID, origin, attempt, status, externalTurnID?, summary?, errorCode? })
@@ -1563,7 +1564,7 @@ retractRejection({ delegationID, participantID?, reason })
 - `appendTurn` 必须先持久化 Turn 和 admitted deliveries，再返回；provider 调用不是 admission 的一部分；
 - `recordDelivery`/`recordRevision`/`recordReview` 只能由 `DelegationService` 调用，adapter、handler、UI 不得直接写表；
 - `get/list/foldState` 必须校验 parent Session/Location，不能用 delegation ID 单独跨租户读取；
-- `origin` 至少包含 `{ turnID, deliveryOrigin, senderParticipantID }`，它是 fold 去重输入，不另建幂等表；
+- `origin` 必须包含 `{ turnID, deliveryOrigin, senderParticipantID }`，三项均为必填，是 fold 去重输入；不另建幂等表，也不允许用缺省 sender 形成第二种 identity；
 - 所有失败必须落在已定义的 typed error/`recovery_required` 结果上；不要以 `Effect.orDie` 把客户可恢复错误伪装成 defect；
 - `purge` 是显式物理删除命令，不进入 status union，不允许被 `complete`/`archive` 隐式调用。
 
@@ -1627,16 +1628,18 @@ packages/core/test/database-migration.test.ts（扩展现有迁移测试）
 - barrier 只接收折叠状态，测试文件中不得出现 Database/Layer 装配；
 - digest 输入只允许 commit SHA + normalized diff，不允许 event sequence、prompt、token、Authorization；同一代码事实生成同一 digest；
 - delivery 不创建独立 ID 或独立表；同一 `(turnID, participantID, deliveryOrigin, senderParticipantID)` fold 后幂等；
-- migration clean database 和 existing database 都存在恰好三张新表，并有 parent/foreign key/index；schema 使用 snake_case。
+- migration clean database 和 existing database 都存在恰好三张新表，并有 parent/foreign key/index；`delegation.parent_session_id` 约束到 `session.id`，Turn 摘要列使用 `prompt_summary`，schema 使用 snake_case。
 
 **GREEN 文件/动作**：
 
 1. 在 `packages/schema/src/delegation-id.ts` 增加三个 branded ID，并在 `packages/schema/src/delegation.ts` 增加 `Schema.Class`/payload；在 `packages/schema/src/index.ts` 导出，不能从 Core 反向导入。
 2. 在 `packages/core/src/delegation/state.ts` 实现纯 transition guard；在 `review.ts` 实现 `changeKind`、`copyable`、`canComplete`；在 `fold.ts` 实现从 `delegation.*` durable events 得到聚合状态。
 3. 在 `packages/core/src/delegation/event.ts` 用 `EventV2.define` 注册 durable event；每个事件 payload 携带 `delegationID` 作为 durable aggregate 字段，事件数据只保留 typed IDs、状态、摘要/digest、错误码和必要时间。
-4. 在 `packages/core/src/delegation/sql.ts` 定义 `delegation`、`delegation_participant`、`delegation_turn`；只让 projector 在 EventV2 commit transaction 中更新 projection。不要给 Delivery 建 projection table。
-5. 新增时间戳命名的 TypeScript migration，执行 `cd packages/core && bun script/migration.ts`；不要手写 `schema.gen.ts`、`migration.gen.ts` 或 `schema.json`。
+4. 在 `packages/core/src/delegation/sql.ts` 定义 `delegation`、`delegation_participant`、`delegation_turn`；只让 transaction-aware projector 在 EventV2 commit transaction 中更新 projection，并提供从 EventV2 replay 重建三张表的路径。不要给 Delivery 建 projection table。
+5. 新增时间戳命名的 TypeScript migration，执行 `cd packages/core && bun script/migration.ts`；不要手写 `schema.gen.ts`、`migration.gen.ts` 或 `schema.json`。本分支的 Delegation migration 尚未合入或推送到 `origin/main`，因此首次发布前可以修订该初始 migration；一旦该 migration 被共享/发布数据库记录，后续形状变更必须新增 forward-only follow-up migration，不得重写已发布 migration。
 6. 运行 `bun --cwd packages/core migration --check`，确认 generated schema/registry 与 migration 文件一致。
+
+Phase 1 只交付持久化/事件/纯领域与可测试的 Service admission seam；`list`、`resolveCurrent`、participant execution、resume/steer/retry/interrupt、生命周期命令、reconcile、purge 及 Location/Permission 完整授权链属于后续 Phase，不能在本阶段复查卡中宣称已完成。
 
 **Exit 命令**：
 

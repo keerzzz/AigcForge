@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Delegation } from "@aigcfroge/schema/delegation"
-import { copyable, evaluateReviewBarrier, retractRejection } from "../src/delegation/review"
+import { Delegation, RevisionDigest } from "@aigcfroge/schema/delegation"
+import { TurnID } from "@aigcfroge/schema/delegation-id"
+import { canComplete, copyable, evaluateReviewBarrier, retractRejection } from "../src/delegation/review"
 
 describe("Delegation Review Barrier and Copyability (Phase 1)", () => {
   test("copyable implements Gerrit sticky approval truth table (G3)", () => {
@@ -135,6 +136,48 @@ describe("Delegation Review Barrier and Copyability (Phase 1)", () => {
     expect(blockedResult.passed).toBe(false)
   })
 
+  test("requires the latest effective receipt from every reviewer or approver", () => {
+    const participant = (id: string, role: "reviewer" | "approver") =>
+      Schema.decodeUnknownSync(Delegation.ParticipantInfo)({
+        id,
+        delegationID: "dlg_01",
+        provider: "codex",
+        target: role,
+        role,
+        context: "fresh",
+        phase: "active",
+        runtimeStatus: "idle",
+        lastActivityAt: 1000,
+        createdAt: 1000,
+        updatedAt: 1000,
+      })
+    const reviewerA = participant("par_reviewer_a", "reviewer")
+    const reviewerB = participant("par_reviewer_b", "approver")
+    const digest = "rev_" + "a".repeat(64)
+
+    expect(
+      evaluateReviewBarrier({
+        participants: [reviewerA, reviewerB],
+        reviews: [{ participantID: reviewerA.id, reviewedRevisionDigest: digest, verdict: "approved" }],
+        latestRevisionDigest: digest,
+        rejectionBlocked: false,
+      }).passed,
+    ).toBe(false)
+
+    expect(
+      evaluateReviewBarrier({
+        participants: [reviewerA, reviewerB],
+        reviews: [
+          { participantID: reviewerA.id, reviewedRevisionDigest: digest, verdict: "rejected" },
+          { participantID: reviewerA.id, reviewedRevisionDigest: digest, verdict: "approved" },
+          { participantID: reviewerB.id, reviewedRevisionDigest: digest, verdict: "approved" },
+        ],
+        latestRevisionDigest: digest,
+        rejectionBlocked: false,
+      }).passed,
+    ).toBe(true)
+  })
+
   test("retractRejection unblocks sticky blocker (G4)", () => {
     const delegation = Schema.decodeUnknownSync(Delegation.Info)({
       id: "dlg_01",
@@ -211,5 +254,92 @@ describe("Delegation Review Barrier and Copyability (Phase 1)", () => {
     })
 
     expect(result.passed).toBe(true)
+  })
+
+  test("completion barrier rejects a failed reviewer delivery even when a receipt exists", () => {
+    const participant = (id: string, role: "implementer" | "reviewer") =>
+      Schema.decodeUnknownSync(Delegation.ParticipantInfo)({
+        id,
+        delegationID: "dlg_01",
+        provider: role === "implementer" ? "internal" : "codex",
+        target: role,
+        role,
+        context: "fresh",
+        phase: "active",
+        runtimeStatus: "idle",
+        lastActivityAt: 1000,
+        createdAt: 1000,
+        updatedAt: 1000,
+      })
+    const implementer = participant("par_impl_failed_reviewer", "implementer")
+    const reviewer = participant("par_reviewer_failed_delivery", "reviewer")
+    const revision = RevisionDigest.make(`rev_${"f".repeat(64)}`)
+
+    const result = canComplete({
+      participants: [implementer, reviewer],
+      reviews: [{ participantID: reviewer.id, reviewedRevisionDigest: revision, verdict: "approved" }],
+      latestRevisionDigest: revision,
+      revisions: [{ revisionDigest: revision, changeKind: "rework" }],
+      rejectionBlocked: false,
+      turns: [
+        {
+          id: TurnID.make("trn_failed_reviewer"),
+          seq: 1,
+          status: "completed",
+          participantIDs: [implementer.id, reviewer.id],
+        },
+      ],
+      deliveries: [
+        {
+          turnID: TurnID.make("trn_failed_reviewer"),
+          participantID: implementer.id,
+          status: "completed",
+          attempt: 1,
+          updatedAt: 1,
+        },
+        {
+          turnID: TurnID.make("trn_failed_reviewer"),
+          participantID: reviewer.id,
+          status: "failed",
+          attempt: 1,
+          updatedAt: 2,
+        },
+      ],
+    })
+
+    expect(result).toBe(false)
+  })
+
+  test("completion barrier uses the latest turn delivery, not an older completed attempt", () => {
+    const implementer = Schema.decodeUnknownSync(Delegation.ParticipantInfo)({
+      id: "par_impl_latest_turn",
+      delegationID: "dlg_01",
+      provider: "internal",
+      target: "build",
+      role: "implementer",
+      context: "fresh",
+      phase: "active",
+      runtimeStatus: "idle",
+      lastActivityAt: 1000,
+      createdAt: 1000,
+      updatedAt: 1000,
+    })
+    const oldTurn = TurnID.make("trn_old_turn")
+    const latestTurn = TurnID.make("trn_latest_turn")
+    const result = canComplete({
+      participants: [implementer],
+      reviews: [],
+      rejectionBlocked: false,
+      turns: [
+        { id: oldTurn, seq: 1, status: "completed", participantIDs: [implementer.id] },
+        { id: latestTurn, seq: 2, status: "failed", participantIDs: [implementer.id] },
+      ],
+      deliveries: [
+        { turnID: oldTurn, participantID: implementer.id, status: "completed", attempt: 1, updatedAt: 1 },
+        { turnID: latestTurn, participantID: implementer.id, status: "failed", attempt: 1, updatedAt: 2 },
+      ],
+    })
+
+    expect(result).toBe(false)
   })
 })

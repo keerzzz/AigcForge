@@ -88,7 +88,7 @@ export const TurnAdmittedData = Schema.Struct({
   turnID: TurnID,
   seq: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   kind: TurnKind,
-  prompt: Schema.optional(Schema.String),
+  promptSummary: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),
   evidenceDigest: Schema.optional(Schema.String),
   revisionDigest: Schema.optional(RevisionDigest),
   participantIDs: Schema.Array(ParticipantID),
@@ -107,7 +107,7 @@ export const TurnAppendedData = Schema.Struct({
   turnID: TurnID,
   seq: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   kind: TurnKind,
-  prompt: Schema.optional(Schema.String),
+  promptSummary: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),
   evidenceDigest: Schema.optional(Schema.String),
   revisionDigest: Schema.optional(RevisionDigest),
   participantIDs: Schema.Array(ParticipantID),
@@ -121,12 +121,29 @@ export const TurnAppended = EventV2.define({
   schema: TurnAppendedData.fields,
 })
 
+export const DeliveryAdmittedData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  deliveryOrigin: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(512)),
+  senderParticipantID: ParticipantID,
+  attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  status: Schema.Literals(["admitted", "queued"]),
+  timestamp: Schema.Number,
+})
+export type DeliveryAdmittedData = typeof DeliveryAdmittedData.Type
+export const DeliveryAdmitted = EventV2.define({
+  type: "delegation.delivery_admitted",
+  ...options,
+  schema: DeliveryAdmittedData.fields,
+})
+
 export const DeliveryStartedData = Schema.Struct({
   delegationID: DelegationID.ID,
   turnID: TurnID,
   participantID: ParticipantID,
-  deliveryOrigin: Schema.String,
-  senderParticipantID: Schema.optional(ParticipantID),
+  deliveryOrigin: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(512)),
+  senderParticipantID: ParticipantID,
   attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   timestamp: Schema.Number,
 })
@@ -141,10 +158,11 @@ export const DeliveryCompletedData = Schema.Struct({
   delegationID: DelegationID.ID,
   turnID: TurnID,
   participantID: ParticipantID,
-  deliveryOrigin: Schema.String,
+  deliveryOrigin: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(512)),
+  senderParticipantID: ParticipantID,
   attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   externalTurnID: Schema.optional(Schema.String),
-  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
   timestamp: Schema.Number,
 })
 export type DeliveryCompletedData = typeof DeliveryCompletedData.Type
@@ -158,10 +176,11 @@ export const DeliveryFailedData = Schema.Struct({
   delegationID: DelegationID.ID,
   turnID: TurnID,
   participantID: ParticipantID,
-  deliveryOrigin: Schema.String,
+  deliveryOrigin: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(512)),
+  senderParticipantID: ParticipantID,
   attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-  errorCode: Schema.optional(Schema.String),
-  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  errorCode: Schema.optional(Schema.String.check(Schema.isMaxLength(256))),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
   timestamp: Schema.Number,
 })
 export type DeliveryFailedData = typeof DeliveryFailedData.Type
@@ -175,10 +194,11 @@ export const DeliveryRecoveryRequiredData = Schema.Struct({
   delegationID: DelegationID.ID,
   turnID: TurnID,
   participantID: ParticipantID,
-  deliveryOrigin: Schema.String,
+  deliveryOrigin: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(512)),
+  senderParticipantID: ParticipantID,
   attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-  errorCode: Schema.optional(Schema.String),
-  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  errorCode: Schema.optional(Schema.String.check(Schema.isMaxLength(256))),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
   timestamp: Schema.Number,
 })
 export type DeliveryRecoveryRequiredData = typeof DeliveryRecoveryRequiredData.Type
@@ -192,7 +212,7 @@ export const RevisionRecordedData = Schema.Struct({
   delegationID: DelegationID.ID,
   turnID: TurnID,
   participantID: ParticipantID,
-  commitSha: Schema.String.check(Schema.isMaxLength(100)),
+  commitSha: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100)),
   revisionDigest: RevisionDigest,
   changeKind: ChangeKind,
   diffSummary: Schema.optional(Schema.String.check(Schema.isMaxLength(1000))),
@@ -211,7 +231,7 @@ export const ReviewApprovedData = Schema.Struct({
   participantID: ParticipantID,
   reviewedRevisionDigest: RevisionDigest,
   findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),
-  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
   timestamp: Schema.Number,
 })
 export type ReviewApprovedData = typeof ReviewApprovedData.Type
@@ -227,7 +247,7 @@ export const ReviewChangesRequestedData = Schema.Struct({
   participantID: ParticipantID,
   reviewedRevisionDigest: RevisionDigest,
   findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),
-  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
   timestamp: Schema.Number,
 })
 export type ReviewChangesRequestedData = typeof ReviewChangesRequestedData.Type
@@ -243,7 +263,7 @@ export const ReviewRejectedData = Schema.Struct({
   participantID: ParticipantID,
   reviewedRevisionDigest: RevisionDigest,
   findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),
-  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
   timestamp: Schema.Number,
 })
 export type ReviewRejectedData = typeof ReviewRejectedData.Type
@@ -280,7 +300,7 @@ export const Closing = EventV2.define({
 
 export const CompletedData = Schema.Struct({
   delegationID: DelegationID.ID,
-  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(5000))),
+  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
   timestamp: Schema.Number,
 })
 export type CompletedData = typeof CompletedData.Type

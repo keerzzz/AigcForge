@@ -189,7 +189,8 @@ export default {
           \`time_closed\` integer,
           \`time_archived\` integer,
           \`time_created\` integer NOT NULL,
-          \`time_updated\` integer NOT NULL
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`fk_delegation_parent_session_id_session_id_fk\` FOREIGN KEY (\`parent_session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -199,7 +200,7 @@ export default {
           \`seq\` integer NOT NULL,
           \`kind\` text NOT NULL,
           \`status\` text NOT NULL,
-          \`prompt\` text,
+          \`prompt_summary\` text,
           \`evidence_digest\` text,
           \`revision_digest\` text,
           \`participant_ids\` text NOT NULL,

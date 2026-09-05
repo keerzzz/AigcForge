@@ -1449,7 +1449,7 @@ describe("DatabaseMigration", () => {
     )
   })
 
-  test("applies delegation tables migration to an existing database with sessions and rejects forbidden columns", async () => {
+  test("creates delegation projections with parent FK and prompt summary", async () => {
     await run(
       Effect.gen(function* () {
         const db = yield* makeDb
@@ -1458,26 +1458,6 @@ describe("DatabaseMigration", () => {
         yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing_delegation')`)
 
         yield* DatabaseMigration.applyOnly(db, [addDelegationTablesMigration])
-
-        // Exactly 3 delegation tables exist
-        const tables = yield* db.all<{ name: string }>(sql`
-          SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'delegation%' ORDER BY name
-        `)
-        expect(tables.map((t) => t.name)).toEqual(["delegation", "delegation_participant", "delegation_turn"])
-
-        // Delivery projection table MUST NEVER exist
-        expect(tables.map((t) => t.name)).not.toContain("delegation_delivery")
-
-        // Assert forbidden persisted derived fields are NOT in sqlite schema
-        const delegationCols = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation)`)
-        const participantCols = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation_participant)`)
-        expect(delegationCols.map((c) => c.name)).not.toContain("active_turn_id")
-        expect(participantCols.map((c) => c.name)).not.toContain("runtime_status")
-
-        // Verify pre-existing session is preserved
-        expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing_delegation" }])
-
-        // Verify insert and foreign key cascade
         yield* db.run(sql`
           INSERT INTO delegation (id, parent_session_id, title, status, rejection_blocked, last_activity_at, time_created, time_updated)
           VALUES ('dlg_mig', 'ses_pre_existing_delegation', 'Title', 'draft', 0, 1000, 1000, 1000)
@@ -1487,18 +1467,52 @@ describe("DatabaseMigration", () => {
           VALUES ('par_mig', 'dlg_mig', 'internal', 'build', 'implementer', 'fresh', 'active', 1000, 1000, 1000)
         `)
         yield* db.run(sql`
-          INSERT INTO delegation_turn (id, delegation_id, seq, kind, status, participant_ids, delivery, time_created, time_updated)
-          VALUES ('trn_mig', 'dlg_mig', 1, 'task', 'admitted', '["par_mig"]', 'steer', 1000, 1000)
+          INSERT INTO delegation_turn (id, delegation_id, seq, kind, status, prompt_summary, participant_ids, delivery, time_created, time_updated)
+          VALUES ('trn_mig', 'dlg_mig', 1, 'task', 'admitted', 'bounded summary', '["par_mig"]', 'steer', 1000, 1000)
         `)
 
-        // Idempotency: applying again is a safe no-op that does not fail or erase data
+        yield* DatabaseMigration.applyOnly(db, [addDelegationTablesMigration])
+
+        const tables = yield* db.all<{ name: string }>(sql`
+          SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'delegation%' ORDER BY name
+        `)
+        expect(tables.map((table) => table.name)).toEqual(["delegation", "delegation_participant", "delegation_turn"])
+        expect(tables.map((table) => table.name)).not.toContain("delegation_delivery")
+
+        const delegationColumns = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation)`)
+        const participantColumns = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation_participant)`)
+        const turnColumns = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation_turn)`)
+        expect(delegationColumns.map((column) => column.name)).not.toContain("active_turn_id")
+        expect(participantColumns.map((column) => column.name)).not.toContain("runtime_status")
+        expect(turnColumns.map((column) => column.name)).toContain("prompt_summary")
+        expect(turnColumns.map((column) => column.name)).not.toContain("prompt")
+
+        const parentForeignKey = (yield* db.all<{ table: string; from: string; to: string; on_delete: string }>(
+          sql`PRAGMA foreign_key_list(delegation)`,
+        )).find((foreignKey) => foreignKey.from === "parent_session_id")
+        expect(parentForeignKey).toMatchObject({ table: "session", to: "id", on_delete: "CASCADE" })
+        expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing_delegation" }])
+        expect(yield* db.get(sql`SELECT prompt_summary FROM delegation_turn WHERE id = 'trn_mig'`)).toEqual({
+          prompt_summary: "bounded summary",
+        })
+
+        const orphan = yield* db
+          .run(
+            sql`
+            INSERT INTO delegation (id, parent_session_id, title, status, rejection_blocked, last_activity_at, time_created, time_updated)
+            VALUES ('dlg_orphan', 'ses_missing', 'Orphan', 'draft', 0, 1000, 1000, 1000)
+          `,
+          )
+          .pipe(Effect.exit)
+        expect(Exit.isFailure(orphan)).toBe(true)
+
         yield* DatabaseMigration.applyOnly(db, [addDelegationTablesMigration])
         expect(yield* db.all(sql`SELECT id FROM delegation`)).toEqual([{ id: "dlg_mig" }])
         expect(yield* db.all(sql`SELECT id FROM delegation_participant`)).toEqual([{ id: "par_mig" }])
         expect(yield* db.all(sql`SELECT id FROM delegation_turn`)).toEqual([{ id: "trn_mig" }])
 
-        // Cascading delete
-        yield* db.run(sql`DELETE FROM delegation WHERE id = 'dlg_mig'`)
+        yield* db.run(sql`DELETE FROM session WHERE id = 'ses_pre_existing_delegation'`)
+        expect(yield* db.all(sql`SELECT id FROM delegation`)).toEqual([])
         expect(yield* db.all(sql`SELECT id FROM delegation_participant`)).toEqual([])
         expect(yield* db.all(sql`SELECT id FROM delegation_turn`)).toEqual([])
       }),

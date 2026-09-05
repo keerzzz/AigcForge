@@ -4,7 +4,10 @@ import { Schema } from "effect"
 import { descending } from "./identifier"
 import { withStatics } from "./schema"
 
-export const ID = Schema.String.check(Schema.isStartsWith("dlg_")).pipe(
+export const ID = Schema.String.check(
+  Schema.isPattern(/^dlg_[A-Za-z0-9][A-Za-z0-9_-]*$/),
+  Schema.isMaxLength(128),
+).pipe(
   Schema.brand("DelegationID"),
   withStatics((schema) => {
     const create = () => schema.make("dlg_" + descending())
@@ -16,7 +19,10 @@ export const ID = Schema.String.check(Schema.isStartsWith("dlg_")).pipe(
 )
 export type ID = typeof ID.Type
 
-export const ParticipantID = Schema.String.check(Schema.isStartsWith("par_")).pipe(
+export const ParticipantID = Schema.String.check(
+  Schema.isPattern(/^par_[A-Za-z0-9][A-Za-z0-9_-]*$/),
+  Schema.isMaxLength(128),
+).pipe(
   Schema.brand("ParticipantID"),
   withStatics((schema) => {
     const create = () => schema.make("par_" + descending())
@@ -28,7 +34,10 @@ export const ParticipantID = Schema.String.check(Schema.isStartsWith("par_")).pi
 )
 export type ParticipantID = typeof ParticipantID.Type
 
-export const TurnID = Schema.String.check(Schema.isStartsWith("trn_")).pipe(
+export const TurnID = Schema.String.check(
+  Schema.isPattern(/^trn_[A-Za-z0-9][A-Za-z0-9_-]*$/),
+  Schema.isMaxLength(128),
+).pipe(
   Schema.brand("TurnID"),
   withStatics((schema) => {
     const create = () => schema.make("trn_" + descending())

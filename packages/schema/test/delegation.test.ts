@@ -75,6 +75,14 @@ describe("Delegation Schema and Branded IDs", () => {
         status: "unknown_status",
       }),
     ).toThrow()
+
+    // Revision digests are typed at the projection boundary too.
+    expect(() =>
+      Schema.decodeUnknownSync(Delegation.Info)({
+        ...validRaw,
+        latestRevisionDigest: "not-a-revision-digest",
+      }),
+    ).toThrow()
   })
 
   test("ParticipantInfo enforces phase/status separation and valid roles", () => {
@@ -125,6 +133,7 @@ describe("Delegation Schema and Branded IDs", () => {
   test("ReviewEnvelope validates verdict, findings, and revision digest", () => {
     const dummyDigest = "rev_" + "a".repeat(64)
     const validEnvelope = {
+      kind: "aigcfroge.review.v1",
       reviewed_revision_digest: dummyDigest,
       verdict: "approved",
       findings: [
@@ -186,6 +195,55 @@ describe("Delegation Schema and Branded IDs", () => {
         verdict: "looks_legit",
       }),
     ).toThrow()
+  })
+
+  test("DeliveryOrigin requires a stable sender for fold identity", () => {
+    const valid = {
+      turnID: "trn_delivery",
+      deliveryOrigin: "build",
+      senderParticipantID: "par_sender",
+    }
+
+    expect(Schema.decodeUnknownSync(Delegation.DeliveryOrigin)(valid).senderParticipantID).toBe(
+      ParticipantID.make("par_sender"),
+    )
+    expect(() =>
+      Schema.decodeUnknownSync(Delegation.DeliveryOrigin)({
+        turnID: valid.turnID,
+        deliveryOrigin: valid.deliveryOrigin,
+      }),
+    ).toThrow()
+  })
+
+  test("TurnInfo enforces non-negative integer sequence and typed revision digest", () => {
+    const valid = {
+      id: "trn_01",
+      delegationID: "dlg_01",
+      seq: 0,
+      kind: "task",
+      status: "admitted",
+      participantIDs: ["par_01"],
+      delivery: "steer",
+      revisionDigest: `rev_${"a".repeat(64)}`,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+
+    expect(Schema.decodeUnknownSync(Delegation.TurnInfo)(valid).seq).toBe(0)
+    expect(() => Schema.decodeUnknownSync(Delegation.TurnInfo)({ ...valid, seq: -1 })).toThrow()
+    expect(() => Schema.decodeUnknownSync(Delegation.TurnInfo)({ ...valid, seq: 0.5 })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(Delegation.TurnInfo)({ ...valid, revisionDigest: "not-a-revision-digest" }),
+    ).toThrow()
+  })
+
+  test("ReviewEnvelope requires its version discriminator and bounded prompt summaries stay non-durable", () => {
+    const withoutKind = {
+      reviewed_revision_digest: `rev_${"a".repeat(64)}`,
+      verdict: "approved",
+      findings: [],
+    }
+    expect(() => Schema.decodeUnknownSync(Delegation.ReviewEnvelope)(withoutKind)).toThrow()
   })
 
   test("TaggedErrors instantiate with expected tags", () => {

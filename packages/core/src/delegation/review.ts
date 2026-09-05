@@ -3,12 +3,15 @@ export * as DelegationReview from "./review"
 import {
   Delegation,
   type ChangeKind,
-  type ReviewVerdict,
-  type ParticipantRole,
   type ParticipantInfo,
+  type ParticipantRole,
+  type ReviewVerdict,
+  type TurnStatus,
+  type DeliveryStatus,
   type Info as DelegationInfo,
+  type RevisionDigest,
 } from "@aigcfroge/schema/delegation"
-import type { ParticipantID } from "@aigcfroge/schema/delegation-id"
+import type { ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
 
 /**
  * Gerrit-style sticky approval copyability matrix (G3).
@@ -16,20 +19,40 @@ import type { ParticipantID } from "@aigcfroge/schema/delegation-id"
  */
 export function copyable(changeKind: ChangeKind, verdict: ReviewVerdict): boolean {
   if (verdict !== "approved") return false
-  if (changeKind === "no_change" || changeKind === "no_code_change") return true
-  return false
+  return changeKind === "no_change" || changeKind === "no_code_change"
 }
 
 export interface ReviewRecord {
   participantID: ParticipantID
-  reviewedRevisionDigest: string
+  reviewedRevisionDigest: RevisionDigest
   verdict: ReviewVerdict
+}
+
+export interface RevisionRecord {
+  revisionDigest: RevisionDigest
+  changeKind: ChangeKind
+}
+
+export interface ReviewDeliveryState {
+  turnID: TurnID
+  participantID: ParticipantID
+  status: DeliveryStatus
+  attempt: number
+  updatedAt: number
+}
+
+export interface ReviewTurnState {
+  id: TurnID
+  seq: number
+  status: TurnStatus
+  participantIDs: readonly ParticipantID[]
 }
 
 export interface ReviewBarrierParams {
   participants: readonly ParticipantInfo[]
   reviews: readonly ReviewRecord[]
-  latestRevisionDigest?: string
+  latestRevisionDigest?: RevisionDigest
+  revisions?: readonly RevisionRecord[]
   rejectionBlocked: boolean
 }
 
@@ -39,9 +62,18 @@ export interface ReviewBarrierResult {
   missingRoles?: ParticipantRole[]
 }
 
+export interface CompletionBarrierParams extends ReviewBarrierParams {
+  deliveries: readonly ReviewDeliveryState[]
+  turns: readonly ReviewTurnState[]
+}
+
 /**
- * Evaluates completion review barrier for a delegation based on participant roles (G6).
- * No-reviewer delegations pass without deadlock.
+ * Evaluates the review portion of the completion barrier.
+ *
+ * Reviews are receipts, not a history-wide veto: the latest receipt for each
+ * reviewer/approver is the effective one. A rejected receipt still blocks when
+ * the aggregate sticky blocker is active; explicit retraction clears that
+ * aggregate blocker while retaining the old receipt for audit/replay.
  */
 export function evaluateReviewBarrier(params: ReviewBarrierParams): ReviewBarrierResult {
   if (params.rejectionBlocked) {
@@ -51,12 +83,11 @@ export function evaluateReviewBarrier(params: ReviewBarrierParams): ReviewBarrie
     }
   }
 
-  const reviewers = params.participants.filter((p) => p.role === "reviewer" || p.role === "approver")
+  const reviewers = params.participants.filter(
+    (participant) => participant.role === "reviewer" || participant.role === "approver",
+  )
 
-  // G6: Compatibility path for delegations without reviewers does not deadlock
-  if (reviewers.length === 0) {
-    return { passed: true }
-  }
+  if (reviewers.length === 0) return { passed: true }
 
   if (!params.latestRevisionDigest) {
     return {
@@ -65,22 +96,15 @@ export function evaluateReviewBarrier(params: ReviewBarrierParams): ReviewBarrie
     }
   }
 
-  // Each reviewer/approver must have their latest effective review approved on the latest revision
-  for (const reviewer of reviewers) {
-    const reviewerReviews = params.reviews.filter((r) => r.participantID === reviewer.id)
-    if (reviewerReviews.length === 0) {
-      return {
-        passed: false,
-        reason: `Reviewer ${reviewer.id} has not reviewed revision ${params.latestRevisionDigest}`,
-        missingRoles: [reviewer.role],
-      }
-    }
+  const effectiveReviews = new Map<ParticipantID, ReviewRecord>()
+  for (const review of params.reviews) effectiveReviews.set(review.participantID, review)
 
-    const latestReview = reviewerReviews[reviewerReviews.length - 1]
+  for (const reviewer of reviewers) {
+    const latestReview = effectiveReviews.get(reviewer.id)
     if (!latestReview) {
       return {
         passed: false,
-        reason: `Reviewer ${reviewer.id} has no valid review`,
+        reason: `Reviewer ${reviewer.id} has not reviewed revision ${params.latestRevisionDigest}`,
         missingRoles: [reviewer.role],
       }
     }
@@ -101,15 +125,7 @@ export function evaluateReviewBarrier(params: ReviewBarrierParams): ReviewBarrie
       }
     }
 
-    if (latestReview.verdict !== "approved") {
-      return {
-        passed: false,
-        reason: `Reviewer ${reviewer.id} has not approved revision`,
-        missingRoles: [reviewer.role],
-      }
-    }
-
-    if (latestReview.reviewedRevisionDigest !== params.latestRevisionDigest) {
+    if (!isReviewEffectiveForRevision(latestReview, params.latestRevisionDigest, params.revisions)) {
       return {
         passed: false,
         reason: `Reviewer ${reviewer.id} has not approved revision ${params.latestRevisionDigest}`,
@@ -119,6 +135,41 @@ export function evaluateReviewBarrier(params: ReviewBarrierParams): ReviewBarrie
   }
 
   return { passed: true }
+}
+
+/**
+ * Evaluates the complete aggregate barrier. This stays pure and consumes only
+ * folded state; it never reaches into Database or an EventV2 service.
+ */
+export function canComplete(params: CompletionBarrierParams): boolean {
+  if (!evaluateReviewBarrier(params).passed) return false
+
+  const implementers = params.participants.filter((participant) => participant.role === "implementer")
+  if (implementers.length === 0 || params.turns.length === 0) return false
+
+  if (
+    params.turns.some((turn) =>
+      ["admitted", "queued", "running", "partially_completed", "failed", "cancelled", "recovery_required"].includes(
+        turn.status,
+      ),
+    )
+  )
+    return false
+
+  if (
+    params.deliveries.some((delivery) =>
+      ["admitted", "queued", "running", "recovery_required"].includes(delivery.status),
+    )
+  )
+    return false
+
+  const latestDeliveries = latestDeliveriesByParticipant(params.deliveries, params.turns)
+  if (!implementers.every((participant) => latestDeliveries.get(participant.id)?.status === "completed")) return false
+
+  const reviewers = params.participants.filter(
+    (participant) => participant.role === "reviewer" || participant.role === "approver",
+  )
+  return reviewers.every((participant) => latestDeliveries.get(participant.id)?.status === "completed")
 }
 
 /**
@@ -134,4 +185,41 @@ export function retractRejection(delegation: DelegationInfo, _reason: string, ti
     lastActivityAt: ts,
     updatedAt: ts,
   })
+}
+
+function isReviewEffectiveForRevision(
+  review: ReviewRecord,
+  latestRevisionDigest: RevisionDigest,
+  revisions: readonly RevisionRecord[] | undefined,
+): boolean {
+  if (review.verdict !== "approved") return false
+  if (review.reviewedRevisionDigest === latestRevisionDigest) return true
+  if (!revisions) return false
+
+  const reviewedIndex = revisions.findIndex((revision) => revision.revisionDigest === review.reviewedRevisionDigest)
+  const latestIndex = revisions.findIndex((revision) => revision.revisionDigest === latestRevisionDigest)
+  if (reviewedIndex < 0 || latestIndex < 0 || reviewedIndex >= latestIndex) return false
+
+  return revisions
+    .slice(reviewedIndex + 1, latestIndex + 1)
+    .every((revision) => copyable(revision.changeKind, review.verdict))
+}
+
+function latestDeliveriesByParticipant(deliveries: readonly ReviewDeliveryState[], turns: readonly ReviewTurnState[]) {
+  const turnSequences = new Map(turns.map((turn) => [turn.id, turn.seq]))
+  const latest = new Map<ParticipantID, ReviewDeliveryState>()
+  for (const delivery of deliveries) {
+    const previous = latest.get(delivery.participantID)
+    const deliverySeq = turnSequences.get(delivery.turnID) ?? -1
+    const previousSeq = previous === undefined ? -1 : (turnSequences.get(previous.turnID) ?? -1)
+    if (
+      previous === undefined ||
+      deliverySeq > previousSeq ||
+      (deliverySeq === previousSeq &&
+        (delivery.attempt > previous.attempt ||
+          (delivery.attempt === previous.attempt && delivery.updatedAt >= previous.updatedAt)))
+    )
+      latest.set(delivery.participantID, delivery)
+  }
+  return latest
 }

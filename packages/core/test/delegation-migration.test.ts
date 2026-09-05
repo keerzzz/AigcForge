@@ -6,7 +6,7 @@ import { DatabaseMigration } from "@aigcfroge/core/database/migration"
 import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
 import { ID as SessionID } from "@aigcfroge/schema/session-id"
 import { testEffect } from "./lib/effect"
-import { testDelegationBaseLayer } from "./delegation-test-support"
+import { seedDelegationParentSession, testDelegationBaseLayer } from "./delegation-test-support"
 import { DelegationTable, DelegationParticipantTable, DelegationTurnTable } from "../src/delegation/sql"
 import addDelegationTablesMigration from "../src/database/migration/20260904160809_add_delegation_tables"
 
@@ -31,6 +31,7 @@ describe("Delegation Schema and Migration (Phase 1 Remediation)", () => {
       const parentId = SessionID.make("ses_p1")
       const parId = ParticipantID.make("par_mig_test")
       const trnId = TurnID.make("trn_mig_test")
+      yield* seedDelegationParentSession(db, parentId)
 
       // Verify insertion and foreign key cascade (without active_turn_id or runtime_status)
       yield* db.insert(DelegationTable).values({
@@ -90,12 +91,24 @@ describe("Delegation Schema and Migration (Phase 1 Remediation)", () => {
 
       const delegationCols = yield* db.all<{ name: string }>(sql`PRAGMA table_info('delegation')`)
       const participantCols = yield* db.all<{ name: string }>(sql`PRAGMA table_info('delegation_participant')`)
+      const turnCols = yield* db.all<{ name: string }>(sql`PRAGMA table_info('delegation_turn')`)
 
       // active_turn_id is derived from max(turn.seq) in memory, must never be persisted
       expect(delegationCols.map((c) => c.name)).not.toContain("active_turn_id")
 
       // runtime_status is Activation-derived in memory, must never be persisted
       expect(participantCols.map((c) => c.name)).not.toContain("runtime_status")
+      expect(turnCols.map((c) => c.name)).toContain("prompt_summary")
+      expect(turnCols.map((c) => c.name)).not.toContain("prompt")
+
+      const foreignKeys = yield* db.all<{ table: string; from: string; to: string; on_delete: string }>(
+        sql`PRAGMA foreign_key_list('delegation')`,
+      )
+      expect(foreignKeys.find((foreignKey) => foreignKey.from === "parent_session_id")).toMatchObject({
+        table: "session",
+        to: "id",
+        on_delete: "CASCADE",
+      })
     }),
   )
 
@@ -105,6 +118,7 @@ describe("Delegation Schema and Migration (Phase 1 Remediation)", () => {
 
       const dlgId = DelegationID.ID.make("dlg_idempotency")
       const parentId = SessionID.make("ses_idempotency")
+      yield* seedDelegationParentSession(db, parentId)
 
       yield* db.insert(DelegationTable).values({
         id: dlgId,
