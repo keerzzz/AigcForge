@@ -1697,7 +1697,12 @@ export default function Page() {
   }
 
   const sessionMode = () => info()?.mode
-  const actions = { revert, handoff, capture: sessionMode() !== "chat" ? capture : undefined }
+  const stopTurn = () => {
+    const sessionID = params.id
+    if (!sessionID) return
+    void halt(sessionID)
+  }
+  const actions = { revert, handoff, capture: sessionMode() !== "chat" ? capture : undefined, stop: stopTurn }
 
   createEffect(() => {
     const sessionID = params.id

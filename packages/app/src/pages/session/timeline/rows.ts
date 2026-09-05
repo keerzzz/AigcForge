@@ -2,6 +2,7 @@ import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
 import { AssistantMessage, Part, SessionStatus, SnapshotFileDiff, UserMessage } from "@aigcfroge/sdk/v2"
 import { groupParts, PartGroup, renderable } from "@aigcfroge/session-ui/message-part"
 import { Data, Equal } from "effect"
+import { lastActivityAt, stalled } from "./stall"
 
 export type SummaryDiff = SnapshotFileDiff & { file: string }
 
@@ -24,6 +25,7 @@ export type TimelineRowMap = {
     previousAssistantPart: boolean
   }
   Thinking: { userMessageID: string; reasoningHeading?: string }
+  Stalled: { userMessageID: string }
   Retry: { userMessageID: string }
   DiffSummary: { userMessageID: string; diffs: SummaryDiff[] }
   Error: { userMessageID: string; text: string }
@@ -53,6 +55,9 @@ export namespace TimelineRow {
     userMessageID: string
     reasoningHeading?: string
   }> {}
+  export class Stalled extends Data.TaggedClass("Stalled")<{
+    userMessageID: string
+  }> {}
   export class DiffSummary extends Data.TaggedClass("DiffSummary")<{
     userMessageID: string
     diffs: SummaryDiff[]
@@ -72,6 +77,7 @@ export namespace TimelineRow {
     | TurnDivider
     | AssistantPart
     | Thinking
+    | Stalled
     | DiffSummary
     | Error
     | Retry
@@ -90,6 +96,8 @@ export namespace TimelineRow {
         return `assistant-part:${row.userMessageID}:${row.group.key}`
       case "Thinking":
         return `thinking:${row.userMessageID}`
+      case "Stalled":
+        return `stalled:${row.userMessageID}`
       case "DiffSummary":
         return `diff-summary:${row.userMessageID}`
       case "Error":
@@ -113,6 +121,7 @@ export namespace Timeline {
     showReasoning: boolean,
     status: SessionStatus["type"],
     isActive: boolean,
+    now: number | undefined,
   ) {
     const rows: TimelineRow.TimelineRow[] = []
 
@@ -195,17 +204,24 @@ export namespace Timeline {
     })
 
     if (isActive && status === "busy" && !error && (showReasoning ? assistantPartRefs.length === 0 : true)) {
-      const heading = assistantMessages
-        .flatMap((message) => getMessageParts(message.id))
-        .map((part) => (part.type === "reasoning" && part.text ? reasoningHeading(part.text) : undefined))
-        .find((value): value is string => !!value)
+      // A busy turn with nothing on screen is the only one that can be silent; once anything
+      // renderable has arrived the user can see progress, so it is never called stalled.
+      const silent =
+        assistantPartRefs.length === 0 && stalled({ since: lastActivityAt(userMessage, assistantMessages), now })
+      if (silent) rows.push(new TimelineRow.Stalled({ userMessageID: userMessage.id }))
+      else {
+        const heading = assistantMessages
+          .flatMap((message) => getMessageParts(message.id))
+          .map((part) => (part.type === "reasoning" && part.text ? reasoningHeading(part.text) : undefined))
+          .find((value): value is string => !!value)
 
-      rows.push(
-        new TimelineRow.Thinking({
-          userMessageID: userMessage.id,
-          reasoningHeading: heading,
-        }),
-      )
+        rows.push(
+          new TimelineRow.Thinking({
+            userMessageID: userMessage.id,
+            reasoningHeading: heading,
+          }),
+        )
+      }
     }
 
     if (isActive && status === "retry") rows.push(new TimelineRow.Retry({ userMessageID: userMessage.id }))

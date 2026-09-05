@@ -18,7 +18,7 @@ import { useMutation } from "@tanstack/solid-query"
 import { createVirtualizer, defaultRangeExtractor, elementScroll, type VirtualItem } from "@tanstack/solid-virtual"
 import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { Button } from "@aigcfroge/ui/button"
-import { Card } from "@aigcfroge/ui/card"
+import { Card, CardActions, CardDescription, CardTitle } from "@aigcfroge/ui/card"
 import {
   ContextToolGroup,
   Message,
@@ -58,6 +58,7 @@ import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/
 import { SessionContextUsage } from "@/components/session-context-usage"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
+import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
 import { useMode } from "@/context/mode"
 import { useSessionKey, useSessionLayout } from "@/pages/session/session-layout"
@@ -76,6 +77,7 @@ import { makeTimer } from "@solid-primitives/timer"
 import { scheduleConnectedMeasure } from "./measure"
 import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
+import { STALL_TICK_MS } from "./stall"
 import { filterVirtualIndexes } from "./virtual-items"
 import { SessionTodoProgress } from "@/pages/session/timeline/session-todo-progress"
 import { PULSE_WIDTH, TRACK_INSET } from "@/pages/session/timeline/session-todo-progress-model"
@@ -278,6 +280,7 @@ export function MessageTimeline(props: {
   const tabs = useTabs()
   const dialog = useDialog()
   const language = useLanguage()
+  const command = useCommand()
   const mode = useMode()
   const { params, sessionKey } = useSessionKey()
   const { assistant, view: panelView, tabs: sessionTabs } = useSessionLayout()
@@ -296,6 +299,20 @@ export function MessageTimeline(props: {
     return sync().data.session_status[id] ?? idle
   })
   const working = createMemo(() => sessionStatus().type !== "idle")
+  // Time has to be reactive for the stall threshold to ever be crossed: reading Date.now()
+  // inside the row memo would sample once and never recompute. The tick only runs while the
+  // session is working, and the effect's cleanup owns the interval, so an idle session and an
+  // unmounted timeline both stop it.
+  const [stallNow, setStallNow] = createSignal<number | undefined>(undefined)
+  createEffect(() => {
+    if (!working()) {
+      setStallNow(undefined)
+      return
+    }
+    setStallNow(Date.now())
+    const timer = setInterval(() => setStallNow(Date.now()), STALL_TICK_MS)
+    onCleanup(() => clearInterval(timer))
+  })
   const sessionMessages = createMemo(() => (sessionID() ? (sync().data.message[sessionID()!] ?? []) : []))
   const serverSync = useServerSync()
   // M7: "has a task strip" = either source holds data (the freshness pick that
@@ -416,6 +433,7 @@ export function MessageTimeline(props: {
     parts: getMsgParts,
     status: sessionStatus,
     showReasoningSummaries: settings.general.showReasoningSummaries,
+    now: stallNow,
   })
   const activeMessageID = projection.activeMessageID
   const assistantMessagesByParent = projection.assistantMessagesByParent
@@ -1246,6 +1264,31 @@ export function MessageTimeline(props: {
                 reasoningHeading={thinkingRow().reasoningHeading}
                 showReasoningSummaries={settings.general.showReasoningSummaries()}
               />
+            </div>
+          </TimelineRowFrame>
+        )
+      }
+      case "Stalled": {
+        const stalledRow = row as Accessor<TimelineRowByTag<"Stalled">>
+        return (
+          <TimelineRowFrame row={stalledRow}>
+            <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
+              <Card variant="warning" data-slot="session-turn-stalled">
+                <CardTitle variant="warning">{language.t("session.stalled.title")}</CardTitle>
+                <CardDescription>{language.t("session.stalled.description")}</CardDescription>
+                <CardActions>
+                  <Show when={props.actions?.stop}>
+                    {(stop) => (
+                      <Button size="small" variant="secondary" onClick={() => stop()()}>
+                        {language.t("session.stalled.stop")}
+                      </Button>
+                    )}
+                  </Show>
+                  <Button size="small" variant="ghost" onClick={() => command.trigger("model.choose", "palette")}>
+                    {language.t("session.stalled.changeModel")}
+                  </Button>
+                </CardActions>
+              </Card>
             </div>
           </TimelineRowFrame>
         )

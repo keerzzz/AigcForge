@@ -179,6 +179,8 @@ export type UserActions = {
   revert?: SessionAction
   handoff?: (label: string, agent: string, prompt: string, send?: boolean) => void
   capture?: () => void
+  /** Abort the running turn. Present only where the caller owns a live session. */
+  stop?: () => void
 }
 
 export interface MessagePartProps {

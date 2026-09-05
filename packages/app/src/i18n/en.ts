@@ -242,6 +242,11 @@ export const dict = {
   "prompt.mode.shell": "Shell",
   "prompt.mode.normal": "Prompt",
   "prompt.mode.shell.exit": "esc to exit",
+  "session.stalled.title": "No response yet",
+  "session.stalled.description":
+    "The model accepted this turn but has not sent anything back. It may still arrive, or the provider may be unreachable.",
+  "session.stalled.stop": "Stop",
+  "session.stalled.changeModel": "Change model",
   "session.child.promptDisabled": "Subagent sessions cannot be prompted.",
   "session.child.backToParent": "Back to main session.",
   "session.handoff.confirm.title": "This handoff widens permissions",

@@ -125,4 +125,49 @@ test.describe("regression: silent turn has an exit", () => {
     await expectAppVisible(page.locator('[data-timeline-row="Thinking"]').first())
     await expect(page.locator('[data-timeline-row="Stalled"]')).toHaveCount(0)
   })
+
+  test("the stop action aborts the silent turn", async ({ page }) => {
+    // An exit that does not reach the server is decoration. The stalled row's stop button has
+    // to hit the same abort the composer uses, so this asserts the request, not the label.
+    const aborts: string[] = []
+    page.on("request", (request) => {
+      if (request.url().includes("/abort")) aborts.push(request.url())
+    })
+
+    await page.clock.install({ time: new Date(created) })
+    await openBusySession(page)
+    await page.clock.fastForward("03:00")
+
+    const stalled = page.locator('[data-timeline-row="Stalled"]')
+    await expect(stalled).toHaveCount(1, { timeout: 15_000 })
+
+    await stalled.getByRole("button", { name: "Stop" }).click()
+    await expect.poll(() => aborts.length, { timeout: 10_000 }).toBeGreaterThan(0)
+  })
+
+  test("the stalled actions are keyboard reachable and survive a narrow viewport", async ({ page }) => {
+    // The two surfaces this plan adds have to be usable without a mouse and at the width the
+    // report used (390x844), so the fix does not trade one dead end for another.
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.clock.install({ time: new Date(created) })
+    await openBusySession(page)
+    await page.clock.fastForward("03:00")
+
+    const stalled = page.locator('[data-timeline-row="Stalled"]')
+    await expect(stalled).toHaveCount(1, { timeout: 15_000 })
+    await expect(stalled).toBeVisible()
+
+    const stop = stalled.getByRole("button", { name: "Stop" })
+    const changeModel = stalled.getByRole("button", { name: "Change model" })
+    await expect(stop).toBeVisible()
+    await expect(changeModel).toBeVisible()
+
+    // Focusable and operable by keyboard: focus the control, then activate it with Enter.
+    await changeModel.focus()
+    await expect(changeModel).toBeFocused()
+    await page.keyboard.press("Enter")
+    // Reuses the existing model command rather than a second model picker, so the existing
+    // dialog is what must appear.
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 })
+  })
 })
