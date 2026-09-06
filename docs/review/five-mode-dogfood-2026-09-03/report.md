@@ -16,6 +16,16 @@
 - 真实后端/真实浏览器探索发现 **8 个需要修复的问题**，另有多项技术债/测试覆盖债。
 - 未修改产品源代码；报告与证据复制到本目录。工作树中另有一个测试文件的外部未提交修改，见文末。
 
+## 实施期更正（2026-09-06，`dogfood-remediation` 分支按真实代码逐条复核）
+
+本报告发现时基于「真实浏览器 + 本地后端」走查。修复期对照代码逐条复核，其中三处结论需要更正（**以代码为准，不是维护体面**）：
+
+1. **BUG-RESET-NO-CONFIRM 的「可能丢失后续对话」不准确，但真相更糟。** 消息侧是非破坏性的：`revert` 只写标记（`core/src/session/revert.ts`），列表按 `message.id < revertMessageID` 过滤，且 `SessionRevertDock` 提供逐条 restore。真正丢的是**磁盘文件**：`snap.restore(...)` 立即改写工作区，且还原目标是错的——`revert.ts` 的谓词忽略 `messageID`、`Array.find` 取全会话第一条带 `snapshot.start` 的 assistant 消息，所以磁盘被还原到**会话最早快照**，无论用户点的是哪一条；标记用的 `messageID` 是对的，于是消息投影与磁盘指向两个不同时点，diff summary 基线也跟着错。这条已在 S1 修复（`30f1929ac` + `a76ad5ea5` + `53d0d1d21`）。
+2. **「无超时」不准确——机制存在，只是默认关闭且 V1/V2 形状不一。** `packages/core/src/v1/config/provider.ts` 与 `packages/aigcfroge/src/provider/provider.ts` 早已实现 `headerTimeout`（OpenAI 默认 10s）与 `chunkTimeout`（默认 60s），V2 的 `aisdk.ts` 只接了两个 knob 且 `settings` 是 `any`。所以修法不是「造超时」，而是 V2 侧建 typed 契约 + 补缺失档（S3b：`75573b249` + `e761d2833`）。报告观测到的「永久思考中」真实成分是**交互式 App 时间线没有客户端 stalled 出口**（S3a：`191602ff2`），这确实是缺失而非机制未开。
+3. **BUG-MODE-REENTRY 不是「render-all 副作用的待修壳」——隔离已部分实施，缺口在别处。** `ModeSlotActiveProvider`/`whenActive` 在报告基线已覆盖 6 处（coding/work 的 session load、work 的 workflow 资产、chat 七类资产、Custom 侧栏/预览），所以"只有顶栏"是 fallback-less `<Suspense>` 在 **pending 期**渲染空（`layout.tsx:43`），不是全部槽在跑。S4 实际修的是两件事：pending/error 有槽级表示（`9396693e8` + `4bd420c5f`），以及剩余未门控资源（Assistant 五个 query、Workspace 顶层 Chat 资源）。
+
+**运行时限制**：报告在默认运行时（`AIGCFROGE_V2_RUNTIME=false`）走查；本批修复对 V1/V2 双运行时各有 RED→GREEN 证据，凡只在 V2 验证的项均在技术债台账记为「V1 开放」，未把 V2 结果冒充默认用户路径。
+
 ## P0 / 阻断级问题
 
 ### BUG-CUSTOM-START：Custom 启动成功后前端丢失返回的 Session
