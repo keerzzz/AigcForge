@@ -20,15 +20,22 @@ import { expectSessionTitle } from "../utils/waits"
  * has a closable child tab the two collide on one id and one keybind, and only one of them
  * can run.
  *
- * Measured, and it corrects the guess this test started from: the behaviour is currently
- * RIGHT in both contexts. With a context tab open the shortcut closes that tab and keeps
- * the session (so the Session registration is the one that survives), and with no child tab
- * it closes the top-level tab. The live defect is therefore the duplicate registration
- * itself — log noise plus an unpinned dependency on mount order, since nothing guarantees
- * which owner registers first.
+ * Measured, and it corrects the guess this test started from twice over.
  *
- * That also refutes the plan's recommendation to keep the Titlebar owner and delete the
- * Session registration: deleting it is exactly what would break the passing case below.
+ * First: the behaviour is currently RIGHT in both contexts. With a context tab open the
+ * shortcut closes that tab and keeps the session, and with no child tab it closes the
+ * top-level tab. So this refutes the plan's recommendation to keep the Titlebar owner and
+ * delete the Session registration — deleting it is exactly what would break the case below.
+ *
+ * Second, and this corrects the earlier note here: the precedence is NOT an unpinned
+ * accident. `upsertCommandRegistration` prepends and `resolveCommandOptions` keeps the first
+ * match, so the most recently registered owner shadows the earlier one — and
+ * `command.test.ts` has pinned that prepend since before this batch. A session mounts after
+ * the Titlebar, so it wins by construction, not by luck.
+ *
+ * What was left is therefore only the warning: it called a deliberate narrowing a collision.
+ * The Session registration declares `overrides: true` now, and the registry reports only
+ * undeclared ones.
  * S8a has to re-decide with these three cases as the matrix.
  *
  * The child tab used here is the Context tab, opened the way a user opens it:

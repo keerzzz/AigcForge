@@ -442,6 +442,11 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
           id: "tab.close",
           title: language.t("command.tab.close"),
           keybind: "mod+w",
+          // Deliberately shadows the Titlebar's `tab.close` while this session has a closable
+          // child tab: mod+w should close the file/context tab the user is looking at, not the
+          // whole session. Measured both ways — without this, the shortcut takes the session
+          // tab with it. Declared so the registry can tell a narrowing from a collision.
+          overrides: true,
           onSelect: closeTab,
         }),
     ].filter((v) => !!v)

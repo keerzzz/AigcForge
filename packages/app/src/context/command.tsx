@@ -82,6 +82,15 @@ export interface CommandOption {
   suggested?: boolean
   disabled?: boolean
   hidden?: boolean
+  /**
+   * This option knowingly shadows an option with the same id registered further out.
+   *
+   * Registration order is precedence, not an accident: `upsertCommandRegistration` prepends and
+   * the winner is the first match, so a descendant that mounts later always shadows its
+   * ancestor. Without a way to say that on purpose, an intentional narrowing is indistinguishable
+   * from two owners colliding, and the warning below fires for both.
+   */
+  overrides?: boolean
   onSelect?: (source?: "palette" | "keybind" | "slash") => void
   onHighlight?: () => (() => void) | void
 }
@@ -105,6 +114,34 @@ export type CommandRegistration = {
 export function upsertCommandRegistration(registrations: CommandRegistration[], entry: CommandRegistration) {
   if (entry.key === undefined) return [entry, ...registrations]
   return [entry, ...registrations.filter((x) => x.key !== entry.key)]
+}
+
+/**
+ * Flatten registrations into the effective option list.
+ *
+ * The first match for an id wins, which combined with `upsertCommandRegistration`'s prepend
+ * means the most recently registered owner shadows the earlier ones. `shadowed` names the ids
+ * where a losing option existed and the winner did NOT declare `overrides`, which is the only
+ * case worth reporting: everything else is a narrowing someone asked for.
+ */
+export function resolveCommandOptions(registrations: readonly CommandRegistration[]) {
+  const winner = new Map<string, CommandOption>()
+  const options: CommandOption[] = []
+  const shadowed = new Set<string>()
+
+  for (const reg of registrations) {
+    for (const opt of reg.options()) {
+      const existing = winner.get(opt.id)
+      if (existing) {
+        if (!existing.overrides) shadowed.add(opt.id)
+        continue
+      }
+      winner.set(opt.id, opt)
+      options.push(opt)
+    }
+  }
+
+  return { options, shadowed }
 }
 
 export function parseKeybind(config: string): Keybind[] {
@@ -261,24 +298,15 @@ export const { use: useCommand, provider: CommandProvider } = createSimpleContex
     }
 
     const registered = createMemo(() => {
-      const seen = new Set<string>()
-      const all: CommandOption[] = []
-
-      for (const reg of store.registrations) {
-        for (const opt of reg.options()) {
-          if (seen.has(opt.id)) {
-            if (import.meta.env.DEV && !warnedDuplicates.has(opt.id)) {
-              warnedDuplicates.add(opt.id)
-              console.warn(`[command] duplicate command id "${opt.id}" registered; keeping first entry`)
-            }
-            continue
-          }
-          seen.add(opt.id)
-          all.push(opt)
+      const { options, shadowed } = resolveCommandOptions(store.registrations)
+      if (import.meta.env.DEV) {
+        for (const id of shadowed) {
+          if (warnedDuplicates.has(id)) continue
+          warnedDuplicates.add(id)
+          console.warn(`[command] duplicate command id "${id}" registered; keeping first entry`)
         }
       }
-
-      return all
+      return options
     })
 
     createEffect(() => {
