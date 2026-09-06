@@ -2,7 +2,7 @@ import { ProductMode as ProductModeContract } from "@aigcfroge/schema/product-mo
 import { getFilename } from "@aigcfroge/core/util/path"
 import { type ProductMode, type Session } from "@aigcfroge/sdk/v2/client"
 import { startTransition } from "solid-js"
-import { modeDefinition } from "@/context/mode"
+import { modeHref } from "@/context/mode"
 import { pathKey } from "@/utils/path-key"
 import type { ServerConnection } from "@/context/server"
 import { modeDraft, type Mode } from "@/context/mode"
@@ -241,8 +241,8 @@ export function launchModeSession(input: {
  * answer — its Builder, which is the only thing that can create a custom session (atomically,
  * from a composition snapshot) — and routing there is what this does.
  *
- * The href comes from the mode definitions rather than a literal, so the route and the
- * navigation cannot drift apart.
+ * The href comes from `modeHref` rather than a literal, so the route and the navigation
+ * cannot drift apart.
  */
 export function launchModeSessionOrRoute(
   input: Omit<Parameters<typeof launchModeSession>[0], "mode"> & {
@@ -254,7 +254,7 @@ export function launchModeSessionOrRoute(
     launchModeSession({ ...input, mode: input.mode })
     return
   }
-  input.navigate(modeDefinition(input.mode).href)
+  input.navigate(modeHref(input.mode))
 }
 
 export function openSessionByID(input: {

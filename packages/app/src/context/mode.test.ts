@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { BUILTIN_MODES, isMode, modeDefinition, modeDraft, modeHref, MODE_DEFINITIONS } from "./mode"
 
 describe("product mode", () => {
@@ -34,6 +35,15 @@ describe("product mode", () => {
     expect(modeDraft("coding")).toEqual({ mode: "coding", agent: "meta" })
     expect(modeDraft("work")).toEqual({ mode: "work", agent: "meta" })
     expect(modeDraft("assistant")).toEqual({ mode: "assistant", agent: "assistant-orchestrator" })
+  })
+
+  test("the definitions and the schema mode union cover each other", () => {
+    // Two independent lists until now: `MODE_DEFINITIONS` is the app's navigation contract and
+    // `ProductMode.ID` is the wire union. S7 made them load-bearing for each other — a schema
+    // mode with no definition makes `modeHref` throw when a non-creatable mode is routed to,
+    // and a definition for a mode the server does not know routes to a surface that cannot
+    // create anything. Neither had a gate.
+    expect([...BUILTIN_MODES].sort()).toEqual([...ProductMode.ID.literals].sort())
   })
 
   test("custom has no draft path", () => {
