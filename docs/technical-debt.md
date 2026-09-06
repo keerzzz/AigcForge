@@ -14,7 +14,7 @@
 | §2 页面归一化延后（PR #34）     | 960px 主列、Assistant scope、Chat Location 抽取、全仓 import 债                                                        | 计划外延后                                                                                                                                                    |
 | §3 Custom Mode 平台（PR #33）   | ADR-17 评审 + Roadmap M0-M5；§3.1 Custom M2 遗留 12 项；§3.2 Custom M3 Phase B/D/G 遗留、F0 剩余裁定项与 ADR-21 排除项 | M0/M1/M2/M3 已全部合入 `origin/main`（M2 = PR #46 / `a11b50020`；M3 收尾 = PR #52/#54/#56/#58/#60，2026-08-29 核对 `main` 与 `origin/main` 一致）；M4-M5 远期 |
 | §4 全局存量债（CLAUDE.md 迁移） | dompurify、doom_loop 统计、资产路由等                                                                                  | 按到期日跟进                                                                                                                                                  |
-| §4.1 五模式 dogfood（09-03）    | 8 项真实浏览器 + 真实后端发现：2 P0 / 3 P1 / 3 P2                                                                      | 8 项全部已闭环（2026-09-04，各带红证）；5 项开放                                                                                                              |
+| §4.1 五模式 dogfood（09-03）    | 8 项真实浏览器 + 真实后端发现：2 P0 / 3 P1 / 3 P2                                                                      | 8 项计划项全部已闭环（2026-09-06，各带红证）；3 项附带债 2 项闭环 + D-E2E-GAP 部分闭环                                                                        |
 
 ---
 
