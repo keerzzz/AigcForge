@@ -1,6 +1,6 @@
 # 五模式 dogfood 缺陷修整 TDD 实施计划
 
-> **状态**：已审批（第 4 版，2026-09-04）；**实施完成（2026-09-06，分支 `dogfood-remediation`，共 51 个提交）**。
+> **状态**：已审批（第 4 版，2026-09-04）；**实施完成（2026-09-06，分支 `dogfood-remediation`，共 52 个提交）**。
 > 8 项缺陷全部 RED→GREEN→复红闭环，3 项附带债 2 项闭环 + D-E2E-GAP 部分闭环（见技术债台账 §4.1）。
 > 本文件在实施过程中按各 Slice 回写过裁决与证据；S0 基线、四条收敛面验收、运行时矩阵均见红证。
 > 最终门禁：schema/core/aigcfroge/ui/session-ui/app typecheck 全 rc=0；core 2312/0、app unit 1002/0、
