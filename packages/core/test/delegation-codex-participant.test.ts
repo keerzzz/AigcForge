@@ -1,11 +1,9 @@
 /**
- * Phase 3 RED tests: Codex participant and external CLI binding.
+ * Phase 3 contract tests: Codex participant and external CLI binding.
  *
  * This suite deliberately calls only the contracts that exist on the current
- * branch. It does not smuggle a future participant-aware TaskDriver input into
- * executeCLI with an unsafe cast. Where the Phase 3 contract is not exposed
- * yet, the RED test targets the real owner boundary (schema, adapter, parser,
- * or TaskDriverFill) instead.
+ * branch. Participant-aware execution crosses the real TaskDriver seam through
+ * DeliveryContext; no test-only interface or unsafe cast is used.
  */
 
 import { describe, expect } from "bun:test"
@@ -81,17 +79,72 @@ const baseLayer = Layer.mergeAll(
 )
 const it = testEffect(baseLayer)
 
-const seedParent = Effect.fn("Phase3CodexTest.seedParent")(function* (id = "ses_parent_codex_phase3") {
-  return yield* (yield* SessionV2.Service).create({ id: SessionV2.ID.make(id), location })
+const seedParent = Effect.fn("Phase3CodexTest.seedParent")(function* (id?: string) {
+  return yield* (yield* SessionV2.Service).create({
+    ...(id ? { id: SessionV2.ID.make(id) } : {}),
+    location,
+  })
 })
 
-const runCLI = (input: { parentID: SessionV2.ID; taskID?: SessionV2.ID; cliTarget?: string; prompt?: string }) =>
+const runCLI = (input: {
+  parentID: SessionV2.ID
+  taskID?: SessionV2.ID
+  cliTarget?: string
+  prompt?: string
+  delivery?: TaskDriver.DeliveryContext
+}) =>
   TaskDriver.executeCLI({
     cliTarget: input.cliTarget ?? "phase3-codex-cli",
     prompt: input.prompt ?? "review changes",
     description: "Phase 3 Codex review",
     sessionID: input.parentID,
     taskID: input.taskID,
+    delivery: input.delivery,
+  })
+
+const prepareDelivery = (input: {
+  parentID: SessionV2.ID
+  cliTarget: string
+  participantID?: ParticipantID
+  delegationID?: DelegationID.ID
+  newDelegation?: boolean
+  childSessionID?: SessionV2.ID
+}) =>
+  Effect.gen(function* () {
+    const service = yield* DelegationService.Service
+    const state = yield* service.resolve({
+      parentSessionID: input.parentID,
+      title: "Phase 3 Codex review",
+      delegationID: input.delegationID,
+      newDelegation: input.newDelegation,
+    })
+    const participant =
+      (input.participantID ? state.participants.get(input.participantID) : undefined) ??
+      (yield* service.addParticipant({
+        delegationID: state.delegation.id,
+        provider: "external",
+        target: input.cliTarget,
+        role: "reviewer",
+        context: "fresh",
+        childSessionID: input.childSessionID,
+      }))
+    const turn = yield* service.appendTurn({
+      delegationID: state.delegation.id,
+      kind: "review",
+      promptSummary: "Phase 3 Codex review",
+      participantIDs: [participant.id],
+      delivery: "steer",
+      origin: { deliveryOrigin: "test", senderParticipantID: participant.id },
+    })
+    return {
+      delegationID: state.delegation.id,
+      participantID: participant.id,
+      turnID: turn.id,
+      deliveryOrigin: "test",
+      senderParticipantID: participant.id,
+      delivery: "steer" as const,
+      attempt: 1,
+    }
   })
 
 function sdkAdapter(name: string, execute: NonNullable<CliAdapter["execute"]>): CliAdapter {
@@ -112,7 +165,7 @@ function readProperty(value: unknown, key: string): unknown {
   return Reflect.get(value, key)
 }
 
-describe("Phase 3: Codex Participant & External CLI Binding (TDD RED)", () => {
+describe.serial("Phase 3: Codex Participant & External CLI Binding", () => {
   it.effect("1. external CLI compatibility projection has a participant binding and primary key", () =>
     Effect.gen(function* () {
       const { db } = yield* Database.Service
@@ -138,21 +191,49 @@ describe("Phase 3: Codex Participant & External CLI Binding (TDD RED)", () => {
         ),
       )
 
-      const first = yield* runCLI({ parentID: parent.id, cliTarget: "phase3-codex-resume" })
+      const child = yield* (yield* SessionV2.Service).create({ parentID: parent.id, location })
+      const firstDelivery = yield* prepareDelivery({
+        parentID: parent.id,
+        cliTarget: "phase3-codex-resume",
+        childSessionID: child.id,
+      })
+      const first = yield* runCLI({
+        parentID: parent.id,
+        cliTarget: "phase3-codex-resume",
+        taskID: child.id,
+        delivery: firstDelivery,
+      })
+      const state = yield* (yield* DelegationService.Service).foldState(firstDelivery.delegationID)
+      const participant = state?.participants.get(firstDelivery.participantID)
+      const secondDelivery = yield* prepareDelivery({
+        parentID: parent.id,
+        cliTarget: "phase3-codex-resume",
+        participantID: firstDelivery.participantID,
+        delegationID: firstDelivery.delegationID,
+      })
       const second = yield* runCLI({
         parentID: parent.id,
         cliTarget: "phase3-codex-resume",
-        taskID: first.sessionID,
+        taskID: participant?.childSessionID ?? first.sessionID,
+        delivery: secondDelivery,
       })
 
       expect(second.sessionID).toBe(first.sessionID)
       expect(resumes).toEqual([undefined, "thread_same_participant"])
+      const finalState = yield* (yield* DelegationService.Service).foldState(firstDelivery.delegationID)
+      expect(finalState?.participants.get(firstDelivery.participantID)?.externalThreadID).toBe(
+        "thread_same_participant",
+      )
+      expect(
+        [...(finalState?.deliveries.values() ?? [])].find((delivery) => delivery.turnID === secondDelivery.turnID)
+          ?.status,
+      ).toBe("recovery_required")
     }),
   )
 
   it.effect("3. two Codex child Session bindings under one parent do not share external threads", () =>
     Effect.gen(function* () {
-      const parent = yield* seedParent("ses_parent_codex_isolation")
+      const parent = yield* seedParent()
       const sessions = yield* SessionV2.Service
       const childA = yield* sessions.create({ parentID: parent.id, location, title: "Codex participant A" })
       const childB = yield* sessions.create({ parentID: parent.id, location, title: "Codex participant B" })
@@ -170,23 +251,96 @@ describe("Phase 3: Codex Participant & External CLI Binding (TDD RED)", () => {
         }),
       )
 
+      const delegationService = yield* DelegationService.Service
+      const delegationState = yield* delegationService.resolve({
+        parentSessionID: parent.id,
+        title: "Phase 3 Codex isolation",
+        newDelegation: true,
+      })
+      const participantA = yield* delegationService.addParticipant({
+        delegationID: delegationState.delegation.id,
+        provider: "external",
+        target: "phase3-codex-isolation",
+        role: "reviewer",
+        context: "fresh",
+        childSessionID: childA.id,
+      })
+      const participantB = yield* delegationService.addParticipant({
+        delegationID: delegationState.delegation.id,
+        provider: "external",
+        target: "phase3-codex-isolation",
+        role: "reviewer",
+        context: "fresh",
+        childSessionID: childB.id,
+      })
+      const turnA = yield* delegationService.appendTurn({
+        delegationID: delegationState.delegation.id,
+        kind: "review",
+        promptSummary: "participant A review",
+        participantIDs: [participantA.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "test", senderParticipantID: participantA.id },
+      })
       yield* runCLI({
         parentID: parent.id,
         taskID: childA.id,
         cliTarget: "phase3-codex-isolation",
         prompt: "participant A review",
+        delivery: {
+          delegationID: delegationState.delegation.id,
+          participantID: participantA.id,
+          turnID: turnA.id,
+          deliveryOrigin: "test",
+          senderParticipantID: participantA.id,
+          delivery: "steer",
+          attempt: 1,
+        },
+      })
+      const turnB = yield* delegationService.appendTurn({
+        delegationID: delegationState.delegation.id,
+        kind: "review",
+        promptSummary: "participant B review",
+        participantIDs: [participantB.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "test", senderParticipantID: participantB.id },
       })
       yield* runCLI({
         parentID: parent.id,
         taskID: childB.id,
         cliTarget: "phase3-codex-isolation",
         prompt: "participant B review",
+        delivery: {
+          delegationID: delegationState.delegation.id,
+          participantID: participantB.id,
+          turnID: turnB.id,
+          deliveryOrigin: "test",
+          senderParticipantID: participantB.id,
+          delivery: "steer",
+          attempt: 1,
+        },
+      })
+      const turnA2 = yield* delegationService.appendTurn({
+        delegationID: delegationState.delegation.id,
+        kind: "review",
+        promptSummary: "participant A second review",
+        participantIDs: [participantA.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "test", senderParticipantID: participantA.id },
       })
       yield* runCLI({
         parentID: parent.id,
         taskID: childA.id,
         cliTarget: "phase3-codex-isolation",
         prompt: "participant A second review",
+        delivery: {
+          delegationID: delegationState.delegation.id,
+          participantID: participantA.id,
+          turnID: turnA2.id,
+          deliveryOrigin: "test",
+          senderParticipantID: participantA.id,
+          delivery: "steer",
+          attempt: 1,
+        },
       })
 
       expect(resumes.map((entry) => entry.resumeId)).toEqual([undefined, undefined, "thread_A"])
@@ -200,11 +354,49 @@ describe("Phase 3: Codex Participant & External CLI Binding (TDD RED)", () => {
 
   it.effect("4. an existing external child without a binding cannot fresh-start a resume", () =>
     Effect.gen(function* () {
-      const parent = yield* seedParent("ses_parent_codex_missing_binding")
+      const parent = yield* seedParent()
       const child = yield* (yield* SessionV2.Service).create({
         parentID: parent.id,
         location,
-        title: "Unbound Codex participant",
+        title: "External Codex participant",
+      })
+      const service = yield* DelegationService.Service
+      const state = yield* service.resolve({
+        parentSessionID: parent.id,
+        title: "Phase 3 Codex missing binding",
+        newDelegation: true,
+      })
+      const participant = yield* service.addParticipant({
+        delegationID: state.delegation.id,
+        provider: "external",
+        target: "phase3-codex-missing-binding",
+        role: "reviewer",
+        context: "fresh",
+        childSessionID: child.id,
+      })
+      const priorTurn = yield* service.appendTurn({
+        delegationID: state.delegation.id,
+        kind: "review",
+        participantIDs: [participant.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "test", senderParticipantID: participant.id },
+      })
+      yield* service.recordDelivery({
+        delegationID: state.delegation.id,
+        turnID: priorTurn.id,
+        participantID: participant.id,
+        deliveryOrigin: "test",
+        senderParticipantID: participant.id,
+        attempt: 1,
+        status: "failed",
+        errorCode: "provider_error",
+        summary: "prior external attempt did not return a thread",
+      })
+      const delivery = yield* prepareDelivery({
+        parentID: parent.id,
+        cliTarget: "phase3-codex-missing-binding",
+        participantID: participant.id,
+        delegationID: state.delegation.id,
       })
       let adapterCalled = false
       registerCliAdapter(
@@ -221,6 +413,7 @@ describe("Phase 3: Codex Participant & External CLI Binding (TDD RED)", () => {
         parentID: parent.id,
         taskID: child.id,
         cliTarget: "phase3-codex-missing-binding",
+        delivery,
       }).pipe(Effect.exit)
 
       expect(Exit.isFailure(exit)).toBe(true)
@@ -230,7 +423,7 @@ describe("Phase 3: Codex Participant & External CLI Binding (TDD RED)", () => {
 
   it.effect("5. transport dispatch uses method presence rather than a capabilities boolean", () =>
     Effect.gen(function* () {
-      const parent = yield* seedParent("ses_parent_codex_transport")
+      const parent = yield* seedParent()
       let sdkCalled = false
       registerCliAdapter(
         "phase3-sdk-method",
@@ -319,17 +512,29 @@ describe("Phase 3: Codex Participant & External CLI Binding (TDD RED)", () => {
   it.effect("9. review parsing fails closed and stale approval does not satisfy the current revision", () =>
     Effect.gen(function* () {
       const missing = DelegationParser.parseDelegationResult("plain review text")
-      expect(readProperty(missing, "review")).toEqual({
-        reviewedRevisionDigest: undefined,
-        verdict: "changes_requested",
-      })
+      expect(readProperty(missing, "review")).toEqual({ status: "invalid", reason: "missing" })
 
       const malformed = DelegationParser.parseDelegationResult(
         `<review>{"verdict":"approved","digest":broken}</review>`,
       )
-      expect(readProperty(malformed, "review")).toEqual({
-        reviewedRevisionDigest: undefined,
-        verdict: "changes_requested",
+      expect(readProperty(malformed, "review")).toEqual({ status: "invalid", reason: "malformed" })
+      const validDigest = `rev_${"c".repeat(64)}`
+      const valid = DelegationParser.parseDelegationResult(
+        `<review>${JSON.stringify({
+          kind: "aigcfroge.review.v1",
+          reviewed_revision_digest: validDigest,
+          verdict: "approved",
+          findings: [],
+        })}</review>`,
+      )
+      expect(readProperty(valid, "review")).toEqual({
+        status: "valid",
+        envelope: {
+          kind: "aigcfroge.review.v1",
+          reviewed_revision_digest: validDigest,
+          verdict: "approved",
+          findings: [],
+        },
       })
 
       const delegationID = DelegationID.ID.make("dlg_phase3_review")

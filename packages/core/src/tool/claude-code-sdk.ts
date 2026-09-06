@@ -1,9 +1,10 @@
 export * as ClaudeCodeSdkAdapter from "./claude-code-sdk"
 
-import { Effect } from "effect"
+import { Duration, Effect } from "effect"
 import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk"
 import { which } from "../util/which"
 import type { CliAdapter, DelegationResult, SdkPermissionRequest } from "./cli-adapter"
+import { DelegationParser } from "./delegation-parser"
 
 export interface ClaudeQuery
   extends AsyncIterable<{
@@ -47,7 +48,7 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
   // Unused for the SDK transport; kept to satisfy the jsonl-shaped interface.
   buildArgs: () => Effect.succeed([]),
   parseOutput: (stdout) => Effect.succeed({ status: "success" as const, summary: stdout }),
-  execute: ({ prompt, cwd, resumeId, canUseTool }) =>
+  execute: ({ prompt, cwd, resumeId, canUseTool, timeoutMs }) =>
     Effect.scoped(
       Effect.gen(function* () {
         const abortController = yield* Effect.acquireRelease(
@@ -78,6 +79,7 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
           (active) => Effect.sync(() => active.close?.()),
         )
 
+        let observedSessionId: string | undefined
         const collected = yield* Effect.tryPromise({
           try: async () => {
             let summary = ""
@@ -85,22 +87,46 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
             let sawResult = false
             let sessionId: string | undefined
             for await (const message of sdkQuery) {
-              if (message.session_id) sessionId = message.session_id
+              if (message.session_id) {
+                sessionId = message.session_id
+                observedSessionId = message.session_id
+              }
               if (message.type !== "result") continue
               sawResult = true
               isError = message.is_error === true
               if (message.result) summary = message.result
             }
-            return { summary: summary.trim(), isError, sawResult, sessionId }
+            return { summary: summary.trim(), isError, sawResult, sessionId, timedOut: false as const }
           },
           catch: (error) => new Error(errorMessage(error)),
-        })
+        }).pipe(
+          Effect.timeoutOrElse({
+            duration: Duration.millis(timeoutMs ?? 300_000),
+            orElse: () =>
+              Effect.succeed({
+                summary: "",
+                isError: true,
+                sawResult: false,
+                sessionId: observedSessionId,
+                timedOut: true as const,
+              }),
+          }),
+        )
+
+        if (collected.timedOut) {
+          return emptyResult(name, collected.sessionId, "execution Timed out", {
+            errorCode: "timeout",
+            recoveryRequired: true,
+          })
+        }
 
         if (collected.isError) {
           return {
             status: "failed" as const,
             summary: collected.summary || "Claude Code reported an error without details",
             sessionId: collected.sessionId,
+            errorCode: "provider_error",
+            recoveryRequired: true,
             errors: collected.summary ? [collected.summary] : ["Claude Code reported an error without details"],
           }
         }
@@ -108,12 +134,20 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
           return emptyResult(name, collected.sessionId, "completed without a final response")
         }
         if (!collected.sessionId) return emptyResult(name, undefined, "completed without a persistent session id")
-        return { status: "success" as const, summary: collected.summary, sessionId: collected.sessionId }
+        const parsed = DelegationParser.parseDelegationResult(collected.summary)
+        return {
+          status: "success" as const,
+          summary: collected.summary,
+          sessionId: collected.sessionId,
+          review: parsed?.review,
+        }
       }).pipe(
         Effect.catch((error) =>
           Effect.succeed<DelegationResult>({
             status: "failed",
             summary: `CLI "${name}" SDK execution failed: ${errorMessage(error)}`,
+            errorCode: "provider_error",
+            recoveryRequired: true,
             errors: [errorMessage(error)],
           }),
         ),
@@ -121,10 +155,16 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
     ),
 })
 
-const emptyResult = (name: string, sessionId: string | undefined, reason: string): DelegationResult => ({
+const emptyResult = (
+  name: string,
+  sessionId: string | undefined,
+  reason: string,
+  extra: { errorCode?: string; recoveryRequired?: boolean } = {},
+): DelegationResult => ({
   status: "failed",
   summary: `CLI "${name}" ${reason}`,
   ...(sessionId ? { sessionId } : {}),
+  ...extra,
   errors: [reason],
 })
 

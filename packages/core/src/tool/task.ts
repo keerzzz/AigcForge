@@ -95,6 +95,9 @@ export const Output = Schema.Struct({
       cli: Schema.String,
       execution_type: Schema.Literal("external-cli"),
       status: Schema.String,
+      delegationID: Schema.optional(Schema.String),
+      turnID: Schema.optional(Schema.String),
+      participantID: Schema.optional(Schema.String),
     }),
   ),
 })
@@ -280,6 +283,50 @@ export const layer = Layer.effectDiscard(
                     metadata: { description: input.description, execution_type: "external-cli" },
                   })
                   .pipe(Effect.mapError((error) => new ToolFailure({ message: `Task permission denied`, error })))
+                const requestedDelegationID = input.delegation_id
+                  ? Option.getOrUndefined(Schema.decodeUnknownOption(DelegationID.ID)(input.delegation_id))
+                  : undefined
+                if (input.delegation_id && requestedDelegationID === undefined) {
+                  return yield* new ToolFailure({ message: `Invalid delegation_id: ${input.delegation_id}` })
+                }
+                const delegationState = yield* delegation
+                  .resolve({
+                    parentSessionID: context.sessionID,
+                    title: input.description,
+                    delegationID: requestedDelegationID,
+                    newDelegation: input.new_delegation,
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                const participantRole = cliTarget === "codex" ? ("reviewer" as const) : ("implementer" as const)
+                const participant =
+                  [...delegationState.participants.values()].find(
+                    (candidate) =>
+                      candidate.provider === "external" &&
+                      candidate.target === cliTarget &&
+                      candidate.role === participantRole,
+                  ) ??
+                  (yield* delegation
+                    .addParticipant({
+                      delegationID: delegationState.delegation.id,
+                      provider: "external",
+                      target: cliTarget,
+                      role: participantRole,
+                      context: "fresh",
+                    })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error }))))
+                const turn = yield* delegation
+                  .appendTurn({
+                    delegationID: delegationState.delegation.id,
+                    kind: participantRole === "reviewer" ? "review" : "task",
+                    promptSummary: input.description,
+                    participantIDs: [participant.id],
+                    delivery: "steer",
+                    origin: {
+                      deliveryOrigin: "task",
+                      senderParticipantID: participant.id,
+                    },
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
                 // Track B: a fresh CLI delegation auto-creates an in_progress task so
                 // the todo dashboard mirrors the delegation; it is settled with the CLI
                 // outcome once the dispatch returns.
@@ -308,6 +355,20 @@ export const layer = Layer.effectDiscard(
                   description: input.description,
                   sessionID: context.sessionID,
                   taskID: input.task_id ? SessionSchema.ID.make(input.task_id) : undefined,
+                  delivery: {
+                    delegationID: delegationState.delegation.id,
+                    participantID: participant.id,
+                    turnID: turn.id,
+                    deliveryOrigin: "task",
+                    senderParticipantID: participant.id,
+                    delivery: "steer",
+                    attempt: 1,
+                  },
+                  permissionSource: {
+                    type: "tool",
+                    messageID: context.assistantMessageID,
+                    callID: context.toolCallID,
+                  },
                 }).pipe(
                   Effect.mapError((error) => new ToolFailure({ message: error.message })),
                   Effect.onExit((exit) => {
@@ -331,6 +392,9 @@ export const layer = Layer.effectDiscard(
                 )
                 return {
                   sessionID: result.sessionID,
+                  delegationID: delegationState.delegation.id,
+                  turnID: turn.id,
+                  participantID: participant.id,
                   output: renderOutput({
                     sessionID: result.sessionID,
                     state: result.status === "failed" ? "error" : "completed",
@@ -342,6 +406,9 @@ export const layer = Layer.effectDiscard(
                     cli: cliTarget,
                     execution_type: "external-cli",
                     status: result.status,
+                    delegationID: delegationState.delegation.id,
+                    participantID: participant.id,
+                    turnID: turn.id,
                   } as const,
                 }
               }

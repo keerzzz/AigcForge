@@ -195,6 +195,7 @@ export const layer = Layer.effectDiscard(
 
     yield* events.project(DelegationEvent.Created, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.ParticipantAdded, (event, tx) => projectEvent(tx, event))
+    yield* events.project(DelegationEvent.ParticipantBound, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.ParticipantInterrupted, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.ParticipantClosed, (event, tx) => projectEvent(tx, event))
     yield* events.project(DelegationEvent.TurnAdmitted, (event, tx) => projectEvent(tx, event))

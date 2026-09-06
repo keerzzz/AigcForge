@@ -53,6 +53,12 @@ export interface DeliveryContext {
   readonly attempt: number
 }
 
+export interface ToolPermissionSource {
+  readonly type: "tool"
+  readonly messageID: string
+  readonly callID: string
+}
+
 export interface Interface {
   /**
    * Create a child Session parented to `parentID`. The implementation inherits
@@ -188,7 +194,18 @@ export interface Interface {
     description: string
     sessionID: SessionSchema.ID
     taskID?: SessionSchema.ID
-  }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID; status: DelegationStatus }, Error>
+    delivery?: DeliveryContext
+    permissionSource?: ToolPermissionSource
+  }) => Effect.Effect<
+    {
+      text: string
+      sessionID: SessionSchema.ID
+      status: DelegationStatus
+      externalSessionID?: string
+      review?: import("./cli-adapter").DelegationReview
+    },
+    Error
+  >
 }
 
 export const Runtime = Context.Reference<Interface | undefined>("@aigcfroge/v2/TaskDriver/Runtime", {
@@ -349,6 +366,8 @@ export const executeCLI = (input: {
   description: string
   sessionID: SessionSchema.ID
   taskID?: SessionSchema.ID
+  delivery?: DeliveryContext
+  permissionSource?: ToolPermissionSource
 }) => active().pipe(Effect.flatMap((impl) => impl.executeCLI(input)))
 
 /** Minimal `SessionV2` surface the implementation needs. Structural to avoid importing SessionV2. */
@@ -407,7 +426,7 @@ export interface SessionFacade {
     deliveryOrigin: string
     senderParticipantID: ParticipantID
     attempt: number
-    status: "started" | "completed" | "failed" | "cancelled"
+    status: "started" | "completed" | "failed" | "cancelled" | "recovery_required"
     summary?: string
   }) => Effect.Effect<void, unknown>
 }
@@ -496,7 +515,18 @@ export const make = (
       description: string
       sessionID: SessionSchema.ID
       taskID?: SessionSchema.ID
-    }) => Effect.Effect<{ text: string; sessionID: SessionSchema.ID; status: DelegationStatus }, Error>
+      delivery?: DeliveryContext
+      permissionSource?: ToolPermissionSource
+    }) => Effect.Effect<
+      {
+        text: string
+        sessionID: SessionSchema.ID
+        status: DelegationStatus
+        externalSessionID?: string
+        review?: import("./cli-adapter").DelegationReview
+      },
+      Error
+    >
   },
 ) => {
   const readResult = (sessionID: SessionSchema.ID) =>
@@ -504,7 +534,7 @@ export const make = (
 
   const settleDelivery = (
     delivery: DeliveryContext | undefined,
-    status: "started" | "completed" | "failed" | "cancelled",
+    status: "started" | "completed" | "failed" | "cancelled" | "recovery_required",
     summary?: string,
   ) => {
     if (!delivery) return Effect.void

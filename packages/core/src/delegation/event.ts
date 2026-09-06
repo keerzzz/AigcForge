@@ -57,6 +57,20 @@ export const ParticipantAdded = EventV2.define({
   schema: ParticipantAddedData.fields,
 })
 
+export const ParticipantBoundData = Schema.Struct({
+  delegationID: DelegationID.ID,
+  participantID: ParticipantID,
+  childSessionID: Schema.optional(SessionID),
+  externalThreadID: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
+  timestamp: Schema.Number,
+})
+export type ParticipantBoundData = typeof ParticipantBoundData.Type
+export const ParticipantBound = EventV2.define({
+  type: "delegation.participant_bound",
+  ...options,
+  schema: ParticipantBoundData.fields,
+})
+
 export const ParticipantInterruptedData = Schema.Struct({
   delegationID: DelegationID.ID,
   participantID: ParticipantID,

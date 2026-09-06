@@ -4,8 +4,19 @@ import { Effect } from "effect"
 import { Config } from "../config"
 import type { ToolCallProgress } from "../acp-client/update"
 import { fromConfig } from "./cli-config-adapter"
+import type { ReviewEnvelope } from "@aigcfroge/schema/delegation"
 
 export type DelegationStatus = "success" | "partial" | "failed"
+
+export type DelegationReview =
+  | {
+      readonly status: "valid"
+      readonly envelope: ReviewEnvelope
+    }
+  | {
+      readonly status: "invalid"
+      readonly reason: "missing" | "malformed"
+    }
 
 export interface DelegationResult {
   status: DelegationStatus
@@ -18,10 +29,11 @@ export interface DelegationResult {
    * the task driver so the next same-parent delegation resumes it.
    */
   sessionId?: string
-  review?: {
-    reviewedRevisionDigest?: string
-    verdict: "approved" | "changes_requested" | "rejected"
-  }
+  review?: DelegationReview
+  /** Stable error classification for delivery events and recovery decisions. */
+  errorCode?: string
+  /** A failure that requires an operator/reconciliation path before retry. */
+  recoveryRequired?: boolean
   files?: { created?: string[]; modified?: string[]; deleted?: string[] }
   errors?: string[]
 }
@@ -53,6 +65,7 @@ export interface CliAdapter {
     prompt: string
     cwd: string
     resumeId?: string
+    timeoutMs?: number
     canUseTool?: SdkPermissionHandler
     onProgress?: (progress: ToolCallProgress) => void
   }) => Effect.Effect<DelegationResult>

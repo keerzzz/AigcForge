@@ -1,6 +1,6 @@
 export * as AcpAdapter from "./acp"
 
-import { Effect } from "effect"
+import { Duration, Effect } from "effect"
 import type * as Scope from "effect/Scope"
 import type { RequestPermissionRequest, RequestPermissionResponse } from "@agentclientprotocol/sdk"
 import type { AcpClientConnection, PermissionHandler, UpdateHandler } from "../acp-client/connection"
@@ -87,13 +87,14 @@ export function makeAcpAdapter(input: {
     // Unused for the ACP transport; kept to satisfy the jsonl-shaped interface.
     buildArgs: () => Effect.succeed([]),
     parseOutput: (stdout) => Effect.succeed({ status: "success" as const, summary: stdout }),
-    execute: ({ prompt, cwd, resumeId, canUseTool, onProgress }) =>
+    execute: ({ prompt, cwd, resumeId, canUseTool, onProgress, timeoutMs }) =>
       // acquireRelease needs an enclosing scope; scoped() keeps the bridge
       // process alive for the turn and closes it on success/failure/interrupt.
       Effect.scoped(
         Effect.gen(function* () {
           const textParts: string[] = []
           const progress: Array<ReturnType<typeof toolCallProgress>> = []
+          let sessionId: string | undefined
           const onUpdate: UpdateHandler = (notification) => {
             const update = updateOf(notification)
             const chunk = textChunk(update)
@@ -112,10 +113,11 @@ export function makeAcpAdapter(input: {
               (conn) => Effect.promise(() => conn.close()).pipe(Effect.ignore),
             )
             yield* Effect.promise(() => connection.initialize())
-            const sessionId = resumeId
+            const activeSessionID = resumeId
               ? (yield* Effect.promise(() => connection.loadSession(cwd, resumeId)), resumeId)
               : yield* Effect.promise(() => connection.newSession(cwd))
-            const { stopReason } = yield* Effect.promise(() => connection.prompt(sessionId, prompt))
+            sessionId = activeSessionID
+            const { stopReason } = yield* Effect.promise(() => connection.prompt(activeSessionID, prompt))
             const summary = textParts.join("").trim()
             const status = stopReasonToStatus(stopReason)
             if (status !== "failed" && !summary) {
@@ -136,10 +138,25 @@ export function makeAcpAdapter(input: {
           // DelegationResult rather than a thrown error — the fill's caller treats
           // a settled "failed" the same way it does for the jsonl/SDK transports.
           return yield* run.pipe(
+            Effect.timeoutOrElse({
+              duration: Duration.millis(timeoutMs ?? 300_000),
+              orElse: () =>
+                Effect.succeed<DelegationResult>({
+                  status: "failed",
+                  summary: `CLI "${input.name}" execution Timed out`,
+                  ...(sessionId ? { sessionId } : {}),
+                  errorCode: "timeout",
+                  recoveryRequired: true,
+                  errors: ["Timed out"],
+                }),
+            }),
             Effect.catch((error) =>
               Effect.succeed<DelegationResult>({
                 status: "failed",
                 summary: `CLI "${input.name}" ACP execution failed: ${errorMessage(error)}`,
+                ...(sessionId ? { sessionId } : {}),
+                errorCode: "provider_error",
+                recoveryRequired: true,
                 errors: [errorMessage(error)],
               }),
             ),

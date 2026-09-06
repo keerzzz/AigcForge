@@ -29,6 +29,8 @@ import mcpCredentialBindingMigration from "@aigcfroge/core/database/migration/20
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
 import addDelegationTablesMigration from "@aigcfroge/core/database/migration/20260904160809_add_delegation_tables"
 import delegationOriginMigration from "@aigcfroge/core/database/migration/20260905135615_delegation_origin"
+import externalCliSessionParticipantMigration from "@aigcfroge/core/database/migration/20260906011953_external_cli_session_participant"
+import hardenExternalCliSessionIDMigration from "@aigcfroge/core/database/migration/20260906023000_harden_external_cli_session_id"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -50,6 +52,39 @@ const run = <A, E>(effect: Effect.Effect<A, E, SqlClientService>) =>
 const makeDb = EffectDrizzleSqlite.makeWithDefaults()
 
 describe("DatabaseMigration", () => {
+  test("migrates legacy external CLI rows without composite-id collisions", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_a_b'), ('ses_a')`)
+        yield* db.run(
+          sql`CREATE TABLE external_cli_session (session_id text NOT NULL, cli_target text NOT NULL, external_session_id text NOT NULL, status text DEFAULT 'active' NOT NULL, time_created integer NOT NULL, time_updated integer NOT NULL)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO external_cli_session (session_id, cli_target, external_session_id, time_created, time_updated) VALUES ('ses_a_b', 'codex', 'c', 1, 1), ('ses_a', 'codex', 'b_c', 2, 2)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [
+          externalCliSessionParticipantMigration,
+          hardenExternalCliSessionIDMigration,
+        ])
+
+        const rows = yield* db.all<{ id: string; participant_id: string | null }>(
+          sql`SELECT id, participant_id FROM external_cli_session ORDER BY time_created`,
+        )
+        expect(rows).toHaveLength(2)
+        expect(new Set(rows.map((row) => row.id)).size).toBe(2)
+        expect(rows.every((row) => row.id.length > 0 && row.participant_id === null)).toBe(true)
+
+        const columns = yield* db.all<{ name: string; pk: number; notnull: number }>(
+          sql`PRAGMA table_info(external_cli_session)`,
+        )
+        expect(columns.find((column) => column.name === "id")).toMatchObject({ pk: 1, notnull: 1 })
+      }),
+    )
+  })
+
   test("serializes concurrent embedded initialization for one database path", async () => {
     await using tmp = await tmpdir()
     const filename = path.join(tmp.path, "embedded.sqlite")

@@ -392,6 +392,45 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
           updatedAt: data.timestamp,
         })
       }
+    } else if (type === DelegationEvent.ParticipantBound.type) {
+      const data = parseEvent(
+        Schema.decodeUnknownOption(DelegationEvent.ParticipantBoundData),
+        event.data,
+        type,
+        expectedDelegationID,
+      )
+      expectedDelegationID = checkDataDelegationID(data.delegationID, expectedDelegationID)
+      const participant = requireParticipant(participants, data.participantID, expectedDelegationID, type)
+      if (data.childSessionID === undefined && data.externalThreadID === undefined) {
+        corrupted(expectedDelegationID, type, "Participant binding must contain a child session or external thread")
+      }
+      if (participant.childSessionID !== undefined && data.childSessionID !== undefined) {
+        if (participant.childSessionID !== data.childSessionID) {
+          corrupted(expectedDelegationID, type, "Participant child session binding cannot be changed")
+        }
+      }
+      if (participant.externalThreadID !== undefined && data.externalThreadID !== undefined) {
+        if (participant.externalThreadID !== data.externalThreadID) {
+          corrupted(expectedDelegationID, type, "Participant external thread binding cannot be changed")
+        }
+      }
+      participants.set(
+        data.participantID,
+        new Delegation.ParticipantInfo({
+          ...participant,
+          childSessionID: data.childSessionID ?? participant.childSessionID,
+          externalThreadID: data.externalThreadID ?? participant.externalThreadID,
+          lastActivityAt: Math.max(participant.lastActivityAt, data.timestamp),
+          updatedAt: data.timestamp,
+        }),
+      )
+      if (delegation) {
+        delegation = new Delegation.Info({
+          ...delegation,
+          lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+          updatedAt: data.timestamp,
+        })
+      }
     } else if (type === DelegationEvent.ParticipantInterrupted.type) {
       const data = parseEvent(
         Schema.decodeUnknownOption(DelegationEvent.ParticipantInterruptedData),

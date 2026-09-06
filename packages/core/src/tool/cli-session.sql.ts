@@ -13,12 +13,12 @@ import type { ParticipantID } from "@aigcfroge/schema/delegation-id"
 export const ExternalCliSessionTable = sqliteTable(
   "external_cli_session",
   {
-    id: text().primaryKey(),
+    id: text().notNull().primaryKey(),
     session_id: text()
       .$type<SessionSchema.ID>()
       .notNull()
       .references(() => SessionTable.id, { onDelete: "cascade" }),
-    participant_id: text().$type<ParticipantID | SessionSchema.ID>(),
+    participant_id: text().$type<ParticipantID>(),
     cli_target: text().notNull(),
     external_session_id: text().notNull(),
     status: text().$type<"active" | "completed" | "failed">().notNull().default("active"),

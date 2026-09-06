@@ -1,8 +1,8 @@
 export * as TaskDriverFill from "./task-driver-fill"
 
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
-import { and, desc, eq } from "drizzle-orm"
-import { DateTime, Duration, Effect, Layer, Option, Schema } from "effect"
+import { and, desc, eq, isNull } from "drizzle-orm"
+import { DateTime, Duration, Effect, Exit, Layer, Option, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { BackgroundJob } from "../background-job"
 import { EventV2 } from "../event"
@@ -30,6 +30,7 @@ import { Config } from "../config"
 import { PermissionV2 } from "../permission"
 import type { SdkPermissionHandler } from "../tool/cli-adapter"
 import { which } from "../util/which"
+import { Identifier } from "../util/identifier"
 
 /**
  * The external-CLI dispatch could not run because no `ChildProcessSpawner` was
@@ -40,7 +41,7 @@ export class CliUnavailableError extends Schema.TaggedErrorClass<CliUnavailableE
   "TaskDriverFill.CliUnavailableError",
   {
     cliTarget: Schema.String,
-    reason: Schema.Literals(["no_spawner", "unknown_target", "invalid_task"]),
+    reason: Schema.Literals(["no_spawner", "unknown_target", "invalid_task", "invalid_binding"]),
   },
 ) {
   override get message() {
@@ -48,6 +49,8 @@ export class CliUnavailableError extends Schema.TaggedErrorClass<CliUnavailableE
       return `CLI execution not available (no process spawner) for target ${this.cliTarget}`
     }
     if (this.reason === "invalid_task") return `task_id does not belong to this session for target ${this.cliTarget}`
+    if (this.reason === "invalid_binding")
+      return `No canonical external CLI binding exists for target ${this.cliTarget}`
     return `Unknown CLI target: ${this.cliTarget}`
   }
 }
@@ -197,13 +200,37 @@ export const layer = Layer.effectDiscard(
                 return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "no_spawner" })
               }
               const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+              const delegationState = input.delivery
+                ? yield* delegation.foldState(input.delivery.delegationID).pipe(Effect.orDie)
+                : undefined
+              const participant = input.delivery
+                ? delegationState?.participants.get(input.delivery.participantID)
+                : undefined
+              if (input.delivery && participant === undefined) {
+                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_binding" })
+              }
+              if (input.delivery && input.taskID && participant?.childSessionID === undefined) {
+                yield* delegation
+                  .recordDelivery({
+                    ...input.delivery,
+                    status: "recovery_required",
+                    errorCode: "unbound_child_session",
+                    summary: "task_id cannot select a child session before the participant is bound",
+                  })
+                  .pipe(Effect.orDie)
+                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_binding" })
+              }
+              const requestedChildID = input.taskID ?? participant?.childSessionID
+              const existingChild = requestedChildID
+                ? yield* sessions.get(requestedChildID).pipe(Effect.exit)
+                : undefined
 
               // Create a real child session so the task card link navigates to a real
               // session. The child's title is the task description and its agent is the
               // CLI name (mirrors V1's task tool, which passes description as the title).
               const childSession = yield* sessions
                 .create({
-                  id: input.taskID,
+                  id: requestedChildID,
                   parentID: input.sessionID,
                   agent: AgentV2.ID.make(input.cliTarget),
                   location: session.location,
@@ -212,6 +239,18 @@ export const layer = Layer.effectDiscard(
                 .pipe(Effect.orDie)
               if (childSession.parentID !== input.sessionID) {
                 return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_task" })
+              }
+              if (participant?.childSessionID !== undefined && participant.childSessionID !== childSession.id) {
+                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_binding" })
+              }
+              if (input.delivery && participant?.childSessionID === undefined && input.taskID === undefined) {
+                yield* delegation
+                  .bindParticipant({
+                    delegationID: input.delivery.delegationID,
+                    participantID: input.delivery.participantID,
+                    childSessionID: childSession.id,
+                  })
+                  .pipe(Effect.orDie)
               }
 
               // Write the delegated prompt as the child's first user message so the child
@@ -232,12 +271,17 @@ export const layer = Layer.effectDiscard(
               // use serviceOption; when absent, DB operations are skipped.
               const dbOpt = yield* Effect.serviceOption(Database.Service)
 
-              // Check for a pending external CLI session to resume.
-              // In Phase 3, we look up by child session / participant ID when taskID is provided
-              // to ensure isolation between multiple external children under the same parent.
+              // The participant is the canonical resume source for persistent
+              // delegations. The compatibility table is only consulted for the
+              // same participant; the parent/target fallback remains available
+              // only to legacy callers that do not carry delegation context.
               let resumeId: string | undefined
+              let ambiguousLegacyBinding = false
               if (Option.isSome(dbOpt)) {
                 const db: Database.Interface["db"] = dbOpt.value.db
+                const participantFilter = input.delivery
+                  ? eq(ExternalCliSessionTable.participant_id, input.delivery.participantID)
+                  : undefined
                 const row = yield* db
                   .select()
                   .from(ExternalCliSessionTable)
@@ -246,7 +290,7 @@ export const layer = Layer.effectDiscard(
                       eq(ExternalCliSessionTable.session_id, input.sessionID),
                       eq(ExternalCliSessionTable.cli_target, input.cliTarget),
                       eq(ExternalCliSessionTable.status, "active"),
-                      input.taskID ? eq(ExternalCliSessionTable.participant_id, input.taskID) : undefined,
+                      participantFilter,
                     ),
                   )
                   .orderBy(desc(ExternalCliSessionTable.time_updated))
@@ -254,16 +298,53 @@ export const layer = Layer.effectDiscard(
                 resumeId = row?.external_session_id
                 if (resumeId)
                   yield* Effect.logInfo(
-                    `CLI resume: found active session ${resumeId} for session ${input.sessionID}, participant=${input.taskID ?? childSession.id}, target=${input.cliTarget}`,
+                    `CLI resume: found active session for session ${input.sessionID}, target=${input.cliTarget}`,
                   )
+                if (input.delivery && resumeId === undefined && participant?.externalThreadID === undefined) {
+                  const legacyRows = yield* db
+                    .select({ external_session_id: ExternalCliSessionTable.external_session_id })
+                    .from(ExternalCliSessionTable)
+                    .where(
+                      and(
+                        eq(ExternalCliSessionTable.session_id, input.sessionID),
+                        eq(ExternalCliSessionTable.cli_target, input.cliTarget),
+                        eq(ExternalCliSessionTable.status, "active"),
+                        isNull(ExternalCliSessionTable.participant_id),
+                      ),
+                    )
+                    .all()
+                  if (legacyRows.length === 1) resumeId = legacyRows[0]?.external_session_id
+                  if (legacyRows.length > 1) ambiguousLegacyBinding = true
+                }
               }
 
+              if (!resumeId && participant?.externalThreadID !== undefined) {
+                resumeId = participant.externalThreadID
+              }
+              const hasPriorDelivery = input.delivery
+                ? [...(delegationState?.deliveries.values() ?? [])].some(
+                    (delivery) =>
+                      delivery.participantID === input.delivery?.participantID &&
+                      delivery.turnID !== input.delivery?.turnID,
+                  )
+                : true
               if (
-                input.taskID &&
-                !resumeId &&
-                (childSession.title?.toLowerCase().includes("unbound") || input.cliTarget.includes("missing-binding"))
+                ambiguousLegacyBinding ||
+                (!resumeId && hasPriorDelivery && existingChild !== undefined && Exit.isSuccess(existingChild))
               ) {
-                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_task" })
+                if (input.delivery) {
+                  yield* delegation
+                    .recordDelivery({
+                      ...input.delivery,
+                      status: "recovery_required",
+                      errorCode: ambiguousLegacyBinding ? "ambiguous_legacy_binding" : "missing_external_binding",
+                      summary: ambiguousLegacyBinding
+                        ? "Multiple unbound legacy external CLI sessions require reconciliation"
+                        : "Existing participant has no canonical external thread binding",
+                    })
+                    .pipe(Effect.orDie)
+                }
+                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_binding" })
               }
 
               // Meta agent step: record the dispatch up front (status running), then settle it
@@ -302,7 +383,7 @@ export const layer = Layer.effectDiscard(
                         action: request.toolName,
                         resources: [JSON.stringify(request.input)],
                         metadata: { cli: input.cliTarget, external: true },
-                        source: { type: "tool", messageID: childSession.id, callID: input.cliTarget },
+                        source: input.permissionSource,
                       })
                       .pipe(Effect.match({ onSuccess: () => "allow" as const, onFailure: () => "deny" as const })),
                   )
@@ -310,17 +391,26 @@ export const layer = Layer.effectDiscard(
                 }
               }
 
-              // SDK transports (claude/codex) execute through the SDK's own
-              // stream/resume; jsonl transports spawn + parse. The SDK/ACP path gets
-              // the same timeout bound as executeWithTimeout; interrupting the fiber
-              // abandons the wait (the SDK's own child may linger briefly).
-              const result =
+              if (input.delivery) {
+                yield* delegation
+                  .recordDelivery({
+                    ...input.delivery,
+                    status: "started",
+                  })
+                  .pipe(Effect.orDie)
+              }
+
+              // SDK transports own their timeout so a provider-created thread id
+              // remains available on the timeout path. JSONL keeps the existing
+              // process boundary, whose timeout result still preserves resumeId.
+              const execution =
                 (adapter.transport === "sdk" || adapter.transport === "acp") && adapter.execute
-                  ? yield* adapter
+                  ? adapter
                       .execute({
                         prompt: cliPrompt,
                         cwd: session.location.directory,
                         resumeId,
+                        timeoutMs: adapter.timeout ?? 300_000,
                         canUseTool,
                       })
                       .pipe(
@@ -330,15 +420,47 @@ export const layer = Layer.effectDiscard(
                             Effect.succeed<DelegationResult>({
                               status: "failed",
                               summary: `CLI "${adapter.name}" execution Timed out`,
+                              ...(resumeId ? { sessionId: resumeId } : {}),
+                              errorCode: "timeout",
+                              recoveryRequired: true,
                               errors: ["Timed out"],
                             }),
                         }),
                       )
-                  : yield* executeWithTimeout(spawner!, adapter, {
+                  : executeWithTimeout(spawner!, adapter, {
                       prompt: cliPrompt,
                       cwd: session.location.directory,
                       resumeId,
                     })
+              const executionExit = yield* execution.pipe(Effect.exit)
+              if (Exit.isFailure(executionExit)) {
+                if (input.delivery) {
+                  yield* delegation
+                    .recordDelivery({
+                      ...input.delivery,
+                      status: "recovery_required",
+                      errorCode: "adapter_failure",
+                      summary: "External CLI adapter failed before returning a result",
+                    })
+                    .pipe(Effect.orDie)
+                }
+                if (stepID && metaAgentSvc) {
+                  yield* metaAgentSvc
+                    .updateStep({
+                      stepID,
+                      status: "failed",
+                      error: "External CLI adapter failed before returning a result",
+                    })
+                    .pipe(Effect.orDie)
+                }
+                return yield* Effect.failCause(executionExit.cause)
+              }
+              const result = executionExit.value
+              const reviewRequired = participant?.role === "reviewer" || participant?.role === "approver"
+              const resultStatus =
+                result.status === "failed" || (reviewRequired && result.review?.status !== "valid")
+                  ? ("failed" as const)
+                  : result.status
 
               // Write the CLI summary as the child's second user message.
               yield* events
@@ -354,56 +476,100 @@ export const layer = Layer.effectDiscard(
               if (stepID && metaAgentSvc) {
                 yield* metaAgentSvc.updateStep({
                   stepID,
-                  status: result.status === "failed" ? "failed" : "completed",
-                  ...(result.status === "failed" ? { error: result.summary } : { result: result.summary }),
+                  status: resultStatus === "failed" ? "failed" : "completed",
+                  ...(resultStatus === "failed" ? { error: result.summary } : { result: result.summary }),
                 })
+              }
+
+              const hint = result.sessionId ?? adapter.parseResumeHint?.(result.rawStdout ?? result.summary)
+              if (hint && input.delivery) {
+                yield* delegation
+                  .bindParticipant({
+                    delegationID: input.delivery.delegationID,
+                    participantID: input.delivery.participantID,
+                    externalThreadID: hint,
+                  })
+                  .pipe(Effect.orDie)
               }
 
               // Persist the external session id for resume. SDK transports surface
               // it on the DelegationResult; jsonl transports emit a resume_hint
-              // frame parsed from raw stdout. In Phase 3, we persist participant_id
-              // (child session id) and only demote previous active records for this
-              // specific child session / participant.
-              if (Option.isSome(dbOpt)) {
+              // frame parsed from raw stdout. The participant id is nullable only
+              // for legacy callers that have not entered the delegation protocol.
+              if (Option.isSome(dbOpt) && hint) {
                 const db: Database.Interface["db"] = dbOpt.value.db
-                const hint = result.sessionId ?? adapter.parseResumeHint?.(result.rawStdout ?? result.summary)
-                if (hint) {
-                  yield* Effect.logInfo(
-                    `CLI resume: persisted hint ${hint} for session ${input.sessionID}, participant=${childSession.id}, target=${input.cliTarget}`,
+                const participantID = input.delivery?.participantID
+                yield* db
+                  .update(ExternalCliSessionTable)
+                  .set({ status: resultStatus === "failed" ? "failed" : "completed" })
+                  .where(
+                    and(
+                      eq(ExternalCliSessionTable.session_id, input.sessionID),
+                      eq(ExternalCliSessionTable.cli_target, input.cliTarget),
+                      eq(ExternalCliSessionTable.status, "active"),
+                      participantID ? eq(ExternalCliSessionTable.participant_id, participantID) : undefined,
+                    ),
                   )
-                  yield* db
-                    .update(ExternalCliSessionTable)
-                    .set({ status: "completed" })
-                    .where(
-                      and(
-                        eq(ExternalCliSessionTable.session_id, input.sessionID),
-                        eq(ExternalCliSessionTable.cli_target, input.cliTarget),
-                        eq(ExternalCliSessionTable.status, "active"),
-                        eq(ExternalCliSessionTable.participant_id, childSession.id),
-                      ),
-                    )
-                  yield* db
-                    .insert(ExternalCliSessionTable)
-                    .values({
-                      id: `ecs_${childSession.id}_${Date.now()}`,
-                      session_id: input.sessionID,
-                      participant_id: childSession.id,
+                yield* db
+                  .insert(ExternalCliSessionTable)
+                  .values({
+                    id: `ecs_${Identifier.ascending()}`,
+                    session_id: input.sessionID,
+                    participant_id: participantID,
+                    cli_target: input.cliTarget,
+                    external_session_id: hint,
+                    status: resultStatus === "failed" ? "failed" : "active",
+                  })
+                  .onConflictDoUpdate({
+                    target: [ExternalCliSessionTable.session_id, ExternalCliSessionTable.external_session_id],
+                    set: {
+                      participant_id: participantID,
                       cli_target: input.cliTarget,
-                      external_session_id: hint,
-                      status: "active",
+                      status: resultStatus === "failed" ? "failed" : "active",
+                    },
+                  })
+              }
+
+              if (input.delivery) {
+                const reviewValid = result.review?.status === "valid"
+                const deliveryStatus =
+                  resultStatus === "failed" || (reviewRequired && !reviewValid)
+                    ? result.recoveryRequired || (reviewRequired && !reviewValid)
+                      ? ("recovery_required" as const)
+                      : ("failed" as const)
+                    : ("completed" as const)
+                yield* delegation
+                  .recordDelivery({
+                    ...input.delivery,
+                    status: deliveryStatus,
+                    externalTurnID: hint,
+                    summary: result.summary,
+                    errorCode:
+                      result.errorCode ?? (reviewRequired && !reviewValid ? "malformed_review_envelope" : undefined),
+                  })
+                  .pipe(Effect.orDie)
+                if (result.review?.status === "valid") {
+                  yield* delegation
+                    .recordReview({
+                      delegationID: input.delivery.delegationID,
+                      turnID: input.delivery.turnID,
+                      participantID: input.delivery.participantID,
+                      reviewedRevisionDigest: result.review.envelope.reviewed_revision_digest,
+                      verdict: result.review.envelope.verdict,
+                      findings: result.review.envelope.findings,
+                      summary: result.review.envelope.summary,
                     })
-                    .onConflictDoUpdate({
-                      target: [ExternalCliSessionTable.session_id, ExternalCliSessionTable.external_session_id],
-                      set: {
-                        participant_id: childSession.id,
-                        cli_target: input.cliTarget,
-                        status: "active",
-                      },
-                    })
+                    .pipe(Effect.orDie)
                 }
               }
 
-              return { text: result.summary, sessionID: childSession.id, status: result.status }
+              return {
+                text: result.summary,
+                sessionID: childSession.id,
+                status: resultStatus,
+                externalSessionID: hint,
+                review: result.review,
+              }
             }),
         },
       ),

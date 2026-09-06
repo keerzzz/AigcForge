@@ -107,6 +107,12 @@ export interface Interface {
   readonly create: (input: CreateInput) => Effect.Effect<Delegation.Info, ServiceError>
   readonly resolve: (input: ResolveInput) => Effect.Effect<DelegationFoldState, ServiceError>
   readonly addParticipant: (input: AddParticipantInput) => Effect.Effect<Delegation.ParticipantInfo, ServiceError>
+  readonly bindParticipant: (input: {
+    readonly delegationID: DelegationIDType
+    readonly participantID: ParticipantID
+    readonly childSessionID?: SessionIDType
+    readonly externalThreadID?: string
+  }) => Effect.Effect<void, ServiceError>
   readonly appendTurn: (input: AppendTurnInput) => Effect.Effect<Delegation.TurnInfo, ServiceError>
   readonly recordDelivery: (input: RecordDeliveryInput) => Effect.Effect<void, ServiceError>
   readonly recordRevision: (input: RecordRevisionInput) => Effect.Effect<void, ServiceError>
@@ -295,6 +301,111 @@ export const layer = Layer.effect(
         createdAt: timestamp,
         updatedAt: timestamp,
       })
+    })
+
+    const bindParticipant = Effect.fn("DelegationService.bindParticipant")(function* (input: {
+      readonly delegationID: DelegationIDType
+      readonly participantID: ParticipantID
+      readonly childSessionID?: SessionIDType
+      readonly externalThreadID?: string
+    }) {
+      if (input.childSessionID === undefined && input.externalThreadID === undefined) {
+        return yield* new Delegation.DelegationInvalidStateError({
+          delegationID: input.delegationID,
+          currentStatus: "unknown",
+          attemptedTransition: "bindParticipant",
+          reason: "Participant binding requires a child session or external thread",
+        })
+      }
+      const state = yield* requireState(input.delegationID)
+      const participant = yield* requireParticipant(state, input.delegationID, input.participantID)
+      if (input.childSessionID !== undefined) {
+        const childSession = yield* db
+          .select({
+            id: SessionTable.id,
+            parent_id: SessionTable.parent_id,
+          })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, input.childSessionID))
+          .get()
+          .pipe(Effect.orDie)
+        const existingBinding = yield* db
+          .select({
+            participant_id: DelegationParticipantTable.id,
+            delegation_id: DelegationParticipantTable.delegation_id,
+          })
+          .from(DelegationParticipantTable)
+          .where(eq(DelegationParticipantTable.child_session_id, input.childSessionID))
+          .get()
+          .pipe(Effect.orDie)
+        if (
+          childSession === undefined ||
+          childSession.parent_id !== state.delegation.parentSessionID ||
+          (existingBinding !== undefined &&
+            (existingBinding.delegation_id !== input.delegationID ||
+              existingBinding.participant_id !== input.participantID))
+        ) {
+          return yield* new Delegation.DelegationInvalidStateError({
+            delegationID: input.delegationID,
+            currentStatus: state.delegation.status,
+            attemptedTransition: "bindParticipant",
+            reason: `Child session ${input.childSessionID} does not belong to participant ${input.participantID}`,
+          })
+        }
+      }
+      if (
+        input.childSessionID !== undefined &&
+        participant.childSessionID !== undefined &&
+        participant.childSessionID !== input.childSessionID
+      ) {
+        return yield* new Delegation.DelegationInvalidStateError({
+          delegationID: input.delegationID,
+          currentStatus: state.delegation.status,
+          attemptedTransition: "bindParticipant",
+          reason: "Participant child session binding cannot be changed",
+        })
+      }
+      if (
+        input.externalThreadID !== undefined &&
+        participant.externalThreadID !== undefined &&
+        participant.externalThreadID !== input.externalThreadID
+      ) {
+        return yield* new Delegation.DelegationInvalidStateError({
+          delegationID: input.delegationID,
+          currentStatus: state.delegation.status,
+          attemptedTransition: "bindParticipant",
+          reason: "Participant external thread binding cannot be changed",
+        })
+      }
+      const conflictingParticipant = [...state.participants.values()].find(
+        (candidate) =>
+          candidate.id !== input.participantID &&
+          input.externalThreadID !== undefined &&
+          candidate.externalThreadID === input.externalThreadID,
+      )
+      if (conflictingParticipant !== undefined) {
+        return yield* new Delegation.DelegationInvalidStateError({
+          delegationID: input.delegationID,
+          currentStatus: state.delegation.status,
+          attemptedTransition: "bindParticipant",
+          reason: `External thread ${input.externalThreadID} is already bound to participant ${conflictingParticipant.id}`,
+        })
+      }
+      if (
+        (input.childSessionID === undefined || input.childSessionID === participant.childSessionID) &&
+        (input.externalThreadID === undefined || input.externalThreadID === participant.externalThreadID)
+      ) {
+        return yield* Effect.void
+      }
+      return yield* events
+        .publish(DelegationEvent.ParticipantBound, {
+          delegationID: input.delegationID,
+          participantID: input.participantID,
+          childSessionID: input.childSessionID,
+          externalThreadID: input.externalThreadID,
+          timestamp: yield* now,
+        })
+        .pipe(Effect.asVoid)
     })
 
     const appendTurn = Effect.fn("DelegationService.appendTurn")(function* (input: AppendTurnInput) {
@@ -584,6 +695,7 @@ export const layer = Layer.effect(
       create,
       resolve,
       addParticipant,
+      bindParticipant,
       appendTurn,
       recordDelivery,
       recordRevision,
