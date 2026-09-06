@@ -68,12 +68,36 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Run unit tests
-        # Windows is ~2.9x slower (subprocess-heavy aigcfroge:test: 9.3m on Linux -> ~27m);
-        # 20m timed out with aigcfroge:test ~65% done. 40m gave headroom until the five-mode
-        # remediation batch added its RED/GREEN suites (aigcfroge:test ~35m on Windows), so the
-        # step now needs 60m to fit the aggregate.
-        timeout-minutes: 60
-        run: GITHUB_ACTIONS=false bun turbo test
+        # DIAGNOSTIC (revert once root-caused): tests pass (0 fail) but `bun turbo test` never
+        # exits on Windows after the last task — turbo prints no final summary because a leaked
+        # process still holds the task's stdout pipe, so turbo never sees EOF. A watchdog dumps
+        # the lingering process tree (with CommandLine) once tests should be done, so the leak
+        # (a live bun holding an in-process handle vs. a surviving grandchild holding the pipe)
+        # can be identified and fixed. Also rolls back the 60m timeout misdiagnosis.
+        timeout-minutes: 48
+        run: |
+          set +e
+          GITHUB_ACTIONS=false bun turbo test &
+          test_pid=$!
+          elapsed=0
+          while kill -0 "$test_pid" 2>/dev/null; do
+            sleep 60
+            elapsed=$((elapsed + 60))
+            if [ "$elapsed" -ge 2280 ]; then
+              break
+            fi
+          done
+          if kill -0 "$test_pid" 2>/dev/null; then
+            echo "=== tests still running after 38m — hang suspected; lingering processes: ==="
+            powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { \$_.Name -match 'node|bun|git|bash|sh|ripgrep|rg|powershell|python' -or \$_.CommandLine -match 'aigcfroge|turbo' } | Select-Object Name,ProcessId,ParentProcessId,CommandLine | Format-List"
+            echo "=== end dump ==="
+            kill -9 "$test_pid" 2>/dev/null
+            exit 1
+          fi
+          wait "$test_pid"
+          rc=$?
+          echo "=== tests finished (rc=$rc) ==="
+          exit $rc
         env:
           AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || '' }}
 
