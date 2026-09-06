@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { countByMode, countByProject, pinLastActive } from "./home-overview-model"
+import { countByMode, countByProject, modeFilters, pinLastActive } from "./home-overview-model"
 
 describe("countByMode", () => {
   test("counts chat and work sessions into their own buckets", () => {
@@ -77,5 +77,50 @@ describe("pinLastActive", () => {
     const result = pinLastActive(records, undefined)
     expect(result.pinned).toBeUndefined()
     expect(result.rest).toHaveLength(1)
+  })
+})
+
+describe("modeFilters", () => {
+  const label = (key: string) => `t:${key}`
+
+  test("is all plus one row per definition, in the definitions' order", () => {
+    // Deliberately not this codebase's five modes: a snapshot of today's list would still
+    // pass if a sixth were dropped from the rendering, which is exactly the defect.
+    const definitions = [
+      { id: "chat", labelKey: "mode.chat" },
+      { id: "coding", labelKey: "mode.coding" },
+      { id: "sixth", labelKey: "mode.sixth" },
+    ] as const
+    expect(
+      modeFilters({
+        definitions,
+        allLabel: "All",
+        total: 7,
+        counts: { chat: 4, coding: 2, sixth: 1 },
+        label,
+      }),
+    ).toEqual([
+      { id: "all", label: "All", count: 7 },
+      { id: "chat", label: "t:mode.chat", count: 4 },
+      { id: "coding", label: "t:mode.coding", count: 2 },
+      { id: "sixth", label: "t:mode.sixth", count: 1 },
+    ])
+  })
+
+  test("a mode with no sessions counts zero rather than rendering nothing", () => {
+    const rows = modeFilters({
+      definitions: [{ id: "custom", labelKey: "mode.custom" }] as const,
+      allLabel: "All",
+      total: 0,
+      counts: {},
+      label,
+    })
+    expect(rows[1]).toEqual({ id: "custom", label: "t:mode.custom", count: 0 })
+  })
+
+  test("an empty definition list still offers all", () => {
+    expect(modeFilters({ definitions: [], allLabel: "All", total: 0, counts: {}, label })).toEqual([
+      { id: "all", label: "All", count: 0 },
+    ])
   })
 })

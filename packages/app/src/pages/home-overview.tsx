@@ -11,10 +11,11 @@ import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
-import { useMode, type Mode } from "@/context/mode"
+import { MODE_DEFINITIONS, useMode, type Mode } from "@/context/mode"
 import { useNotification } from "@/context/notification"
 import { LocationApprovalCenter } from "@/components/approval-center"
 import { useDirectoryPicker } from "@/components/directory-picker"
+import { showToast } from "@/utils/toast"
 import {
   closeHomeProject,
   filterSessionsByMode,
@@ -35,7 +36,7 @@ import {
   HomeSessionSkeleton,
 } from "@/pages/home-shared"
 import { HomeProjectRow } from "@/pages/coding-project-column"
-import { countByMode, countByProject, pinLastActive } from "@/pages/home-overview-model"
+import { countByMode, countByProject, modeFilters, pinLastActive } from "@/pages/home-overview-model"
 import { SessionModeBadge } from "@/components/session-mode-badge"
 import { pathKey } from "@/utils/path-key"
 
@@ -141,6 +142,8 @@ export function HomeOverview() {
     })
   }
 
+  const pickDirectory = useDirectoryPicker()
+
   const newSessionDirectory = createMemo(() => {
     const selected = selectedProject()
     const scope = focusedScope()
@@ -159,15 +162,43 @@ export function HomeOverview() {
   function openNewSession() {
     const conn = focusedServer()
     const ctx = focusedServerCtx()
-    if (!conn || !ctx) return
+    // Two different failures that used to be the same silent return. No connection is not
+    // something the user can fix by picking a folder, so it says so instead of opening one.
+    if (!conn || !ctx) {
+      showToast({ title: language.t("error.serverSDK.noServerAvailable") })
+      return
+    }
     const directory = newSessionDirectory()
-    if (!directory) return
-    launchModeSession({
-      mode: mode.currentMode,
-      projects: ctx.projects,
-      server: ServerConnection.key(conn),
-      directory,
-      tabs,
+    if (directory) {
+      launchModeSession({
+        mode: mode.currentMode,
+        projects: ctx.projects,
+        server: ServerConnection.key(conn),
+        directory,
+        tabs,
+      })
+      return
+    }
+    // Nothing opened yet, which on a fresh profile is the normal state rather than an error.
+    // Asking for a project is the missing step, so ask with the picker the sidebar's "open
+    // project" already uses, then start the session where the user just pointed.
+    pickDirectory({
+      server: conn,
+      title: language.t("command.project.open"),
+      multiple: true,
+      onSelect: (result) => {
+        const dirs = homeProjectDirectories(result)
+        if (!dirs[0]) return
+        dirs.forEach((d: string) => ctx.projects.open(d))
+        ctx.projects.touch(dirs[0])
+        launchModeSession({
+          mode: mode.currentMode,
+          projects: ctx.projects,
+          server: ServerConnection.key(conn),
+          directory: dirs[0],
+          tabs,
+        })
+      },
     })
   }
 
@@ -342,13 +373,18 @@ export function HomeOverviewSidebar(props: {
     return dirs.reduce((t, d) => t + notification.project.unseenCount(d), 0)
   }
 
-  const filters = createMemo<Array<{ id: "all" | Mode; label: string; count: number }>>(() => [
-    { id: "all", label: language.t("home.overview.all"), count: props.total },
-    { id: "coding", label: language.t("mode.coding"), count: props.counts.coding },
-    { id: "chat", label: language.t("mode.chat"), count: props.counts.chat },
-    { id: "work", label: language.t("mode.work"), count: props.counts.work },
-    { id: "assistant", label: language.t("mode.assistant"), count: props.counts.assistant },
-  ])
+  // Derived, not listed: this used to hand-copy `MODE_DEFINITIONS` and the copy was missing
+  // Custom, which no gate could see. The order is the definitions' order now, which is also
+  // the order `ModeSwitcher` renders, so the two navigations agree.
+  const filters = createMemo(() =>
+    modeFilters({
+      definitions: MODE_DEFINITIONS,
+      allLabel: language.t("home.overview.all"),
+      total: props.total,
+      counts: props.counts,
+      label: (key) => language.t(key),
+    }),
+  )
 
   return (
     <aside
