@@ -74,6 +74,8 @@ describe("provider transport deadlines are typed", () => {
   test("the native api carries the same contract", () => {
     const native = Schema.decodeUnknownSync(Provider.Native)({ type: "native", settings: { headerTimeout: 10_000 } })
     expect(native.settings).toMatchObject({ headerTimeout: 10_000 })
-    expect(() => Schema.decodeUnknownSync(Provider.Native)({ type: "native", settings: { headerTimeout: 0 } })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(Provider.Native)({ type: "native", settings: { headerTimeout: 0 } }),
+    ).toThrow()
   })
 })

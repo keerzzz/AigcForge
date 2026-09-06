@@ -103,7 +103,9 @@ export const layer = Layer.effectDiscard(
                   ),
                 )
             }).pipe(
-              Effect.mapError(ToolPermissionFailure.toToolFailure(name, `Unable to find files matching ${input.pattern}`)),
+              Effect.mapError(
+                ToolPermissionFailure.toToolFailure(name, `Unable to find files matching ${input.pattern}`),
+              ),
             ),
         }),
       })

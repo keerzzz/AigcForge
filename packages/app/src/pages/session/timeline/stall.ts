@@ -1,4 +1,3 @@
-
 /**
  * How long a turn may show nothing at all before the timeline calls it stalled.
  *

@@ -230,8 +230,9 @@ describe("defaults", () => {
 
   test("never overwrites an explicit off switch", () => {
     // `false` is the user saying no. A fallback that ignored it would make the knob a lie.
-    expect(AISDKTransport.withFallbacks({ chunkTimeout: false, headerTimeout: false }, { chunk: 60_000, header: 10_000 }))
-      .toEqual({ timeout: undefined, headerTimeout: false, chunkTimeout: false })
+    expect(
+      AISDKTransport.withFallbacks({ chunkTimeout: false, headerTimeout: false }, { chunk: 60_000, header: 10_000 }),
+    ).toEqual({ timeout: undefined, headerTimeout: false, chunkTimeout: false })
   })
 
   test("a quiet stream is bounded even with no configuration at all", async () => {

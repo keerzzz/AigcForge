@@ -141,10 +141,7 @@ export function withDeadlines(input: { readonly deadlines: Deadlines; readonly f
     const headerTimer =
       headerTimeout === undefined
         ? undefined
-        : setTimeout(
-            () => headerController?.abort(new Error(`No response head for ${headerTimeout}ms`)),
-            headerTimeout,
-          )
+        : setTimeout(() => headerController?.abort(new Error(`No response head for ${headerTimeout}ms`)), headerTimeout)
 
     const signals = [
       options.signal ?? undefined,

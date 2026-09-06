@@ -1199,10 +1199,8 @@ it.live("session.processor keeps the permission outcome in the failed tool part"
         // stop the report recorded.
         expect(corrected.state?.status).toBe("error")
         expect(rejected.state?.status).toBe("error")
-        if (corrected.state?.status === "error")
-          expect(corrected.state.error).toContain("edit docs/notes.md instead")
-        if (rejected.state?.status === "error")
-          expect(rejected.state.error).toContain("The user rejected permission")
+        if (corrected.state?.status === "error") expect(corrected.state.error).toContain("edit docs/notes.md instead")
+        if (rejected.state?.status === "error") expect(rejected.state.error).toContain("The user rejected permission")
         // Recorded, not prescribed. `failToolCall:241` only marks the turn blocked for a
         // bare rejection, so V1 already differentiates: a correction carries instructions,
         // so the turn continues and the model can act on them; a flat refusal ends it.

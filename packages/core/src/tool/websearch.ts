@@ -241,7 +241,9 @@ export const layer = Layer.effectDiscard(
                 provider,
                 text: text ?? NO_RESULTS,
               }
-            }).pipe(Effect.mapError(ToolPermissionFailure.toToolFailure(name, `Unable to search the web for ${input.query}`)))
+            }).pipe(
+              Effect.mapError(ToolPermissionFailure.toToolFailure(name, `Unable to search the web for ${input.query}`)),
+            )
           },
         }),
       })

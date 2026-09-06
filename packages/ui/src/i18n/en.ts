@@ -156,7 +156,8 @@ export const dict: Record<string, string> = {
   "ui.message.copyMessage": "Copy message",
   "ui.message.forkMessage": "Fork to new session",
   "ui.message.revert.title": "Reset to here",
-  "ui.message.revert.effect": "Workspace files are restored to this point, and later messages are hidden. Both can be undone from the revert dock.",
+  "ui.message.revert.effect":
+    "Workspace files are restored to this point, and later messages are hidden. Both can be undone from the revert dock.",
   "ui.message.revert.files.one": "This session has changed 1 file so far.",
   "ui.message.revert.files.other": "This session has changed {{count}} files so far.",
   "ui.message.revert.confirm": "Reset to here",

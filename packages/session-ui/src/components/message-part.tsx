@@ -1191,41 +1191,40 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
     if (!props.actions?.revert || busy()) return
     props.actions.requestRevertPreview?.()
     void dialog.show(() => (
-        <Dialog title={i18n.t("ui.message.revert.title")} fit>
-          <div class="flex flex-col gap-4 pl-6 pr-2.5 pb-3">
-            <span class="text-14-regular text-text-strong">{i18n.t("ui.message.revert.effect")}</span>
-            {/* Read inside `Show` so it tracks: the dialog can open before the session diff has
+      <Dialog title={i18n.t("ui.message.revert.title")} fit>
+        <div class="flex flex-col gap-4 pl-6 pr-2.5 pb-3">
+          <span class="text-14-regular text-text-strong">{i18n.t("ui.message.revert.effect")}</span>
+          {/* Read inside `Show` so it tracks: the dialog can open before the session diff has
                 landed, and a one-time read would leave it permanently countless. */}
-            <Show when={props.actions?.revertPreview?.()}>
-              {(facts) => (
-                <span class="text-12-regular text-text-weak">
-                  {i18n.t(
-                    facts().changedFiles === 1 ? "ui.message.revert.files.one" : "ui.message.revert.files.other",
-                    { count: String(facts().changedFiles) },
-                  )}
-                </span>
-              )}
-            </Show>
-            <DialogFooter>
-              {/* Focus starts on Cancel, not on the destructive action: the dialog exists because
+          <Show when={props.actions?.revertPreview?.()}>
+            {(facts) => (
+              <span class="text-12-regular text-text-weak">
+                {i18n.t(facts().changedFiles === 1 ? "ui.message.revert.files.one" : "ui.message.revert.files.other", {
+                  count: String(facts().changedFiles),
+                })}
+              </span>
+            )}
+          </Show>
+          <DialogFooter>
+            {/* Focus starts on Cancel, not on the destructive action: the dialog exists because
                   this writes to disk, and autofocusing the confirm button would let a stray Enter
                   do the thing the confirmation was added to prevent. */}
-              <ButtonV2 variant="neutral" autofocus onClick={() => dialog.close()}>
-                {i18n.t("ui.common.cancel")}
-              </ButtonV2>
-              <ButtonV2
-                variant="contrast"
-                onClick={() => {
-                  dialog.close()
-                  runRevert()
-                }}
-              >
-                {i18n.t("ui.message.revert.confirm")}
-              </ButtonV2>
-            </DialogFooter>
-          </div>
-        </Dialog>
-      ))
+            <ButtonV2 variant="neutral" autofocus onClick={() => dialog.close()}>
+              {i18n.t("ui.common.cancel")}
+            </ButtonV2>
+            <ButtonV2
+              variant="contrast"
+              onClick={() => {
+                dialog.close()
+                runRevert()
+              }}
+            >
+              {i18n.t("ui.message.revert.confirm")}
+            </ButtonV2>
+          </DialogFooter>
+        </div>
+      </Dialog>
+    ))
   }
 
   return (

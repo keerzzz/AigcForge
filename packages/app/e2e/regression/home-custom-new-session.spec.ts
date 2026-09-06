@@ -57,7 +57,11 @@ async function openHomeInMode(page: Page, mode: string) {
       // A project is opened, so the no-project path (S6) is not what is measured here.
       localStorage.setItem(
         "aigcfroge.global.dat:server",
-        JSON.stringify({ list: [], projects: { local: [{ worktree: input.worktree, expanded: true }] }, lastProject: {} }),
+        JSON.stringify({
+          list: [],
+          projects: { local: [{ worktree: input.worktree, expanded: true }] },
+          lastProject: {},
+        }),
       )
     },
     { worktree: directory, mode },

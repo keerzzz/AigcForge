@@ -66,7 +66,10 @@ async function openHome(page: Page) {
       sandboxes: [],
     },
     provider: { providers: [], default: {} },
-    sessions: [session(chatSessionID, chatTitle, "chat", created), session(customSessionID, customTitle, "custom", created + 1000)],
+    sessions: [
+      session(chatSessionID, chatTitle, "chat", created),
+      session(customSessionID, customTitle, "custom", created + 1000),
+    ],
     pageMessages: () => ({ items: [] }),
     events: () => [],
     eventRetry: 16,
