@@ -159,6 +159,24 @@ export function HomeOverview() {
     return projects()[0]?.worktree
   })
 
+  /**
+   * Open every picked directory and mark the first one as the one to work in.
+   *
+   * The server context is resolved here rather than captured: the picker is asynchronous, so
+   * a context read before it opened can belong to a server the user has since left. Same
+   * reason `secondary-sidebar.tsx:177` and `chooseProject` below resolve it inside their own
+   * callbacks.
+   */
+  function openPickedProjects(conn: ServerConnection.Any, result: string | string[] | null) {
+    const dirs = homeProjectDirectories(result)
+    const directory = dirs[0]
+    if (!directory) return undefined
+    const ctx = global.ensureServerCtx(conn)
+    dirs.forEach((d: string) => ctx.projects.open(d))
+    ctx.projects.touch(directory)
+    return { directory, projects: ctx.projects }
+  }
+
   function openNewSession() {
     const conn = focusedServer()
     const ctx = focusedServerCtx()
@@ -187,15 +205,15 @@ export function HomeOverview() {
       title: language.t("command.project.open"),
       multiple: true,
       onSelect: (result) => {
-        const dirs = homeProjectDirectories(result)
-        if (!dirs[0]) return
-        dirs.forEach((d: string) => ctx.projects.open(d))
-        ctx.projects.touch(dirs[0])
+        // Cancelling calls back with null (`directory-picker.tsx:34-36`), so an empty
+        // selection is the user declining, not a failure — nothing to say and nothing to do.
+        const opened = openPickedProjects(conn, result)
+        if (!opened) return
         launchModeSession({
           mode: mode.currentMode,
-          projects: ctx.projects,
+          projects: opened.projects,
           server: ServerConnection.key(conn),
-          directory: dirs[0],
+          directory: opened.directory,
           tabs,
         })
       },

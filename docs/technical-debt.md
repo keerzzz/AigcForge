@@ -172,6 +172,9 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 
 | 破坏性确认对话框有两份同形实现，未归并 | app / session-ui | **来源：五模式 dogfood 修整 S5（2026-09-05）。** `message-timeline.tsx:981-1008` 的 `DialogDeleteSession` 与 `message-part.tsx` 新增的 revert 确认是同一形状：`Dialog` + 说明 + `DialogFooter(Cancel/危险动作)`。`DESIGN.md` 的规则是「跨表面复用才提升到 packages/ui」，现在正好两处，够条件但不够紧迫。**本批不做的理由**：归并要同时改 app 侧的删除对话框，超出 S5 影响面（`改完即审` #1 禁止顺手改无关代码），且删除对话框的回归覆盖未核。**触发条件**：出现第三个破坏性确认，或删除对话框因别的原因要改时，抽 `packages/ui` 的 `ConfirmDialog({title, body, confirmLabel, onConfirm})` 并让两处消费。 | app | 第三个确认框出现时 |
 
+| 目录选择器→打开项目→touch 的六份同形副本 | app | **来源：五模式 dogfood 修整 S6 复审（2026-09-05）。** `pickDirectory` + `homeProjectDirectories(result)` + `projects.open` + `projects.touch` 这一串在 6 处重复：`mode-surfaces.tsx:177`、`mode-location-new-session.tsx:46`、`secondary-sidebar.tsx:174`、`home-overview.tsx:190`/`:347`、`mode-workspace-slots.tsx:112`。**本批只归并了同文件的两处**（`home-overview.tsx` 内抽 `openPickedProjects`），跨 5 文件的归并超出 S6 影响面。**触发条件**：下次动其中任一 call site，或第七处出现时，抽到 `pages/layout/helpers.ts`（`homeProjectDirectories` 已在那里）。**注意各副本尾巴不同**（有的 `onSelectProject`、有的 `lastSession.set`、有的建会话），归并的是头部不是全部。 | app | 第七处出现时 |
+| `useDirectoryPicker` 桌面分支的 promise 无 catch | app | **来源：五模式 dogfood 修整 S6 复审（2026-09-05）。** `components/directory-picker.tsx:25` `void platform.openDirectoryPickerDialog(...).then(input.onSelect)` 没有 `.catch`，原生对话框 reject 即未处理 rejection。该 owner 被 6 处消费，属既有实现（非本批引入），但 S6 新增了第 6 个 call site 因而扩大了暴露面。**触发条件**：桌面端原生选择器抛错（权限、窗口销毁）。修法是在 owner 内 catch 并走 `onSelect(null)`（等价于取消），不要逐 call site 兜。 | app | 与桌面端稳定性一并处理 |
+
 ### 4.1 五模式 dogfood 发现（来源：[2026-09-03 真实浏览器 + 真实后端走查报告](review/five-mode-dogfood-2026-09-03/report.md)）
 
 一次真实 Chromium + 真实本地后端（含 `AIGCFROGE_CUSTOM_MODE=true` 的第二台）走查，八项发现。**三项已在 2026-09-04 修复并带红证**，五项仍开放。这批的共同教训写在最后一行。

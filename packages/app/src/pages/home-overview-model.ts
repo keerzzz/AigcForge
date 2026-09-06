@@ -20,12 +20,12 @@ export function countByMode(records: ReadonlyArray<{ session: { mode?: ProductMo
  * A mode with no sessions counts 0 rather than rendering `undefined`, so a newly added mode
  * shows up empty instead of broken.
  */
-export function modeFilters<Id extends string>(input: {
-  readonly definitions: ReadonlyArray<{ readonly id: Id; readonly labelKey: string }>
+export function modeFilters<Id extends string, Key extends string>(input: {
+  readonly definitions: ReadonlyArray<{ readonly id: Id; readonly labelKey: Key }>
   readonly allLabel: string
   readonly total: number
   readonly counts: Readonly<Partial<Record<Id, number>>>
-  readonly label: (key: string) => string
+  readonly label: (key: Key) => string
 }): Array<{ id: "all" | Id; label: string; count: number }> {
   return [
     { id: "all" as const, label: input.allLabel, count: input.total },
