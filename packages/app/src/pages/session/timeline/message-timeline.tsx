@@ -60,7 +60,8 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
-import { useMode } from "@/context/mode"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { modeDefinition, useMode } from "@/context/mode"
 import { useSessionKey, useSessionLayout } from "@/pages/session/session-layout"
 import { useServerSDK } from "@/context/server-sdk"
 import { usePlatform } from "@/context/platform"
@@ -872,6 +873,13 @@ export function MessageTimeline(props: {
     }
     if (nextSessionID) {
       navigate(href(nextSessionID))
+      return
+    }
+    // Same bypass the titlebar closed: the last session is gone, so this would start a fresh
+    // draft in the current mode — but a mode without a generic creation path has to go to its
+    // own creator first, or the draft's first send is guaranteed to fail.
+    if (!ProductMode.isGenericSessionMode(mode.currentMode)) {
+      navigate(modeDefinition(mode.currentMode).href)
       return
     }
     tabs.newDraft({ server: requireServerKey(key), directory: sdk().directory, mode: mode.currentMode })
