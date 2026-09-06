@@ -1202,7 +1202,7 @@ startup
 ### 10.2 Core integration
 
 - `packages/core/test/delegation-build-participant.test.ts`
-- `packages/core/test/delegation-cli-participant.test.ts`
+- `packages/core/test/delegation-codex-participant.test.ts`
 - `packages/core/test/delegation-fanout.test.ts`
 - `packages/core/test/delegation-recovery.test.ts`
 - `packages/core/test/delegation-codex-app-server.test.ts`
@@ -1700,7 +1700,7 @@ bun --cwd packages/aigcfroge typecheck
 **RED 文件**：
 
 ```text
-packages/core/test/delegation-cli-participant.test.ts
+packages/core/test/delegation-codex-participant.test.ts
 packages/core/test/cli-sdk-adapters.test.ts
 packages/core/test/cli-adapters.test.ts
 packages/core/test/cli-acp-adapter.test.ts
@@ -1728,7 +1728,7 @@ packages/core/test/task-driver-fill.test.ts
 **Exit**：
 
 ```bash
-bun --cwd packages/core test --timeout 30000 test/delegation-cli-participant.test.ts test/cli-sdk-adapters.test.ts test/cli-adapters.test.ts test/cli-acp-adapter.test.ts test/task-driver-fill.test.ts
+bun --cwd packages/core test --timeout 30000 test/delegation-codex-participant.test.ts test/cli-sdk-adapters.test.ts test/cli-adapters.test.ts test/cli-acp-adapter.test.ts test/task-driver-fill.test.ts
 bun --cwd packages/core typecheck
 ```
 
