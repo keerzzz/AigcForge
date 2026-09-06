@@ -1,6 +1,11 @@
 # 五模式 dogfood 缺陷修整 TDD 实施计划
 
-> **状态**：已审批（第 4 版，2026-09-04）；实施提示词已生成，本计划分支仍只承载文档，不含生产代码。
+> **状态**：已审批（第 4 版，2026-09-04）；**实施完成（2026-09-06，分支 `dogfood-remediation`，共 51 个提交）**。
+> 8 项缺陷全部 RED→GREEN→复红闭环，3 项附带债 2 项闭环 + D-E2E-GAP 部分闭环（见技术债台账 §4.1）。
+> 本文件在实施过程中按各 Slice 回写过裁决与证据；S0 基线、四条收敛面验收、运行时矩阵均见红证。
+> 最终门禁：schema/core/aigcfroge/ui/session-ui/app typecheck 全 rc=0；core 2312/0、app unit 1002/0、
+> schema 214、ui 10、session-ui 114 全绿；`lint-changed` 通过（79 文件 / 4365 行）；`check-refs.sh` 32 路径全 OK。
+> 遗留：V2 `timeout` 整轮默认值未校实测分布、`toast-v2.tsx` 无 owner memo 待 toast owner 修复同批（已在 §4 记债，均在本次改动范围外）。
 > **代码审查基线**：`origin/main=09a615232`（"fix: complete five-mode runtime remediation"）；本文中的行号、根因与 RED 结论按该代码树复核。
 > **实施基线**：两份实施计划合入并推送后，以创建 worktree 时最新的 `origin/main` 为准；S0 必须记录准确 SHA，不能硬退回审查基线。
 > **计划分支**：`dogfood-remediation-plan` 只保存计划与提示词；合入后生产实施使用新分支 `dogfood-remediation`，
