@@ -20,7 +20,7 @@ import {
   closeHomeProject,
   filterSessionsByMode,
   homeProjectDirectories,
-  launchModeSession,
+  launchModeSessionOrRoute,
   openSessionRecord,
 } from "@/pages/layout/helpers"
 import {
@@ -39,6 +39,7 @@ import { HomeProjectRow } from "@/pages/coding-project-column"
 import { countByMode, countByProject, modeFilters, pinLastActive } from "@/pages/home-overview-model"
 import { SessionModeBadge } from "@/components/session-mode-badge"
 import { pathKey } from "@/utils/path-key"
+import { useNavigate } from "@solidjs/router"
 
 const OVERVIEW_GRID = "mx-auto grid h-full w-full max-w-[1200px] grid-cols-[220px_minmax(0,1fr)] gap-4 px-6"
 const MODE_FILTER_ROW =
@@ -53,6 +54,7 @@ export function HomeOverview() {
   const server = useServer()
   const language = useLanguage()
   const global = useGlobal()
+  const navigate = useNavigate()
   const tabs = useTabs()
 
   const [state, setState] = createStore({
@@ -188,8 +190,9 @@ export function HomeOverview() {
     }
     const directory = newSessionDirectory()
     if (directory) {
-      launchModeSession({
+      launchModeSessionOrRoute({
         mode: mode.currentMode,
+        navigate,
         projects: ctx.projects,
         server: ServerConnection.key(conn),
         directory,
@@ -209,8 +212,9 @@ export function HomeOverview() {
         // selection is the user declining, not a failure — nothing to say and nothing to do.
         const opened = openPickedProjects(conn, result)
         if (!opened) return
-        launchModeSession({
+        launchModeSessionOrRoute({
           mode: mode.currentMode,
+          navigate,
           projects: opened.projects,
           server: ServerConnection.key(conn),
           directory: opened.directory,
@@ -338,6 +342,7 @@ export function HomeOverviewSidebar(props: {
   onSelectProject: (directory: string | undefined) => void
 }) {
   const global = useGlobal()
+  const navigate = useNavigate()
   const server = useServer()
   const language = useLanguage()
   const tabs = useTabs()
@@ -348,8 +353,9 @@ export function HomeOverviewSidebar(props: {
 
   function openNewSession(conn: ServerConnection.Any, directory: string) {
     const ctx = global.ensureServerCtx(conn)
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: mode.currentMode,
+      navigate,
       projects: ctx.projects,
       server: ServerConnection.key(conn),
       directory,

@@ -1,6 +1,8 @@
+import { ProductMode as ProductModeContract } from "@aigcfroge/schema/product-mode"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { type ProductMode, type Session } from "@aigcfroge/sdk/v2/client"
 import { startTransition } from "solid-js"
+import { modeDefinition } from "@/context/mode"
 import { pathKey } from "@/utils/path-key"
 import type { ServerConnection } from "@/context/server"
 import { modeDraft, type Mode } from "@/context/mode"
@@ -193,7 +195,10 @@ export function openProjectNewSession(
 }
 
 export function launchModeSession(input: {
-  mode: Mode
+  // Not `Mode`: custom sessions have no generic creation path, so a caller holding a dynamic
+  // mode has to decide what to do about it before it gets here rather than producing a draft
+  // whose first send is guaranteed to fail.
+  mode: ProductModeContract.GenericSessionMode
   projects: ProjectActions
   server: ServerConnection.Key
   directory: string
@@ -228,6 +233,30 @@ export function launchModeSession(input: {
  * map to resolve a worktree from. Both funnel through here so "open a session" stays one
  * implementation.
  */
+/**
+ * Start a session for a mode that is only known at runtime.
+ *
+ * `launchModeSession` takes the creatable modes only, so a caller holding `mode.currentMode`
+ * has to say what happens when it is one that has no generic creation path. Custom has one
+ * answer — its Builder, which is the only thing that can create a custom session (atomically,
+ * from a composition snapshot) — and routing there is what this does.
+ *
+ * The href comes from the mode definitions rather than a literal, so the route and the
+ * navigation cannot drift apart.
+ */
+export function launchModeSessionOrRoute(
+  input: Omit<Parameters<typeof launchModeSession>[0], "mode"> & {
+    mode: ProductMode
+    navigate: (href: string) => void
+  },
+) {
+  if (ProductModeContract.isGenericSessionMode(input.mode)) {
+    launchModeSession({ ...input, mode: input.mode })
+    return
+  }
+  input.navigate(modeDefinition(input.mode).href)
+}
+
 export function openSessionByID(input: {
   sessionID: string
   /** Session's own directory: what placement is keyed on. */

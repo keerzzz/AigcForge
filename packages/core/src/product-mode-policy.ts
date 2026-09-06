@@ -49,7 +49,7 @@ export function isModeSupported(mode: string | undefined, header?: string | null
   if (resolved === "custom") {
     return isCustomCapable(header)
   }
-  return resolved === "chat" || resolved === "coding" || resolved === "work" || resolved === "assistant"
+  return ProductMode.isGenericSessionMode(resolved)
 }
 
 export function assertCreationSupported(mode: string | undefined): Effect.Effect<void, UnsupportedProductModeError> {
@@ -62,7 +62,9 @@ export function assertCreationSupported(mode: string | undefined): Effect.Effect
       }),
     )
   }
-  if (resolved === "chat" || resolved === "coding" || resolved === "work" || resolved === "assistant") {
+  // The same predicate the client narrows its "new session" parameters with, so the two cannot
+  // disagree about which modes have a generic creation path.
+  if (ProductMode.isGenericSessionMode(resolved)) {
     return Effect.void
   }
   return Effect.fail(
@@ -83,13 +85,10 @@ export function assertRuntimeSupported(mode: string | undefined): Effect.Effect<
       }),
     )
   }
-  if (
-    resolved === "custom" ||
-    resolved === "chat" ||
-    resolved === "coding" ||
-    resolved === "work" ||
-    resolved === "assistant"
-  ) {
+  // Known mode, not creatable mode: custom belongs here and does not belong in
+  // `assertCreationSupported`. Both questions now come from the schema that owns the union, so
+  // a sixth mode cannot be silently unknown to one of them.
+  if (ProductMode.isID(resolved)) {
     return Effect.void
   }
   return Effect.fail(

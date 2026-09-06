@@ -6,7 +6,7 @@ import { useSDK } from "@/context/sdk"
 import { useTabs } from "@/context/tabs"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
-import { launchModeSession } from "@/pages/layout/helpers"
+import { openSessionByID } from "@/pages/layout/helpers"
 import { useCustomDraft } from "@/context/custom-draft"
 import { showToast } from "@/utils/toast"
 import type { Snapshot } from "@aigcfroge/schema/composition"
@@ -115,14 +115,23 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         { throwOnError: true },
       )
 
-      if (res.data?.session?.id) {
+      // Upgrade is atomic like start: it returns the Session it re-froze, so open that one.
+      // Handing off to `launchModeSession` opened a blank custom draft instead, orphaning the
+      // upgraded session and leaving a draft whose first send goes to plain `POST /session` —
+      // which custom mode rejects with 400. `custom-preview-column.tsx:107-112` fixed exactly
+      // this for the start path (BUG-CUSTOM-START); this call site survived because nothing
+      // stopped a client passing `custom` to a generic-creation helper.
+      const upgraded = res.data?.session
+      if (upgraded?.id) {
         const ctx = global.ensureServerCtx(currentServer)
-        launchModeSession({
-          mode: "custom",
-          projects: ctx.projects,
+        openSessionByID({
+          sessionID: upgraded.id,
+          sessionDirectory: upgraded.location.directory,
+          projectDirectory: dir,
           server: ServerConnection.key(currentServer),
-          directory: dir,
+          global,
           tabs,
+          projects: ctx.projects,
         })
         showToast(language.t("custom.snapshot.upgradeSuccess"))
       }

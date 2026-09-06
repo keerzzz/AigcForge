@@ -1,4 +1,5 @@
 import type { Accessor } from "solid-js"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
@@ -13,7 +14,13 @@ import { ServerConnection } from "@/context/server"
 import { homeProjectDirectories, launchModeSession } from "@/pages/layout/helpers"
 
 /** Shared location and new-session controls for Chat, Work, and Assistant. */
-export function ModeLocationNewSession(props: { directory: Accessor<string | undefined>; mode: Mode }) {
+// `GenericSessionMode`, not `Mode`: this button builds an ordinary draft, and both call sites
+// pass a literal `"assistant"`. Narrowing here keeps the decision with whoever picks the mode
+// rather than letting a dynamic one arrive and fail on first send.
+export function ModeLocationNewSession(props: {
+  directory: Accessor<string | undefined>
+  mode: ProductMode.GenericSessionMode
+}) {
   const language = useLanguage()
   const global = useGlobal()
   const tabs = useTabs()

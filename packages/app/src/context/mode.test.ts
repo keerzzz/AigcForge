@@ -29,11 +29,22 @@ describe("product mode", () => {
     }
   })
 
-  test("binds chat/work/coding/custom drafts to meta and assistant drafts to assistant-orchestrator (2026-08-11 + plan §3.3)", () => {
+  test("binds chat/work/coding drafts to meta and assistant drafts to assistant-orchestrator (2026-08-11 + plan §3.3)", () => {
     expect(modeDraft("chat")).toEqual({ mode: "chat", agent: "meta" })
     expect(modeDraft("coding")).toEqual({ mode: "coding", agent: "meta" })
     expect(modeDraft("work")).toEqual({ mode: "work", agent: "meta" })
-    expect(modeDraft("custom")).toEqual({ mode: "custom", agent: "meta" })
     expect(modeDraft("assistant")).toEqual({ mode: "assistant", agent: "assistant-orchestrator" })
+  })
+
+  test("custom has no draft path", () => {
+    // It used to be in the case above, asserting `{ mode: "custom", agent: "meta" }`. That
+    // draft was the defect: custom sessions are created atomically from a composition
+    // snapshot, so a custom draft's first send goes to plain `POST /session` and is rejected.
+    // @ts-expect-error custom is not a generically creatable mode
+    const draft = modeDraft("custom")
+    // The suppression above IS the assertion — it fails the build the day custom becomes
+    // generically creatable. Comparing against the literal would re-introduce the type error
+    // inside the matcher, so this only keeps the binding alive.
+    expect(typeof draft.mode).toBe("string")
   })
 })

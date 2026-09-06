@@ -1,4 +1,5 @@
 import { createEffect, createMemo, createResource, createRoot, createSignal, For, onCleanup, Show } from "solid-js"
+import { useNavigate } from "@solidjs/router"
 import { createStore } from "solid-js/store"
 import { useChatFeature } from "@/context/chat-feature"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
@@ -16,7 +17,7 @@ import { AssetDeleteDialog } from "@/components/chat/asset-delete-dialog"
 import { useMode } from "@/context/mode"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import {
-  launchModeSession,
+  launchModeSessionOrRoute,
   openSessionRecord,
   closeHomeProject,
   homeProjectDirectories,
@@ -59,6 +60,7 @@ import { AssetLoadError } from "@/components/asset-load-error"
 export function CodingProjectColumnSidebar() {
   const layout = useLayout()
   const mode = useMode()
+  const navigate = useNavigate()
   const dialog = useDialog()
   const server = useServer()
   const language = useLanguage()
@@ -95,8 +97,9 @@ export function CodingProjectColumnSidebar() {
   }
   function openNewSession(conn: ServerConnection.Any, dir: string) {
     const ctx = global.ensureServerCtx(conn)
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: mode.currentMode,
+      navigate,
       projects: ctx.projects,
       server: ServerConnection.key(conn),
       directory: dir,
@@ -189,6 +192,7 @@ export function CodingSessionListMain() {
   const sync = useServerSync()
   const layout = useLayout()
   const mode = useMode()
+  const navigate = useNavigate()
   const server = useServer()
   const language = useLanguage()
   const global = useGlobal()
@@ -363,8 +367,9 @@ export function CodingSessionListMain() {
     const directory = newSessionDirectory()
     if (!directory) return
     const ctx = global.ensureServerCtx(conn)
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: mode.currentMode,
+      navigate,
       projects: ctx.projects,
       server: ServerConnection.key(conn),
       directory,
@@ -433,6 +438,7 @@ export function CodingSessionListMain() {
 /** Chat asset workbench main surface. */
 export function ChatAssetWorkbenchMain() {
   const assets = useModeWorkspaceAssets()
+  const navigate = useNavigate()
   const { selected: chatFeature } = useChatFeature()
   const dialog = useDialog()
   const language = useLanguage()
@@ -450,8 +456,9 @@ export function ChatAssetWorkbenchMain() {
     if (!c || !dir) return
     const ctx = global.ensureServerCtx(c)
     const seedPrompt = language.t("asset.panel.newSeed", { kind: chatFeature() })
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: "chat",
+      navigate,
       projects: ctx.projects,
       server: ServerConnection.key(c),
       directory: dir,
@@ -472,8 +479,9 @@ export function ChatAssetWorkbenchMain() {
           if (!content) return
           const ctx = global.ensureServerCtx(c)
           const prompt = wrapImportContent(content, language.t("chatImport.untrustedInstruction"))
-          launchModeSession({
+          launchModeSessionOrRoute({
             mode: "chat",
+            navigate,
             projects: ctx.projects,
             server: ServerConnection.key(c),
             directory: dir,
@@ -606,6 +614,7 @@ function WorkPresetCard(props: WorkPresetCardProps) {
 /** Work home surface for recent Sessions, workflows, and presets. */
 export function WorkPresetCatalogMain() {
   const language = useLanguage()
+  const navigate = useNavigate()
   const tabs = useTabs()
   const layout = useLayout()
   const sync = useServerSync()
@@ -698,8 +707,9 @@ export function WorkPresetCatalogMain() {
     void sdk.client.workflowAsset
       .content({ path: asset.relativePath })
       .then((res) =>
-        launchModeSession({
+        launchModeSessionOrRoute({
           mode: "work",
+          navigate,
           projects: currentCtx.projects,
           server: ServerConnection.key(c),
           directory: dir,
@@ -714,8 +724,9 @@ export function WorkPresetCatalogMain() {
       )
       .catch((error) => {
         console.error("[work-home] workflow content load failed", error)
-        launchModeSession({
+        launchModeSessionOrRoute({
           mode: "work",
+          navigate,
           projects: currentCtx.projects,
           server: ServerConnection.key(c),
           directory: dir,
@@ -731,8 +742,9 @@ export function WorkPresetCatalogMain() {
     const currentCtx = ctx()
     const dir = directory()
     if (!c || !currentCtx || !dir) return
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: "work",
+      navigate,
       projects: currentCtx.projects,
       server: ServerConnection.key(c),
       directory: dir,
