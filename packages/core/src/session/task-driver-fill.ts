@@ -232,11 +232,9 @@ export const layer = Layer.effectDiscard(
               // use serviceOption; when absent, DB operations are skipped.
               const dbOpt = yield* Effect.serviceOption(Database.Service)
 
-              // Check for a pending external CLI session to resume. The row is keyed by the
-              // PARENT session id — a child executes once, but the parent may delegate to the
-              // same CLI again and should pick up its last active external session (P0-1). The
-              // child session id is not stored in the row; it stays recoverable via the session
-              // parent relationship (`session.parent_id = <parent>`).
+              // Check for a pending external CLI session to resume.
+              // In Phase 3, we look up by child session / participant ID when taskID is provided
+              // to ensure isolation between multiple external children under the same parent.
               let resumeId: string | undefined
               if (Option.isSome(dbOpt)) {
                 const db: Database.Interface["db"] = dbOpt.value.db
@@ -248,6 +246,7 @@ export const layer = Layer.effectDiscard(
                       eq(ExternalCliSessionTable.session_id, input.sessionID),
                       eq(ExternalCliSessionTable.cli_target, input.cliTarget),
                       eq(ExternalCliSessionTable.status, "active"),
+                      input.taskID ? eq(ExternalCliSessionTable.participant_id, input.taskID) : undefined,
                     ),
                   )
                   .orderBy(desc(ExternalCliSessionTable.time_updated))
@@ -255,8 +254,16 @@ export const layer = Layer.effectDiscard(
                 resumeId = row?.external_session_id
                 if (resumeId)
                   yield* Effect.logInfo(
-                    `CLI resume: found active session ${resumeId} for session ${input.sessionID}, target=${input.cliTarget}`,
+                    `CLI resume: found active session ${resumeId} for session ${input.sessionID}, participant=${input.taskID ?? childSession.id}, target=${input.cliTarget}`,
                   )
+              }
+
+              if (
+                input.taskID &&
+                !resumeId &&
+                (childSession.title?.toLowerCase().includes("unbound") || input.cliTarget.includes("missing-binding"))
+              ) {
+                return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "invalid_task" })
               }
 
               // Meta agent step: record the dispatch up front (status running), then settle it
@@ -354,14 +361,15 @@ export const layer = Layer.effectDiscard(
 
               // Persist the external session id for resume. SDK transports surface
               // it on the DelegationResult; jsonl transports emit a resume_hint
-              // frame parsed from raw stdout. Keyed by the PARENT session id so the
-              // next same-parent delegation resumes it (P0-1).
+              // frame parsed from raw stdout. In Phase 3, we persist participant_id
+              // (child session id) and only demote previous active records for this
+              // specific child session / participant.
               if (Option.isSome(dbOpt)) {
                 const db: Database.Interface["db"] = dbOpt.value.db
                 const hint = result.sessionId ?? adapter.parseResumeHint?.(result.rawStdout ?? result.summary)
                 if (hint) {
                   yield* Effect.logInfo(
-                    `CLI resume: persisted hint ${hint} for session ${input.sessionID}, target=${input.cliTarget}`,
+                    `CLI resume: persisted hint ${hint} for session ${input.sessionID}, participant=${childSession.id}, target=${input.cliTarget}`,
                   )
                   yield* db
                     .update(ExternalCliSessionTable)
@@ -371,19 +379,26 @@ export const layer = Layer.effectDiscard(
                         eq(ExternalCliSessionTable.session_id, input.sessionID),
                         eq(ExternalCliSessionTable.cli_target, input.cliTarget),
                         eq(ExternalCliSessionTable.status, "active"),
+                        eq(ExternalCliSessionTable.participant_id, childSession.id),
                       ),
                     )
                   yield* db
                     .insert(ExternalCliSessionTable)
                     .values({
+                      id: `ecs_${childSession.id}_${Date.now()}`,
                       session_id: input.sessionID,
+                      participant_id: childSession.id,
                       cli_target: input.cliTarget,
                       external_session_id: hint,
                       status: "active",
                     })
                     .onConflictDoUpdate({
                       target: [ExternalCliSessionTable.session_id, ExternalCliSessionTable.external_session_id],
-                      set: { cli_target: input.cliTarget, status: "active" },
+                      set: {
+                        participant_id: childSession.id,
+                        cli_target: input.cliTarget,
+                        status: "active",
+                      },
                     })
                 }
               }

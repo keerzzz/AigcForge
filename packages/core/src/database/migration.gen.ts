@@ -73,5 +73,6 @@ export const migrations = (
     import("./migration/20260901162239_rare_human_cannonball"),
     import("./migration/20260904160809_add_delegation_tables"),
     import("./migration/20260905135615_delegation_origin"),
+    import("./migration/20260906011953_external_cli_session_participant"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

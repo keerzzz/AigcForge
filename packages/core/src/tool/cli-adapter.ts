@@ -18,6 +18,10 @@ export interface DelegationResult {
    * the task driver so the next same-parent delegation resumes it.
    */
   sessionId?: string
+  review?: {
+    reviewedRevisionDigest?: string
+    verdict: "approved" | "changes_requested" | "rejected"
+  }
   files?: { created?: string[]; modified?: string[]; deleted?: string[] }
   errors?: string[]
 }

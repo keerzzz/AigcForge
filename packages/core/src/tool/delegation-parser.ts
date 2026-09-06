@@ -86,9 +86,41 @@ export function parseDelegationResult(text: string): DelegationResult | undefine
     summary = text.includes("<task_error>") ? text.slice(0, 200).trim() : text.slice(0, 200).trim()
   }
 
+  // Extract review envelope (fail closed to changes_requested)
+  const reviewMatch = text.match(/<review>([\s\S]*?)<\/review>/)
+  let review: DelegationResult["review"] = {
+    reviewedRevisionDigest: undefined,
+    verdict: "changes_requested",
+  }
+  if (reviewMatch?.[1]) {
+    try {
+      const parsed: unknown = JSON.parse(reviewMatch[1].trim())
+      if (typeof parsed === "object" && parsed !== null) {
+        const digestCandidate =
+          Reflect.get(parsed, "reviewed_revision_digest") ??
+          Reflect.get(parsed, "reviewedRevisionDigest") ??
+          Reflect.get(parsed, "digest")
+        const reviewedRevisionDigest =
+          typeof digestCandidate === "string" && digestCandidate.trim().length > 0 ? digestCandidate.trim() : undefined
+        const verdictCandidate = Reflect.get(parsed, "verdict")
+        const isValidVerdict =
+          verdictCandidate === "approved" || verdictCandidate === "changes_requested" || verdictCandidate === "rejected"
+        if (isValidVerdict && reviewedRevisionDigest) {
+          review = {
+            reviewedRevisionDigest,
+            verdict: verdictCandidate,
+          }
+        }
+      }
+    } catch {
+      // Invalid JSON fails closed to default changes_requested
+    }
+  }
+
   return {
     status,
     summary: summary || "Task completed",
+    review,
     files:
       created.length || modified.length || deleted.length
         ? {

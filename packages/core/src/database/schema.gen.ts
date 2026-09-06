@@ -100,7 +100,9 @@ export default {
       `)
       yield* tx.run(`
         CREATE TABLE \`external_cli_session\` (
+          \`id\` text PRIMARY KEY,
           \`session_id\` text NOT NULL,
+          \`participant_id\` text,
           \`cli_target\` text NOT NULL,
           \`external_session_id\` text NOT NULL,
           \`status\` text DEFAULT 'active' NOT NULL,
@@ -568,6 +570,9 @@ export default {
       yield* tx.run(`CREATE INDEX \`external_cli_session_session_idx\` ON \`external_cli_session\` (\`session_id\`);`)
       yield* tx.run(
         `CREATE INDEX \`external_cli_session_external_idx\` ON \`external_cli_session\` (\`external_session_id\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`external_cli_session_participant_idx\` ON \`external_cli_session\` (\`participant_id\`);`,
       )
       yield* tx.run(
         `CREATE UNIQUE INDEX \`external_cli_session_unique_idx\` ON \`external_cli_session\` (\`session_id\`,\`external_session_id\`);`,
