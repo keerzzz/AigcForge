@@ -166,6 +166,7 @@ export function withDeadlines(input: { readonly deadlines: Deadlines; readonly f
       // The head is here, so the header deadline has done its job. Leaving it armed would
       // abort a stream that is answering normally, just slowly.
       if (headerTimer !== undefined) clearTimeout(headerTimer)
+      if (totalTimer !== undefined) clearTimeout(totalTimer)
       if (chunkTimeout === undefined || !chunkController) return response
       return watchChunks(response, chunkTimeout, chunkController)
     } catch (error) {
