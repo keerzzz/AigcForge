@@ -269,4 +269,3 @@ describe("defaults", () => {
     expect(bag({}).fetch).toBeInstanceOf(Function)
   })
 })
-
