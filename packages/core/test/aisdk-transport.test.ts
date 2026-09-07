@@ -181,20 +181,23 @@ describe("deadline precedence in prepareOptions", () => {
 
   test("a body deadline does not shorten the one the provider settings declared", async () => {
     // The observable form of the same rule. The fake fetch only settles when its signal
-    // aborts, so a 1ms deadline would reject almost immediately and a 5s one will not. The
-    // window is the assertion — it measures that nothing fired — which is why it waits rather
-    // than polling for a signal.
+    // aborts, so a 1ms deadline would reject almost immediately and a 150ms one will not
+    // have by the window below. The window is the assertion — it measures that nothing
+    // fired — which is why it waits rather than polling for a signal. The exchange is then
+    // settled inside the test: the settings deadline must eventually abort it, and a
+    // pending exchange must not outlive the test (a dangling one keeps the run alive).
     const hang: AISDKTransport.Fetch = (_resource, init) =>
       new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () => reject(new Error("aborted")))
       })
-    const options = AISDK.prepareOptions(model({ timeout: 5_000, fetch: hang }, { timeout: 1 }), "@ai-sdk/openai")
+    const options = AISDK.prepareOptions(model({ timeout: 150, fetch: hang }, { timeout: 1 }), "@ai-sdk/openai")
     const pending = options.fetch("https://provider.test/v1/messages")
     const outcome = await Promise.race([
       pending.then(() => "resolved" as const).catch(() => "aborted" as const),
       new Promise<"still-open">((resolve) => setTimeout(() => resolve("still-open"), 60)),
     ])
     expect(outcome).toBe("still-open")
+    await expect(pending).rejects.toThrow(/aborted/)
   })
 
   test("none of the three deadlines are forwarded to the provider package", () => {

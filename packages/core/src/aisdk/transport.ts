@@ -142,12 +142,21 @@ export function withDeadlines(input: { readonly deadlines: Deadlines; readonly f
       headerTimeout === undefined
         ? undefined
         : setTimeout(() => headerController?.abort(new Error(`No response head for ${headerTimeout}ms`)), headerTimeout)
+    // An explicit timer rather than `AbortSignal.timeout`: the latter's internal timer never
+    // fires on Bun/Windows (observed on 1.3.14 — the abort listener never runs and the exchange
+    // hangs past even Bun's own per-test timeout), while a plain `setTimeout` is what the
+    // header deadline above already relies on and is proven there.
+    const totalController = timeout === undefined ? undefined : new AbortController()
+    const totalTimer =
+      timeout === undefined
+        ? undefined
+        : setTimeout(() => totalController?.abort(new Error(`Aborted after ${timeout}ms`)), timeout)
 
     const signals = [
       options.signal ?? undefined,
       chunkController?.signal,
       headerController?.signal,
-      timeout === undefined ? undefined : AbortSignal.timeout(timeout),
+      totalController?.signal,
     ].filter((value): value is AbortSignal => Boolean(value))
     if (signals.length === 1) options.signal = signals[0]
     if (signals.length > 1) options.signal = AbortSignal.any(signals)
@@ -161,6 +170,7 @@ export function withDeadlines(input: { readonly deadlines: Deadlines; readonly f
       return watchChunks(response, chunkTimeout, chunkController)
     } catch (error) {
       if (headerTimer !== undefined) clearTimeout(headerTimer)
+      if (totalTimer !== undefined) clearTimeout(totalTimer)
       throw error
     }
   }
