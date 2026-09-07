@@ -1,4 +1,5 @@
 import { SessionV1 } from "@aigcfroge/core/v1/session"
+import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Database } from "@aigcfroge/core/database/database"
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -1134,6 +1135,77 @@ it.live("session.processor text-start does not emit PartUpdated with empty text"
         // The only text PartUpdated should come from text-end with "hello".
         expect(textPartUpdates.some((text) => text === "")).toBe(false)
         expect(textPartUpdates).toContain("hello")
+      }),
+    { config: (url) => providerCfg(url) },
+  ),
+)
+
+it.live("session.processor keeps the permission outcome in the failed tool part", () =>
+  provideTmpdirServer(
+    ({ dir, llm }) =>
+      Effect.gen(function* () {
+        // V1 parity for the V2 leaf translator. The report's silent Work denial was seen on
+        // the default runtime, so "V2 now distinguishes the outcomes" is only half an
+        // answer — this pins what the V1 path already does, from its real entry
+        // (`SessionProcessor.failToolCall`) rather than from the error classes.
+        const { processors, session, provider } = yield* boot()
+        const mdl = yield* provider.getModel(ref.providerID, ref.modelID)
+
+        const turn = Effect.fn("test.deniedTurn")(function* (label: string, failure: Error) {
+          yield* llm.tool("guarded", { path: "notes.md" })
+          const chat = yield* session.create({})
+          const parent = yield* user(chat.id, label)
+          const msg = yield* assistant(chat.id, parent.id, path.resolve(dir))
+          const handle = yield* processors.create({ assistantMessage: msg, sessionID: chat.id, model: mdl })
+          const outcome = yield* handle.process({
+            user: {
+              id: parent.id,
+              sessionID: chat.id,
+              role: "user",
+              time: parent.time,
+              agent: parent.agent,
+              model: { providerID: ref.providerID, modelID: ref.modelID },
+            } satisfies SessionV1.User,
+            sessionID: chat.id,
+            model: mdl,
+            agent: agent(),
+            system: [],
+            messages: [{ role: "user", content: label }],
+            tools: {
+              guarded: tool({
+                description: "Touch a guarded path",
+                inputSchema: z.object({ path: z.string() }),
+                // Annotated because a body that only throws infers `never`, which the AI SDK
+                // tool overload rejects.
+                execute: async (): Promise<{ title: string; output: string }> => {
+                  throw failure
+                },
+              }),
+            },
+          })
+          const parts = yield* MessageV2.parts(msg.id)
+          const call = parts.find((part): part is SessionV1.ToolPart => part.type === "tool")
+          return { outcome, state: call?.state }
+        })
+
+        const corrected = yield* turn(
+          "corrected",
+          new PermissionV1.CorrectedError({ feedback: "edit docs/notes.md instead" }),
+        )
+        const rejected = yield* turn("rejected", new PermissionV1.RejectedError())
+
+        // The part has to say a person refused, and a correction has to survive the trip —
+        // that is the whole difference between "the model can choose again" and the silent
+        // stop the report recorded.
+        expect(corrected.state?.status).toBe("error")
+        expect(rejected.state?.status).toBe("error")
+        if (corrected.state?.status === "error") expect(corrected.state.error).toContain("edit docs/notes.md instead")
+        if (rejected.state?.status === "error") expect(rejected.state.error).toContain("The user rejected permission")
+        // Recorded, not prescribed. `failToolCall:241` only marks the turn blocked for a
+        // bare rejection, so V1 already differentiates: a correction carries instructions,
+        // so the turn continues and the model can act on them; a flat refusal ends it.
+        expect(corrected.outcome).toBe("continue")
+        expect(rejected.outcome).toBe("stop")
       }),
     { config: (url) => providerCfg(url) },
   ),

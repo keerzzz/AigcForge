@@ -34,6 +34,10 @@ export interface MockServerConfig {
   /** Optional response for the Agent Asset apply route used by browser regression tests. */
   agentAssetApply?: unknown
   agentAssetApplyStatus?: number
+  /** Optional session status projection served by GET /session/status, keyed by session
+   * id. The default `{}` leaves every session idle, which makes every busy-turn surface
+   * (the timeline's Thinking row, and anything derived from a running turn) unreachable. */
+  sessionStatus?: Record<string, unknown>
 }
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
@@ -71,6 +75,8 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
       return json(route, config.agentAssetApply ?? {}, undefined, config.agentAssetApplyStatus ?? 200)
     }
     if (path === "/vcs/diff" && config.vcsDiff) return json(route, config.vcsDiff)
+    // Checked before `emptyObject`, which would otherwise pin every session to idle.
+    if (path === "/session/status") return json(route, config.sessionStatus ?? {})
     if (emptyObject.has(path)) return json(route, {})
     if (emptyList.has(path)) return json(route, [])
     if (path in staticRoutes) return json(route, staticRoutes[path])

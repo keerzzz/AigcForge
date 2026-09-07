@@ -37,6 +37,13 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionStore") {}
 
+/**
+ * The `revert` column's own type. Its id brand comes from the V1 session module
+ * (`sql.ts:11`) while V2 carries `SessionMessage.ID` for the same string, so the two ends
+ * need one narrow cast in each direction — `fromRow` does the read side.
+ */
+type RevertColumn = NonNullable<typeof SessionTable.$inferInsert.revert>
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -81,12 +88,15 @@ export const layer = Layer.effect(
         yield* db
           .update(SessionTable)
           .set({
-            // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- the column type wants branded MessageID/PartID and omits the null placeholders this write persists
+            // Absent fields are omitted, not written as null: `SessionV2.Revert` declares
+            // `snapshot`/`diff` as `Schema.optional`, so a persisted null makes `fromRow`
+            // fail to decode the row this very call just wrote.
             revert: {
-              messageID: input.revert.messageID,
-              snapshot: input.revert.snapshot ?? null,
-              diff: input.revert.diff ?? null,
-            } as any,
+              // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- V1/V2 id brands for the same string, see RevertColumn
+              messageID: input.revert.messageID as RevertColumn["messageID"],
+              ...(input.revert.snapshot === undefined ? {} : { snapshot: input.revert.snapshot }),
+              ...(input.revert.diff === undefined ? {} : { diff: input.revert.diff }),
+            },
             summary_additions: input.summary.additions,
             summary_deletions: input.summary.deletions,
             summary_files: input.summary.files,
@@ -97,7 +107,7 @@ export const layer = Layer.effect(
       clearRevert: Effect.fn("SessionStore.clearRevert")(function* (sessionID) {
         yield* db
           .update(SessionTable)
-          .set({ revert: null as any, summary_additions: null, summary_deletions: null, summary_files: null })
+          .set({ revert: null, summary_additions: null, summary_deletions: null, summary_files: null })
           .where(eq(SessionTable.id, sessionID))
           .pipe(Effect.orDie)
       }),

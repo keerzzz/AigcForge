@@ -2,6 +2,7 @@ import { createContext, useContext, type ParentProps } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 export const MODE_DEFINITIONS = [
   {
@@ -66,7 +67,9 @@ export function modeHref(mode: Mode) {
   return modeDefinition(mode).href
 }
 
-export function modeDraft(mode: Mode) {
+// Same narrowing as `launchModeSession`: this builds an ordinary draft, and `custom` cannot be
+// created that way. `titlebar.tsx` used to reach here with `mode.currentMode` directly.
+export function modeDraft(mode: ProductMode.GenericSessionMode) {
   return {
     mode,
     agent: ProductModeAgentPolicy.resolvePrimaryAgent(mode),

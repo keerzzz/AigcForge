@@ -1697,7 +1697,54 @@ export default function Page() {
   }
 
   const sessionMode = () => info()?.mode
-  const actions = { revert, handoff, capture: sessionMode() !== "chat" ? capture : undefined }
+  const stopTurn = () => {
+    const sessionID = params.id
+    if (!sessionID) return
+    void halt(sessionID)
+  }
+  // Reuses the same extractor the revert flow and the message preview already use, so a
+  // stalled turn's text comes back without touching the working tree — a revert would be
+  // both destructive and, for a turn that captured no snapshot, a no-op.
+  const restorePrompt = (userMessageID: string) => {
+    const value = draft(userMessageID)
+    prompt.set(value)
+  }
+  // The session's own changed-file count, and only when there is one. `session_diff` is what
+  // the session has changed so far, not what this revert will rewrite — the client has no source
+  // for that second number, so the dialog labels the one it does have and shows nothing
+  // otherwise. Passing the message count off as a file count is the failure mode being avoided.
+  const revertPreview = () => {
+    const id = params.id
+    if (!id) return undefined
+    const diffs = sync().data.session_diff[id]
+    if (!diffs || diffs.length === 0) return undefined
+    return { changedFiles: diffs.length }
+  }
+
+  // Read-only, cached by `sync().session.diff` itself, and only on an actual confirmation.
+  //
+  // The rejection is caught rather than left to `void`: `util/retry` rethrows after its attempts,
+  // so this would be an unhandled rejection. Swallowing it is deliberate and not silent — the
+  // dialog's documented behaviour without a diff is to describe the effect and show no count, so
+  // a failed preview lands in a state the user can already be in, and the destructive action
+  // still needs confirming either way.
+  const requestRevertPreview = () => {
+    const id = params.id
+    if (!id) return
+    void sync()
+      .session.diff(id)
+      .catch(() => {})
+  }
+
+  const actions = {
+    revert,
+    revertPreview,
+    requestRevertPreview,
+    handoff,
+    capture: sessionMode() !== "chat" ? capture : undefined,
+    stop: stopTurn,
+    restorePrompt,
+  }
 
   createEffect(() => {
     const sessionID = params.id

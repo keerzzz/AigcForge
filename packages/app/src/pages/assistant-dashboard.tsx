@@ -25,6 +25,7 @@ import {
   type HomeSessionRecord,
 } from "@/pages/home-shared"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
+import { useModeSlotActive } from "@/pages/mode-slot-active"
 
 /** Assistant dashboard for reminders, deliveries, memory, notes, and Sessions. */
 export function AssistantDashboardMain() {
@@ -38,7 +39,13 @@ export function AssistantDashboardMain() {
   const { conn, ctx, directory } = useModeDirectory()
   const { selection } = useAssistantSelection()
 
+  // All five of these are Assistant-only, and `ModeWorkspace` keeps every mode's slot
+  // mounted, so without this gate opening Coding also asked the server for the Assistant's
+  // reminders, memory and knowledge base. Same shape as the coding and work session loads
+  // in `mode-workspace-slots.tsx`.
+  const slotActive = useModeSlotActive()
   const pendingQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "pending"),
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
@@ -51,6 +58,7 @@ export function AssistantDashboardMain() {
   const pending = createMemo(() => pendingQuery.data ?? [])
 
   const recentQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "recent"),
     queryFn: async () => {
       const res = await serverSDK().client.delivery.recent({ limit: 6 })
@@ -60,6 +68,7 @@ export function AssistantDashboardMain() {
   const recent = createMemo(() => recentQuery.data ?? [])
 
   const memoryQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
@@ -90,6 +99,7 @@ export function AssistantDashboardMain() {
   }
 
   const kbQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
@@ -155,6 +165,7 @@ export function AssistantDashboardMain() {
     return dir ? [dir] : []
   })
   const sessionLoad = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: [serverSDK().scope, "home", "assistant-sessions", ...projectDirectories()] as const,
     queryFn: async () => {
       await Promise.all(projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })))

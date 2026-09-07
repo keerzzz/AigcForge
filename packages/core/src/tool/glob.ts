@@ -9,6 +9,7 @@ import { Location } from "../location"
 import { Ripgrep } from "../ripgrep"
 import { RelativePath } from "../schema"
 import { PermissionV2 } from "../permission"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -102,10 +103,8 @@ export const layer = Layer.effectDiscard(
                   ),
                 )
             }).pipe(
-              Effect.mapError((error) =>
-                error instanceof ToolFailure
-                  ? error
-                  : new ToolFailure({ message: `Unable to find files matching ${input.pattern}` }),
+              Effect.mapError(
+                ToolPermissionFailure.toToolFailure(name, `Unable to find files matching ${input.pattern}`),
               ),
             ),
         }),

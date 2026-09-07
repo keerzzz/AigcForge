@@ -1,6 +1,6 @@
 import { Show, createEffect, createMemo, createSignal, For, onCleanup, onMount, untrack, type Accessor } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import { useParams } from "@solidjs/router"
+import { useNavigate, useParams } from "@solidjs/router"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
@@ -30,7 +30,7 @@ import {
   displayName,
   errorMessage,
   homeProjectDirectories,
-  launchModeSession,
+  launchModeSessionOrRoute,
   sortedRootSessions,
 } from "@/pages/layout/helpers"
 import { SortableWorkspace, LocalWorkspace, WorkspaceDragOverlay } from "@/pages/layout/sidebar-workspace"
@@ -54,6 +54,7 @@ import { computeAutoSync } from "./secondary-sidebar-autosync"
 function SecondarySidebar() {
   const language = useLanguage()
   const mode = useMode()
+  const navigate = useNavigate()
   const global = useGlobal()
   const tabs = useTabs()
   const server = useServer()
@@ -143,8 +144,9 @@ function SecondarySidebar() {
     const c = conn()
     if (!c) return
     const ctxInst = global.ensureServerCtx(c)
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: mode.currentMode,
+      navigate,
       projects: ctxInst.projects,
       server: ServerConnection.key(c),
       directory: project.worktree,
@@ -154,8 +156,9 @@ function SecondarySidebar() {
 
   function openProjectNewSessionFn(c: ServerConnection.Any, directory: string) {
     const ctxInst = global.ensureServerCtx(c)
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: mode.currentMode,
+      navigate,
       projects: ctxInst.projects,
       server: ServerConnection.key(c),
       directory,
@@ -712,6 +715,7 @@ function SecondaryProjectRow(props: {
   currentMode: Mode
 }) {
   const language = useLanguage()
+  const navigate = useNavigate()
   const global = useGlobal()
   const server = useServer()
   const layout = useLayout()
@@ -750,8 +754,9 @@ function SecondaryProjectRow(props: {
     const c = conn()
     if (!c) return
     const cctx = global.ensureServerCtx(c)
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: props.currentMode,
+      navigate,
       projects: cctx.projects,
       server: ServerConnection.key(c),
       directory: props.project.worktree,
@@ -765,8 +770,9 @@ function SecondaryProjectRow(props: {
       if (!c) return
       const cctx = global.ensureServerCtx(c)
       props.ctx.setWorkspaceExpanded(directory, true)
-      launchModeSession({
+      launchModeSessionOrRoute({
         mode: props.currentMode,
+        navigate,
         projects: cctx.projects,
         server: ServerConnection.key(c),
         directory,

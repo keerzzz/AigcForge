@@ -9,6 +9,7 @@ import { Location } from "../location"
 import { PermissionV2 } from "../permission"
 import { Ripgrep } from "../ripgrep"
 import { RelativePath } from "../schema"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -133,13 +134,7 @@ export const layer = Layer.effectDiscard(
                     ),
                   ),
                 )
-            }).pipe(
-              Effect.mapError((error) =>
-                error instanceof ToolFailure
-                  ? error
-                  : new ToolFailure({ message: `Unable to grep for ${input.pattern}` }),
-              ),
-            ),
+            }).pipe(Effect.mapError(ToolPermissionFailure.toToolFailure(name, `Unable to grep for ${input.pattern}`))),
         }),
       })
       .pipe(Effect.orDie)

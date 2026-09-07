@@ -148,12 +148,23 @@ export const layer = Layer.effect(
   }),
 )
 
-export const locationLayer = layer.pipe(
-  Layer.provideMerge(AgentV2.locationLayer),
-  Layer.provideMerge(AISDK.locationLayer),
-  Layer.provideMerge(Catalog.locationLayer),
-  Layer.provideMerge(CommandV2.locationLayer),
-  Layer.provideMerge(Integration.locationLayer),
-  Layer.provideMerge(Reference.locationLayer),
-  Layer.provideMerge(SkillV2.locationLayer),
+// Suspended because this module sits inside import cycles and the composition reads seven
+// sibling modules' `locationLayer` bindings. Cycles here are normal and mostly harmless —
+// `plugin/host.ts` only touches `PluginV2.ID` from inside function bodies, by which time
+// every module is initialised. The one thing that is not safe is reading another module's
+// binding *while modules are still evaluating*, which is exactly what building this pipe at
+// module scope did: entering the graph at `location-layer.ts` starts `skill.ts`, which
+// reaches back here through permission -> session -> location-layer, and `SkillV2.locationLayer`
+// is then still in its TDZ. Deferring the reads to build time removes the ordering
+// dependency without pretending the cycles are gone.
+export const locationLayer = Layer.suspend(() =>
+  layer.pipe(
+    Layer.provideMerge(AgentV2.locationLayer),
+    Layer.provideMerge(AISDK.locationLayer),
+    Layer.provideMerge(Catalog.locationLayer),
+    Layer.provideMerge(CommandV2.locationLayer),
+    Layer.provideMerge(Integration.locationLayer),
+    Layer.provideMerge(Reference.locationLayer),
+    Layer.provideMerge(SkillV2.locationLayer),
+  ),
 )

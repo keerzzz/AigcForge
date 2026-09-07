@@ -50,6 +50,8 @@ import { getDirectory as _getDirectory, getFilename } from "@aigcfroge/core/util
 import { checksum } from "@aigcfroge/core/util/encode"
 import { TooltipV2 } from "@aigcfroge/ui/v2/tooltip-v2"
 import { IconButton } from "@aigcfroge/ui/icon-button"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+import { Dialog, DialogFooter } from "@aigcfroge/ui/v2/dialog-v2"
 import { Spinner } from "@aigcfroge/ui/spinner"
 import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 import { AnimatedCountList } from "./tool-count-summary"
@@ -179,6 +181,31 @@ export type UserActions = {
   revert?: SessionAction
   handoff?: (label: string, agent: string, prompt: string, send?: boolean) => void
   capture?: () => void
+  /** Abort the running turn. Present only where the caller owns a live session. */
+  stop?: () => void
+  /**
+   * Put a past turn's prompt back into the composer, without sending it and without
+   * reverting anything. The caller keeps ownership of the draft store.
+   */
+  restorePrompt?: (userMessageID: string) => void
+  /**
+   * Facts for the revert confirmation, owned by the caller.
+   *
+   * `changedFiles` is the session's own changed-file count, not a prediction of what the
+   * revert will rewrite — nothing in the client knows that number, and the confirmation says
+   * which one it is showing. Absent when there is no diff to report, in which case the dialog
+   * describes the effect and invents nothing.
+   */
+  revertPreview?: () => { changedFiles: number } | undefined
+  /**
+   * Ask the owner to make that preview available, called when the confirmation opens.
+   *
+   * Needed because the session diff is only fetched when the review surface wants it
+   * (`session.tsx:1101`), so a confirmation that merely read the store would show a count to
+   * whoever had visited the review tab and nothing to everyone else. One read-only request on a
+   * destructive confirmation is the proportionate answer.
+   */
+  requestRevertPreview?: () => void
 }
 
 export interface MessagePartProps {
@@ -1138,7 +1165,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
     }
   }
 
-  const revert = () => {
+  const runRevert = () => {
     const act = props.actions?.revert
     if (!act || busy()) return
     setState("busy", true)
@@ -1150,6 +1177,54 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
         }),
       )
       .finally(() => setState("busy", false))
+  }
+
+  /**
+   * Ask before reverting.
+   *
+   * `revert` restores the workspace files on disk (`core/src/session/revert.ts:43`), so a stray
+   * click rewrote the user's working tree with no prompt. It is recoverable through the dock,
+   * but recoverable is not the same as intended, and the only guard here was `disabled={busy()}`
+   * — which covers a running turn and nothing else.
+   */
+  const confirmRevert = () => {
+    if (!props.actions?.revert || busy()) return
+    props.actions.requestRevertPreview?.()
+    void dialog.show(() => (
+      <Dialog title={i18n.t("ui.message.revert.title")} fit>
+        <div class="flex flex-col gap-4 pl-6 pr-2.5 pb-3">
+          <span class="text-14-regular text-text-strong">{i18n.t("ui.message.revert.effect")}</span>
+          {/* Read inside `Show` so it tracks: the dialog can open before the session diff has
+                landed, and a one-time read would leave it permanently countless. */}
+          <Show when={props.actions?.revertPreview?.()}>
+            {(facts) => (
+              <span class="text-12-regular text-text-weak">
+                {i18n.t(facts().changedFiles === 1 ? "ui.message.revert.files.one" : "ui.message.revert.files.other", {
+                  count: String(facts().changedFiles),
+                })}
+              </span>
+            )}
+          </Show>
+          <DialogFooter>
+            {/* Focus starts on Cancel, not on the destructive action: the dialog exists because
+                  this writes to disk, and autofocusing the confirm button would let a stray Enter
+                  do the thing the confirmation was added to prevent. */}
+            <ButtonV2 variant="neutral" autofocus onClick={() => dialog.close()}>
+              {i18n.t("ui.common.cancel")}
+            </ButtonV2>
+            <ButtonV2
+              variant="contrast"
+              onClick={() => {
+                dialog.close()
+                runRevert()
+              }}
+            >
+              {i18n.t("ui.message.revert.confirm")}
+            </ButtonV2>
+          </DialogFooter>
+        </div>
+      </Dialog>
+    ))
   }
 
   return (
@@ -1225,7 +1300,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(event) => {
                     event.stopPropagation()
-                    revert()
+                    confirmRevert()
                   }}
                   aria-label={i18n.t("ui.message.revertMessage")}
                 />

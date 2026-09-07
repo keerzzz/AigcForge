@@ -15,6 +15,7 @@ import { SecondarySidebar } from "@/components/secondary-sidebar"
 import { StatusBar } from "@/components/status-bar/status-bar"
 import { createCurrentSessionSource } from "@/components/status-bar/current-session-source"
 import { useLayout } from "@/context/layout"
+import { SurfacePending } from "@/pages/surface-pending"
 
 function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   const mode = useMode()
@@ -40,7 +41,22 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
           <SecondarySidebar />
         </Show>
         <main class="flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col items-start contain-strict">
-          <Suspense>{props.children}</Suspense>
+          {/*
+            Stated precisely, because measuring it moved the blame: the reported blank `<main>`
+            was a mode slot's resource suspending to this boundary, and the fix for that is the
+            per-slot boundary in `mode-workspace.tsx`, which is what the e2e now pins.
+
+            It has exactly one reachable trigger, and it is not tested yet: `app.tsx:64` loads
+            `NewSession` through `lazy()`, so `/new-session` can suspend here while its module
+            loads. Driving that from a test needs the Home new-session action to navigate, which
+            is the P2-HOME-EMPTY defect — it silently returns today — so the coverage lands with
+            that fix. Every other route is eagerly imported and reads no resource above the slot
+            boundaries, so nothing else reaches this fallback.
+
+            It stays regardless: a boundary with no fallback is what produced the P1, and three
+            separate comments in this repo already point here as the hazard.
+          */}
+          <Suspense fallback={<SurfacePending owner="route" class="flex-1 self-stretch" />}>{props.children}</Suspense>
         </main>
       </div>
       <StatusBar source={statusSource} />

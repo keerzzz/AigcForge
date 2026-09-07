@@ -1,3 +1,4 @@
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { describe, expect, test } from "bun:test"
 import {
   collectNewSessionDeepLinks,
@@ -153,7 +154,7 @@ describe("layout workspace helpers", () => {
   // that census stood in for is the mode default and the override precedence, which
   // the case above never reached because it always passed an explicit agent.
   test("launchModeSession defaults the draft agent from the mode when no override is given", () => {
-    const draftFor = (mode: Mode) => {
+    const draftFor = (mode: ProductMode.GenericSessionMode) => {
       const drafts: Array<Omit<DraftTab, "type" | "draftID">> = []
       launchModeSession({
         mode,
@@ -165,7 +166,8 @@ describe("layout workspace helpers", () => {
       return drafts[0]
     }
 
-    for (const mode of ["coding", "chat", "work", "custom"] as const) {
+    // custom is absent on purpose: it has no ordinary draft path (see mode.test.ts).
+    for (const mode of ["coding", "chat", "work"] as const) {
       expect(draftFor(mode)).toMatchObject({ mode, agent: "meta" })
     }
     // Assistant is the one mode with its own orchestrator.

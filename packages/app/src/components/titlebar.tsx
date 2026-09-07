@@ -13,6 +13,7 @@ import {
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Icon } from "@aigcfroge/ui/icon"
 import { Button } from "@aigcfroge/ui/button"
@@ -43,7 +44,7 @@ import "./titlebar.css"
 import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
-import { modeDraft, useMode } from "@/context/mode"
+import { modeDraft, useMode, modeDefinition } from "@/context/mode"
 import { debounce } from "@solid-primitives/scheduled"
 import { shouldPrefetchTab } from "./titlebar-prefetch-policy"
 
@@ -340,18 +341,27 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
               const activeSession = session()
 
               const draftInDir = (serverKey: ServerConnection.Key, directory: string) => {
+                // Decided once, before either path: both of them build an ordinary draft, and
+                // a mode without a generic creation path has to go to its own creator instead.
+                // The `else` branch below was the bypass — it reached `modeDraft` directly, so
+                // narrowing only `launchModeSession` would have left it open.
+                if (!ProductMode.isGenericSessionMode(mode.currentMode)) {
+                  navigate(modeDefinition(mode.currentMode).href)
+                  return
+                }
+                const generic = mode.currentMode
                 const conn = server.list.find((item) => ServerConnection.key(item) === serverKey)
                 if (conn) {
                   const ctx = global.ensureServerCtx(conn)
                   launchModeSession({
-                    mode: mode.currentMode,
+                    mode: generic,
                     projects: ctx.projects,
                     server: serverKey,
                     directory,
                     tabs,
                   })
                 } else {
-                  tabs.newDraft({ server: serverKey, directory, ...modeDraft(mode.currentMode) })
+                  tabs.newDraft({ server: serverKey, directory, ...modeDraft(generic) })
                 }
               }
 

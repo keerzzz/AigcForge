@@ -56,7 +56,7 @@ export function define<R>(plugin: Plugin<R>) {
   return plugin
 }
 
-export const locationLayer = Layer.effectDiscard(
+const bootLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const catalog = yield* Catalog.Service
     const commands = yield* CommandV2.Service
@@ -115,9 +115,17 @@ export const locationLayer = Layer.effectDiscard(
       yield* add(ConfigExternalPlugin.Plugin)
     }).pipe(Effect.withSpan("PluginInternal.boot"), Effect.forkScoped({ startImmediately: true }))
   }),
-).pipe(
-  Layer.provideMerge(PluginV2.locationLayer),
-  Layer.provideMerge(Config.locationLayer),
-  Layer.provideMerge(FileSystem.locationLayer),
-  Layer.provideMerge(FetchHttpClient.layer),
+)
+
+// Same reason as `plugin.ts`: this module is in a cycle with every `config/plugin/*` module
+// (they import `define` from here, this file imports their `Plugin` values to register them),
+// so `PluginV2.locationLayer` can be in its TDZ when this composition runs at module scope.
+// The registration list above is unaffected — it already runs inside an Effect.
+export const locationLayer = Layer.suspend(() =>
+  bootLayer.pipe(
+    Layer.provideMerge(PluginV2.locationLayer),
+    Layer.provideMerge(Config.locationLayer),
+    Layer.provideMerge(FileSystem.locationLayer),
+    Layer.provideMerge(FetchHttpClient.layer),
+  ),
 )

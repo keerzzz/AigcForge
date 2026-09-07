@@ -20,7 +20,7 @@ Work 模式是产品的**非编程执行层**——通过硬编码系统预设�
 | **同名冲突询问**（orchestrator 询问重命名/覆盖 + 新旧 Diff 确认）                                | ✅ M1 已实现                                                                                                      |
 | **原子落盘 + Artifact 投影**（内存态记录 + `work.artifact_applied` 事件，ADR-15 §5 不落库）      | ✅ M1 已实现                                                                                                      |
 | **首页会话历史**（mode=work 历史列表 + 点开继续）                                                | ✅ 已实现（`mode-workspace-slots.tsx` 的 work session 列表 + `openSessionRecord`）                                |
-| **用户工作流资产**（Chat workflow 资产进首页卡片，引导降级执行）                                 | ✅ 已实现（`mode-workspace-slots.tsx:667` 的 `workflowAssets`）                                                   |
+| **用户工作流资产**（Chat workflow 资产进首页卡片，引导降级执行）                                 | ✅ 已实现（`mode-workspace-slots.tsx:683` 的 `workflowAssets`（`whenActive` 门控，隐藏槽不发请求））              |
 | Progress Ledger 步骤账本 + 断点恢复 (Resume)                                                     | ✅ M1.5 已实现（`session/timeline/session-todo-progress.tsx`，Resume 发 `work.resume.prompt`）                    |
 | 存为资产 → Chat 资产工作室                                                                       | ✅ M2 已实现（`pages/work-asset-capture.ts` → Chat propose store，门禁 `e2e/regression/work-asset-save.spec.ts`） |
 | Mermaid 图内联渲染                                                                               | ✅ M3 已实现（门禁 `e2e/regression/work-mermaid-artifact.spec.ts`）                                               |

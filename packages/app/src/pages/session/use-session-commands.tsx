@@ -5,7 +5,8 @@ import { DialogSelectModel } from "@/components/dialog-select-model"
 import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
 import { useFile, selectionFromLines, type FileSelection, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
-import { useMode } from "@/context/mode"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { modeDefinition, useMode } from "@/context/mode"
 import { useLayout } from "@/context/layout"
 import { useLocal } from "@/context/local"
 import { usePermission } from "@/context/permission"
@@ -382,6 +383,12 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       slash: "new",
       onSelect: () => {
         if (params.serverKey) {
+          // A mode without a generic creation path has to go to its own creator, or the
+          // draft's first send is guaranteed to fail. Same guard as the titlebar.
+          if (!ProductMode.isGenericSessionMode(mode.currentMode)) {
+            navigate(modeDefinition(mode.currentMode).href)
+            return
+          }
           sessionTabs.newDraft({
             server: requireServerKey(params.serverKey),
             directory: sdk().directory,
@@ -442,6 +449,11 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
           id: "tab.close",
           title: language.t("command.tab.close"),
           keybind: "mod+w",
+          // Deliberately shadows the Titlebar's `tab.close` while this session has a closable
+          // child tab: mod+w should close the file/context tab the user is looking at, not the
+          // whole session. Measured both ways — without this, the shortcut takes the session
+          // tab with it. Declared so the registry can tell a narrowing from a collision.
+          overrides: true,
           onSelect: closeTab,
         }),
     ].filter((v) => !!v)

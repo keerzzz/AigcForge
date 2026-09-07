@@ -1,7 +1,6 @@
 export * as BashTool from "./bash"
 
 import path from "path"
-import { ToolFailure } from "@aigcfroge/llm"
 import { Duration, Effect, Layer, Schema } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { Config } from "../config"
@@ -10,6 +9,7 @@ import { LocationMutation } from "../location-mutation"
 import { AppProcess } from "../process"
 import { PermissionV2 } from "../permission"
 import { PositiveInt } from "../schema"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -195,7 +195,9 @@ export const layer = Layer.effectDiscard(
                 ...(result.stdoutTruncated ? { stdoutTruncated: true } : {}),
                 ...(result.stderrTruncated ? { stderrTruncated: true } : {}),
               }
-            }).pipe(Effect.mapError(() => new ToolFailure({ message: `Unable to execute command: ${input.command}` }))),
+            }).pipe(
+              Effect.mapError(ToolPermissionFailure.toToolFailure(name, `Unable to execute command: ${input.command}`)),
+            ),
         }),
       })
       .pipe(Effect.orDie)

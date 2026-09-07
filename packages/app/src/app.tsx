@@ -10,7 +10,7 @@ import { Font } from "@aigcfroge/ui/font"
 import { Splash } from "@aigcfroge/ui/logo"
 import { ThemeProvider } from "@aigcfroge/ui/theme/context"
 import { MetaProvider } from "@solidjs/meta"
-import { type BaseRouterProps, Navigate, Route, Router, useParams, useSearchParams } from "@solidjs/router"
+import { Navigate, Route, Router, type BaseRouterProps, useNavigate, useParams, useSearchParams } from "@solidjs/router"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { Effect } from "effect"
 import {
@@ -54,7 +54,7 @@ import Layout from "@/pages/layout"
 import { ErrorPage } from "./pages/error"
 import { useCheckServerHealth } from "./utils/server-health"
 import { requireServerKey, rootSession, sessionHref } from "./utils/session-route"
-import { launchModeSession } from "@/pages/layout/helpers"
+import { launchModeSessionOrRoute } from "@/pages/layout/helpers"
 import { ApprovalCenter } from "@/components/approval-center"
 
 import Session from "@/pages/session"
@@ -74,6 +74,7 @@ function LegacySessionRedirect() {
   const tabs = useTabs()
   const global = useGlobal()
   const mode = useMode()
+  const navigate = useNavigate()
   if (params.id) return <Navigate href={sessionHref(server.key, params.id)} />
   // First render: redirect to new-session placeholder; createEffect runs once
   // to create an actual draft with the first available project directory.
@@ -86,8 +87,9 @@ function LegacySessionRedirect() {
       const projects = ctx.projects.list()
       const dir = projects[0]?.worktree
       if (dir) {
-        launchModeSession({
+        launchModeSessionOrRoute({
           mode: mode.currentMode,
+          navigate,
           projects: ctx.projects,
           server: key,
           directory: dir,

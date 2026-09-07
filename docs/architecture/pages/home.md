@@ -50,7 +50,7 @@ URL: /mode/:mode
 ```
 HomeOverview
 ├── 左列
-│   ├── ModeFilter        — 模式筛选（all/mode）
+│   ├── ModeFilter        — 模式筛选（all/五档，由 `MODE_DEFINITIONS` 派生，非手抄——S6 修掉漏 custom 的副本）
 │   └── ProjectFilter     — 项目维度（复用 HomeProjectRow 点击过滤）
 ├── 主列
 │   ├── HomeSessionSearch — 全量 Session 搜索（home-shared）

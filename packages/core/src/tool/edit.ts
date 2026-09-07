@@ -12,6 +12,7 @@ import { FileMutation } from "../file-mutation"
 import { FSUtil } from "../fs-util"
 import { LocationMutation } from "../location-mutation"
 import { PermissionV2 } from "../permission"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -113,7 +114,7 @@ export const layer = Layer.effectDiscard(
                       ? new ToolFailure({
                           message: "File changed after permission approval. Read it again before editing.",
                         })
-                      : new ToolFailure({ message: `Unable to edit ${input.path}` }),
+                      : ToolPermissionFailure.toToolFailure(name, `Unable to edit ${input.path}`)(error),
                   ),
                 )
 

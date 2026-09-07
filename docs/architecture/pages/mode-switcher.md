@@ -52,7 +52,7 @@ ModeSwitcher 是唯一的模块入口（首页模式卡片已随 `home.tsx` 拆�
   → 不创建/恢复 Draft 或 Session，不选择 Tab，不改变 Agent
 ```
 
-Home（`/`）**不是** Mode 面：`pages/layout.tsx:36` 就把 `<ModeSwitcher />` 门在 `pathname !== "/"`，所以首页上根本不挂载切换器；Home 列出所有模式的 Session，并用自己的一组过滤 chip（与 ModeSwitcher 同名但不同物）收窄列表。Home 点开一条 Session 后，Mode 由 canonical Session 路由从 `Session.mode` 单向激活，而不是由 Home 决定。三条性质由 `e2e/regression/home-mode-ownership.spec.ts` 钉住。
+Home（`/`）**不是** Mode 面：`pages/layout.tsx:38` 就把 `<ModeSwitcher />` 门在 `pathname !== "/"`，所以首页上根本不挂载切换器；Home 列出所有模式的 Session，并用自己的一组过滤 chip（与 ModeSwitcher 同名但不同物）收窄列表。Home 点开一条 Session 后，Mode 由 canonical Session 路由从 `Session.mode` 单向激活，而不是由 Home 决定。三条性质由 `e2e/regression/home-mode-ownership.spec.ts` 钉住。
 
 Session/Draft 路由仍是工作项 canonical URL；在这些路由上，`currentMode` 分别跟随 `Session.mode` 或 `DraftTab.mode`。
 
@@ -78,7 +78,7 @@ Fork → 继承 source.mode
 
 - `MODE_DEFINITIONS` / `modeHref(m)` — ModeSwitcher、ModeRoute 与 Mode surface 的单一导航/展示契约（id、href、icon、i18n keys、surface slot），五档含 `custom`
 - `setCurrentMode(m)` — [mode.tsx](../../../packages/app/src/context/mode.tsx) 只接受 route/work item authority 的单向激活
-- `ModeSwitcher` — [mode-switcher.tsx](../../../packages/app/src/components/mode-switcher.tsx) 全局 Icon 导航入口（`MODE_DEFINITIONS` href 直接 navigate），由 `pages/layout.tsx:36` 在首页外挂载
+- `ModeSwitcher` — [mode-switcher.tsx](../../../packages/app/src/components/mode-switcher.tsx) 全局 Icon 导航入口（`MODE_DEFINITIONS` href 直接 navigate），由 `pages/layout.tsx:38` 在首页外挂载
 - `ModeSwitcher` utilities — 帮助打开反馈页；设置打开共享 `DialogSettings`
 - `ModeRoute` / `ModeWorkspace` — `/mode/:mode` 的参数化入口和共享工作区
 - `DraftTab.mode` — [tabs.tsx](../../../packages/app/src/context/tabs.tsx) Session 创建归属来源

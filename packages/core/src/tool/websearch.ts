@@ -1,12 +1,12 @@
 export * as WebSearchTool from "./websearch"
 
-import { ToolFailure } from "@aigcfroge/llm"
 import { Context, Duration, Effect, Layer, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { truthy } from "../flag/flag"
 import { InstallationVersion } from "../installation/version"
 import { PositiveInt } from "../schema"
 import { PermissionV2 } from "../permission"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 import { collectBoundedResponseBody } from "./http-body"
@@ -241,7 +241,9 @@ export const layer = Layer.effectDiscard(
                 provider,
                 text: text ?? NO_RESULTS,
               }
-            }).pipe(Effect.mapError(() => new ToolFailure({ message: `Unable to search the web for ${input.query}` })))
+            }).pipe(
+              Effect.mapError(ToolPermissionFailure.toToolFailure(name, `Unable to search the web for ${input.query}`)),
+            )
           },
         }),
       })

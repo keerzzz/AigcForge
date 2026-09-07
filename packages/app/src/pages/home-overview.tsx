@@ -11,15 +11,16 @@ import { useTabs } from "@/context/tabs"
 import { useServer, ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
-import { useMode, type Mode } from "@/context/mode"
+import { MODE_DEFINITIONS, useMode, type Mode } from "@/context/mode"
 import { useNotification } from "@/context/notification"
 import { LocationApprovalCenter } from "@/components/approval-center"
 import { useDirectoryPicker } from "@/components/directory-picker"
+import { showToast } from "@/utils/toast"
 import {
   closeHomeProject,
   filterSessionsByMode,
   homeProjectDirectories,
-  launchModeSession,
+  launchModeSessionOrRoute,
   openSessionRecord,
 } from "@/pages/layout/helpers"
 import {
@@ -35,9 +36,10 @@ import {
   HomeSessionSkeleton,
 } from "@/pages/home-shared"
 import { HomeProjectRow } from "@/pages/coding-project-column"
-import { countByMode, countByProject, pinLastActive } from "@/pages/home-overview-model"
+import { countByMode, countByProject, modeFilters, pinLastActive } from "@/pages/home-overview-model"
 import { SessionModeBadge } from "@/components/session-mode-badge"
 import { pathKey } from "@/utils/path-key"
+import { useNavigate } from "@solidjs/router"
 
 const OVERVIEW_GRID = "mx-auto grid h-full w-full max-w-[1200px] grid-cols-[220px_minmax(0,1fr)] gap-4 px-6"
 const MODE_FILTER_ROW =
@@ -52,6 +54,7 @@ export function HomeOverview() {
   const server = useServer()
   const language = useLanguage()
   const global = useGlobal()
+  const navigate = useNavigate()
   const tabs = useTabs()
 
   const [state, setState] = createStore({
@@ -141,6 +144,8 @@ export function HomeOverview() {
     })
   }
 
+  const pickDirectory = useDirectoryPicker()
+
   const newSessionDirectory = createMemo(() => {
     const selected = selectedProject()
     const scope = focusedScope()
@@ -156,18 +161,66 @@ export function HomeOverview() {
     return projects()[0]?.worktree
   })
 
+  /**
+   * Open every picked directory and mark the first one as the one to work in.
+   *
+   * The server context is resolved here rather than captured: the picker is asynchronous, so
+   * a context read before it opened can belong to a server the user has since left. Same
+   * reason `secondary-sidebar.tsx:177` and `chooseProject` below resolve it inside their own
+   * callbacks.
+   */
+  function openPickedProjects(conn: ServerConnection.Any, result: string | string[] | null) {
+    const dirs = homeProjectDirectories(result)
+    const directory = dirs[0]
+    if (!directory) return undefined
+    const ctx = global.ensureServerCtx(conn)
+    dirs.forEach((d: string) => ctx.projects.open(d))
+    ctx.projects.touch(directory)
+    return { directory, projects: ctx.projects }
+  }
+
   function openNewSession() {
     const conn = focusedServer()
     const ctx = focusedServerCtx()
-    if (!conn || !ctx) return
+    // Two different failures that used to be the same silent return. No connection is not
+    // something the user can fix by picking a folder, so it says so instead of opening one.
+    if (!conn || !ctx) {
+      showToast({ title: language.t("error.serverSDK.noServerAvailable") })
+      return
+    }
     const directory = newSessionDirectory()
-    if (!directory) return
-    launchModeSession({
-      mode: mode.currentMode,
-      projects: ctx.projects,
-      server: ServerConnection.key(conn),
-      directory,
-      tabs,
+    if (directory) {
+      launchModeSessionOrRoute({
+        mode: mode.currentMode,
+        navigate,
+        projects: ctx.projects,
+        server: ServerConnection.key(conn),
+        directory,
+        tabs,
+      })
+      return
+    }
+    // Nothing opened yet, which on a fresh profile is the normal state rather than an error.
+    // Asking for a project is the missing step, so ask with the picker the sidebar's "open
+    // project" already uses, then start the session where the user just pointed.
+    pickDirectory({
+      server: conn,
+      title: language.t("command.project.open"),
+      multiple: true,
+      onSelect: (result) => {
+        // Cancelling calls back with null (`directory-picker.tsx:34-36`), so an empty
+        // selection is the user declining, not a failure — nothing to say and nothing to do.
+        const opened = openPickedProjects(conn, result)
+        if (!opened) return
+        launchModeSessionOrRoute({
+          mode: mode.currentMode,
+          navigate,
+          projects: opened.projects,
+          server: ServerConnection.key(conn),
+          directory: opened.directory,
+          tabs,
+        })
+      },
     })
   }
 
@@ -289,6 +342,7 @@ export function HomeOverviewSidebar(props: {
   onSelectProject: (directory: string | undefined) => void
 }) {
   const global = useGlobal()
+  const navigate = useNavigate()
   const server = useServer()
   const language = useLanguage()
   const tabs = useTabs()
@@ -299,8 +353,9 @@ export function HomeOverviewSidebar(props: {
 
   function openNewSession(conn: ServerConnection.Any, directory: string) {
     const ctx = global.ensureServerCtx(conn)
-    launchModeSession({
+    launchModeSessionOrRoute({
       mode: mode.currentMode,
+      navigate,
       projects: ctx.projects,
       server: ServerConnection.key(conn),
       directory,
@@ -342,13 +397,18 @@ export function HomeOverviewSidebar(props: {
     return dirs.reduce((t, d) => t + notification.project.unseenCount(d), 0)
   }
 
-  const filters = createMemo<Array<{ id: "all" | Mode; label: string; count: number }>>(() => [
-    { id: "all", label: language.t("home.overview.all"), count: props.total },
-    { id: "coding", label: language.t("mode.coding"), count: props.counts.coding },
-    { id: "chat", label: language.t("mode.chat"), count: props.counts.chat },
-    { id: "work", label: language.t("mode.work"), count: props.counts.work },
-    { id: "assistant", label: language.t("mode.assistant"), count: props.counts.assistant },
-  ])
+  // Derived, not listed: this used to hand-copy `MODE_DEFINITIONS` and the copy was missing
+  // Custom, which no gate could see. The order is the definitions' order now, which is also
+  // the order `ModeSwitcher` renders, so the two navigations agree.
+  const filters = createMemo(() =>
+    modeFilters({
+      definitions: MODE_DEFINITIONS,
+      allLabel: language.t("home.overview.all"),
+      total: props.total,
+      counts: props.counts,
+      label: (key) => language.t(key),
+    }),
+  )
 
   return (
     <aside

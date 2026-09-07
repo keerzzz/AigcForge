@@ -10,6 +10,7 @@ import { Location } from "../location"
 import { PermissionV2 } from "../permission"
 import { AbsolutePath } from "../schema"
 import { ReadToolFileSystem } from "./read-filesystem"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -93,8 +94,9 @@ export const layer = Layer.effectDiscard(
                   error instanceof Image.DecodeError ||
                   error instanceof Image.SizeError
                     ? error.message
-                    : `Unable to read ${input.path}`
-                return new ToolFailure({ message })
+                    : undefined
+                if (message) return new ToolFailure({ message })
+                return ToolPermissionFailure.toToolFailure(name, `Unable to read ${input.path}`)(error)
               }),
             )
           },

@@ -7,6 +7,7 @@ import { useServerSDK } from "@/context/server-sdk"
 import { buildKbTagTree, type AssistantNavSelection, type KbTagNode } from "./assistant-nav-model"
 import type { KbNoteNote, PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
 import { assistantQueryKey } from "@/utils/assistant-query"
+import { useModeSlotActive } from "@/pages/mode-slot-active"
 
 /**
  * Provides the reactive selection straight to note leaves so the intermediate
@@ -22,7 +23,13 @@ export function AssistantNavTree(props: {
   const language = useLanguage()
   const serverSDK = useServerSDK()
 
+  // Rendered by the Assistant sidebar slot, which `ModeWorkspace` keeps mounted in every
+  // mode, so these four followed the Assistant's data around the whole app. Also rendered by
+  // `assistant-session-sidebar.tsx` inside a session, where there is no slot above and
+  // `useModeSlotActive` returns always-active — so the same gate is correct in both places.
+  const slotActive = useModeSlotActive()
   const pendingQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "pending"),
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
@@ -32,6 +39,7 @@ export function AssistantNavTree(props: {
   const pending = createMemo(() => pendingQuery.data ?? [])
 
   const memoryQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
@@ -41,6 +49,7 @@ export function AssistantNavTree(props: {
   const memories = createMemo(() => memoryQuery.data ?? [])
 
   const kbQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
@@ -50,6 +59,7 @@ export function AssistantNavTree(props: {
   const notes = createMemo(() => kbQuery.data ?? [])
 
   const danglingQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "dangling"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.dangling()

@@ -1,9 +1,9 @@
 export * as QuestionTool from "./question"
 
-import { ToolFailure } from "@aigcfroge/llm"
 import { Effect, Layer, Schema } from "effect"
 import { PermissionV2 } from "../permission"
 import { QuestionV2 } from "../question"
+import { ToolPermissionFailure } from "./permission-failure"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
 
@@ -67,7 +67,7 @@ export const layer = Layer.effectDiscard(
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
               .pipe(
-                Effect.mapError(() => new ToolFailure({ message: "Permission denied: question" })),
+                Effect.mapError(ToolPermissionFailure.toToolFailure(name, "Permission denied: question")),
                 Effect.andThen(
                   question
                     .ask({
