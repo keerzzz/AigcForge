@@ -284,33 +284,6 @@ const terminalRunStatuses: readonly WorkflowAsset.WorkflowRunStatus[] = [
   "recovery_required",
 ]
 
-const publishWorkflowEvent = Effect.fn("WorkflowRun.publishWorkflowEvent")(function* (
-  events: EventV2.Interface,
-  update: WorkflowEvent.Update,
-  commit: (seq: number) => Effect.Effect<boolean>,
-) {
-  return yield* events
-    .publish(WorkflowEvent.Updated, update, {
-      commit: (seq) => {
-        if (seq + 1 !== update.revision) {
-          return Effect.die(new WorkflowEvent.CommitRejected({ runID: update.runID, revision: update.revision }))
-        }
-        return commit(seq).pipe(
-          Effect.flatMap((accepted) =>
-            accepted
-              ? Effect.void
-              : Effect.die(new WorkflowEvent.CommitRejected({ runID: update.runID, revision: update.revision })),
-          ),
-        )
-      },
-    })
-    .pipe(
-      Effect.catchDefect((defect) =>
-        defect instanceof WorkflowEvent.CommitRejected ? Effect.fail(defect) : Effect.die(defect),
-      ),
-    )
-})
-
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -352,7 +325,7 @@ export const layer = Layer.effect(
       if (existing) return rowToRunInfo(existing)
 
       const runID = makeRunID(Identifier.ascending("workflowRun"))
-      const committed = yield* publishWorkflowEvent(
+      const committed = yield* WorkflowEvent.publish(
         events,
         {
           runID,
@@ -361,16 +334,16 @@ export const layer = Layer.effect(
           revision: 1,
           timeUpdated: now,
         },
-        () =>
+        (tx) =>
           Effect.gen(function* () {
             // Re-check inside the event transaction: the identity index was
             // dropped (it cannot be unique — retry lineage reuses the identity),
             // so `onConflictDoNothing` below has no identity target and the
             // pre-transaction read alone would let two concurrent submits with
             // different `requestID`s both create a run.
-            const raced = yield* db.select().from(WorkflowRunTable).where(activeIdentity).get().pipe(Effect.orDie)
+            const raced = yield* tx.select().from(WorkflowRunTable).where(activeIdentity).get().pipe(Effect.orDie)
             if (raced) return false
-            const inserted = yield* db
+            const inserted = yield* tx
               .insert(WorkflowRunTable)
               .values({
                 id: runID,
@@ -393,7 +366,7 @@ export const layer = Layer.effect(
 
             for (let index = 0; index < input.workflow.steps.length; index++) {
               const step = input.workflow.steps[index]
-              yield* db
+              yield* tx
                 .insert(WorkflowStepRunTable)
                 .values({
                   id: makeStepRunID(Identifier.ascending("workflowStep")),
@@ -630,7 +603,7 @@ export const layer = Layer.effect(
 
       const taskID = input.taskID ?? `task_${current.run_id}_${current.step_id}_${current.attempt}`
       const childSessionID = input.childSessionID ?? `child_${current.run_id}_${current.step_id}_${current.attempt}`
-      const accepted = yield* publishWorkflowEvent(
+      const accepted = yield* WorkflowEvent.publish(
         events,
         {
           runID: parent.id,
@@ -640,9 +613,9 @@ export const layer = Layer.effect(
           currentStepId: current.step_id,
           timeUpdated: now,
         },
-        () =>
+        (tx) =>
           Effect.gen(function* () {
-            const claimedParent = yield* db
+            const claimedParent = yield* tx
               .update(WorkflowRunTable)
               .set({
                 status: "running",
@@ -661,7 +634,7 @@ export const layer = Layer.effect(
               .get()
               .pipe(Effect.orDie)
             if (!claimedParent) return false
-            const updated = yield* db
+            const updated = yield* tx
               .update(WorkflowStepRunTable)
               .set({
                 status: "dispatching",
@@ -751,7 +724,7 @@ export const layer = Layer.effect(
           reason: `Step ${input.stepRunID} belongs to an immutable run`,
         })
       }
-      const accepted = yield* publishWorkflowEvent(
+      const accepted = yield* WorkflowEvent.publish(
         events,
         {
           runID: parent.id,
@@ -761,9 +734,9 @@ export const layer = Layer.effect(
           currentStepId: current.step_id,
           timeUpdated: now,
         },
-        () =>
+        (tx) =>
           Effect.gen(function* () {
-            const updatedParent = yield* db
+            const updatedParent = yield* tx
               .update(WorkflowRunTable)
               .set({ revision: parent.revision + 1, time_updated: now })
               .where(and(eq(WorkflowRunTable.id, parent.id), eq(WorkflowRunTable.revision, parent.revision)))
@@ -771,7 +744,7 @@ export const layer = Layer.effect(
               .get()
               .pipe(Effect.orDie)
             if (!updatedParent) return false
-            const updatedStep = yield* db
+            const updatedStep = yield* tx
               .update(WorkflowStepRunTable)
               .set({
                 status: "running",
@@ -1018,7 +991,7 @@ export const layer = Layer.effect(
       const rootRunID = source.root_run_id ?? source.id
       const runID = makeRunID(Identifier.ascending("workflowRun"))
       const now = Date.now()
-      const committed = yield* publishWorkflowEvent(
+      const committed = yield* WorkflowEvent.publish(
         events,
         {
           runID,
@@ -1027,9 +1000,9 @@ export const layer = Layer.effect(
           revision: 1,
           timeUpdated: now,
         },
-        () =>
+        (tx) =>
           Effect.gen(function* () {
-            const inserted = yield* db
+            const inserted = yield* tx
               .insert(WorkflowRunTable)
               .values({
                 id: runID,
@@ -1056,7 +1029,7 @@ export const layer = Layer.effect(
             for (const stepDef of input.stepsDef) {
               const previous = latestByStep.get(stepDef.id)
               const shouldRetry = retryClosure.has(stepDef.id)
-              yield* db
+              yield* tx
                 .insert(WorkflowStepRunTable)
                 .values({
                   id: makeStepRunID(Identifier.ascending("workflowStep")),

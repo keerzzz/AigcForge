@@ -12,6 +12,7 @@ import { SessionSchema } from "./schema"
 import { SessionInputTable, SessionMessageTable } from "./sql"
 
 type DatabaseService = Database.Interface["db"]
+type QueryHandle = Pick<DatabaseService, "insert" | "select" | "update">
 
 export { Admitted, CommandPayload, Delivery }
 
@@ -55,7 +56,10 @@ const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted => {
   return Admitted.make({ kind: "prompt", ...base, prompt: decodePrompt(row.prompt) })
 }
 
-export const find = Effect.fn("SessionInput.find")(function* (db: DatabaseService, id: SessionMessage.ID) {
+export const find = Effect.fn("SessionInput.find")(function* (
+  db: Pick<DatabaseService, "select">,
+  id: SessionMessage.ID,
+) {
   const row = yield* db.select().from(SessionInputTable).where(eq(SessionInputTable.id, id)).get().pipe(Effect.orDie)
   return row === undefined ? undefined : fromRow(row)
 })
@@ -308,7 +312,7 @@ export const admitSynthetic = Effect.fn("SessionInput.admitSynthetic")(function*
 })
 
 export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(function* (
-  db: DatabaseService,
+  db: QueryHandle,
   input: {
     readonly admittedSeq: number
     readonly id: SessionMessage.ID
@@ -345,7 +349,7 @@ export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(functio
 })
 
 export const projectShellAdmitted = Effect.fn("SessionInput.projectShellAdmitted")(function* (
-  db: DatabaseService,
+  db: QueryHandle,
   input: {
     readonly admittedSeq: number
     readonly id: SessionMessage.ID
@@ -382,7 +386,7 @@ export const projectShellAdmitted = Effect.fn("SessionInput.projectShellAdmitted
 })
 
 export const projectSkillAdmitted = Effect.fn("SessionInput.projectSkillAdmitted")(function* (
-  db: DatabaseService,
+  db: QueryHandle,
   input: {
     readonly admittedSeq: number
     readonly id: SessionMessage.ID
@@ -418,7 +422,7 @@ export const projectSkillAdmitted = Effect.fn("SessionInput.projectSkillAdmitted
 })
 
 export const projectCommandAdmitted = Effect.fn("SessionInput.projectCommandAdmitted")(function* (
-  db: DatabaseService,
+  db: QueryHandle,
   input: {
     readonly admittedSeq: number
     readonly id: SessionMessage.ID
@@ -469,7 +473,7 @@ export const projectCommandAdmitted = Effect.fn("SessionInput.projectCommandAdmi
 })
 
 export const projectSyntheticAdmitted = Effect.fn("SessionInput.projectSyntheticAdmitted")(function* (
-  db: DatabaseService,
+  db: QueryHandle,
   input: {
     readonly admittedSeq: number
     readonly id: SessionMessage.ID
@@ -575,7 +579,7 @@ export const pendingCommandSteers = Effect.fn("SessionInput.pendingCommandSteers
 })
 
 export const projectPrompted = Effect.fn("SessionInput.projectPrompted")(function* (
-  db: DatabaseService,
+  db: QueryHandle,
   input: {
     readonly id: SessionMessage.ID
     readonly sessionID: SessionSchema.ID
@@ -843,7 +847,7 @@ export const nextPendingShell = Effect.fn("SessionInput.nextPendingShell")(funct
 })
 
 export const markPromoted = Effect.fn("SessionInput.markPromoted")(function* (
-  db: DatabaseService,
+  db: QueryHandle,
   input: {
     readonly id: SessionMessage.ID
     readonly sessionID: SessionSchema.ID
