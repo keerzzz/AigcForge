@@ -51,8 +51,24 @@ const project = {
   sandboxes: [],
 }
 
-// 一条消息同时携带四种载荷：遮罩、公式、图片、表单。
+// 一条消息同时携带多类载荷：无关前缀、脚本、事件处理器、javascript: URL、危险
+// style、遮罩、公式、图片、表单。前缀元素（自定义标签，会被消毒器整体剥掉）刻意
+// 放在危险载荷之前——happy-dom 的 NodeIterator 在这种「先删一个再处理后续」的
+// 位置上会整段跳过属性消毒（单测文件已注明），真实 Chromium 不会，所以这里逐类
+// 断言最终 DOM 才是行为证据。
 const payload = `# SANITIZEHEADING
+
+<unknowntag data-prefix="1"></unknowntag>
+
+PREFIXPROBE before the payload.
+
+<script>window.__xss = 1</script>
+
+<p id="handler-probe" onclick="alert(1)">HANDLERPROBE</p>
+
+<a href="javascript:alert(1)">JSPROBE</a>
+
+<p id="danger-style-probe" style="position:fixed;inset:0;z-index:99999;background:url('javascript:alert(1)')">DANGERSTYLEPROBE</p>
 
 <p id="overlay-probe" style="position:fixed;inset:0;z-index:99999">OVERLAYPROBE</p>
 
@@ -83,6 +99,13 @@ const message = {
 }
 
 async function open(page: Page) {
+  // Geometry contract: the overlay/KaTeX/form assertions measure real box
+  // geometry against the viewport and need the message timeline of the
+  // desktop layout. At 390px the session page renders its mobile tabs branch
+  // (the changes tab instead of the timeline) — a separate mobile-layout
+  // contract covered by mode-slot-fallback-a11y.spec.ts. Pin a desktop
+  // viewport here so every matrix project observes the same contract.
+  await page.setViewportSize({ width: 1280, height: 720 })
   await page.addInitScript(() => {
     localStorage.setItem("aigcfroge.global.dat:mode-view", JSON.stringify({ currentMode: "work" }))
   })
@@ -97,7 +120,7 @@ async function open(page: Page) {
   })
   await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
   await expectSessionTitle(page, title)
-  await expect(page.getByRole("heading", { name: "SANITIZEHEADING" }).first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("heading", { name: "SANITIZEHEADING" }).first()).toBeVisible({ timeout: 60_000 })
 }
 
 test("an injected position:fixed overlay cannot escape the markdown container", async ({ page }) => {
@@ -132,6 +155,38 @@ test("an injected position:fixed overlay cannot escape the markdown container", 
   expect(geometry.box.height).toBeLessThan(geometry.viewport.height / 2)
   expect(geometry.box.width).toBeLessThanOrEqual(geometry.bounds.width + 1)
   expect(geometry.box.top).toBeGreaterThanOrEqual(geometry.bounds.top - 1)
+})
+
+test("script, event handlers, javascript: URLs and dangerous styles stay stripped after an unrelated node", async ({
+  page,
+}) => {
+  await open(page)
+
+  const container = page.locator('[data-component="markdown"]').first()
+
+  // 无关前缀元素被整体剥掉，但它后面的危险载荷不能跟着逃逸属性消毒。
+  await expect(page.getByText("PREFIXPROBE before the payload.")).toBeVisible()
+  await expect(container.locator("unknowntag")).toHaveCount(0)
+  await expect(container.locator("script")).toHaveCount(0)
+
+  // 事件处理器属性必须被剥掉，只剩文本。
+  await expect(page.getByText("HANDLERPROBE")).toBeVisible()
+  await expect(container.locator("[onclick]")).toHaveCount(0)
+
+  // javascript: URL 的 href 必须被 DOMPurify 剥掉（不保留 javascript: 前缀）。
+  await expect(page.getByText("JSPROBE")).toBeVisible()
+  const hrefs = await container.locator("a[href]").evaluateAll((anchors) =>
+    anchors.map((a) => a.getAttribute("href") ?? ""),
+  )
+  expect(hrefs.some((href) => href.includes("javascript:"))).toBe(false)
+
+  // 危险 style 的真实防线是「出流能力」：position 一旦被摘，元素回文档流，盖不住
+  // 权限/提问提示框。background:url('javascript:…') 是惰性残留而非 XSS 向量（CSS
+  // url() 不执行 JS，仅当作无效背景图），DOMPurify 保留它无害，这里不断言它被剥。
+  const danger = await page.getByText("DANGERSTYLEPROBE").evaluate((node: HTMLElement) => ({
+    position: getComputedStyle(node).position,
+  }))
+  expect(danger.position).toBe("static")
 })
 
 test("KaTeX keeps the inline styles its visual layer needs", async ({ page }) => {

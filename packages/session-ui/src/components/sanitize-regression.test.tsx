@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test"
 import { sanitizeMarkdown } from "./markdown-cache"
 
-describe("sanitize regression", () => {
+// 本文件只钉 sanitizer 的 **config 形状 / 纯函数契约**：给定输入，`sanitizeMarkdown`
+// 的字符串输出应当如何（哪些标签/属性/协议放行，哪些摘除）。它是 DOMPurify 配置的
+// 真源回归，不是 DOM 行为测试。
+//
+// DOM 行为证据在真实 Chromium：`packages/app/e2e/regression/markdown-sanitize.spec.ts`。
+// happy-dom 的 NodeIterator 在当前节点被 removeChild 后失效——只要 payload 前面有
+// 任何元素被删除（`<unknowntag></unknowntag>` 就够），它之后的节点就完全跳过属性消毒
+// （实测 onclick / javascript: / style 全部存活）。所以这里**禁止**写「危险节点排在
+// 已删除节点之后」的用例（那种断言只有在真实浏览器里才成立），每个用例的危险节点都
+// 必须位于 payload 首位，测的才是配置本身。
+describe("sanitize regression (config contract)", () => {
   test("script tag is stripped", () => {
     const result = sanitizeMarkdown("<script>alert(1)</script><p>hello</p>")
     expect(result).not.toContain("<script>")
@@ -51,11 +61,6 @@ describe("sanitize regression", () => {
     expect(sanitizeMarkdown("")).toBe("")
   })
 
-  // 注意 happy-dom 的一致性缺口：DOMPurify 依赖 live NodeIterator，而 happy-dom 的
-  // iterator 在当前节点被 removeChild 后失效 —— 只要 payload 前面有任何元素被删除，
-  // 它之后的节点就完全跳过属性消毒（onclick / javascript: / style 全部存活）。
-  // 所以本文件的断言只对「payload 位于文档首位」成立，真正的消毒证据在
-  // packages/app/e2e/regression/markdown-sanitize.spec.ts（真实 Chromium + 真实几何）。
   test("out-of-flow positioning is stripped while the style attribute itself survives", () => {
     const result = sanitizeMarkdown('<p style="position:fixed;inset:0;z-index:99999">OVERLAY</p>')
     expect(result).toContain("OVERLAY")
