@@ -65,7 +65,7 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 - 配置：`packages/app/playwright.config.ts`（性能基准另用 `packages/app/e2e/performance/playwright.config.ts`）
 - 目录：`regression/`（回归规格）、`smoke/`（冒烟）、`performance/`（基准）、`utils/`（辅助）
 - **当前实际执行标准**：每个功能一份 spec，覆盖该功能的主路径与加载/空/错误态。**这是审查时唯一可据以打回的 e2e 标准。**
-- **目标（尚未实现，勿作为 PR blocker）**：桌面与窄视口、light/dark、en/zh/zht 三语、键盘 focus。截至 2026-08-26 实测：18 个 `regression/*.spec.ts` 中 dark **0/18**、i18n **0/18**、keyboard **2/18**；`packages/app/playwright.config.ts:43` 只有单个 `chromium` / Desktop Chrome project，无 theme / locale / 窄视口 project。**所以这一行历史上是纸面要求，从未在任何层面成立**——登记于 [technical-debt](technical-debt.md) §4，根治方式是在 config 加 project（会一次照亮全部既有 spec），不是逐个 PR 追加断言
+- **presentation matrix（2026-09-08 落地为真实门禁）**：`playwright.config.ts` 定义五个 project——`chromium`（Desktop Chrome、light、en）、`chromium-dark`（storageState 写 `aigcfroge-color-scheme=dark`）、`chromium-zh` / `chromium-zht`（storageState 写 `aigcfroge.global.dat:language={"locale":"zh"|"zht"}`）、`chromium-narrow`（390×844）。storage origin 从 `baseURL` 推导，不硬编码端口；全部 project 用 Chromium。CI（`test.yml` e2e job）Linux 跑全部非性能 spec × 五 project，Windows 只跑 `chromium`，无 `continue-on-error`。矩阵契约由 `e2e/regression/presentation-matrix.spec.ts` 按 project 名断言真实 theme（`data-color-scheme`/`data-theme`）、locale（`documentElement.lang`）与 viewport；键盘可达性在 base project 上以 Tab 交互断言，不新建第六个 project。history：2026-08-26 前 dark/i18n/keyboard 覆盖为 0（纸面目标），根治即本项目，登记于 [technical-debt](technical-debt.md) §4
 - 运行报告：`bun --cwd packages/app test:e2e:report`（playwright-report）
 
 ---
