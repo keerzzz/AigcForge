@@ -63,6 +63,7 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { EventV2 } from "@aigcfroge/core/event"
 import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
 import { HotReloadSessionExecution } from "@/session/hot-reload-execution"
 import { V2Snapshot } from "@aigcfroge/core/session/v2-snapshot"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
@@ -142,6 +143,13 @@ const v2SessionLayer = SessionV2.layer.pipe(
   ),
 )
 
+const v2DelegationExecutionLayer = DelegationExecution.layer.pipe(
+  Layer.provide(v2SessionLayer),
+  Layer.provide(DelegationService.defaultLayer),
+  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provideMerge(v2TaskDriverRuntimeLayer),
+)
+
 const v2SnapshotBridgeLayer = Layer.effect(
   V2Snapshot.Service,
   Effect.gen(function* () {
@@ -170,6 +178,7 @@ const v2SessionShareLayer = SessionShareV2.layer.pipe(
 
 const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
   Layer.provideMerge(v2SessionLayer),
+  Layer.provide(v2DelegationExecutionLayer),
   Layer.provide(BackgroundJob.defaultLayer),
   Layer.provide(DelegationService.defaultLayer),
   Layer.provide(CrossSpawnSpawner.defaultLayer),
@@ -191,6 +200,7 @@ const V2_LAYERS = Layer.mergeAll(
   v2SnapshotBridgeLayer,
   v2SessionRevertLayer,
   v2SessionSummaryLayer,
+  v2DelegationExecutionLayer,
   MetaAgentService.defaultLayer,
   MetaPromptFiller.layer,
   v2SessionShareLayer,

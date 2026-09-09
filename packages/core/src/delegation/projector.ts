@@ -1,6 +1,6 @@
 export * as DelegationProjector from "./projector"
 
-import { asc, eq } from "drizzle-orm"
+import { asc, eq, inArray } from "drizzle-orm"
 import { Effect, Layer, Option, Schema } from "effect"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
@@ -106,6 +106,36 @@ export function readEvents(db: ProjectionStore, delegationID: DelegationID.ID) {
           }),
         ),
       ),
+    )
+}
+
+export function readEventsBatch(db: ProjectionStore, delegationIDs: readonly DelegationID.ID[]) {
+  if (delegationIDs.length === 0) return Effect.succeed(new Map<string, EventV2.Payload[]>())
+  return db
+    .select()
+    .from(EventTable)
+    .where(inArray(EventTable.aggregate_id, delegationIDs))
+    .orderBy(asc(EventTable.aggregate_id), asc(EventTable.seq))
+    .all()
+    .pipe(
+      Effect.orDie,
+      Effect.map((rows) => {
+        const grouped = new Map<string, EventV2.Payload[]>()
+        for (const row of rows) {
+          const events = grouped.get(row.aggregate_id) ?? []
+          events.push(
+            EventV2.decodeSerialized({
+              id: row.id,
+              type: row.type,
+              aggregateID: row.aggregate_id,
+              seq: row.seq,
+              data: row.data,
+            }),
+          )
+          grouped.set(row.aggregate_id, events)
+        }
+        return grouped
+      }),
     )
 }
 

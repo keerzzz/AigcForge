@@ -221,3 +221,138 @@ describe("DelegationService canonical EventV2 owner", () => {
     }),
   )
 })
+
+describe("DelegationService Phase 6 command surface", () => {
+  it.effect("lists fifty delegations below the projection threshold", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const service = yield* DelegationService.Service
+      const parentSessionID = SessionID.make("ses_phase6_perf")
+      yield* seedDelegationParentSession(db, parentSessionID)
+      yield* Effect.forEach(
+        Array.from({ length: 50 }, (_, index) => index),
+        (index) => service.create({ parentSessionID, title: `Delegation ${index}` }),
+        { discard: true },
+      )
+      const samples = yield* Effect.forEach(
+        Array.from({ length: 20 }, (_, index) => index),
+        () =>
+          Effect.gen(function* () {
+            const started = performance.now()
+            const rows = yield* service.list({ parentSessionID })
+            expect(rows).toHaveLength(50)
+            return performance.now() - started
+          }),
+      )
+      const p95 = [...samples].sort((left, right) => left - right)[Math.ceil(samples.length * 0.95) - 1]
+      expect(p95).toBeLessThan(200)
+    }),
+  )
+
+  it.effect("lists by parent, retries only terminal attempts, and preserves the Turn identity", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const service = yield* DelegationService.Service
+      const parentSessionID = SessionID.make("ses_phase6_commands")
+      yield* seedDelegationParentSession(db, parentSessionID)
+      const delegation = yield* service.create({ parentSessionID, title: "Phase 6 commands" })
+      const participant = yield* service.addParticipant({
+        delegationID: delegation.id,
+        provider: "internal",
+        target: "build",
+        role: "implementer",
+        context: "fresh",
+      })
+      const turn = yield* service.appendTurn({
+        delegationID: delegation.id,
+        kind: "task",
+        promptSummary: "retry me",
+        participantIDs: [participant.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "phase6", senderParticipantID: participant.id },
+      })
+      yield* service.recordDelivery({
+        delegationID: delegation.id,
+        turnID: turn.id,
+        participantID: participant.id,
+        deliveryOrigin: "phase6",
+        senderParticipantID: participant.id,
+        attempt: 1,
+        status: "failed",
+      })
+      yield* service.retry({ delegationID: delegation.id, turnID: turn.id, participantID: participant.id })
+      const state = yield* service.foldState(delegation.id)
+      const delivery = [...state!.deliveries.values()].find((item) => item.turnID === turn.id)
+      expect(delivery?.attempt).toBe(2)
+      expect(delivery?.status).toBe("admitted")
+      expect((yield* service.listTurns(delegation.id)).map((item) => item.id)).toEqual([turn.id])
+      expect((yield* service.list({ parentSessionID })).map((item) => item.delegation.id)).toEqual([delegation.id])
+      expect((yield* service.getParticipant({ delegationID: delegation.id, participantID: participant.id })).id).toBe(
+        participant.id,
+      )
+    }),
+  )
+
+  it.effect("forks roster handles without reusing provider bindings", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const service = yield* DelegationService.Service
+      const parentSessionID = SessionID.make("ses_phase6_fork")
+      yield* seedDelegationParentSession(db, parentSessionID)
+      const delegation = yield* service.create({ parentSessionID, title: "Original" })
+      yield* service.addParticipant({
+        delegationID: delegation.id,
+        provider: "internal",
+        target: "build",
+        role: "implementer",
+        context: "fresh",
+      })
+      const forked = yield* service.fork({ delegationID: delegation.id, reason: "alternate approach" })
+      expect(forked.delegation.id).not.toBe(delegation.id)
+      expect([...forked.participants.values()].map((item) => item.context)).toEqual(["fork"])
+    }),
+  )
+
+  it.effect("participant admission is idempotent for the same roster key", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const service = yield* DelegationService.Service
+      const parentSessionID = SessionID.make("ses_participant_idempotency")
+      yield* seedDelegationParentSession(db, parentSessionID)
+      const delegation = yield* service.create({ parentSessionID, title: "Idempotent roster" })
+      const input = {
+        delegationID: delegation.id,
+        provider: "internal",
+        target: "build",
+        role: "implementer" as const,
+        context: "fresh" as const,
+      }
+      const first = yield* service.addParticipant(input)
+      const second = yield* service.addParticipant(input)
+      expect(second.id).toBe(first.id)
+      expect((yield* service.foldState(delegation.id))?.participants.size).toBe(1)
+    }),
+  )
+
+  it.effect("soft-expired delegations are visible for audit but not reused as the current focus", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const service = yield* DelegationService.Service
+      const parentSessionID = SessionID.make("ses_soft_expired")
+      yield* seedDelegationParentSession(db, parentSessionID)
+      const old = yield* service.create({ parentSessionID, title: "Old delegation" })
+      yield* db
+        .update(DelegationTable)
+        .set({ last_activity_at: -8 * 86_400_000 })
+        .where(eq(DelegationTable.id, old.id))
+        .run()
+        .pipe(Effect.orDie)
+      expect(
+        (yield* service.list({ parentSessionID, includeArchived: true })).map((item) => item.delegation.id),
+      ).toEqual([old.id])
+      expect(yield* service.resolveActive(parentSessionID)).toBeUndefined()
+      const current = yield* service.resolve({ parentSessionID, title: "New delegation" })
+      expect(current.delegation.id).not.toBe(old.id)
+    }),
+  )
+})

@@ -29,6 +29,8 @@ export interface DelegationResult {
    * the task driver so the next same-parent delegation resumes it.
    */
   sessionId?: string
+  /** Active app-server/ACP turn identifier. Never substitute the thread/session id. */
+  turnId?: string
   review?: DelegationReview
   /** Stable error classification for delivery events and recovery decisions. */
   errorCode?: string
@@ -49,10 +51,11 @@ export interface CliAdapter {
   readonly timeout?: number
   /**
    * Execution transport. "jsonl" (default) spawns the CLI and parses its JSONL
-   * stdout; "sdk" drives the official SDK; "acp" uses the Agent Client Protocol.
+   * stdout; "sdk" drives the official SDK; "acp" uses the Agent Client Protocol;
+   * "app-server" uses the Codex app-server protocol.
    * Unknown values fall back to "jsonl".
    */
-  readonly transport?: "jsonl" | "sdk" | "acp"
+  readonly transport?: "jsonl" | "sdk" | "acp" | "app-server"
   /**
    * SDK/ACP transports execute through this instead of buildArgs+parseOutput.
    * `canUseTool` is a plain async bridge (not Effect) so the SDK's permission
@@ -69,7 +72,7 @@ export interface CliAdapter {
     canUseTool?: SdkPermissionHandler
     onProgress?: (progress: ToolCallProgress) => void
   }) => Effect.Effect<DelegationResult>
-  readonly cancel?: (cwd: string) => Effect.Effect<void>
+  readonly cancel?: (cwd: string, sessionId?: string) => Effect.Effect<void>
   /**
    * Parse a session.resume_hint JSON frame from the CLI's stdout stream.
    * Return the external session ID if found, undefined otherwise.
@@ -77,6 +80,34 @@ export interface CliAdapter {
    * format, e.g. for Claude Code: {"type":"session.resume_hint","sessionID":"<id>"}
    */
   readonly parseResumeHint?: (stdout: string) => string | undefined
+
+  // App-server and ACP control plane methods (optional, only present on supporting transports)
+  readonly startThread?: (options?: {
+    workingDirectory?: string
+    approvalPolicy?: string
+    model?: string
+  }) => Effect.Effect<{ threadId: string }, unknown>
+  readonly resumeThread?: (
+    threadId: string,
+    options?: { workingDirectory?: string; model?: string },
+  ) => Effect.Effect<{ threadId: string }, unknown>
+  readonly forkThread?: (
+    threadId: string,
+    options?: { lastTurnId?: string | null; workingDirectory?: string; model?: string },
+  ) => Effect.Effect<{ threadId: string }, unknown>
+  readonly archiveThread?: (threadId: string) => Effect.Effect<void, unknown>
+  readonly deleteThread?: (threadId: string) => Effect.Effect<void, unknown>
+  readonly startTurn?: (options: {
+    threadId: string
+    input: readonly { type: "text"; text: string }[]
+    cwd?: string
+  }) => Effect.Effect<{ turnId: string }, unknown>
+  readonly steerTurn?: (options: {
+    threadId: string
+    expectedTurnId: string
+    input: readonly { type: "text"; text: string }[]
+  }) => Effect.Effect<{ turnId: string }, unknown>
+  readonly interruptTurn?: (options: { threadId: string; turnId: string }) => Effect.Effect<void, unknown>
 }
 
 /** A permission decision surfaced by an SDK transport's canUseTool callback. */
@@ -95,12 +126,12 @@ export const getCliAdapter = (name: string): CliAdapter | undefined => adapters.
 
 export const listCliAdapters = (): CliAdapter[] => Array.from(adapters.values())
 
-export type BuiltInCliTransports = Readonly<Record<string, Partial<Record<"sdk" | "acp", CliAdapter>>>>
+export type BuiltInCliTransports = Readonly<Record<string, Partial<Record<"sdk" | "acp" | "app-server", CliAdapter>>>>
 
 /**
  * Register config-defined `cli_agents` as adapters. Later entries win, so a
  * config entry sharing a built-in's name overrides it (config > built-in).
- * SDK/ACP transports exist only for the built-in claude-code/codex adapters; a
+ * SDK/ACP/app-server transports exist only for built-in adapters; a
  * config entry selecting one for another name cannot be honored and fails
  * loudly instead of silently downgrading to a jsonl adapter.
  */
@@ -111,7 +142,7 @@ export const registerConfigCliAdapters = (
   const cliAgents = Config.latest(entries, "cli_agents")
   if (!cliAgents) return
   for (const [name, info] of Object.entries(cliAgents)) {
-    if (info.transport === "sdk" || info.transport === "acp") {
+    if (info.transport === "sdk" || info.transport === "acp" || info.transport === "app-server") {
       const selected = builtInTransports[name]?.[info.transport]
       if (!selected || selected.transport !== info.transport) {
         throw new Error(`cli_agents "${name}" transport "${info.transport}" is unavailable`)

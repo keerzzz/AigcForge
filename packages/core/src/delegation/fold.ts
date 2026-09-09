@@ -151,7 +151,7 @@ function requireDeliveryAttempt(
       completed: [],
       failed: [],
       cancelled: [],
-      recovery_required: [],
+      recovery_required: ["failed", "cancelled"],
     }
     if (!allowedNextStatuses[previous.status].includes(status)) {
       corrupted(delegationID, eventType, `Invalid delivery status transition from ${previous.status} to ${status}`)
@@ -208,12 +208,13 @@ function refreshTurnStatus(turn: TurnInfo, deliveries: Iterable<DeliveryState>):
   const withStatus = (status: TurnInfo["status"]) => new Delegation.TurnInfo({ ...turn, status, updatedAt })
 
   if (current.some((delivery) => delivery?.status === "recovery_required")) return withStatus("recovery_required")
-  if (current.some((delivery) => delivery?.status === "failed")) return withStatus("failed")
-  if (current.some((delivery) => delivery?.status === "cancelled")) return withStatus("cancelled")
   if (current.length > 0 && current.every((delivery) => delivery?.status === "completed"))
     return withStatus("completed")
   if (current.some((delivery) => delivery?.status === "completed")) return withStatus("partially_completed")
   if (current.some((delivery) => delivery?.status === "running")) return withStatus("running")
+  if (current.some((delivery) => delivery?.status === "failed")) return withStatus("failed")
+  if (current.some((delivery) => delivery?.status === "cancelled")) return withStatus("cancelled")
+  if (current.some((delivery) => delivery?.status === "queued")) return withStatus("queued")
   return turn
 }
 
@@ -414,10 +415,12 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
           corrupted(expectedDelegationID, type, "Participant external thread binding cannot be changed")
         }
       }
+      const nextPhase = canAdvancePhase(participant.phase, "active") ? "active" : participant.phase
       participants.set(
         data.participantID,
         new Delegation.ParticipantInfo({
           ...participant,
+          phase: nextPhase,
           childSessionID: data.childSessionID ?? participant.childSessionID,
           externalThreadID: data.externalThreadID ?? participant.externalThreadID,
           lastActivityAt: Math.max(participant.lastActivityAt, data.timestamp),
@@ -699,13 +702,22 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
         if (["completed", "cancelled", "archived"].includes(delegation.status)) {
           corrupted(expectedDelegationID, type, `Cannot fail a delegation while it is ${delegation.status}`)
         }
-        if (delegation.status !== "failed") requireTransition(delegation, "failed", type)
-        delegation = new Delegation.Info({
-          ...delegation,
-          status: "failed",
-          lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
-          updatedAt: data.timestamp,
-        })
+        const turnStatus = turns.get(data.turnID)?.status
+        if (turnStatus === "failed") {
+          if (delegation.status !== "failed") requireTransition(delegation, "failed", type)
+          delegation = new Delegation.Info({
+            ...delegation,
+            status: "failed",
+            lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+            updatedAt: data.timestamp,
+          })
+        } else {
+          delegation = new Delegation.Info({
+            ...delegation,
+            lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+            updatedAt: data.timestamp,
+          })
+        }
       }
     } else if (type === DelegationEvent.DeliveryRecoveryRequired.type) {
       const data = parseEvent(

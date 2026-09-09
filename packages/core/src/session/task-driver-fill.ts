@@ -2,7 +2,7 @@ export * as TaskDriverFill from "./task-driver-fill"
 
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { and, desc, eq, isNull } from "drizzle-orm"
-import { DateTime, Duration, Effect, Exit, Layer, Option, Schema } from "effect"
+import { Cause, DateTime, Duration, Effect, Exit, Layer, Option, Schema } from "effect"
 import { AgentV2 } from "../agent"
 import { BackgroundJob } from "../background-job"
 import { EventV2 } from "../event"
@@ -23,8 +23,10 @@ import { adapter as claudeCodeSdkAdapter } from "../tool/claude-code-sdk"
 import { adapter as codexSdkAdapter } from "../tool/codex-sdk"
 import { adapter as claudeCodeAcpAdapter } from "../tool/claude-code-acp"
 import { adapter as codexAcpAdapter } from "../tool/codex-acp"
+import { CodexAppServer } from "../tool/codex-app-server"
 import { MetaAgentService } from "../meta-agent/service"
-import { DelegationService } from "../delegation/service"
+import { DelegationExecution } from "../delegation/execution"
+import { DelegationService, type RecordDeliveryInput } from "../delegation/service"
 import { Database } from "../database/database"
 import { Config } from "../config"
 import { PermissionV2 } from "../permission"
@@ -97,6 +99,12 @@ export const layer = Layer.effectDiscard(
     // two names still resolves to the bridge adapter (see registerConfigCliAdapters).
     if (which("claude-code-acp")) registerCliAdapter(claudeCodeAcpAdapter.name, claudeCodeAcpAdapter)
     if (which("codex-acp")) registerCliAdapter(codexAcpAdapter.name, codexAcpAdapter)
+    const codexAppServerAdapter = CodexAppServer.makeNegotiatedCodexAdapter({
+      appServer: CodexAppServer.adapter,
+      fallbackSdk: codexSdkAdapter,
+      fallbackJsonl: codexAdapter,
+    })
+    registerCliAdapter(codexAppServerAdapter.name, codexAppServerAdapter)
     // Register config-defined cli_agents (config > built-in override) when a
     // Config.Service is present (composition roots always provide one).
     const configOpt = yield* Effect.serviceOption(Config.Service)
@@ -112,6 +120,7 @@ export const layer = Layer.effectDiscard(
             codex: {
               sdk: codexSdkAdapter,
               ...(which("codex-acp") ? { acp: codexAcpAdapter } : {}),
+              ...(which("codex") ? { "app-server": codexAppServerAdapter } : {}),
             },
           }),
         catch: (error) => new Error(error instanceof Error ? error.message : String(error)),
@@ -119,6 +128,37 @@ export const layer = Layer.effectDiscard(
     }
     const metaAgent = yield* Effect.serviceOption(MetaAgentService.Service)
     const delegation = yield* DelegationService.Service
+    const delegationExecution = yield* Effect.serviceOption(DelegationExecution.Service)
+    const settleDeliveryIfActive = Effect.fnUntraced(function* (input: {
+      readonly delivery?: TaskDriver.DeliveryContext
+      readonly status: RecordDeliveryInput["status"]
+      readonly externalTurnID?: string
+      readonly summary?: string
+      readonly errorCode?: string
+    }) {
+      if (input.delivery === undefined) return false
+      const state = yield* delegation.foldState(input.delivery.delegationID)
+      const current = [...(state?.deliveries.values() ?? [])].find(
+        (delivery) =>
+          delivery.turnID === input.delivery?.turnID &&
+          delivery.participantID === input.delivery?.participantID &&
+          delivery.deliveryOrigin === input.delivery?.deliveryOrigin &&
+          delivery.senderParticipantID === input.delivery?.senderParticipantID,
+      )
+      if (current !== undefined && ["completed", "failed", "cancelled", "recovery_required"].includes(current.status)) {
+        return false
+      }
+      yield* delegation
+        .recordDelivery({
+          ...input.delivery,
+          status: input.status,
+          externalTurnID: input.externalTurnID,
+          summary: input.summary,
+          errorCode: input.errorCode,
+        })
+        .pipe(Effect.orDie)
+      return true
+    })
     yield* TaskDriver.initialize(
       TaskDriver.make(
         {
@@ -196,7 +236,12 @@ export const layer = Layer.effectDiscard(
               const adapter = getCliAdapter(input.cliTarget)
               if (!adapter)
                 return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "unknown_target" })
-              if (adapter.transport !== "sdk" && adapter.transport !== "acp" && !spawner) {
+              if (
+                adapter.transport !== "sdk" &&
+                adapter.transport !== "acp" &&
+                adapter.transport !== "app-server" &&
+                !spawner
+              ) {
                 return yield* new CliUnavailableError({ cliTarget: input.cliTarget, reason: "no_spawner" })
               }
               const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
@@ -391,20 +436,14 @@ export const layer = Layer.effectDiscard(
                 }
               }
 
-              if (input.delivery) {
-                yield* delegation
-                  .recordDelivery({
-                    ...input.delivery,
-                    status: "started",
-                  })
-                  .pipe(Effect.orDie)
-              }
+              yield* settleDeliveryIfActive({ delivery: input.delivery, status: "started" })
 
               // SDK transports own their timeout so a provider-created thread id
               // remains available on the timeout path. JSONL keeps the existing
               // process boundary, whose timeout result still preserves resumeId.
               const execution =
-                (adapter.transport === "sdk" || adapter.transport === "acp") && adapter.execute
+                (adapter.transport === "sdk" || adapter.transport === "acp" || adapter.transport === "app-server") &&
+                adapter.execute
                   ? adapter
                       .execute({
                         prompt: cliPrompt,
@@ -434,16 +473,15 @@ export const layer = Layer.effectDiscard(
                     })
               const executionExit = yield* execution.pipe(Effect.exit)
               if (Exit.isFailure(executionExit)) {
-                if (input.delivery) {
-                  yield* delegation
-                    .recordDelivery({
-                      ...input.delivery,
-                      status: "recovery_required",
-                      errorCode: "adapter_failure",
-                      summary: "External CLI adapter failed before returning a result",
-                    })
-                    .pipe(Effect.orDie)
-                }
+                const interrupted = Cause.hasInterruptsOnly(executionExit.cause)
+                yield* settleDeliveryIfActive({
+                  delivery: input.delivery,
+                  status: interrupted ? "cancelled" : "recovery_required",
+                  errorCode: interrupted ? undefined : "adapter_failure",
+                  summary: interrupted
+                    ? "External CLI execution interrupted"
+                    : "External CLI adapter failed before returning a result",
+                })
                 if (stepID && metaAgentSvc) {
                   yield* metaAgentSvc
                     .updateStep({
@@ -538,17 +576,15 @@ export const layer = Layer.effectDiscard(
                       ? ("recovery_required" as const)
                       : ("failed" as const)
                     : ("completed" as const)
-                yield* delegation
-                  .recordDelivery({
-                    ...input.delivery,
-                    status: deliveryStatus,
-                    externalTurnID: hint,
-                    summary: result.summary,
-                    errorCode:
-                      result.errorCode ?? (reviewRequired && !reviewValid ? "malformed_review_envelope" : undefined),
-                  })
-                  .pipe(Effect.orDie)
-                if (result.review?.status === "valid") {
+                const settled = yield* settleDeliveryIfActive({
+                  delivery: input.delivery,
+                  status: deliveryStatus,
+                  externalTurnID: result.turnId,
+                  summary: result.summary,
+                  errorCode:
+                    result.errorCode ?? (reviewRequired && !reviewValid ? "malformed_review_envelope" : undefined),
+                })
+                if (settled && result.review?.status === "valid") {
                   yield* delegation
                     .recordReview({
                       delegationID: input.delivery.delegationID,
@@ -568,10 +604,20 @@ export const layer = Layer.effectDiscard(
                 sessionID: childSession.id,
                 status: resultStatus,
                 externalSessionID: hint,
+                externalTurnID: result.turnId,
                 review: result.review,
               }
             }),
         },
+        Option.isNone(delegationExecution)
+          ? undefined
+          : (input) =>
+              delegationExecution.value
+                .dispatch(input)
+                .pipe(Effect.mapError((error) => (error instanceof Error ? error : new Error(String(error))))),
+        Option.isNone(delegationExecution)
+          ? undefined
+          : (delegationID, participantID) => delegationExecution.value.interrupt(delegationID, participantID),
       ),
     )
   }),

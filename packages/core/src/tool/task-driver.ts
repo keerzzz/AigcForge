@@ -10,7 +10,7 @@ import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
 import { generateSummary } from "../session/share-summary"
 import { judgeMerge } from "../agent/judge"
-import type { DelegationStatus } from "./cli-adapter"
+import type { DelegationReview, DelegationStatus } from "./cli-adapter"
 
 /**
  * A foreground delegation ended without a usable result because the child
@@ -57,6 +57,41 @@ export interface ToolPermissionSource {
   readonly type: "tool"
   readonly messageID: string
   readonly callID: string
+}
+
+/**
+ * Single command seam for persistent delegation execution. The task tool admits
+ * the durable Turn first, then passes this command to the process-local
+ * DelegationExecution owner; it must not choose a second execution path.
+ */
+export interface DelegationDispatchInput {
+  readonly delegationID: DelegationID.ID
+  readonly participantID: ParticipantID
+  readonly turnID: TurnID
+  readonly parentID: SessionSchema.ID
+  readonly sessionID?: SessionSchema.ID
+  readonly prompt: string
+  readonly description: string
+  readonly background: boolean
+  readonly queue: boolean
+  readonly taskID?: string
+  readonly stepID?: string
+  readonly delivery: DeliveryContext
+  readonly onSettle?: (outcome: SettleOutcome) => Effect.Effect<void>
+  readonly execution: "internal" | "external"
+  readonly cliTarget?: string
+  readonly permissionSource?: ToolPermissionSource
+}
+
+export interface DelegationDispatchResult {
+  readonly sessionID: SessionSchema.ID
+  readonly status: "running" | "completed" | "failed" | "cancelled"
+  readonly text?: string
+  readonly providerStatus?: DelegationStatus
+  readonly externalSessionID?: string
+  readonly externalTurnID?: string
+  readonly review?: DelegationReview
+  readonly executorFailed?: boolean
 }
 
 export interface Interface {
@@ -202,10 +237,17 @@ export interface Interface {
       sessionID: SessionSchema.ID
       status: DelegationStatus
       externalSessionID?: string
-      review?: import("./cli-adapter").DelegationReview
+      externalTurnID?: string
+      review?: DelegationReview
     },
     Error
   >
+  /** Canonical persistent-delegation execution command. */
+  readonly dispatchDelegation?: (input: DelegationDispatchInput) => Effect.Effect<DelegationDispatchResult, unknown>
+  readonly interruptDelegation?: (
+    delegationID: DelegationID.ID,
+    participantID?: ParticipantID,
+  ) => Effect.Effect<void, unknown>
 }
 
 export const Runtime = Context.Reference<Interface | undefined>("@aigcfroge/v2/TaskDriver/Runtime", {
@@ -247,6 +289,14 @@ const proxy = (state: Ref.Ref<Interface | undefined>): Interface => ({
   injectSynthetic: (input) =>
     resolve(state).pipe(Effect.flatMap((implementation) => implementation.injectSynthetic(input))),
   executeCLI: (input) => resolve(state).pipe(Effect.flatMap((implementation) => implementation.executeCLI(input))),
+  dispatchDelegation: (input) =>
+    resolve(state).pipe(
+      Effect.flatMap((implementation) =>
+        implementation.dispatchDelegation
+          ? implementation.dispatchDelegation(input)
+          : Effect.die("Persistent delegation execution is not installed"),
+      ),
+    ),
 })
 
 /** Creates the root-local runtime proxy and its private initialization state. */
@@ -369,6 +419,25 @@ export const executeCLI = (input: {
   delivery?: DeliveryContext
   permissionSource?: ToolPermissionSource
 }) => active().pipe(Effect.flatMap((impl) => impl.executeCLI(input)))
+
+/** Dispatch one already-admitted persistent delegation through its sole owner. */
+export const dispatchDelegation = (input: DelegationDispatchInput) =>
+  active().pipe(
+    Effect.flatMap((impl) =>
+      impl.dispatchDelegation
+        ? impl.dispatchDelegation(input)
+        : Effect.die("Persistent delegation execution is not installed"),
+    ),
+  )
+
+export const interruptDelegation = (delegationID: DelegationID.ID, participantID?: ParticipantID) =>
+  active().pipe(
+    Effect.flatMap((impl) =>
+      impl.interruptDelegation
+        ? impl.interruptDelegation(delegationID, participantID)
+        : Effect.die("Persistent delegation interruption is not installed"),
+    ),
+  )
 
 /** Minimal `SessionV2` surface the implementation needs. Structural to avoid importing SessionV2. */
 export interface SessionFacade {
@@ -523,11 +592,14 @@ export const make = (
         sessionID: SessionSchema.ID
         status: DelegationStatus
         externalSessionID?: string
+        externalTurnID?: string
         review?: import("./cli-adapter").DelegationReview
       },
       Error
     >
   },
+  dispatchDelegation?: Interface["dispatchDelegation"],
+  interruptDelegation?: Interface["interruptDelegation"],
 ) => {
   const readResult = (sessionID: SessionSchema.ID) =>
     sessions.messages({ sessionID, order: "asc" }).pipe(Effect.map(lastAssistantText))
@@ -921,6 +993,8 @@ export const make = (
         if (!cli) return yield* Effect.fail(new Error("CLI adapter registry not available"))
         return yield* cli.execute(input)
       }),
+    ...(dispatchDelegation ? { dispatchDelegation } : {}),
+    ...(interruptDelegation ? { interruptDelegation } : {}),
   } satisfies Interface
 }
 
@@ -933,4 +1007,105 @@ export const installForTesting = (
   sessions: SessionFacade,
   background: BackgroundRunner,
   cli?: Parameters<typeof make>[2],
-) => Effect.succeed(make(sessions, background, cli))
+  dispatch?: NonNullable<Interface["dispatchDelegation"]>,
+) =>
+  Effect.sync(() => {
+    const implementation = make(sessions, background, cli, dispatch)
+    if (implementation.dispatchDelegation) return implementation
+    const dispatchDelegation: NonNullable<Interface["dispatchDelegation"]> = (input) => {
+      if (input.execution === "external") {
+        if (!input.cliTarget) return Effect.die("External delegation requires cliTarget")
+        return implementation
+          .executeCLI({
+            cliTarget: input.cliTarget,
+            prompt: input.prompt,
+            description: input.description,
+            sessionID: input.parentID,
+            taskID: input.sessionID,
+            delivery: input.delivery,
+            permissionSource: input.permissionSource,
+          })
+          .pipe(
+            Effect.onExit((exit) => {
+              if (!input.onSettle) return Effect.void
+              if (Exit.isSuccess(exit)) {
+                return input.onSettle({
+                  status: exit.value.status === "failed" ? "failed" : "completed",
+                  outputDigest: exit.value.status === "failed" ? exit.value.text : exit.value.sessionID,
+                })
+              }
+              return input.onSettle({
+                status: Cause.hasInterruptsOnly(exit.cause) ? "cancelled" : "failed",
+                outputDigest: Cause.hasInterruptsOnly(exit.cause) ? undefined : "external delegation failed",
+              })
+            }),
+            Effect.map((result) => ({
+              sessionID: result.sessionID,
+              status: result.status === "failed" ? ("failed" as const) : ("completed" as const),
+              text: result.text,
+              providerStatus: result.status,
+              externalSessionID: result.externalSessionID,
+              externalTurnID: result.externalTurnID,
+              review: result.review,
+            })),
+          )
+      }
+
+      if (!input.sessionID) return Effect.die("Internal delegation requires a child Session")
+      const sessionID = input.sessionID
+      if (input.background) {
+        const start = input.queue
+          ? implementation
+              .extendBackground({
+                parentID: input.parentID,
+                sessionID: input.sessionID,
+                prompt: input.prompt,
+                description: input.description,
+                taskID: input.taskID,
+                stepID: input.stepID,
+                delivery: input.delivery,
+                onSettle: input.onSettle,
+              })
+              .pipe(
+                Effect.flatMap((extended) =>
+                  extended
+                    ? Effect.void
+                    : implementation.delegateBackground({
+                        parentID: input.parentID,
+                        sessionID,
+                        prompt: input.prompt,
+                        description: input.description,
+                        taskID: input.taskID,
+                        stepID: input.stepID,
+                        delivery: input.delivery,
+                        onSettle: input.onSettle,
+                      }),
+                ),
+              )
+          : implementation.delegateBackground({
+              parentID: input.parentID,
+              sessionID: input.sessionID,
+              prompt: input.prompt,
+              description: input.description,
+              taskID: input.taskID,
+              stepID: input.stepID,
+              delivery: input.delivery,
+              onSettle: input.onSettle,
+            })
+        return start.pipe(Effect.as({ sessionID: input.sessionID, status: "running" as const }))
+      }
+
+      return implementation
+        .delegate({
+          sessionID: input.sessionID,
+          parentID: input.parentID,
+          prompt: input.prompt,
+          taskID: input.taskID,
+          stepID: input.stepID,
+          delivery: input.delivery,
+          onSettle: input.onSettle,
+        })
+        .pipe(Effect.map((text) => ({ sessionID, status: "completed" as const, text })))
+    }
+    return { ...implementation, dispatchDelegation }
+  })

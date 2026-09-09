@@ -23,6 +23,7 @@ import {
 } from "@aigcfroge/llm"
 import * as OpenAIChat from "@aigcfroge/llm/protocols/openai-chat"
 import { Database } from "@aigcfroge/core/database/database"
+import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
 import { DelegationService } from "@aigcfroge/core/delegation/service"
 import { DelegationEvent } from "@aigcfroge/core/delegation/event"
 import { DelegationProjector } from "@aigcfroge/core/delegation/projector"
@@ -350,11 +351,18 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(sessionComposition),
   Layer.provide(execution),
 )
+const delegationExecution = DelegationExecution.layer.pipe(
+  Layer.provide(DelegationService.defaultLayer),
+  Layer.provide(sessions),
+  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provideMerge(TaskDriver.runtimeLayer),
+)
 const taskDriverInitializer = Layer.effectDiscard(
   Effect.gen(function* () {
     const sessions = yield* SessionV2.Service
     const background = yield* BackgroundJob.Service
     const delegation = yield* DelegationService.Service
+    const delegationOwner = yield* DelegationExecution.Service
     yield* TaskDriver.initialize(
       yield* TaskDriver.installForTesting(
         {
@@ -389,6 +397,7 @@ const taskDriverInitializer = Layer.effectDiscard(
             )
           },
         },
+        delegationOwner.dispatch,
       ),
     )
   }),
@@ -415,6 +424,7 @@ const rootServices = Layer.mergeAll(
   runner,
   execution,
   sessions,
+  delegationExecution,
   taskTool,
 ).pipe(
   Layer.provideMerge(
@@ -555,6 +565,154 @@ describe("task tool — child Session delegation", () => {
         deliveryOrigin: "meta",
         senderParticipantID: participant.id,
       })
+    }),
+  )
+
+  it.live("DelegationExecution.drain runs an internal Build through the real SessionRunner", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const service = yield* DelegationService.Service
+      const background = yield* BackgroundJob.Service
+      const execution = yield* DelegationExecution.Service
+      const { db } = yield* Database.Service
+
+      const delegation = yield* service.create({ parentSessionID: parentID, title: "real drain" })
+      const participant = yield* service.addParticipant({
+        delegationID: delegation.id,
+        provider: "internal",
+        target: "build",
+        role: "implementer",
+        context: "fresh",
+      })
+      const turn = yield* service.appendTurn({
+        delegationID: delegation.id,
+        kind: "task",
+        promptSummary: "Run the real child runner",
+        participantIDs: [participant.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "meta", senderParticipantID: participant.id },
+      })
+
+      yield* execution.drain(delegation.id)
+
+      const admittedState = yield* service.foldState(delegation.id)
+      const childSessionID = admittedState?.participants.get(participant.id)?.childSessionID
+      expect(childSessionID).toBeDefined()
+      if (childSessionID === undefined) return
+
+      const job = yield* background.wait({ id: childSessionID })
+      expect(job.info?.status).toBe("completed")
+
+      const childMessages = yield* session.context(childSessionID)
+      const childAssistant = childMessages.find((message) => message.type === "assistant")
+      const childText =
+        childAssistant?.type === "assistant"
+          ? childAssistant.content
+              .filter((part) => part.type === "text")
+              .map((part) => part.text)
+              .join("")
+          : ""
+      expect(childText).toBe("child result payload")
+
+      const input = yield* db
+        .select()
+        .from(SessionInputTable)
+        .where(eq(SessionInputTable.session_id, childSessionID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(input?.delegation_origin).toEqual({
+        turnID: turn.id,
+        deliveryOrigin: "meta",
+        senderParticipantID: participant.id,
+      })
+      expect(input?.promoted_seq).toEqual(expect.any(Number))
+
+      const finalState = yield* pollWithTimeout(
+        service.foldState(delegation.id).pipe(
+          Effect.map((state) => {
+            const delivery = state === undefined ? undefined : [...state.deliveries.values()][0]
+            return delivery?.status === "completed" ? state : undefined
+          }),
+        ),
+        "real DelegationExecution.drain did not settle the delivery",
+      )
+      expect(finalState.turns.get(turn.id)?.status).toBe("completed")
+      expect(finalState.deliveries.get(JSON.stringify([turn.id, participant.id, "meta", participant.id]))?.status).toBe(
+        "completed",
+      )
+    }),
+  )
+
+  it.live("DelegationExecution external jobs report activity and cancel durably", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const gate = yield* Deferred.make<void>()
+      const started = yield* Deferred.make<void>()
+      cliGate = gate
+      cliStarted = started
+      const service = yield* DelegationService.Service
+      const background = yield* BackgroundJob.Service
+      const execution = yield* DelegationExecution.Service
+
+      const delegation = yield* service.create({ parentSessionID: parentID, title: "external lifecycle" })
+      const participant = yield* service.addParticipant({
+        delegationID: delegation.id,
+        provider: "external",
+        target: "claude-code",
+        role: "reviewer",
+        context: "fresh",
+      })
+      const turn = yield* service.appendTurn({
+        delegationID: delegation.id,
+        kind: "review",
+        promptSummary: "Review the change",
+        participantIDs: [participant.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "meta", senderParticipantID: participant.id },
+      })
+
+      const result = yield* execution.dispatch({
+        delegationID: delegation.id,
+        participantID: participant.id,
+        turnID: turn.id,
+        parentID: parentID,
+        prompt: "Review the change",
+        description: "External review",
+        background: true,
+        queue: false,
+        delivery: {
+          delegationID: delegation.id,
+          participantID: participant.id,
+          turnID: turn.id,
+          deliveryOrigin: "meta",
+          senderParticipantID: participant.id,
+          delivery: "steer",
+          attempt: 1,
+        },
+        execution: "external",
+        cliTarget: "claude-code",
+      })
+      expect(result.status).toBe("running")
+
+      yield* Deferred.await(started)
+      expect(yield* execution.isActive(delegation.id)).toBe(true)
+
+      yield* execution.interrupt(delegation.id, participant.id)
+      const job = yield* background.wait({ id: `cli_${delegation.id}_${participant.id}` })
+      expect(job.info?.status).toBe("cancelled")
+
+      const state = yield* pollWithTimeout(
+        service.foldState(delegation.id).pipe(
+          Effect.map((current) => {
+            const delivery = current === undefined ? undefined : [...current.deliveries.values()][0]
+            return delivery?.status === "cancelled" ? current : undefined
+          }),
+        ),
+        "external DelegationExecution delivery did not settle cancelled",
+      )
+      expect(state.turns.get(turn.id)?.status).toBe("cancelled")
+      expect(yield* execution.isActive(delegation.id)).toBe(false)
     }),
   )
 
@@ -1139,6 +1297,7 @@ describe("task tool — child Session delegation", () => {
       cliGate = gate
       cliStarted = started
       const session = yield* SessionV2.Service
+      const delegation = yield* DelegationService.Service
       const { db } = yield* Database.Service
 
       // Fork the parent drain; the CLI executor blocks on `gate` mid-dispatch.
@@ -1172,6 +1331,25 @@ describe("task tool — child Session delegation", () => {
         "external-cli linked task did not settle after parent abort",
       )
       expect(linked.status).toBe("cancelled")
+
+      const delegationRow = yield* db
+        .select({ id: DelegationTable.id })
+        .from(DelegationTable)
+        .where(eq(DelegationTable.parent_session_id, parentID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(delegationRow).toBeDefined()
+      if (delegationRow === undefined) return
+      const state = yield* pollWithTimeout(
+        delegation.foldState(delegationRow.id).pipe(
+          Effect.map((folded) => {
+            const delivery = folded === undefined ? undefined : [...folded.deliveries.values()][0]
+            return delivery?.status === "cancelled" ? folded : undefined
+          }),
+        ),
+        "external-cli delivery did not settle cancelled after parent abort",
+      )
+      expect([...state.deliveries.values()][0]?.status).toBe("cancelled")
     }),
   )
 

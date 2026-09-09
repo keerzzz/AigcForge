@@ -83,6 +83,23 @@ const PersistentDelegationParameterFields = {
   new_delegation: Schema.optional(Schema.Boolean).annotate({
     description: "When true, create a fresh persistent delegation instead of reusing the currently active one",
   }),
+  participant_id: Schema.optional(Schema.String),
+  turn_id: Schema.optional(Schema.String),
+  command: Schema.optional(
+    Schema.Literals([
+      "append",
+      "steer",
+      "interrupt",
+      "close",
+      "retry",
+      "reconcile",
+      "archive",
+      "unarchive",
+      "fork",
+      "purge",
+      "retract_rejection",
+    ]),
+  ),
 }
 
 const LegacyBaseParameters = Schema.Struct(LegacyParameterFields)
@@ -164,6 +181,7 @@ export const TaskTool = Tool.define(
 
       // Create real child session so the task card link navigates to an existing session
       const parent = yield* sessions.get(ctx.sessionID)
+
       const childSession = yield* sessions.create({
         parentID: ctx.sessionID,
         title: params.description,
@@ -255,6 +273,52 @@ export const TaskTool = Tool.define(
       previousSessionIDRef: Ref.Ref<Option.Option<SessionID>>,
     ) {
       const parent = yield* sessions.get(ctx.sessionID)
+
+      if (
+        flags.experimentalPersistentDelegations &&
+        params.command &&
+        params.command !== "append" &&
+        params.command !== "steer"
+      ) {
+        const delegationID = Option.getOrUndefined(Schema.decodeUnknownOption(DelegationID.ID)(params.delegation_id))
+        if (!delegationID) return yield* Effect.fail(new Error("delegation_id is required for command"))
+        yield* ctx.ask({
+          permission:
+            params.command === "interrupt"
+              ? "task_interrupt"
+              : params.command === "close"
+                ? "task_close"
+                : params.command === "archive" || params.command === "unarchive"
+                  ? "task_archive"
+                  : params.command === "fork"
+                    ? "task_fork"
+                    : params.command === "purge"
+                      ? "task_purge"
+                      : "task_reconcile",
+          patterns: [delegationID],
+          always: [],
+          metadata: { delegationID, command: params.command },
+        })
+        if (params.command === "retry") {
+          const participantID = Option.getOrUndefined(Schema.decodeUnknownOption(ParticipantID)(params.participant_id))
+          const turnID = Option.getOrUndefined(Schema.decodeUnknownOption(TurnID)(params.turn_id))
+          if (!participantID || !turnID)
+            return yield* Effect.fail(new Error("retry requires participant_id and turn_id"))
+          yield* delegationService.retry({ delegationID, participantID, turnID })
+        } else if (params.command === "reconcile") yield* delegationService.reconcile({ delegationID })
+        else if (params.command === "retract_rejection")
+          yield* delegationService.retractRejection({ delegationID, reason: params.prompt })
+        else if (params.command === "close") yield* delegationService.close({ delegationID, reason: params.prompt })
+        else if (params.command === "archive") yield* delegationService.archive({ delegationID })
+        else if (params.command === "unarchive") yield* delegationService.unarchive({ delegationID })
+        else if (params.command === "fork") yield* delegationService.fork({ delegationID, reason: params.prompt })
+        else if (params.command === "purge") yield* delegationService.delete({ delegationID, purge: true })
+        return {
+          title: params.description,
+          metadata: { delegationID, command: params.command },
+          output: renderOutput({ sessionID: ctx.sessionID, state: "completed", text: `${params.command} accepted` }),
+        }
+      }
 
       // CLI execution mode branch
       if (params.execution_type === "external-cli") {
