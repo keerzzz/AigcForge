@@ -1,3 +1,5 @@
+export * as OpenApi from "./openapi"
+
 import { $ } from "bun"
 import path from "path"
 

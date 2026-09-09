@@ -8,10 +8,10 @@ import { $ } from "bun"
 import path from "path"
 
 import { createClient } from "@hey-api/openapi-ts"
-import { generateOpenApiSpec } from "@aigcfroge/script/openapi"
+import { OpenApi } from "@aigcfroge/script/openapi"
 
 // Reuse the shared generation boundary instead of re-invoking `dev generate`.
-await Bun.write(path.join(dir, "openapi.json"), await generateOpenApiSpec())
+await Bun.write(path.join(dir, "openapi.json"), await OpenApi.generateOpenApiSpec())
 
 await createClient({
   input: "./openapi.json",
