@@ -1,4 +1,5 @@
-import { For, Show, createEffect, createMemo, createSignal } from "solid-js"
+import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
+import { createStore } from "solid-js/store"
 import { useLocation, useNavigate } from "@solidjs/router"
 import { Popover as KobaltePopover } from "@kobalte/core/popover"
 import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
@@ -13,6 +14,7 @@ import { useSync } from "@/context/sync"
 import { useSDK } from "@/context/sdk"
 import { showToast } from "@/utils/toast"
 import type { SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
+import type { DelegationState } from "@aigcfroge/sdk/v2/types"
 import {
   aggregateAgentTasks,
   derivedTasksBySource,
@@ -29,6 +31,8 @@ import {
   isScheduledTask,
   scheduledToggleStatus,
 } from "@/pages/session/timeline/session-scheduled-tasks-model"
+import { delegationListInput, delegationPanelModel, type DelegationPanelItem } from "./delegation-panel-model"
+import { requireServerKey, sessionHref } from "@/utils/session-route"
 
 /** Sentinel key for the "未归属" pseudo-entry in the agent list. */
 const UNASSIGNED = "__unassigned__"
@@ -66,11 +70,108 @@ export function AgentTaskHub(props: {
   // "no tasks" while the cross-session snapshot is still loading (DESIGN.md
   // loading-state requirement for the hub's data source).
   const [loading, setLoading] = createSignal(false)
+  const [delegationState, setDelegationState] = createStore<{
+    items: DelegationPanelItem[]
+    loading: boolean
+    error?: string
+    includeHistory: boolean
+  }>({ items: [], loading: false, includeHistory: false })
+  let delegationRequest = 0
 
   createEffect(() => {
     if (!props.open) return
     void loadCrossSessionTasks()
   })
+
+  createEffect(() => {
+    if (!props.open) {
+      delegationRequest += 1
+      return
+    }
+    void loadDelegations()
+  })
+
+  const loadDelegations = async () => {
+    const sessionID = props.sessionID()
+    const request = ++delegationRequest
+    if (!sessionID) {
+      setDelegationState({ items: [], loading: false, error: undefined })
+      return
+    }
+    setDelegationState({ loading: true, error: undefined })
+    try {
+      const result = await sdk().client.v2.delegation.list(
+        delegationListInput(sdk().directory, sessionID, delegationState.includeHistory),
+      )
+      if (request !== delegationRequest) return
+      const items: DelegationPanelItem[] = (result.data ?? []).map((item: DelegationState) => ({
+        delegation: {
+          id: item.delegation.id,
+          parentSessionID: item.delegation.parentSessionID,
+          title: item.delegation.title,
+          status: item.delegation.status,
+          lastActivityAt: typeof item.delegation.lastActivityAt === "number" ? item.delegation.lastActivityAt : 0,
+        },
+        participants: item.participants,
+        turns: item.turns,
+        softExpired: item.softExpired,
+      }))
+      setDelegationState({ items, loading: false })
+    } catch (error) {
+      if (request !== delegationRequest) return
+      const description = error instanceof Error ? error.message : String(error)
+      setDelegationState({ items: [], loading: false, error: description })
+      showToast({ title: language.t("session.agentHub.delegations.loadFailed"), description })
+    }
+  }
+
+  const refreshOnDelegationEvent = (event: { properties: { delegationID: string } }) => {
+    if (!props.open) return
+    const visible = delegationState.items.some((item) => item.delegation.id === event.properties.delegationID)
+    // A created/forked delegation may not be in the current snapshot yet, while
+    // updates for another parent must not churn this panel. Created/forked
+    // events are subscribed separately and always reload; other events reload
+    // only when their delegation is already visible in this parent-scoped view.
+    if (!visible) return
+    void loadDelegations()
+  }
+  const refreshOnDelegationCreated = () => {
+    if (props.open) void loadDelegations()
+  }
+  const delegationEventTypes = [
+    "delegation.participant_added",
+    "delegation.participant_bound",
+    "delegation.participant_interrupted",
+    "delegation.participant_closed",
+    "delegation.turn_admitted",
+    "delegation.turn_appended",
+    "delegation.delivery_admitted",
+    "delegation.delivery_started",
+    "delegation.delivery_completed",
+    "delegation.delivery_failed",
+    "delegation.delivery_cancelled",
+    "delegation.delivery_recovery_required",
+    "delegation.revision_recorded",
+    "delegation.review_approved",
+    "delegation.review_changes_requested",
+    "delegation.review_rejected",
+    "delegation.rejection_retracted",
+    "delegation.closing",
+    "delegation.completed",
+    "delegation.cancelled",
+    "delegation.archived",
+  ] as const
+  const delegationEventDisposals = delegationEventTypes.map((type) => sdk().event.on(type, refreshOnDelegationEvent))
+  delegationEventDisposals.push(sdk().event.on("delegation.created", refreshOnDelegationCreated))
+  delegationEventDisposals.push(sdk().event.on("delegation.forked", refreshOnDelegationCreated))
+  onCleanup(() => delegationEventDisposals.forEach((dispose) => dispose()))
+
+  const delegationRows = createMemo(() => delegationPanelModel(delegationState.items, props.sessionID() ?? ""))
+  const openParticipant = (sessionID: string) => {
+    const segment = location.pathname.split("/")[2]
+    navigate(sessionHref(requireServerKey(segment), sessionID))
+    props.onOpenChange(false)
+  }
 
   // Jump to a source message via the app's message deep-link hash (#message-<id>);
   // useSessionHashScroll reacts to the hash and scrolls the timeline to it.
@@ -260,6 +361,79 @@ export function AgentTaskHub(props: {
           style={{ "min-width": "320px", "max-height": "min(70vh, 520px)" }}
         >
           <div class="flex flex-col p-3 gap-3" data-component="agent-task-hub">
+            <div class="flex flex-col gap-1" data-component="delegation-panel">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-13-medium text-text-strong">{language.t("session.agentHub.delegations")}</div>
+                <CheckboxV2
+                  checked={delegationState.includeHistory}
+                  onChange={(checked) => setDelegationState("includeHistory", checked)}
+                  label={
+                    <span class="text-11-regular text-text-weak">
+                      {language.t("session.agentHub.delegations.showHistory")}
+                    </span>
+                  }
+                />
+              </div>
+              <Show
+                when={!delegationState.loading}
+                fallback={
+                  <div
+                    class="flex items-center gap-1.5 text-12-regular text-text-weak"
+                    data-component="delegation-panel-loading"
+                  >
+                    <Spinner class="size-3" />
+                    <span>{language.t("session.agentHub.delegations.loading")}</span>
+                  </div>
+                }
+              >
+                <Show
+                  when={!delegationState.error}
+                  fallback={
+                    <div class="text-12-regular text-text-weak" data-component="delegation-panel-error">
+                      {language.t("session.agentHub.delegations.loadFailed")}
+                    </div>
+                  }
+                >
+                  <Show
+                    when={delegationRows().length > 0}
+                    fallback={
+                      <div class="text-12-regular text-text-weak" data-component="delegation-panel-empty">
+                        {language.t("session.agentHub.delegations.empty")}
+                      </div>
+                    }
+                  >
+                    <For each={delegationRows()}>
+                      {(delegation) => (
+                        <div
+                          class="flex flex-col gap-1 px-2 py-1 rounded-md bg-surface-base"
+                          data-component="delegation-card"
+                          data-status={delegation.status}
+                        >
+                          <div class="flex items-center justify-between gap-2 text-12-regular">
+                            <span class="truncate text-text-base">{delegation.title}</span>
+                            <span class="text-11-regular text-text-weak">{delegation.status}</span>
+                          </div>
+                          <div class="flex flex-wrap gap-1" data-component="delegation-participants">
+                            <For each={delegation.participants}>
+                              {(participant) => (
+                                <button
+                                  type="button"
+                                  disabled={!participant.href}
+                                  class="text-11-regular text-text-weak hover:text-text-strong disabled:opacity-60"
+                                  onClick={() => participant.href && openParticipant(participant.href)}
+                                >
+                                  {participant.role}: {participant.target}
+                                </button>
+                              )}
+                            </For>
+                          </div>
+                        </div>
+                      )}
+                    </For>
+                  </Show>
+                </Show>
+              </Show>
+            </div>
             {/* Zone 1: my agents */}
             <div class="flex flex-col gap-1">
               <div class="text-13-medium text-text-strong">{language.t("session.agentHub.agents")}</div>

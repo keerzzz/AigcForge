@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { taskAgentLabel } from "../../src/routes/session"
+import { formatDelegationLink, taskAgentLabel } from "../../src/routes/session"
 import { permissionTaskTitle } from "../../src/routes/session/permission"
 
 // M2 TUI presentation contract. The routes/session Task() and PermissionPrompt
@@ -41,5 +41,11 @@ describe("TUI external-cli task display", () => {
 
   test("permissionTaskTitle keeps the subagent form for internal delegations", () => {
     expect(permissionTaskTitle({ subagent_type: "build" })).toBe("Build Task")
+  })
+
+  test("task metadata projects stable delegation, participant, and turn handles", () => {
+    expect(formatDelegationLink({ delegationID: "dlg_1", participantID: "par_1", turnID: "trn_1" })).toBe(
+      "Delegation dlg_1 · par_1 · trn_1",
+    )
   })
 })

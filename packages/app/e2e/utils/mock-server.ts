@@ -10,6 +10,7 @@ const emptyList = new Set([
   "/vcs/status",
   "/vcs/diff",
   "/vcs/log",
+  "/file",
 ])
 const emptyObject = new Set(["/global/config", "/config", "/provider/auth", "/mcp", "/session/status"])
 
@@ -38,6 +39,9 @@ export interface MockServerConfig {
    * id. The default `{}` leaves every session idle, which makes every busy-turn surface
    * (the timeline's Thinking row, and anything derived from a running turn) unreachable. */
   sessionStatus?: Record<string, unknown>
+  delegations?: unknown[]
+  delegationDelay?: number
+  delegationStatus?: number
 }
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
@@ -82,6 +86,10 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     if (path in staticRoutes) return json(route, staticRoutes[path])
     // M4 Agent Hub cross-session aggregation read (agent-task group).
     if (path === "/agent-task") return json(route, config.tasks ?? [])
+    if (path === "/api/delegation" || path === "/delegation") {
+      if (config.delegationDelay) await new Promise((resolve) => setTimeout(resolve, config.delegationDelay))
+      return json(route, config.delegations ?? [], undefined, config.delegationStatus ?? 200)
+    }
 
     const sessionMatch = path.match(/^\/session\/([^/]+)$/)
     if (sessionMatch) {
