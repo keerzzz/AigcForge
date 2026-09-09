@@ -53,10 +53,15 @@ describe.serial("Phase 5: Codex app-server Control Plane & Contracts", () => {
     }
 
     const value = [sdkBin, installedBin].join(path.delimiter)
-    expect(resolveCodexAppServerCommand({ PATH: value, Path: value })).toBe(installedCodex)
+    const resolved = resolveCodexAppServerCommand({ PATH: value, Path: value })
+    expect(process.platform === "win32" ? resolved.toLowerCase() : resolved).toBe(
+      process.platform === "win32" ? installedCodex.toLowerCase() : installedCodex,
+    )
   })
 
-  const liveAppServerIt = resolveCodexAppServerCommand().includes("node_modules/.bin") ? liveIt.skip : liveIt.live
+  const liveAppServerIt = /(^|[\\/])node_modules[\\/]\.bin([\\/]|$)/.test(resolveCodexAppServerCommand())
+    ? liveIt.live.skip
+    : liveIt.live
 
   liveAppServerIt(
     "live. negotiates and starts a thread on the installed Codex app-server",
