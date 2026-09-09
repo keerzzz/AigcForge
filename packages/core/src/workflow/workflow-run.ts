@@ -393,7 +393,7 @@ export const layer = Layer.effect(
         const concurrent = yield* db.select().from(WorkflowRunTable).where(activeIdentity).get().pipe(Effect.orDie)
         if (concurrent) return rowToRunInfo(concurrent)
         // The other possible rejection is the `(session_id, request_id)` unique
-        // index: a concurrent submit with the *same* requestID won the race.
+        // index. The winner is idempotent only when it represents this exact request.
         if (input.requestID) {
           const byRequest = yield* db
             .select()
@@ -403,7 +403,8 @@ export const layer = Layer.effect(
             )
             .get()
             .pipe(Effect.orDie)
-          if (byRequest) return rowToRunInfo(byRequest)
+          if (byRequest && byRequest.request_digest === requestDigest) return rowToRunInfo(byRequest)
+          return yield* new RequestConflictError({ requestID: input.requestID })
         }
         return yield* Effect.die("Workflow run identity conflict without an owner row")
       }

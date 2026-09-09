@@ -2,8 +2,6 @@ import { describe, expect } from "bun:test"
 import { Context, Effect, Layer, Schema } from "effect"
 import { eq, sql } from "drizzle-orm"
 import path from "path"
-import { EffectDrizzleSqlite } from "@aigcfroge/effect-drizzle-sqlite"
-import { SqliteClient } from "@effect/sql-sqlite-bun"
 import { CompositionResolver } from "@aigcfroge/core/composition-resolver"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -100,21 +98,6 @@ const seedSession = (db: Database.Interface["db"], sessionID: SessionV2.ID, mode
       .pipe(Effect.orDie)
   })
 
-const makeIndependentDatabase = EffectDrizzleSqlite.makeWithDefaults()
-
-const independentDatabaseLayer = (file: string) =>
-  Layer.effect(
-    Database.Service,
-    Effect.gen(function* () {
-      const db = yield* makeIndependentDatabase
-      yield* db.run(sql`PRAGMA journal_mode = WAL`)
-      yield* db.run(sql`PRAGMA synchronous = NORMAL`)
-      yield* db.run(sql`PRAGMA busy_timeout = 500`)
-      yield* db.run(sql`PRAGMA foreign_keys = ON`)
-      return { db }
-    }),
-  ).pipe(Layer.provide(SqliteClient.layer({ filename: file })))
-
 const runInIndependentDomains = <A, E>(
   file: string,
   use: (services: {
@@ -125,7 +108,7 @@ const runInIndependentDomains = <A, E>(
   Effect.scoped(
     Effect.gen(function* () {
       const primaryDatabase = Database.layerFromPath(file)
-      const secondaryDatabase = independentDatabaseLayer(file)
+      const secondaryDatabase = Database.layerFromPath(file)
       const primaryEvents = EventV2.layer.pipe(Layer.provide(primaryDatabase))
       const primary = yield* Layer.build(
         Layer.mergeAll(
@@ -203,9 +186,9 @@ describe("EventV2 projection transaction handle", () => {
     Effect.gen(function* () {
       yield* Effect.promise(() => tmpdir()).pipe(
         Effect.flatMap((tmp) =>
-          runInIndependentDomains(path.join(tmp.path, "context.sqlite"), ({ primary }) =>
+          runInIndependentDomains(path.join(tmp.path, "context.sqlite"), ({ primary, secondary }) =>
             Effect.gen(function* () {
-              const db = Context.get(primary, Database.Service).db
+              const db = Context.get(secondary, Database.Service).db
               const events = Context.get(primary, EventV2.Service)
               const sessionID = SessionV2.ID.make("ses_tx_context")
               yield* seedSession(db, sessionID)
