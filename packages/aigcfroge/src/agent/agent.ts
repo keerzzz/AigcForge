@@ -178,6 +178,7 @@ export const layer = Layer.effect(
             websearch: "allow",
             question: "allow",
             list_assets: "allow",
+            generate_delegation_protocol: "allow",
             plan_enter: "allow",
             // 资产落盘通道（propose → 用户确认 → 受校验的 apply/delete 事务）。
             propose_prompt_asset: "allow",

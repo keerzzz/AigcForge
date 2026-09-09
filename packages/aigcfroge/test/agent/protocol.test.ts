@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test"
 import { readFileSync, existsSync } from "fs"
 import path from "path"
-import { getAgentCard, listAgents } from "../../src/agent/protocol"
+import { formatAgentCard, getAgentCard, listAgents, loadProtocolCard } from "../../src/agent/protocol"
 
 describe("agent cards", () => {
   const agents = listAgents()
@@ -35,6 +35,17 @@ describe("agent cards", () => {
 
   it("getAgentCard returns undefined for unknown agent", () => {
     expect(getAgentCard("unknown")).toBeUndefined()
+  })
+
+  it("formats indexed Agent Card metadata without inventing external cards", () => {
+    expect(formatAgentCard("build")).toContain("Agent: build (primary)")
+    expect(formatAgentCard("build")).toContain("Capabilities: code_modification")
+    expect(formatAgentCard("unknown")).toBeUndefined()
+  })
+
+  it("loads the target protocol card and fails closed for unknown agents", async () => {
+    expect(await loadProtocolCard("build")).toContain("## build protocol")
+    expect(await loadProtocolCard("unknown")).toBeUndefined()
   })
 
   it("each agent with protocol has a protocol.md file", () => {
