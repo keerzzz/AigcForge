@@ -7221,7 +7221,9 @@ export type ModelV2Info = {
         package: string
         url?: string
         settings?: {
-          [key: string]: unknown
+          timeout?: number | false
+          headerTimeout?: number | false
+          chunkTimeout?: number | false
         }
       }
     | {
@@ -7229,7 +7231,9 @@ export type ModelV2Info = {
         type: "native"
         url?: string
         settings: {
-          [key: string]: unknown
+          timeout?: number | false
+          headerTimeout?: number | false
+          chunkTimeout?: number | false
         }
       }
   capabilities: {
@@ -7316,14 +7320,18 @@ export type ProviderV2Info = {
         package: string
         url?: string
         settings?: {
-          [key: string]: unknown
+          timeout?: number | false
+          headerTimeout?: number | false
+          chunkTimeout?: number | false
         }
       }
     | {
         type: "native"
         url?: string
         settings: {
-          [key: string]: unknown
+          timeout?: number | false
+          headerTimeout?: number | false
+          chunkTimeout?: number | false
         }
       }
   request: {
