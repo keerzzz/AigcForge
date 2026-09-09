@@ -56,7 +56,9 @@ describe.serial("Phase 5: Codex app-server Control Plane & Contracts", () => {
     expect(resolveCodexAppServerCommand({ PATH: value, Path: value })).toBe(installedCodex)
   })
 
-  liveIt.live(
+  const liveAppServerIt = resolveCodexAppServerCommand().includes("node_modules/.bin") ? liveIt.skip : liveIt.live
+
+  liveAppServerIt(
     "live. negotiates and starts a thread on the installed Codex app-server",
     () =>
       Effect.scoped(
