@@ -2,13 +2,13 @@ import { expect, test, type Page } from "@playwright/test"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 
-// S1 B1/B3：不可信 markdown（模型输出 + 工具输出）的消毒证据必须在真实浏览器里钉。
-// 单测跑在 happy-dom 上，而 DOMPurify 依赖 live NodeIterator、happy-dom 的 iterator
-// 在当前节点被 removeChild 后失效 —— 只要 payload 前面有元素被删除，它之后的节点就
-// 完全跳过属性消毒（实测 onclick / javascript: / style 全部存活）。所以「遮罩盖不住
-// 提示框」「KaTeX 还能渲染」这两件事只有真实 Chromium + 真实几何能证明。
-// 两道防线：markdown-cache.tsx 的 OUT_OF_FLOW_POSITIONS（属性层）+
-// markdown.css 的 contain: layout（结构层，容器成为定位包含块与层叠上下文）。
+// S1 B1/B3: Sanitization evidence for untrusted markdown (model and tool
+// output) must run in a real browser. Unit tests use happy-dom, whose live
+// NodeIterator becomes invalid when its current node is removed; attributes on
+// later nodes can then skip sanitization. Only real Chromium geometry can prove
+// that an overlay cannot cover a prompt and that KaTeX still renders.
+// The two defenses are OUT_OF_FLOW_POSITIONS in markdown-cache.tsx at the
+// attribute layer and `contain: layout` in markdown.css at the structural layer.
 const directory = "C:/Aigcfroge/MarkdownSanitize"
 const sessionID = "ses_md_sanitize"
 const title = "Markdown sanitize"
@@ -51,11 +51,12 @@ const project = {
   sandboxes: [],
 }
 
-// 一条消息同时携带多类载荷：无关前缀、脚本、事件处理器、javascript: URL、危险
-// style、遮罩、公式、图片、表单。前缀元素（自定义标签，会被消毒器整体剥掉）刻意
-// 放在危险载荷之前——happy-dom 的 NodeIterator 在这种「先删一个再处理后续」的
-// 位置上会整段跳过属性消毒（单测文件已注明），真实 Chromium 不会，所以这里逐类
-// 断言最终 DOM 才是行为证据。
+// One message combines every payload class: an unrelated prefix, script,
+// handler, javascript: URL, dangerous style, overlay, formula, image, and form.
+// The removable custom element intentionally precedes dangerous nodes. That
+// ordering exposes happy-dom's iterator defect, while Chromium must continue
+// sanitizing every later node; assertions against the final DOM are therefore
+// the behavior evidence.
 const payload = `# SANITIZEHEADING
 
 <unknowntag data-prefix="1"></unknowntag>
@@ -123,98 +124,92 @@ async function open(page: Page) {
   await expect(page.getByRole("heading", { name: "SANITIZEHEADING" }).first()).toBeVisible({ timeout: 60_000 })
 }
 
-test("an injected position:fixed overlay cannot escape the markdown container", async ({ page }) => {
+test("sanitizes untrusted markdown while preserving safe rendering", async ({ page }) => {
   await open(page)
 
-  // DOMPurify 的 SANITIZE_NAMED_PROPS 会把 id 改写成 user-content-*，所以按文本定位。
-  const probe = page.getByText("OVERLAYPROBE")
-  await expect(probe).toBeVisible()
+  await test.step("an injected position:fixed overlay cannot escape the markdown container", async () => {
+    const probe = page.getByText("OVERLAYPROBE")
+    await expect(probe).toBeVisible()
 
-  const geometry = await probe.evaluate((node: HTMLElement) => {
-    const container = node.closest('[data-component="markdown"]')
-    if (!container) throw new Error("payload rendered outside the markdown container")
-    const box = node.getBoundingClientRect()
-    const bounds = container.getBoundingClientRect()
-    const rect = (r: DOMRect) => ({ top: r.top, left: r.left, width: r.width, height: r.height })
-    return {
-      inlinePosition: node.style.position,
-      computedPosition: getComputedStyle(node).position,
-      containerContain: getComputedStyle(container).contain,
-      box: rect(box),
-      bounds: rect(bounds),
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-    }
+    const geometry = await probe.evaluate((node: HTMLElement) => {
+      const container = node.closest('[data-component="markdown"]')
+      if (!container) throw new Error("payload rendered outside the markdown container")
+      const box = node.getBoundingClientRect()
+      const bounds = container.getBoundingClientRect()
+      const rect = (r: DOMRect) => ({ top: r.top, left: r.left, width: r.width, height: r.height })
+      return {
+        inlinePosition: node.style.position,
+        computedPosition: getComputedStyle(node).position,
+        containerContain: getComputedStyle(container).contain,
+        box: rect(box),
+        bounds: rect(bounds),
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      }
+    })
+
+    // Attribute defense: removing position also neutralizes inset and z-index.
+    expect(geometry.inlinePosition).toBe("")
+    expect(geometry.computedPosition).toBe("static")
+    // Structural defense: layout containment keeps future positioned content in this box.
+    expect(geometry.containerContain).toContain("layout")
+    // Real geometry: the element does not fill the viewport.
+    expect(geometry.box.height).toBeLessThan(geometry.viewport.height / 2)
+    expect(geometry.box.width).toBeLessThanOrEqual(geometry.bounds.width + 1)
+    expect(geometry.box.top).toBeGreaterThanOrEqual(geometry.bounds.top - 1)
   })
 
-  // 属性层：position 声明已被摘掉，inset/z-index 随之失效。
-  expect(geometry.inlinePosition).toBe("")
-  expect(geometry.computedPosition).toBe("static")
-  // 结构层：容器建立了布局包含，即便未来放行了定位也出不了这个盒子。
-  expect(geometry.containerContain).toContain("layout")
-  // 真实几何：没有铺满视口。
-  expect(geometry.box.height).toBeLessThan(geometry.viewport.height / 2)
-  expect(geometry.box.width).toBeLessThanOrEqual(geometry.bounds.width + 1)
-  expect(geometry.box.top).toBeGreaterThanOrEqual(geometry.bounds.top - 1)
-})
+  await test.step("dangerous nodes and attributes stay stripped after an unrelated node", async () => {
+    const container = page.locator('[data-component="markdown"]').first()
 
-test("script, event handlers, javascript: URLs and dangerous styles stay stripped after an unrelated node", async ({
-  page,
-}) => {
-  await open(page)
+    // The unrelated prefix is removed without letting later attributes escape sanitization.
+    await expect(page.getByText("PREFIXPROBE before the payload.")).toBeVisible()
+    await expect(container.locator("unknowntag")).toHaveCount(0)
+    await expect(container.locator("script")).toHaveCount(0)
 
-  const container = page.locator('[data-component="markdown"]').first()
+    // Event-handler attributes are stripped while their text remains.
+    await expect(page.getByText("HANDLERPROBE")).toBeVisible()
+    await expect(container.locator("[onclick]")).toHaveCount(0)
 
-  // 无关前缀元素被整体剥掉，但它后面的危险载荷不能跟着逃逸属性消毒。
-  await expect(page.getByText("PREFIXPROBE before the payload.")).toBeVisible()
-  await expect(container.locator("unknowntag")).toHaveCount(0)
-  await expect(container.locator("script")).toHaveCount(0)
+    // DOMPurify removes href rather than preserving a javascript: prefix.
+    await expect(page.getByText("JSPROBE")).toBeVisible()
+    const hrefs = await container
+      .locator("a[href]")
+      .evaluateAll((anchors) => anchors.map((a) => a.getAttribute("href") ?? ""))
+    expect(hrefs.some((href) => href.includes("javascript:"))).toBe(false)
 
-  // 事件处理器属性必须被剥掉，只剩文本。
-  await expect(page.getByText("HANDLERPROBE")).toBeVisible()
-  await expect(container.locator("[onclick]")).toHaveCount(0)
-
-  // javascript: URL 的 href 必须被 DOMPurify 剥掉（不保留 javascript: 前缀）。
-  await expect(page.getByText("JSPROBE")).toBeVisible()
-  const hrefs = await container.locator("a[href]").evaluateAll((anchors) =>
-    anchors.map((a) => a.getAttribute("href") ?? ""),
-  )
-  expect(hrefs.some((href) => href.includes("javascript:"))).toBe(false)
-
-  // 危险 style 的真实防线是「出流能力」：position 一旦被摘，元素回文档流，盖不住
-  // 权限/提问提示框。background:url('javascript:…') 是惰性残留而非 XSS 向量（CSS
-  // url() 不执行 JS，仅当作无效背景图），DOMPurify 保留它无害，这里不断言它被剥。
-  const danger = await page.getByText("DANGERSTYLEPROBE").evaluate((node: HTMLElement) => ({
-    position: getComputedStyle(node).position,
-  }))
-  expect(danger.position).toBe("static")
-})
-
-test("KaTeX keeps the inline styles its visual layer needs", async ({ page }) => {
-  await open(page)
-
-  const katex = page.locator(".katex").first()
-  await expect(katex).toBeVisible()
-  const math = await katex.evaluate((node) => {
-    const styled = Array.from(node.querySelectorAll<HTMLElement>("[style]"))
-    const box = node.getBoundingClientRect()
-    return {
-      styledCount: styled.length,
-      properties: [...new Set(styled.flatMap((el) => Array.from(el.style)))].sort(),
-      height: box.height,
-    }
+    // The relevant style defense is flow containment: once position is removed,
+    // the element cannot cover permission or question prompts. A preserved
+    // background url with a javascript scheme is inert CSS, not an executable
+    // vector, so this test does not require DOMPurify to remove it.
+    const danger = await page.getByText("DANGERSTYLEPROBE").evaluate((node: HTMLElement) => ({
+      position: getComputedStyle(node).position,
+    }))
+    expect(danger.position).toBe("static")
   })
 
-  // 视觉层靠内联 height/top/vertical-align 定位；整条禁掉 style 会让分子分母叠在一起。
-  expect(math.styledCount).toBeGreaterThan(0)
-  expect(math.properties).toContain("height")
-  expect(math.height).toBeGreaterThan(0)
-})
+  await test.step("KaTeX keeps the inline styles its visual layer needs", async () => {
+    const katex = page.locator(".katex").first()
+    await expect(katex).toBeVisible()
+    const math = await katex.evaluate((node) => {
+      const styled = Array.from(node.querySelectorAll<HTMLElement>("[style]"))
+      const box = node.getBoundingClientRect()
+      return {
+        styledCount: styled.length,
+        properties: [...new Set(styled.flatMap((el) => Array.from(el.style)))].sort(),
+        height: box.height,
+      }
+    })
 
-test("images render while form controls stay stripped", async ({ page }) => {
-  await open(page)
+    // KaTeX needs inline height/top/vertical-align to position its visual layers.
+    expect(math.styledCount).toBeGreaterThan(0)
+    expect(math.properties).toContain("height")
+    expect(math.height).toBeGreaterThan(0)
+  })
 
-  await expect(page.locator('[data-component="markdown"] img[alt="probe"]')).toHaveCount(1)
-  await expect(page.getByText("FORMPROBE")).toBeVisible()
-  await expect(page.locator('[data-component="markdown"] form')).toHaveCount(0)
-  await expect(page.locator('[data-component="markdown"] input')).toHaveCount(0)
+  await test.step("images render while form controls stay stripped", async () => {
+    await expect(page.locator('[data-component="markdown"] img[alt="probe"]')).toHaveCount(1)
+    await expect(page.getByText("FORMPROBE")).toBeVisible()
+    await expect(page.locator('[data-component="markdown"] form')).toHaveCount(0)
+    await expect(page.locator('[data-component="markdown"] input')).toHaveCount(0)
+  })
 })

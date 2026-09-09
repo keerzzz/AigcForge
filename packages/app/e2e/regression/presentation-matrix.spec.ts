@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer } from "../utils/mock-server"
-import { APP_READY_TIMEOUT, expectDevServerReady } from "../utils/waits"
+import { APP_READY_TIMEOUT, gotoWhenReady } from "../utils/waits"
 
 const directory = "C:/Aigcfroge/PresentationMatrix"
 const projectID = "proj_presentation_matrix"
@@ -61,15 +61,14 @@ async function mountApp(page: Page) {
       JSON.stringify({ list: [], projects: { local: [{ worktree, expanded: true }] }, lastProject: {} }),
     )
   }, directory)
-  await expectDevServerReady(page)
-  await page.goto(`/${base64Encode(directory)}`)
+  await gotoWhenReady(page, `/${base64Encode(directory)}`)
   // The theme provider applying oc-2 means the app booted far enough that the
   // presentation providers (theme + language) have both mounted.
   await expect(page.locator("html")).toHaveAttribute("data-theme", "oc-2", { timeout: APP_READY_TIMEOUT })
 }
 
 test.describe("regression: presentation matrix contract", () => {
-  test("applies theme, locale and viewport per project", async ({ page }, testInfo) => {
+  test("applies theme, locale, viewport and base keyboard focus", async ({ page }, testInfo) => {
     const want = EXPECTED[testInfo.project.name]
     if (!want) throw new Error(`unexpected project ${testInfo.project.name}`)
 
@@ -79,27 +78,17 @@ test.describe("regression: presentation matrix contract", () => {
     const lang = await page.evaluate(() => document.documentElement.lang)
     expect(lang).toBe(want.lang)
     expect(page.viewportSize()).toEqual(want.viewport)
-  })
 
-  test("reaches an interactive control by keyboard on the base project", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "chromium", "keyboard reachability is asserted once, on the base project")
-
-    await mountApp(page)
-
+    if (testInfo.project.name !== "chromium") return
+    const chat = page.getByRole("button", { name: "Chat" })
+    await expect(chat).toBeVisible()
     await page.keyboard.press("Tab")
-    const active = await page.evaluate(() => {
-      const el = document.activeElement
-      if (!el || el === document.body) return null
-      return {
-        tag: el.tagName.toLowerCase(),
-        role: el.getAttribute("role"),
-        tabIndex: el.getAttribute("tabindex"),
-      }
+    await expect(chat).toBeFocused()
+    const outline = await chat.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return { style: style.outlineStyle, width: style.outlineWidth }
     })
-    expect(active, "Tab must land on a real control, not <body>").not.toBeNull()
-    if (active === null) return
-    const { tag, role } = active
-    const interactive = ["a", "button", "input", "select", "textarea", "summary"].includes(tag) || role === "button"
-    expect(interactive, `expected an interactive element, got <${tag}>${role ? ` role=${role}` : ""}`).toBe(true)
+    expect(outline.style).not.toBe("none")
+    expect(Number.parseFloat(outline.width)).toBeGreaterThan(0)
   })
 })
