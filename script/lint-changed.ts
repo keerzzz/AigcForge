@@ -1,4 +1,7 @@
-import { addedLinesOfFile, findBadBunCwdRun, normalizePath, parseAddedLines, resolveBaseline } from "@aigcfroge/script/changed-lines"
+import { ChangedLines } from "@aigcfroge/script/changed-lines"
+
+const { addedLinesOfFile, findBadBunCwdRun, isCommandGateExempt, normalizePath, parseAddedLines, resolveBaseline } =
+  ChangedLines
 
 const guardedRules = [
   "typescript/no-unsafe-type-assertion",
@@ -36,6 +39,8 @@ for (const file of (await git(["ls-files", "--others", "--exclude-standard", "-z
 const markdownViolations: Array<{ file: string; line: number; text: string }> = []
 for (const [file, lines] of added) {
   if (!markdownPattern.test(file) || Bun.file(file).size === 0) continue
+  // Meta documentation quotes the bad form to describe it (isCommandGateExempt).
+  if (isCommandGateExempt(file)) continue
   for (const violation of findBadBunCwdRun(lines, await Bun.file(file).text())) {
     markdownViolations.push({ file, ...violation })
   }

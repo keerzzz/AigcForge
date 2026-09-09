@@ -1,9 +1,59 @@
+export * as ChangedLines from "./changed-lines"
+
 export type AddedLines = Map<string, Set<number>>
 
 export function normalizePath(path: string) {
   const normalized = path.replaceAll("\\", "/")
   const root = `${process.cwd().replaceAll("\\", "/")}/`
   return normalized.startsWith(root) ? normalized.slice(root.length) : normalized
+}
+
+function decodeGitPath(value: string): string | undefined {
+  const quoted = value.startsWith('"') && value.endsWith('"')
+  if (!quoted) return value
+
+  const bytes: number[] = []
+  const text = value.slice(1, -1)
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]
+    if (character !== "\\") {
+      const encoded = new TextEncoder().encode(character)
+      bytes.push(...encoded)
+      continue
+    }
+
+    const escaped = text[++index]
+    if (escaped === undefined) return undefined
+    if (/[0-7]/.test(escaped)) {
+      const octal = text.slice(index).match(/^[0-7]{1,3}/)?.[0]
+      if (!octal) return undefined
+      bytes.push(Number.parseInt(octal, 8))
+      index += octal.length - 1
+      continue
+    }
+    const common: Record<string, number> = {
+      a: 0x07,
+      b: 0x08,
+      t: 0x09,
+      n: 0x0a,
+      v: 0x0b,
+      f: 0x0c,
+      r: 0x0d,
+      '"': 0x22,
+      "\\": 0x5c,
+    }
+    const decoded = common[escaped]
+    if (decoded === undefined) return undefined
+    bytes.push(decoded)
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(bytes))
+}
+
+function diffPath(row: string): string | undefined {
+  if (!row.startsWith("+++ ")) return undefined
+  const decoded = decodeGitPath(row.slice(4))
+  if (!decoded?.startsWith("b/")) return undefined
+  return normalizePath(decoded.slice(2))
 }
 
 /** Parse `git diff --unified=0` into per-file added-line sets. */
@@ -19,8 +69,9 @@ export function parseAddedLines(diff: string): AddedLines {
       hunk = false
       continue
     }
-    if (row.startsWith("+++ b/")) {
-      file = normalizePath(row.slice("+++ b/".length))
+    const nextFile = diffPath(row)
+    if (nextFile) {
+      file = nextFile
       if (!files.has(file)) files.set(file, new Set())
       continue
     }
@@ -76,31 +127,64 @@ export async function resolveBaseline(env: {
 /**
  * `bun --cwd <pkg> run <script>` silently prints bun's usage and exits 0
  * without running anything (bun 1.3.14, recorded in docs/testing.md §0 and
- * technical-debt §4). Only the two orders where `run` does not sit between
- * `--cwd` and the script are valid: `bun --cwd <pkg> <script>` and
- * `bun run --cwd <pkg> <script>`. Gate only ADDED lines so history stays.
+ * technical-debt §4). Gate only logical commands containing an added line so
+ * history remains untouched.
  */
 const BAD_CWD_RUN = /bun\s+--cwd(?:=|\s+)(?:[^\s]+|"[^"]*"|'[^']*')\s+run\s+/
+const DIRECT_REJECTION =
+  /(?:拒绝|禁止|反例|不要|别用|不应|非法|不能这样|never(?:\s+use)?|reject|forbidden(?:\s+form)?|don't(?:\s+run|\s+use)?|don’t(?:\s+run|\s+use)?|do\s+not(?:\s+run|\s+use)?|wrong|invalid|anti-pattern|bad\s+form|not\s+this)\s*[:：]?\s*[`'"“”]?\s*$/i
 
-// Lines that DESCRIBE the anti-pattern (e.g. docs that say "reject
-// `bun --cwd <pkg> run <script>`") are not commands to run and must not be
-// flagged — only added lines that instruct the bad form are. Chinese and
-// English rejection words both appear in this repo's docs, so both are listed;
-// the `i` flag only affects the ASCII words (Chinese has no case).
-const DESCRIBES_REJECTION =
-  /拒绝|禁止|反例|不要|别用|不应|不是|不清扫|非法|不能这样|never|reject|forbidden|don't|don’t|do not|wrong|invalid|anti-pattern|bad form|not this/i
+type LogicalCommand = {
+  readonly text: string
+  readonly lines: readonly number[]
+}
 
-export function findBadBunCwdRun(
-  added: ReadonlySet<number>,
-  content: string,
-): Array<{ line: number; text: string }> {
+function logicalCommands(rows: readonly string[]): LogicalCommand[] {
+  const commands: LogicalCommand[] = []
+  for (let index = 0; index < rows.length; index++) {
+    let text = rows[index]
+    const lines = [index + 1]
+    while (/\\\s*$/.test(text) && index + 1 < rows.length) {
+      text = text.replace(/\\\s*$/, " ") + rows[++index].trimStart()
+      lines.push(index + 1)
+    }
+    commands.push({ text, lines })
+  }
+  return commands
+}
+
+function directlyRejected(text: string, commandStart: number): boolean {
+  const clause = text
+    .slice(0, commandStart)
+    .split(/[.;。；!?！？]/)
+    .at(-1)
+    ?.replace(/[`'"“”]\s*$/, "")
+    .trimEnd()
+  return clause !== undefined && DIRECT_REJECTION.test(clause)
+}
+
+export function findBadBunCwdRun(added: ReadonlySet<number>, content: string): Array<{ line: number; text: string }> {
   const violations: Array<{ line: number; text: string }> = []
   const rows = content.split(/\r?\n/)
-  for (const line of added) {
-    const text = rows[line - 1]
-    if (text !== undefined && BAD_CWD_RUN.test(text) && !DESCRIBES_REJECTION.test(text)) {
-      violations.push({ line, text: text.trim() })
-    }
+  for (const command of logicalCommands(rows)) {
+    if (!command.lines.some((line) => added.has(line))) continue
+    const match = BAD_CWD_RUN.exec(command.text)
+    if (!match || directlyRejected(command.text, match.index)) continue
+    const line = command.lines.find((candidate) => added.has(candidate))
+    if (line !== undefined) violations.push({ line, text: command.text.trim() })
   }
   return violations
+}
+
+/**
+ * Meta-documentation that quotes the prohibited command only to describe the
+ * anti-pattern itself: the debt ledger and implementation plans cannot avoid
+ * quoting the form they document. The gate exists for instructional docs a
+ * reader might copy commands from, so those stay checked.
+ */
+const COMMAND_GATE_EXEMPT_PATHS = /^(?:docs\/technical-debt\.md|docs\/plan\/)/
+
+/** Whether added lines in this file skip the Markdown command gate. */
+export function isCommandGateExempt(path: string): boolean {
+  return COMMAND_GATE_EXEMPT_PATHS.test(normalizePath(path))
 }

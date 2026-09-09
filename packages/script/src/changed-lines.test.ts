@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { findBadBunCwdRun, parseAddedLines } from "./changed-lines"
+import { ChangedLines } from "./changed-lines"
+
+const { findBadBunCwdRun, isCommandGateExempt, parseAddedLines } = ChangedLines
 
 const added = (...lines: number[]) => new Set(lines)
 
@@ -26,6 +28,26 @@ describe("parseAddedLines", () => {
   test("dropped lines are not added", () => {
     const diff = ["diff --git a/y.md b/y.md", "+++ b/y.md", "@@ -1,2 +1,1 @@", "-old", "+new"].join("\n")
     expect(parseAddedLines(diff).get("y.md")).toEqual(new Set([1]))
+  })
+
+  test("decodes a C-quoted UTF-8 path", () => {
+    const diff = [
+      'diff --git "a/docs/\\344\\270\\255.md" "b/docs/\\344\\270\\255.md"',
+      '+++ "b/docs/\\344\\270\\255.md"',
+      "@@ -0,0 +1 @@",
+      "+new",
+    ].join("\n")
+    expect(parseAddedLines(diff).get("docs/中.md")).toEqual(new Set([1]))
+  })
+
+  test("decodes common escapes in a C-quoted path", () => {
+    const diff = [
+      'diff --git "a/docs/a\\tb.md" "b/docs/a\\tb.md"',
+      '+++ "b/docs/a\\tb.md"',
+      "@@ -0,0 +2 @@",
+      "+new",
+    ].join("\n")
+    expect(parseAddedLines(diff).get("docs/a\tb.md")).toEqual(new Set([2]))
   })
 })
 
@@ -95,8 +117,36 @@ describe("findBadBunCwdRun", () => {
     }
   })
 
+  test("rejection of another command does not suppress the invalid command", () => {
+    const instructed = "Do not use npm; run bun --cwd packages/app run test:unit."
+    expect(findBadBunCwdRun(added(1), instructed)).toHaveLength(1)
+  })
+
+  test("a conditional failure does not describe the invalid command as rejected", () => {
+    const instructed = "If tests do not pass, run bun --cwd packages/core run test."
+    expect(findBadBunCwdRun(added(1), instructed)).toHaveLength(1)
+  })
+
+  test("joins shell backslash continuations and reports an added constituent line", () => {
+    const multiline = "bun --cwd packages/core \\\n  run test"
+    expect(findBadBunCwdRun(added(2), multiline)).toEqual([{ line: 2, text: "bun --cwd packages/core  run test" }])
+  })
+
   test("a line that instructs the command is still flagged even with prose around it", () => {
     const instructed = "运行方式：bun --cwd packages/core run test 即可"
     expect(findBadBunCwdRun(added(1), instructed)).toHaveLength(1)
+  })
+})
+
+describe("isCommandGateExempt", () => {
+  test("meta documentation that describes the anti-pattern is exempt", () => {
+    expect(isCommandGateExempt("docs/technical-debt.md")).toBe(true)
+    expect(isCommandGateExempt("docs/plan/custom-m3.md")).toBe(true)
+  })
+
+  test("instructional documentation stays gated", () => {
+    expect(isCommandGateExempt("docs/testing.md")).toBe(false)
+    expect(isCommandGateExempt("AGENTS.md")).toBe(false)
+    expect(isCommandGateExempt("packages/app/README.md")).toBe(false)
   })
 })
