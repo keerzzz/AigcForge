@@ -43121,7 +43121,45 @@
                     "type": "string"
                   },
                   "settings": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "timeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      },
+                      "headerTimeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      },
+                      "chunkTimeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      }
+                    }
                   }
                 },
                 "required": ["id", "type", "package"],
@@ -43141,7 +43179,45 @@
                     "type": "string"
                   },
                   "settings": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "timeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      },
+                      "headerTimeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      },
+                      "chunkTimeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      }
+                    }
                   }
                 },
                 "required": ["id", "type", "settings"],
@@ -43688,7 +43764,45 @@
                     "type": "string"
                   },
                   "settings": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "timeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      },
+                      "headerTimeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      },
+                      "chunkTimeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      }
+                    }
                   }
                 },
                 "required": ["type", "package"],
@@ -43705,7 +43819,45 @@
                     "type": "string"
                   },
                   "settings": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "timeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      },
+                      "headerTimeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      },
+                      "chunkTimeout": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          {
+                            "type": "boolean",
+                            "enum": [false]
+                          }
+                        ]
+                      }
+                    }
                   }
                 },
                 "required": ["type", "settings"],

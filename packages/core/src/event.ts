@@ -45,7 +45,8 @@ export type Payload<D extends Definition = Definition> = {
   readonly metadata?: Record<string, unknown>
 }
 
-export type Subscriber<D extends Definition = Definition> = (event: Payload<D>) => Effect.Effect<void>
+export type Subscriber<D extends Definition = Definition> = (event: Payload<D>, tx: Transaction) => Effect.Effect<void>
+export type Listener<D extends Definition = Definition> = (event: Payload<D>) => Effect.Effect<void>
 export type Unsubscribe = Effect.Effect<void>
 
 export const latestSequence = Effect.fn("EventV2.latestSequence")(function* (
@@ -191,7 +192,7 @@ export interface Interface {
   readonly all: () => Stream.Stream<Payload>
   readonly durable: (input: { readonly aggregateID: string; readonly after?: number }) => Stream.Stream<Payload>
   /** @deprecated Use `all()` and consume the returned stream. */
-  readonly listen: (listener: Subscriber) => Effect.Effect<Unsubscribe>
+  readonly listen: (listener: Listener) => Effect.Effect<Unsubscribe>
   readonly project: <D extends Definition>(definition: D, projector: Subscriber<D>) => Effect.Effect<void>
   readonly replay: (
     event: SerializedEvent,
@@ -221,7 +222,7 @@ export const layerWith = (options?: LayerOptions) =>
         typed: new Map<string, PubSub.PubSub<Payload>>(),
       }
       const projectors = new Map<string, Subscriber[]>()
-      const listeners = new Array<Subscriber>()
+      const listeners = new Array<Listener>()
       const { db } = yield* Database.Service
 
       const getOrCreate = (definition: Definition) =>
@@ -355,7 +356,7 @@ export const layerWith = (options?: LayerOptions) =>
                     durable: { aggregateID, seq, version: durable.version },
                   } as Payload
                   for (const projector of list) {
-                    yield* projector(committed)
+                    yield* projector(committed, tx)
                   }
                   if (commit) yield* commit(seq, tx)
                   yield* tx
@@ -721,7 +722,7 @@ export const layerWith = (options?: LayerOptions) =>
           }),
         )
 
-      const listen = (listener: Subscriber): Effect.Effect<Unsubscribe> =>
+      const listen = (listener: Listener): Effect.Effect<Unsubscribe> =>
         Effect.sync(() => {
           listeners.push(listener)
           return Effect.sync(() => {
@@ -733,7 +734,11 @@ export const layerWith = (options?: LayerOptions) =>
       const project = <D extends Definition>(definition: D, projector: Subscriber<D>): Effect.Effect<void> =>
         Effect.sync(() => {
           const list = projectors.get(definition.type) ?? []
-          list.push((event) => projector(event as Payload<D>))
+          // `projectors` is keyed by definition type, so the stored subscriber is
+          // guaranteed to receive that type's payload; the map's erased element
+          // type cannot express it. Centralised here instead of per call site.
+          // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- subscriber payload is keyed by definition type
+          list.push((event, tx) => projector(event as Payload<D>, tx))
           projectors.set(definition.type, list)
         })
 

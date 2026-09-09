@@ -31,5 +31,11 @@ jobs:
       - name: Typecheck
         run: bun turbo typecheck
 
+      - name: OpenAPI snapshot drift (gate)
+        # Regenerates the spec through the shared boundary and diffs it against
+        # the committed snapshot; drift fails the job so a route change can never
+        # ship without refreshing packages/sdk/openapi.json.
+        run: bun run script/check-openapi-drift.ts
+
       - name: Test
         run: bun turbo test

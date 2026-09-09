@@ -22,6 +22,7 @@
     "dist"
   ],
   "devDependencies": {
+    "@aigcfroge/script": "workspace:*",
     "@hey-api/openapi-ts": "0.90.10",
     "@tsconfig/node22": "catalog:",
     "@types/cross-spawn": "catalog:",

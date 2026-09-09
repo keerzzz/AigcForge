@@ -2,6 +2,15 @@ import { expect, test } from "@playwright/test"
 import { fixture, pageMessages } from "../smoke/session-timeline.fixture"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
+import { pinEnglishUI } from "../utils/locale"
+import { pinDesktopViewport } from "../utils/viewport"
+
+// English-label, desktop-geometry spec — pin the UI language and viewport so the
+// zh/zht and narrow presentation projects stay green (see utils/locale.ts, utils/viewport.ts).
+test.beforeEach(async ({ page }) => {
+  await pinEnglishUI(page)
+  await pinDesktopViewport(page)
+})
 
 // Insert 全链路：AssetWorkbenchTable -> [Insert] -> 会话选择 dialog -> navigate ?insert= -> 注入 composer
 test("full insert flow: table row insert -> popover -> session redirect -> composer injection", async ({ page }) => {

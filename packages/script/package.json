@@ -10,7 +10,12 @@
     "@types/semver": "^7.5.8"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./openapi": "./src/openapi.ts",
+    "./changed-lines": "./src/changed-lines.ts"
+  },
+  "scripts": {
+    "test": "bun test --timeout 30000"
   },
   "version": "0.0.1"
 }

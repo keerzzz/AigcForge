@@ -28,6 +28,7 @@ import { Database } from "@aigcfroge/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
+import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ModelV2 } from "@aigcfroge/core/model"
@@ -75,7 +76,10 @@ const it = testEffect(
     EventV2.defaultLayer,
     workspaceLayer,
     Database.defaultLayer,
-    SessionPermissionOverride.locationLayer,
+    SessionPermissionOverride.locationLayer.pipe(
+      Layer.provide(EventV2.defaultLayer),
+      Layer.provide(SessionStore.defaultLayer),
+    ),
     httpApiLayer,
   ).pipe(Layer.provide(Ripgrep.defaultLayer)),
 )

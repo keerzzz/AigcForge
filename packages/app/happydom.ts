@@ -1,6 +1,11 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator"
+import { SolidJsxPlugin } from "./solid-jsx-plugin"
 
 GlobalRegistrator.register()
+
+// Register the Solid JSX compiler before any test file imports `.tsx`: Bun's
+// built-in transpiler would turn Solid JSX into React jsx() calls.
+Bun.plugin(SolidJsxPlugin.solidJsxPlugin)
 
 const originalGetContext = HTMLCanvasElement.prototype.getContext
 // @ts-expect-error - we're overriding with a simplified mock

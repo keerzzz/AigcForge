@@ -8,6 +8,8 @@ import { computeDigest } from "../composition/digest"
 import type { SessionSchema } from "./schema"
 import { SessionCompositionSnapshotTable } from "./sql"
 
+type QueryHandle = Pick<Database.Interface["db"], "insert">
+
 export class SnapshotNotFoundError extends Schema.TaggedErrorClass<SnapshotNotFoundError>()(
   "SessionComposition.SnapshotNotFoundError",
   {
@@ -72,6 +74,26 @@ export interface Interface {
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionComposition") {}
+
+export const insertSnapshot = Effect.fn("SessionComposition.insertSnapshot")(function* (
+  db: QueryHandle,
+  sessionID: SessionSchema.ID,
+  snapshot: Composition.Snapshot,
+) {
+  yield* db
+    .insert(SessionCompositionSnapshotTable)
+    .values({
+      session_id: sessionID,
+      version: snapshot.version,
+      digest: snapshot.digest,
+      profile_path: snapshot.profilePath ?? null,
+      profile_revision: snapshot.profileRevision ?? null,
+      data: snapshot.data,
+      time_created: snapshot.createdAt,
+    })
+    .run()
+    .pipe(Effect.orDie)
+})
 
 export const layer = Layer.effect(
   Service,
@@ -195,19 +217,7 @@ export const layer = Layer.effect(
         yield* new SnapshotAlreadyExistsError({ sessionID })
       }
 
-      yield* db
-        .insert(SessionCompositionSnapshotTable)
-        .values({
-          session_id: sessionID,
-          version: snapshot.version,
-          digest: snapshot.digest,
-          profile_path: snapshot.profilePath ?? null,
-          profile_revision: snapshot.profileRevision ?? null,
-          data: snapshot.data,
-          time_created: snapshot.createdAt,
-        })
-        .run()
-        .pipe(Effect.orDie)
+      yield* insertSnapshot(db, sessionID, snapshot)
     })
 
     const copy = Effect.fn("SessionComposition.copy")(function* (
