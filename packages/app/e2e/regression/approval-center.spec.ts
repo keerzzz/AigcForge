@@ -2,6 +2,10 @@ import { expect, test, type Page, type Route } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
+import { pinEnglishUI } from "../utils/locale"
+
+// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
+test.beforeEach(({ page }) => pinEnglishUI(page))
 
 const directory = "C:/Aigcfroge/ApprovalCenterRegression"
 const projectID = "proj_approval_center_regression"

@@ -2,6 +2,10 @@ import { expect, test, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
+import { pinEnglishUI } from "../utils/locale"
+
+// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
+test.beforeEach(({ page }) => pinEnglishUI(page))
 
 /**
  * S0 baseline for D-CMD-DUP — `tab.close` has two owners with different behaviour.

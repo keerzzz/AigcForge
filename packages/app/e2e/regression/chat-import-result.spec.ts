@@ -1,6 +1,10 @@
 import { expect, test, type Page, type Route } from "@playwright/test"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
+import { pinEnglishUI } from "../utils/locale"
+
+// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
+test.beforeEach(({ page }) => pinEnglishUI(page))
 
 /**
  * Chat asset import shows its parsed result (BUG-CHAT-IMPORT, 2026-09-03 dogfood run).

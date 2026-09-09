@@ -2,6 +2,10 @@ import { expect, test } from "@playwright/test"
 import { fixture, pageMessages } from "../smoke/session-timeline.fixture"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
+import { pinEnglishUI } from "../utils/locale"
+
+// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
+test.beforeEach(({ page }) => pinEnglishUI(page))
 
 // Insert 全链路：AssetWorkbenchTable -> [Insert] -> 会话选择 dialog -> navigate ?insert= -> 注入 composer
 test("full insert flow: table row insert -> popover -> session redirect -> composer injection", async ({ page }) => {
