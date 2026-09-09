@@ -19,8 +19,7 @@ const rowTexts = (container: HTMLElement) =>
     .map((row) => row.textContent?.trim())
     .filter((text): text is string => text !== undefined)
 
-const rowClasses = (container: HTMLElement) =>
-  Array.from(container.querySelectorAll("div")).map((row) => row.className)
+const rowClasses = (container: HTMLElement) => Array.from(container.querySelectorAll("div")).map((row) => row.className)
 
 describe("TextDiffView (variant diff rendering)", () => {
   test("renders add/del/eq rows with the + - prefix markers", () => {
