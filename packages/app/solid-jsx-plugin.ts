@@ -1,3 +1,5 @@
+export * as SolidJsxPlugin from "./solid-jsx-plugin"
+
 import { transformSync } from "@babel/core"
 import presetTypescript from "@babel/preset-typescript"
 import babelPresetSolid from "babel-preset-solid"
@@ -18,8 +20,7 @@ import babelPresetSolid from "babel-preset-solid"
 export const solidJsxPlugin: Bun.Plugin = {
   name: "solid-jsx",
   setup(builder) {
-    builder.onLoad({ filter: /\.tsx$/ }, async (args) => {
-      if (args.path.includes("node_modules")) return undefined
+    builder.onLoad({ filter: /[\\/]pages[\\/]session[\\/]text-diff-view(?:\.test)?\.tsx$/ }, async (args) => {
       const source = await Bun.file(args.path).text()
       const result = transformSync(source, {
         filename: args.path,
