@@ -80,11 +80,13 @@ test.describe("regression: presentation matrix contract", () => {
     expect(page.viewportSize()).toEqual(want.viewport)
 
     if (testInfo.project.name !== "chromium") return
-    const chat = page.getByRole("button", { name: "Chat" })
-    await expect(chat).toBeVisible()
+    // The titlebar Home button is the first control in tab order, so keyboard
+    // reachability is asserted against it on the base project.
+    const home = page.getByRole("button", { name: "Home" })
+    await expect(home).toBeVisible()
     await page.keyboard.press("Tab")
-    await expect(chat).toBeFocused()
-    const outline = await chat.evaluate((node) => {
+    await expect(home).toBeFocused()
+    const outline = await home.evaluate((node) => {
       const style = getComputedStyle(node)
       return { style: style.outlineStyle, width: style.outlineWidth }
     })

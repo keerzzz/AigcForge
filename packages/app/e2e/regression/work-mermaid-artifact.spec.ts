@@ -1,6 +1,10 @@
 import { expect, test, type Page } from "@playwright/test"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
+import { pinDesktopViewport } from "../utils/viewport"
+
+// Desktop-geometry spec — pin the viewport so the narrow presentation project stays green (see utils/viewport.ts).
+test.beforeEach(({ page }) => pinDesktopViewport(page))
 
 // M3 L1: Work 候选稿中的 ```mermaid 代码块在右栏 Artifact Tab 渲染为 SVG。
 // 候选稿 = assistant 消息正文（M1 载体）；渲染链路 = marked-shiki highlight

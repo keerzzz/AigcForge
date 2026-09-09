@@ -2,9 +2,14 @@ import { expect, test, type Page } from "@playwright/test"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
+import { pinDesktopViewport } from "../utils/viewport"
 
-// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
-test.beforeEach(({ page }) => pinEnglishUI(page))
+// English-label, desktop-geometry spec — pin the UI language and viewport so the
+// zh/zht and narrow presentation projects stay green (see utils/locale.ts, utils/viewport.ts).
+test.beforeEach(async ({ page }) => {
+  await pinEnglishUI(page)
+  await pinDesktopViewport(page)
+})
 
 // M2 存为资产：Work 候选稿 -> "存为资产" -> setProposeCandidate 注入 Chat propose store。
 // 不自动切 mode（session 页以 session.mode 为权威，app.tsx session effect 锁回）：

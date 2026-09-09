@@ -2,6 +2,10 @@ import { test } from "@playwright/test"
 import { fixture, pageMessages } from "../smoke/session-timeline.fixture"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
+import { pinDesktopViewport } from "../utils/viewport"
+
+// Desktop-geometry spec — pin the viewport so the narrow presentation project stays green (see utils/viewport.ts).
+test.beforeEach(({ page }) => pinDesktopViewport(page))
 
 test("shows loaded sessions before the directory path request resolves", async ({ page }) => {
   await mockAigcfrogeServer(page, {
