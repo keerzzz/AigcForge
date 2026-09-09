@@ -16,33 +16,34 @@
 
 ## 1. 测试层级全景
 
-| 层级          | 工具                       | 位置                                                              | 说明                                                              |
-| ------------- | -------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 单元测试      | `bun test`                 | `packages/{core,aigcfroge,schema,llm,ui,session-ui}/**/*.test.ts` | Effect 用 `testEffect()`（见 `packages/core/test/lib/effect.ts`） |
-| App 单元测试  | `bun test` + happydom 探针 | `packages/app/src/**/*.test.tsx`                                  | `--preload ./happydom.ts`                                         |
-| HTTP API 演练 | 自研 `httpapi-exercise.ts` | `packages/aigcfroge/test/server/httpapi-exercise`                 | 3 种模式（见 §3）                                                 |
-| E2E           | Playwright                 | `packages/app/e2e/{regression,smoke}/**/*.spec.ts`                | 桌面 + 窄视口 + 明暗 + 三语                                       |
-| 性能基准      | benchmark.ts + Playwright  | `packages/app/e2e/performance/unit` + `playwright.config.ts`      | 串行，不设机器相关硬阈值                                          |
+| 层级          | 工具                       | 位置                                                                     | 说明                                                              |
+| ------------- | -------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| 单元测试      | `bun test`                 | `packages/{core,aigcfroge,schema,llm,ui,session-ui,script}/**/*.test.ts` | Effect 用 `testEffect()`（见 `packages/core/test/lib/effect.ts`） |
+| App 单元测试  | `bun test` + happydom 探针 | `packages/app/src/**/*.test.tsx`                                         | `--conditions=browser --preload ./happydom.ts`                    |
+| HTTP API 演练 | 自研 `httpapi-exercise.ts` | `packages/aigcfroge/test/server/httpapi-exercise`                        | 3 种模式（见 §3）                                                 |
+| E2E           | Playwright                 | `packages/app/e2e/{regression,smoke}/**/*.spec.ts`                       | 桌面 + 窄视口 + 明暗 + 三语                                       |
+| 性能基准      | benchmark.ts + Playwright  | `packages/app/e2e/performance/unit` + `playwright.config.ts`             | 串行，不设机器相关硬阈值                                          |
 
 ---
 
 ## 2. 包级测试命令
 
-| 包                                 | 命令                                                            | 备注                                                                                               |
-| ---------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| core                               | `bun --cwd packages/core test --timeout 30000`                  | 脚本含 `--only-failures`                                                                           |
-| aigcfroge                          | `bun --cwd packages/aigcfroge test --timeout 30000`             | 脚本含 `--only-failures`                                                                           |
-| aigcfroge                          | `bun --cwd packages/aigcfroge test:httpapi`                     | 独立门禁，见 §3                                                                                    |
-| app                                | `bun --cwd packages/app test:unit`                              | `bun test --only-failures --preload ./happydom.ts ./src`                                           |
-| app                                | `bun --cwd packages/app test:virtualizer`                       | `--conditions=browser` solid-virtual                                                               |
-| app                                | `bun --cwd packages/app test:e2e <spec>`                        | `playwright test`（另有 `:ui` 交互、`:report`）                                                    |
-| app                                | `bun --cwd packages/app test:bench`                             | `bun test ./e2e/performance/unit && playwright test --config e2e/performance/playwright.config.ts` |
-| schema / llm                       | `bun --cwd packages/<name> test`                                | schema 无 timeout 覆盖                                                                             |
-| ui / session-ui                    | `bun --cwd packages/<name> test`                                | 脚本含 `--only-failures`                                                                           |
-| effect-drizzle-sqlite              | `bun --cwd packages/effect-drizzle-sqlite test --timeout 30000` | vendor 桥接                                                                                        |
-| desktop / sdk / script / storybook | 无单测                                                          | 靠 typecheck + 其他层覆盖                                                                          |
+| 包                        | 命令                                                            | 备注                                                                                               |
+| ------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| core                      | `bun --cwd packages/core test --timeout 30000`                  | 脚本含 `--only-failures`                                                                           |
+| aigcfroge                 | `bun --cwd packages/aigcfroge test --timeout 30000`             | 脚本含 `--only-failures`                                                                           |
+| aigcfroge                 | `bun --cwd packages/aigcfroge test:httpapi`                     | 独立门禁，见 §3                                                                                    |
+| app                       | `bun --cwd packages/app test:unit`                              | `bun test --conditions=browser --only-failures --preload ./happydom.ts ./src`                      |
+| app                       | `bun --cwd packages/app test:virtualizer`                       | `--conditions=browser` solid-virtual                                                               |
+| app                       | `bun --cwd packages/app test:e2e <spec>`                        | `playwright test`（另有 `:ui` 交互、`:report`）                                                    |
+| app                       | `bun --cwd packages/app test:bench`                             | `bun test ./e2e/performance/unit && playwright test --config e2e/performance/playwright.config.ts` |
+| schema / llm              | `bun --cwd packages/<name> test`                                | schema 无 timeout 覆盖                                                                             |
+| ui / session-ui           | `bun --cwd packages/<name> test`                                | 脚本含 `--only-failures`                                                                           |
+| effect-drizzle-sqlite     | `bun --cwd packages/effect-drizzle-sqlite test --timeout 30000` | vendor 桥接                                                                                        |
+| desktop / sdk / storybook | 无单测                                                          | 靠 typecheck + 其他层覆盖                                                                          |
+| script                    | `bun --cwd packages/script test --timeout 30000`                | `bun test --timeout 30000`                                                                         |
 
-> app 的 `test:unit:watch`：`bun test --watch --preload ./happydom.ts ./src`。
+> app 的 `test:unit:watch`：`bun test --conditions=browser --watch --preload ./happydom.ts ./src`。
 
 ---
 
@@ -65,7 +66,7 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 - 配置：`packages/app/playwright.config.ts`（性能基准另用 `packages/app/e2e/performance/playwright.config.ts`）
 - 目录：`regression/`（回归规格）、`smoke/`（冒烟）、`performance/`（基准）、`utils/`（辅助）
 - **当前实际执行标准**：每个功能一份 spec，覆盖该功能的主路径与加载/空/错误态。**这是审查时唯一可据以打回的 e2e 标准。**
-- **presentation matrix（2026-09-08 落地为真实门禁）**：`playwright.config.ts` 定义五个 project——`chromium`（Desktop Chrome、light、en）、`chromium-dark`（storageState 写 `aigcfroge-color-scheme=dark`）、`chromium-zh` / `chromium-zht`（storageState 写 `aigcfroge.global.dat:language={"locale":"zh"|"zht"}`）、`chromium-narrow`（390×844）。storage origin 从 `baseURL` 推导，不硬编码端口；全部 project 用 Chromium。CI（`test.yml` e2e job）Linux 跑全部非性能 spec × 五 project，Windows 只跑 `chromium`，无 `continue-on-error`。矩阵契约由 `e2e/regression/presentation-matrix.spec.ts` 按 project 名断言真实 theme（`data-color-scheme`/`data-theme`）、locale（`documentElement.lang`）与 viewport；键盘可达性在 base project 上以 Tab 交互断言，不新建第六个 project。history：2026-08-26 前 dark/i18n/keyboard 覆盖为 0（纸面目标），根治即本项目，登记于 [technical-debt](technical-debt.md) §4
+- **presentation matrix（2026-09-08 落地为真实门禁）**：`playwright.config.ts` 定义五个 project——`chromium`（Desktop Chrome、light、en）、`chromium-dark`（storageState 写 `aigcfroge-color-scheme=dark`）、`chromium-zh` / `chromium-zht`（storageState 写 `aigcfroge.global.dat:language={"locale":"zh"|"zht"}`）、`chromium-narrow`（390×844）。storage origin 从 `baseURL` 推导，不硬编码端口；全部 project 用 Chromium。CI（`test.yml` e2e job）Linux 跑全部非性能 spec × 五 project，Windows 只跑 `chromium`，无 `continue-on-error`。矩阵契约由 `e2e/regression/presentation-matrix.spec.ts` 按 project 名断言真实 theme（`data-color-scheme`/`data-theme`）、locale（`documentElement.lang`）与 viewport；键盘可达性在 base project 上以 Tab 交互断言，不新建第六个 project。history：2026-08-26 前 dark/i18n/keyboard 覆盖为 0（纸面目标），根治即本项目，登记于 [technical-debt](technical-debt.md) §4。**英文文案断言的 spec 必须 `pinEnglishUI`**（`e2e/utils/locale.ts`，`test.beforeEach` 注入）——zh/zht project 仍以自身 locale 数据启动，断言按英文匹配；locale 无关 spec（纯 `data-*`/数据文本断言）不得 pin，以保留真实本地化渲染覆盖（判别式：改动后在 `--project=chromium-zh` 下跑该 spec）
 - 运行报告：`bun --cwd packages/app test:e2e:report`（playwright-report）
 
 ---
