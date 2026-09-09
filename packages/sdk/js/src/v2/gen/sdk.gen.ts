@@ -69,6 +69,7 @@ import type {
   CustomProfileListResponses,
   DeliveryInboxErrors,
   DeliveryInboxResponses,
+  DeliveryIntent,
   DeliveryReadErrors,
   DeliveryReadResponses,
   DeliveryRecentErrors,
@@ -160,6 +161,40 @@ import type {
   KbSearchResponses,
   KbUpdateErrors,
   KbUpdateResponses,
+  LegacyDelegationAddParticipantErrors,
+  LegacyDelegationAddParticipantResponses,
+  LegacyDelegationAppendTurnErrors,
+  LegacyDelegationAppendTurnResponses,
+  LegacyDelegationArchiveErrors,
+  LegacyDelegationArchiveResponses,
+  LegacyDelegationCloseErrors,
+  LegacyDelegationCloseResponses,
+  LegacyDelegationCompleteErrors,
+  LegacyDelegationCompleteResponses,
+  LegacyDelegationCreateErrors,
+  LegacyDelegationCreateResponses,
+  LegacyDelegationDeleteErrors,
+  LegacyDelegationDeleteResponses,
+  LegacyDelegationForkErrors,
+  LegacyDelegationForkResponses,
+  LegacyDelegationGetErrors,
+  LegacyDelegationGetResponses,
+  LegacyDelegationInterruptErrors,
+  LegacyDelegationInterruptResponses,
+  LegacyDelegationListErrors,
+  LegacyDelegationListResponses,
+  LegacyDelegationListTurnsErrors,
+  LegacyDelegationListTurnsResponses,
+  LegacyDelegationReconcileErrors,
+  LegacyDelegationReconcileResponses,
+  LegacyDelegationRetractRejectionErrors,
+  LegacyDelegationRetractRejectionResponses,
+  LegacyDelegationRetryErrors,
+  LegacyDelegationRetryResponses,
+  LegacyDelegationSteerErrors,
+  LegacyDelegationSteerResponses,
+  LegacyDelegationUnarchiveErrors,
+  LegacyDelegationUnarchiveResponses,
   LocationRef,
   LspStatusErrors,
   LspStatusResponses,
@@ -209,6 +244,8 @@ import type {
   Part as Part2,
   PartDeleteErrors,
   PartDeleteResponses,
+  ParticipantContext,
+  ParticipantRole,
   PartUpdateErrors,
   PartUpdateResponses,
   PathGetErrors,
@@ -289,6 +326,7 @@ import type {
   QuestionReplyErrors,
   QuestionReplyResponses,
   QuestionV2Reply,
+  RevisionDigest,
   ScheduleCancelErrors,
   ScheduleCancelResponses,
   ScheduleListErrors,
@@ -319,6 +357,7 @@ import type {
   SessionGetResponses,
   SessionInitErrors,
   SessionInitResponses,
+  SessionInputDelegationOrigin,
   SessionListErrors,
   SessionListResponses,
   SessionMessageErrors,
@@ -423,6 +462,7 @@ import type {
   TuiShowToastResponses,
   TuiSubmitPromptErrors,
   TuiSubmitPromptResponses,
+  TurnKind,
   V2AgentListErrors,
   V2AgentListResponses,
   V2CommandListErrors,
@@ -431,6 +471,40 @@ import type {
   V2CredentialRemoveResponses,
   V2CredentialUpdateErrors,
   V2CredentialUpdateResponses,
+  V2DelegationAddParticipantErrors,
+  V2DelegationAddParticipantResponses,
+  V2DelegationAppendTurnErrors,
+  V2DelegationAppendTurnResponses,
+  V2DelegationArchiveErrors,
+  V2DelegationArchiveResponses,
+  V2DelegationCloseErrors,
+  V2DelegationCloseResponses,
+  V2DelegationCompleteErrors,
+  V2DelegationCompleteResponses,
+  V2DelegationCreateErrors,
+  V2DelegationCreateResponses,
+  V2DelegationDeleteErrors,
+  V2DelegationDeleteResponses,
+  V2DelegationForkErrors,
+  V2DelegationForkResponses,
+  V2DelegationGetErrors,
+  V2DelegationGetResponses,
+  V2DelegationInterruptErrors,
+  V2DelegationInterruptResponses,
+  V2DelegationListErrors,
+  V2DelegationListResponses,
+  V2DelegationListTurnsErrors,
+  V2DelegationListTurnsResponses,
+  V2DelegationReconcileErrors,
+  V2DelegationReconcileResponses,
+  V2DelegationRetractRejectionErrors,
+  V2DelegationRetractRejectionResponses,
+  V2DelegationRetryErrors,
+  V2DelegationRetryResponses,
+  V2DelegationSteerErrors,
+  V2DelegationSteerResponses,
+  V2DelegationUnarchiveErrors,
+  V2DelegationUnarchiveResponses,
   V2EventSubscribeErrors,
   V2EventSubscribeResponses,
   V2FsFindErrors,
@@ -5257,6 +5331,702 @@ export class AgentTask extends HeyApiClient {
   }
 }
 
+export class Delegation extends HeyApiClient {
+  /**
+   * List persistent delegations
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      parentSessionID?: string
+      includeArchived?: "true" | "false"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "parentSessionID" },
+            { in: "query", key: "includeArchived" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      LegacyDelegationListResponses,
+      LegacyDelegationListErrors,
+      ThrowOnError
+    >({
+      url: "/delegation",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create persistent delegation
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      parentSessionID?: string
+      title?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "parentSessionID" },
+            { in: "body", key: "title" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationCreateResponses,
+      LegacyDelegationCreateErrors,
+      ThrowOnError
+    >({
+      url: "/delegation",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Purge delegation
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      purge: "true" | "false"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "purge" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<
+      LegacyDelegationDeleteResponses,
+      LegacyDelegationDeleteErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get persistent delegation
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<LegacyDelegationGetResponses, LegacyDelegationGetErrors, ThrowOnError>({
+      url: "/delegation/{delegationID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Add delegation participant
+   */
+  public addParticipant<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      provider?: string
+      target?: string
+      role?: ParticipantRole
+      context?: ParticipantContext
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "provider" },
+            { in: "body", key: "target" },
+            { in: "body", key: "role" },
+            { in: "body", key: "context" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationAddParticipantResponses,
+      LegacyDelegationAddParticipantErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/participant",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * List delegation turns
+   */
+  public listTurns<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      LegacyDelegationListTurnsResponses,
+      LegacyDelegationListTurnsErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/turn",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Append delegation turn
+   */
+  public appendTurn<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      kind?: TurnKind
+      promptSummary?: string
+      evidenceDigest?: string
+      revisionDigest?: RevisionDigest
+      participantIDs?: Array<string>
+      delivery?: DeliveryIntent
+      deliveryOrigin?: string
+      senderParticipantID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "kind" },
+            { in: "body", key: "promptSummary" },
+            { in: "body", key: "evidenceDigest" },
+            { in: "body", key: "revisionDigest" },
+            { in: "body", key: "participantIDs" },
+            { in: "body", key: "delivery" },
+            { in: "body", key: "deliveryOrigin" },
+            { in: "body", key: "senderParticipantID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationAppendTurnResponses,
+      LegacyDelegationAppendTurnErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/turn",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Retry delegation delivery
+   */
+  public retry<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      turnID: string
+      directory?: string
+      workspace?: string
+      participantID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "path", key: "turnID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "participantID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationRetryResponses,
+      LegacyDelegationRetryErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/turn/{turnID}/retry",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Reconcile delegation
+   */
+  public reconcile<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      participantID?: string
+      turnID?: string
+      decision?: "resume" | "retry" | "fork" | "close"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "participantID" },
+            { in: "body", key: "turnID" },
+            { in: "body", key: "decision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationReconcileResponses,
+      LegacyDelegationReconcileErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/reconcile",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Retract rejection
+   */
+  public retractRejection<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      participantID?: string
+      reason?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "participantID" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationRetractRejectionResponses,
+      LegacyDelegationRetractRejectionErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/review/retract-rejection",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Wake an admitted delegation turn
+   */
+  public steer<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      turnID?: string
+      participantID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "turnID" },
+            { in: "body", key: "participantID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationSteerResponses,
+      LegacyDelegationSteerErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/steer",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Interrupt delegation
+   */
+  public interrupt<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      participantID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "participantID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationInterruptResponses,
+      LegacyDelegationInterruptErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/interrupt",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Complete delegation
+   */
+  public complete<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      summary?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "summary" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationCompleteResponses,
+      LegacyDelegationCompleteErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/complete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Close delegation
+   */
+  public close<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      reason?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationCloseResponses,
+      LegacyDelegationCloseErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/close",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Archive delegation
+   */
+  public archive<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationArchiveResponses,
+      LegacyDelegationArchiveErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/archive",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Unarchive delegation
+   */
+  public unarchive<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationUnarchiveResponses,
+      LegacyDelegationUnarchiveErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/unarchive",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Fork delegation
+   */
+  public fork<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      directory?: string
+      workspace?: string
+      title?: string
+      reason?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "title" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      LegacyDelegationForkResponses,
+      LegacyDelegationForkErrors,
+      ThrowOnError
+    >({
+      url: "/delegation/{delegationID}/fork",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class Legacy extends HeyApiClient {
+  private _delegation?: Delegation
+  get delegation(): Delegation {
+    return (this._delegation ??= new Delegation({ client: this.client }))
+  }
+}
+
 export class WorkflowAsset extends HeyApiClient {
   /**
    * List workflow assets
@@ -6622,6 +7392,7 @@ export class Session2 extends HeyApiClient {
       format?: OutputFormat
       system?: string
       variant?: string
+      delegationOrigin?: SessionInputDelegationOrigin
       parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
     },
     options?: Options<never, ThrowOnError>,
@@ -6642,6 +7413,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "format" },
             { in: "body", key: "system" },
             { in: "body", key: "variant" },
+            { in: "body", key: "delegationOrigin" },
             { in: "body", key: "parts" },
           ],
         },
@@ -6975,6 +7747,7 @@ export class Session2 extends HeyApiClient {
       format?: OutputFormat
       system?: string
       variant?: string
+      delegationOrigin?: SessionInputDelegationOrigin
       parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
     },
     options?: Options<never, ThrowOnError>,
@@ -6995,6 +7768,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "format" },
             { in: "body", key: "system" },
             { in: "body", key: "variant" },
+            { in: "body", key: "delegationOrigin" },
             { in: "body", key: "parts" },
           ],
         },
@@ -10078,6 +10852,684 @@ export class ProjectCopy2 extends HeyApiClient {
   }
 }
 
+export class Delegation2 extends HeyApiClient {
+  /**
+   * List persistent delegations
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      parentSessionID?: string
+      includeArchived?: "true" | "false"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "location" },
+            { in: "query", key: "parentSessionID" },
+            { in: "query", key: "includeArchived" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<V2DelegationListResponses, V2DelegationListErrors, ThrowOnError>({
+      url: "/api/delegation",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create persistent delegation
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters?: {
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      parentSessionID?: string
+      title?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "location" },
+            { in: "body", key: "parentSessionID" },
+            { in: "body", key: "title" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2DelegationCreateResponses, V2DelegationCreateErrors, ThrowOnError>({
+      url: "/api/delegation",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Purge delegation
+   */
+  public delete<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      purge: "true" | "false"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "query", key: "purge" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<V2DelegationDeleteResponses, V2DelegationDeleteErrors, ThrowOnError>(
+      {
+        url: "/api/delegation/{delegationID}",
+        ...options,
+        ...params,
+      },
+    )
+  }
+
+  /**
+   * Get persistent delegation
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<V2DelegationGetResponses, V2DelegationGetErrors, ThrowOnError>({
+      url: "/api/delegation/{delegationID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Add delegation participant
+   */
+  public addParticipant<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      provider?: string
+      target?: string
+      role?: ParticipantRole
+      context?: ParticipantContext
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "provider" },
+            { in: "body", key: "target" },
+            { in: "body", key: "role" },
+            { in: "body", key: "context" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2DelegationAddParticipantResponses,
+      V2DelegationAddParticipantErrors,
+      ThrowOnError
+    >({
+      url: "/api/delegation/{delegationID}/participant",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * List delegation turns
+   */
+  public listTurns<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      V2DelegationListTurnsResponses,
+      V2DelegationListTurnsErrors,
+      ThrowOnError
+    >({
+      url: "/api/delegation/{delegationID}/turn",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Append delegation turn
+   */
+  public appendTurn<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      kind?: TurnKind
+      promptSummary?: string
+      evidenceDigest?: string
+      revisionDigest?: RevisionDigest
+      participantIDs?: Array<string>
+      delivery?: DeliveryIntent
+      deliveryOrigin?: string
+      senderParticipantID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "kind" },
+            { in: "body", key: "promptSummary" },
+            { in: "body", key: "evidenceDigest" },
+            { in: "body", key: "revisionDigest" },
+            { in: "body", key: "participantIDs" },
+            { in: "body", key: "delivery" },
+            { in: "body", key: "deliveryOrigin" },
+            { in: "body", key: "senderParticipantID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2DelegationAppendTurnResponses,
+      V2DelegationAppendTurnErrors,
+      ThrowOnError
+    >({
+      url: "/api/delegation/{delegationID}/turn",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Retry delegation delivery
+   */
+  public retry<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      turnID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      participantID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "path", key: "turnID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "participantID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2DelegationRetryResponses, V2DelegationRetryErrors, ThrowOnError>({
+      url: "/api/delegation/{delegationID}/turn/{turnID}/retry",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Reconcile delegation recovery
+   */
+  public reconcile<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      participantID?: string
+      turnID?: string
+      decision?: "resume" | "retry" | "fork" | "close"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "participantID" },
+            { in: "body", key: "turnID" },
+            { in: "body", key: "decision" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2DelegationReconcileResponses,
+      V2DelegationReconcileErrors,
+      ThrowOnError
+    >({
+      url: "/api/delegation/{delegationID}/reconcile",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Retract delegation rejection
+   */
+  public retractRejection<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      participantID?: string
+      reason?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "participantID" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2DelegationRetractRejectionResponses,
+      V2DelegationRetractRejectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/delegation/{delegationID}/review/retract-rejection",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Wake an admitted delegation turn
+   */
+  public steer<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      turnID?: string
+      participantID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "turnID" },
+            { in: "body", key: "participantID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2DelegationSteerResponses, V2DelegationSteerErrors, ThrowOnError>({
+      url: "/api/delegation/{delegationID}/steer",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Interrupt delegation
+   */
+  public interrupt<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      participantID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "participantID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2DelegationInterruptResponses,
+      V2DelegationInterruptErrors,
+      ThrowOnError
+    >({
+      url: "/api/delegation/{delegationID}/interrupt",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Complete and archive delegation
+   */
+  public complete<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      summary?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "summary" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2DelegationCompleteResponses,
+      V2DelegationCompleteErrors,
+      ThrowOnError
+    >({
+      url: "/api/delegation/{delegationID}/complete",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Close delegation admission
+   */
+  public close<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      reason?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2DelegationCloseResponses, V2DelegationCloseErrors, ThrowOnError>({
+      url: "/api/delegation/{delegationID}/close",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Archive delegation
+   */
+  public archive<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2DelegationArchiveResponses, V2DelegationArchiveErrors, ThrowOnError>(
+      {
+        url: "/api/delegation/{delegationID}/archive",
+        ...options,
+        ...params,
+      },
+    )
+  }
+
+  /**
+   * Unarchive delegation
+   */
+  public unarchive<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2DelegationUnarchiveResponses,
+      V2DelegationUnarchiveErrors,
+      ThrowOnError
+    >({
+      url: "/api/delegation/{delegationID}/unarchive",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Fork delegation
+   */
+  public fork<ThrowOnError extends boolean = false>(
+    parameters: {
+      delegationID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      title?: string
+      reason?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "delegationID" },
+            { in: "query", key: "location" },
+            { in: "body", key: "title" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2DelegationForkResponses, V2DelegationForkErrors, ThrowOnError>({
+      url: "/api/delegation/{delegationID}/fork",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class V2 extends HeyApiClient {
   private _health?: Health
   get health(): Health {
@@ -10162,6 +11614,11 @@ export class V2 extends HeyApiClient {
   private _projectCopy?: ProjectCopy2
   get projectCopy(): ProjectCopy2 {
     return (this._projectCopy ??= new ProjectCopy2({ client: this.client }))
+  }
+
+  private _delegation?: Delegation2
+  get delegation(): Delegation2 {
+    return (this._delegation ??= new Delegation2({ client: this.client }))
   }
 }
 
@@ -10341,6 +11798,11 @@ export class AigcfrogeClient extends HeyApiClient {
   private _agentTask?: AgentTask
   get agentTask(): AgentTask {
     return (this._agentTask ??= new AgentTask({ client: this.client }))
+  }
+
+  private _legacy?: Legacy
+  get legacy(): Legacy {
+    return (this._legacy ??= new Legacy({ client: this.client }))
   }
 
   private _workflowAsset?: WorkflowAsset

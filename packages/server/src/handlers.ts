@@ -29,6 +29,7 @@ import { IntegrationHandler } from "./handlers/integration"
 import { CredentialHandler } from "./handlers/credential"
 import { Credential } from "@aigcfroge/core/credential"
 import { ProjectCopyHandler } from "./handlers/project-copy"
+import { DelegationHandler } from "./handlers/delegation"
 
 // TaskDriverFill bridge: consumes SessionV2.Service + BackgroundJob.Service.
 // Uses .defaultLayer (self-contained) because Effect v4 Layer.mergeAll does not
@@ -62,6 +63,7 @@ export const handlers = Layer.mergeAll(
   QuestionHandler,
   ReferenceHandler,
   ProjectCopyHandler,
+  DelegationHandler,
 ).pipe(
   Layer.provide(sessionLocationLayer),
   Layer.provide(locationLayer),

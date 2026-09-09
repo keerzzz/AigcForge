@@ -3165,6 +3165,92 @@ const scenarios: Scenario[] = [
         "agent task aggregation should include the seeded task with its owner",
       )
     }),
+  ...["/api/delegation", "/delegation"].flatMap((root) => [
+    http.protected
+      .get(root, `${root}.list`)
+      .at((ctx) => ({ path: root, headers: ctx.headers() }))
+      .json(200, array),
+    http.protected
+      .post(root, `${root}.create`)
+      .mutating()
+      .at((ctx) => ({
+        path: root,
+        headers: ctx.headers(),
+        body: { parentSessionID: "ses_missing", title: "exercise" },
+      }))
+      .status(root.startsWith("/api/") ? 404 : 400),
+    http.protected
+      .get(`${root}/{delegationID}`, `${root}.get`)
+      .at((ctx) => ({ path: route(`${root}/{delegationID}`, { delegationID: "dlg_missing" }), headers: ctx.headers() }))
+      .status(400),
+    http.protected
+      .get(`${root}/{delegationID}/turn`, `${root}.turn.list`)
+      .at((ctx) => ({
+        path: route(`${root}/{delegationID}/turn`, { delegationID: "dlg_missing" }),
+        headers: ctx.headers(),
+      }))
+      .status(400),
+    ...[
+      "participant",
+      "turn",
+      "reconcile",
+      "review/retract-rejection",
+      "steer",
+      "interrupt",
+      "complete",
+      "close",
+      "archive",
+      "unarchive",
+      "fork",
+    ].map((suffix) =>
+      http.protected
+        .post(`${root}/{delegationID}/${suffix}`, `${root}.${suffix}`)
+        .mutating()
+        .at((ctx) => ({
+          path: route(`${root}/{delegationID}/${suffix}`, { delegationID: "dlg_missing" }),
+          headers: ctx.headers(),
+          body:
+            suffix === "participant"
+              ? { provider: "internal", target: "build", role: "implementer", context: "fresh" }
+              : suffix === "turn"
+                ? {
+                    kind: "task",
+                    participantIDs: ["par_missing"],
+                    delivery: "steer",
+                    deliveryOrigin: "exercise",
+                    senderParticipantID: "par_missing",
+                  }
+                : suffix === "review/retract-rejection"
+                  ? { reason: "exercise" }
+                  : suffix === "steer"
+                    ? { turnID: "trn_missing", participantID: "par_missing" }
+                    : suffix === "reconcile"
+                      ? { decision: "close" }
+                      : {},
+        }))
+        .status(400),
+    ),
+    http.protected
+      .post(`${root}/{delegationID}/turn/{turnID}/retry`, `${root}.retry`)
+      .mutating()
+      .at((ctx) => ({
+        path: route(`${root}/{delegationID}/turn/{turnID}/retry`, {
+          delegationID: "dlg_missing",
+          turnID: "trn_missing",
+        }),
+        headers: ctx.headers(),
+        body: { participantID: "par_missing" },
+      }))
+      .status(400),
+    http.protected
+      .delete(`${root}/{delegationID}`, `${root}.delete`)
+      .mutating()
+      .at((ctx) => ({
+        path: `${route(`${root}/{delegationID}`, { delegationID: "dlg_missing" })}?purge=true`,
+        headers: ctx.headers(),
+      }))
+      .status(root.startsWith("/api/") ? 400 : 200),
+  ]),
   http.protected
     .post("/session/{sessionID}/work-artifact/apply", "work-artifact.apply")
     .mutating()

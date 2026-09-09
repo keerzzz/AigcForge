@@ -20,6 +20,7 @@ import { LocationGroup } from "./groups/location"
 import { IntegrationGroup } from "./groups/integration"
 import { CredentialGroup } from "./groups/credential"
 import { ProjectCopyGroup } from "./groups/project-copy"
+import { DelegationGroup } from "./groups/delegation"
 
 export const Api = HttpApi.make("server")
   .add(HealthGroup)
@@ -41,6 +42,7 @@ export const Api = HttpApi.make("server")
   .add(QuestionGroup)
   .add(ReferenceGroup)
   .add(ProjectCopyGroup)
+  .add(DelegationGroup)
   .annotateMerge(
     OpenApi.annotations({
       title: "aigcfroge HttpApi",
