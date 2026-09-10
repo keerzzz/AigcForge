@@ -12,7 +12,10 @@ import { AdapterRegistry } from "../agent/meta/adapters/registry"
 import { CliTimeout } from "../agent/meta/adapters/timeout"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
-import { Effect, Exit, Option, Ref, Schema, Schedule, Scope } from "effect"
+import { Cause, Effect, Exit, Option, Ref, Schema, Schedule, Scope } from "effect"
+import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { SessionTask } from "@aigcfroge/core/session/task"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Database } from "@aigcfroge/core/database/database"
@@ -56,7 +59,7 @@ function isTaskPromptOps(value: unknown): value is TaskPromptOps {
   )
 }
 
-const BaseParameterFields = {
+const LegacyParameterFields = {
   description: Schema.String.annotate({ description: "A short (3-5 words) description of the task" }),
   prompt: Schema.String.annotate({ description: "The task for the agent to perform" }),
   subagent_type: Schema.String.annotate({ description: "The type of specialized agent to use for this task" }),
@@ -73,14 +76,54 @@ const BaseParameterFields = {
   }),
 }
 
-const BaseParameters = Schema.Struct(BaseParameterFields)
+const PersistentDelegationParameterFields = {
+  delegation_id: Schema.optional(Schema.String).annotate({
+    description: "Optional persistent delegation ID to route this task turn into an existing delegation",
+  }),
+  new_delegation: Schema.optional(Schema.Boolean).annotate({
+    description: "When true, create a fresh persistent delegation instead of reusing the currently active one",
+  }),
+  participant_id: Schema.optional(Schema.String),
+  turn_id: Schema.optional(Schema.String),
+  command: Schema.optional(
+    Schema.Literals([
+      "append",
+      "steer",
+      "interrupt",
+      "close",
+      "retry",
+      "reconcile",
+      "archive",
+      "unarchive",
+      "fork",
+      "purge",
+      "retract_rejection",
+    ]),
+  ),
+}
 
-export const Parameters = Schema.Struct({
-  ...BaseParameterFields,
+const LegacyBaseParameters = Schema.Struct(LegacyParameterFields)
+const PersistentBaseParameters = Schema.Struct({
+  ...LegacyParameterFields,
+  ...PersistentDelegationParameterFields,
+})
+
+const BackgroundParameterFields = {
   background: Schema.optional(Schema.Boolean).annotate({
     description:
       "Run the agent in the background. You will be notified when it completes. DO NOT sleep, poll, or proactively check on its progress",
   }),
+}
+
+const LegacyParameters = Schema.Struct({
+  ...LegacyParameterFields,
+  ...BackgroundParameterFields,
+})
+
+export const Parameters = Schema.Struct({
+  ...LegacyParameterFields,
+  ...PersistentDelegationParameterFields,
+  ...BackgroundParameterFields,
 })
 
 function renderOutput(input: {
@@ -112,6 +155,8 @@ export const TaskTool = Tool.define(
     const database = yield* Database.Service
     const spawner = yield* ChildProcessSpawner
     const adapterRegistry = yield* Effect.serviceOption(AdapterRegistry).pipe(Effect.map(Option.getOrUndefined))
+    const delegationService = yield* DelegationService.Service
+    const tasks = yield* SessionTask.Service
 
     const executeCLI = Effect.fn("TaskTool.executeCLI")(function* (
       params: { description: string; cli_target: string; prompt: string; cwd: string },
@@ -136,6 +181,7 @@ export const TaskTool = Tool.define(
 
       // Create real child session so the task card link navigates to an existing session
       const parent = yield* sessions.get(ctx.sessionID)
+
       const childSession = yield* sessions.create({
         parentID: ctx.sessionID,
         title: params.description,
@@ -228,6 +274,52 @@ export const TaskTool = Tool.define(
     ) {
       const parent = yield* sessions.get(ctx.sessionID)
 
+      if (
+        flags.experimentalPersistentDelegations &&
+        params.command &&
+        params.command !== "append" &&
+        params.command !== "steer"
+      ) {
+        const delegationID = Option.getOrUndefined(Schema.decodeUnknownOption(DelegationID.ID)(params.delegation_id))
+        if (!delegationID) return yield* Effect.fail(new Error("delegation_id is required for command"))
+        yield* ctx.ask({
+          permission:
+            params.command === "interrupt"
+              ? "task_interrupt"
+              : params.command === "close"
+                ? "task_close"
+                : params.command === "archive" || params.command === "unarchive"
+                  ? "task_archive"
+                  : params.command === "fork"
+                    ? "task_fork"
+                    : params.command === "purge"
+                      ? "task_purge"
+                      : "task_reconcile",
+          patterns: [delegationID],
+          always: [],
+          metadata: { delegationID, command: params.command },
+        })
+        if (params.command === "retry") {
+          const participantID = Option.getOrUndefined(Schema.decodeUnknownOption(ParticipantID)(params.participant_id))
+          const turnID = Option.getOrUndefined(Schema.decodeUnknownOption(TurnID)(params.turn_id))
+          if (!participantID || !turnID)
+            return yield* Effect.fail(new Error("retry requires participant_id and turn_id"))
+          yield* delegationService.retry({ delegationID, participantID, turnID })
+        } else if (params.command === "reconcile") yield* delegationService.reconcile({ delegationID })
+        else if (params.command === "retract_rejection")
+          yield* delegationService.retractRejection({ delegationID, reason: params.prompt })
+        else if (params.command === "close") yield* delegationService.close({ delegationID, reason: params.prompt })
+        else if (params.command === "archive") yield* delegationService.archive({ delegationID })
+        else if (params.command === "unarchive") yield* delegationService.unarchive({ delegationID })
+        else if (params.command === "fork") yield* delegationService.fork({ delegationID, reason: params.prompt })
+        else if (params.command === "purge") yield* delegationService.delete({ delegationID, purge: true })
+        return {
+          title: params.description,
+          metadata: { delegationID, command: params.command },
+          output: renderOutput({ sessionID: ctx.sessionID, state: "completed", text: `${params.command} accepted` }),
+        }
+      }
+
       // CLI execution mode branch
       if (params.execution_type === "external-cli") {
         if (!params.cli_target) {
@@ -269,6 +361,8 @@ export const TaskTool = Tool.define(
       if (!next) {
         return yield* Effect.fail(new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`))
       }
+      const ops = ctx.extra?.promptOps
+      if (!isTaskPromptOps(ops)) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
 
       // Cancel orphaned session from a previous retry attempt before creating a new one
       const previousSessionID = yield* Ref.get(previousSessionIDRef)
@@ -279,9 +373,60 @@ export const TaskTool = Tool.define(
         }
       }
 
-      const session = params.task_id
-        ? yield* sessions.get(SessionID.make(params.task_id)).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
+      // Phase 2 Delegation integration
+      let delegationID: DelegationID.ID | undefined
+      let delegationState: Effect.Success<ReturnType<typeof delegationService.resolve>> | undefined
+      let existingChildSessionID: SessionID | undefined
+
+      if (flags.experimentalPersistentDelegations) {
+        const parsed = params.delegation_id
+          ? Option.getOrUndefined(Schema.decodeUnknownOption(DelegationID.ID)(params.delegation_id))
+          : undefined
+        if (params.delegation_id && !parsed) return yield* Effect.fail(new Error("Invalid delegation_id"))
+        delegationState = yield* delegationService.resolve({
+          parentSessionID: ctx.sessionID,
+          title: params.description,
+          delegationID: parsed,
+          newDelegation: params.new_delegation,
+        })
+        delegationID = delegationState.delegation.id
+        const existingParticipant = [...delegationState.participants.values()].find(
+          (participant) =>
+            participant.provider === "internal" &&
+            participant.target === next.name &&
+            participant.role === "implementer" &&
+            participant.childSessionID !== undefined,
+        )
+        if (existingParticipant?.childSessionID) {
+          const prev = Option.getOrUndefined(previousSessionID)
+          if (!prev || existingParticipant.childSessionID !== prev) {
+            existingChildSessionID = existingParticipant.childSessionID
+          }
+        }
+      }
+
+      const targetSessionID = params.task_id ? SessionID.make(params.task_id) : existingChildSessionID
+      const session = targetSessionID
+        ? yield* sessions.get(targetSessionID).pipe(Effect.catchTag("NotFoundError", () => Effect.succeed(undefined)))
         : undefined
+      if (session && session.parentID !== ctx.sessionID) {
+        return yield* Effect.fail(new Error(`task_id ${params.task_id} does not belong to this session`))
+      }
+      const requestedParticipant =
+        flags.experimentalPersistentDelegations && targetSessionID && delegationState
+          ? [...delegationState.participants.values()].find(
+              (participant) => participant.childSessionID === targetSessionID,
+            )
+          : undefined
+      if (
+        flags.experimentalPersistentDelegations &&
+        params.task_id &&
+        delegationState &&
+        delegationState.participants.size > 0 &&
+        !requestedParticipant
+      ) {
+        return yield* Effect.fail(new Error(`task_id ${params.task_id} does not belong to delegation ${delegationID}`))
+      }
       const childPermission = deriveSubagentSessionPermission({
         parentSessionPermission: parent.permission ?? [],
         subagent: next,
@@ -331,10 +476,78 @@ export const TaskTool = Tool.define(
         modelID: msg.info.modelID,
         providerID: msg.info.providerID,
       }
+
+      // Participant
+      let participantID: ParticipantID | undefined
+      if (flags.experimentalPersistentDelegations && delegationID) {
+        const state = yield* delegationService.foldState(delegationID)
+        const existingParticipant = state
+          ? [...state.participants.values()].find((p) => p.childSessionID === nextSession.id)
+          : undefined
+        if (existingParticipant) {
+          participantID = existingParticipant.id
+        } else {
+          const part = yield* delegationService.addParticipant({
+            delegationID,
+            provider: "internal",
+            target: next.name,
+            role: "implementer",
+            context: "fresh",
+            childSessionID: nextSession.id,
+          })
+          participantID = part.id
+        }
+      }
+
+      // Turn
+      let turnID: TurnID | undefined
+      let taskID: string | undefined
+      if (flags.experimentalPersistentDelegations) {
+        const created = yield* tasks.append({
+          sessionID: ctx.sessionID,
+          tasks: [{ content: params.description, status: "in_progress", priority: "medium" }],
+        })
+        taskID = created.at(-1)?.id
+      }
+
+      if (flags.experimentalPersistentDelegations && delegationID && participantID) {
+        const turn = yield* delegationService
+          .appendTurn({
+            delegationID,
+            kind: "task",
+            promptSummary: params.description,
+            participantIDs: [participantID],
+            delivery:
+              runInBackground && (yield* background.get(nextSession.id))?.status === "running" ? "queue" : "steer",
+            origin: {
+              deliveryOrigin: "meta",
+              senderParticipantID: participantID,
+            },
+          })
+          .pipe(
+            Effect.tapError(() =>
+              taskID
+                ? tasks
+                    .patch({
+                      sessionID: ctx.sessionID,
+                      id: taskID,
+                      status: "failed",
+                      outputDigest: "turn admission failed",
+                    })
+                    .pipe(Effect.orDie, Effect.asVoid)
+                : Effect.void,
+            ),
+          )
+        turnID = turn.id
+      }
+
       const metadata = {
         parentSessionId: ctx.sessionID,
         sessionId: nextSession.id,
         model,
+        ...(delegationID ? { delegationID } : {}),
+        ...(turnID ? { turnID } : {}),
+        ...(participantID ? { participantID } : {}),
         ...(runInBackground ? { background: true } : {}),
       }
 
@@ -342,9 +555,6 @@ export const TaskTool = Tool.define(
         title: params.description,
         metadata,
       })
-
-      const ops = ctx.extra?.promptOps
-      if (!isTaskPromptOps(ops)) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
 
       const runTask = Effect.fn("TaskTool.runTask")(function* () {
         const parts = yield* ops.resolvePromptParts(params.prompt)
@@ -358,8 +568,66 @@ export const TaskTool = Tool.define(
           variant: next.model ? undefined : variant,
           agent: next.name,
           parts,
+          ...(delegationID && turnID && participantID
+            ? {
+                delegationOrigin: {
+                  turnID,
+                  deliveryOrigin: "meta",
+                  senderParticipantID: participantID,
+                },
+              }
+            : {}),
         })
         return result.parts.findLast((item) => item.type === "text")?.text ?? ""
+      })
+
+      const runTaskWithDelivery = Effect.gen(function* () {
+        if (!flags.experimentalPersistentDelegations || !delegationID || !turnID || !participantID) {
+          return yield* runTask()
+        }
+        const attempt = yield* Ref.make(1)
+        const executeAttempt = Effect.gen(function* () {
+          const currentAttempt = yield* Ref.getAndUpdate(attempt, (current) => current + 1)
+          yield* delegationService.recordDelivery({
+            delegationID,
+            turnID,
+            participantID,
+            deliveryOrigin: "meta",
+            senderParticipantID: participantID,
+            attempt: currentAttempt,
+            status: "started",
+          })
+          return yield* runTask().pipe(
+            Effect.onExit((exit) =>
+              delegationService.recordDelivery({
+                delegationID,
+                turnID,
+                participantID,
+                deliveryOrigin: "meta",
+                senderParticipantID: participantID,
+                attempt: currentAttempt,
+                status: Exit.isSuccess(exit)
+                  ? "completed"
+                  : Cause.hasInterruptsOnly(exit.cause)
+                    ? "cancelled"
+                    : "failed",
+                summary: Exit.isSuccess(exit) ? exit.value : "Task failed",
+              }),
+            ),
+          )
+        })
+        return yield* executeAttempt.pipe(
+          Effect.retry(Schedule.recurs(1)),
+          Effect.onExit((exit) => {
+            if (!taskID) return Effect.void
+            return tasks.patch({
+              sessionID: ctx.sessionID,
+              id: taskID,
+              status: Exit.isSuccess(exit) ? "completed" : Cause.hasInterruptsOnly(exit.cause) ? "cancelled" : "failed",
+              outputDigest: Exit.isSuccess(exit) ? nextSession.id : "delegation failed",
+            })
+          }),
+        )
       })
 
       const inject = Effect.fn("TaskTool.injectBackgroundResult")(function* (
@@ -402,7 +670,7 @@ export const TaskTool = Tool.define(
         )
       })
 
-      if (yield* background.extend({ id: nextSession.id, run: runTask() })) {
+      if (yield* background.extend({ id: nextSession.id, run: runTaskWithDelivery })) {
         return {
           title: params.description,
           metadata: {
@@ -431,7 +699,7 @@ export const TaskTool = Tool.define(
           }),
           notify(nextSession.id),
         ]),
-        run: runTask().pipe(Effect.onInterrupt(() => ops.cancel(nextSession.id))),
+        run: runTaskWithDelivery.pipe(Effect.onInterrupt(() => ops.cancel(nextSession.id))),
       })
 
       function backgroundResult() {
@@ -500,13 +768,20 @@ export const TaskTool = Tool.define(
       description: flags.experimentalBackgroundSubagents
         ? [DESCRIPTION, BACKGROUND_DESCRIPTION].join("\n\n")
         : DESCRIPTION,
-      parameters: Parameters,
-      jsonSchema: flags.experimentalBackgroundSubagents ? undefined : ToolJsonSchema.fromSchema(BaseParameters),
+      parameters: flags.experimentalPersistentDelegations ? Parameters : LegacyParameters,
+      jsonSchema: flags.experimentalBackgroundSubagents
+        ? undefined
+        : ToolJsonSchema.fromSchema(
+            flags.experimentalPersistentDelegations ? PersistentBaseParameters : LegacyBaseParameters,
+          ),
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const previousSessionIDRef = yield* Ref.make(Option.none<SessionID>())
-          return yield* run(params, ctx, previousSessionIDRef).pipe(Effect.retry(Schedule.recurs(1)))
-        }).pipe(Effect.catch((e: unknown) => Effect.die(e))),
+          const execution = run(params, ctx, previousSessionIDRef)
+          return yield* flags.experimentalPersistentDelegations
+            ? execution
+            : execution.pipe(Effect.retry(Schedule.recurs(1)))
+        }).pipe(Effect.orDie),
     }
   }),
 )

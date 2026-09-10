@@ -18,6 +18,8 @@ export function executeWithTimeout(
       return {
         status: "failed" as const,
         summary: `CLI "${adapter.name}" not available`,
+        errorCode: "cli_unavailable",
+        recoveryRequired: true,
         errors: ["CLI not found on system"],
       }
     }
@@ -48,17 +50,24 @@ export function executeWithTimeout(
             exitCode === 0 || stderr.buffer.length
               ? stderr.buffer
               : Buffer.from(`Process exited with code ${exitCode}`),
+          timedOut: false as const,
         }
       }),
     ).pipe(
       Effect.timeoutOrElse({
         duration: Duration.millis(timeout),
-        orElse: () => Effect.fail(new Error("Timed out")),
+        orElse: () =>
+          Effect.succeed({
+            stdout: Buffer.alloc(0),
+            stderr: Buffer.from("Timed out"),
+            timedOut: true as const,
+          }),
       }),
       Effect.catch((error) =>
         Effect.succeed({
           stdout: Buffer.alloc(0),
-          stderr: Buffer.from(error.message),
+          stderr: Buffer.from(error instanceof Error ? error.message : String(error)),
+          timedOut: false as const,
         }),
       ),
     )
@@ -67,6 +76,10 @@ export function executeWithTimeout(
     const parsed = yield* adapter.parseOutput(stdoutStr, result.stderr.toString("utf8"))
     // Preserve raw stdout so the caller can run parseResumeHint on the original
     // JSONL frames after parseOutput has consumed them.
-    return { ...parsed, rawStdout: stdoutStr }
+    return {
+      ...parsed,
+      rawStdout: stdoutStr,
+      ...(result.timedOut ? { errorCode: "timeout", recoveryRequired: true } : {}),
+    }
   })
 }

@@ -731,6 +731,9 @@ it.instance("meta agent prompt contains protocol documents and identity sections
     expect(meta).toBeDefined()
     expect(meta?.prompt).toContain("## Protocol Documents")
     expect(meta?.prompt).toContain("TEXT CONTENT")
+    expect(meta?.prompt).toContain("call generate_delegation_protocol")
+    expect(meta?.prompt).toContain("include_protocol=true")
+    expect(evalPerm(meta, "generate_delegation_protocol")).toBe("allow")
     expect(meta?.prompt).toContain("## Identity")
     expect(meta?.prompt).toContain("AigcForge Meta Agent")
   }),

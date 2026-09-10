@@ -20,6 +20,7 @@ import { FSUtil } from "./fs-util"
 import { Git } from "./git"
 import { Global } from "./global"
 import { Database } from "./database/database"
+import { DelegationService } from "./delegation/service"
 import { PermissionV2 } from "./permission"
 import { SessionPermissionOverride } from "./permission/session-override"
 import { PermissionSaved } from "./permission/saved"
@@ -292,6 +293,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
       Global.defaultLayer,
       Ripgrep.defaultLayer,
       Database.defaultLayer,
+      DelegationService.defaultLayer,
       ProjectDirectories.defaultLayer,
       SessionStore.layer.pipe(Layer.provide(Database.defaultLayer)),
       PermissionSaved.defaultLayer,

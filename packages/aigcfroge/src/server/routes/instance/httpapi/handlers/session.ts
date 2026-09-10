@@ -661,7 +661,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
             sourceSessionID: ctx.params.sessionID,
             targetSessionID: child.id,
             scope: "full",
-            trigger: true,
+            trigger: false,
           })
           .pipe(Effect.catchTag("Session.NotFoundError", (error) => Effect.fail(v2SessionNotFound(error))))
         yield* copyForkTasks(ctx.params.sessionID, child.id)

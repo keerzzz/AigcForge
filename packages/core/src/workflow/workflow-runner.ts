@@ -88,6 +88,7 @@ function renderRootHandoff(input: {
 export interface StepPreparation {
   readonly taskId?: string
   readonly childSessionId?: string
+  readonly metaAgentStepId?: string
   readonly errorCategory?: WorkflowAsset.ErrorCategory
 }
 
@@ -313,7 +314,7 @@ export const layer = Layer.effect(
             yield* patchTask(input.sessionID, { taskId: task.id }, "failed")
             return { taskId: task.id, errorCategory: "agent_not_allowed" as const }
           }
-          return { taskId: task.id, childSessionId: child.id }
+          return { taskId: task.id, childSessionId: child.id, metaAgentStepId: child.stepID }
         }),
       execute: (input): Effect.Effect<StepExecutionResult> =>
         Effect.gen(function* () {
@@ -336,6 +337,7 @@ export const layer = Layer.effect(
             sessionID: childSessionID,
             parentID: input.sessionID,
             prompt,
+            stepID: input.preparation.metaAgentStepId,
           }).pipe(
             Effect.map(
               (text): StepExecutionResult => ({

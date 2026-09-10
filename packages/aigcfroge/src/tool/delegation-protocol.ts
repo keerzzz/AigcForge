@@ -1,9 +1,7 @@
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import { MetaContextBuilder } from "../agent/meta/context-builder"
-import { getAgentCard } from "../agent/protocol"
-import { readFileSync, existsSync } from "fs"
-import path from "path"
+import { formatAgentCard, loadProtocolCard } from "../agent/protocol"
 
 const DESCRIPTION = [
   "Generate a structured delegation protocol document for subagent or CLI task assignment.",
@@ -25,14 +23,22 @@ export const Parameters = Schema.Struct({
   }),
 })
 
-function loadProtocolCard(engine: string): string {
-  const card = getAgentCard(engine)
-  if (!card?.protocol) return ""
-  const mdPath = path.join(import.meta.dir, "..", "agent", engine, "protocol.md")
-  if (!existsSync(mdPath)) return ""
-  const content = readFileSync(mdPath, "utf-8").trim()
-  if (!content) return ""
-  return ["", `--- ${engine} protocol ---`, content].join("\n")
+export function buildProtocol(input: Schema.Schema.Type<typeof Parameters>, project = process.cwd()) {
+  return Effect.gen(function* () {
+    const protocol = MetaContextBuilder.build({
+      project: input.project ?? project,
+      taskDescription: input.task_description,
+      engine: input.engine,
+      delegationId: `deleg_${Date.now()}`,
+      files: input.files ?? "",
+      constraints: [input.constraints ?? "", formatAgentCard(input.engine) ?? ""].filter(Boolean).join("\n"),
+      history: [],
+    })
+    if (!input.include_protocol) return protocol
+    const protocolCard = yield* Effect.promise(() => loadProtocolCard(input.engine))
+    if (!protocolCard) return protocol
+    return protocol + ["", `--- ${input.engine} protocol ---`, protocolCard].join("\n")
+  })
 }
 
 export const DelegationProtocolTool = Tool.define(
@@ -42,30 +48,13 @@ export const DelegationProtocolTool = Tool.define(
       description: DESCRIPTION,
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, _ctx: Tool.Context) =>
-        Effect.gen(function* () {
-          const protocol = MetaContextBuilder.build({
-            project: params.project ?? process.cwd(),
-            taskDescription: params.task_description,
-            engine: params.engine,
-            delegationId: `deleg_${Date.now()}`,
-            files: params.files ?? "",
-            constraints: params.constraints ?? "",
-            history: [],
-          })
-
-          let output = protocol
-
-          if (params.include_protocol) {
-            const card = loadProtocolCard(params.engine)
-            if (card) output += card
-          }
-
-          return {
+        buildProtocol(params).pipe(
+          Effect.map((output) => ({
             title: `Delegation protocol for ${params.engine}`,
             output,
             metadata: { engine: params.engine, protocolIncluded: params.include_protocol === true },
-          }
-        }),
+          })),
+        ),
     }
   }),
 )

@@ -14,6 +14,7 @@ import { SessionSchema } from "../session/schema"
 import { WorkspaceV2 } from "../workspace"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { SessionInput } from "@aigcfroge/schema/session-input"
 
 const Timestamp = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 
@@ -355,6 +356,7 @@ export const User = Schema.Struct({
   }),
   system: Schema.optional(Schema.String),
   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
+  delegationOrigin: Schema.optional(SessionInput.DelegationOrigin),
 }).annotate({ identifier: "UserMessage" })
 export type User = Types.DeepMutable<Schema.Schema.Type<typeof User>>
 

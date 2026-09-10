@@ -27,6 +27,10 @@ import scopedGrantLevelIndexMigration from "@aigcfroge/core/database/migration/2
 import scopedGrantLocationMigration from "@aigcfroge/core/database/migration/20260826074345_scoped_grant_location"
 import mcpCredentialBindingMigration from "@aigcfroge/core/database/migration/20260825033229_secret_rachel_grey"
 import workflowDurableProjectionMigration from "@aigcfroge/core/database/migration/20260820130142_cynical_sasquatch"
+import addDelegationTablesMigration from "@aigcfroge/core/database/migration/20260904160809_add_delegation_tables"
+import delegationOriginMigration from "@aigcfroge/core/database/migration/20260905135615_delegation_origin"
+import externalCliSessionParticipantMigration from "@aigcfroge/core/database/migration/20260906011953_external_cli_session_participant"
+import hardenExternalCliSessionIDMigration from "@aigcfroge/core/database/migration/20260906023000_harden_external_cli_session_id"
 import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
@@ -48,6 +52,39 @@ const run = <A, E>(effect: Effect.Effect<A, E, SqlClientService>) =>
 const makeDb = EffectDrizzleSqlite.makeWithDefaults()
 
 describe("DatabaseMigration", () => {
+  test("migrates legacy external CLI rows without composite-id collisions", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_a_b'), ('ses_a')`)
+        yield* db.run(
+          sql`CREATE TABLE external_cli_session (session_id text NOT NULL, cli_target text NOT NULL, external_session_id text NOT NULL, status text DEFAULT 'active' NOT NULL, time_created integer NOT NULL, time_updated integer NOT NULL)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO external_cli_session (session_id, cli_target, external_session_id, time_created, time_updated) VALUES ('ses_a_b', 'codex', 'c', 1, 1), ('ses_a', 'codex', 'b_c', 2, 2)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [
+          externalCliSessionParticipantMigration,
+          hardenExternalCliSessionIDMigration,
+        ])
+
+        const rows = yield* db.all<{ id: string; participant_id: string | null }>(
+          sql`SELECT id, participant_id FROM external_cli_session ORDER BY time_created`,
+        )
+        expect(rows).toHaveLength(2)
+        expect(new Set(rows.map((row) => row.id)).size).toBe(2)
+        expect(rows.every((row) => row.id.length > 0 && row.participant_id === null)).toBe(true)
+
+        const columns = yield* db.all<{ name: string; pk: number; notnull: number }>(
+          sql`PRAGMA table_info(external_cli_session)`,
+        )
+        expect(columns.find((column) => column.name === "id")).toMatchObject({ pk: 1, notnull: 1 })
+      }),
+    )
+  })
+
   test("serializes concurrent embedded initialization for one database path", async () => {
     await using tmp = await tmpdir()
     const filename = path.join(tmp.path, "embedded.sqlite")
@@ -1443,6 +1480,107 @@ describe("DatabaseMigration", () => {
           ),
         ).toEqual({
           name: "mcp_binding_credential_ref_idx",
+        })
+      }),
+    )
+  })
+
+  test("creates delegation projections with parent FK and prompt summary", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_pre_existing_delegation')`)
+
+        yield* DatabaseMigration.applyOnly(db, [addDelegationTablesMigration])
+        yield* db.run(sql`
+          INSERT INTO delegation (id, parent_session_id, title, status, rejection_blocked, last_activity_at, time_created, time_updated)
+          VALUES ('dlg_mig', 'ses_pre_existing_delegation', 'Title', 'draft', 0, 1000, 1000, 1000)
+        `)
+        yield* db.run(sql`
+          INSERT INTO delegation_participant (id, delegation_id, provider, target, role, context, phase, last_activity_at, time_created, time_updated)
+          VALUES ('par_mig', 'dlg_mig', 'internal', 'build', 'implementer', 'fresh', 'active', 1000, 1000, 1000)
+        `)
+        yield* db.run(sql`
+          INSERT INTO delegation_turn (id, delegation_id, seq, kind, status, prompt_summary, participant_ids, delivery, time_created, time_updated)
+          VALUES ('trn_mig', 'dlg_mig', 1, 'task', 'admitted', 'bounded summary', '["par_mig"]', 'steer', 1000, 1000)
+        `)
+
+        yield* DatabaseMigration.applyOnly(db, [addDelegationTablesMigration])
+
+        const tables = yield* db.all<{ name: string }>(sql`
+          SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'delegation%' ORDER BY name
+        `)
+        expect(tables.map((table) => table.name)).toEqual(["delegation", "delegation_participant", "delegation_turn"])
+        expect(tables.map((table) => table.name)).not.toContain("delegation_delivery")
+
+        const delegationColumns = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation)`)
+        const participantColumns = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation_participant)`)
+        const turnColumns = yield* db.all<{ name: string }>(sql`PRAGMA table_info(delegation_turn)`)
+        expect(delegationColumns.map((column) => column.name)).not.toContain("active_turn_id")
+        expect(participantColumns.map((column) => column.name)).not.toContain("runtime_status")
+        expect(turnColumns.map((column) => column.name)).toContain("prompt_summary")
+        expect(turnColumns.map((column) => column.name)).not.toContain("prompt")
+
+        const parentForeignKey = (yield* db.all<{ table: string; from: string; to: string; on_delete: string }>(
+          sql`PRAGMA foreign_key_list(delegation)`,
+        )).find((foreignKey) => foreignKey.from === "parent_session_id")
+        expect(parentForeignKey).toMatchObject({ table: "session", to: "id", on_delete: "CASCADE" })
+        expect(yield* db.all(sql`SELECT id FROM session`)).toEqual([{ id: "ses_pre_existing_delegation" }])
+        expect(yield* db.get(sql`SELECT prompt_summary FROM delegation_turn WHERE id = 'trn_mig'`)).toEqual({
+          prompt_summary: "bounded summary",
+        })
+
+        const orphan = yield* db
+          .run(
+            sql`
+            INSERT INTO delegation (id, parent_session_id, title, status, rejection_blocked, last_activity_at, time_created, time_updated)
+            VALUES ('dlg_orphan', 'ses_missing', 'Orphan', 'draft', 0, 1000, 1000, 1000)
+          `,
+          )
+          .pipe(Effect.exit)
+        expect(Exit.isFailure(orphan)).toBe(true)
+
+        yield* DatabaseMigration.applyOnly(db, [addDelegationTablesMigration])
+        expect(yield* db.all(sql`SELECT id FROM delegation`)).toEqual([{ id: "dlg_mig" }])
+        expect(yield* db.all(sql`SELECT id FROM delegation_participant`)).toEqual([{ id: "par_mig" }])
+        expect(yield* db.all(sql`SELECT id FROM delegation_turn`)).toEqual([{ id: "trn_mig" }])
+
+        yield* db.run(sql`DELETE FROM session WHERE id = 'ses_pre_existing_delegation'`)
+        expect(yield* db.all(sql`SELECT id FROM delegation`)).toEqual([])
+        expect(yield* db.all(sql`SELECT id FROM delegation_participant`)).toEqual([])
+        expect(yield* db.all(sql`SELECT id FROM delegation_turn`)).toEqual([])
+      }),
+    )
+  })
+
+  test("adds delegation origin to an existing session inbox without changing prior rows", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(
+          sql`CREATE TABLE session_input (id text PRIMARY KEY, session_id text NOT NULL, prompt text, delivery text NOT NULL, admitted_seq integer NOT NULL, promoted_seq integer, time_created integer NOT NULL)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, time_created) VALUES ('inp_existing', 'ses_existing', '{}', 'steer', 1, 10)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [delegationOriginMigration])
+
+        expect(
+          (yield* db.all<{ name: string }>(sql`PRAGMA table_info(session_input)`)).map((column) => column.name),
+        ).toContain("delegation_origin")
+        expect(yield* db.get(sql`SELECT id, delegation_origin FROM session_input WHERE id = 'inp_existing'`)).toEqual({
+          id: "inp_existing",
+          delegation_origin: null,
+        })
+
+        yield* DatabaseMigration.applyOnly(db, [delegationOriginMigration])
+        expect(yield* db.get(sql`SELECT id, delegation_origin FROM session_input WHERE id = 'inp_existing'`)).toEqual({
+          id: "inp_existing",
+          delegation_origin: null,
         })
       }),
     )

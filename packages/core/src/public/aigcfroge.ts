@@ -3,6 +3,8 @@ export * as Aigcfroge from "./aigcfroge"
 import { Context, Effect, Layer } from "effect"
 import { BackgroundJob } from "../background-job"
 import { Database } from "../database/database"
+import { DelegationService } from "../delegation/service"
+import { DelegationExecution } from "../delegation/execution"
 import { EventV2 } from "../event"
 import { LocationServiceMap } from "../location-layer"
 import { ProjectV2 } from "../project"
@@ -38,6 +40,13 @@ const SessionsLayer = SessionV2.layer.pipe(
   Layer.provideMerge(TaskDriverRuntimeLayer),
 )
 
+const DelegationExecutionLayer = DelegationExecution.layer.pipe(
+  Layer.provide(SessionsLayer),
+  Layer.provide(DelegationService.defaultLayer),
+  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provideMerge(TaskDriverRuntimeLayer),
+)
+
 // Installs the SessionV2-backed TaskDriver bridge so the `task` built-in can
 // drive child Sessions. The child drain runs on a BackgroundJob fiber (never
 // the caller's), so wire BackgroundJob alongside SessionV2. The fill writes
@@ -46,7 +55,9 @@ const SessionsLayer = SessionV2.layer.pipe(
 // explicitly, or its `yield* EventV2.Service` dies with "Service not found".
 const FillerLayer = TaskDriverFill.layer.pipe(
   Layer.provideMerge(SessionsLayer),
+  Layer.provide(DelegationExecutionLayer),
   Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
   Layer.provide(EventV2.defaultLayer),
 )
 // TODO: Accept explicit storage so tests and embeddings can select disposable or application-owned persistence.
@@ -89,6 +100,6 @@ export const layer = Layer.effect(
       },
     })
   }),
-).pipe(Layer.provideMerge(Layer.mergeAll(ApplicationTools.layer, SessionsLayer, FillerLayer)))
+).pipe(Layer.provideMerge(Layer.mergeAll(ApplicationTools.layer, SessionsLayer, FillerLayer, DelegationExecutionLayer)))
 
 // TODO: Add Aigcfroge.create(...) as the Promise facade over the same native API semantics.

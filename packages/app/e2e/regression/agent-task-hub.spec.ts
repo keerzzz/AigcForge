@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
-import { expectSessionTitle } from "../utils/waits"
+import { trackPageErrors } from "../utils/errors"
 import { pinEnglishUI } from "../utils/locale"
+import { expectSessionTitle } from "../utils/waits"
 
 // English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
 test.beforeEach(({ page }) => pinEnglishUI(page))
@@ -10,7 +11,7 @@ const directory = "C:/Aigcfroge/AgentHubRegression"
 const projectID = "proj_agent_hub_regression"
 const sessionID = "ses_agent_hub_regression"
 const title = "Agent hub regression"
-const model = { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" }
+const model = { providerID: "deepseek", modelID: "deepseek-v4-flas" }
 
 type EventPayload = {
   directory: string
@@ -312,6 +313,45 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
   })
 })
 
+test("delegation panel remains usable at a narrow viewport", async ({ page }) => {
+  const errors = trackPageErrors(page)
+  const events: EventPayload[] = []
+  await mockServer(page, events, {
+    delegations: [
+      {
+        delegation: {
+          id: "dlg_narrow",
+          parentSessionID: sessionID,
+          title: "A very long delegation title that must wrap without losing controls",
+          status: "running",
+          rejectionBlocked: false,
+          lastActivityAt: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        participants: [],
+        turns: [],
+        softExpired: false,
+      },
+    ],
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+  await expectSessionTitle(page, title)
+  await page.locator('[data-session-title] [aria-label="More options"]').click()
+  await page.getByText("My agents", { exact: true }).click()
+  const panel = page.locator('[data-component="delegation-panel"]')
+  await expect(panel).toBeVisible()
+  const card = panel.locator('[data-component="delegation-card"]')
+  await expect(card).toBeVisible()
+  await expect(card).toContainText("running")
+  expect((await panel.boundingBox())?.width ?? 999).toBeLessThanOrEqual(390)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(
+    true,
+  )
+  expect(errors, `unexpected browser errors: ${errors.join(" | ")}`).toEqual([])
+})
+
 async function configurePage(page: Page) {
   await page.setViewportSize({ width: 1280, height: 800 })
 }
@@ -344,13 +384,19 @@ function provider() {
   return {
     all: [
       {
-        id: "aigcfroge",
-        name: "Aigcfroge",
-        models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
+        id: "deepseek",
+        name: "DeepSeek",
+        models: {
+          "deepseek-v4-flas": {
+            id: "deepseek-v4-flas",
+            name: "DeepSeek V4 Flas",
+            limit: { context: 200_000 },
+          },
+        },
       },
     ],
-    connected: ["aigcfroge"],
-    default: { providerID: "aigcfroge", modelID: "claude-opus-4-6" },
+    connected: ["deepseek"],
+    default: { providerID: "deepseek", modelID: "deepseek-v4-flas" },
   }
 }
 

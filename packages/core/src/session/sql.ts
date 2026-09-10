@@ -187,6 +187,7 @@ export const SessionInputTable = sqliteTable(
     command: text(),
     skill: text(),
     command_payload: text({ mode: "json" }).$type<SessionInput.CommandPayload>(),
+    delegation_origin: text({ mode: "json" }).$type<SessionInput.DelegationOrigin>(),
     delivery: text().$type<SessionInput.Delivery>().notNull(),
     admitted_seq: integer().notNull(),
     promoted_seq: integer(),

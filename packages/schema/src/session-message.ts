@@ -6,6 +6,7 @@ import { Model } from "./model"
 import { FileAttachment, Prompt } from "./prompt"
 import { DateTimeUtcFromMillis } from "./schema"
 import { SessionID } from "./session-id"
+import { DelegationOrigin } from "./session-input"
 import { SessionMessageID } from "./session-message-id"
 
 export const ID = SessionMessageID.ID
@@ -43,6 +44,7 @@ export const User = Schema.Struct({
   text: Prompt.fields.text,
   files: Prompt.fields.files,
   agents: Prompt.fields.agents,
+  delegationOrigin: DelegationOrigin.pipe(Schema.optional),
   type: Schema.Literal("user"),
 }).annotate({ identifier: "Session.Message.User" })
 

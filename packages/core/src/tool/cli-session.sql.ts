@@ -2,6 +2,7 @@ import { sqliteTable, text, index, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { SessionTable } from "../session/sql"
 import { Timestamps } from "../database/schema.sql"
 import { SessionSchema } from "../session/schema"
+import type { ParticipantID } from "@aigcfroge/schema/delegation-id"
 
 /**
  * Tracks external CLI session IDs for resume capability.
@@ -12,10 +13,12 @@ import { SessionSchema } from "../session/schema"
 export const ExternalCliSessionTable = sqliteTable(
   "external_cli_session",
   {
+    id: text().notNull().primaryKey(),
     session_id: text()
       .$type<SessionSchema.ID>()
       .notNull()
       .references(() => SessionTable.id, { onDelete: "cascade" }),
+    participant_id: text().$type<ParticipantID>(),
     cli_target: text().notNull(),
     external_session_id: text().notNull(),
     status: text().$type<"active" | "completed" | "failed">().notNull().default("active"),
@@ -24,6 +27,7 @@ export const ExternalCliSessionTable = sqliteTable(
   (table) => [
     index("external_cli_session_session_idx").on(table.session_id),
     index("external_cli_session_external_idx").on(table.external_session_id),
+    index("external_cli_session_participant_idx").on(table.participant_id),
     uniqueIndex("external_cli_session_unique_idx").on(table.session_id, table.external_session_id),
   ],
 )

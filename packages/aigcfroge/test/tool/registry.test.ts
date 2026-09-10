@@ -91,6 +91,24 @@ describe("tool.registry", () => {
     }),
   )
 
+  it.instance("exposes generate_delegation_protocol to the deny-first meta agent", () =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      const agents = yield* Agent.Service
+      const meta = yield* agents.get("meta")
+      if (!meta) throw new Error("meta agent not found")
+
+      expect(yield* registry.ids()).toContain("generate_delegation_protocol")
+      expect(
+        (yield* registry.tools({
+          providerID: ProviderV2.ID.aigcfroge,
+          modelID: ModelV2.ID.make("test"),
+          agent: meta,
+        })).map((tool) => tool.id),
+      ).toContain("generate_delegation_protocol")
+    }),
+  )
+
   it.instance("does not expose task_status", () =>
     Effect.gen(function* () {
       const registry = yield* ToolRegistry.Service

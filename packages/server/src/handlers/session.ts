@@ -705,16 +705,50 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           if (parent.mode !== "custom") {
             yield* ProductModePolicy.assertCreationSupported(parent.mode)
           }
-          const child = yield* session.create({
-            location: parent.location,
-            parentID: parent.id,
-            mode: parent.mode,
-          })
+          const child = yield* session
+            .create({
+              location: parent.location,
+              parentID: parent.id,
+              mode: parent.mode,
+            })
+            .pipe(
+              Effect.catchTag("Session.PromptConflictError", (error) =>
+                Effect.fail(
+                  new InvalidRequestError({
+                    message: `Conflicting composition snapshot for session ${error.sessionID}`,
+                  }),
+                ),
+              ),
+              Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
+                Effect.fail(
+                  new InvalidRequestError({
+                    message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
+                  }),
+                ),
+              ),
+              Effect.catchTag("AgentNotAllowedError", (error) =>
+                Effect.fail(new InvalidRequestError({ message: error.message })),
+              ),
+              Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
+                Effect.fail(
+                  new InvalidRequestError({
+                    message: `Missing composition snapshot for custom parent session ${error.sessionID}`,
+                  }),
+                ),
+              ),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+                Effect.fail(
+                  new InvalidRequestError({
+                    message: `Failed to decode composition snapshot for session ${error.sessionID}: ${error.details}`,
+                  }),
+                ),
+              ),
+            )
           yield* share.share({
             sourceSessionID: ctx.params.sessionID,
             targetSessionID: child.id,
             scope: "full",
-            trigger: true,
+            trigger: false,
           })
           return { sessionID: child.id }
         }).pipe(
@@ -731,41 +765,6 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               new UnsupportedProductModeError({
                 mode: error.mode,
                 message: error.message,
-              }),
-            ),
-          ),
-          Effect.catchTag("Session.PromptConflictError", (error) =>
-            Effect.fail(
-              new InvalidRequestError({
-                message: `Conflicting composition snapshot for session ${error.sessionID}`,
-              }),
-            ),
-          ),
-          Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
-            Effect.fail(
-              new InvalidRequestError({
-                message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
-              }),
-            ),
-          ),
-          Effect.catchTag("AgentNotAllowedError", (error) =>
-            Effect.fail(
-              new InvalidRequestError({
-                message: error.message,
-              }),
-            ),
-          ),
-          Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
-            Effect.fail(
-              new InvalidRequestError({
-                message: `Missing composition snapshot for custom parent session ${error.sessionID}`,
-              }),
-            ),
-          ),
-          Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
-            Effect.fail(
-              new InvalidRequestError({
-                message: `Failed to decode composition snapshot for session ${error.sessionID}: ${error.details}`,
               }),
             ),
           ),

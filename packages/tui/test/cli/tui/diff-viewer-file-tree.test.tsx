@@ -169,7 +169,12 @@ async function renderOnceSettled(app: Awaited<ReturnType<typeof testRender>>) {
 }
 
 async function captureSettledFrame(app: Awaited<ReturnType<typeof testRender>>) {
-  for (let attempt = 0; attempt < 5; attempt++) {
+  // The highlighted-node scroll effect drives the test renderer's live loop,
+  // so the first paint can lag well past a fixed retry budget under CI load
+  // (observed as intermittent empty frames on the loaded Linux leg). Keep
+  // pumping the same renderOnce cadence until the frame has content.
+  const deadline = Date.now() + 5000
+  while (Date.now() < deadline) {
     const frame = app.captureCharFrame()
     if (frame.trim().length > 0) return frame
     await new Promise((resolve) => setTimeout(resolve, 25))

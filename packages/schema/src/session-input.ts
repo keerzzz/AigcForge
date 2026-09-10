@@ -3,12 +3,21 @@ export * as SessionInput from "./session-input"
 import { Schema } from "effect"
 import { Prompt } from "./prompt"
 import { DateTimeUtcFromMillis, NonNegativeInt } from "./schema"
+import { ParticipantID, TurnID } from "./delegation-id"
 import { SessionDelivery } from "./session-delivery"
 import { SessionID } from "./session-id"
 import { SessionMessageID } from "./session-message-id"
 
 export const Delivery = SessionDelivery.Delivery
 export type Delivery = SessionDelivery.Delivery
+
+/** Durable origin tuple for a prompt delivered by a persistent delegation. */
+export interface DelegationOrigin extends Schema.Schema.Type<typeof DelegationOrigin> {}
+export const DelegationOrigin = Schema.Struct({
+  turnID: TurnID,
+  deliveryOrigin: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(512)),
+  senderParticipantID: ParticipantID,
+}).annotate({ identifier: "SessionInput.DelegationOrigin" })
 
 /** Fields shared by every admitted session input regardless of kind. */
 const Base = {
@@ -26,6 +35,7 @@ export const AdmittedPrompt = Schema.Struct({
   kind: Schema.Literal("prompt"),
   ...Base,
   prompt: Prompt,
+  delegationOrigin: DelegationOrigin.pipe(Schema.optionalKey),
 }).annotate({ identifier: "SessionInput.AdmittedPrompt" })
 
 /** User-run shell command admitted to the durable inbox. */

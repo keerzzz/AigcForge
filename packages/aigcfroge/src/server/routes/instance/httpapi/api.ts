@@ -24,6 +24,7 @@ import { AgentAssetApiGroup } from "./groups/agent-asset"
 import { CustomProfileApiGroup } from "./groups/custom-profile"
 import { CustomCompositionApiGroup } from "./groups/custom-composition"
 import { AgentTaskApiGroup } from "./groups/agent-task"
+import { DelegationApiGroup } from "./groups/delegation"
 import { ScheduleApiGroup } from "./groups/schedule"
 import { MemoryApiGroup } from "./groups/memory"
 import { KBApiGroup } from "./groups/kb"
@@ -89,6 +90,7 @@ export const InstanceHttpApi = HttpApi.make("aigcfroge-instance")
   .addHttpApi(MemoryApiGroup.MemoryApi)
   .addHttpApi(KBApiGroup.KBApi)
   .addHttpApi(AgentTaskApiGroup.AgentTaskApi)
+  .addHttpApi(DelegationApiGroup.DelegationApi)
   .addHttpApi(WorkflowAssetApiGroup.WorkflowAssetApi)
   .addHttpApi(PluginAssetApiGroup.PluginAssetApi)
   .addHttpApi(ImportParserApiGroup.ImportParserApi)

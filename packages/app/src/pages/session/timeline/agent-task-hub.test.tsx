@@ -24,6 +24,11 @@ const hubKeys = [
   "session.agentHub.taskAt",
   "session.agentHub.detailCounts",
   "session.agentHub.deleteTask",
+  "session.agentHub.delegations",
+  "session.agentHub.delegations.showHistory",
+  "session.agentHub.delegations.loading",
+  "session.agentHub.delegations.empty",
+  "session.agentHub.delegations.loadFailed",
 ] as const
 
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), "utf-8")
@@ -60,6 +65,13 @@ describe("AgentTaskHub", () => {
     // Popover opens from the more button via the M3 pending-delay pattern.
     expect(timeline).toMatch(/<AgentTaskHub[\s\S]*?anchorRef=\{\(\) => more\}/)
     expect(timeline).toMatch(/pendingHub/)
+  })
+
+  test("delegation panel uses the canonical SDK namespace and stable participant links", () => {
+    const panel = read("agent-task-hub.tsx")
+    expect(panel).toContain("client.v2.delegation.list")
+    expect(panel).toContain('data-component="delegation-panel"')
+    expect(panel).toContain("openParticipant(participant.href)")
   })
 
   test("hub i18n keys exist in en, zh and zht", async () => {

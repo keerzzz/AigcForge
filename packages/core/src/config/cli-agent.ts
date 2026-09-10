@@ -6,7 +6,7 @@ import { PositiveInt } from "../schema"
 export const OutputType = Schema.Literals(["claude-jsonl", "codex-jsonl", "plain"])
 export type OutputType = typeof OutputType.Type
 
-export const Transport = Schema.Literals(["jsonl", "sdk", "acp"])
+export const Transport = Schema.Literals(["jsonl", "sdk", "acp", "app-server"])
 export type Transport = typeof Transport.Type
 
 export class Info extends Schema.Class<Info>("ConfigV2.CliAgent")({

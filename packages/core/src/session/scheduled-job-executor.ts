@@ -39,6 +39,7 @@ export const layer = Layer.suspend(() =>
           sessionID: child.id,
           parentID: input.parentID,
           prompt: input.prompt,
+          stepID: child.stepID,
         })
         return { outcome: "completed", childSessionID: child.id } satisfies ScheduledJob.ScheduledResult
       }).pipe(
