@@ -1,6 +1,7 @@
 import { describe, expect } from "bun:test"
 import { Effect, Exit, Layer, Schema, Scope } from "effect"
-import { mkdirSync, readFileSync, rmSync } from "node:fs"
+import { mkdirSync, readFileSync } from "node:fs"
+import { rm } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -46,6 +47,23 @@ const bindingFor = (serverName: string) =>
   })
 
 /**
+ * Windows keeps a directory locked for a beat after the owning Location's
+ * SQLite connection and MCP child release their handles, so a single rmSync in
+ * the finalizer races `EBUSY`. Mirrors `fixture/tmpdir.ts`'s retry semantics.
+ */
+async function removeDir(dir: string, retries = 30): Promise<void> {
+  try {
+    await rm(dir, { recursive: true, force: true })
+  } catch (error) {
+    if (retries === 0 || !error || typeof error !== "object" || !("code" in error) || error.code !== "EBUSY")
+      throw error
+    Bun.gc(true)
+    await Bun.sleep(100)
+    return removeDir(dir, retries - 1)
+  }
+}
+
+/**
  * Gone entirely, not merely stopped: `/proc` where it exists (which also settles
  * identity against pid recycling), `process.kill(pid, 0)` elsewhere so the
  * Windows CI leg asserts this too. Mirrors `mcp-connection.test.ts`.
@@ -87,7 +105,7 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
       const dirB = path.join(root, "b")
       mkdirSync(dirA, { recursive: true })
       mkdirSync(dirB, { recursive: true })
-      yield* Effect.addFinalizer(() => Effect.sync(() => rmSync(root, { recursive: true, force: true })))
+      yield* Effect.addFinalizer(() => Effect.promise(() => removeDir(root)))
 
       const locations = yield* LocationServiceMap
       const scope = yield* Scope.make()
@@ -136,7 +154,7 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
     Effect.gen(function* () {
       const root = path.join(os.tmpdir(), `aigcfroge-loc-unload-${randomUUID()}`)
       mkdirSync(root, { recursive: true })
-      yield* Effect.addFinalizer(() => Effect.sync(() => rmSync(root, { recursive: true, force: true })))
+      yield* Effect.addFinalizer(() => Effect.promise(() => removeDir(root)))
 
       const locations = yield* LocationServiceMap
       const ref = { directory: AbsolutePath.make(root) }
