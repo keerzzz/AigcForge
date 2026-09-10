@@ -59,6 +59,8 @@ import { Database } from "@aigcfroge/core/database/database"
 import { SessionEvent } from "@aigcfroge/core/session/event"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionInput } from "@aigcfroge/core/session/input"
+// Both modules expose a SessionInput namespace; this one supplies the shared origin schema for V1 compatibility.
+import { SessionInput as SchemaSessionInput } from "@aigcfroge/schema/session-input"
 import { PromptParts } from "./prompt-parts"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { ModelV2 } from "@aigcfroge/core/model"
@@ -790,6 +792,7 @@ export const layer = Layer.effect(
         },
         system: input.system,
         format: input.format,
+        delegationOrigin: input.delegationOrigin,
       }
 
       if (current?.agent !== info.agent) {
@@ -1838,6 +1841,7 @@ export const PromptInput = Schema.Struct({
   format: Schema.optional(SessionV1.Format),
   system: Schema.optional(Schema.String),
   variant: Schema.optional(Schema.String),
+  delegationOrigin: Schema.optional(SchemaSessionInput.DelegationOrigin),
   parts: Schema.Array(
     Schema.Union([
       SessionV1.TextPartInput,

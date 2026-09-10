@@ -40,6 +40,7 @@ import { MessageDecodeError } from "./session/error"
 import { SessionEvent } from "./session/event"
 import { SessionInput } from "./session/input"
 import { ToolSummary } from "./session/tool-summary"
+import { TaskDriver } from "./tool/task-driver"
 
 // get project -> project.locations
 //
@@ -270,6 +271,7 @@ export interface Interface {
     sessionID: SessionSchema.ID
     prompt: Prompt
     delivery?: SessionInput.Delivery
+    delegationOrigin?: SessionInput.DelegationOrigin
     resume?: boolean
     agent?: string
     model?: ModelV2.Ref
@@ -288,6 +290,7 @@ export interface Interface {
     sessionID: SessionSchema.ID
     prompt: Prompt
     delivery?: SessionInput.Delivery
+    delegationOrigin?: SessionInput.DelegationOrigin
     resume?: boolean
   }) => Effect.Effect<
     SessionInput.Admitted,
@@ -733,12 +736,19 @@ export const layer = Layer.effect(
             }
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery = input.delivery ?? "steer"
-            const expected = { sessionID: input.sessionID, messageID, prompt: input.prompt, delivery }
+            const expected = {
+              sessionID: input.sessionID,
+              messageID,
+              prompt: input.prompt,
+              delivery,
+              delegationOrigin: input.delegationOrigin,
+            }
             const admitted = yield* SessionInput.admit(db, events, {
               id: messageID,
               sessionID: input.sessionID,
               prompt: input.prompt,
               delivery,
+              delegationOrigin: input.delegationOrigin,
             }).pipe(
               Effect.catchDefect((defect) =>
                 defect instanceof SessionInput.LifecycleConflict
@@ -788,7 +798,13 @@ export const layer = Layer.effect(
 
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery = input.delivery ?? "steer"
-            const expected = { sessionID: input.sessionID, messageID, prompt: input.prompt, delivery }
+            const expected = {
+              sessionID: input.sessionID,
+              messageID,
+              prompt: input.prompt,
+              delivery,
+              delegationOrigin: input.delegationOrigin,
+            }
 
             // Validate the input against any row that already holds this ID
             // before touching selection, so a conflict cannot leave the session
@@ -854,6 +870,7 @@ export const layer = Layer.effect(
                     timestamp,
                     prompt: input.prompt,
                     delivery,
+                    ...(input.delegationOrigin === undefined ? {} : { delegationOrigin: input.delegationOrigin }),
                   }),
                 ])
                 const promoted = committed.find((event) => event.type === SessionEvent.PromptAdmitted.type)
@@ -867,6 +884,7 @@ export const layer = Layer.effect(
                   sessionID: input.sessionID,
                   prompt: input.prompt,
                   delivery,
+                  ...(input.delegationOrigin === undefined ? {} : { delegationOrigin: input.delegationOrigin }),
                   timeCreated: timestamp,
                 })
               }))
@@ -1134,6 +1152,7 @@ export const layer = Layer.effect(
             // delegation via isChildSession), so depth is at most 1.
             const children = yield* store.children(sessionID)
             yield* Effect.forEach(children, (child) => execution.interrupt(child.id))
+            if (yield* TaskDriver.isInstalled()) yield* TaskDriver.interrupt(sessionID)
           }),
         ),
       ),

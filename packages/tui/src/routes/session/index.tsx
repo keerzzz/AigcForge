@@ -2260,6 +2260,8 @@ function Task(props: ToolProps) {
     let content = [
       formatSubagentTitle(taskAgentLabel(props.metadata, props.input), description, props.metadata.background === true),
     ]
+    const delegation = formatDelegationLink(props.metadata)
+    if (delegation) content.push(`↳ ${delegation}`)
 
     const retrying = retry()
     if (isRunning() && retrying) {
@@ -2327,6 +2329,14 @@ export function formatSubagentRetry(attempt: number, message: string) {
 export function formatCompletedSubagentDetail(toolcalls: number, duration: string) {
   if (toolcalls === 0) return duration
   return `${formatSubagentToolcalls(toolcalls)} · ${duration}`
+}
+
+export function formatDelegationLink(metadata: Record<string, unknown>) {
+  const delegationID = stringValue(metadata.delegationID)
+  if (!delegationID) return undefined
+  const participantID = stringValue(metadata.participantID)
+  const turnID = stringValue(metadata.turnID)
+  return `Delegation ${delegationID}${participantID ? ` · ${participantID}` : ""}${turnID ? ` · ${turnID}` : ""}`
 }
 
 function Edit(props: ToolProps) {

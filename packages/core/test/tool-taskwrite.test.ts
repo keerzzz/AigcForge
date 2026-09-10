@@ -25,6 +25,7 @@ import {
 } from "@aigcfroge/llm"
 import * as OpenAIChat from "@aigcfroge/llm/protocols/openai-chat"
 import { Database } from "@aigcfroge/core/database/database"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
 import { EventV2 } from "@aigcfroge/core/event"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { Project } from "@aigcfroge/core/project"
@@ -220,6 +221,7 @@ const taskTool = TaskTool.layer.pipe(
   Layer.provide(toolsRegister),
   Layer.provide(config),
   Layer.provide(EventV2.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
 )
 
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
@@ -292,22 +294,30 @@ const taskDriverInitializer = Layer.effectDiscard(
   Effect.gen(function* () {
     const sessions = yield* SessionV2.Service
     const background = yield* BackgroundJob.Service
+    const delegation = yield* DelegationService.Service
     yield* TaskDriver.initialize(
-      yield* TaskDriver.installForTesting(sessions, {
-        start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
-        wait: (sessionID) =>
-          background
-            .wait({ id: sessionID })
-            .pipe(
-              Effect.map(({ info }) =>
-                info && info.status !== "running"
-                  ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
-                  : undefined,
+      yield* TaskDriver.installForTesting(
+        {
+          ...sessions,
+          settleDelivery: (input) => delegation.recordDelivery(input),
+        },
+        {
+          start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
+          wait: (sessionID) =>
+            background
+              .wait({ id: sessionID })
+              .pipe(
+                Effect.map(({ info }) =>
+                  info && info.status !== "running"
+                    ? { status: info.status, ...(info.error ? { error: info.error } : {}) }
+                    : undefined,
+                ),
               ),
-            ),
-        cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
-        extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
-      }),
+          cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
+          extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+          isRunning: (sessionID) => background.get(sessionID).pipe(Effect.map((info) => info?.status === "running")),
+        },
+      ),
     )
   }),
 )
@@ -334,7 +344,17 @@ const rootServices = Layer.mergeAll(
   execution,
   sessions,
   taskTool,
-).pipe(Layer.provideMerge(Layer.mergeAll(agents, permission, SessionTask.defaultLayer, BackgroundJob.defaultLayer)))
+).pipe(
+  Layer.provideMerge(
+    Layer.mergeAll(
+      agents,
+      permission,
+      SessionTask.defaultLayer,
+      BackgroundJob.defaultLayer,
+      DelegationService.defaultLayer,
+    ),
+  ),
+)
 
 const it = testEffect(taskDriverInitializer.pipe(Layer.provideMerge(rootServices)))
 

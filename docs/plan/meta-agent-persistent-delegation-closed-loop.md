@@ -254,7 +254,7 @@ id: DelegationTurn.ID
 delegationID: Delegation.ID
 seq: number
 kind: task | evidence | review | repair | close
-prompt: string
+promptSummary?: string (bounded/redacted; full prompt remains in Session input/history)
 evidenceDigest?: string
 revisionDigest?: string
 status: admitted | queued | running | partially_completed | completed |
@@ -309,9 +309,11 @@ durable: {
 delegation.created
 delegation.participant_added
 delegation.turn_admitted
+delegation.delivery_admitted
 delegation.delivery_started
 delegation.delivery_completed
 delegation.delivery_failed
+delegation.delivery_cancelled
 delegation.delivery_recovery_required
 delegation.review_changes_requested
 delegation.review_approved
@@ -324,7 +326,7 @@ delegation.archived
 delegation.forked
 ```
 
-事件 payload 必须是 Schema，不能塞完整 prompt、Authorization header、token 或原始工具输出。日志只允许 ID、状态、目标和经过清理的错误码/摘要。
+事件 payload 必须是 Schema，不能塞完整 prompt、Authorization header、token 或原始工具输出；Turn 事件最多携带有界、脱敏的 `promptSummary`，canonical prompt 留在 Session input/history。日志只允许 ID、状态、目标和经过清理的错误码/摘要。
 
 ---
 
@@ -382,7 +384,7 @@ failed → active (显式 retry 且 reconciliation 通过) | closed
 9. `parentSessionID` 归属、Location 和 Product Mode policy 每次 command 都检查；
 10. child Session 不得通过 task 工具递归创建 participant；
 11. 目标侧在 pending inbox item 与最终落库消息上都保留 `{ turnID, deliveryOrigin, senderParticipantID }`；把该来源在 inbox 与历史上 fold 即去重键。恢复邮箱 = **已入队 − 已确认落库**；
-12. **重试只对未结算的投递开放。** 已结算投递的返回值可能已经流向下游消费者，重跑会产生第二份副作用；已结算的只能通过新 Turn 重做；
+12. **重试按投递尝试与最终投递结果分层。** `failed`、`cancelled`、`recovery_required` 表示当前 attempt 已结算但仍可重试；retry 只递增 `attempt`、复用同一 Turn，不重复 durable Turn。`completed` 表示结果已确认落库，不得原地重跑，只能通过新 Turn 重做，以免下游收到第二份副作用；
 13. 外部 CLI 的 `externalThreadID` 不得跨 parent Session 自动复用。
 
 ### 4.4 Review barrier
@@ -743,7 +745,7 @@ Turn 与投递不变量：
 - `turn.seq` 在同一 Delegation 内单调递增；
 - 去重键由被投递物自身携带（`turnID` / `deliveryOrigin` / `senderParticipantID`），在 inbox 与历史上 fold 后判重，**不使用独立 idempotency 表**；
 - 恢复邮箱 = 已入队 − 已确认落库；
-- **重试只对未结算投递开放**；已结算投递只能通过新 Turn 重做；
+- **重试只对仍可重试的最新 attempt 开放**：最新状态为 `failed`、`cancelled` 或 `recovery_required` 时递增 `attempt` 并复用同一 Turn；`completed` 不得原地重跑，只能通过新 Turn 重做；
 - `recovery_required` 只能经 reconciliation 进入 running；
 - close / archive / purge 三者语义分离。
 
@@ -853,7 +855,7 @@ Revision snapshot（§5.6）：
 6. Codex 只审查 R1（`rework` 判定）时，不能让 D1 completed；
 7. **Build 只做了 `formatting_only` 改动时，本期按 `rework` 保守处理**：Codex 对 R1 的批准不能被错误复制，必须重新审查；可靠 formatter service 的正向豁免另行立项；
 8. 一条投递失败时，另一条仍可完成；
-9. 重试只增加 attempt，不重复 durable turn；且**只对未结算投递开放**；
+9. 重试只增加 attempt，不重复 durable turn；且只允许从 `failed`、`cancelled` 或 `recovery_required` 的最新 attempt 继续，`completed` 只能通过新 Turn 重做；
 10. 默认 `delivery: steer` 在安全 provider-turn 边界 promote；显式 `delivery: queue` 在 Session 将要 idle 时才 promote；二者都是消息意图，不根据 transport capability 猜测（§2.6）；
 11. **目标无 Activation（进程已退出）时**：cold resume 重建 Activation；`steer` 在安全边界 promote，`queue` 等到 Session 将要 idle 时 promote，不把两种意图混为一谈；
 12. 投递完成顺序任意时，Delegation 状态仍按 barrier 正确收敛；
@@ -958,7 +960,7 @@ POST /delegation/:delegationID/review/retract-rejection
   { participantID?, reason }
 ```
 
-`retry` 只允许未结算投递；`reconcile` 是人工选择的恢复动作；`retract-rejection` 必须校验 reviewer/人工 override 权限并产生审计事件。
+`retry` 只允许最新 attempt 为 `failed`、`cancelled` 或 `recovery_required` 的投递；`completed` 投递只能通过新 Turn 重做。`reconcile` 是人工选择的恢复动作；`retract-rejection` 必须校验 reviewer/人工 override 权限并产生审计事件。
 
 **TDD 红**：
 
@@ -1193,14 +1195,14 @@ startup
 - `packages/core/test/delegation-fold.test.ts`
 - `packages/core/test/delegation-service.test.ts`
 
-覆盖：Schema 与 branded ID 不可互换、状态转换（含 `approved → waiting_review` 回路与 `deleted` 非状态）、roster phase 不被 runtime status 覆盖、barrier 按 role 计算且 `rework` / `formatting_only` 两侧都测、`rejected` 跨 revision 阻塞、barrier 纯函数性、revision digest 输入不含事件序号、来源携带式去重、重试只对未结算开放、脱敏。
+覆盖：Schema 与 branded ID 不可互换、状态转换（含 `approved → waiting_review` 回路与 `deleted` 非状态）、roster phase 不被 runtime status 覆盖、barrier 按 role 计算且 `rework` / `formatting_only` 两侧都测、`rejected` 跨 revision 阻塞、barrier 纯函数性、revision digest 输入不含事件序号、来源携带式去重、重试仅从 `failed` / `cancelled` / `recovery_required` 最新 attempt 开放且不重复 durable Turn、脱敏。
 
 `delegation-review.test.ts` 与 `delegation-fold.test.ts` 必须是**纯单测**——barrier 吃折叠状态、不吃数据库句柄（§4.4），所以这两个文件不应出现任何数据库或 Layer 装配。若发现必须起实例才能测 barrier，说明实现把数据库句柄漏进了纯函数，要回头改实现而不是改测试。
 
 ### 10.2 Core integration
 
 - `packages/core/test/delegation-build-participant.test.ts`
-- `packages/core/test/delegation-cli-participant.test.ts`
+- `packages/core/test/delegation-codex-participant.test.ts`
 - `packages/core/test/delegation-fanout.test.ts`
 - `packages/core/test/delegation-recovery.test.ts`
 - `packages/core/test/delegation-codex-app-server.test.ts`
@@ -1534,7 +1536,7 @@ create({ parentSessionID, metaAgentID?, title, requestedBy })
 addParticipant({ delegationID, role, provider, target, context: "fresh" | "fork" })
   -> { participantID, phase: "provisioning" }
 
-appendTurn({ delegationID, kind, prompt?, evidenceDigest?, revisionDigest?, participantIDs, delivery, origin })
+appendTurn({ delegationID, kind, promptSummary?, evidenceDigest?, revisionDigest?, participantIDs, delivery, origin })
   -> { turnID, seq, deliveries, status: "admitted" | "queued" }
 
 recordDelivery({ delegationID, turnID, participantID, origin, attempt, status, externalTurnID?, summary?, errorCode? })
@@ -1563,7 +1565,7 @@ retractRejection({ delegationID, participantID?, reason })
 - `appendTurn` 必须先持久化 Turn 和 admitted deliveries，再返回；provider 调用不是 admission 的一部分；
 - `recordDelivery`/`recordRevision`/`recordReview` 只能由 `DelegationService` 调用，adapter、handler、UI 不得直接写表；
 - `get/list/foldState` 必须校验 parent Session/Location，不能用 delegation ID 单独跨租户读取；
-- `origin` 至少包含 `{ turnID, deliveryOrigin, senderParticipantID }`，它是 fold 去重输入，不另建幂等表；
+- `origin` 必须包含 `{ turnID, deliveryOrigin, senderParticipantID }`，三项均为必填，是 fold 去重输入；不另建幂等表，也不允许用缺省 sender 形成第二种 identity；
 - 所有失败必须落在已定义的 typed error/`recovery_required` 结果上；不要以 `Effect.orDie` 把客户可恢复错误伪装成 defect；
 - `purge` 是显式物理删除命令，不进入 status union，不允许被 `complete`/`archive` 隐式调用。
 
@@ -1627,16 +1629,18 @@ packages/core/test/database-migration.test.ts（扩展现有迁移测试）
 - barrier 只接收折叠状态，测试文件中不得出现 Database/Layer 装配；
 - digest 输入只允许 commit SHA + normalized diff，不允许 event sequence、prompt、token、Authorization；同一代码事实生成同一 digest；
 - delivery 不创建独立 ID 或独立表；同一 `(turnID, participantID, deliveryOrigin, senderParticipantID)` fold 后幂等；
-- migration clean database 和 existing database 都存在恰好三张新表，并有 parent/foreign key/index；schema 使用 snake_case。
+- migration clean database 和 existing database 都存在恰好三张新表，并有 parent/foreign key/index；`delegation.parent_session_id` 约束到 `session.id`，Turn 摘要列使用 `prompt_summary`，schema 使用 snake_case。
 
 **GREEN 文件/动作**：
 
 1. 在 `packages/schema/src/delegation-id.ts` 增加三个 branded ID，并在 `packages/schema/src/delegation.ts` 增加 `Schema.Class`/payload；在 `packages/schema/src/index.ts` 导出，不能从 Core 反向导入。
 2. 在 `packages/core/src/delegation/state.ts` 实现纯 transition guard；在 `review.ts` 实现 `changeKind`、`copyable`、`canComplete`；在 `fold.ts` 实现从 `delegation.*` durable events 得到聚合状态。
 3. 在 `packages/core/src/delegation/event.ts` 用 `EventV2.define` 注册 durable event；每个事件 payload 携带 `delegationID` 作为 durable aggregate 字段，事件数据只保留 typed IDs、状态、摘要/digest、错误码和必要时间。
-4. 在 `packages/core/src/delegation/sql.ts` 定义 `delegation`、`delegation_participant`、`delegation_turn`；只让 projector 在 EventV2 commit transaction 中更新 projection。不要给 Delivery 建 projection table。
-5. 新增时间戳命名的 TypeScript migration，执行 `cd packages/core && bun script/migration.ts`；不要手写 `schema.gen.ts`、`migration.gen.ts` 或 `schema.json`。
+4. 在 `packages/core/src/delegation/sql.ts` 定义 `delegation`、`delegation_participant`、`delegation_turn`；只让 transaction-aware projector 在 EventV2 commit transaction 中更新 projection，并提供从 EventV2 replay 重建三张表的路径。不要给 Delivery 建 projection table。
+5. 新增时间戳命名的 TypeScript migration，执行 `cd packages/core && bun script/migration.ts`；不要手写 `schema.gen.ts`、`migration.gen.ts` 或 `schema.json`。本分支的 Delegation migration 尚未合入或推送到 `origin/main`，因此首次发布前可以修订该初始 migration；一旦该 migration 被共享/发布数据库记录，后续形状变更必须新增 forward-only follow-up migration，不得重写已发布 migration。
 6. 运行 `bun --cwd packages/core migration --check`，确认 generated schema/registry 与 migration 文件一致。
+
+Phase 1 只交付持久化/事件/纯领域与可测试的 Service admission seam；`list`、`resolveCurrent`、participant execution、resume/steer/retry/interrupt、生命周期命令、reconcile、purge 及 Location/Permission 完整授权链属于后续 Phase，不能在本阶段复查卡中宣称已完成。
 
 **Exit 命令**：
 
@@ -1669,7 +1673,7 @@ packages/aigcfroge/test/tool/task.test.ts（扩展兼容回归）
 - 同一 parent Session 下两个并存委派互不串台；
 - child Session 内调用 task 仍被拒绝；
 - foreground、background、queued append、cancel、failed、retry 都产生正确 delivery event；
-- retry 只重试未结算 delivery，已结算 delivery 只能创建新 Turn；
+- retry 只从 `failed` / `cancelled` / `recovery_required` 的最新 attempt 继续并复用同一 Turn；`completed` delivery 只能创建新 Turn；
 - parent interrupt 只中断本地活动执行，不把 Delegation 自动 archive；
 - `meta_agent_step` 兼容投影不会永久停在 `running`，但不会取代 Delegation 真源。
 
@@ -1696,7 +1700,7 @@ bun --cwd packages/aigcfroge typecheck
 **RED 文件**：
 
 ```text
-packages/core/test/delegation-cli-participant.test.ts
+packages/core/test/delegation-codex-participant.test.ts
 packages/core/test/cli-sdk-adapters.test.ts
 packages/core/test/cli-adapters.test.ts
 packages/core/test/cli-acp-adapter.test.ts
@@ -1724,7 +1728,7 @@ packages/core/test/task-driver-fill.test.ts
 **Exit**：
 
 ```bash
-bun --cwd packages/core test --timeout 30000 test/delegation-cli-participant.test.ts test/cli-sdk-adapters.test.ts test/cli-adapters.test.ts test/cli-acp-adapter.test.ts test/task-driver-fill.test.ts
+bun --cwd packages/core test --timeout 30000 test/delegation-codex-participant.test.ts test/cli-sdk-adapters.test.ts test/cli-adapters.test.ts test/cli-acp-adapter.test.ts test/task-driver-fill.test.ts
 bun --cwd packages/core typecheck
 ```
 

@@ -2,8 +2,11 @@ export * as TaskTool from "./task"
 
 import { ToolFailure } from "@aigcfroge/llm"
 import { Cause, Effect, Exit, Layer, Option, Ref, Schema, Stream } from "effect"
+import { DelegationID } from "@aigcfroge/schema/delegation-id"
+import { ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
 import { AgentV2 } from "../agent"
 import { Config } from "../config"
+import { DelegationService } from "../delegation/service"
 import { EventV2 } from "../event"
 import { PermissionV2 } from "../permission"
 import { ProductModeAgentPolicy } from "../product-mode-agent-policy"
@@ -70,20 +73,49 @@ export const Input = Schema.Struct({
     description:
       "Model IDs when execution_type is 'judge'. Each entry is a model ID (e.g. openai/gpt-5, anthropic/claude-sonnet-4). A judge model merges the results. Defaults to the session's model and one alternative. Max 5.",
   }),
+  delegation_id: Schema.optional(Schema.String).annotate({
+    description: "Optional persistent delegation ID to route this task turn into an existing delegation",
+  }),
+  new_delegation: Schema.optional(Schema.Boolean).annotate({
+    description: "When true, create a fresh persistent delegation instead of reusing the currently active one",
+  }),
+  participant_id: Schema.optional(Schema.String),
+  turn_id: Schema.optional(Schema.String),
+  command: Schema.optional(
+    Schema.Literals([
+      "append",
+      "steer",
+      "interrupt",
+      "close",
+      "retry",
+      "reconcile",
+      "archive",
+      "unarchive",
+      "fork",
+      "purge",
+      "retract_rejection",
+    ]),
+  ),
 })
 
 export const Output = Schema.Struct({
   sessionID: Schema.String,
   output: Schema.String,
+  delegationID: Schema.optional(Schema.String),
+  turnID: Schema.optional(Schema.String),
+  participantID: Schema.optional(Schema.String),
   // External-CLI dispatches carry structured metadata so session-ui / TUI task
   // cards can render a CLI badge, status, and a link into the child Session.
   metadata: Schema.optional(
     Schema.Struct({
-      sessionId: Schema.String,
-      parentSessionId: Schema.String,
-      cli: Schema.String,
-      execution_type: Schema.Literal("external-cli"),
-      status: Schema.String,
+      sessionId: Schema.optional(Schema.String),
+      parentSessionId: Schema.optional(Schema.String),
+      cli: Schema.optional(Schema.String),
+      execution_type: Schema.optional(Schema.Literal("external-cli")),
+      status: Schema.optional(Schema.String),
+      delegationID: Schema.optional(Schema.String),
+      turnID: Schema.optional(Schema.String),
+      participantID: Schema.optional(Schema.String),
     }),
   ),
 })
@@ -145,12 +177,24 @@ const renderOutput = (input: {
   ].join("\n")
 }
 
+const toToolFailure = (error: unknown) =>
+  error instanceof ToolFailure
+    ? error
+    : new ToolFailure({
+        message: error instanceof Error ? error.message : String(error),
+        ...(error instanceof Error ? { error } : {}),
+      })
+
+const mapDelegationDispatchError = (error: unknown) =>
+  error instanceof TaskDriver.DelegateError ? error : toToolFailure(error)
+
 export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const tools = yield* Tools.Service
     const agents = yield* AgentV2.Service
     const permission = yield* PermissionV2.Service
     const config = yield* Config.Service
+    const delegation = yield* DelegationService.Service
     const tasks = yield* SessionTask.Service
     const events = yield* EventV2.Service
     const configEntries = yield* config.entries()
@@ -171,6 +215,89 @@ export const layer = Layer.effectDiscard(
                 return yield* new ToolFailure({
                   message: "Task tool cannot be used in child sessions (prevents recursive delegation)",
                 })
+              }
+
+              if (input.command && input.command !== "append" && input.command !== "steer") {
+                const delegationID = Option.getOrUndefined(
+                  Schema.decodeUnknownOption(DelegationID.ID)(input.delegation_id),
+                )
+                if (!delegationID) return yield* new ToolFailure({ message: "delegation_id is required for command" })
+                const action =
+                  input.command === "interrupt"
+                    ? "task_interrupt"
+                    : input.command === "close"
+                      ? "task_close"
+                      : input.command === "archive" || input.command === "unarchive"
+                        ? "task_archive"
+                        : input.command === "fork"
+                          ? "task_fork"
+                          : input.command === "purge"
+                            ? "task_purge"
+                            : "task_reconcile"
+                yield* permission
+                  .assert({
+                    action,
+                    resources: [delegationID],
+                    sessionID: context.sessionID,
+                    agent: context.agent,
+                    source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: `Task permission denied`, error })))
+                if (input.command === "retry") {
+                  const participantID = Option.getOrUndefined(
+                    Schema.decodeUnknownOption(ParticipantID)(input.participant_id),
+                  )
+                  const turnID = Option.getOrUndefined(Schema.decodeUnknownOption(TurnID)(input.turn_id))
+                  if (!participantID || !turnID)
+                    return yield* new ToolFailure({ message: "retry requires participant_id and turn_id" })
+                  yield* delegation
+                    .retry({ delegationID, participantID, turnID })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                } else if (input.command === "reconcile")
+                  yield* delegation
+                    .reconcile({ delegationID })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                else if (input.command === "retract_rejection") {
+                  yield* delegation
+                    .retractRejection({ delegationID, reason: input.prompt })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                } else if (input.command === "close")
+                  yield* delegation
+                    .close({ delegationID, reason: input.prompt })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                else if (input.command === "archive")
+                  yield* delegation
+                    .archive({ delegationID })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                else if (input.command === "unarchive")
+                  yield* delegation
+                    .unarchive({ delegationID })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                else if (input.command === "fork")
+                  yield* delegation
+                    .fork({ delegationID, reason: input.prompt })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                else if (input.command === "purge")
+                  yield* delegation
+                    .delete({ delegationID, purge: true })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                else if (input.command === "interrupt") {
+                  const participantID = Option.getOrUndefined(
+                    Schema.decodeUnknownOption(ParticipantID)(input.participant_id),
+                  )
+                  yield* TaskDriver.interruptDelegation(delegationID, participantID).pipe(
+                    Effect.mapError((error) => new ToolFailure({ message: String(error) })),
+                  )
+                }
+                return {
+                  sessionID: context.sessionID,
+                  delegationID,
+                  output: renderOutput({
+                    sessionID: context.sessionID,
+                    state: "completed",
+                    text: `${input.command} accepted`,
+                  }),
+                }
               }
 
               const subagent = yield* agents.resolve(input.subagent_type)
@@ -268,6 +395,50 @@ export const layer = Layer.effectDiscard(
                     metadata: { description: input.description, execution_type: "external-cli" },
                   })
                   .pipe(Effect.mapError((error) => new ToolFailure({ message: `Task permission denied`, error })))
+                const requestedDelegationID = input.delegation_id
+                  ? Option.getOrUndefined(Schema.decodeUnknownOption(DelegationID.ID)(input.delegation_id))
+                  : undefined
+                if (input.delegation_id && requestedDelegationID === undefined) {
+                  return yield* new ToolFailure({ message: `Invalid delegation_id: ${input.delegation_id}` })
+                }
+                const delegationState = yield* delegation
+                  .resolve({
+                    parentSessionID: context.sessionID,
+                    title: input.description,
+                    delegationID: requestedDelegationID,
+                    newDelegation: input.new_delegation,
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+                const participantRole = cliTarget === "codex" ? ("reviewer" as const) : ("implementer" as const)
+                const participant =
+                  [...delegationState.participants.values()].find(
+                    (candidate) =>
+                      candidate.provider === "external" &&
+                      candidate.target === cliTarget &&
+                      candidate.role === participantRole,
+                  ) ??
+                  (yield* delegation
+                    .addParticipant({
+                      delegationID: delegationState.delegation.id,
+                      provider: "external",
+                      target: cliTarget,
+                      role: participantRole,
+                      context: "fresh",
+                    })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error }))))
+                const turn = yield* delegation
+                  .appendTurn({
+                    delegationID: delegationState.delegation.id,
+                    kind: participantRole === "reviewer" ? "review" : "task",
+                    promptSummary: input.description,
+                    participantIDs: [participant.id],
+                    delivery: "steer",
+                    origin: {
+                      deliveryOrigin: "task",
+                      senderParticipantID: participant.id,
+                    },
+                  })
+                  .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
                 // Track B: a fresh CLI delegation auto-creates an in_progress task so
                 // the todo dashboard mirrors the delegation; it is settled with the CLI
                 // outcome once the dispatch returns.
@@ -290,46 +461,67 @@ export const layer = Layer.effectDiscard(
                 // is interrupted), so a CliUnavailableError or a parent-fiber
                 // abort still settles the claim instead of leaking an
                 // in_progress row.
-                const result = yield* TaskDriver.executeCLI({
-                  cliTarget,
+                const result = yield* TaskDriver.dispatchDelegation({
+                  delegationID: delegationState.delegation.id,
+                  participantID: participant.id,
+                  turnID: turn.id,
+                  parentID: context.sessionID,
                   prompt: input.prompt,
                   description: input.description,
-                  sessionID: context.sessionID,
+                  background: false,
+                  queue: false,
                   taskID: input.task_id ? SessionSchema.ID.make(input.task_id) : undefined,
-                }).pipe(
-                  Effect.mapError((error) => new ToolFailure({ message: error.message })),
-                  Effect.onExit((exit) => {
-                    if (cliTaskID === undefined) return Effect.void
-                    return tasks
-                      .patch({
-                        sessionID: context.sessionID,
-                        id: cliTaskID,
-                        status: Exit.isSuccess(exit)
-                          ? exit.value.status === "failed"
-                            ? "failed"
-                            : "completed"
-                          : Cause.hasInterruptsOnly(exit.cause)
-                            ? "cancelled"
-                            : "failed",
-                        outputDigest:
-                          Exit.isSuccess(exit) && exit.value.status !== "failed" ? exit.value.sessionID : undefined,
-                      })
-                      .pipe(Effect.orDie, Effect.asVoid)
-                  }),
-                )
+                  delivery: {
+                    delegationID: delegationState.delegation.id,
+                    participantID: participant.id,
+                    turnID: turn.id,
+                    deliveryOrigin: "task",
+                    senderParticipantID: participant.id,
+                    delivery: "steer",
+                    attempt: 1,
+                  },
+                  execution: "external",
+                  cliTarget,
+                  permissionSource: {
+                    type: "tool",
+                    messageID: context.assistantMessageID,
+                    callID: context.toolCallID,
+                  },
+                  onSettle: (outcome) =>
+                    cliTaskID === undefined
+                      ? Effect.void
+                      : tasks
+                          .patch({
+                            sessionID: context.sessionID,
+                            id: cliTaskID,
+                            status: outcome.status,
+                            outputDigest: outcome.outputDigest,
+                          })
+                          .pipe(Effect.orDie, Effect.asVoid),
+                }).pipe(Effect.mapError(toToolFailure))
+                if (result.executorFailed) {
+                  return yield* new ToolFailure({ message: result.text ?? "External CLI failed" })
+                }
+                const outputText = result.text ?? (result.status === "running" ? BACKGROUND_STARTED : "")
                 return {
                   sessionID: result.sessionID,
+                  delegationID: delegationState.delegation.id,
+                  turnID: turn.id,
+                  participantID: participant.id,
                   output: renderOutput({
                     sessionID: result.sessionID,
-                    state: result.status === "failed" ? "error" : "completed",
-                    text: result.text,
+                    state: result.status === "failed" ? "error" : result.status === "running" ? "running" : "completed",
+                    text: outputText,
                   }),
                   metadata: {
                     sessionId: result.sessionID,
                     parentSessionId: context.sessionID,
                     cli: cliTarget,
                     execution_type: "external-cli",
-                    status: result.status,
+                    status: result.providerStatus ?? result.status,
+                    delegationID: delegationState.delegation.id,
+                    participantID: participant.id,
+                    turnID: turn.id,
                   } as const,
                 }
               }
@@ -386,15 +578,90 @@ export const layer = Layer.effectDiscard(
                 }
               }
 
-              // Resume a prior subagent Session when a well-formed task_id is
-              // supplied; a malformed id is ignored and a fresh child is created.
-              // The id is only a branded string here — createChild is idempotent,
-              // so a never-seen id mints a fresh child under it and an existing one
-              // is returned as-is (then rejected below if it belongs elsewhere).
-              const resumeID = input.task_id
+              const requestedDelegationID = input.delegation_id
+                ? Option.getOrUndefined(Schema.decodeUnknownOption(DelegationID.ID)(input.delegation_id))
+                : undefined
+              if (input.delegation_id && requestedDelegationID === undefined) {
+                return yield* new ToolFailure({ message: `Invalid delegation_id: ${input.delegation_id}` })
+              }
+              const state = yield* delegation
+                .resolve({
+                  parentSessionID: context.sessionID,
+                  title: input.description,
+                  delegationID: requestedDelegationID,
+                  newDelegation: input.new_delegation,
+                })
+                .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+              const delegationInfo = state.delegation
+
+              // task_id is a compatibility locator only. Durable participant
+              // ownership is authoritative and rejects cross-Delegation reuse.
+              const requestedChildID = input.task_id
                 ? Option.getOrUndefined(Schema.decodeUnknownOption(SessionSchema.ID)(input.task_id))
                 : undefined
-
+              const matchingParticipants = [...state.participants.values()].filter(
+                (participant) =>
+                  participant.provider === "internal" &&
+                  participant.target === subagent.id &&
+                  participant.role === "implementer",
+              )
+              const requestedParticipant = requestedChildID
+                ? [...state.participants.values()].find(
+                    (participant) => participant.childSessionID === requestedChildID,
+                  )
+                : undefined
+              if (requestedChildID && requestedParticipant === undefined && state.participants.size > 0) {
+                return yield* new ToolFailure({
+                  message: `task_id ${input.task_id} does not belong to delegation ${delegationInfo.id}`,
+                })
+              }
+              if (
+                requestedParticipant &&
+                !matchingParticipants.some((participant) => participant.id === requestedParticipant.id)
+              ) {
+                return yield* new ToolFailure({
+                  message: `task_id ${input.task_id} is not the requested participant in delegation ${delegationInfo.id}`,
+                })
+              }
+              const boundParticipant =
+                requestedParticipant ?? matchingParticipants.find((participant) => participant.childSessionID)
+              if (
+                requestedChildID &&
+                boundParticipant?.childSessionID &&
+                boundParticipant.childSessionID !== requestedChildID
+              ) {
+                return yield* new ToolFailure({
+                  message: `task_id ${input.task_id} does not belong to delegation ${delegationInfo.id}`,
+                })
+              }
+              const child = yield* TaskDriver.createChild({
+                parentID: context.sessionID,
+                agent: subagent.id,
+                id: requestedChildID ?? boundParticipant?.childSessionID,
+                attended: input.attended ?? subagent.attended ?? configAttendedDefault ?? false,
+              })
+              if (child.parentID !== context.sessionID) {
+                return yield* new ToolFailure({
+                  message: `task_id ${input.task_id ?? child.id} does not belong to this session`,
+                })
+              }
+              const participant = boundParticipant
+                ? boundParticipant
+                : yield* delegation
+                    .addParticipant({
+                      delegationID: delegationInfo.id,
+                      provider: "internal",
+                      target: subagent.id,
+                      role: "implementer",
+                      context: "fresh",
+                      childSessionID: child.id,
+                    })
+                    .pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error })))
+              if (participant.childSessionID !== child.id) {
+                return yield* new ToolFailure({
+                  message: `Child Session ${child.id} is not bound to delegation ${delegationInfo.id}`,
+                })
+              }
               // ── Dual-track todo linkage ──
               // Track A: an explicit parent_task_id links to an existing task
               // minted by taskwrite. Track B: a fresh delegation auto-creates an
@@ -405,7 +672,7 @@ export const layer = Layer.effectDiscard(
               // task was already settled by its own delegation's onSettle (or stays
               // in_progress if that delegation was interrupted — M2 closes this gap).
               let taskID: string | undefined = input.parent_task_id
-              if (taskID === undefined && resumeID === undefined) {
+              if (taskID === undefined) {
                 // Track B: append atomically in one transaction so concurrent
                 // task calls in the same provider turn never drop each other's rows.
                 // The write is a plain in_progress task (no recurrence), so the
@@ -436,83 +703,43 @@ export const layer = Layer.effectDiscard(
                     .pipe(Effect.orDie, Effect.asVoid)
               }
 
-              // Tracks the current attempt's child so an abort can stop it and a
-              // retry can cancel the orphan a failed prior attempt left behind.
-              const activeChild = yield* Ref.make(Option.none<SessionSchema.ID>())
+              const shouldQueue =
+                input.background === true && backgroundEnabled() && (yield* TaskDriver.isRunning(child.id))
+              const turn = yield* delegation
+                .appendTurn({
+                  delegationID: delegationInfo.id,
+                  kind: "task",
+                  promptSummary: input.description,
+                  participantIDs: [participant.id],
+                  delivery: shouldQueue ? "queue" : "steer",
+                  origin: { deliveryOrigin: "meta", senderParticipantID: participant.id },
+                })
+                .pipe(
+                  Effect.mapError((error) => new ToolFailure({ message: error.message, error })),
+                  Effect.tapError(() =>
+                    onSettle ? onSettle({ status: "failed", outputDigest: "turn admission failed" }) : Effect.void,
+                  ),
+                )
+
+              const attempt = yield* Ref.make(1)
 
               const delegateOnce = Effect.gen(function* () {
-                // Before a retry, cancel the orphan child a prior fresh attempt
-                // created and abandoned. A resumed task_id keeps the same id across
-                // attempts, so there is no orphan to clean up.
-                if (resumeID === undefined) {
-                  const previous = yield* Ref.getAndSet(activeChild, Option.none())
-                  if (Option.isSome(previous)) yield* TaskDriver.cancel(previous.value)
+                const delivery = {
+                  delegationID: delegationInfo.id,
+                  participantID: participant.id,
+                  turnID: turn.id,
+                  deliveryOrigin: "meta",
+                  senderParticipantID: participant.id,
+                  delivery: turn.delivery,
+                  attempt: yield* Ref.getAndUpdate(attempt, (current) => current + 1),
                 }
+                const background = input.background === true && backgroundEnabled()
 
-                const child = yield* TaskDriver.createChild({
-                  parentID: context.sessionID,
-                  agent: subagent.id,
-                  id: resumeID,
-                  attended: input.attended ?? subagent.attended ?? configAttendedDefault ?? false,
-                })
-                // A resumed id must belong to this session; refuse to drive
-                // another Session on the model's behalf.
-                if (child.parentID !== context.sessionID)
-                  return yield* new ToolFailure({
-                    message: `task_id ${input.task_id} does not belong to this session`,
-                  })
-                yield* Ref.set(activeChild, Option.some(child.id))
-
-                // Background delegation: schedule the child, inject its result into
-                // the parent when it settles, and return immediately. Gated by the
-                // experimental flag; ignored otherwise. Background failures are
-                // handled by the injection path, not retried here.
-                if (input.background === true && backgroundEnabled()) {
-                  // Resume against an in-flight background task: append the prompt
-                  // to the running job's queue rather than starting a new one.
-                  if (resumeID !== undefined) {
-                    const extended = yield* TaskDriver.extendBackground({
-                      parentID: context.sessionID,
-                      sessionID: child.id,
-                      prompt: input.prompt,
-                      description: input.description,
-                    })
-                    if (extended) {
-                      return {
-                        sessionID: child.id,
-                        output: renderOutput({
-                          sessionID: child.id,
-                          state: "running",
-                          summary: "Background task updated",
-                          text: BACKGROUND_UPDATED,
-                        }),
-                      }
-                    }
-                  }
-                  // No resume, or the prior background job already settled — start
-                  // a fresh background delegation.
-                  yield* TaskDriver.delegateBackground({
-                    parentID: context.sessionID,
-                    sessionID: child.id,
-                    prompt: input.prompt,
-                    description: input.description,
-                    taskID,
-                    onSettle,
-                  })
-                  return {
-                    sessionID: child.id,
-                    output: renderOutput({ sessionID: child.id, state: "running", text: BACKGROUND_STARTED }),
-                  }
-                }
-
-                // P2-b: observe the child session's task list and bubble up its
-                // completion ratio as progress for the parent's anchor task. The
-                // observer is forked into a scope that closes when delegate returns,
-                // so it is interrupted on settle (no progress events after the
-                // child drains). Background/judge/CLI paths skip this (they don't
-                // await delegate here).
-                const text = yield* Effect.gen(function* () {
-                  if (taskID !== undefined) {
+                // Persistent delegation execution has one owner. TaskTool only
+                // supplies the already-admitted Turn, full prompt, and linkage;
+                // DelegationExecution routes it to the existing TaskDriver seam.
+                const dispatch = yield* Effect.gen(function* () {
+                  if (!background && taskID !== undefined) {
                     yield* events.subscribe(SessionTask.Event.Updated).pipe(
                       Stream.filter((event) => event.data.sessionID === child.id),
                       Stream.runForEach((event) =>
@@ -532,17 +759,45 @@ export const layer = Layer.effectDiscard(
                       Effect.forkScoped,
                     )
                   }
-                  return yield* TaskDriver.delegate({
-                    sessionID: child.id,
+                  return yield* TaskDriver.dispatchDelegation({
+                    delegationID: delegationInfo.id,
+                    participantID: participant.id,
+                    turnID: turn.id,
                     parentID: context.sessionID,
+                    sessionID: child.id,
                     prompt: input.prompt,
+                    description: input.description,
+                    background,
+                    queue: shouldQueue,
                     taskID,
+                    stepID: child.stepID,
+                    delivery,
+                    execution: "internal",
                     onSettle,
-                  })
+                  }).pipe(Effect.mapError(mapDelegationDispatchError))
                 }).pipe(Effect.scoped)
+
                 return {
-                  sessionID: child.id,
-                  output: renderOutput({ sessionID: child.id, state: "completed", text }),
+                  sessionID: dispatch.sessionID,
+                  delegationID: delegationInfo.id,
+                  participantID: participant.id,
+                  turnID: turn.id,
+                  output: renderOutput({
+                    sessionID: dispatch.sessionID,
+                    state:
+                      dispatch.status === "failed" ? "error" : dispatch.status === "running" ? "running" : "completed",
+                    summary:
+                      dispatch.status === "running" ? (shouldQueue ? "Background task updated" : undefined) : undefined,
+                    text: dispatch.text ?? (shouldQueue ? BACKGROUND_UPDATED : BACKGROUND_STARTED),
+                  }),
+                  metadata: {
+                    sessionId: dispatch.sessionID,
+                    parentSessionId: context.sessionID,
+                    status: dispatch.status,
+                    delegationID: delegationInfo.id,
+                    participantID: participant.id,
+                    turnID: turn.id,
+                  },
                 }
               })
 
@@ -555,17 +810,12 @@ export const layer = Layer.effectDiscard(
                   times: 1,
                   while: (error) => error instanceof TaskDriver.DelegateError && error.reason === "error",
                 }),
-                Effect.catchTag(
-                  "TaskDriver.DelegateError",
-                  (error) => new ToolFailure({ message: `Subagent task ${error.reason}`, error }),
+                Effect.mapError((error) =>
+                  error instanceof TaskDriver.DelegateError
+                    ? new ToolFailure({ message: `Subagent task ${error.reason}`, error })
+                    : toToolFailure(error),
                 ),
-                Effect.onInterrupt(() =>
-                  Ref.get(activeChild).pipe(
-                    Effect.flatMap((current) =>
-                      Option.isSome(current) ? TaskDriver.cancel(current.value) : Effect.void,
-                    ),
-                  ),
-                ),
+                Effect.onInterrupt(() => TaskDriver.cancel(child.id)),
               )
             }),
         }),

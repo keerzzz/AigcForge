@@ -3,6 +3,10 @@ import { EventV2 } from "@aigcfroge/core/event"
 import { ProjectV2 } from "@aigcfroge/core/project"
 import { BackgroundJob } from "@aigcfroge/core/background-job"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
+import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { TaskDriver } from "@aigcfroge/core/tool/task-driver"
+import { SessionV2 } from "@aigcfroge/core/session"
 import { FetchHttpClient, HttpRouter, HttpServer } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Layer, Option } from "effect"
@@ -29,6 +33,10 @@ export function createRoutes(password?: string) {
     Layer.provide(ProjectV2.defaultLayer),
     Layer.provide(Database.defaultLayer),
     Layer.provide(EventV2.defaultLayer),
+    Layer.provide(DelegationService.defaultLayer),
+    Layer.provide(DelegationExecution.defaultLayer),
+    Layer.provide(SessionV2.defaultLayer),
+    Layer.provide(TaskDriver.runtimeLayer),
     Layer.provide(FetchHttpClient.layer),
   )
 }

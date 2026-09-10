@@ -2,7 +2,7 @@ export * as SessionInput from "./input"
 
 import { and, asc, eq, isNull, lte } from "drizzle-orm"
 import { DateTime, Effect, Schema } from "effect"
-import { Admitted, CommandPayload, Delivery } from "@aigcfroge/schema/session-input"
+import { Admitted, CommandPayload, DelegationOrigin, Delivery } from "@aigcfroge/schema/session-input"
 import type { Database } from "../database/database"
 import type { EventV2 } from "../event"
 import { SessionEvent } from "./event"
@@ -14,11 +14,12 @@ import { SessionInputTable, SessionMessageTable } from "./sql"
 type DatabaseService = Database.Interface["db"]
 type QueryHandle = Pick<DatabaseService, "insert" | "select" | "update">
 
-export { Admitted, CommandPayload, Delivery }
+export { Admitted, CommandPayload, DelegationOrigin, Delivery }
 
 const decodePrompt = Schema.decodeUnknownSync(Prompt)
 const encodePrompt = Schema.encodeSync(Prompt)
 const decodePayload = Schema.decodeUnknownSync(CommandPayload)
+const decodeDelegationOrigin = Schema.decodeUnknownSync(DelegationOrigin)
 
 const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted => {
   const base = {
@@ -28,6 +29,7 @@ const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted => {
     delivery: row.delivery,
     timeCreated: DateTime.makeUnsafe(row.time_created),
     ...(row.promoted_seq === null ? {} : { promotedSeq: row.promoted_seq }),
+    ...(row.delegation_origin === null ? {} : { delegationOrigin: decodeDelegationOrigin(row.delegation_origin) }),
   }
   if (row.kind === "shell") {
     if (row.command === null) throw new Error(`Shell input ${row.id} is missing its command`)
@@ -76,6 +78,7 @@ export const admit = Effect.fn("SessionInput.admit")(function* (
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly delegationOrigin?: DelegationOrigin
   },
 ) {
   const existing = yield* find(db, input.id)
@@ -88,6 +91,7 @@ export const admit = Effect.fn("SessionInput.admit")(function* (
       timestamp,
       prompt: input.prompt,
       delivery: input.delivery,
+      ...(input.delegationOrigin === undefined ? {} : { delegationOrigin: input.delegationOrigin }),
     })
     .pipe(
       Effect.flatMap((event) =>
@@ -101,6 +105,7 @@ export const admit = Effect.fn("SessionInput.admit")(function* (
                 sessionID: input.sessionID,
                 prompt: input.prompt,
                 delivery: input.delivery,
+                ...(input.delegationOrigin === undefined ? {} : { delegationOrigin: input.delegationOrigin }),
                 timeCreated: timestamp,
               }),
             ),
@@ -319,6 +324,7 @@ export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(functio
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly delegationOrigin?: DelegationOrigin
     readonly timeCreated: DateTime.Utc
   },
 ) {
@@ -337,6 +343,7 @@ export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(functio
       kind: "prompt",
       admitted_seq: input.admittedSeq,
       prompt: encodePrompt(input.prompt),
+      delegation_origin: input.delegationOrigin,
       delivery: input.delivery,
       time_created: DateTime.toEpochMillis(input.timeCreated),
     })
@@ -585,6 +592,7 @@ export const projectPrompted = Effect.fn("SessionInput.projectPrompted")(functio
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly delegationOrigin?: DelegationOrigin
     readonly timeCreated: DateTime.Utc
     readonly promotedSeq: number
   },
@@ -622,6 +630,7 @@ export const projectPrompted = Effect.fn("SessionInput.projectPrompted")(functio
       session_id: input.sessionID,
       kind: "prompt",
       prompt: encodePrompt(input.prompt),
+      delegation_origin: input.delegationOrigin,
       delivery: input.delivery,
       admitted_seq: input.promotedSeq,
       promoted_seq: input.promotedSeq,
@@ -660,8 +669,12 @@ export const equivalent = (
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly delegationOrigin?: DelegationOrigin
   },
-) => input.delivery === expected.delivery && matchesPrompt(input, expected)
+) =>
+  input.delivery === expected.delivery &&
+  matchesPrompt(input, expected) &&
+  sameDelegationOrigin(input.kind === "prompt" ? input.delegationOrigin : undefined, expected.delegationOrigin)
 
 export const equivalentShell = (
   input: Admitted,
@@ -728,12 +741,18 @@ const matchesPrompt = (input: Admitted, expected: { readonly sessionID: SessionS
   input.sessionID === expected.sessionID &&
   JSON.stringify(encodePrompt(input.prompt)) === JSON.stringify(encodePrompt(expected.prompt))
 
+const sameDelegationOrigin = (left: DelegationOrigin | undefined, right: DelegationOrigin | undefined) =>
+  left?.turnID === right?.turnID &&
+  left?.deliveryOrigin === right?.deliveryOrigin &&
+  left?.senderParticipantID === right?.senderParticipantID
+
 const matchesProjection = (
   input: Admitted,
   expected: {
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly delegationOrigin?: DelegationOrigin
     readonly timeCreated: DateTime.Utc
   },
 ) =>
@@ -763,6 +782,7 @@ const publish = Effect.fn("SessionInput.publish")(function* (
         messageID: id,
         prompt: decodePrompt(row.prompt),
         delivery: row.delivery,
+        delegationOrigin: row.delegation_origin === null ? undefined : decodeDelegationOrigin(row.delegation_origin),
       })
       .pipe(
         Effect.catchDefect((defect) =>

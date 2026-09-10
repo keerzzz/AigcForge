@@ -27,6 +27,7 @@ import { Cause, Context, Effect, Exit, Layer, Sink, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { BackgroundJob } from "@aigcfroge/core/background-job"
 import { Database } from "@aigcfroge/core/database/database"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Location } from "@aigcfroge/core/location"
 import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
@@ -69,6 +70,7 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(SessionExecution.noopLayer),
 )
 const metaAgent = MetaAgentService.layer.pipe(Layer.provide(Database.defaultLayer))
+const delegation = DelegationService.defaultLayer
 
 // Registered once at module load; the fill layer additionally registers the
 // built-ins, which share the same module-level registry under distinct keys.
@@ -217,6 +219,7 @@ const makeFillLayer = (withSpawner: boolean) =>
         Layer.provide(BackgroundJob.defaultLayer),
         Layer.provide(EventV2.defaultLayer),
         Layer.provide(metaAgent),
+        Layer.provide(delegation),
         Layer.provide(spawnerLayer),
         Layer.provideMerge(taskDriverRuntime),
       )
@@ -225,6 +228,7 @@ const makeFillLayer = (withSpawner: boolean) =>
         Layer.provide(BackgroundJob.defaultLayer),
         Layer.provide(EventV2.defaultLayer),
         Layer.provide(metaAgent),
+        Layer.provide(delegation),
         Layer.provideMerge(taskDriverRuntime),
       )
 
@@ -239,6 +243,7 @@ const makeTestLayer = (withSpawner: boolean) =>
     sessions,
     BackgroundJob.defaultLayer,
     metaAgent,
+    delegation,
     // PermissionV2 must be in the SESSION-drain context: the fill's executeCLI
     // runs on the caller's (task tool's) fiber, which is the session context.
     permissionLayer,
@@ -248,6 +253,7 @@ const makeTestLayer = (withSpawner: boolean) =>
 
 const it = testEffect(makeTestLayer(true))
 const itNoSpawner = testEffect(makeTestLayer(false))
+const runtimeIt = testEffect(TaskDriver.runtimeLayer)
 
 const seedParent = Effect.gen(function* () {
   const session = yield* SessionV2.Service
@@ -536,6 +542,12 @@ describe("TaskDriverFill executeCLI session-lookup failure (M4)", () => {
 })
 
 describe("TaskDriver composition-root ownership", () => {
+  runtimeIt.effect("reports an uninitialized runtime proxy as not installed", () =>
+    Effect.gen(function* () {
+      expect(yield* TaskDriver.isInstalled()).toBe(false)
+    }),
+  )
+
   const makeIsolatedRoot = () => {
     const database = Database.layerFromPath(":memory:")
     const events = EventV2.layer.pipe(Layer.provide(database))
@@ -636,6 +648,7 @@ describe("TaskDriver composition-root ownership", () => {
       const inner = TaskDriver.make(facade("inner"), background)
       const sessionID = SessionV2.ID.make("ses_registration_lifetime")
 
+      expect(yield* TaskDriver.isInstalled().pipe(Effect.provideService(TaskDriver.Runtime, outer))).toBe(true)
       expect(yield* TaskDriver.sessionMode(sessionID).pipe(Effect.provideService(TaskDriver.Runtime, outer))).toBe(
         "outer",
       )

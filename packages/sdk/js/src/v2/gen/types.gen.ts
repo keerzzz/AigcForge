@@ -67,6 +67,29 @@ export type Event =
   | EventPluginAdded
   | EventFileEdited
   | EventProjectDirectoriesUpdated
+  | EventDelegationCreated
+  | EventDelegationParticipantAdded
+  | EventDelegationParticipantBound
+  | EventDelegationParticipantInterrupted
+  | EventDelegationParticipantClosed
+  | EventDelegationTurnAdmitted
+  | EventDelegationTurnAppended
+  | EventDelegationDeliveryAdmitted
+  | EventDelegationDeliveryStarted
+  | EventDelegationDeliveryCompleted
+  | EventDelegationDeliveryFailed
+  | EventDelegationDeliveryCancelled
+  | EventDelegationDeliveryRecoveryRequired
+  | EventDelegationRevisionRecorded
+  | EventDelegationReviewApproved
+  | EventDelegationReviewChangesRequested
+  | EventDelegationReviewRejected
+  | EventDelegationRejectionRetracted
+  | EventDelegationClosing
+  | EventDelegationCompleted
+  | EventDelegationCancelled
+  | EventDelegationArchived
+  | EventDelegationForked
   | EventPtyCreated
   | EventPtyUpdated
   | EventPtyExited
@@ -296,6 +319,7 @@ export type UserMessage = {
   tools?: {
     [key: string]: boolean
   }
+  delegationOrigin?: SessionInputDelegationOrigin
 }
 
 export type ProviderAuthError = {
@@ -681,6 +705,43 @@ export type Prompt = {
   agents?: Array<PromptAgentAttachment>
 }
 
+export type DelegationStatus =
+  | "draft"
+  | "running"
+  | "waiting_review"
+  | "changes_requested"
+  | "approved"
+  | "failed"
+  | "recovery_required"
+  | "closing"
+  | "completed"
+  | "archived"
+  | "cancelled"
+
+export type ParticipantRole = "implementer" | "reviewer" | "approver" | "observer"
+
+export type ParticipantContext = "fresh" | "fork"
+
+export type ParticipantPhase = "provisioning" | "active" | "failed" | "closed"
+
+export type TurnKind = "task" | "evidence" | "review" | "repair" | "close"
+
+export type RevisionDigest = string
+
+export type DeliveryIntent = "steer" | "queue"
+
+export type ChangeKind = "no_change" | "no_code_change" | "formatting_only" | "rework"
+
+export type ReviewSeverity = "blocking" | "major" | "minor" | "note"
+
+export type DelegationReviewFinding = {
+  file?: string
+  line?: number
+  severity: ReviewSeverity
+  summary: string
+  message?: string
+}
+
 export type Pty = {
   id: string
   title: string
@@ -897,6 +958,7 @@ export type GlobalEvent = {
           messageID: string
           prompt: Prompt
           delivery: "steer" | "queue"
+          delegationOrigin?: SessionInputDelegationOrigin
         }
       }
     | {
@@ -908,6 +970,7 @@ export type GlobalEvent = {
           messageID: string
           prompt: Prompt
           delivery: "steer" | "queue"
+          delegationOrigin?: SessionInputDelegationOrigin
         }
       }
     | {
@@ -1448,6 +1511,291 @@ export type GlobalEvent = {
         type: "project.directories.updated"
         properties: {
           projectID: string
+        }
+      }
+    | {
+        id: string
+        type: "delegation.created"
+        properties: {
+          delegationID: string
+          parentSessionID: string
+          metaAgentID?: string
+          title: string
+          status: DelegationStatus
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.participant_added"
+        properties: {
+          delegationID: string
+          participantID: string
+          provider: string
+          target: string
+          role: ParticipantRole
+          context: ParticipantContext
+          phase: ParticipantPhase
+          childSessionID?: string
+          externalThreadID?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.participant_bound"
+        properties: {
+          delegationID: string
+          participantID: string
+          childSessionID?: string
+          externalThreadID?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.participant_interrupted"
+        properties: {
+          delegationID: string
+          participantID: string
+          reason?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.participant_closed"
+        properties: {
+          delegationID: string
+          participantID: string
+          reason?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.turn_admitted"
+        properties: {
+          delegationID: string
+          turnID: string
+          seq: number
+          kind: TurnKind
+          promptSummary?: string
+          evidenceDigest?: string
+          revisionDigest?: RevisionDigest
+          participantIDs: Array<string>
+          delivery: DeliveryIntent
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.turn_appended"
+        properties: {
+          delegationID: string
+          turnID: string
+          seq: number
+          kind: TurnKind
+          promptSummary?: string
+          evidenceDigest?: string
+          revisionDigest?: RevisionDigest
+          participantIDs: Array<string>
+          delivery: DeliveryIntent
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.delivery_admitted"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          deliveryOrigin: string
+          senderParticipantID: string
+          attempt: number
+          status: "admitted" | "queued"
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.delivery_started"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          deliveryOrigin: string
+          senderParticipantID: string
+          attempt: number
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.delivery_completed"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          deliveryOrigin: string
+          senderParticipantID: string
+          attempt: number
+          externalTurnID?: string
+          summary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.delivery_failed"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          deliveryOrigin: string
+          senderParticipantID: string
+          attempt: number
+          errorCode?: string
+          summary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.delivery_cancelled"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          deliveryOrigin: string
+          senderParticipantID: string
+          attempt: number
+          summary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.delivery_recovery_required"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          deliveryOrigin: string
+          senderParticipantID: string
+          attempt: number
+          errorCode?: string
+          summary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.revision_recorded"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          commitSha: string
+          revisionDigest: RevisionDigest
+          changeKind: ChangeKind
+          diffSummary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.review_approved"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          reviewedRevisionDigest: RevisionDigest
+          findings: Array<DelegationReviewFinding>
+          summary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.review_changes_requested"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          reviewedRevisionDigest: RevisionDigest
+          findings: Array<DelegationReviewFinding>
+          summary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.review_rejected"
+        properties: {
+          delegationID: string
+          turnID: string
+          participantID: string
+          reviewedRevisionDigest: RevisionDigest
+          findings: Array<DelegationReviewFinding>
+          summary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.rejection_retracted"
+        properties: {
+          delegationID: string
+          participantID?: string
+          reason: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.closing"
+        properties: {
+          delegationID: string
+          reason?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.completed"
+        properties: {
+          delegationID: string
+          summary?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.cancelled"
+        properties: {
+          delegationID: string
+          reason?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.archived"
+        properties: {
+          delegationID: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        }
+      }
+    | {
+        id: string
+        type: "delegation.forked"
+        properties: {
+          delegationID: string
+          forkedDelegationID: string
+          reason?: string
+          timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
         }
       }
     | {
@@ -2021,6 +2369,29 @@ export type GlobalEvent = {
     | SyncEventSessionNextVerifyFailed
     | SyncEventMcpCredentialBindingUpdated
     | SyncEventGrantUpdated
+    | SyncEventDelegationCreated
+    | SyncEventDelegationParticipantAdded
+    | SyncEventDelegationParticipantBound
+    | SyncEventDelegationParticipantInterrupted
+    | SyncEventDelegationParticipantClosed
+    | SyncEventDelegationTurnAdmitted
+    | SyncEventDelegationTurnAppended
+    | SyncEventDelegationDeliveryAdmitted
+    | SyncEventDelegationDeliveryStarted
+    | SyncEventDelegationDeliveryCompleted
+    | SyncEventDelegationDeliveryFailed
+    | SyncEventDelegationDeliveryCancelled
+    | SyncEventDelegationDeliveryRecoveryRequired
+    | SyncEventDelegationRevisionRecorded
+    | SyncEventDelegationReviewApproved
+    | SyncEventDelegationReviewChangesRequested
+    | SyncEventDelegationReviewRejected
+    | SyncEventDelegationRejectionRetracted
+    | SyncEventDelegationClosing
+    | SyncEventDelegationCompleted
+    | SyncEventDelegationCancelled
+    | SyncEventDelegationArchived
+    | SyncEventDelegationForked
     | SyncEventWorkflowRunUpdated
 }
 
@@ -2968,6 +3339,18 @@ export type KbNoteTitle = string
 
 export type KbNoteFormat = "note" | "summary" | "faq" | "timeline" | "study_guide" | "briefing" | "mindmap"
 
+export type ParticipantRuntimeStatus = "running" | "idle" | "inactive"
+
+export type TurnStatus =
+  | "admitted"
+  | "queued"
+  | "running"
+  | "partially_completed"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "recovery_required"
+
 export type ProviderAuthMethod = {
   type: "oauth" | "api"
   label: string
@@ -3806,6 +4189,29 @@ export type V2Event =
   | V2EventPluginAdded
   | V2EventFileEdited
   | V2EventProjectDirectoriesUpdated
+  | V2EventDelegationCreated
+  | V2EventDelegationParticipantAdded
+  | V2EventDelegationParticipantBound
+  | V2EventDelegationParticipantInterrupted
+  | V2EventDelegationParticipantClosed
+  | V2EventDelegationTurnAdmitted
+  | V2EventDelegationTurnAppended
+  | V2EventDelegationDeliveryAdmitted
+  | V2EventDelegationDeliveryStarted
+  | V2EventDelegationDeliveryCompleted
+  | V2EventDelegationDeliveryFailed
+  | V2EventDelegationDeliveryCancelled
+  | V2EventDelegationDeliveryRecoveryRequired
+  | V2EventDelegationRevisionRecorded
+  | V2EventDelegationReviewApproved
+  | V2EventDelegationReviewChangesRequested
+  | V2EventDelegationReviewRejected
+  | V2EventDelegationRejectionRetracted
+  | V2EventDelegationClosing
+  | V2EventDelegationCompleted
+  | V2EventDelegationCancelled
+  | V2EventDelegationArchived
+  | V2EventDelegationForked
   | V2EventPtyCreated
   | V2EventPtyUpdated
   | V2EventPtyExited
@@ -3874,6 +4280,13 @@ export type ProjectCopyError = {
     message: string
     forceRequired?: boolean
   }
+}
+
+export type DelegationState = {
+  delegation: DelegationInfo
+  participants: Array<DelegationParticipantInfo>
+  turns: Array<DelegationTurnInfo>
+  softExpired: boolean
 }
 
 export type EffectHttpApiErrorForbidden = {
@@ -3952,6 +4365,12 @@ export type SkillV2Source = SkillV2DirectorySource | SkillV2UrlSource | SkillV2E
 
 export type MoveSessionDestination = {
   directory: string
+}
+
+export type SessionInputDelegationOrigin = {
+  turnID: string
+  deliveryOrigin: string
+  senderParticipantID: string
 }
 
 export type LocationRef = {
@@ -4321,6 +4740,7 @@ export type SyncEventSessionNextPrompted = {
       messageID: string
       prompt: Prompt
       delivery: "steer" | "queue"
+      delegationOrigin?: SessionInputDelegationOrigin
     }
   }
 }
@@ -4339,6 +4759,7 @@ export type SyncEventSessionNextPromptAdmitted = {
       messageID: string
       prompt: Prompt
       delivery: "steer" | "queue"
+      delegationOrigin?: SessionInputDelegationOrigin
     }
   }
 }
@@ -4940,6 +5361,452 @@ export type SyncEventGrantUpdated = {
   }
 }
 
+export type SyncEventDelegationCreated = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.created.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      parentSessionID: string
+      metaAgentID?: string
+      title: string
+      status: DelegationStatus
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationParticipantAdded = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.participant_added.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      participantID: string
+      provider: string
+      target: string
+      role: ParticipantRole
+      context: ParticipantContext
+      phase: ParticipantPhase
+      childSessionID?: string
+      externalThreadID?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationParticipantBound = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.participant_bound.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      participantID: string
+      childSessionID?: string
+      externalThreadID?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationParticipantInterrupted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.participant_interrupted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      participantID: string
+      reason?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationParticipantClosed = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.participant_closed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      participantID: string
+      reason?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationTurnAdmitted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.turn_admitted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      seq: number
+      kind: TurnKind
+      promptSummary?: string
+      evidenceDigest?: string
+      revisionDigest?: RevisionDigest
+      participantIDs: Array<string>
+      delivery: DeliveryIntent
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationTurnAppended = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.turn_appended.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      seq: number
+      kind: TurnKind
+      promptSummary?: string
+      evidenceDigest?: string
+      revisionDigest?: RevisionDigest
+      participantIDs: Array<string>
+      delivery: DeliveryIntent
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationDeliveryAdmitted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.delivery_admitted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      deliveryOrigin: string
+      senderParticipantID: string
+      attempt: number
+      status: "admitted" | "queued"
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationDeliveryStarted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.delivery_started.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      deliveryOrigin: string
+      senderParticipantID: string
+      attempt: number
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationDeliveryCompleted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.delivery_completed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      deliveryOrigin: string
+      senderParticipantID: string
+      attempt: number
+      externalTurnID?: string
+      summary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationDeliveryFailed = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.delivery_failed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      deliveryOrigin: string
+      senderParticipantID: string
+      attempt: number
+      errorCode?: string
+      summary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationDeliveryCancelled = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.delivery_cancelled.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      deliveryOrigin: string
+      senderParticipantID: string
+      attempt: number
+      summary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationDeliveryRecoveryRequired = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.delivery_recovery_required.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      deliveryOrigin: string
+      senderParticipantID: string
+      attempt: number
+      errorCode?: string
+      summary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationRevisionRecorded = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.revision_recorded.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      commitSha: string
+      revisionDigest: RevisionDigest
+      changeKind: ChangeKind
+      diffSummary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationReviewApproved = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.review_approved.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      reviewedRevisionDigest: RevisionDigest
+      findings: Array<DelegationReviewFinding>
+      summary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationReviewChangesRequested = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.review_changes_requested.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      reviewedRevisionDigest: RevisionDigest
+      findings: Array<DelegationReviewFinding>
+      summary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationReviewRejected = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.review_rejected.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      turnID: string
+      participantID: string
+      reviewedRevisionDigest: RevisionDigest
+      findings: Array<DelegationReviewFinding>
+      summary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationRejectionRetracted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.rejection_retracted.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      participantID?: string
+      reason: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationClosing = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.closing.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      reason?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationCompleted = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.completed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      summary?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationCancelled = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.cancelled.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      reason?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationArchived = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.archived.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
+export type SyncEventDelegationForked = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "delegation.forked.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      delegationID: string
+      forkedDelegationID: string
+      reason?: string
+      timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  }
+}
+
 export type SyncEventWorkflowRunUpdated = {
   type: "sync"
   id: string
@@ -5000,7 +5867,7 @@ export type ConfigV2CliAgent = {
   description?: string
   args?: Array<string>
   output?: "claude-jsonl" | "codex-jsonl" | "plain"
-  transport?: "jsonl" | "sdk" | "acp"
+  transport?: "jsonl" | "sdk" | "acp" | "app-server"
   timeout?: number
 }
 
@@ -5716,6 +6583,56 @@ export type KbNoteDanglingLink = {
   targetTitle: string
 }
 
+export type DelegationInfo = {
+  id: string
+  parentSessionID: string
+  metaAgentID?: string
+  title: string
+  status: DelegationStatus
+  latestRevisionDigest?: RevisionDigest
+  rejectionBlocked: boolean
+  rejectionReason?: string
+  rejectionParticipantID?: string
+  lastActivityAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  completedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  closedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  archivedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type DelegationParticipantInfo = {
+  id: string
+  delegationID: string
+  provider: string
+  target: string
+  role: ParticipantRole
+  context: ParticipantContext
+  phase: ParticipantPhase
+  runtimeStatus?: ParticipantRuntimeStatus
+  childSessionID?: string
+  externalThreadID?: string
+  lastActivityAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  closedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type DelegationTurnInfo = {
+  id: string
+  delegationID: string
+  seq: number
+  kind: TurnKind
+  status: TurnStatus
+  promptSummary?: string
+  evidenceDigest?: string
+  revisionDigest?: RevisionDigest
+  participantIDs: Array<string>
+  delivery: DeliveryIntent
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
 export type WorkflowAssetSummary = {
   kind: "workflow"
   name: string
@@ -6000,6 +6917,7 @@ export type SessionInputAdmittedPrompt = {
   timeCreated: number
   promotedSeq?: number
   prompt: Prompt
+  delegationOrigin?: SessionInputDelegationOrigin
 }
 
 export type SessionInputAdmittedShell = {
@@ -6098,6 +7016,7 @@ export type SessionMessageUser = {
   text: string
   files?: Array<PromptFileAttachment>
   agents?: Array<PromptAgentAttachment>
+  delegationOrigin?: SessionInputDelegationOrigin
   type: "user"
 }
 
@@ -6302,7 +7221,9 @@ export type ModelV2Info = {
         package: string
         url?: string
         settings?: {
-          [key: string]: unknown
+          timeout?: number | false
+          headerTimeout?: number | false
+          chunkTimeout?: number | false
         }
       }
     | {
@@ -6310,7 +7231,9 @@ export type ModelV2Info = {
         type: "native"
         url?: string
         settings: {
-          [key: string]: unknown
+          timeout?: number | false
+          headerTimeout?: number | false
+          chunkTimeout?: number | false
         }
       }
   capabilities: {
@@ -6397,14 +7320,18 @@ export type ProviderV2Info = {
         package: string
         url?: string
         settings?: {
-          [key: string]: unknown
+          timeout?: number | false
+          headerTimeout?: number | false
+          chunkTimeout?: number | false
         }
       }
     | {
         type: "native"
         url?: string
         settings: {
-          [key: string]: unknown
+          timeout?: number | false
+          headerTimeout?: number | false
+          chunkTimeout?: number | false
         }
       }
   request: {
@@ -6846,6 +7773,7 @@ export type V2EventSessionNextPrompted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    delegationOrigin?: SessionInputDelegationOrigin
   }
 }
 
@@ -6867,6 +7795,7 @@ export type V2EventSessionNextPromptAdmitted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    delegationOrigin?: SessionInputDelegationOrigin
   }
 }
 
@@ -7867,6 +8796,521 @@ export type V2EventProjectDirectoriesUpdated = {
   type: "project.directories.updated"
   data: {
     projectID: string
+  }
+}
+
+export type V2EventDelegationCreated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.created"
+  data: {
+    delegationID: string
+    parentSessionID: string
+    metaAgentID?: string
+    title: string
+    status: DelegationStatus
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationParticipantAdded = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.participant_added"
+  data: {
+    delegationID: string
+    participantID: string
+    provider: string
+    target: string
+    role: ParticipantRole
+    context: ParticipantContext
+    phase: ParticipantPhase
+    childSessionID?: string
+    externalThreadID?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationParticipantBound = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.participant_bound"
+  data: {
+    delegationID: string
+    participantID: string
+    childSessionID?: string
+    externalThreadID?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationParticipantInterrupted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.participant_interrupted"
+  data: {
+    delegationID: string
+    participantID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationParticipantClosed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.participant_closed"
+  data: {
+    delegationID: string
+    participantID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationTurnAdmitted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.turn_admitted"
+  data: {
+    delegationID: string
+    turnID: string
+    seq: number
+    kind: TurnKind
+    promptSummary?: string
+    evidenceDigest?: string
+    revisionDigest?: RevisionDigest
+    participantIDs: Array<string>
+    delivery: DeliveryIntent
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationTurnAppended = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.turn_appended"
+  data: {
+    delegationID: string
+    turnID: string
+    seq: number
+    kind: TurnKind
+    promptSummary?: string
+    evidenceDigest?: string
+    revisionDigest?: RevisionDigest
+    participantIDs: Array<string>
+    delivery: DeliveryIntent
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationDeliveryAdmitted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.delivery_admitted"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    status: "admitted" | "queued"
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationDeliveryStarted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.delivery_started"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationDeliveryCompleted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.delivery_completed"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    externalTurnID?: string
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationDeliveryFailed = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.delivery_failed"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    errorCode?: string
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationDeliveryCancelled = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.delivery_cancelled"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationDeliveryRecoveryRequired = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.delivery_recovery_required"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    errorCode?: string
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationRevisionRecorded = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.revision_recorded"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    commitSha: string
+    revisionDigest: RevisionDigest
+    changeKind: ChangeKind
+    diffSummary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationReviewApproved = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.review_approved"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    reviewedRevisionDigest: RevisionDigest
+    findings: Array<DelegationReviewFinding>
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationReviewChangesRequested = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.review_changes_requested"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    reviewedRevisionDigest: RevisionDigest
+    findings: Array<DelegationReviewFinding>
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationReviewRejected = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.review_rejected"
+  data: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    reviewedRevisionDigest: RevisionDigest
+    findings: Array<DelegationReviewFinding>
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationRejectionRetracted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.rejection_retracted"
+  data: {
+    delegationID: string
+    participantID?: string
+    reason: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationClosing = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.closing"
+  data: {
+    delegationID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationCompleted = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.completed"
+  data: {
+    delegationID: string
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationCancelled = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.cancelled"
+  data: {
+    delegationID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationArchived = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.archived"
+  data: {
+    delegationID: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type V2EventDelegationForked = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "delegation.forked"
+  data: {
+    delegationID: string
+    forkedDelegationID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   }
 }
 
@@ -9145,6 +10589,7 @@ export type EventSessionNextPrompted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    delegationOrigin?: SessionInputDelegationOrigin
   }
 }
 
@@ -9157,6 +10602,7 @@ export type EventSessionNextPromptAdmitted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    delegationOrigin?: SessionInputDelegationOrigin
   }
 }
 
@@ -9743,6 +11189,314 @@ export type EventProjectDirectoriesUpdated = {
   type: "project.directories.updated"
   properties: {
     projectID: string
+  }
+}
+
+export type EventDelegationCreated = {
+  id: string
+  type: "delegation.created"
+  properties: {
+    delegationID: string
+    parentSessionID: string
+    metaAgentID?: string
+    title: string
+    status: DelegationStatus
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationParticipantAdded = {
+  id: string
+  type: "delegation.participant_added"
+  properties: {
+    delegationID: string
+    participantID: string
+    provider: string
+    target: string
+    role: ParticipantRole
+    context: ParticipantContext
+    phase: ParticipantPhase
+    childSessionID?: string
+    externalThreadID?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationParticipantBound = {
+  id: string
+  type: "delegation.participant_bound"
+  properties: {
+    delegationID: string
+    participantID: string
+    childSessionID?: string
+    externalThreadID?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationParticipantInterrupted = {
+  id: string
+  type: "delegation.participant_interrupted"
+  properties: {
+    delegationID: string
+    participantID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationParticipantClosed = {
+  id: string
+  type: "delegation.participant_closed"
+  properties: {
+    delegationID: string
+    participantID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationTurnAdmitted = {
+  id: string
+  type: "delegation.turn_admitted"
+  properties: {
+    delegationID: string
+    turnID: string
+    seq: number
+    kind: TurnKind
+    promptSummary?: string
+    evidenceDigest?: string
+    revisionDigest?: RevisionDigest
+    participantIDs: Array<string>
+    delivery: DeliveryIntent
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationTurnAppended = {
+  id: string
+  type: "delegation.turn_appended"
+  properties: {
+    delegationID: string
+    turnID: string
+    seq: number
+    kind: TurnKind
+    promptSummary?: string
+    evidenceDigest?: string
+    revisionDigest?: RevisionDigest
+    participantIDs: Array<string>
+    delivery: DeliveryIntent
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationDeliveryAdmitted = {
+  id: string
+  type: "delegation.delivery_admitted"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    status: "admitted" | "queued"
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationDeliveryStarted = {
+  id: string
+  type: "delegation.delivery_started"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationDeliveryCompleted = {
+  id: string
+  type: "delegation.delivery_completed"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    externalTurnID?: string
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationDeliveryFailed = {
+  id: string
+  type: "delegation.delivery_failed"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    errorCode?: string
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationDeliveryCancelled = {
+  id: string
+  type: "delegation.delivery_cancelled"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationDeliveryRecoveryRequired = {
+  id: string
+  type: "delegation.delivery_recovery_required"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    deliveryOrigin: string
+    senderParticipantID: string
+    attempt: number
+    errorCode?: string
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationRevisionRecorded = {
+  id: string
+  type: "delegation.revision_recorded"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    commitSha: string
+    revisionDigest: RevisionDigest
+    changeKind: ChangeKind
+    diffSummary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationReviewApproved = {
+  id: string
+  type: "delegation.review_approved"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    reviewedRevisionDigest: RevisionDigest
+    findings: Array<DelegationReviewFinding>
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationReviewChangesRequested = {
+  id: string
+  type: "delegation.review_changes_requested"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    reviewedRevisionDigest: RevisionDigest
+    findings: Array<DelegationReviewFinding>
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationReviewRejected = {
+  id: string
+  type: "delegation.review_rejected"
+  properties: {
+    delegationID: string
+    turnID: string
+    participantID: string
+    reviewedRevisionDigest: RevisionDigest
+    findings: Array<DelegationReviewFinding>
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationRejectionRetracted = {
+  id: string
+  type: "delegation.rejection_retracted"
+  properties: {
+    delegationID: string
+    participantID?: string
+    reason: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationClosing = {
+  id: string
+  type: "delegation.closing"
+  properties: {
+    delegationID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationCompleted = {
+  id: string
+  type: "delegation.completed"
+  properties: {
+    delegationID: string
+    summary?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationCancelled = {
+  id: string
+  type: "delegation.cancelled"
+  properties: {
+    delegationID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationArchived = {
+  id: string
+  type: "delegation.archived"
+  properties: {
+    delegationID: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
+  }
+}
+
+export type EventDelegationForked = {
+  id: string
+  type: "delegation.forked"
+  properties: {
+    delegationID: string
+    forkedDelegationID: string
+    reason?: string
+    timestamp: number | "NaN" | "Infinity" | "-Infinity"
   }
 }
 
@@ -14340,6 +16094,627 @@ export type AgentTaskListResponses = {
 
 export type AgentTaskListResponse = AgentTaskListResponses[keyof AgentTaskListResponses]
 
+export type LegacyDelegationListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    parentSessionID?: string
+    includeArchived?: "true" | "false"
+  }
+  url: "/delegation"
+}
+
+export type LegacyDelegationListErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationListError = LegacyDelegationListErrors[keyof LegacyDelegationListErrors]
+
+export type LegacyDelegationListResponses = {
+  /**
+   * Success
+   */
+  200: Array<{
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }>
+}
+
+export type LegacyDelegationListResponse = LegacyDelegationListResponses[keyof LegacyDelegationListResponses]
+
+export type LegacyDelegationCreateData = {
+  body?: {
+    parentSessionID: string
+    title: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation"
+}
+
+export type LegacyDelegationCreateErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationCreateError = LegacyDelegationCreateErrors[keyof LegacyDelegationCreateErrors]
+
+export type LegacyDelegationCreateResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationCreateResponse = LegacyDelegationCreateResponses[keyof LegacyDelegationCreateResponses]
+
+export type LegacyDelegationDeleteData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query: {
+    directory?: string
+    workspace?: string
+    purge: "true" | "false"
+  }
+  url: "/delegation/{delegationID}"
+}
+
+export type LegacyDelegationDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationDeleteError = LegacyDelegationDeleteErrors[keyof LegacyDelegationDeleteErrors]
+
+export type LegacyDelegationDeleteResponses = {
+  /**
+   * <No Content>
+   */
+  200: unknown
+}
+
+export type LegacyDelegationGetData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}"
+}
+
+export type LegacyDelegationGetErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationGetError = LegacyDelegationGetErrors[keyof LegacyDelegationGetErrors]
+
+export type LegacyDelegationGetResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationGetResponse = LegacyDelegationGetResponses[keyof LegacyDelegationGetResponses]
+
+export type LegacyDelegationAddParticipantData = {
+  body?: {
+    provider: string
+    target: string
+    role: ParticipantRole
+    context: ParticipantContext
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/participant"
+}
+
+export type LegacyDelegationAddParticipantErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationAddParticipantError =
+  LegacyDelegationAddParticipantErrors[keyof LegacyDelegationAddParticipantErrors]
+
+export type LegacyDelegationAddParticipantResponses = {
+  /**
+   * Delegation.ParticipantInfo
+   */
+  200: DelegationParticipantInfo
+}
+
+export type LegacyDelegationAddParticipantResponse =
+  LegacyDelegationAddParticipantResponses[keyof LegacyDelegationAddParticipantResponses]
+
+export type LegacyDelegationListTurnsData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/turn"
+}
+
+export type LegacyDelegationListTurnsErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationListTurnsError = LegacyDelegationListTurnsErrors[keyof LegacyDelegationListTurnsErrors]
+
+export type LegacyDelegationListTurnsResponses = {
+  /**
+   * Success
+   */
+  200: Array<DelegationTurnInfo>
+}
+
+export type LegacyDelegationListTurnsResponse =
+  LegacyDelegationListTurnsResponses[keyof LegacyDelegationListTurnsResponses]
+
+export type LegacyDelegationAppendTurnData = {
+  body?: {
+    kind: TurnKind
+    promptSummary?: string
+    evidenceDigest?: string
+    revisionDigest?: RevisionDigest
+    participantIDs: Array<string>
+    delivery: DeliveryIntent
+    deliveryOrigin: string
+    senderParticipantID: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/turn"
+}
+
+export type LegacyDelegationAppendTurnErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationAppendTurnError = LegacyDelegationAppendTurnErrors[keyof LegacyDelegationAppendTurnErrors]
+
+export type LegacyDelegationAppendTurnResponses = {
+  /**
+   * Delegation.TurnInfo
+   */
+  200: DelegationTurnInfo
+}
+
+export type LegacyDelegationAppendTurnResponse =
+  LegacyDelegationAppendTurnResponses[keyof LegacyDelegationAppendTurnResponses]
+
+export type LegacyDelegationRetryData = {
+  body?: {
+    participantID: string
+  }
+  path: {
+    delegationID: string
+    turnID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/turn/{turnID}/retry"
+}
+
+export type LegacyDelegationRetryErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationRetryError = LegacyDelegationRetryErrors[keyof LegacyDelegationRetryErrors]
+
+export type LegacyDelegationRetryResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationRetryResponse = LegacyDelegationRetryResponses[keyof LegacyDelegationRetryResponses]
+
+export type LegacyDelegationReconcileData = {
+  body?: {
+    participantID?: string
+    turnID?: string
+    decision: "resume" | "retry" | "fork" | "close"
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/reconcile"
+}
+
+export type LegacyDelegationReconcileErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationReconcileError = LegacyDelegationReconcileErrors[keyof LegacyDelegationReconcileErrors]
+
+export type LegacyDelegationReconcileResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationReconcileResponse =
+  LegacyDelegationReconcileResponses[keyof LegacyDelegationReconcileResponses]
+
+export type LegacyDelegationRetractRejectionData = {
+  body?: {
+    participantID?: string
+    reason: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/review/retract-rejection"
+}
+
+export type LegacyDelegationRetractRejectionErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationRetractRejectionError =
+  LegacyDelegationRetractRejectionErrors[keyof LegacyDelegationRetractRejectionErrors]
+
+export type LegacyDelegationRetractRejectionResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationRetractRejectionResponse =
+  LegacyDelegationRetractRejectionResponses[keyof LegacyDelegationRetractRejectionResponses]
+
+export type LegacyDelegationSteerData = {
+  body?: {
+    turnID: string
+    participantID: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/steer"
+}
+
+export type LegacyDelegationSteerErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationSteerError = LegacyDelegationSteerErrors[keyof LegacyDelegationSteerErrors]
+
+export type LegacyDelegationSteerResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationSteerResponse = LegacyDelegationSteerResponses[keyof LegacyDelegationSteerResponses]
+
+export type LegacyDelegationInterruptData = {
+  body?: {
+    participantID?: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/interrupt"
+}
+
+export type LegacyDelegationInterruptErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationInterruptError = LegacyDelegationInterruptErrors[keyof LegacyDelegationInterruptErrors]
+
+export type LegacyDelegationInterruptResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationInterruptResponse =
+  LegacyDelegationInterruptResponses[keyof LegacyDelegationInterruptResponses]
+
+export type LegacyDelegationCompleteData = {
+  body?: {
+    summary?: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/complete"
+}
+
+export type LegacyDelegationCompleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationCompleteError = LegacyDelegationCompleteErrors[keyof LegacyDelegationCompleteErrors]
+
+export type LegacyDelegationCompleteResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationCompleteResponse =
+  LegacyDelegationCompleteResponses[keyof LegacyDelegationCompleteResponses]
+
+export type LegacyDelegationCloseData = {
+  body?: {
+    reason?: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/close"
+}
+
+export type LegacyDelegationCloseErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationCloseError = LegacyDelegationCloseErrors[keyof LegacyDelegationCloseErrors]
+
+export type LegacyDelegationCloseResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationCloseResponse = LegacyDelegationCloseResponses[keyof LegacyDelegationCloseResponses]
+
+export type LegacyDelegationArchiveData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/archive"
+}
+
+export type LegacyDelegationArchiveErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationArchiveError = LegacyDelegationArchiveErrors[keyof LegacyDelegationArchiveErrors]
+
+export type LegacyDelegationArchiveResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationArchiveResponse = LegacyDelegationArchiveResponses[keyof LegacyDelegationArchiveResponses]
+
+export type LegacyDelegationUnarchiveData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/unarchive"
+}
+
+export type LegacyDelegationUnarchiveErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationUnarchiveError = LegacyDelegationUnarchiveErrors[keyof LegacyDelegationUnarchiveErrors]
+
+export type LegacyDelegationUnarchiveResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationUnarchiveResponse =
+  LegacyDelegationUnarchiveResponses[keyof LegacyDelegationUnarchiveResponses]
+
+export type LegacyDelegationForkData = {
+  body?: {
+    title?: string
+    reason?: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/delegation/{delegationID}/fork"
+}
+
+export type LegacyDelegationForkErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type LegacyDelegationForkError = LegacyDelegationForkErrors[keyof LegacyDelegationForkErrors]
+
+export type LegacyDelegationForkResponses = {
+  /**
+   * Success
+   */
+  200: {
+    delegation: DelegationInfo
+    participants: Array<DelegationParticipantInfo>
+    turns: Array<DelegationTurnInfo>
+    softExpired: boolean
+  }
+}
+
+export type LegacyDelegationForkResponse = LegacyDelegationForkResponses[keyof LegacyDelegationForkResponses]
+
 export type WorkflowAssetListData = {
   body?: never
   path?: never
@@ -15376,6 +17751,7 @@ export type SessionPromptData = {
     format?: OutputFormat
     system?: string
     variant?: string
+    delegationOrigin?: SessionInputDelegationOrigin
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -15727,6 +18103,7 @@ export type SessionPromptAsyncData = {
     format?: OutputFormat
     system?: string
     variant?: string
+    delegationOrigin?: SessionInputDelegationOrigin
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -19705,6 +22082,863 @@ export type V2ProjectCopyRefreshResponses = {
 }
 
 export type V2ProjectCopyRefreshResponse = V2ProjectCopyRefreshResponses[keyof V2ProjectCopyRefreshResponses]
+
+export type V2DelegationListData = {
+  body?: never
+  path?: never
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+    parentSessionID?: string
+    includeArchived?: "true" | "false"
+  }
+  url: "/api/delegation"
+}
+
+export type V2DelegationListErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationListError = V2DelegationListErrors[keyof V2DelegationListErrors]
+
+export type V2DelegationListResponses = {
+  /**
+   * Success
+   */
+  200: Array<DelegationState>
+}
+
+export type V2DelegationListResponse = V2DelegationListResponses[keyof V2DelegationListResponses]
+
+export type V2DelegationCreateData = {
+  body: {
+    parentSessionID: string
+    title: string
+  }
+  path?: never
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation"
+}
+
+export type V2DelegationCreateErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationCreateError = V2DelegationCreateErrors[keyof V2DelegationCreateErrors]
+
+export type V2DelegationCreateResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationCreateResponse = V2DelegationCreateResponses[keyof V2DelegationCreateResponses]
+
+export type V2DelegationDeleteData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+    purge: "true" | "false"
+  }
+  url: "/api/delegation/{delegationID}"
+}
+
+export type V2DelegationDeleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationDeleteError = V2DelegationDeleteErrors[keyof V2DelegationDeleteErrors]
+
+export type V2DelegationDeleteResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2DelegationDeleteResponse = V2DelegationDeleteResponses[keyof V2DelegationDeleteResponses]
+
+export type V2DelegationGetData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}"
+}
+
+export type V2DelegationGetErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationGetError = V2DelegationGetErrors[keyof V2DelegationGetErrors]
+
+export type V2DelegationGetResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationGetResponse = V2DelegationGetResponses[keyof V2DelegationGetResponses]
+
+export type V2DelegationAddParticipantData = {
+  body: {
+    provider: string
+    target: string
+    role: ParticipantRole
+    context: ParticipantContext
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/participant"
+}
+
+export type V2DelegationAddParticipantErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationAddParticipantError = V2DelegationAddParticipantErrors[keyof V2DelegationAddParticipantErrors]
+
+export type V2DelegationAddParticipantResponses = {
+  /**
+   * Delegation.ParticipantInfo
+   */
+  200: DelegationParticipantInfo
+}
+
+export type V2DelegationAddParticipantResponse =
+  V2DelegationAddParticipantResponses[keyof V2DelegationAddParticipantResponses]
+
+export type V2DelegationListTurnsData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/turn"
+}
+
+export type V2DelegationListTurnsErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationListTurnsError = V2DelegationListTurnsErrors[keyof V2DelegationListTurnsErrors]
+
+export type V2DelegationListTurnsResponses = {
+  /**
+   * Success
+   */
+  200: Array<DelegationTurnInfo>
+}
+
+export type V2DelegationListTurnsResponse = V2DelegationListTurnsResponses[keyof V2DelegationListTurnsResponses]
+
+export type V2DelegationAppendTurnData = {
+  body: {
+    kind: TurnKind
+    promptSummary?: string
+    evidenceDigest?: string
+    revisionDigest?: RevisionDigest
+    participantIDs: Array<string>
+    delivery: DeliveryIntent
+    deliveryOrigin: string
+    senderParticipantID: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/turn"
+}
+
+export type V2DelegationAppendTurnErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationAppendTurnError = V2DelegationAppendTurnErrors[keyof V2DelegationAppendTurnErrors]
+
+export type V2DelegationAppendTurnResponses = {
+  /**
+   * Delegation.TurnInfo
+   */
+  200: DelegationTurnInfo
+}
+
+export type V2DelegationAppendTurnResponse = V2DelegationAppendTurnResponses[keyof V2DelegationAppendTurnResponses]
+
+export type V2DelegationRetryData = {
+  body: {
+    participantID: string
+  }
+  path: {
+    delegationID: string
+    turnID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/turn/{turnID}/retry"
+}
+
+export type V2DelegationRetryErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationRetryError = V2DelegationRetryErrors[keyof V2DelegationRetryErrors]
+
+export type V2DelegationRetryResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationRetryResponse = V2DelegationRetryResponses[keyof V2DelegationRetryResponses]
+
+export type V2DelegationReconcileData = {
+  body: {
+    participantID?: string
+    turnID?: string
+    decision: "resume" | "retry" | "fork" | "close"
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/reconcile"
+}
+
+export type V2DelegationReconcileErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationReconcileError = V2DelegationReconcileErrors[keyof V2DelegationReconcileErrors]
+
+export type V2DelegationReconcileResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationReconcileResponse = V2DelegationReconcileResponses[keyof V2DelegationReconcileResponses]
+
+export type V2DelegationRetractRejectionData = {
+  body: {
+    participantID?: string
+    reason: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/review/retract-rejection"
+}
+
+export type V2DelegationRetractRejectionErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationRetractRejectionError =
+  V2DelegationRetractRejectionErrors[keyof V2DelegationRetractRejectionErrors]
+
+export type V2DelegationRetractRejectionResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationRetractRejectionResponse =
+  V2DelegationRetractRejectionResponses[keyof V2DelegationRetractRejectionResponses]
+
+export type V2DelegationSteerData = {
+  body: {
+    turnID: string
+    participantID: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/steer"
+}
+
+export type V2DelegationSteerErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationSteerError = V2DelegationSteerErrors[keyof V2DelegationSteerErrors]
+
+export type V2DelegationSteerResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationSteerResponse = V2DelegationSteerResponses[keyof V2DelegationSteerResponses]
+
+export type V2DelegationInterruptData = {
+  body: {
+    participantID?: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/interrupt"
+}
+
+export type V2DelegationInterruptErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationInterruptError = V2DelegationInterruptErrors[keyof V2DelegationInterruptErrors]
+
+export type V2DelegationInterruptResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationInterruptResponse = V2DelegationInterruptResponses[keyof V2DelegationInterruptResponses]
+
+export type V2DelegationCompleteData = {
+  body: {
+    summary?: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/complete"
+}
+
+export type V2DelegationCompleteErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationCompleteError = V2DelegationCompleteErrors[keyof V2DelegationCompleteErrors]
+
+export type V2DelegationCompleteResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationCompleteResponse = V2DelegationCompleteResponses[keyof V2DelegationCompleteResponses]
+
+export type V2DelegationCloseData = {
+  body: {
+    reason?: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/close"
+}
+
+export type V2DelegationCloseErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationCloseError = V2DelegationCloseErrors[keyof V2DelegationCloseErrors]
+
+export type V2DelegationCloseResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationCloseResponse = V2DelegationCloseResponses[keyof V2DelegationCloseResponses]
+
+export type V2DelegationArchiveData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/archive"
+}
+
+export type V2DelegationArchiveErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationArchiveError = V2DelegationArchiveErrors[keyof V2DelegationArchiveErrors]
+
+export type V2DelegationArchiveResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationArchiveResponse = V2DelegationArchiveResponses[keyof V2DelegationArchiveResponses]
+
+export type V2DelegationUnarchiveData = {
+  body?: never
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/unarchive"
+}
+
+export type V2DelegationUnarchiveErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationUnarchiveError = V2DelegationUnarchiveErrors[keyof V2DelegationUnarchiveErrors]
+
+export type V2DelegationUnarchiveResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationUnarchiveResponse = V2DelegationUnarchiveResponses[keyof V2DelegationUnarchiveResponses]
+
+export type V2DelegationForkData = {
+  body: {
+    title?: string
+    reason?: string
+  }
+  path: {
+    delegationID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/delegation/{delegationID}/fork"
+}
+
+export type V2DelegationForkErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+}
+
+export type V2DelegationForkError = V2DelegationForkErrors[keyof V2DelegationForkErrors]
+
+export type V2DelegationForkResponses = {
+  /**
+   * DelegationState
+   */
+  200: DelegationState
+}
+
+export type V2DelegationForkResponse = V2DelegationForkResponses[keyof V2DelegationForkResponses]
 
 export type PtyConnectData = {
   body?: never

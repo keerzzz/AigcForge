@@ -1,6 +1,7 @@
 export * as DelegationParser from "./delegation-parser"
 
-import { Effect } from "effect"
+import { Effect, Option, Schema } from "effect"
+import { Delegation } from "@aigcfroge/schema/delegation"
 import type { DelegationResult } from "./cli-adapter"
 
 const TAG_PATTERNS = [
@@ -86,9 +87,24 @@ export function parseDelegationResult(text: string): DelegationResult | undefine
     summary = text.includes("<task_error>") ? text.slice(0, 200).trim() : text.slice(0, 200).trim()
   }
 
+  // Extract the canonical review envelope. A parser result is never allowed to
+  // manufacture a valid approval: missing and malformed envelopes remain typed
+  // invalid outcomes for the delegation barrier to handle.
+  const reviewMatch = text.match(/<review>([\s\S]*?)<\/review>/)
+  const review: DelegationResult["review"] = (() => {
+    if (!reviewMatch?.[1]) return { status: "invalid" as const, reason: "missing" as const }
+    const decodedJson = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)(reviewMatch[1].trim())
+    if (Option.isNone(decodedJson)) return { status: "invalid" as const, reason: "malformed" as const }
+    const envelope = Schema.decodeUnknownOption(Delegation.ReviewEnvelope)(decodedJson.value)
+    return Option.isSome(envelope)
+      ? { status: "valid" as const, envelope: envelope.value }
+      : { status: "invalid" as const, reason: "malformed" as const }
+  })()
+
   return {
     status,
     summary: summary || "Task completed",
+    review,
     files:
       created.length || modified.length || deleted.length
         ? {

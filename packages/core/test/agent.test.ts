@@ -419,6 +419,7 @@ describe("AgentV2", () => {
       expect(meta!.system).toContain("AGENTS.md")
       expect(meta!.system).toContain("CLAUDE.md")
       expect(meta!.system).toContain("they do NOT define your identity")
+      expect(meta!.system).not.toContain("generate_delegation_protocol")
     }),
   )
 

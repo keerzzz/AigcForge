@@ -1,9 +1,10 @@
 export * as CodexSdkAdapter from "./codex-sdk"
 
-import { Effect } from "effect"
+import { Duration, Effect } from "effect"
 import { Codex as RealCodex } from "@openai/codex-sdk"
 import { which } from "../util/which"
 import type { CliAdapter } from "./cli-adapter"
+import { DelegationParser } from "./delegation-parser"
 
 /**
  * The minimal Codex SDK surface this adapter drives. Injected so unit tests
@@ -33,7 +34,7 @@ export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter =
   detect: () => Effect.sync(() => which("codex") !== null),
   buildArgs: () => Effect.succeed([]),
   parseOutput: (stdout) => Effect.succeed({ status: "success" as const, summary: stdout }),
-  execute: ({ prompt, cwd, resumeId }) =>
+  execute: ({ prompt, cwd, resumeId, timeoutMs }) =>
     Effect.scoped(
       Effect.gen(function* () {
         // approvalPolicy "never" auto-denies permission prompts — the unattended
@@ -41,22 +42,52 @@ export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter =
         // follow-up (codex surfaces approvals as stream events, not a callback).
         const options = { workingDirectory: cwd, approvalPolicy: "never" as const }
         const thread = resumeId ? sdk.resumeThread(resumeId, options) : sdk.startThread(options)
+        const threadSessionId = (thread.id ?? resumeId) || undefined
         const abortController = yield* Effect.acquireRelease(
           Effect.sync(() => new AbortController()),
           (controller) => Effect.sync(() => controller.abort()),
         )
-        const turn = yield* Effect.tryPromise({
+        const turnResult = yield* Effect.tryPromise({
           try: () => thread.run(prompt, { signal: abortController.signal }),
           catch: (error) => new Error(error instanceof Error ? error.message : String(error)),
-        })
-        const summary = turn.finalResponse.trim()
-        const sessionId = thread.id ?? undefined
+        }).pipe(
+          Effect.timeoutOrElse({
+            duration: Duration.millis(timeoutMs ?? 300_000),
+            orElse: () =>
+              Effect.succeed({
+                timedOut: true as const,
+                status: "failed" as const,
+                summary: `CLI "${name}" SDK execution timed out`,
+                ...(threadSessionId ? { sessionId: threadSessionId } : {}),
+                errorCode: "timeout",
+                recoveryRequired: true,
+                errors: ["Timed out"],
+              }),
+          }),
+          Effect.catch((error) =>
+            Effect.succeed({
+              status: "failed" as const,
+              summary: `CLI "${name}" SDK execution failed: ${error.message}`,
+              ...(threadSessionId ? { sessionId: threadSessionId } : {}),
+              errorCode: "provider_error",
+              recoveryRequired: true,
+              errors: [error.message],
+            }),
+          ),
+        )
+        if (!("finalResponse" in turnResult)) {
+          return turnResult
+        }
+        const summary = turnResult.finalResponse.trim()
+        const sessionId = threadSessionId
         if (!summary) {
           return {
             status: "failed" as const,
             summary: `CLI "${name}" completed without a final response`,
             ...(sessionId ? { sessionId } : {}),
             errors: ["completed without a final response"],
+            errorCode: "malformed_output",
+            recoveryRequired: true,
           }
         }
         if (!sessionId) {
@@ -66,16 +97,9 @@ export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter =
             errors: ["completed without a persistent thread id"],
           }
         }
-        return { status: "success" as const, summary, sessionId }
-      }).pipe(
-        Effect.catch((error) =>
-          Effect.succeed({
-            status: "failed" as const,
-            summary: `CLI "${name}" SDK execution failed: ${error.message}`,
-            errors: [error.message],
-          }),
-        ),
-      ),
+        const parsed = DelegationParser.parseDelegationResult(turnResult.finalResponse)
+        return { status: "success" as const, summary, sessionId, review: parsed?.review }
+      }),
     ),
 })
 

@@ -335,7 +335,7 @@ bun --cwd packages/aigcfroge typecheck
 ### Exit
 
 ```bash
-bun --cwd packages/core test --timeout 30000 test/delegation-cli-participant.test.ts test/cli-sdk-adapters.test.ts test/cli-adapters.test.ts test/cli-acp-adapter.test.ts test/task-driver-fill.test.ts
+bun --cwd packages/core test --timeout 30000 test/delegation-codex-participant.test.ts test/cli-sdk-adapters.test.ts test/cli-adapters.test.ts test/cli-acp-adapter.test.ts test/task-driver-fill.test.ts
 bun --cwd packages/core typecheck
 ```
 

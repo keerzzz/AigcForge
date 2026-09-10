@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { AppRuntime } from "../../src/effect/app-runtime"
 import { disposeAllInstances } from "../fixture/fixture"
@@ -19,6 +20,10 @@ test("AppRuntime provides V2 SessionStore and SessionV2 services", async () => {
     Effect.gen(function* () {
       yield* SessionStore.Service
       yield* SessionV2.Service
+      // DelegationExecution must be built against the same live V2 Session layer;
+      // resolving it here guards the production composition against a hidden
+      // noop/default SessionExecution fallback.
+      yield* DelegationExecution.Service
     }) as never,
   )
 })

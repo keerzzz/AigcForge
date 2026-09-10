@@ -54,6 +54,9 @@ import { Database } from "@aigcfroge/core/database/database"
 import { LayerNode } from "@aigcfroge/core/effect/layer-node"
 import { httpClient } from "@aigcfroge/core/effect/layer-node-platform"
 import { EventV2 } from "@aigcfroge/core/event"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
+import { DelegationRecovery } from "@aigcfroge/core/delegation/recovery"
 import { ModelsDev } from "@aigcfroge/core/models-dev"
 import { Npm } from "@aigcfroge/core/npm"
 import { ProjectV2 } from "@aigcfroge/core/project"
@@ -117,6 +120,7 @@ import { ptyConnectHandlers, ptyHandlers } from "./handlers/pty"
 import { questionHandlers } from "./handlers/question"
 import { sessionHandlers } from "./handlers/session"
 import { agentTaskHandlers } from "./handlers/agent-task"
+import { delegationHandlers } from "./handlers/delegation"
 import { scheduleHandlers } from "./handlers/schedule"
 import { memoryHandlers } from "./handlers/memory"
 import { kbHandlers } from "./handlers/kb"
@@ -203,6 +207,7 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     providerHandlers,
     sessionHandlers,
     agentTaskHandlers,
+    delegationHandlers,
     scheduleHandlers,
     memoryHandlers,
     kbHandlers,
@@ -215,9 +220,17 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
 const v2TaskDriverRuntimeLayer = TaskDriver.runtimeLayer
 const v2RuntimeWithTaskDriver = v2RuntimeLayer.pipe(Layer.provideMerge(v2TaskDriverRuntimeLayer))
 const v2ShareWithTaskDriver = v2ShareLayer.pipe(Layer.provideMerge(v2TaskDriverRuntimeLayer))
+const v2DelegationExecutionLayer = DelegationExecution.layer.pipe(
+  Layer.provide(v2RuntimeWithTaskDriver),
+  Layer.provide(DelegationService.defaultLayer),
+  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provideMerge(v2TaskDriverRuntimeLayer),
+)
 const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
   Layer.provideMerge(v2RuntimeWithTaskDriver),
+  Layer.provide(v2DelegationExecutionLayer),
   Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
   Layer.provide(EventV2.defaultLayer),
   Layer.provideMerge(v2TaskDriverRuntimeLayer),
 )
@@ -228,8 +241,9 @@ const workflowExecutionLayer = WorkflowExecutionLocal.defaultLayer.pipe(
 )
 
 const instanceRoutes = instanceApiRoutes.pipe(
-  Layer.provide(v2RuntimeWithTaskDriver),
+  Layer.provideMerge(v2RuntimeWithTaskDriver),
   Layer.provide(v2ShareWithTaskDriver),
+  Layer.provide(v2DelegationExecutionLayer),
   Layer.provideMerge(v2TaskDriverFillLayer),
   Layer.provide(workflowExecutionLayer),
   Layer.provide(httpApiAuthLayer),
@@ -238,6 +252,7 @@ const instanceRoutes = instanceApiRoutes.pipe(
   Layer.provide(schemaErrorLayer),
   Layer.provide(SessionPermissionOverride.locationLayer),
 )
+const instanceRoutesForApp = Layer.effectDiscard(Layer.build(instanceRoutes))
 const serverRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(handlers),
   Layer.provide(PluginPtyEnvironment.layer),
@@ -329,6 +344,9 @@ const app = LayerNode.group([
   InstanceStore.node,
   httpClient,
   EventV2.node,
+  DelegationService.node,
+  DelegationRecovery.node,
+  DelegationRecovery.startupNode,
   ProjectV2.node,
   ProjectCopy.node,
   PtyTicket.node,
@@ -357,7 +375,7 @@ export function createRoutes(
     rootApiRoutes,
     eventApiRoutes,
     ptyConnectApiRoutes,
-    instanceRoutes,
+    instanceRoutesForApp,
     serverRoutes,
     docRoute,
     uiRoute,
@@ -372,6 +390,8 @@ export function createRoutes(
       HttpServer.layerServices,
     ]),
     Layer.provide(LayerNode.buildLayer(app)),
+    Layer.provide(v2RuntimeWithTaskDriver),
+    Layer.provide(v2DelegationExecutionLayer),
     Layer.provide(Layer.succeed(CorsConfig)(corsOptions)),
     // Must stay last: layers provided later in this pipe build beneath earlier ones,
     // so Observability must come after every service graph. Otherwise eagerly forked

@@ -33,6 +33,7 @@ Flag.AIGCFROGE_MODELS_PATH = exerciseModelsPath
 // The exerciser covers the enabled path; the disabled 400 behavior is asserted
 // by the capability-matrix unit tests, so enable the flag for the whole run.
 process.env.AIGCFROGE_CUSTOM_MODE = "true"
+process.env.AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS = "true"
 
 export const original = {
   AIGCFROGE_SERVER_PASSWORD: Flag.AIGCFROGE_SERVER_PASSWORD,

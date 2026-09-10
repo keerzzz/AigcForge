@@ -23,6 +23,10 @@ import {
 } from "@aigcfroge/llm"
 import * as OpenAIChat from "@aigcfroge/llm/protocols/openai-chat"
 import { Database } from "@aigcfroge/core/database/database"
+import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { DelegationEvent } from "@aigcfroge/core/delegation/event"
+import { DelegationProjector } from "@aigcfroge/core/delegation/projector"
 import { EventV2 } from "@aigcfroge/core/event"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { Project } from "@aigcfroge/core/project"
@@ -60,7 +64,8 @@ import { AgentV2 } from "@aigcfroge/core/agent"
 import { Config } from "@aigcfroge/core/config"
 import { ConfigMeta } from "../src/config/meta"
 import { ConfigCompaction } from "@aigcfroge/core/config/compaction"
-import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
+import { DelegationTable } from "@aigcfroge/core/delegation/sql"
+import { SessionInputTable, SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionTask } from "@aigcfroge/core/session/task"
@@ -277,6 +282,7 @@ const taskTool = TaskTool.layer.pipe(
   Layer.provide(toolsRegister),
   Layer.provide(config),
   Layer.provide(EventV2.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
 )
 
 const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
@@ -345,13 +351,24 @@ const sessions = SessionV2.layer.pipe(
   Layer.provide(sessionComposition),
   Layer.provide(execution),
 )
+const delegationExecution = DelegationExecution.layer.pipe(
+  Layer.provide(DelegationService.defaultLayer),
+  Layer.provide(sessions),
+  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provideMerge(TaskDriver.runtimeLayer),
+)
 const taskDriverInitializer = Layer.effectDiscard(
   Effect.gen(function* () {
     const sessions = yield* SessionV2.Service
     const background = yield* BackgroundJob.Service
+    const delegation = yield* DelegationService.Service
+    const delegationOwner = yield* DelegationExecution.Service
     yield* TaskDriver.initialize(
       yield* TaskDriver.installForTesting(
-        sessions,
+        {
+          ...sessions,
+          settleDelivery: (input) => delegation.recordDelivery(input),
+        },
         {
           start: (sessionID, work) => background.start({ id: sessionID, type: "task", run: work.pipe(Effect.as("")) }),
           wait: (sessionID) =>
@@ -366,6 +383,7 @@ const taskDriverInitializer = Layer.effectDiscard(
               ),
           cancel: (sessionID) => background.cancel(sessionID).pipe(Effect.asVoid),
           extend: (sessionID, work) => background.extend({ id: sessionID, run: work.pipe(Effect.as("")) }),
+          isRunning: (sessionID) => background.get(sessionID).pipe(Effect.map((info) => info?.status === "running")),
         },
         {
           execute: (input) => {
@@ -379,6 +397,7 @@ const taskDriverInitializer = Layer.effectDiscard(
             )
           },
         },
+        delegationOwner.dispatch,
       ),
     )
   }),
@@ -405,8 +424,19 @@ const rootServices = Layer.mergeAll(
   runner,
   execution,
   sessions,
+  delegationExecution,
   taskTool,
-).pipe(Layer.provideMerge(Layer.mergeAll(agents, permission, SessionTask.defaultLayer, BackgroundJob.defaultLayer)))
+).pipe(
+  Layer.provideMerge(
+    Layer.mergeAll(
+      agents,
+      permission,
+      SessionTask.defaultLayer,
+      BackgroundJob.defaultLayer,
+      DelegationService.defaultLayer,
+    ),
+  ),
+)
 
 const it = testEffect(taskDriverInitializer.pipe(Layer.provideMerge(rootServices)))
 
@@ -501,6 +531,188 @@ describe("task tool — child Session delegation", () => {
               .join("")
           : ""
       expect(childText).toBe("child result payload")
+
+      const { db } = yield* Database.Service
+      const delegation = yield* DelegationService.Service
+      const delegationRow = yield* db
+        .select({ id: DelegationTable.id })
+        .from(DelegationTable)
+        .where(eq(DelegationTable.parent_session_id, parentID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(delegationRow).toBeDefined()
+      if (!delegationRow) return
+      const state = yield* delegation.foldState(delegationRow.id)
+      const turn = state ? [...state.turns.values()][0] : undefined
+      const participant = state ? [...state.participants.values()][0] : undefined
+      expect(turn).toBeDefined()
+      expect(participant).toBeDefined()
+      if (!turn || !participant) return
+      const inputRow = yield* db
+        .select()
+        .from(SessionInputTable)
+        .where(eq(SessionInputTable.session_id, children[0].id))
+        .get()
+        .pipe(Effect.orDie)
+      expect(inputRow?.delegation_origin).toEqual({
+        turnID: turn.id,
+        deliveryOrigin: "meta",
+        senderParticipantID: participant.id,
+      })
+      const childUser = childMessages.find((message) => message.type === "user")
+      expect(childUser?.type === "user" ? childUser.delegationOrigin : undefined).toEqual({
+        turnID: turn.id,
+        deliveryOrigin: "meta",
+        senderParticipantID: participant.id,
+      })
+    }),
+  )
+
+  it.live("DelegationExecution.drain runs an internal Build through the real SessionRunner", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const service = yield* DelegationService.Service
+      const background = yield* BackgroundJob.Service
+      const execution = yield* DelegationExecution.Service
+      const { db } = yield* Database.Service
+
+      const delegation = yield* service.create({ parentSessionID: parentID, title: "real drain" })
+      const participant = yield* service.addParticipant({
+        delegationID: delegation.id,
+        provider: "internal",
+        target: "build",
+        role: "implementer",
+        context: "fresh",
+      })
+      const turn = yield* service.appendTurn({
+        delegationID: delegation.id,
+        kind: "task",
+        promptSummary: "Run the real child runner",
+        participantIDs: [participant.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "meta", senderParticipantID: participant.id },
+      })
+
+      yield* execution.drain(delegation.id)
+
+      const admittedState = yield* service.foldState(delegation.id)
+      const childSessionID = admittedState?.participants.get(participant.id)?.childSessionID
+      expect(childSessionID).toBeDefined()
+      if (childSessionID === undefined) return
+
+      const job = yield* background.wait({ id: childSessionID })
+      expect(job.info?.status).toBe("completed")
+
+      const childMessages = yield* session.context(childSessionID)
+      const childAssistant = childMessages.find((message) => message.type === "assistant")
+      const childText =
+        childAssistant?.type === "assistant"
+          ? childAssistant.content
+              .filter((part) => part.type === "text")
+              .map((part) => part.text)
+              .join("")
+          : ""
+      expect(childText).toBe("child result payload")
+
+      const input = yield* db
+        .select()
+        .from(SessionInputTable)
+        .where(eq(SessionInputTable.session_id, childSessionID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(input?.delegation_origin).toEqual({
+        turnID: turn.id,
+        deliveryOrigin: "meta",
+        senderParticipantID: participant.id,
+      })
+      expect(input?.promoted_seq).toEqual(expect.any(Number))
+
+      const finalState = yield* pollWithTimeout(
+        service.foldState(delegation.id).pipe(
+          Effect.map((state) => {
+            const delivery = state === undefined ? undefined : [...state.deliveries.values()][0]
+            return delivery?.status === "completed" ? state : undefined
+          }),
+        ),
+        "real DelegationExecution.drain did not settle the delivery",
+      )
+      expect(finalState.turns.get(turn.id)?.status).toBe("completed")
+      expect(finalState.deliveries.get(JSON.stringify([turn.id, participant.id, "meta", participant.id]))?.status).toBe(
+        "completed",
+      )
+    }),
+  )
+
+  it.live("DelegationExecution external jobs report activity and cancel durably", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const gate = yield* Deferred.make<void>()
+      const started = yield* Deferred.make<void>()
+      cliGate = gate
+      cliStarted = started
+      const service = yield* DelegationService.Service
+      const background = yield* BackgroundJob.Service
+      const execution = yield* DelegationExecution.Service
+
+      const delegation = yield* service.create({ parentSessionID: parentID, title: "external lifecycle" })
+      const participant = yield* service.addParticipant({
+        delegationID: delegation.id,
+        provider: "external",
+        target: "claude-code",
+        role: "reviewer",
+        context: "fresh",
+      })
+      const turn = yield* service.appendTurn({
+        delegationID: delegation.id,
+        kind: "review",
+        promptSummary: "Review the change",
+        participantIDs: [participant.id],
+        delivery: "steer",
+        origin: { deliveryOrigin: "meta", senderParticipantID: participant.id },
+      })
+
+      const result = yield* execution.dispatch({
+        delegationID: delegation.id,
+        participantID: participant.id,
+        turnID: turn.id,
+        parentID: parentID,
+        prompt: "Review the change",
+        description: "External review",
+        background: true,
+        queue: false,
+        delivery: {
+          delegationID: delegation.id,
+          participantID: participant.id,
+          turnID: turn.id,
+          deliveryOrigin: "meta",
+          senderParticipantID: participant.id,
+          delivery: "steer",
+          attempt: 1,
+        },
+        execution: "external",
+        cliTarget: "claude-code",
+      })
+      expect(result.status).toBe("running")
+
+      yield* Deferred.await(started)
+      expect(yield* execution.isActive(delegation.id)).toBe(true)
+
+      yield* execution.interrupt(delegation.id, participant.id)
+      const job = yield* background.wait({ id: `cli_${delegation.id}_${participant.id}` })
+      expect(job.info?.status).toBe("cancelled")
+
+      const state = yield* pollWithTimeout(
+        service.foldState(delegation.id).pipe(
+          Effect.map((current) => {
+            const delivery = current === undefined ? undefined : [...current.deliveries.values()][0]
+            return delivery?.status === "cancelled" ? current : undefined
+          }),
+        ),
+        "external DelegationExecution delivery did not settle cancelled",
+      )
+      expect(state.turns.get(turn.id)?.status).toBe("cancelled")
+      expect(yield* execution.isActive(delegation.id)).toBe(false)
     }),
   )
 
@@ -565,7 +777,7 @@ describe("task tool — child Session delegation", () => {
     }),
   )
 
-  it.live("retries once when the child drain crashes, cancelling the orphaned child", () =>
+  it.live("retries once in the same child Session with a new delivery attempt", () =>
     Effect.gen(function* () {
       yield* setup
       childStreamFailures = 1
@@ -575,17 +787,50 @@ describe("task tool — child Session delegation", () => {
       yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate" }), resume: false })
       yield* session.resume(parentID)
 
-      // First child drain crashed → DelegateError → retry cancelled the orphan
-      // and created a fresh child that succeeded. Two children now exist.
+      // The durable participant owns one child Session across retries. Attempt 1
+      // fails, attempt 2 reuses that child and settles the same delivery.
       const children = yield* session.children(parentID)
-      expect(children.length).toBe(2)
-      // The orphan's job settled as "error" (drain crashed); the retry's job
-      // completed. cancel on an already-settled job is a no-op, so the orphan's
-      // status reflects the crash, not the cleanup.
-      const orphanJob = yield* background.get(children[0].id)
-      expect(orphanJob?.status).toBe("error")
-      const retryJob = yield* background.get(children[1].id)
-      expect(retryJob?.status).toBe("completed")
+      expect(children).toHaveLength(1)
+      expect((yield* background.get(children[0].id))?.status).toBe("completed")
+
+      const delegation = yield* DelegationService.Service
+      const { db } = yield* Database.Service
+      const row = yield* db
+        .select({ id: DelegationTable.id, status: DelegationTable.status })
+        .from(DelegationTable)
+        .where(eq(DelegationTable.parent_session_id, parentID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(row).toBeDefined()
+      if (!row) return
+      const events = yield* DelegationProjector.readEvents(db, row.id)
+      const startedAttempts = events
+        .filter((event) => event.type === DelegationEvent.DeliveryStarted.type)
+        .map((event) => Schema.decodeUnknownSync(DelegationEvent.DeliveryStartedData)(event.data).attempt)
+      const completedAttempts = events
+        .filter((event) => event.type === DelegationEvent.DeliveryCompleted.type)
+        .map((event) => Schema.decodeUnknownSync(DelegationEvent.DeliveryCompletedData)(event.data).attempt)
+      const failedAttempts = events
+        .filter((event) => event.type === DelegationEvent.DeliveryFailed.type)
+        .map((event) => Schema.decodeUnknownSync(DelegationEvent.DeliveryFailedData)(event.data).attempt)
+      const childRequests = requests.filter((request) => request.providerOptions?.openai?.promptCacheKey !== parentID)
+      expect(childRequests).toHaveLength(2)
+      const childMessages = yield* session.context(children[0].id)
+      const childTexts = childMessages
+        .filter((message) => message.type === "assistant")
+        .flatMap((message) => message.content)
+        .filter((part) => part.type === "text")
+        .map((part) => part.text)
+      expect(childTexts).toEqual(["child result payload"])
+      expect(startedAttempts).toEqual([1, 2])
+      expect(failedAttempts).toEqual([1])
+      expect(completedAttempts).toEqual([2])
+      const state = yield* delegation.foldState(row.id)
+      expect(state?.delegation.status).toBe("approved")
+      const delivery = state ? [...state.deliveries.values()][0] : undefined
+      expect(delivery?.attempt).toBe(2)
+      expect(delivery?.status).toBe("completed")
+      expect(state ? [...state.participants.values()][0]?.phase : undefined).toBe("active")
     }),
   )
 
@@ -640,6 +885,8 @@ describe("task tool — child Session delegation", () => {
       backgroundMode = true
       const session = yield* SessionV2.Service
       const background = yield* BackgroundJob.Service
+      const delegation = yield* DelegationService.Service
+      const { db } = yield* Database.Service
 
       // Start the parent drain which delegates to a background child.
       const fiber = yield* Effect.gen(function* () {
@@ -649,6 +896,23 @@ describe("task tool — child Session delegation", () => {
 
       // Wait until the child's stream is mid-flight, then interrupt the parent.
       yield* Deferred.await(started)
+      const childrenBeforeInterrupt = yield* session.children(parentID)
+      expect(childrenBeforeInterrupt).toHaveLength(1)
+      const childID = childrenBeforeInterrupt[0].id
+      const pending = yield* session.prompt({
+        sessionID: childID,
+        prompt: Prompt.make({ text: "queued after active delivery" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const delegationRow = yield* db
+        .select({ id: DelegationTable.id })
+        .from(DelegationTable)
+        .where(eq(DelegationTable.parent_session_id, parentID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(delegationRow).toBeDefined()
+      if (!delegationRow) return
       yield* session.interrupt(parentID)
       yield* Deferred.succeed(gate, undefined)
 
@@ -657,12 +921,23 @@ describe("task tool — child Session delegation", () => {
       expect(Exit.isFailure(exit)).toBe(true)
 
       // The child's background job was cancelled by the cascade.
-      const children = yield* session.children(parentID)
-      expect(children.length).toBe(1)
-      const childID = children[0].id
       const job = yield* background.get(childID)
-      // "error" or "cancelled" — either is valid depending on timing.
-      expect(job?.status === "error" || job?.status === "cancelled").toBe(true)
+      expect(job?.status).toBe("cancelled")
+      const pendingRows = yield* db.select().from(SessionInputTable).where(eq(SessionInputTable.id, pending.id))
+      expect(pendingRows).toHaveLength(1)
+      expect(pendingRows[0]?.promoted_seq).toBeNull()
+
+      const state = yield* delegation.foldState(delegationRow.id)
+      expect(state?.delegation.status).not.toBe("completed")
+      expect(state?.delegation.status).not.toBe("archived")
+      expect(state ? [...state.deliveries.values()][0]?.status : undefined).toBe("cancelled")
+      const linkedTasks = yield* db
+        .select()
+        .from(TaskTable)
+        .where(eq(TaskTable.session_id, parentID))
+        .all()
+        .pipe(Effect.orDie)
+      expect(linkedTasks.find((task) => task.content === "do work")?.status).toBe("cancelled")
     }),
   )
 
@@ -716,6 +991,103 @@ describe("task tool — child Session delegation", () => {
       const childMessages = yield* session.context(childID)
       const assistantCount = childMessages.filter((message) => message.type === "assistant").length
       expect(assistantCount).toBe(2)
+
+      const { db } = yield* Database.Service
+      const delegation = yield* DelegationService.Service
+      const delegationRow = yield* db
+        .select({ id: DelegationTable.id })
+        .from(DelegationTable)
+        .where(eq(DelegationTable.parent_session_id, parentID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(delegationRow).toBeDefined()
+      if (!delegationRow) return
+      const state = yield* delegation.foldState(delegationRow.id)
+      const turns = state ? [...state.turns.values()].sort((left, right) => left.seq - right.seq) : []
+      expect(turns).toHaveLength(2)
+      expect(turns[1]?.delivery).toBe("queue")
+      const secondDeliveries = state
+        ? [...state.deliveries.values()].filter((delivery) => delivery.turnID === turns[1]?.id)
+        : []
+      expect(secondDeliveries).toHaveLength(1)
+      expect(secondDeliveries[0]?.status).toBe("completed")
+      expect(
+        state
+          ? [...state.deliveries.values()].some((delivery) =>
+              ["admitted", "queued", "running"].includes(delivery.status),
+            )
+          : true,
+      ).toBe(false)
+
+      const events = yield* DelegationProjector.readEvents(db, delegationRow.id)
+      const startedTurnIDs = events
+        .filter((event) => event.type === DelegationEvent.DeliveryStarted.type)
+        .map((event) => Schema.decodeUnknownSync(DelegationEvent.DeliveryStartedData)(event.data).turnID)
+      const completedTurnIDs = events
+        .filter((event) => event.type === DelegationEvent.DeliveryCompleted.type)
+        .map((event) => Schema.decodeUnknownSync(DelegationEvent.DeliveryCompletedData)(event.data).turnID)
+      expect(startedTurnIDs).toContain(turns[1]?.id)
+      expect(completedTurnIDs).toContain(turns[1]?.id)
+    }),
+  )
+
+  it.live("parent interrupt cancels active and queued background deliveries", () =>
+    Effect.gen(function* () {
+      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "true"
+      yield* setup
+      const session = yield* SessionV2.Service
+      const background = yield* BackgroundJob.Service
+      const delegation = yield* DelegationService.Service
+      const { db } = yield* Database.Service
+      const gate = yield* Deferred.make<void>()
+      const started = yield* Deferred.make<void>()
+      streamGate = gate
+      streamStarted = started
+      backgroundMode = true
+
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "delegate bg" }), resume: false })
+      yield* session.resume(parentID)
+      yield* Deferred.await(started)
+      const children = yield* session.children(parentID)
+      expect(children).toHaveLength(1)
+      const childID = children[0].id
+
+      taskCallsEmitted = 0
+      nextTaskID = childID
+      backgroundMode = true
+      yield* session.prompt({ sessionID: parentID, prompt: Prompt.make({ text: "queue bg" }), resume: false })
+      yield* session.resume(parentID)
+
+      const delegationRow = yield* db
+        .select({ id: DelegationTable.id })
+        .from(DelegationTable)
+        .where(eq(DelegationTable.parent_session_id, parentID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(delegationRow).toBeDefined()
+      if (!delegationRow) return
+      const before = yield* delegation.foldState(delegationRow.id)
+      expect(before ? [...before.deliveries.values()].map((delivery) => delivery.status).sort() : []).toEqual([
+        "queued",
+        "running",
+      ])
+
+      yield* session.interrupt(parentID)
+
+      expect((yield* background.get(childID))?.status).toBe("cancelled")
+      const after = yield* delegation.foldState(delegationRow.id)
+      expect(after ? [...after.deliveries.values()].map((delivery) => delivery.status) : []).toEqual([
+        "cancelled",
+        "cancelled",
+      ])
+      const linkedTasks = yield* db
+        .select()
+        .from(TaskTable)
+        .where(eq(TaskTable.session_id, parentID))
+        .all()
+        .pipe(Effect.orDie)
+      expect(linkedTasks).toHaveLength(2)
+      expect(linkedTasks.every((task) => task.status === "cancelled")).toBe(true)
     }),
   )
 
@@ -925,6 +1297,7 @@ describe("task tool — child Session delegation", () => {
       cliGate = gate
       cliStarted = started
       const session = yield* SessionV2.Service
+      const delegation = yield* DelegationService.Service
       const { db } = yield* Database.Service
 
       // Fork the parent drain; the CLI executor blocks on `gate` mid-dispatch.
@@ -958,6 +1331,25 @@ describe("task tool — child Session delegation", () => {
         "external-cli linked task did not settle after parent abort",
       )
       expect(linked.status).toBe("cancelled")
+
+      const delegationRow = yield* db
+        .select({ id: DelegationTable.id })
+        .from(DelegationTable)
+        .where(eq(DelegationTable.parent_session_id, parentID))
+        .get()
+        .pipe(Effect.orDie)
+      expect(delegationRow).toBeDefined()
+      if (delegationRow === undefined) return
+      const state = yield* pollWithTimeout(
+        delegation.foldState(delegationRow.id).pipe(
+          Effect.map((folded) => {
+            const delivery = folded === undefined ? undefined : [...folded.deliveries.values()][0]
+            return delivery?.status === "cancelled" ? folded : undefined
+          }),
+        ),
+        "external-cli delivery did not settle cancelled after parent abort",
+      )
+      expect([...state.deliveries.values()][0]?.status).toBe("cancelled")
     }),
   )
 

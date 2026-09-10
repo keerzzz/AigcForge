@@ -310,7 +310,23 @@ exports[`tool parameters JSON Schema (wire shape) task 1`] = `
       "type": "string",
     },
     "command": {
-      "description": "The command that triggered this task",
+      "enum": [
+        "append",
+        "steer",
+        "interrupt",
+        "close",
+        "retry",
+        "reconcile",
+        "archive",
+        "unarchive",
+        "fork",
+        "purge",
+        "retract_rejection",
+      ],
+      "type": "string",
+    },
+    "delegation_id": {
+      "description": "Optional persistent delegation ID to route this task turn into an existing delegation",
       "type": "string",
     },
     "description": {
@@ -325,6 +341,13 @@ exports[`tool parameters JSON Schema (wire shape) task 1`] = `
       ],
       "type": "string",
     },
+    "new_delegation": {
+      "description": "When true, create a fresh persistent delegation instead of reusing the currently active one",
+      "type": "boolean",
+    },
+    "participant_id": {
+      "type": "string",
+    },
     "prompt": {
       "description": "The task for the agent to perform",
       "type": "string",
@@ -335,6 +358,9 @@ exports[`tool parameters JSON Schema (wire shape) task 1`] = `
     },
     "task_id": {
       "description": "This should only be set if you mean to resume a previous task (you can pass a prior task_id and the task will continue the same subagent session as before instead of creating a fresh one)",
+      "type": "string",
+    },
+    "turn_id": {
       "type": "string",
     },
   },

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect } from "bun:test"
 import { Cause, Effect, Layer } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Database } from "@aigcfroge/core/database/database"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
 import { EventV2 } from "@aigcfroge/core/event"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Location } from "@aigcfroge/core/location"
@@ -133,6 +134,7 @@ const taskTool = TaskTool.layer.pipe(
   Layer.provide(AgentV2.layer),
   Layer.provide(permission),
   Layer.provide(SessionTask.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
 )
 
 const taskDriverRuntime = Layer.effect(
@@ -1082,6 +1084,7 @@ const taskToolNoComposition = TaskTool.layer.pipe(
   Layer.provide(AgentV2.layer),
   Layer.provide(permission),
   Layer.provide(SessionTask.defaultLayer),
+  Layer.provide(DelegationService.defaultLayer),
 )
 
 const skillToolNoComposition = SkillTool.layer.pipe(

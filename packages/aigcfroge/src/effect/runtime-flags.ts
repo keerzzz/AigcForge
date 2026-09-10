@@ -41,6 +41,8 @@ export class Service extends ConfigService.Service<Service>()("@aigcfroge/Runtim
   enableQuestionTool: bool("AIGCFROGE_ENABLE_QUESTION_TOOL"),
   experimentalReferences: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_REFERENCES"),
   experimentalBackgroundSubagents: enabledByExperimental("AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS"),
+  experimentalPersistentDelegations: bool("AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS"),
+  experimentalDelegationRecovery: bool("AIGCFROGE_EXPERIMENTAL_DELEGATION_RECOVERY"),
   experimentalChatAsset: Config.all({
     experimental,
     enabled: Config.boolean("AIGCFROGE_EXPERIMENTAL_CHAT_ASSET").pipe(Config.option),

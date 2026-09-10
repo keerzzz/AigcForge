@@ -9,6 +9,7 @@ import { SessionSchema } from "./schema"
 import { Location } from "../location"
 import { SessionMessageID } from "./message-id"
 import { SessionMessage } from "./message"
+import { DelegationOrigin } from "@aigcfroge/schema/session-input"
 
 export { FileAttachment }
 
@@ -30,6 +31,7 @@ const PromptFields = {
   messageID: SessionMessageID.ID,
   prompt: Prompt,
   delivery: Delivery,
+  delegationOrigin: DelegationOrigin.pipe(Schema.optional),
 }
 
 const ShellFields = {
