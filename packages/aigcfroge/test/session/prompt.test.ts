@@ -1221,7 +1221,9 @@ it.instance(
       expect((yield* status.get(chat.id)).type).toBe("idle")
       expect((yield* status.get(childID)).type).toBe("idle")
     }),
-  10_000,
+  // Windows runs the package suite under substantially higher contention; all synchronization
+  // above is signal-based, so this is only a whole-test budget rather than a timing dependency.
+  30_000,
 )
 
 it.instance(
