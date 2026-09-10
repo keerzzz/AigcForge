@@ -1,3 +1,8 @@
+import { ChangedLines } from "@aigcfroge/script/changed-lines"
+
+const { addedLinesOfFile, findBadBunCwdRun, isCommandGateExempt, normalizePath, parseAddedLines, resolveBaseline } =
+  ChangedLines
+
 const guardedRules = [
   "typescript/no-unsafe-type-assertion",
   "typescript/consistent-return",
@@ -17,16 +22,35 @@ const guardedRuleIDs = new Set(
   }),
 )
 const sourcePattern = /\.(?:[cm]?[jt]s|[jt]sx)$/
+const markdownPattern = /\.mdx?$/
 
-const target = await resolveTarget()
+const target = await resolveBaseline(process.env)
 const base = (await git(["merge-base", "HEAD", target])).trim()
 const diff = await git(["diff", "--unified=0", "--no-color", base, "--"])
 const added = parseAddedLines(diff)
 
 for (const file of (await git(["ls-files", "--others", "--exclude-standard", "-z"])).split("\0").filter(Boolean)) {
-  if (!sourcePattern.test(file)) continue
-  const lines = (await Bun.file(file).text()).split(/\r?\n/)
-  added.set(file, new Set(lines.map((_, index) => index + 1)))
+  if (!sourcePattern.test(file) && !markdownPattern.test(file)) continue
+  added.set(file, addedLinesOfFile(await Bun.file(file).text()))
+}
+
+// Markdown command gate: `bun --cwd <pkg> run <script>` silently does nothing
+// on bun, so newly added instances in docs are rejected; history is untouched.
+const markdownViolations: Array<{ file: string; line: number; text: string }> = []
+for (const [file, lines] of added) {
+  if (!markdownPattern.test(file) || Bun.file(file).size === 0) continue
+  // Meta documentation quotes the bad form to describe it (isCommandGateExempt).
+  if (isCommandGateExempt(file)) continue
+  for (const violation of findBadBunCwdRun(lines, await Bun.file(file).text())) {
+    markdownViolations.push({ file, ...violation })
+  }
+}
+if (markdownViolations.length > 0) {
+  console.error("Incremental lint found new `bun --cwd <pkg> run <script>` commands (silent no-op on bun):")
+  for (const violation of markdownViolations) {
+    console.error(`${violation.file}:${violation.line} ${violation.text}`)
+  }
+  process.exit(1)
 }
 
 const files = Array.from(added.keys()).filter((file) => sourcePattern.test(file) && Bun.file(file).size > 0)
@@ -99,17 +123,6 @@ type Diagnostic = {
   labels: Array<{ span: { offset: number; length: number; line: number; column: number } }>
 }
 
-async function resolveTarget() {
-  const requested =
-    process.env.LINT_BASE_REF || (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : "main")
-  const probe = Bun.spawn(["git", "rev-parse", "--verify", "--quiet", requested], {
-    stdout: "ignore",
-    stderr: "ignore",
-  })
-  if ((await probe.exited) === 0) return requested
-  return "HEAD"
-}
-
 async function git(args: string[]) {
   const child = Bun.spawn(["git", ...args], { stdout: "pipe", stderr: "pipe" })
   const [stdout, stderr, exitCode] = await Promise.all([
@@ -119,44 +132,6 @@ async function git(args: string[]) {
   ])
   if (exitCode === 0) return stdout
   throw new Error(`git ${args.join(" ")} failed: ${stderr.trim()}`)
-}
-
-function parseAddedLines(diff: string) {
-  const files = new Map<string, Set<number>>()
-  let file: string | undefined
-  let line = 0
-  let hunk = false
-
-  for (const row of diff.split("\n")) {
-    if (row.startsWith("diff --git ")) {
-      file = undefined
-      hunk = false
-      continue
-    }
-    if (row.startsWith("+++ b/")) {
-      file = normalizePath(row.slice("+++ b/".length))
-      if (!files.has(file)) files.set(file, new Set())
-      continue
-    }
-    if (row.startsWith("@@")) {
-      const match = row.match(/\+(\d+)(?:,\d+)?/)
-      if (!match) continue
-      line = Number(match[1])
-      hunk = true
-      continue
-    }
-    if (!file || !hunk || row.startsWith("\\ No newline")) continue
-    if (row.startsWith("+")) {
-      files.get(file)?.add(line)
-      line++
-      continue
-    }
-    if (row.startsWith("-")) continue
-    line++
-  }
-
-  for (const [name, lines] of files) if (lines.size === 0) files.delete(name)
-  return files
 }
 
 function parseOutput(input: string): unknown {
@@ -209,10 +184,4 @@ function isBunAsyncMatcher(diagnostic: Diagnostic, source: string) {
       .slice(Math.max(0, line - 1), line + 5)
       .join("\n"),
   )
-}
-
-function normalizePath(path: string) {
-  const normalized = path.replaceAll("\\", "/")
-  const root = `${process.cwd().replaceAll("\\", "/")}/`
-  return normalized.startsWith(root) ? normalized.slice(root.length) : normalized
 }

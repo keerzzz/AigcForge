@@ -2,6 +2,15 @@ import { expect, test, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
+import { pinEnglishUI } from "../utils/locale"
+import { pinDesktopViewport } from "../utils/viewport"
+
+// English-label, desktop-geometry spec — pin the UI language and viewport so the
+// zh/zht and narrow presentation projects stay green (see utils/locale.ts, utils/viewport.ts).
+test.beforeEach(async ({ page }) => {
+  await pinEnglishUI(page)
+  await pinDesktopViewport(page)
+})
 
 /**
  * S6 RED for P1-HOME-CUSTOM — the global Home's mode filter list is hand-copied.

@@ -4,6 +4,10 @@ import { fixture, pageMessages } from "./session-timeline.fixture"
 import { trackPageErrors, expectNoSmokeErrors } from "../utils/errors"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { APP_READY_TIMEOUT, expectAppVisible, expectSessionTitle } from "../utils/waits"
+import { pinEnglishUI } from "../utils/locale"
+
+// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
+test.beforeEach(({ page }) => pinEnglishUI(page))
 
 const messages: Record<string, (typeof fixture.messages)[keyof typeof fixture.messages]> = fixture.messages
 

@@ -35,7 +35,7 @@ export const AdmittedPrompt = Schema.Struct({
   kind: Schema.Literal("prompt"),
   ...Base,
   prompt: Prompt,
-  delegationOrigin: DelegationOrigin.pipe(Schema.optional),
+  delegationOrigin: DelegationOrigin.pipe(Schema.optionalKey),
 }).annotate({ identifier: "SessionInput.AdmittedPrompt" })
 
 /** User-run shell command admitted to the durable inbox. */

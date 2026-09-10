@@ -583,7 +583,7 @@ export const layer = Layer.effect(
             { sessionID, info },
             {
               location: input.location,
-              commit: () => sessionComposition.attach(sessionID, snapshot).pipe(Effect.orDie),
+              commit: (_seq, tx) => SessionComposition.insertSnapshot(tx, sessionID, snapshot),
             },
           )
           .pipe(
@@ -870,7 +870,7 @@ export const layer = Layer.effect(
                     timestamp,
                     prompt: input.prompt,
                     delivery,
-                    delegationOrigin: input.delegationOrigin,
+                    ...(input.delegationOrigin === undefined ? {} : { delegationOrigin: input.delegationOrigin }),
                   }),
                 ])
                 const promoted = committed.find((event) => event.type === SessionEvent.PromptAdmitted.type)
@@ -884,7 +884,7 @@ export const layer = Layer.effect(
                   sessionID: input.sessionID,
                   prompt: input.prompt,
                   delivery,
-                  delegationOrigin: input.delegationOrigin,
+                  ...(input.delegationOrigin === undefined ? {} : { delegationOrigin: input.delegationOrigin }),
                   timeCreated: timestamp,
                 })
               }))

@@ -72,6 +72,7 @@ import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
 import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
 import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
@@ -350,6 +351,7 @@ const app = LayerNode.group([
   ProjectCopy.node,
   PtyTicket.node,
   SessionTask.node,
+  SessionStore.node,
   SessionTodo.node,
   // M3 scheduler: runner + daemon (startup arm, minute tick, task.updated re-arm).
   ScheduledJob.node,

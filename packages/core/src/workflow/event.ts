@@ -32,15 +32,15 @@ export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()("W
 export const publish = Effect.fn("WorkflowEvent.publish")(function* (
   events: EventV2.Interface,
   update: Update,
-  commit: (seq: number) => Effect.Effect<boolean>,
+  commit: (tx: EventV2.Transaction) => Effect.Effect<boolean>,
 ) {
   return yield* events
     .publish(Updated, update, {
-      commit: (seq) => {
+      commit: (seq, tx) => {
         if (seq + 1 !== update.revision) {
           return Effect.die(new CommitRejected({ runID: update.runID, revision: update.revision }))
         }
-        return commit(seq).pipe(
+        return commit(tx).pipe(
           Effect.flatMap((accepted) =>
             accepted ? Effect.void : Effect.die(new CommitRejected({ runID: update.runID, revision: update.revision })),
           ),

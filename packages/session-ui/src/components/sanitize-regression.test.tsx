@@ -1,7 +1,16 @@
 import { describe, expect, test } from "bun:test"
 import { sanitizeMarkdown } from "./markdown-cache"
 
-describe("sanitize regression", () => {
+// This file pins the sanitizer configuration and pure-function contract: for a
+// given input, it verifies which tags, attributes, and protocols survive. It is
+// not evidence of browser DOM behavior.
+//
+// Browser behavior is covered in real Chromium by
+// `packages/app/e2e/regression/markdown-sanitize.spec.ts`. happy-dom invalidates
+// its NodeIterator when the current node is removed, so later nodes can skip
+// attribute sanitization. Keep every dangerous node first in these payloads;
+// only the Chromium test may assert behavior after an unrelated removed node.
+describe("sanitize regression (config contract)", () => {
   test("script tag is stripped", () => {
     const result = sanitizeMarkdown("<script>alert(1)</script><p>hello</p>")
     expect(result).not.toContain("<script>")
@@ -51,17 +60,12 @@ describe("sanitize regression", () => {
     expect(sanitizeMarkdown("")).toBe("")
   })
 
-  // 注意 happy-dom 的一致性缺口：DOMPurify 依赖 live NodeIterator，而 happy-dom 的
-  // iterator 在当前节点被 removeChild 后失效 —— 只要 payload 前面有任何元素被删除，
-  // 它之后的节点就完全跳过属性消毒（onclick / javascript: / style 全部存活）。
-  // 所以本文件的断言只对「payload 位于文档首位」成立，真正的消毒证据在
-  // packages/app/e2e/regression/markdown-sanitize.spec.ts（真实 Chromium + 真实几何）。
   test("out-of-flow positioning is stripped while the style attribute itself survives", () => {
     const result = sanitizeMarkdown('<p style="position:fixed;inset:0;z-index:99999">OVERLAY</p>')
     expect(result).toContain("OVERLAY")
-    // position 一旦移除，inset/z-index 随之失效，元素回到文档流。
+    // Removing position also neutralizes inset/z-index and returns the element to normal flow.
     expect(result).not.toContain("position:")
-    // style 整条不能禁：KaTeX 的视觉层靠内联 height/top/vertical-align 定位。
+    // Keep the style attribute: KaTeX uses inline height/top/vertical-align for visual positioning.
     expect(sanitizeMarkdown('<span style="height:1.04em;vertical-align:-0.34em">M</span>')).toContain("height:")
   })
 
@@ -86,10 +90,10 @@ describe("sanitize regression", () => {
     expect(result).not.toContain("<button")
   })
 
-  // 图片保留是刻意决定：服务端 CSP 明确允许 img-src 'self' data: https:
-  // （packages/aigcfroge/src/server/shared/ui.ts），timeline-playground.stories.tsx
-  // 也用 ![Alt text](…) 作渲染 fixture。远程图片的信标外泄面记在
-  // docs/technical-debt.md，属 CSP 收窄的独立决定，不在 sanitizer 层用禁标签解决。
+  // Preserving images is deliberate: the server CSP allows img-src 'self' data: https:
+  // (packages/aigcfroge/src/server/shared/ui.ts), and timeline-playground.stories.tsx
+  // uses ![Alt text](…) as a rendering fixture. The remote-image beacon surface is
+  // tracked in docs/technical-debt.md as a separate CSP decision, not a sanitizer ban.
   test("markdown images are preserved (remote, data: and root-relative)", () => {
     for (const src of ["https://example.com/x.png", "data:image/png;base64,iVBORw0KGgo=", "/local/file.png"]) {
       const result = sanitizeMarkdown(`<p><img src="${src}" alt="alt"></p>`)

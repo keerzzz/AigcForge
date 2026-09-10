@@ -2,6 +2,10 @@ import { expect, test, type Page, type Request } from "@playwright/test"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { trackPageErrors } from "../utils/errors"
 import { expectSessionTitle } from "../utils/waits"
+import { pinEnglishUI } from "../utils/locale"
+
+// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
+test.beforeEach(({ page }) => pinEnglishUI(page))
 
 // Custom mode M2 Phase H. The Workflow runtime panel is the only surface where a
 // user can observe or steer a durable workflow run. `CustomSessionPanel` mounts it

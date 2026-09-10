@@ -102,9 +102,14 @@ export const layer = Layer.effect(
   }),
 )
 
-export const locationLayer = layer.pipe(
-  Layer.provideMerge(SessionStore.defaultLayer),
-  Layer.provideMerge(EventV2.defaultLayer),
-)
+// Requirements (EventV2, SessionStore) are satisfied by the ambient location
+// context — the LocationServiceMap dependencies provide the shared instances.
+// Self-providing them via provideMerge rebuilt private EventV2/SessionStore
+// instances inside every location's fresh memoMap (Layer.fresh isolates the
+// lookup subtree's memoization), splitting the location domain's event stream
+// from the app-level instance. Same anti-pattern as the one documented at
+// grant/store.ts and mcp/binding/store.ts ("never provideMerge the shared
+// singletons here").
+export const locationLayer = layer
 
 export const node = LayerNode.make(layer, [EventV2.node, SessionStore.node])

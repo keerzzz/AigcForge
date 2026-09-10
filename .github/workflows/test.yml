@@ -80,7 +80,9 @@ jobs:
         working-directory: packages/aigcfroge
         run: bun run script/httpapi-exercise.ts --mode coverage --fail-on-missing --fail-on-skip && bun run script/httpapi-exercise.ts --mode auth --fail-on-missing --fail-on-skip
 
-      - name: Run HttpApi exerciser — effect (advisory, pre-existing runtime failures on main)
+      - name: Run HttpApi exerciser — effect (advisory, remaining runtime failures)
+        # EventV2 transaction ownership is fixed, but the complete effect suite
+        # still has unrelated failures; keep it advisory until the exact run is green.
         if: runner.os == 'Linux'
         working-directory: packages/aigcfroge
         continue-on-error: true
@@ -142,10 +144,22 @@ jobs:
         run: bunx playwright install chromium
 
       - name: Run app e2e tests
-        run: bun --cwd packages/app test:e2e:local
+        # The presentation matrix (theme/locale/narrow viewport) is a Linux
+        # gate across all five projects; Windows keeps the baseline Chromium
+        # project so the OS split does not multiply the slowest runner. No
+        # continue-on-error: the matrix is a real gate. The Linux budget is
+        # 5x the single-project suite (cold Vite route compiles dominate);
+        # if it overflows, lower PLAYWRIGHT_WORKERS before touching this
+        # timeout (the plan's cost rule), not the other way around.
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            bun --cwd packages/app test:e2e:local --project=chromium --project=chromium-dark --project=chromium-zh --project=chromium-zht --project=chromium-narrow
+          else
+            bun --cwd packages/app test:e2e:local --project=chromium
+          fi
         env:
           CI: true
-        timeout-minutes: 30
+        timeout-minutes: ${{ runner.os == 'Linux' && 90 || 30 }}
 
       - name: Upload Playwright artifacts
         if: always()

@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Effect, Exit, Layer, Schema } from "effect"
+import { Context, Deferred, Effect, Exit, Fiber, Layer, Ref, Schema } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { EventTable } from "@aigcfroge/core/event/sql"
@@ -852,6 +852,64 @@ describe("WorkflowRun Service", () => {
       expect(byStep.get("armB")?.status).toBe("skipped")
       expect(byStep.get("join")?.status).not.toBe("skipped")
       expect(frontier.map((candidate) => candidate.stepId).sort()).toEqual(["armA", "join"])
+    }),
+  )
+
+  it.effect("rejects the loser when concurrent requests reuse an ID with different digests", () =>
+    Effect.gen(function* () {
+      const sid = SessionV2.ID.make("ses_request_digest_race")
+      yield* seedSession(sid)
+      const realEvents = yield* EventV2.Service
+      const entered = yield* Ref.make(0)
+      const bothEntered = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      const proxyEvents = EventV2.Service.of({
+        ...realEvents,
+        publish: (definition, data, options) =>
+          Ref.updateAndGet(entered, (count) => count + 1).pipe(
+            Effect.tap((count) => (count === 2 ? Deferred.succeed(bothEntered, void 0) : Effect.void)),
+            Effect.andThen(Deferred.await(release)),
+            Effect.andThen(realEvents.publish(definition, data, options)),
+          ),
+      })
+      const realDatabase = yield* Database.Service
+      const racedLayer = Layer.fresh(WorkflowRun.layer).pipe(
+        Layer.provide(
+          Layer.mergeAll(Layer.succeed(EventV2.Service, proxyEvents), Layer.succeed(Database.Service, realDatabase)),
+        ),
+      )
+      const raced = yield* Layer.build(racedLayer)
+      const service = Context.get(raced, WorkflowRun.Service)
+      const input = {
+        sessionID: sid,
+        workflow: new Composition.WorkflowInfo({
+          name: "request-digest-race",
+          description: "Concurrent request idempotency",
+          relativePath: "request-digest-race.yaml",
+          revision: mockRevision,
+          steps: [new WorkflowAsset.StepDef({ id: "step", name: "Step", agent: "coder", next: "END" })],
+        }),
+        requestID: "request_digest_race",
+      }
+      const first = yield* service
+        .getOrCreate({ ...input, snapshotDigest: "a".repeat(64) })
+        .pipe(Effect.exit, Effect.forkScoped)
+      const second = yield* service
+        .getOrCreate({ ...input, snapshotDigest: "b".repeat(64) })
+        .pipe(Effect.exit, Effect.forkScoped)
+      yield* Effect.yieldNow
+      expect(yield* Ref.get(entered)).toBe(2)
+      yield* Deferred.await(bothEntered)
+      yield* Deferred.succeed(release, void 0)
+      const exits = [yield* Fiber.join(first), yield* Fiber.join(second)]
+
+      expect(exits.filter(Exit.isSuccess)).toHaveLength(1)
+      expect(exits.filter(Exit.isFailure)).toHaveLength(1)
+      const failure = exits.find(Exit.isFailure)
+      if (!failure) throw new Error("expected one request conflict")
+      const conflict = yield* Effect.flip(Effect.failCause(failure.cause))
+      expect(conflict._tag).toBe("WorkflowRun.RequestConflictError")
+      expect(yield* Ref.get(entered)).toBe(2)
     }),
   )
 

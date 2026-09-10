@@ -13,6 +13,7 @@ import { SessionSchema } from "./schema"
 import { SessionContextEpochTable } from "./sql"
 
 type DatabaseService = Database.Interface["db"]
+type QueryHandle = Pick<DatabaseService, "delete" | "update">
 
 interface Prepared {
   readonly baseline: string
@@ -71,7 +72,9 @@ const prepareOnce = Effect.fnUntraced(function* (
   yield* events.publish(
     SessionEvent.ContextUpdated,
     { sessionID, messageID: SessionMessageID.ID.create(), timestamp: yield* DateTime.now, text: result.text },
-    { commit: () => advance(db, sessionID, result.snapshot).pipe(Effect.orDie) },
+    {
+      commit: (_seq, tx) => advance(tx, sessionID, result.snapshot).pipe(Effect.orDie),
+    },
   )
   return { baseline: stored.baseline, baselineSeq: stored.baseline_seq }
 })
@@ -107,10 +110,7 @@ const find = Effect.fn("SessionContextEpoch.find")(function* (db: DatabaseServic
     .pipe(Effect.orDie)
 })
 
-export const reset = Effect.fn("SessionContextEpoch.reset")(function* (
-  db: DatabaseService,
-  sessionID: SessionSchema.ID,
-) {
+export const reset = Effect.fn("SessionContextEpoch.reset")(function* (db: QueryHandle, sessionID: SessionSchema.ID) {
   yield* db
     .delete(SessionContextEpochTable)
     .where(eq(SessionContextEpochTable.session_id, sessionID))
@@ -158,7 +158,7 @@ const replace = Effect.fnUntraced(function* (
 })
 
 const advance = Effect.fnUntraced(function* (
-  db: DatabaseService,
+  db: QueryHandle,
   sessionID: SessionSchema.ID,
   snapshot: SystemContext.Snapshot,
 ) {
