@@ -8,6 +8,8 @@ const sessionID = "ses_delegation_regression"
 const childID = "ses_delegation_build"
 const title = "Delegation regression"
 const model = { providerID: "deepseek", modelID: "deepseek-v4-flas" }
+const moreOptions = /^(More options|更多选项|更多選項)$/
+const myAgents = /^(My agents|我的智能体|我的智能體)$/
 
 test("shows independent delegation state and opens the Build conversation", async ({ page }) => {
   const errors = trackPageErrors(page)
@@ -123,8 +125,8 @@ test("shows independent delegation state and opens the Build conversation", asyn
   })
   await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
   await expectSessionTitle(page, title)
-  await page.locator('[data-session-title] [aria-label="More options"]').click()
-  await page.getByText("My agents", { exact: true }).click()
+  await page.locator("[data-session-title]").getByRole("button", { name: moreOptions }).click()
+  await page.getByRole("menuitem", { name: myAgents }).click()
   const panel = page.locator('[data-component="delegation-panel"]')
   await expect(panel).toBeVisible()
   await expect(panel.locator('[data-component="delegation-card"]')).toHaveAttribute("data-status", "recovery_required")
@@ -169,8 +171,8 @@ test("shows loading, empty, and error states as the delegation request settles",
   })
   await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
   await expectSessionTitle(page, title)
-  await page.locator('[data-session-title] [aria-label="More options"]').click()
-  await page.getByText("My agents", { exact: true }).click()
+  await page.locator("[data-session-title]").getByRole("button", { name: moreOptions }).click()
+  await page.getByRole("menuitem", { name: myAgents }).click()
   const panel = page.locator('[data-component="delegation-panel"]')
   await expect(panel.locator('[data-component="delegation-panel-loading"]')).toBeVisible()
   await expect(panel.locator('[data-component="delegation-panel-empty"]')).toBeVisible()
@@ -204,8 +206,8 @@ test("shows loading, empty, and error states as the delegation request settles",
   })
   await page.reload()
   await expectSessionTitle(page, title)
-  await page.locator('[data-session-title] [aria-label="More options"]').click()
-  await page.getByText("My agents", { exact: true }).click()
+  await page.locator("[data-session-title]").getByRole("button", { name: moreOptions }).click()
+  await page.getByRole("menuitem", { name: myAgents }).click()
   await expect(page.locator('[data-component="delegation-panel-error"]')).toBeVisible()
   expect(
     errors.filter((error) => !error.includes("500")),
