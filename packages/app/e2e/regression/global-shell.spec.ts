@@ -267,7 +267,10 @@ test.describe("global shell: multi-session tabs", () => {
     await openSession(page, sessionA, titleA)
 
     await page.getByRole("button", { name: "New session", exact: true }).click()
-    await expect(page).toHaveURL(/\/new-session\?draftId=/)
+    // The draft route commits only after its transition resolves, and in dev that means
+    // transforming and mounting the new-session subtree on top of whatever else the machine
+    // is doing. Warmed runs measured 1.3-4.5s; loaded ones have exceeded the 10s default.
+    await expect(page).toHaveURL(/\/new-session\?draftId=/, { timeout: 30_000 })
     await expect(tabs(page)).toContainText("New session")
 
     await page.keyboard.press("ControlOrMeta+w")
@@ -283,7 +286,8 @@ test.describe("global shell: dirty draft route guard", () => {
     // The draft tab is registered before its route renders (the navigation runs in a
     // transition). Typing or closing inside that window would act on the session page that
     // is still mounted — the composer would be the session's and the draft would look clean.
-    await expect(page).toHaveURL(/\/new-session\?draftId=/)
+    // Same dev-mode transition budget as the new-session test above.
+    await expect(page).toHaveURL(/\/new-session\?draftId=/, { timeout: 30_000 })
     const composer = page.getByRole("textbox").first()
     await composer.fill("keep this draft")
 
