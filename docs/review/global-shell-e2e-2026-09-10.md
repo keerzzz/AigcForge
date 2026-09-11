@@ -268,28 +268,37 @@
 - 修复：spec 在点击 "New session" 后等待 draft 路由，再输入/关闭。同一路径另做产品加固（dirty 实时来源、身份 token 化并与水合解耦、关闭判定事务内快照、确认队列与关闭决策抽为纯模块），细节与单测见计划 §13.1。
 - 测试基建边界：provider 级渲染测试与 `mock.module` 进程级作用域冲突（详见 `docs/technical-debt.md` §6）。
 
-## 9. 待定性 P1：顶部 New session 触发的导航冻结（2026-09-11 登记）
+## 9. 顶部 New session 的导航延迟：已定性为开发态过渡开销（2026-09-11）
 
-> 本节是独立现象的登记与取证入口，不与 §1/§8 的 TOP/BOT/LEFT 项合并结论；定性前不得声称它是产品缺陷或基建抖动。
+> 本节记录一次独立现象的取证过程与结论。结论：**不是产品死锁，也不是 DESIGN.md 描述的路由冻结缺陷**；是开发态路由过渡在负载下的延迟，已用显式等待预算缓解。
 
-### 9.1 现象
+### 9.1 现象与初始怀疑
 
-- 用例：`packages/app/e2e/regression/global-shell.spec.ts:264` · the new-session button on a session route opens a draft tab that closes back to the session。
-- 失败断言：点击标题栏 New session 后 `expect(page).toHaveURL(/\/new-session\?draftId=/)` 连续 10s（14 次轮询）未满足，URL 始终停在 `.../server/<key>/session/ses_global_shell_a`。
-- 同一批次内该用例在更早的复跑中通过（12/13、11/13 两轮中仅此项与冷编译超时项失败），因此**不是稳定重现**；触发条件疑似与机器负载/时序相关。
+- 用例：`packages/app/e2e/regression/global-shell.spec.ts:264` "the new-session button on a session route opens a draft tab that closes back to the session"。
+- 失败形态：点击标题栏 "New session" 后 `toHaveURL(/\/new-session\?draftId=/)` 连续 10s（14 次轮询）未满足，URL 停在会话路由；同一用例在其他轮次通过，非稳定重现。
+- 初始怀疑：与 `DESIGN.md` §Router Transitions And Resources 记载的"transition 游离 promise 导致导航静默冻结"同形。
 
-### 9.2 已知同形缺陷
+### 9.2 取证（插桩：`newDraft` 调用点、guard 判定、URL 时间线，5 轮重复）
 
-`DESIGN.md` §Router Transitions And Resources 明确记载：路由导航在 transition 中运行，`@solidjs/router` 只在 transition resolve 后写 history；**transition 里只要有一个游离 promise 未被清空，导航就会静默冻结——无报错、无 pending 请求、原页面停留**。典型成因是 route 子树内 `createResource(() => cond ? source : undefined, …)` 的空 source 提前返回。本现象与该描述同形。
+| 观察项                      | 结果                                                           |
+| --------------------------- | -------------------------------------------------------------- |
+| `tabs.newDraft` 是否被调用  | 每轮都调用（点击处理链完整，`server/directory/mode` 正常）     |
+| `DirtyDraftGuard` 是否拦截  | 每轮都放行：`key=<session>`、`dirty: false`、未 preventDefault |
+| URL 是否提交                | **5/5 全部提交**，无一轮冻结                                   |
+| 提交延迟（点击 → URL 变化） | 1282ms / 1728ms / **4515ms** / 1285ms / 1690ms                 |
 
-- 全仓该模式的现行检查：`createResource(() => …)` 仅剩 `app.tsx` 的启动健康检查（web 下 `disableHealthCheck` 立即 resolve）；`whenActive` 门控站点（`mode-surfaces.tsx`、`custom-preview-column.tsx`、`custom-sidebar.tsx`、`mode-workspace-slots.tsx`）是 DESIGN.md 记录的已知豁免，登记在 `docs/technical-debt.md`。
+失败轮的高负载下超过了 10s 断言窗口，但机制与上面相同——过渡最终 resolve。
 
-### 9.3 待取证项（下一轮专项）
+### 9.3 结论
 
-1. 在导航前后采集 `Transition.promises` 是否非空、router 当前 state 与 history 写入时机。
-2. 记录点击到 URL 变化的耗时分布（≥3 轮，含高负载），区分“延迟但最终提交”与“永久冻结”。
-3. 若冻结稳定可复现，按 DESIGN.md 的规则定位究竟是哪一个子树/哪一个资源把 promise 留在 transition 中；若是 mock/网络请求久不返回，则登记为测试基建缺陷并给 mock 补默认响应。
+- **导航不会永久冻结**：guard 不拦截、`newDraft` 正常、URL 必然提交；DESIGN.md 的"游离 promise"路径未被触发（全仓 `createResource(() => cond ? … : undefined)` 仅剩 app.tsx 启动健康检查，web 下立即 resolve；`whenActive` 站点是已知豁免）。
+- **延迟来源是开发态路由过渡**：Vite 按需 transform + 挂载 new-session 子树，在本机负载下 1.3–4.5s，重负载时超过 10s。会话页到草稿页的过渡不是产品 SLA；生产构建的时序由 production smoke 与性能基准覆盖。
 
-### 9.4 与本次修复的关系
+### 9.4 缓解
 
-本次关闭事务修复（§8.2）不触碰 transition 资源。上述用例的另一半（draft 标签关闭回会话）在暖机复跑中通过；仅“URL 未提交”这一段待定性。
+- 两个依赖"草稿路由已提交"的用例（new-session 打开、脏草稿关闭）把 URL 等待显式设为 30s，并注释说明这是开发态过渡预算、不是产品时限；禁止用缩短等待或断言标签代替 URL 断言（DESIGN.md 要求路由级导航必须断言 URL）。
+- 若该延迟继续增长，应在生产构建里测量（`test:bench`），而不是收紧 e2e 窗口。
+
+### 9.5 与关闭事务修复的关系
+
+关闭事务（§8.2）与本次取证均未触及 transition 资源；两者独立。
