@@ -1,7 +1,6 @@
 import { createEffect, Suspense, type ParentProps, Show } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
 import { DebugBar } from "@/components/debug-bar"
-import { HelpButton } from "@/components/help-button"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
 import { useNotification } from "@/context/notification"
 import { usePlatform } from "@/context/platform"
@@ -61,7 +60,6 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
       </div>
       <StatusBar source={statusSource} />
       {import.meta.env.DEV && <DebugBar />}
-      <HelpButton />
       <ToastRegion />
     </div>
   )
