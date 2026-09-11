@@ -10,6 +10,7 @@ beforeAll(async () => {
     useParams: () => ({}),
     useLocation: () => ({}),
     useSearchParams: () => [{}, () => undefined],
+    useBeforeLeave: () => undefined,
   }))
   mock.module("@/context/file", () => ({
     useFile: () => ({

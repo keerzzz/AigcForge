@@ -11,6 +11,7 @@ beforeAll(async () => {
     useParams: () => ({}),
     useLocation: () => ({}),
     useSearchParams: () => [{}, () => undefined],
+    useBeforeLeave: () => undefined,
   }))
   mock.module("@aigcfroge/ui/context", () => ({
     createSimpleContext: () => ({

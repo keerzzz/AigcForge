@@ -87,6 +87,7 @@ beforeAll(async () => {
     useParams: () => params,
     useLocation: () => ({}),
     useSearchParams: () => [{}, () => undefined],
+    useBeforeLeave: () => undefined,
   }))
 
   mock.module("@aigcfroge/sdk/v2/client", () => ({

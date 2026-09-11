@@ -3,12 +3,14 @@ import { createSimpleContext } from "@aigcfroge/ui/context"
 import { createStore, produce } from "solid-js/store"
 import { Persist, persisted, removePersisted, draftPersistedKeys } from "@/utils/persist"
 import { ServerConnection, useServer } from "./server"
-import { createEffect, getOwner, onCleanup, startTransition } from "solid-js"
+import { createEffect, createSignal, getOwner, onCleanup, startTransition } from "solid-js"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { usePlatform } from "./platform"
 import { uuid } from "@/utils/uuid"
 import { SessionTabsRemovedDetail } from "@/components/titlebar-session-events"
+import { useChatWorkspace } from "./chat-workspace"
 import { sessionHref } from "@/utils/session-route"
+import { planTabClose } from "./tab-close"
 import { createTabMemory } from "./tab-memory"
 import { isMode, type Mode } from "./mode"
 import type { WorkPreset } from "@aigcfroge/schema/work-preset"
@@ -35,6 +37,11 @@ export type Tab = SessionTab | DraftTab
 
 type RecentTab = {
   key?: string
+}
+
+export type TabFocusHandoff = {
+  token: symbol
+  target: string | "home"
 }
 
 export const draftHref = (draftID: string) => `/new-session?draftId=${encodeURIComponent(draftID)}`
@@ -80,8 +87,10 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
     const navigate = useNavigate()
     const location = useLocation()
     const memory = createTabMemory(getOwner())
+    const workspace = useChatWorkspace()
 
     const closing = new Set<string>()
+    const [focusHandoff, setFocusHandoff] = createSignal<TabFocusHandoff>()
     let recentWrite = 0
     let recentValue: string | undefined
 
@@ -181,21 +190,36 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         const tab = store[index]
         if (!tab) return
         const key = tabKey(tab)
-        const draftID = tab.type === "draft" ? tab.draftID : undefined
-        const nextTab = store[index + 1] ?? store[index - 1]
+        if (closing.has(key)) return
         closing.add(key)
-        void startTransition(() => {
-          setStore(
-            produce((tabs) => {
-              tabs.splice(index, 1)
-            }),
-          )
-          if (recent.key === key) setRecentKey(nextTab && tabKey(nextTab))
-          if (nextTab) navigateTab(nextTab)
-          else navigate("/")
-        }).finally(() => closing.delete(key))
-        memory.remove(key)
-        if (draftID) removeDraftPersisted(draftID)
+        // Snapshot the routed-tab decision before awaiting the confirmation: that dialog is
+        // modal, so the routed tab cannot change while it is open, and re-reading the shell's
+        // mutable route identity after the await can commit a routed close as a background one
+        // — removing the tab without a successor navigation and leaving the surface blank.
+        const routeActive = workspace?.route.activeTabKey() === key
+        void (workspace?.dirty.confirmLeave(key) ?? Promise.resolve(true))
+          .then((leave) => {
+            if (!leave) return
+            // Re-plan from the live store: the confirmation can outlive index changes, so the
+            // close re-locates its tab by key and takes the successor from the current order.
+            const plan = planTabClose({ tabs: store, keyOf: tabKey, closingKey: key, recentKey: recentKey() })
+            if (!plan) return
+            void startTransition(() => {
+              setStore(() => plan.remaining)
+              if (recentKey() !== plan.recent) setRecentKey(plan.recent)
+              if (!routeActive) return
+              setFocusHandoff({
+                token: Symbol("tab-focus-handoff"),
+                target: plan.successor ? tabKey(plan.successor) : "home",
+              })
+              if (plan.successor) navigateTab(plan.successor)
+              else navigate("/")
+            }).then(() => {
+              memory.remove(key)
+              if (tab.type === "draft") removeDraftPersisted(tab.draftID)
+            })
+          })
+          .finally(() => closing.delete(key))
       },
       removeServer(key: ServerConnection.Key) {
         const drafts = store.flatMap((tab) => (tab.type === "draft" && tab.server === key ? [tab.draftID] : []))
@@ -278,6 +302,15 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       },
     }
 
-    return { ...actions, store, ready, recentReady }
+    return {
+      ...actions,
+      store,
+      ready,
+      recentReady,
+      focusHandoff,
+      consumeFocusHandoff(token: symbol) {
+        if (focusHandoff()?.token === token) setFocusHandoff(undefined)
+      },
+    }
   },
 })

@@ -39,7 +39,7 @@ import { createMediaQuery } from "@solid-primitives/media"
 import { readSessionTabsRemovedDetail, SESSION_TABS_REMOVED_EVENT } from "@/components/titlebar-session-events"
 import { useGlobal } from "@/context/global"
 import { ServerConnection, useServer } from "@/context/server"
-import { tabHref, useTabs } from "@/context/tabs"
+import { tabHref, tabKey, useTabs } from "@/context/tabs"
 import "./titlebar.css"
 import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
@@ -91,6 +91,8 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
   const navigate = useNavigate()
   const location = useLocation()
   const params = useParams()
+  const tabRefs = new Map<string, HTMLElement>()
+  let homeRef: HTMLButtonElement | undefined
   const useV2Titlebar = createMemo(() => true)
   const mobile = createMediaQuery("(max-width: 767px)")
   const bottom = createMemo(() => useV2Titlebar() && mobile() && settings.general.mobileTitlebarPosition() === "bottom")
@@ -118,6 +120,9 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
   })
 
   const path = () => `${location.pathname}${location.search}${location.hash}`
+  const setTabRef = (key: string, element: HTMLElement) => {
+    tabRefs.set(key, element)
+  }
   const creating = createMemo(() => {
     if (!params.dir) return false
     if (params.id) return false
@@ -267,6 +272,17 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
             const tabs = useTabs()
             const tabsStore = tabs.store
             const tabsStoreActions = tabs
+            createEffect(() => {
+              const handoff = tabs.focusHandoff()
+              if (!handoff) return
+              queueMicrotask(() => {
+                const target = handoff.target === "home" ? homeRef : tabRefs.get(handoff.target)
+                const focusable = target?.querySelector<HTMLElement>("a, button") ?? target
+                focusable?.focus()
+                tabs.consumeFocusHandoff(handoff.token)
+              })
+            })
+
             const [session] = createResource(
               () => {
                 const route = layout.route()
@@ -508,6 +524,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                     onClick={toggleHome}
                     aria-label={language.t("home.title")}
                     aria-pressed={layout.route().type === "home"}
+                    ref={(element) => (homeRef = element)}
                   />
                 </TooltipV2>
 
@@ -539,7 +556,10 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                               <>
                                 {divider()}
                                 <DraftTabItem
-                                  ref={ref}
+                                  ref={(element) => {
+                                    ref = element
+                                    setTabRef(tabKey(tab), element)
+                                  }}
                                   href={tabHref(tab)}
                                   title={language.t("command.session.new")}
                                   active={currentTab() === tab}
@@ -639,7 +659,10 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                               <Show when={session()}>
                                 {(session) => (
                                   <TabNavItem
-                                    ref={ref}
+                                    ref={(element) => {
+                                      ref = element
+                                      setTabRef(tabKey(tab), element)
+                                    }}
                                     href={tabHref(tab)}
                                     server={tab.server}
                                     sessionId={tab.sessionId}
@@ -972,7 +995,7 @@ function useTabShortcut(index: () => number, onSelect: () => void) {
 }
 
 function TabNavItem(props: {
-  ref?: HTMLDivElement
+  ref?: (element: HTMLDivElement) => void
   href: string
   server: ServerConnection.Key
   sessionId?: string
@@ -984,6 +1007,7 @@ function TabNavItem(props: {
   forceTruncate?: boolean
   session: Session
 }) {
+  const language = useLanguage()
   const closeTab = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
@@ -1050,6 +1074,7 @@ function TabNavItem(props: {
           class="opacity-0 group-hover:opacity-100 group-data-[active='true']:opacity-100 z-10"
           onClick={closeTab}
           icon={<IconV2 name="xmark-small" />}
+          aria-label={language.t("common.closeTab")}
         />
       </div>
     </div>
@@ -1057,13 +1082,14 @@ function TabNavItem(props: {
 }
 
 function DraftTabItem(props: {
-  ref?: HTMLDivElement
+  ref?: (element: HTMLDivElement) => void
   href: string
   title: string
   active?: boolean
   onNavigate: () => void
   onClose: () => void
 }) {
+  const language = useLanguage()
   const closeTab = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
@@ -1102,7 +1128,7 @@ function DraftTabItem(props: {
           }}
           onClick={closeTab}
           icon={<IconV2 name="xmark-small" />}
-          aria-label="Close tab"
+          aria-label={language.t("common.closeTab")}
         />
       </div>
     </div>
@@ -1144,7 +1170,7 @@ function NewSessionTabItem(props: { ref?: HTMLDivElement; href: string; title: s
           }}
           onClick={closeTab}
           icon={<IconV2 name="xmark-small" />}
-          aria-label="Close tab"
+          aria-label={useLanguage().t("common.closeTab")}
         />
       </div>
     </div>

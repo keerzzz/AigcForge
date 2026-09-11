@@ -38,7 +38,7 @@ import { executeHandoff, handoffAuthorizationKey, planHandoff } from "@aigcfroge
 import { confirmHandoffEscalation } from "@/pages/session/handoff-confirm"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
-import { usePrompt, type ContentPart } from "@/context/prompt"
+import { usePrompt } from "@/context/prompt"
 import { useSDK } from "@/context/sdk"
 import { useServerSDK } from "@/context/server-sdk"
 import { useSettings } from "@/context/settings"
@@ -70,6 +70,9 @@ import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
 import { useChatWorkspace } from "@/context/chat-workspace"
+import { tabKey } from "@/context/tabs"
+import { useRouteContribution } from "@/context/route-contribution"
+import { openSessionContext } from "@/components/open-session-context"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
 import { useTabs } from "@/context/tabs"
@@ -87,7 +90,7 @@ const emptyFollowups: FollowupItem[] = []
 type ChangeMode = "git" | "branch" | "turn"
 type VcsMode = "git" | "branch"
 
-export default function Page() {
+export default function Page(props: { rootID: string }) {
   const serverSync = useServerSync()
   const layout = useLayout()
   const local = useLocal()
@@ -104,6 +107,7 @@ export default function Page() {
   const appTabs = useTabs()
   const prompt = usePrompt()
   const workspace = useChatWorkspace()
+  const routeContribution = useRouteContribution()
   const comments = useComments()
   const terminal = useTerminal()
   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string; insertKind?: string }>()
@@ -156,12 +160,48 @@ export default function Page() {
       })
   })
 
-  // Dirty Draft: mark dirty when the composer holds unsent content to trigger the route guard (M2 Step 5).
+  // One registration for both facts, taken from the route rather than from prompt hydration:
+  // tab identity so a close or leave while the composer is still loading still resolves this
+  // route as the owner of its top-level tab, and the dirty flag as a live source the close
+  // decision evaluates at click time. Each carries an owner token so a previous page instance
+  // cannot clear a newer registration of the same key.
+  const routeIdentityToken = Symbol("session-route-identity")
+  const dirtyToken = Symbol("session-dirty")
+  const topLevelTabKey = createMemo(() => {
+    if (!params.id) return undefined
+    return tabKey({ type: "session", server: server.key, sessionId: props.rootID })
+  })
+
   createEffect(() => {
-    if (!prompt.ready()) return
-    const current = prompt.current()
-    const hasContent = current.some((part: ContentPart) => part.type === "text" && part.content?.length > 0)
-    workspace?.setDirty(hasContent)
+    const key = topLevelTabKey()
+    if (!key) return
+    workspace?.route.setActiveTabKey(key, routeIdentityToken)
+    // Live source, evaluated when a close or leave is decided — never a cached snapshot.
+    workspace?.dirty.register(key, () => prompt.dirty(), dirtyToken)
+  })
+  createEffect(() => {
+    const key = topLevelTabKey()
+    if (!key || !params.id) return
+    const sessionTabs = tabs()
+    const sessionView = view()
+    const dispose = routeContribution?.register({
+      routeIdentity: `${server.key}\0${params.id}`,
+      activeTopLevelTabKey: key,
+      key: sessionKey(),
+      server: server.key,
+      scope: serverSDK().scope,
+      directory: sdk().directory,
+      leafID: params.id,
+      openContext: () => openSessionContext({ layout, tabs: sessionTabs, view: sessionView }),
+    })
+    onCleanup(() => dispose?.())
+  })
+
+  onCleanup(() => {
+    const key = topLevelTabKey()
+    if (!key) return
+    workspace?.dirty.clear(key, dirtyToken)
+    workspace?.route.clearActiveTabKey(key, routeIdentityToken)
   })
 
   const [ui, setUi] = createStore({

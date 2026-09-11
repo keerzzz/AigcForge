@@ -137,7 +137,10 @@ function init() {
   }
 
   const show = (element: DialogElement, owner: Owner, onClose?: () => void) => {
-    for (const item of stack()) item.dispose()
+    for (const item of stack()) {
+      item.onClose?.()
+      item.dispose()
+    }
     setStack([])
     if (timer.current !== undefined) {
       clearTimeout(timer.current)

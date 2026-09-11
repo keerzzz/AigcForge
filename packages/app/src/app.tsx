@@ -39,6 +39,7 @@ import { GlobalProvider, useGlobal } from "@/context/global"
 import { HighlightsProvider } from "@/context/highlights"
 import { LanguageProvider, type Locale, useLanguage } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
+import { RouteContributionProvider } from "@/context/route-contribution"
 import { ModelsProvider } from "@/context/models"
 import { NotificationProvider } from "@/context/notification"
 import { PermissionProvider } from "@/context/permission"
@@ -168,7 +169,7 @@ function ResolvedTargetSessionRoute() {
           <SDKProvider directory={targetDirectory}>
             <DirectoryDataProvider directory={targetDirectory} server={serverKey}>
               <ApprovalCenter />
-              <TargetSessionPage />
+              <TargetSessionPage rootID={(placement() ?? resolved())!.rootID} />
             </DirectoryDataProvider>
           </SDKProvider>
         </Show>
@@ -177,14 +178,16 @@ function ResolvedTargetSessionRoute() {
   )
 }
 
-function TargetSessionPage() {
+function TargetSessionPage(props: { rootID: string }) {
   const sdk = useSDK()
   const serverSDK = useServerSDK()
   return (
     <Show when={`${serverSDK().scope}\0${sdk().directory}`} keyed>
-      <SessionProviders>
-        <Session />
-      </SessionProviders>
+      <LayoutProvider>
+        <SessionProviders>
+          <Session rootID={props.rootID} />
+        </SessionProviders>
+      </LayoutProvider>
     </Show>
   )
 }
@@ -548,12 +551,14 @@ export function AppInterface(props: {
                 component={props.router ?? Router}
                 root={(routerProps) => (
                   <>
-                    <DirtyDraftGuard />
-                    <TabsProvider>
-                      <ServerShell>
-                        <AppLayout>{routerProps.children}</AppLayout>
-                      </ServerShell>
-                    </TabsProvider>
+                    <RouteContributionProvider>
+                      <DirtyDraftGuard />
+                      <TabsProvider>
+                        <ServerShell>
+                          <AppLayout>{routerProps.children}</AppLayout>
+                        </ServerShell>
+                      </TabsProvider>
+                    </RouteContributionProvider>
                   </>
                 )}
               >
