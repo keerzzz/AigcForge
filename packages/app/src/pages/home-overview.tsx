@@ -119,7 +119,12 @@ export function HomeOverview() {
   })
   const pinned = createMemo(() => pinLastActive(filteredRecords(), lastActive()))
   const groups = createMemo(() => groupSessions(pinned().rest, language))
-  const counts = createMemo(() => countByMode(allRecords()))
+  const recordsForSelectedProject = createMemo(() => {
+    const directory = state.projectFilter
+    if (!directory) return allRecords()
+    return allRecords().filter((record) => record.project.worktree === directory)
+  })
+  const counts = createMemo(() => countByMode(recordsForSelectedProject()))
   const projectCounts = createMemo(() => countByProject(allRecords()))
 
   const search = createMemo(() => state.search.trim())
@@ -179,7 +184,7 @@ export function HomeOverview() {
     return { directory, projects: ctx.projects }
   }
 
-  function openNewSession() {
+  function openNewSession(requestedDirectory?: string) {
     const conn = focusedServer()
     const ctx = focusedServerCtx()
     // Two different failures that used to be the same silent return. No connection is not
@@ -188,10 +193,10 @@ export function HomeOverview() {
       showToast({ title: language.t("error.serverSDK.noServerAvailable") })
       return
     }
-    const directory = newSessionDirectory()
+    const directory = requestedDirectory ?? newSessionDirectory()
     if (directory) {
       launchModeSessionOrRoute({
-        mode: mode.currentMode,
+        mode: state.modeFilter === "all" ? mode.currentMode : state.modeFilter,
         navigate,
         projects: ctx.projects,
         server: ServerConnection.key(conn),
@@ -213,7 +218,7 @@ export function HomeOverview() {
         const opened = openPickedProjects(conn, result)
         if (!opened) return
         launchModeSessionOrRoute({
-          mode: mode.currentMode,
+          mode: state.modeFilter === "all" ? mode.currentMode : state.modeFilter,
           navigate,
           projects: opened.projects,
           server: ServerConnection.key(conn),
@@ -251,6 +256,7 @@ export function HomeOverview() {
             modeFilter={state.modeFilter}
             onModeFilter={(modeFilter) => setState("modeFilter", modeFilter)}
             onSelectProject={(directory) => setState("projectFilter", directory)}
+            openNewSession={(directory) => openNewSession(directory)}
           />
         )}
       </Show>
@@ -270,6 +276,13 @@ export function HomeOverview() {
           onClose={closeSearch}
           onSelect={selectSearchSession}
         />
+        <div class="mt-3 flex items-center justify-between gap-3">
+          <h1 class="text-14-medium text-v2-text-text-base">{language.t("home.overview.title")}</h1>
+          {/* Wrapped, not passed by reference: the click event would arrive as `requestedDirectory`. */}
+          <ButtonV2 variant="contrast" icon="plus" onClick={() => openNewSession()}>
+            {language.t("sidebar.secondary.newSession")}
+          </ButtonV2>
+        </div>
         <ScrollView class="mt-3 min-h-0 flex-1">
           <div class="pt-3 flex flex-col gap-6">
             <Show when={!sessionLoad.isLoading} fallback={<HomeSessionSkeleton label={language.t("common.loading")} />}>
@@ -340,6 +353,7 @@ export function HomeOverviewSidebar(props: {
   modeFilter: "all" | Mode
   onModeFilter: (mode: "all" | Mode) => void
   onSelectProject: (directory: string | undefined) => void
+  openNewSession: (directory?: string) => void
 }) {
   const global = useGlobal()
   const navigate = useNavigate()
@@ -351,17 +365,6 @@ export function HomeOverviewSidebar(props: {
   const notification = useNotification()
   const pickDirectory = useDirectoryPicker()
 
-  function openNewSession(conn: ServerConnection.Any, directory: string) {
-    const ctx = global.ensureServerCtx(conn)
-    launchModeSessionOrRoute({
-      mode: mode.currentMode,
-      navigate,
-      projects: ctx.projects,
-      server: ServerConnection.key(conn),
-      directory,
-      tabs,
-    })
-  }
   function chooseProject(conn: ServerConnection.Any) {
     pickDirectory({
       server: conn,
@@ -416,25 +419,6 @@ export function HomeOverviewSidebar(props: {
       aria-label={language.t("home.overview.title")}
     >
       <div class="flex min-w-0 flex-col gap-1">
-        <div class={`${HOME_SECTION_LABEL} pl-1.5`}>{language.t("home.overview.modeFilter")}</div>
-        <For each={filters()}>
-          {(filter) => (
-            <button
-              type="button"
-              data-component="home-overview-mode-filter"
-              class={MODE_FILTER_ROW}
-              data-selected={props.modeFilter === filter.id ? "" : undefined}
-              aria-current={props.modeFilter === filter.id ? "page" : undefined}
-              onClick={() => props.onModeFilter(filter.id)}
-            >
-              <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{filter.label}</span>
-              <span class={MODE_FILTER_COUNT}>{filter.count}</span>
-            </button>
-          )}
-        </For>
-      </div>
-      <div class="h-px bg-v2-border-border-base" />
-      <div class="flex min-w-0 flex-col gap-1">
         <div class={`${HOME_SECTION_LABEL} pl-1.5`}>{language.t("home.overview.projectFilter")}</div>
         <button
           type="button"
@@ -460,12 +444,31 @@ export function HomeOverviewSidebar(props: {
               selectProject={(_conn, directory) =>
                 props.onSelectProject(props.selectedDirectory === directory ? undefined : directory)
               }
-              openNewSession={openNewSession}
+              openNewSession={(_conn, directory) => props.openNewSession(directory)}
               editProject={editProject}
               closeProject={closeProject}
               clearNotifications={clearNotifications}
               language={language}
             />
+          )}
+        </For>
+      </div>
+      <div class="h-px bg-v2-border-border-base" />
+      <div class="flex min-w-0 flex-col gap-1">
+        <div class={`${HOME_SECTION_LABEL} pl-1.5`}>{language.t("home.overview.modeFilter")}</div>
+        <For each={filters()}>
+          {(filter) => (
+            <button
+              type="button"
+              data-component="home-overview-mode-filter"
+              class={MODE_FILTER_ROW}
+              data-selected={props.modeFilter === filter.id ? "" : undefined}
+              aria-current={props.modeFilter === filter.id ? "page" : undefined}
+              onClick={() => props.onModeFilter(filter.id)}
+            >
+              <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{filter.label}</span>
+              <span class={MODE_FILTER_COUNT}>{filter.count}</span>
+            </button>
           )}
         </For>
       </div>
