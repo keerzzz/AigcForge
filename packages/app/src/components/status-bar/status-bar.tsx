@@ -70,24 +70,41 @@ function MetricsPopover(props: {
 export function StatusBar(props: { source: StatusBarSource }) {
   const language = useLanguage()
   const [popoverOpen, setPopoverOpen] = createSignal(false)
+  const [anchorRect, setAnchorRect] = createSignal<DOMRect | undefined>()
 
   const pinnedIDs = () => props.source.pinnedMetrics().map((m) => m.id)
 
   return (
     <Popover
       open={popoverOpen()}
-      onOpenChange={setPopoverOpen}
+      onOpenChange={(open) => {
+        setPopoverOpen(open)
+        if (!open) setAnchorRect(undefined)
+      }}
+      getAnchorRect={(anchor) => anchorRect() ?? anchor?.getBoundingClientRect()}
+      flip
+      slide
+      fitViewport
+      overflowPadding={8}
+      restoreFocusOnOutsideClose
       triggerAs="div"
       triggerProps={{
         role: "button",
         tabindex: "0",
         "aria-label": language.t("statusBar.metrics.details"),
         "aria-expanded": popoverOpen(),
+        onPointerDown: (event: PointerEvent) => {
+          if (event.button !== 0) return
+          setAnchorRect(new DOMRect(event.clientX, event.clientY, 0, 0))
+        },
+        onKeyDown: (event: KeyboardEvent) => {
+          if (event.key === "Enter" || event.key === " ") setAnchorRect(undefined)
+        },
         class:
           "h-6 shrink-0 flex items-center gap-4 px-3 border-t border-v2-border-border-base bg-v2-background-bg-base select-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active",
       }}
       trigger={
-        <>
+        <div data-component="status-bar" class="contents">
           <span class="flex items-center gap-1.5">
             <span
               class="text-xs"
@@ -119,20 +136,25 @@ export function StatusBar(props: { source: StatusBarSource }) {
 
           <div class="flex-1" />
 
-          <button
-            type="button"
-            class="shrink-0 flex items-center gap-1 px-1.5 rounded-sm text-xs text-text-weak hover:text-text-base hover:bg-v2-background-bg-hover transition-colors"
-            onClick={(e) => {
-              e.stopPropagation()
-              props.source.openContext()
-            }}
-            aria-label={language.t("statusBar.openContext")}
-          >
-            <Icon name="checklist" size="small" />
-          </button>
-
-          <span class="text-xs text-text-weak truncate">{props.source.label()}</span>
-        </>
+          <Show when={props.source.label()}>
+            {(label) => (
+              <div class="contents">
+                <button
+                  type="button"
+                  class="shrink-0 flex items-center gap-1 px-1.5 rounded-sm text-xs text-text-weak hover:text-text-base hover:bg-v2-background-bg-hover transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    props.source.openContext()
+                  }}
+                  aria-label={language.t("statusBar.openContext")}
+                >
+                  <Icon name="checklist" size="small" />
+                </button>
+                <span class="text-xs text-text-weak truncate">{label()}</span>
+              </div>
+            )}
+          </Show>
+        </div>
       }
       class="[&_[data-slot=popover-body]]:p-0 w-auto max-w-[calc(100vw-40px)] bg-transparent border-0 shadow-none rounded-xl"
       gutter={4}
