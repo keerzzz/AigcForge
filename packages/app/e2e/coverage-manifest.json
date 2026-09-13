@@ -15,7 +15,7 @@
       "route": "/server/:key/session/:id",
       "mode": "work",
       "platform": "chromium",
-      "family": "host-alias",
+      "failure": "host-alias",
       "status": "red-fixme",
       "owner": "S4/S8",
       "unlock": "server host-alias owner lands (closure plan §7.1, §11.2)"
@@ -28,7 +28,7 @@
       "route": "/server/:key/session/:id",
       "mode": "work",
       "platform": "chromium",
-      "family": "route-desync",
+      "failure": "route-desync",
       "status": "red-fixme",
       "owner": "S4",
       "unlock": "§7.2 typed error rewrite (spec pinned a stale intermediate state)"
@@ -41,7 +41,7 @@
       "route": "/server/:key/session/:id",
       "mode": "work",
       "platform": "chromium",
-      "family": "route-desync",
+      "failure": "route-desync",
       "status": "red-fixme",
       "owner": "S4",
       "unlock": "§7.2 typed parent-missing rewrite; product already fail-closes — pin the new baseline"
@@ -54,7 +54,7 @@
       "route": "/:base64Dir/session/:id",
       "mode": "chat",
       "platform": "chromium",
-      "family": "host-alias",
+      "failure": "host-alias",
       "status": "red-fixme",
       "owner": "S4/S8",
       "unlock": "server host-alias owner lands"
@@ -67,7 +67,7 @@
       "route": "/:base64Dir/session/:id",
       "mode": "chat",
       "platform": "chromium",
-      "family": "host-alias",
+      "failure": "host-alias",
       "status": "red-fixme",
       "owner": "S4/S8",
       "unlock": "server host-alias owner lands"
@@ -80,7 +80,7 @@
       "route": "/new-session?draftId",
       "mode": "work",
       "platform": "chromium",
-      "family": "host-alias",
+      "failure": "host-alias",
       "status": "red-fixme",
       "owner": "S4/S8",
       "unlock": "draft route resolves the localhost-pinned server only after alias normalization"
@@ -93,7 +93,7 @@
       "route": "/new-session?draftId",
       "mode": "work",
       "platform": "chromium",
-      "family": "host-alias",
+      "failure": "host-alias",
       "status": "red-fixme",
       "owner": "S4/S8",
       "unlock": "same as new-session-draft-open"
@@ -106,7 +106,7 @@
       "route": "/new-session?draftId&prompt",
       "mode": "work",
       "platform": "chromium",
-      "family": "host-alias",
+      "failure": "host-alias",
       "status": "red-fixme",
       "owner": "S4/S8",
       "unlock": "same as new-session-draft-open"
@@ -119,7 +119,7 @@
       "route": "/server/:key/session/:id",
       "mode": "coding",
       "platform": "chromium",
-      "family": "host-alias",
+      "failure": "host-alias",
       "status": "red-fixme",
       "owner": "S4/S8",
       "unlock": "WebSocket URL host normalization (ws://127.0.0.1:4096 vs ws://localhost:4096)"
@@ -132,7 +132,7 @@
       "route": "legacy session redirect → mode workspace",
       "mode": "chat",
       "platform": "chromium + dark/zh/zht/narrow",
-      "family": "host-alias",
+      "failure": "host-alias",
       "status": "red-fixme",
       "owner": "S4",
       "unlock": "redirect chain lands on the canonical session route so chatTarget() resolves (TDD residue: spec 7fa01bab7 predates sidebar 11ffeb60a)"
@@ -145,7 +145,7 @@
       "route": "/server/:key/session/:id",
       "mode": "chat",
       "platform": "chromium",
-      "family": "composer-readpath",
+      "failure": "composer-readpath",
       "status": "red-fixme",
       "owner": "S3",
       "unlock": "spec asserts through the product's ZWSP-stripping read path (test-side change)"
@@ -158,7 +158,7 @@
       "route": "/server/:key/session/:id",
       "mode": "chat",
       "platform": "chromium",
-      "family": "composer-dom-sync",
+      "failure": "composer-dom-sync",
       "status": "red-fixme",
       "owner": "S3",
       "unlock": "product-side fix: submit clears the contenteditable DOM, not only the store"
@@ -171,7 +171,7 @@
       "route": "/server/:key/session/:id",
       "mode": "work",
       "platform": "chromium",
-      "family": "route-desync",
+      "failure": "route-desync",
       "status": "red-fixme",
       "owner": "S4",
       "unlock": "§7.2 typed session-not-found rewrite (crash boundary no longer renders)"
@@ -184,7 +184,7 @@
       "route": "session delegation panel",
       "mode": "cross",
       "platform": "chromium",
-      "family": "order-flake",
+      "failure": "order-flake",
       "status": "flake-observed-once",
       "owner": "S3",
       "unlock": "reproduce and isolate the ordering dependency; no fixme applied while 2/3 rounds pass"
@@ -197,7 +197,7 @@
       "route": "home → cold session navigation",
       "mode": "cross",
       "platform": "chromium-narrow",
-      "family": "narrow-review-staging",
+      "failure": "narrow-review-staging",
       "status": "red-stable",
       "owner": "S7/S16",
       "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true)"
