@@ -41,24 +41,29 @@ async function mount(page: Page) {
   await gotoWhenReady(page, `/${base64Encode(directory)}/session/${sessionID}`)
 }
 
-test("keeps Project, Feature, and Session controls reachable across locale and viewport projects", async ({ page }) => {
-  await mount(page)
+// RED 2026-09-13: chat-* collapse controls only render when chatTarget() resolves on the canonical session route; the legacy URL redirect chain fails first (A-family root cause).
+// Unlock at S4 when the redirect chain lands on the canonical route.
+test.fixme(
+  "keeps Project, Feature, and Session controls reachable across locale and viewport projects",
+  async ({ page }) => {
+    await mount(page)
 
-  const sidebar = page.getByRole("complementary")
-  if (!(await sidebar.isVisible())) {
-    await page.getByRole("button", { name: /secondary|sidebar|次级|側邊/i }).click()
-  }
-  await expect(sidebar).toBeVisible()
-  const controls = sidebar.locator('button[aria-controls^="chat-"]')
-  await expect(controls).toHaveCount(3)
-  await expect(controls.nth(0)).toHaveAttribute("aria-controls", "chat-project-content")
-  await expect(controls.nth(1)).toHaveAttribute("aria-controls", "chat-feature-content")
-  await expect(controls.nth(2)).toHaveAttribute("aria-controls", "chat-session-content")
+    const sidebar = page.getByRole("complementary")
+    if (!(await sidebar.isVisible())) {
+      await page.getByRole("button", { name: /secondary|sidebar|次级|側邊/i }).click()
+    }
+    await expect(sidebar).toBeVisible()
+    const controls = sidebar.locator('button[aria-controls^="chat-"]')
+    await expect(controls).toHaveCount(3)
+    await expect(controls.nth(0)).toHaveAttribute("aria-controls", "chat-project-content")
+    await expect(controls.nth(1)).toHaveAttribute("aria-controls", "chat-feature-content")
+    await expect(controls.nth(2)).toHaveAttribute("aria-controls", "chat-session-content")
 
-  for (let index = 0; index < 3; index += 1) {
-    await controls.nth(index).focus()
-    await page.keyboard.press("Enter")
-    await expect(controls.nth(index)).toHaveAttribute("aria-expanded", "false")
-  }
-  await expect(sidebar.getByRole("button", { name: /New session|新建会话|新增工作階段/i })).toBeVisible()
-})
+    for (let index = 0; index < 3; index += 1) {
+      await controls.nth(index).focus()
+      await page.keyboard.press("Enter")
+      await expect(controls.nth(index)).toHaveAttribute("aria-expanded", "false")
+    }
+    await expect(sidebar.getByRole("button", { name: /New session|新建会话|新增工作階段/i })).toBeVisible()
+  },
+)

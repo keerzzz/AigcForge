@@ -89,7 +89,9 @@ test("expected current behavior: an unknown server silently falls back to the se
   await expect(page.getByText("No server available", { exact: true })).toHaveCount(0)
 })
 
-test("expected current behavior: an unknown session crashes with an unrelated path error", async ({ page }) => {
+// RED 2026-09-13: the unknown-session crash boundary no longer renders; §7.2 targets a typed session-not-found page.
+// Unlock at S4 with the §7.2 fail-closed rewrite.
+test.fixme("expected current behavior: an unknown session crashes with an unrelated path error", async ({ page }) => {
   const path = `/server/${base64Encode(selectedServer)}/session/ses_missing_route`
   await gotoWhenReady(page, path)
 

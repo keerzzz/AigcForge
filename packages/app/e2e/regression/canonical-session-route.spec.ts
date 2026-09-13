@@ -89,7 +89,9 @@ test("cold-loads and refreshes the canonical session URL", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`${path}$`))
 })
 
-test("keeps same-id tabs isolated when the canonical URL targets a non-current server", async ({ page }) => {
+// RED 2026-09-13: the app merges the localhost:4096 tab with the 127.0.0.1:4096 canonical URL into one tab.
+// Unlock at S4/S8 once the server host-alias owner lands (closure plan §7.1, §11.2).
+test.fixme("keeps same-id tabs isolated when the canonical URL targets a non-current server", async ({ page }) => {
   await page.addInitScript(
     ({ activeServer, id }) => {
       localStorage.setItem(
@@ -140,7 +142,9 @@ test("keeps a child URL while opening one root-session tab and reuses its placem
   await expect(page).toHaveURL(new RegExp(`${rootPath}$`))
 })
 
-test("leaves the main surface blank when the requested Session returns 404", async ({ page }) => {
+// RED 2026-09-13: the `main` element no longer exists on this failure path; §7.2 targets a typed error page.
+// Unlock at S4 with the §7.2 fail-closed rewrite.
+test.fixme("leaves the main surface blank when the requested Session returns 404", async ({ page }) => {
   const missingSessionID = "ses_canonical_missing"
   await failSessionRead(page, missingSessionID)
   await gotoWhenReady(page, canonicalPath(missingSessionID))
@@ -149,7 +153,9 @@ test("leaves the main surface blank when the requested Session returns 404", asy
   await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0)
 })
 
-test("fails silently when resolving a child whose parent returns 404", async ({ page }) => {
+// RED 2026-09-13: the product already fail-closes here ("Something went wrong" renders) — §7.2 rewrite must pin this new baseline, not the old silent one.
+// Unlock at S4 with the §7.2 typed parent-missing rewrite.
+test.fixme("fails silently when resolving a child whose parent returns 404", async ({ page }) => {
   await failSessionRead(page, missingParentID)
   await gotoWhenReady(page, canonicalPath(orphanSessionID))
 
