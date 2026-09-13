@@ -38,6 +38,23 @@
       "status": "negative-only"
     }
   },
+  "deferred": {
+    "provider-scenario-scripts": {
+      "owner": "S5",
+      "scope": "deterministic provider scenarios per §5.1: streaming success (landed in S2 orchestrator), tool calls, HTTP failure, SSE interruption, duplicate/out-of-order events, slow response",
+      "unlock": "S5 interrupt/resume, exact retry, duplicate message ID, and reconnect specs consume these scripts"
+    },
+    "pty-file-fixtures": {
+      "owner": "S5",
+      "scope": "real PTY lifecycle and file fixtures per §5.1; the E4 workspace is a real git dir since S2, PTY rides the backend's native capability",
+      "unlock": "S5 Files/PTY lifeline specs"
+    },
+    "clean-clone-dod": {
+      "owner": "S12",
+      "scope": "plan §5.3 DoD line: the real-project command must run on a clean clone with exit 0; Linux-local semantics verified in S2, CI wiring is the pending half",
+      "unlock": "CI wiring lands at the S12 gate, or the Owner explicitly revises the DoD line — one of the two, not left open"
+    }
+  },
   "entries": [
     {
       "id": "canonical-tabs-host-alias",

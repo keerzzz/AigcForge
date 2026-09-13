@@ -52,6 +52,14 @@ const previewUrl = `http://127.0.0.1:${previewPort}`
 
 for (const dir of [configDir, workspaceDir]) mkdirSync(dir, { recursive: true })
 
+// Durable copy of this process's output. /tmp cleaners wiped the S2 round
+// logs; the gate evidence must not depend on volatile tmp files.
+const logPath = path.join(runDir, "orchestrator.log")
+const log = (line: string) => {
+  log(line)
+  writeFileSync(logPath, line, { flag: "a" })
+}
+
 // ── deterministic provider ───────────────────────────────────────────────────
 
 const providerRequests: Array<{ method: string; path: string }> = []
@@ -120,10 +128,10 @@ function spawnChild(name: string, command: string, args: Array<string>, cwd: str
     stdio: ["ignore", "pipe", "pipe"],
   })
   children.push(child)
-  const log = (level: string, line: string) => process.stdout.write(`[E4:${name}] ${level}: ${line}\n`)
-  child.stdout?.on("data", (chunk: Buffer) => log("out", chunk.toString().trimEnd()))
-  child.stderr?.on("data", (chunk: Buffer) => log("err", chunk.toString().trimEnd()))
-  child.on("exit", (code) => log("exit", `code=${code ?? "signal"}`))
+  const logChild = (level: string, line: string) => log(`[E4:${name}] ${level}: ${line}\n`)
+  child.stdout?.on("data", (chunk: Buffer) => logChild("out", chunk.toString().trimEnd()))
+  child.stderr?.on("data", (chunk: Buffer) => logChild("err", chunk.toString().trimEnd()))
+  child.on("exit", (code) => logChild("exit", `code=${code ?? "signal"}`))
   return child
 }
 
@@ -137,10 +145,10 @@ function waitForHealthy(url: string, timeoutMs: number): Promise<{ version: stri
         const body: unknown = await response.json()
         if (isRecord(body) && typeof body.version === "string") return { version: body.version }
       }
-      process.stdout.write(`[E4:health] attempt status=${response.status}\n`)
+      log(`[E4:health] attempt status=${response.status}\n`)
     } catch (error) {
       const cause = error instanceof Error ? error.cause : undefined
-      process.stdout.write(
+      log(
         `[E4:health] attempt failed: ${error instanceof Error ? error.message : String(error)} cause=${cause instanceof Error ? cause.message : String(cause)}\n`,
       )
     }
@@ -205,7 +213,7 @@ async function teardown(reason: string) {
       ),
     )
   write([], false)
-  process.stdout.write(`[E4] teardown: ${reason}\n`)
+  log(`[E4] teardown: ${reason}\n`)
   for (const child of children) await stopChild(child)
   provider.close()
 
@@ -219,9 +227,7 @@ async function teardown(reason: string) {
     if (await portInUse(port)) leaked.push(`${name}:${port}`)
   }
   write(leaked, leaked.length === 0)
-  process.stdout.write(
-    `[E4] teardown report: leaked=${JSON.stringify(leaked)} providerRequests=${providerRequests.length}\n`,
-  )
+  log(`[E4] teardown report: leaked=${JSON.stringify(leaked)} providerRequests=${providerRequests.length}\n`)
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
@@ -275,7 +281,7 @@ async function main() {
 
   // 3. deterministic provider on loopback.
   await startProvider()
-  process.stdout.write(`[E4] provider listening on ${providerBaseURL}\n`)
+  log(`[E4] provider listening on ${providerBaseURL}\n`)
 
   // 4. real backend; readiness is its own /global/health.
   spawnChild(
@@ -295,7 +301,7 @@ async function main() {
     { AIGCFROGE_DB: dbPath, AIGCFROGE_CONFIG_DIR: configDir },
   )
   const health = await waitForHealthy(backendUrl, 600_000)
-  process.stdout.write(`[E4] backend healthy at ${backendUrl} (version ${health.version})\n`)
+  log(`[E4] backend healthy at ${backendUrl} (version ${health.version})\n`)
 
   // 5. production build, then preview. The app resolves the backend through the
   //    seeded localStorage registry, so the build carries no port.
@@ -309,7 +315,7 @@ async function main() {
     {},
   )
   await waitForHttp(previewUrl, 60_000)
-  process.stdout.write(`[E4] preview serving at ${previewUrl}\n`)
+  log(`[E4] preview serving at ${previewUrl}\n`)
 
   // 6. runtime manifest for the specs and global teardown, then stay alive —
   //    Playwright owns this process's lifetime.
@@ -344,7 +350,7 @@ async function main() {
 }
 
 function fail(error: unknown) {
-  process.stdout.write(`[E4] FATAL: ${error instanceof Error ? error.message : String(error)}\n`)
+  log(`[E4] FATAL: ${error instanceof Error ? error.message : String(error)}\n`)
   // Never leave spawned processes behind — stop them before preserving the
   // run dir for post-mortem.
   void teardown("fatal").then(() => {
