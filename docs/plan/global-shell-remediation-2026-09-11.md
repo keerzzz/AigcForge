@@ -734,7 +734,7 @@ D8 Chat 三区与 dynamic Persist scope：
 
 **测试**：`context/dirty-confirm.test.ts`（6 例）与 `context/tab-close.test.ts`（8 例）。RED/GREEN：把回归点还原为"await 后读取身份"时，专项断言 `navigateCalls` 为空；修复后通过。注意该 RED 针对的是加固项 3，不针对规格竞态本身——规格竞态的验证只能由 e2e 承担（见下）。
 
-**测试基建边界**：provider 级渲染测试在本仓库不可行——`bun test` 未启用 `--isolate`，`mock.module` 进程级生效，`./src` 全量运行会双向污染（实测：mock `./server` 导致 `server.test.ts` 报 `Export named 'resolveServerList' not found`）。已登记 `docs/technical-debt.md` §6。
+**测试基建边界**：provider 级渲染测试在本仓库不可行——`bun test` 未启用 `--isolate`，`mock.module` 进程级生效，`./src` 全量运行会双向污染（实测：mock `./server` 导致 `server.test.ts` 报 `Export named 'resolveServerList' not found`）。已登记 `docs/technical-debt.md` §7。
 
 **本次跟进验证**：`packages/app` 全量单测（含新增 14 例）与 App typecheck 已复跑；目标 e2e 复跑结论见 `docs/review/global-shell-e2e-2026-09-10.md` §8.2。
 

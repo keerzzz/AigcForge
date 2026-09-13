@@ -60,3 +60,14 @@ Work 复用 ADR-12/15 的共享 `ModeWorkspace`，主区为 Work typed slot。
 ## 当前状态
 
 M1 – M3.5 已实现（预设 → 澄清 → 只读预览 → 原子落盘 → 步骤账本/Resume → 存为资产 → Mermaid → HTML 沙箱）。会话详情页左右栏归一见 [会话页归一计划](../../plan/work-mode-session-sidebar-plan.md)。
+
+## E2E 事实边界与下一闭环（2026-09-13）
+
+上面的 “M1–M3.5 已实现” 表示代码能力已落地，不等于产品真实链已经 E4 闭环。最新真实走查确认桌面 Session、Context/Artifact、权限取消、Draft Stay 和刷新可达；但总状态仍为 `PARTIAL`：
+
+- `SessionV2.Info` 当前只有兼容性的 `presetCategoryId`，没有 preset/workflow ID、revision、contract schema version 与 output contract 的统一耐久身份；`presetCategoryId=null` 的 ad-hoc Work Session 不能继续被 Artifact 空态描述成“基于预设”。
+- 候选稿当前主要从 assistant message 投影；产物 revision、Reviewer `comment → fix request → response → resolved/reopen`、导出/重开/rollback 尚未形成一条耐久合同。
+- 390×844 下 Session 与 Composer 可达，但桌面 Artifact panel 没有等价 tab/drawer 入口。
+- 现有 Work E2E 多为 mock contract；真实 provider output、CAS 冲突、长任务取消恢复、真实文件保存与 rollback 仍需 real-backend E4。
+
+后续实现必须先裁决用户预设与现有 Workflow/Asset 的关系。默认方向是复用版本化资产身份，由 Work 提供受限消费/创建视图；不得以 localStorage、临时 JSON 或平行预设存储冒充正式能力。实施计划见 [`global-shell-product-closure-2026-09-13.md`](../../plan/global-shell-product-closure-2026-09-13.md) S1/S6/S9A。
