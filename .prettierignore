@@ -14,5 +14,7 @@ packages/desktop/src/bindings.ts
 # `bun run lint` red on files git check-ignore confirms are untracked.
 packages/app/e2e/test-results/
 packages/app/e2e/playwright-report/
+packages/app/e2e/real/test-results/
+packages/app/e2e/real/playwright-report/
 packages/desktop/out/
 packages/storybook/storybook-static/

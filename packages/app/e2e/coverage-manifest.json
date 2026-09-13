@@ -6,6 +6,38 @@
     "protocol": "2 rounds same-order + 1 round reversed per-file invocation; workers=1, retries=0, no sleep, no waits",
     "result": "13 stable failures (identical sets in rounds 1-2) + 1 single-occurrence flake; bench 59/60 green with 1 stable narrow failure"
   },
+  "modes": {
+    "chat": {
+      "route": "/mode/chat + canonical session detail",
+      "e3": "asset categories, composer submit, session routes",
+      "e4": "planned S5 (real provider turn)",
+      "status": "planned"
+    },
+    "coding": {
+      "route": "/mode/coding + session detail (files/terminal)",
+      "e3": "terminal route, files route",
+      "e4": "planned S5 (real PTY/files lifeline)",
+      "status": "planned"
+    },
+    "work": {
+      "route": "/mode/work + artifact panel",
+      "e3": "work artifact specs",
+      "e4": "planned S9A (contract→artifact lifeline)",
+      "status": "planned"
+    },
+    "assistant": {
+      "route": "/mode/assistant + session panel",
+      "e3": "assistant dashboard specs",
+      "e4": "planned S9B (reminder delivery lifeline)",
+      "status": "planned"
+    },
+    "custom": {
+      "route": "/mode/custom + builder",
+      "e3": "builder states + typed negative gate (kill switch off)",
+      "e4": "planned S9C (typed negative first, approved-env happy path later)",
+      "status": "negative-only"
+    }
+  },
   "entries": [
     {
       "id": "canonical-tabs-host-alias",
