@@ -8,3 +8,11 @@ packages/desktop/src/bindings.ts
 # worktree, so the main tree still looks clean while SDK generation appears to
 # have reformatted the whole repo.
 .claude/worktrees/
+
+# Local build/test artifacts. Prettier does not read .gitignore (same situation
+# as .claude/worktrees/ above), so any local desktop/storybook/e2e run turns
+# `bun run lint` red on files git check-ignore confirms are untracked.
+packages/app/e2e/test-results/
+packages/app/e2e/playwright-report/
+packages/desktop/out/
+packages/storybook/storybook-static/
