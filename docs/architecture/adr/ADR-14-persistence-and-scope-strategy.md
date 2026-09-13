@@ -2,6 +2,7 @@
 
 > 状态：Accepted（2026-07-15 接受；接受条件已满足：四份 v3 PRD 不依赖硬编码全局目录/EventV2-only 调度/隐式 Work 工作区、ARCHITECTURE.md §7 同步列 Accepted）
 > 关联：[ADR-13](ADR-13-chat-work-mode-boundary.md)、[ARCHITECTURE.md](../../../ARCHITECTURE.md) §4.4/§4.8/§4.10、`packages/core/src/global.ts`
+> Amended by [ADR-23](ADR-23-session-product-identity-capability.md) (2026-09-13): the session identity projection adds zero tables, columns, or migrations — it composes existing owners read-only; WorkArtifact remains a non-durable in-memory event.
 
 ## 背景
 

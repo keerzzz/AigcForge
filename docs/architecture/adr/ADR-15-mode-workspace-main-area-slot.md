@@ -5,6 +5,7 @@
 > Amends: [ADR-12 §3](ADR-12-product-mode-entry-routing.md)
 > 关联：[ADR-11](ADR-11-product-mode-session-classification.md)、[ADR-13](ADR-13-chat-work-mode-boundary.md)（模式定位表）、[ADR-14](ADR-14-persistence-and-scope-strategy.md) §4（数据真源）、[Chat PRD §9](../../prd/chat-mode-creation-layer.md)
 > Accepted extension under implementation: [ADR-17](ADR-17-custom-mode-composition-platform.md) adds the fifth Custom typed main slot to `ModeWorkspace`. Until M0 Phase B and later App gates land, the 4-mode slot registry defined here remains active and authoritative in production runtime.
+> Amended by [ADR-23](ADR-23-session-product-identity-capability.md) (2026-09-13): Session Header and StatusBar become consumers of the read-only session identity projection (S6/S7); slot semantics are unchanged.
 
 ## 背景
 

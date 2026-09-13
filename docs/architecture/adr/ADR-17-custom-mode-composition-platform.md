@@ -3,6 +3,7 @@
 > 状态：Accepted for M0/M1 implementation v1.2（2026-08-18；用户授权 AI 代理代行 Product / Core / App / Security / Schema+SDK 技术审批）。**2026-09-03 复核**：M0 Phase B 已合入，`ProductMode.ID` 与 `MODE_DEFINITIONS` 均为含 `custom` 的五值，`/mode/custom` 为常规入口；M2/M3 的遗留项见 [`docs/technical-debt.md`](../../technical-debt.md) §3
 > 日期：2026-08-18
 > 关联：ADR-11、ADR-12、ADR-14、ADR-15、[Custom PRD](../../prd/custom-mode-composition-platform.md)、[Custom 路线图](../../roadmap/custom-mode-roadmap.md)、[Custom 研究稿](../../research/agent/DeepSeek-Harness四模式借鉴与自定义模式思维风暴.md)
+> Amended by [ADR-23](ADR-23-session-product-identity-capability.md) (2026-09-13): custom gate and snapshot health surface through the session identity projection as a digest reference plus a runtime policy capability; the composition snapshot store remains the sole owner and the `AIGCFROGE_CUSTOM_MODE` kill switch stays fail-closed.
 
 ## 背景
 
