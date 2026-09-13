@@ -219,6 +219,52 @@ const IdentityStruct = Schema.Struct({
 })
 export type IdentityStruct = typeof IdentityStruct.Type
 
+/**
+ * Reason codes of every contributing datum/capability that is not ready — the
+ * ADR-23 §1 contribution map. Coding VCS, work artifact, and chat asset counts
+ * are identity facts, NOT contributors: absence there is a normal state, not a
+ * degradation.
+ */
+const contributorCodes = (identity: IdentityStruct): Array<ReasonCode> => {
+  if (identity.detail.status === "missing") return [identity.detail.reason]
+  const codes: Array<ReasonCode> = []
+  const detail = identity.detail.detail
+  if (
+    detail.source === "work" &&
+    detail.contract.source === "preset" &&
+    detail.contract.revision.status === "unsupported"
+  ) {
+    codes.push(detail.contract.revision.reason)
+  }
+  if (detail.source === "assistant") {
+    for (const capability of [detail.reminders, detail.memory, detail.knowledge]) {
+      if (capability.health !== "ready") codes.push(...capability.reasons.map((reason) => reason.code))
+    }
+  }
+  if (detail.source === "custom" && detail.policy.health !== "ready") {
+    codes.push(...detail.policy.reasons.map((reason) => reason.code))
+  }
+  return codes
+}
+
+/**
+ * Health floor implied by contributors: a blocked contributor forces the top
+ * capability to blocked; any other non-ready contributor only forces degraded.
+ */
+const contributorFloor = (identity: IdentityStruct): CapabilityHealth => {
+  if (identity.detail.status === "ready") {
+    const detail = identity.detail.detail
+    if (detail.source === "assistant") {
+      const capabilities = [detail.reminders, detail.memory, detail.knowledge]
+      if (capabilities.some((capability) => capability.health === "blocked")) return "blocked"
+    }
+    if (detail.source === "custom" && detail.policy.health === "blocked") return "blocked"
+  }
+  return "degraded"
+}
+
+const HEALTH_ORDER: Record<CapabilityHealth, 0 | 1 | 2> = { ready: 0, degraded: 1, blocked: 2 }
+
 export const Identity = IdentityStruct.pipe(
   Schema.check(
     Schema.makeFilter(
@@ -227,6 +273,22 @@ export const Identity = IdentityStruct.pipe(
         return identity.detail.detail.source === identity.mode
       },
       { message: "Mode detail source must match the identity mode" },
+    ),
+  ),
+  Schema.check(
+    Schema.makeFilter(
+      (identity: IdentityStruct) => {
+        const codes = contributorCodes(identity)
+        if (codes.length === 0) return true
+        if (identity.capability.health === "ready") return false
+        if (HEALTH_ORDER[identity.capability.health] < HEALTH_ORDER[contributorFloor(identity)]) return false
+        const folded = new Set(identity.capability.reasons.map((reason) => reason.code))
+        return codes.every((reasonCode) => folded.has(reasonCode))
+      },
+      {
+        message:
+          "Capability must fold non-ready contributors: health at the contributor floor (degraded, or blocked when a contributor is blocked) with every contributor reason code folded into reasons",
+      },
     ),
   ),
 ).annotate({ identifier: "SessionIdentity.Identity" })

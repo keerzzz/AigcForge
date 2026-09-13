@@ -4,7 +4,7 @@
 > Date: 2026-09-13
 > Amends: [ADR-13](ADR-13-chat-work-mode-boundary.md)、[ADR-14](ADR-14-persistence-and-scope-strategy.md)、[ADR-15](ADR-15-mode-workspace-main-area-slot.md)、[ADR-17](ADR-17-custom-mode-composition-platform.md)
 > 关联：[全局壳产品闭环计划](../../plan/global-shell-product-closure-2026-09-13.md) §4、D2/D3/D4/D5 裁决、[ADR-11](ADR-11-product-mode-session-classification.md)、[ADR-17](ADR-17-custom-mode-composition-platform.md)、[ADR-20](ADR-20-scoped-grant-model.md)
-> 实现 owner：Schema `packages/schema/src/session-identity.ts`（S1 已落地，12 例 RED→GREEN）；组合服务 `packages/core`（S6）；传输复用 `packages/aigcfroge` 现有 instance HttpApi group（S6）；App 只消费 SDK projection（S6/S7）
+> 实现 owner：Schema `packages/schema/src/session-identity.ts`（S1 已落地，17 例 RED→GREEN）；组合服务 `packages/core`（S6）；传输复用 `packages/aigcfroge` 现有 instance HttpApi group（S6）；App 只消费 SDK projection（S6/S7）
 
 ## 背景
 
@@ -21,9 +21,9 @@ S0 基线（2026-09-13，185/13/198 fixme 后回绿）确认：产品身份与�
 | datum 级      | `ready \| missing \| unsupported` | `ready` 携带 `value`；`missing` = owner 对该 Session 无数据（历史 Session 早于 detail owner）；`unsupported` = 设计上延后（WorkPreset revision 未落地、Assistant Memory/KB 属 M2），必须携带稳定 reason code |
 | capability 级 | `ready \| degraded \| blocked`    | `blocked` = 策略性 fail-closed（Custom kill switch、capability header 不匹配）；`degraded` 必须携带 typed reasons                                                                                            |
 
-**聚合规则（全仓唯一）**：任一贡献 datum 非 `ready` ⇒ 其所在 capability 至少 `degraded`（reasons 列出全部 code）；`blocked` 与数据无关，独立成立。Header、列表、StatusBar、disabled 按钮、Custom diagnostics 只消费这条规则，不得各自计算 health（计划 §9.2）。
+**聚合规则（全仓唯一，`Identity` 的 Schema filter 可执行强制）**：任一**贡献 datum/capability** 非 `ready` ⇒ 顶层 capability 不得为 `ready`，health 不得低于贡献者 floor（任一贡献者 `blocked` ⇒ 顶层必须 `blocked`，否则 `degraded`），且其 reasons 必须折叠贡献者的全部 code。**贡献映射**：`detail.missing`、work 契约 preset revision `unsupported`、assistant 的 reminders/memory/knowledge 三个 Capability、custom 的 policy Capability **贡献**；coding 的 vcs datum、work 的 artifact datum、chat 的 assetCounts 是**身份事实，不贡献**——无 VCS、尚未产出 artifact 是正常态而非降级。反向不约束：无贡献者时 `blocked` 仍可由策略门独立成立（如 custom kill switch）。`health: "ready"` 配任何非 ready 贡献者的组合在解码期直接失败。Header、列表、StatusBar、disabled 按钮、Custom diagnostics 只消费这条规则，不得各自计算 health（计划 §9.2）。
 
-**Reason code 是协议不是文案**：`^[a-z][a-z0-9]*(-[a-z0-9]+)*$` kebab-case brand，不随 locale 翻译；展示文案由消费端 i18n 解析。恢复动作同理（`ActionCode`）。当前注册表：`mode-detail-not-projected`、`work-preset-revision-pending`、`assistant-reminders-unavailable`、`assistant-memory-m2-pending`、`assistant-kb-m2-pending`、`custom-mode-disabled`。扩展是加法；改名是协议破坏。
+**Reason code 是协议不是文案**：`^[a-z][a-z0-9]*(-[a-z0-9]+)*$` kebab-case brand，不随 locale 翻译；展示文案由消费端 i18n 解析。恢复动作同理（`ActionCode`）。当前注册表：`mode-detail-not-projected`、`work-preset-revision-pending`、`assistant-reminders-unavailable`、`assistant-memory-m2-pending`、`assistant-kb-m2-pending`、`custom-mode-disabled`。扩展是加法；改名是协议破坏。`assistant-reminders-unavailable` 的触发条件由 S9B owner 定义，在此之前任何代码不得发射该 code（占位保护，防止语义被既成事实定义）。
 
 ## 决策 2：Owner 拓扑
 
@@ -45,13 +45,13 @@ S0 基线（2026-09-13，185/13/198 fixme 后回绿）确认：产品身份与�
 
 **五模式 detail（判别字段 `source`，必须等于 `mode`——Schema filter 强制）**：
 
-| mode        | detail 字段                                                                                                                                                                                                                                     |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `coding`    | `vcs{branch, worktree}`：datum(string)。非 Git Location 返回 `missing`，不返回空串（S8 语义的 schema 面）                                                                                                                                       |
-| `chat`      | `assetCounts[{kind,count}]`：七类资产计数（prompt/skill/mcp/command/agent/workflow/plugin），不含资产正文                                                                                                                                       |
-| `work`      | `contract`（见下）+ `artifact`：datum(Revision)，Applied artifact 的内容 revision                                                                                                                                                               |
-| `assistant` | `scope{personal} \| {project, projectID}` + `reminders/memory/knowledge` 三个 Capability（D4；Memory/KB 在 M2 前为 `degraded` + `assistant-*-m2-pending`，不改 `personal_memory`/`kb_note` 表——"Cross-project by design" 注释所代表的决策不动） |
-| `custom`    | `snapshot{digest}`（引用 `Composition.Digest`，指向 snapshot store）+ `policy` Capability；**类型上不存在** instruction/credential 字段，round-trip 丢弃未知字段（RED 已证）                                                                    |
+| mode        | detail 字段                                                                                                                                                                                                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coding`    | `vcs{branch, worktree}`：datum(string)。非 Git Location 返回 `missing`，不返回空串（S8 语义的 schema 面）                                                                                                                                                                                                     |
+| `chat`      | `assetCounts[{kind,count}]`：七类资产计数（prompt/skill/mcp/command/agent/workflow/plugin），不含资产正文                                                                                                                                                                                                     |
+| `work`      | `contract`（见下）+ `artifact`：datum(Revision)，Applied artifact 的内容 revision                                                                                                                                                                                                                             |
+| `assistant` | `scope{personal} \| {project, projectID}` + `reminders/memory/knowledge` 三个 Capability（D4；Memory/KB 在 M2 前为 `degraded` + `assistant-*-m2-pending`，不改 `personal_memory`/`kb_note` 表——"Cross-project by design" 注释所代表的决策不动）。三者非 ready 时必须折叠进顶层 capability（§决策 1 贡献映射） |
+| `custom`    | `snapshot{digest}`（引用 `Composition.Digest`，指向 snapshot store）+ `policy` Capability；**类型上不存在** instruction/credential 字段，round-trip 丢弃未知字段（RED 已证）                                                                                                                                  |
 
 **Work contract（D3 终版：判别式跟来源走，不跟实现走）**：
 
@@ -83,4 +83,4 @@ workflow 来源**现在**就有真 revision（`workflow-asset.ts:30-36`，YAML �
 
 ## Slice 边界与 RED 对账
 
-S1 交付（本 ADR + schema + 12 例测试）：common 字段完整、五判别式 source 配对强制（Schema filter）、历史 Session typed missing、Custom 快照 ref-only round-trip 丢密、reason code 稳定（拒中文/拒空格）、Work contract 三分支 + 64-hex revision 校验、未知字段容忍（旧 SDK 兼容面）。显式不在 S1：OpenAPI snapshot 与 SDK 生成断言（S6）、endpoint 与组合服务（S6）、App 消费（S6/S7）、preset revision 字段实现（S9A）、Memory/KB scope（M2 独立 gate）。
+S1 交付（本 ADR + schema + 17 例测试）：common 字段完整、五判别式 source 配对强制（Schema filter）、capability 聚合规则可执行（贡献 floor + reasons 折叠，Schema filter + 贡献映射）、历史 Session typed missing、Custom 快照 ref-only round-trip 丢密、reason code 稳定（拒中文/拒空格）、Work contract 三分支 + 64-hex revision 校验、未知字段容忍（旧 SDK 兼容面）。显式不在 S1：OpenAPI snapshot 与 SDK 生成断言（S6）、endpoint 与组合服务（S6）、App 消费（S6/S7）、preset revision 字段实现（S9A）、Memory/KB scope（M2 独立 gate）。
