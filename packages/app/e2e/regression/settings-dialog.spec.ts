@@ -196,7 +196,6 @@ test("shows a provider write failure and rolls the optimistic disconnect back", 
   await expect(providerRow).toBeVisible()
 })
 
-
 test("persists model visibility after closing, reopening, and reloading Settings", async ({ page }) => {
   await gotoWhenReady(page, "/mode/coding")
   const settings = page.getByRole("button", { name: "Settings" })

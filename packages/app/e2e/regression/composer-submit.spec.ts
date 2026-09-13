@@ -16,6 +16,10 @@ const composer = (page: Page) => page.locator('[data-component="session-composer
 const input = (page: Page) => composer(page).locator('[data-component="prompt-input"]')
 const userMessage = (page: Page) => page.locator('[data-timeline-row="UserMessage"]')
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
 async function installMock(page: Page) {
   await mockAigcfrogeServer(page, {
     directory,
@@ -90,7 +94,9 @@ test("Shift+Enter inserts a newline without submitting", async ({ page }) => {
   await input(page).press("Shift+Enter")
   await input(page).pressSequentially("second line")
 
-  await expect.poll(() => input(page).evaluate((element) => (element as HTMLElement).innerText)).toBe("first line\nsecond line")
+  await expect
+    .poll(() => input(page).evaluate((element) => (element instanceof HTMLElement ? element.innerText : "")))
+    .toBe("first line\nsecond line")
   expect(writes).toEqual([])
 })
 
@@ -102,9 +108,10 @@ test("Enter sends the selected session, agent, model, message id, and text", asy
       }
     | undefined
   await interceptPrompt(page, async (route) => {
+    const data: unknown = route.request().postDataJSON()
     request = {
       pathname: new URL(route.request().url()).pathname,
-      body: route.request().postDataJSON() as Record<string, unknown>,
+      body: isRecord(data) ? data : {},
     }
     await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
   })

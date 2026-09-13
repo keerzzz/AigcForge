@@ -100,7 +100,11 @@ async function mockPersonaServer(page: Page, onOverridePut?: () => void) {
 
   for (const path of ["agent-asset", "prompt-asset", "skill-asset", "command-asset", "workflow-asset"]) {
     await page.route(`**/${path}?*`, (route) =>
-      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ assets: [], invalid: [] }) }),
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ assets: [], invalid: [] }),
+      }),
     )
   }
   await page.route("**/custom-composition/plan*", (route) =>
@@ -114,7 +118,9 @@ async function mockPersonaServer(page: Page, onOverridePut?: () => void) {
     }),
   )
   for (const path of ["schedule/pending", "delivery/recent", "memory", "kb", "kb/dangling"]) {
-    await page.route(`**/${path}*`, (route) => route.fulfill({ status: 200, contentType: "application/json", body: "[]" }))
+    await page.route(`**/${path}*`, (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
+    )
   }
   await page.route("**/session/*/permission-override", async (route: Route) => {
     if (route.request().method() === "PUT") {
@@ -166,7 +172,9 @@ test.describe("persona audit: mode and detail closure", () => {
       await gotoWhenReady(page, "/mode/work")
       await expect(page.getByRole("heading", { name: "Work Presets" })).toBeVisible()
       await expect(page.locator('[data-mode-location="work"] button').filter({ hasText: "New Session" })).toBeDisabled()
-      await expect(page.locator('[data-mode-main="work"] button').filter({ hasText: "clarifying questions" }).first()).toBeDisabled()
+      await expect(
+        page.locator('[data-mode-main="work"] button').filter({ hasText: "clarifying questions" }).first(),
+      ).toBeDisabled()
 
       await page.goto("/mode/assistant")
       await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible()
@@ -196,15 +204,18 @@ test.describe("persona audit: mode and detail closure", () => {
     await attachClosure(testInfo, {
       logic: {
         closed: false,
-        evidence: "Assistant presents project selection and a personal dashboard at once; Custom exposes no server-capability identity.",
+        evidence:
+          "Assistant presents project selection and a personal dashboard at once; Custom exposes no server-capability identity.",
       },
       flow: {
         closed: false,
-        evidence: "Work and Custom stop at disabled actions; Add Project is the only visible recovery route from the no-project state.",
+        evidence:
+          "Work and Custom stop at disabled actions; Add Project is the only visible recovery route from the no-project state.",
       },
       interaction: {
         closed: false,
-        evidence: "Settings explains all five areas, but Start Session provides no actionable explanation for the server-side Custom gate.",
+        evidence:
+          "Settings explains all five areas, but Start Session provides no actionable explanation for the server-side Custom gate.",
       },
     })
   })
@@ -245,15 +256,18 @@ test.describe("persona audit: mode and detail closure", () => {
     await attachClosure(testInfo, {
       logic: {
         closed: false,
-        evidence: "Work accepts presetCategoryId=null while its artifact empty state assumes a preset; Assistant does not display personal/project scope.",
+        evidence:
+          "Work accepts presetCategoryId=null while its artifact empty state assumes a preset; Assistant does not display personal/project scope.",
       },
       flow: {
         closed: false,
-        evidence: "Work/Assistant details and Settings recovery pass, but the real Custom journey stops before a legal Session detail exists.",
+        evidence:
+          "Work/Assistant details and Settings recovery pass, but the real Custom journey stops before a legal Session detail exists.",
       },
       interaction: {
         closed: false,
-        evidence: "The identity header omits scope, preset, inherited model source, and other data needed to judge the session.",
+        evidence:
+          "The identity header omits scope, preset, inherited model source, and other data needed to judge the session.",
       },
     })
   })
@@ -295,15 +309,18 @@ test.describe("persona audit: mode and detail closure", () => {
     await attachClosure(testInfo, {
       logic: {
         closed: false,
-        evidence: "Work has no artifact review state, Assistant has operational data but no reviewer lifecycle, and Custom has no legal detail to review.",
+        evidence:
+          "Work has no artifact review state, Assistant has operational data but no reviewer lifecycle, and Custom has no legal detail to review.",
       },
       flow: {
         closed: false,
-        evidence: "Context and Artifacts are reachable, but output feedback cannot proceed to fix, response, and resolution without a model turn.",
+        evidence:
+          "Context and Artifacts are reachable, but output feedback cannot proceed to fix, response, and resolution without a model turn.",
       },
       interaction: {
         closed: false,
-        evidence: "The empty output surface only asks for preset-based generation even though this session has no preset.",
+        evidence:
+          "The empty output surface only asks for preset-based generation even though this session has no preset.",
       },
     })
   })
@@ -357,13 +374,18 @@ test.describe("persona audit: mode and detail closure", () => {
     await attachClosure(testInfo, {
       logic: {
         closed: false,
-        evidence: "Work and Assistant share the acknowledged escalation boundary, but Custom cannot reach a Session permission owner and Settings has no restricted-role scope.",
+        evidence:
+          "Work and Assistant share the acknowledged escalation boundary, but Custom cannot reach a Session permission owner and Settings has no restricted-role scope.",
       },
       flow: {
         closed: false,
-        evidence: "Cancel is side-effect free in Work/Assistant; Custom remains blocked before detail while its permission preview and Settings Servers remain inspectable.",
+        evidence:
+          "Cancel is side-effect free in Work/Assistant; Custom remains blocked before detail while its permission preview and Settings Servers remain inspectable.",
       },
-      interaction: { closed: true, evidence: "The dialog explains risk and keeps Enable disabled until acknowledgement." },
+      interaction: {
+        closed: true,
+        evidence: "The dialog explains risk and keeps Enable disabled until acknowledgement.",
+      },
     })
   })
 
@@ -399,13 +421,18 @@ test.describe("persona audit: mode and detail closure", () => {
     await attachClosure(testInfo, {
       logic: {
         closed: false,
-        evidence: "Dirty state is independent for Work/Assistant; Custom has no creatable Session state whose draft or recovery owner can be tested.",
+        evidence:
+          "Dirty state is independent for Work/Assistant; Custom has no creatable Session state whose draft or recovery owner can be tested.",
       },
       flow: {
         closed: false,
-        evidence: "Work/Assistant Stay and Settings focus recovery pass; Custom reloads its blocked Builder but cannot recover a Session detail.",
+        evidence:
+          "Work/Assistant Stay and Settings focus recovery pass; Custom reloads its blocked Builder but cannot recover a Session detail.",
       },
-      interaction: { closed: true, evidence: "Stay/Leave and Settings Escape/focus return are explicit and reversible." },
+      interaction: {
+        closed: true,
+        evidence: "Stay/Leave and Settings Escape/focus return are explicit and reversible.",
+      },
     })
   })
 
@@ -445,18 +472,20 @@ test.describe("persona audit: mode and detail closure", () => {
     await test.step("interaction: Custom keyboard order exposes unlabeled controls", async () => {
       await page.goto("/mode/custom")
       await expect(page.getByText("Project Assets", { exact: true })).toBeVisible()
-      const unlabeled = page.locator('button:visible:not([aria-label]):not([title])').filter({ hasText: /^$/ })
+      const unlabeled = page.locator("button:visible:not([aria-label]):not([title])").filter({ hasText: /^$/ })
       await expect(unlabeled).toHaveCount(2)
     })
 
     await attachClosure(testInfo, {
       logic: {
         closed: false,
-        evidence: "Narrow Work and Assistant preserve the session and composer, but hide their mode-specific Artifact and Assistant panels.",
+        evidence:
+          "Narrow Work and Assistant preserve the session and composer, but hide their mode-specific Artifact and Assistant panels.",
       },
       flow: {
         closed: false,
-        evidence: "A 390x844 user can read and compose but cannot reach the mode-specific output/assistant panels; Settings remains operable.",
+        evidence:
+          "A 390x844 user can read and compose but cannot reach the mode-specific output/assistant panels; Settings remains operable.",
       },
       interaction: {
         closed: false,

@@ -58,10 +58,15 @@ function session(id: string, directory: string, title: string) {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
 function requestBody(request: Request) {
   const value = request.postData()
-  if (!value) return
-  return JSON.parse(value) as unknown
+  if (!value) return undefined
+  const parsed: unknown = JSON.parse(value)
+  return isRecord(parsed) ? parsed : undefined
 }
 
 function directoryOf(request: Request, url: URL) {
@@ -177,12 +182,13 @@ async function installMocks(page: Page) {
     }
 
     if (url.pathname === "/pty" && method === "POST") {
-      const body = requestBody(request) as { title?: string } | undefined
+      const body = requestBody(request)
+      const title = typeof body?.title === "string" ? body.title : ""
       const directory = directoryOf(request, url) ?? ""
       const id = `pty_terminal_${++nextID}`
       const info: PtyInfo = {
         id,
-        title: body?.title ?? "",
+        title,
         command: "/bin/sh",
         args: [],
         cwd: decodeURIComponent(directory),
@@ -207,8 +213,8 @@ async function installMocks(page: Page) {
 
     if (method === "GET") return json(route, info)
     if (method === "PUT") {
-      const body = requestBody(request) as { title?: string } | undefined
-      const next = { ...info, ...(body?.title === undefined ? {} : { title: body.title }) }
+      const body = requestBody(request)
+      const next = { ...info, ...(typeof body?.title === "string" ? { title: body.title } : {}) }
       ptys.set(item[1], next)
       return json(route, next)
     }
@@ -224,9 +230,16 @@ async function installMocks(page: Page) {
 
 async function socketState(page: Page) {
   return page.evaluate(() => {
-    const value = (window as unknown as { __terminalSocketState?: unknown }).__terminalSocketState
-    if (!value || typeof value !== "object") throw new Error("Terminal WebSocket state is unavailable")
-    return value as SocketState
+    const value: unknown = Reflect.get(window, "__terminalSocketState")
+    // The predicate must live inside the callback: page.evaluate serializes
+    // this function into the browser, where Node-scope helpers don't exist.
+    const isState = (input: unknown): input is SocketState => {
+      if (typeof input !== "object" || input === null) return false
+      if (!("urls" in input) || !("sent" in input) || !("closes" in input)) return false
+      return Array.isArray(input.urls) && Array.isArray(input.sent) && Array.isArray(input.closes)
+    }
+    if (!isState(value)) throw new Error("Terminal WebSocket state is unavailable")
+    return value
   })
 }
 
@@ -299,8 +312,9 @@ test("creates, connects, sends input, resizes, and deletes a PTY from a canonica
     .poll(() =>
       mock.requests.find((request) => {
         if (request.method !== "PUT" || request.path !== "/pty/pty_terminal_1") return false
-        const body = request.body as { size?: { cols?: number; rows?: number } } | undefined
-        return !!body?.size?.cols && !!body.size.rows
+        return (
+          isRecord(request.body) && isRecord(request.body.size) && !!request.body.size.cols && !!request.body.size.rows
+        )
       }),
     )
     .toBeTruthy()

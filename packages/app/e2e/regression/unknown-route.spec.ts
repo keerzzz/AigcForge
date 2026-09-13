@@ -57,7 +57,9 @@ test("invalid mode visibly recovers to the home overview", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0)
 })
 
-test("expected current behavior: an unknown path leaves a blank main region but only shell-level recovery", async ({ page }) => {
+test("expected current behavior: an unknown path leaves a blank main region but only shell-level recovery", async ({
+  page,
+}) => {
   await gotoWhenReady(page, "/not-a-route")
 
   await expect(page).toHaveURL(/\/not-a-route$/)

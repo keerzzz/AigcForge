@@ -84,7 +84,10 @@ test("drops query and hash while redirecting an id-bearing legacy URL", async ({
 
   await expect(page).toHaveURL(new RegExp(`${canonicalPath}$`))
   await expectSessionTitle(page, title)
-  expect(await page.evaluate(() => ({ search: location.search, hash: location.hash }))).toEqual({ search: "", hash: "" })
+  expect(await page.evaluate(() => ({ search: location.search, hash: location.hash }))).toEqual({
+    search: "",
+    hash: "",
+  })
 })
 
 test("drops query and hash when an id-less legacy URL creates a draft", async ({ page }) => {
