@@ -199,7 +199,8 @@ test.describe("regression: Custom Builder request and failure states", () => {
     await openMode(page, state, "chat", "chat")
     // Wait for a Chat-side surface so the workspace has definitely mounted and its
     // slots have had their chance to fetch; otherwise a zero count proves nothing.
-    await expectAppVisible(page.getByText("Project", { exact: true }).first())
+    await expectAppVisible(page.getByRole("button", { name: "Prompts", exact: true }))
+    await expect(page.getByRole("button", { name: "Chat" })).toHaveAttribute("aria-pressed", "true")
     await expect(assetsTitle(page)).toBeHidden()
 
     // The composition plan is the discriminator: only the Custom Main slot requests
@@ -248,7 +249,8 @@ test.describe("regression: Custom Builder request and failure states", () => {
     const state = wire()
     await openMode(page, state, "chat", "chat")
 
-    await expectAppVisible(page.getByText("Project", { exact: true }).first())
+    await expectAppVisible(page.getByRole("button", { name: "Prompts", exact: true }))
+    await expect(page.getByRole("button", { name: "Chat" })).toHaveAttribute("aria-pressed", "true")
     await expect(chatLoadError(page)).toHaveCount(0)
   })
 

@@ -11,6 +11,7 @@ const emptyList = new Set([
   "/vcs/diff",
   "/vcs/log",
   "/file",
+  "/pty/shells",
 ])
 const emptyObject = new Set(["/global/config", "/config", "/provider/auth", "/mcp", "/session/status"])
 
