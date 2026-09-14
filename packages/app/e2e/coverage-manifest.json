@@ -61,32 +61,6 @@
   },
   "entries": [
     {
-      "id": "canonical-404-blank-main",
-      "spec": "e2e/regression/canonical-session-route.spec.ts",
-      "test": "leaves the main surface blank when the requested Session returns 404",
-      "layer": "E3",
-      "route": "/server/:key/session/:id",
-      "mode": "work",
-      "platform": "chromium",
-      "failure": "route-desync",
-      "status": "red-fixme",
-      "owner": "S4",
-      "unlock": "§7.2 typed error rewrite (spec pinned a stale intermediate state)"
-    },
-    {
-      "id": "canonical-parent-404",
-      "spec": "e2e/regression/canonical-session-route.spec.ts",
-      "test": "fails silently when resolving a child whose parent returns 404",
-      "layer": "E3",
-      "route": "/server/:key/session/:id",
-      "mode": "work",
-      "platform": "chromium",
-      "failure": "route-desync",
-      "status": "red-fixme",
-      "owner": "S4",
-      "unlock": "§7.2 typed parent-missing rewrite; product already fail-closes — pin the new baseline"
-    },
-    {
       "id": "composer-shift-enter-zwsp",
       "spec": "e2e/regression/composer-submit.spec.ts",
       "test": "Shift+Enter inserts a newline without submitting",
@@ -111,19 +85,6 @@
       "status": "red-fixme",
       "owner": "S3",
       "unlock": "product-side fix: submit clears the contenteditable DOM, not only the store"
-    },
-    {
-      "id": "unknown-session-crash",
-      "spec": "e2e/regression/unknown-route.spec.ts",
-      "test": "expected current behavior: an unknown session crashes with an unrelated path error",
-      "layer": "E3",
-      "route": "/server/:key/session/:id",
-      "mode": "work",
-      "platform": "chromium",
-      "failure": "route-desync",
-      "status": "red-fixme",
-      "owner": "S4",
-      "unlock": "§7.2 typed session-not-found rewrite (crash boundary no longer renders)"
     },
     {
       "id": "delegation-persistent-loop-flake",

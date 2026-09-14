@@ -10,7 +10,7 @@ import type { ServerScope } from "@/utils/server-scope"
 import { useSDK } from "./sdk"
 import { useTabs, type Tab } from "./tabs"
 import { useServer } from "./server"
-import { requireServerKey } from "@/utils/session-route"
+import { parseServerKey } from "@/utils/session-route"
 
 interface PartBase {
   content: string
@@ -304,7 +304,9 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
         return tabs.store.find((item) => item.type === "draft" && item.draftID === search.draftId)
       }
       if (!params.id) return
-      const serverKey = params.serverKey ? requireServerKey(params.serverKey) : server.key
+      const parsed = params.serverKey ? parseServerKey(params.serverKey) : undefined
+      const serverKey = parsed ? (parsed.ok ? parsed.key : undefined) : server.key
+      if (!serverKey) return undefined
       return (
         tabs.store.find(
           (item) => item.type === "session" && item.server === serverKey && item.sessionId === params.id,

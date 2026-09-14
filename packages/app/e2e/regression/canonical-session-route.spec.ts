@@ -177,23 +177,28 @@ test("keeps a child URL while opening one root-session tab and reuses its placem
   await expect(page).toHaveURL(new RegExp(`${rootPath}$`))
 })
 
-// RED 2026-09-13: the `main` element no longer exists on this failure path; §7.2 targets a typed error page.
-// Unlock at S4 with the §7.2 fail-closed rewrite.
-test.fixme("leaves the main surface blank when the requested Session returns 404", async ({ page }) => {
+test("shows a typed session-not-found surface when the requested Session returns 404", async ({ page }) => {
   const missingSessionID = "ses_canonical_missing"
   await failSessionRead(page, missingSessionID)
   await gotoWhenReady(page, canonicalPath(missingSessionID))
 
-  await expect(page.locator("main")).toBeEmpty()
-  await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0)
+  const surface = page.locator('[data-component="route-error"][data-route-error-kind="session-not-found"]')
+  await expect(surface).toBeVisible()
+  await expect(surface.getByRole("heading", { name: "Session not found" })).toBeVisible()
+  await expect(surface).toContainText(missingSessionID)
+  // A failed resolution must not claim a tab for the session it could not load.
+  await expect(page.locator('[data-slot="titlebar-tabs"] a')).toHaveCount(0)
 })
 
-// RED 2026-09-13: the product already fail-closes here ("Something went wrong" renders) — §7.2 rewrite must pin this new baseline, not the old silent one.
-// Unlock at S4 with the §7.2 typed parent-missing rewrite.
-test.fixme("fails silently when resolving a child whose parent returns 404", async ({ page }) => {
+test("names the missing parent when a child session's parent returns 404", async ({ page }) => {
   await failSessionRead(page, missingParentID)
   await gotoWhenReady(page, canonicalPath(orphanSessionID))
 
+  const surface = page.locator('[data-component="route-error"][data-route-error-kind="parent-not-found"]')
+  await expect(surface).toBeVisible()
+  await expect(surface.getByRole("heading", { name: "Parent session missing" })).toBeVisible()
+  await expect(surface).toContainText(missingParentID)
+  // No half-open session: the orphan child's own title must not render.
   await expect(page.locator("main")).not.toContainText("Canonical orphan session")
   await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0)
 })
@@ -210,9 +215,11 @@ test("preserves query and hash on a canonical URL", async ({ page }) => {
   })
 })
 
-test("shows an error page for a malformed server key", async ({ page }) => {
+test("shows a typed invalid-server surface for a malformed server key", async ({ page }) => {
   await gotoWhenReady(page, `/server/not-valid%25/session/${sessionID}`)
 
-  await expect(page.getByRole("heading", { name: "Something went wrong" })).toBeVisible()
-  await expect(page.getByRole("textbox", { name: "Error Details" })).toHaveValue(/Invalid server route/)
+  const surface = page.locator('[data-component="route-error"][data-route-error-kind="invalid-server-key"]')
+  await expect(surface).toBeVisible()
+  await expect(surface.getByRole("heading", { name: "Invalid server link" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0)
 })

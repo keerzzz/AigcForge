@@ -1,6 +1,6 @@
 import type { Accessor } from "solid-js"
 import { decode64 } from "@/utils/base64"
-import { requireServerKey } from "@/utils/session-route"
+import { parseServerKey } from "@/utils/session-route"
 import type { ServerConnection } from "./server"
 
 export type LayoutRoute =
@@ -33,10 +33,12 @@ export const currentRoute = (pathname: string, search: string): LayoutRoute => {
   }
 
   if (parts[0] === "server" && parts[2] === "session" && parts[3]) {
+    const parsed = parseServerKey(parts[1])
+    if (!parsed.ok) return { type: "other" }
     return {
       type: "session",
       sessionId: parts[3],
-      server: requireServerKey(parts[1]),
+      server: parsed.key,
     }
   }
 

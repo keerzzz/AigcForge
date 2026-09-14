@@ -22,7 +22,7 @@ import { extractPromptFromParts } from "@/utils/prompt"
 import { UserMessage } from "@aigcfroge/sdk/v2"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { useTabs } from "@/context/tabs"
-import { requireServerKey } from "@/utils/session-route"
+import { parseServerKey } from "@/utils/session-route"
 
 export type SessionCommandContext = {
   navigateMessageByOffset: (offset: number) => void
@@ -389,8 +389,10 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
             navigate(modeDefinition(mode.currentMode).href)
             return
           }
+          const parsed = parseServerKey(params.serverKey)
+          if (!parsed.ok) return
           sessionTabs.newDraft({
-            server: requireServerKey(params.serverKey),
+            server: parsed.key,
             directory: sdk().directory,
             mode: mode.currentMode,
           })

@@ -5,7 +5,7 @@ import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection, serverName } from "@/context/server"
 import { useLanguage } from "@/context/language"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
-import { requireServerKey } from "@/utils/session-route"
+import { parseServerKey } from "@/utils/session-route"
 import { toolCountFromParts } from "./tool-count"
 import type { ConnectionState, StatusBarModelInfo, StatusBarCacheInfo, StatusBarSource } from "./types"
 import type { StatusBarMetric, MetricGroup } from "./metrics"
@@ -24,7 +24,10 @@ export function createCurrentSessionSource(): StatusBarSource {
 
   const routeKey = createMemo(() => {
     if (!params.serverKey) return undefined
-    return requireServerKey(params.serverKey)
+    // Malformed keys are the route resolver's problem to surface; the status
+    // bar simply has no route-scoped server to show.
+    const parsed = parseServerKey(params.serverKey)
+    return parsed.ok ? parsed.key : undefined
   })
 
   const routeServer = createMemo(() => {

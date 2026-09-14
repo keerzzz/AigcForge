@@ -82,7 +82,7 @@ test.describe("regression: presentation matrix contract", () => {
     if (testInfo.project.name !== "chromium") return
     // The titlebar Home button is the first control in tab order, so keyboard
     // reachability is asserted against it on the base project.
-    const home = page.getByRole("button", { name: "Home" })
+    const home = page.getByRole("button", { name: "Home", exact: true })
     await expect(home).toBeVisible()
     await page.keyboard.press("Tab")
     await expect(home).toBeFocused()

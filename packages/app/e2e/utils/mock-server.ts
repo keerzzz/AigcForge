@@ -100,7 +100,11 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     const sessionMatch = path.match(/^\/session\/([^/]+)$/)
     if (sessionMatch) {
       const session = config.sessions.find((s) => s.id === sessionMatch[1])
-      return json(route, session ?? {})
+      // Real backend 404 shape (packages/aigcfroge/src/server/routes/instance/httpapi/errors.ts
+      // ApiNotFoundError): `{ name: "NotFoundError", data: { message } }`. The mock
+      // used to answer 200 `{}` here, which made the real error shape untestable.
+      if (!session) return notFound(route, `Session not found: ${sessionMatch[1]}`)
+      return json(route, session)
     }
 
     const todoPath = path.match(/^\/session\/([^/]+)\/todo$/)
@@ -163,9 +167,20 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
       return json(route, pageData.items, { "x-next-cursor": cursor })
     }
 
+    // Unmatched target-port requests keep answering 200 `{}` by default. A blanket
+    // 404 here was tried and reverted: bootstrap paths the app tolerates
+    // (`/api/permission/request`, …) turned into console-error floods that failed
+    // every spec asserting "no unexpected browser errors" and stretched the suite
+    // past its budget. The mock CAN express the real 404 shape (`notFound`) and
+    // does so for unknown sessions, which is the surface §7.2 needs; an explicit
+    // opt-in for unmatched paths lands with the mock/real shape-consistency spec.
     if (url.port === targetPort && targetPort !== appPort) return json(route, {})
     return route.fallback()
   })
+}
+
+function notFound(route: Route, message: string) {
+  return json(route, { name: "NotFoundError", data: { message } }, undefined, 404)
 }
 
 function json(route: Route, body: unknown, headers?: Record<string, string>, status = 200) {

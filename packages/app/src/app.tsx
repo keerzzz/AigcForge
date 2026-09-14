@@ -23,9 +23,11 @@ import {
   For,
   type JSX,
   lazy,
+  Match,
   onCleanup,
   type ParentProps,
   Show,
+  Switch,
 } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
@@ -54,7 +56,10 @@ import { DirectoryDataProvider } from "@/pages/directory-layout"
 import Layout from "@/pages/layout"
 import { ErrorPage } from "./pages/error"
 import { useCheckServerHealth } from "./utils/server-health"
-import { requireServerKey, rootSession, sessionHref } from "./utils/session-route"
+import { parseServerKey, sessionHref } from "./utils/session-route"
+import { describeFailure, isNotFound, type RouteError } from "./utils/route-error"
+import { RouteErrorSurface } from "@/components/route-error-surface"
+import { type ServerSDK } from "@/context/server-sdk"
 import { launchModeSessionOrRoute } from "@/pages/layout/helpers"
 import { ApprovalCenter } from "@/components/approval-center"
 
@@ -79,101 +84,217 @@ function LegacySessionRedirect() {
   if (params.id) return <Navigate href={sessionHref(server.key, params.id)} />
   // First render: redirect to new-session placeholder; createEffect runs once
   // to create an actual draft with the first available project directory.
+  const [failure, setFailure] = createSignal<RouteError>()
   createEffect(() => {
     const conn = server.current ?? server.list[0]
     if (!conn) return
     const key = ServerConnection.key(conn)
+    let ctx: ReturnType<typeof global.ensureServerCtx>
     try {
-      const ctx = global.ensureServerCtx(conn)
-      const projects = ctx.projects.list()
-      const dir = projects[0]?.worktree
-      if (dir) {
-        launchModeSessionOrRoute({
-          mode: mode.currentMode,
-          navigate,
-          projects: ctx.projects,
-          server: key,
-          directory: dir,
-          tabs,
-        })
-      }
-    } catch {}
+      ctx = global.ensureServerCtx(conn)
+    } catch (error) {
+      // Explicit failure instead of a silent swallow: the redirect could not
+      // reach this server at all (plan §7.1 — no bare `catch {}`).
+      setFailure({ kind: "session-load-failed", serverKey: key, ...describeFailure(error) })
+      return
+    }
+    const dir = ctx.projects.list()[0]?.worktree
+    // No project is a normal state, not an error: the shell's Home/Add project
+    // entry points are the recovery surface.
+    if (!dir) return
+    setFailure(undefined)
+    launchModeSessionOrRoute({
+      mode: mode.currentMode,
+      navigate,
+      projects: ctx.projects,
+      server: key,
+      directory: dir,
+      tabs,
+    })
   })
-  return
+  return <Show when={failure()}>{(error) => <RouteErrorSurface error={error()} />}</Show>
 }
 
 const TargetSessionRoute = () => {
   const params = useParams<{ serverKey: string; id: string }>()
   const server = useServer()
+  const parsed = createMemo(() => parseServerKey(params.serverKey))
+  const canonicalKey = createMemo(() => {
+    const key = parsed()
+    return key.ok ? key.key : undefined
+  })
   const conn = createMemo(() => {
-    const key = requireServerKey(params.serverKey)
-    return server.list.find((item) => ServerConnection.key(item) === key)
+    const key = canonicalKey()
+    if (!key) return undefined
+    return server.list.find((item) => ServerConnection.sameKey(key, ServerConnection.key(item)))
   })
 
+  // Fail closed (plan §7.1): an unresolvable server key or an unregistered
+  // server renders a typed error instead of mounting providers, so the SDK
+  // provider's `?? server.current` fallback can never open this session's URL
+  // against the *current* server.
   return (
-    <Show when={`${params.serverKey}\0${params.id}`} keyed>
-      <ServerSDKProvider server={conn}>
-        <ServerSyncProvider server={conn}>
-          <ResolvedTargetSessionRoute />
-        </ServerSyncProvider>
-      </ServerSDKProvider>
-    </Show>
+    <Switch>
+      <Match when={!parsed().ok}>
+        <RouteErrorSurface error={{ kind: "invalid-server-key", serverKey: params.serverKey }} />
+      </Match>
+      <Match when={!conn()}>
+        <RouteErrorSurface error={{ kind: "unknown-server", serverKey: params.serverKey, sessionID: params.id }} />
+      </Match>
+      <Match when={conn()}>
+        {(connection) => (
+          <Show when={`${params.serverKey}\0${params.id}`} keyed>
+            <ServerSDKProvider server={connection}>
+              <ServerSyncProvider server={connection}>
+                <ResolvedTargetSessionRoute serverKey={canonicalKey()} />
+              </ServerSyncProvider>
+            </ServerSDKProvider>
+          </Show>
+        )}
+      </Match>
+    </Switch>
   )
 }
 
-function ResolvedTargetSessionRoute() {
+type SessionResolution =
+  | { ok: true; rootID: string; directory: string; mode: unknown }
+  | { ok: false; error: RouteError }
+
+type SessionInfo = { id: string; parentID?: string; directory?: string; mode?: unknown }
+
+type SessionSdk = ServerSDK
+
+/**
+ * Read one session, classifying transport failures instead of throwing into the
+ * render tree. `throwOnError` clients reject with `cause = { body, status }`,
+ * which is how a real backend 404 becomes `session-not-found`.
+ */
+async function readSession(
+  sdk: SessionSdk,
+  sessionID: string,
+): Promise<{ ok: true; value: SessionInfo } | { ok: false; error: RouteError }> {
+  try {
+    const result = await sdk.client.session.get({ sessionID })
+    const value = result.data
+    if (!value) return { ok: false, error: { kind: "session-load-failed", sessionID, detail: "empty response" } }
+    return { ok: true, value }
+  } catch (error) {
+    if (isNotFound(error)) {
+      return { ok: false, error: { kind: "session-not-found", sessionID, ...describeFailure(error) } }
+    }
+    return { ok: false, error: { kind: "session-load-failed", sessionID, ...describeFailure(error) } }
+  }
+}
+
+/** Walk to the root session, reporting a missing parent explicitly (plan §7.1). */
+async function resolveRootSession(
+  sdk: SessionSdk,
+  session: SessionInfo,
+): Promise<{ ok: true; value: SessionInfo } | { ok: false; error: RouteError }> {
+  let current = session
+  const visited = new Set<string>([session.id])
+  while (current.parentID) {
+    const parentID = current.parentID
+    if (visited.has(parentID)) {
+      return { ok: false, error: { kind: "session-load-failed", sessionID: session.id, detail: "parent cycle" } }
+    }
+    visited.add(parentID)
+    const parent = await readSession(sdk, parentID)
+    if (!parent.ok) {
+      if (parent.error.kind === "session-not-found") {
+        return {
+          ok: false,
+          error: { kind: "parent-not-found", sessionID: session.id, parentID, status: parent.error.status },
+        }
+      }
+      return parent
+    }
+    current = parent.value
+  }
+  return { ok: true, value: current }
+}
+
+function ResolvedTargetSessionRoute(props: { serverKey: ServerConnection.Key | undefined }) {
   const params = useParams<{ serverKey: string; id: string }>()
   const tabs = useTabs()
   const mode = useMode()
   const global = useGlobal()
   const serverSDK = useServerSDK()
-  const serverKey = createMemo(() => requireServerKey(params.serverKey))
-  const placement = createMemo(() => global.sessionPlacement.get(serverKey(), params.id))
-  const [resolved] = createResource(
-    () => ({ id: params.id, sdk: serverSDK(), current: placement() }),
-    async ({ id, sdk, current }) => {
-      const session = (await sdk.client.session.get({ sessionID: id })).data!
-      if (current) return { ...current, mode: session.mode }
-      const root = await rootSession(session, (sessionID) =>
-        sdk.client.session.get({ sessionID }).then((result) => result.data!),
-      )
-      return {
-        ...global.sessionPlacement.set({
-          server: serverKey(),
-          leafID: session.id,
-          rootID: root.id,
-          directory: session.directory,
-        }),
-        mode: session.mode,
-      }
+  const serverKey = () => props.serverKey
+  const placement = createMemo(() => {
+    const key = serverKey()
+    if (!key) return undefined
+    return global.sessionPlacement.get(key, params.id)
+  })
+  const [resolved, { refetch }] = createResource(
+    () => ({ id: params.id, sdk: serverSDK(), current: placement(), key: serverKey() }),
+    async ({ id, sdk, current, key }): Promise<SessionResolution> => {
+      const session = await readSession(sdk, id)
+      if (!session.ok) return session
+      if (key === undefined) return { ok: false, error: { kind: "invalid-server-key" } }
+      if (current) return { ok: true, rootID: current.rootID, directory: current.directory, mode: session.value.mode }
+      const root = await resolveRootSession(sdk, session.value)
+      if (!root.ok) return root
+      const directory = session.value.directory
+      if (!directory) return { ok: false, error: { kind: "location-unresolved", sessionID: session.value.id } }
+      const settled = global.sessionPlacement.set({
+        server: key,
+        leafID: session.value.id,
+        rootID: root.value.id,
+        directory,
+      })
+      return { ok: true, rootID: settled.rootID, directory, mode: session.value.mode }
     },
   )
-  const directory = createMemo(() => placement()?.directory ?? resolved()?.directory)
-  const targetDirectory = () => directory()!
+  const failure = createMemo(() => {
+    const value = resolved()
+    return value && !value.ok ? value.error : undefined
+  })
+  const success = createMemo(() => {
+    const value = resolved()
+    return value?.ok ? value : undefined
+  })
+  const directory = createMemo(() => placement()?.directory ?? success()?.directory)
 
+  // Only a fully resolved session may claim a tab or switch the mode — a failed
+  // resolution must not leave a half-open tab behind (plan §7.1).
   createEffect(() => {
-    const current = placement() ?? resolved()
-    if (!current) return
-    tabs.addSessionTab({
-      server: serverKey(),
-      sessionId: current.rootID,
-    })
-    const sessionMode = resolved()?.mode
-    if (isMode(sessionMode)) mode.setCurrentMode(sessionMode)
+    const value = success()
+    const key = serverKey()
+    if (!value || !key) return
+    tabs.addSessionTab({ server: key, sessionId: value.rootID })
+    if (isMode(value.mode)) mode.setCurrentMode(value.mode)
   })
 
   return (
     <TargetServerScopedProviders directory={directory} sessionID={() => params.id}>
-      <Show when={!resolved.error} fallback={<ErrorPage error={resolved.error} />}>
-        <Show when={directory()}>
-          <SDKProvider directory={targetDirectory}>
-            <DirectoryDataProvider directory={targetDirectory} server={serverKey}>
-              <ApprovalCenter />
-              <TargetSessionPage rootID={(placement() ?? resolved())!.rootID} />
-            </DirectoryDataProvider>
-          </SDKProvider>
-        </Show>
-      </Show>
+      <Switch>
+        <Match when={resolved.error}>
+          {(error) => (
+            <RouteErrorSurface
+              error={{ kind: "session-load-failed", sessionID: params.id, ...describeFailure(error()) }}
+              onRetry={() => void refetch()}
+            />
+          )}
+        </Match>
+        <Match when={failure()}>
+          {(error) => <RouteErrorSurface error={error()} onRetry={() => void refetch()} />}
+        </Match>
+        <Match when={success()}>
+          {(value) => (
+            <Show when={value().directory}>
+              {(directory) => (
+                <SDKProvider directory={directory}>
+                  <DirectoryDataProvider directory={directory} server={() => serverKey()}>
+                    <ApprovalCenter />
+                    <TargetSessionPage rootID={value().rootID} />
+                  </DirectoryDataProvider>
+                </SDKProvider>
+              )}
+            </Show>
+          )}
+        </Match>
+      </Switch>
     </TargetServerScopedProviders>
   )
 }
@@ -595,6 +716,13 @@ export function ModeRoute() {
   )
 }
 
+// Unknown paths must not leave a blank main region (plan §7.2): the router had
+// no catch-all, so anything unmatched rendered an empty shell with no way back.
+function UnknownRoute() {
+  const params = useParams<Record<string, string>>()
+  return <RouteErrorSurface error={{ kind: "unknown-route", detail: Object.values(params).join("/") }} />
+}
+
 // ADR-16: / renders the global home overview page (no redirect); /mode/:mode
 // stays the authoritative mode home route.
 function Routes() {
@@ -605,6 +733,7 @@ function Routes() {
       <Route path="/new-session" component={DraftRoute} />
       <Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
       <Route path="/:dir/session/:id?" component={LegacySessionRedirect} />
+      <Route path="*" component={UnknownRoute} />
     </>
   )
 }

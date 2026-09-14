@@ -19,10 +19,12 @@ export function normalizeServerUrl(input: string) {
  * Canonical identity form of a server URL (plan §7.1 附则, S4 ruling): same
  * scheme + port means `localhost` and `127.0.0.1` are the same server. Hostname
  * is lowercased, scheme-default ports are dropped, trailing slashes stripped.
- * `[::1]` deliberately does NOT fold into the IPv4 loopback, and non-URL keys
- * (`wsl:<distro>`, `ssh:<host>`, `sidecar`) return undefined — callers keep
- * their literal form. Display values keep the user's original spelling; every
- * identity comparison goes through this function.
+ * `[::1]` deliberately does NOT fold into the IPv4 loopback. Non-URL keys
+ * (`wsl:<distro>`, `ssh:<host>`, `sidecar`) never reach this function:
+ * `ServerConnection.key` dispatches on connection type first, and `sameKey`
+ * falls back to a literal compare when the value is not a canonical URL.
+ * Display values keep the user's original spelling; every identity comparison
+ * goes through this function or `sameKey`.
  */
 export function canonicalServerUrl(input: string): string | undefined {
   const trimmed = input.trim()

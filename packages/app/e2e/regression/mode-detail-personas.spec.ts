@@ -397,7 +397,7 @@ test.describe("persona audit: mode and detail closure", () => {
       await openSession(page, item.id, item.title)
       const composer = page.getByRole("textbox", { name: "Ask anything, / for commands, @ for context..." })
       await composer.fill(item.draft)
-      await page.getByRole("button", { name: "Home" }).click()
+      await page.getByRole("button", { name: "Home", exact: true }).click()
       await expect(page.getByRole("heading", { name: "Unsaved content" })).toBeVisible()
       await page.getByRole("button", { name: "Stay" }).click()
       await expect(composer).toContainText(item.draft)
