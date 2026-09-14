@@ -79,16 +79,17 @@ test("searches, reads, and isolates files in a real workspace", async ({ request
   )
   expect(escaped.ok(), "traversal outside the workspace must not succeed").toBe(false)
 
-  // 5. Missing file: the handler returns 200 with empty text
-  //    (handlers/file.ts: `existsSafe` → `{ type: "text", content: "" }`).
-  //    Asserting the real contract — note the observation for the report: an
-  //    absent file is indistinguishable from an empty one on this response.
+  // 5. Missing file is a typed 404 with the real NotFoundError shape — empty
+  //    text would make "gone" indistinguishable from "empty" (S6 closure).
   const missing = await request.get(
     `${e4m.backendUrl}/file/content?${query()}&path=${encodeURIComponent("files/does-not-exist.md")}`,
     { headers: headers() },
   )
-  expect(missing.ok(), "missing file answers 200 by contract").toBe(true)
-  expect(await missing.json()).toEqual({ type: "text", content: "" })
+  expect(missing.status(), "missing file 404s").toBe(404)
+  const missingBody: unknown = await missing.json()
+  if (!isRecord(missingBody)) throw new Error("missing-file body is not an object")
+  expect(missingBody.name).toBe("NotFoundError")
+  expect(JSON.stringify(missingBody)).toContain("does-not-exist.md")
 })
 
 test("two sessions read different files without cross-contamination", async ({ request }) => {

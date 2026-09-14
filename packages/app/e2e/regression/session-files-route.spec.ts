@@ -15,6 +15,9 @@ const canonicalPath = `/server/${base64Encode(server)}/session/${sessionID}`
 const files = [
   { name: "alpha.ts", path: "src/alpha.ts", absolute: `${directory}/src/alpha.ts`, type: "file", ignored: false },
   { name: "broken.ts", path: "src/broken.ts", absolute: `${directory}/src/broken.ts`, type: "file", ignored: false },
+  // Listed in search but the content route 404s it: models a file that vanished
+  // between listing and reading (S6 missing-file contract).
+  { name: "ghost.ts", path: "src/ghost.ts", absolute: `${directory}/src/ghost.ts`, type: "file", ignored: false },
   { name: "beta.ts", path: "src/beta.ts", absolute: `${directory}/src/beta.ts`, type: "file", ignored: false },
 ] as const
 
@@ -79,7 +82,7 @@ test.beforeEach(async ({ page }) => {
     if (path === "src/alpha.ts" || path === "src/beta.ts") {
       return json(route, { type: "text", content: source[path] })
     }
-    return json(route, { message: `Unexpected file path: ${path}` }, 404)
+    return json(route, { name: "NotFoundError", data: { message: `File not found: ${path}` } }, 404)
   })
 
   await page.addInitScript(() => {
@@ -133,6 +136,17 @@ test("keeps multiple file tabs available and switches their displayed contents",
   await betaTab.click()
   await expect(betaTab).toHaveAttribute("aria-selected", "true")
   await expectFileSource(page, source["src/beta.ts"])
+})
+
+test("a file missing on read shows the typed failure instead of an empty file", async ({ page }) => {
+  await openFileFromSearch(page, "ghost.ts")
+
+  const ghostTab = fileTab(page, "ghost.ts")
+  await expect(ghostTab).toHaveAttribute("aria-selected", "true")
+  // The server's typed message reaches the user, and the tab is an error state —
+  // not a silently empty document (the contract this debt closed).
+  await expectAppVisible(page.getByText(/File not found: src\/ghost\.ts/, { exact: false }).last())
+  await expectAppVisible(page.getByText("Failed to load file", { exact: true }))
 })
 
 test("shows a failed read without contaminating a successfully loaded tab", async ({ page }) => {

@@ -151,6 +151,13 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
       return route.fallback()
     }
 
+    // Missing-file contract (S6 debt closure): a typed 404 with the real
+    // NotFoundError shape. This mock owns no files, so every content read is a
+    // miss — specs that need real content override the route locally.
+    if (path === "/file/content") {
+      return notFound(route, `File not found: ${url.searchParams.get("path") ?? ""}`)
+    }
+
     const messagesMatch = path.match(/^\/session\/([^/]+)\/message$/)
     if (messagesMatch) {
       const token = url.searchParams.get("before") ?? undefined
