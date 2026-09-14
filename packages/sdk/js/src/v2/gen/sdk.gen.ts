@@ -355,6 +355,8 @@ import type {
   SessionForkResponses,
   SessionGetErrors,
   SessionGetResponses,
+  SessionIdentityErrors,
+  SessionIdentityResponses,
   SessionInitErrors,
   SessionInitResponses,
   SessionInputDelegationOrigin,
@@ -7262,6 +7264,38 @@ export class Session2 extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<SessionChildrenResponses, SessionChildrenErrors, ThrowOnError>({
       url: "/session/{sessionID}/children",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get session identity
+   *
+   * Read-only SessionProductIdentity projection (ADR-23): common identity, permission posture, and the mode detail the owners can supply today.
+   */
+  public identity<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionIdentityResponses, SessionIdentityErrors, ThrowOnError>({
+      url: "/session/{sessionID}/identity",
       ...options,
       ...params,
     })

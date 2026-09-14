@@ -72,6 +72,7 @@ import { ApplicationTools } from "./tool/application-tools"
 import { ToolOutputStore } from "./tool-output-store"
 import { AppProcess } from "./process"
 import { CrossSpawnSpawner } from "./cross-spawn-spawner"
+import { SessionIdentityProjection } from "./session/session-identity"
 import { SessionStore } from "./session/store"
 import { SessionTodo } from "./session/todo"
 import { ScheduleService } from "./session/schedule-service"
@@ -145,6 +146,10 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(base),
       )
       const services = Layer.mergeAll(base, resources, permissionsAndTools)
+      // SessionProductIdentity projection (ADR-23): its owners — the session row,
+      // PermissionV2, the composition snapshot store and git — are all Location
+      // scoped, so it is built here rather than in the app-global runtime.
+      const sessionIdentity = SessionIdentityProjection.layer.pipe(Layer.provide(services))
       // Canonical MCP credential binding store (ADR-21 §2.2 v1.2): Location-scoped
       // but data partitioned by directory; reads Location.Service internally, never
       // trusts caller-supplied directory.
@@ -278,6 +283,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         AgentAssetBridge.layer.pipe(Layer.provide(services)),
         mcpBindingStore,
         mcpConnections,
+        sessionIdentity,
       ).pipe(Layer.fresh, Layer.orDie)
     },
     idleTimeToLive: "60 minutes",

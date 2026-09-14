@@ -3057,6 +3057,13 @@ export type FileContent = {
   mimeType?: string
 }
 
+export type NotFoundError = {
+  name: "NotFoundError"
+  data: {
+    message: string
+  }
+}
+
 export type File = {
   path: string
   added: number
@@ -3285,13 +3292,6 @@ export type ConflictError = {
   _tag: "ConflictError"
   message: string
   resource?: string
-}
-
-export type NotFoundError = {
-  name: "NotFoundError"
-  data: {
-    message: string
-  }
 }
 
 export type UnknownError1 = {
@@ -6750,6 +6750,213 @@ export type ImportParserResult = {
   errors: Array<ImportParserParseError>
 }
 
+export type SessionIdentityModel = {
+  providerID: string
+  modelID: string
+}
+
+export type PermissionV2Effect = "allow" | "deny" | "ask"
+
+export type SessionIdentityPermission = {
+  declaredTier: PermissionTier
+  effect: PermissionV2Effect
+}
+
+export type SessionIdentityCapabilityHealth = "ready" | "degraded" | "blocked"
+
+export type SessionIdentityReasonSeverity = "info" | "warning" | "critical"
+
+export type SessionIdentityReason = {
+  code: string
+  severity: SessionIdentityReasonSeverity
+  action?: string
+}
+
+export type SessionIdentityCapability = {
+  health: SessionIdentityCapabilityHealth
+  reasons: Array<SessionIdentityReason>
+}
+
+export type SessionIdentityCodingBranchReady = {
+  status: "ready"
+  value: string
+}
+
+export type SessionIdentityCodingBranchMissing = {
+  status: "missing"
+}
+
+export type SessionIdentityCodingBranchUnsupported = {
+  status: "unsupported"
+  reason: string
+}
+
+export type SessionIdentityCodingBranch =
+  | SessionIdentityCodingBranchReady
+  | SessionIdentityCodingBranchMissing
+  | SessionIdentityCodingBranchUnsupported
+
+export type SessionIdentityCodingWorktreeReady = {
+  status: "ready"
+  value: string
+}
+
+export type SessionIdentityCodingWorktreeMissing = {
+  status: "missing"
+}
+
+export type SessionIdentityCodingWorktreeUnsupported = {
+  status: "unsupported"
+  reason: string
+}
+
+export type SessionIdentityCodingWorktree =
+  | SessionIdentityCodingWorktreeReady
+  | SessionIdentityCodingWorktreeMissing
+  | SessionIdentityCodingWorktreeUnsupported
+
+export type SessionIdentityCodingVcs = {
+  branch: SessionIdentityCodingBranch
+  worktree: SessionIdentityCodingWorktree
+}
+
+export type SessionIdentityModeDetailCoding = {
+  source: "coding"
+  vcs: SessionIdentityCodingVcs
+}
+
+export type SessionIdentityAssetKind = "prompt" | "skill" | "mcp" | "command" | "agent" | "workflow" | "plugin"
+
+export type SessionIdentityAssetCount = {
+  kind: SessionIdentityAssetKind
+  count: number
+}
+
+export type SessionIdentityModeDetailChat = {
+  source: "chat"
+  assetCounts: Array<SessionIdentityAssetCount>
+}
+
+export type SessionIdentityWorkContractWorkflow = {
+  source: "workflow"
+  revision: string
+}
+
+export type SessionIdentityPresetRevisionReady = {
+  status: "ready"
+  revision: string
+}
+
+export type SessionIdentityPresetRevisionUnsupported = {
+  status: "unsupported"
+  reason: string
+}
+
+export type SessionIdentityPresetRevision =
+  | SessionIdentityPresetRevisionReady
+  | SessionIdentityPresetRevisionUnsupported
+
+export type SessionIdentityWorkContractPreset = {
+  source: "preset"
+  revision: SessionIdentityPresetRevision
+}
+
+export type SessionIdentityWorkContractAdHoc = {
+  source: "ad-hoc"
+}
+
+export type SessionIdentityWorkContract =
+  | SessionIdentityWorkContractWorkflow
+  | SessionIdentityWorkContractPreset
+  | SessionIdentityWorkContractAdHoc
+
+export type SessionIdentityWorkArtifactReady = {
+  status: "ready"
+  value: string
+}
+
+export type SessionIdentityWorkArtifactMissing = {
+  status: "missing"
+}
+
+export type SessionIdentityWorkArtifactUnsupported = {
+  status: "unsupported"
+  reason: string
+}
+
+export type SessionIdentityWorkArtifact =
+  | SessionIdentityWorkArtifactReady
+  | SessionIdentityWorkArtifactMissing
+  | SessionIdentityWorkArtifactUnsupported
+
+export type SessionIdentityModeDetailWork = {
+  source: "work"
+  contract: SessionIdentityWorkContract
+  artifact: SessionIdentityWorkArtifact
+}
+
+export type SessionIdentityAssistantScopePersonal = {
+  kind: "personal"
+}
+
+export type SessionIdentityAssistantScopeProject = {
+  kind: "project"
+  projectID: string
+}
+
+export type SessionIdentityAssistantScope = SessionIdentityAssistantScopePersonal | SessionIdentityAssistantScopeProject
+
+export type SessionIdentityModeDetailAssistant = {
+  source: "assistant"
+  scope: SessionIdentityAssistantScope
+  reminders: SessionIdentityCapability
+  memory: SessionIdentityCapability
+  knowledge: SessionIdentityCapability
+}
+
+export type SessionIdentitySnapshotRef = {
+  digest: string
+}
+
+export type SessionIdentityModeDetailCustom = {
+  source: "custom"
+  snapshot: SessionIdentitySnapshotRef
+  policy: SessionIdentityCapability
+}
+
+export type SessionIdentityModeDetail =
+  | SessionIdentityModeDetailCoding
+  | SessionIdentityModeDetailChat
+  | SessionIdentityModeDetailWork
+  | SessionIdentityModeDetailAssistant
+  | SessionIdentityModeDetailCustom
+
+export type SessionIdentityModeDetailAvailabilityReady = {
+  status: "ready"
+  detail: SessionIdentityModeDetail
+}
+
+export type SessionIdentityModeDetailAvailabilityMissing = {
+  status: "missing"
+  reason: string
+}
+
+export type SessionIdentityModeDetailAvailability =
+  | SessionIdentityModeDetailAvailabilityReady
+  | SessionIdentityModeDetailAvailabilityMissing
+
+export type SessionIdentityIdentity = {
+  sessionID: string
+  mode: ProductMode
+  location: LocationRef
+  projectID: string
+  agent: string
+  model: SessionIdentityModel
+  permission: SessionIdentityPermission
+  capability: SessionIdentityCapability
+  detail: SessionIdentityModeDetailAvailability
+}
+
 export type SessionTaskWriteInfo = {
   id?: string
   content: string
@@ -6869,8 +7076,6 @@ export type LocationInfo = {
     directory: string
   }
 }
-
-export type PermissionV2Effect = "allow" | "deny" | "ask"
 
 export type PermissionV2Rule = {
   action: string
@@ -13103,6 +13308,10 @@ export type FileReadErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type FileReadError = FileReadErrors[keyof FileReadErrors]
@@ -17413,6 +17622,40 @@ export type SessionChildrenResponses = {
 }
 
 export type SessionChildrenResponse = SessionChildrenResponses[keyof SessionChildrenResponses]
+
+export type SessionIdentityData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/identity"
+}
+
+export type SessionIdentityErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionIdentityError = SessionIdentityErrors[keyof SessionIdentityErrors]
+
+export type SessionIdentityResponses = {
+  /**
+   * Session product identity projection
+   */
+  200: SessionIdentityIdentity
+}
+
+export type SessionIdentityResponse = SessionIdentityResponses[keyof SessionIdentityResponses]
 
 export type SessionTodoData = {
   body?: never

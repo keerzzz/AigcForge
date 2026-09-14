@@ -346,6 +346,54 @@ describe("HttpApi SDK", () => {
     }),
   )
 
+  // S1's deferred hard gate: a projection endpoint without `OpenApi.annotations`
+  // identifier gets flattened onto the parent client and this method is simply
+  // `undefined` at runtime — with no gate anywhere reporting it. Assert existence
+  // and callability, then read the contract through the generated SDK.
+  httpapiInstance(
+    "exposes the session identity projection as a callable generated SDK method",
+    { serverPath: "raw", git: false, setup: writeStandardFiles },
+    ({ sdk }) =>
+      Effect.gen(function* () {
+        expect(typeof sdk.session.identity).toBe("function")
+
+        // The frozen identity contract requires an agent and a model, which a
+        // session created through the ordinary path carries. The model-less case
+        // is pinned separately below rather than papered over.
+        const created = yield* call(() =>
+          sdk.session.create({
+            title: "identity",
+            agent: "build",
+            model: { id: "gpt-test", providerID: "aigcfroge" },
+          }),
+        )
+        expect(created.response.status).toBe(200)
+        const sessionID = record(created.data).id
+        if (typeof sessionID !== "string") throw new Error("session create returned no id")
+
+        const identity = yield* call(() => sdk.session.identity({ sessionID }))
+        expect(identity.response.status).toBe(200)
+        const body = record(identity.data)
+        expect(body.sessionID).toBe(sessionID)
+        expect(typeof body.mode).toBe("string")
+        const permission = record(body.permission)
+        expect(typeof permission.declaredTier).toBe("string")
+        expect(["allow", "ask", "deny"]).toContain(permission.effect)
+        const capability = record(body.capability)
+        expect(["ready", "degraded", "blocked"]).toContain(capability.health)
+        expect(record(body.detail).status).toBe("ready")
+
+        // Gap pin: a session with no model cannot satisfy the frozen contract, and
+        // the endpoint says so instead of inventing a model or a default identity.
+        const bare = yield* call(() => sdk.session.create({ title: "identity without model" }))
+        const bareID = record(bare.data).id
+        if (typeof bareID !== "string") throw new Error("session create returned no id")
+        const missing = yield* call(() => sdk.session.identity({ sessionID: bareID }))
+        expect(missing.response.status).toBeGreaterThanOrEqual(400)
+        expect(missing.response.status).toBeLessThan(500)
+      }),
+  )
+
   httpapiInstance(
     "uses the generated SDK for safe instance routes",
     { serverPath: "raw", git: false, setup: writeStandardFiles },
