@@ -1,6 +1,8 @@
 # ADR-23: Session Product Identity 与 Capability 只读投影
 
-> 状态：Proposed（2026-09-13 起草；Owner gate ② 批准起草，文本获批前不创建 migration / endpoint / SDK 生成）
+> 状态：**Accepted**（2026-09-14 Owner 放行 S6 并批准文本；S1 起草于 2026-09-13）
+> 接受依据（逐条可核）：**① 状态词汇表**（datum 级 `ready|missing|unsupported` / capability 级 `ready|degraded|blocked`，reason code 为稳定协议）；**② 聚合规则可执行化**（决策 1 的 Schema filter：贡献 floor + reasons 折叠 + `Identity` 上的强制，含**贡献映射**与「**身份事实不贡献**」——coding 的 vcs、work 的 artifact、chat 的 assetCounts 缺失是正常态而非降级）；**③ Work contract 三元联合**（workflow 今日即 ready、preset 留槽待 S9A、ad-hoc 显式）。**实现与文本零漂移**：`packages/schema/src/session-identity.ts` 落地，schema 全量 240 例测试通过（含 7 例聚合规则负向与 3 例 i18n 键覆盖门禁）。
+> S6 起本 ADR 不再受「文本获批前不创建 endpoint」的限制：按计划 §4.3 逐项落地组合服务、instance HttpApi endpoint 与 SDK 生成，硬门见计划 §9 与 S6 九条边界。
 > Date: 2026-09-13
 > Amends: [ADR-13](ADR-13-chat-work-mode-boundary.md)、[ADR-14](ADR-14-persistence-and-scope-strategy.md)、[ADR-15](ADR-15-mode-workspace-main-area-slot.md)、[ADR-17](ADR-17-custom-mode-composition-platform.md)
 > 关联：[全局壳产品闭环计划](../../plan/global-shell-product-closure-2026-09-13.md) §4、D2/D3/D4/D5 裁决、[ADR-11](ADR-11-product-mode-session-classification.md)、[ADR-17](ADR-17-custom-mode-composition-platform.md)、[ADR-20](ADR-20-scoped-grant-model.md)
