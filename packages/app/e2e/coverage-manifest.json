@@ -20,8 +20,8 @@
     "coding": {
       "route": "/mode/coding + session detail (files/terminal)",
       "e3": "terminal route, files route",
-      "e4": "planned S5 (real PTY/files lifeline)",
-      "status": "planned"
+      "e4": "landed: session turn + restart durability, files search/read/traversal, PTY create/stream/exit/delete (e2e/real/session-{turn,files,pty}.spec.ts)",
+      "status": "landed"
     },
     "work": {
       "route": "/mode/work + artifact panel",
@@ -43,20 +43,20 @@
     }
   },
   "deferred": {
+    "v2-runtime-execution-gap": {
+      "owner": "S9C",
+      "scope": "V2 durable admission admits but never dispatches provider work and the V1-shaped projection is empty (flag default off; custom always V2). Pinned live by e2e/real/v2-admission-gap.spec.ts — green there means the gap is still present.",
+      "unlock": "Owner ruling before S9C starts: complete V2 execution (separate authorisation, touches durable-admission invariants) or re-scope S9C's positive path to admission + snapshot lifecycle with the turn gap recorded as residual"
+    },
     "provider-scenario-scripts": {
       "owner": "S5",
-      "scope": "deterministic provider scenarios per §5.1: streaming success (landed in S2 orchestrator), tool calls, HTTP failure, SSE interruption, duplicate/out-of-order events, slow response",
-      "unlock": "S5 interrupt/resume, exact retry, duplicate message ID, and reconnect specs consume these scripts"
+      "scope": "streaming success + tool-call/HTTP-failure/SSE-interruption/duplicate/slow scripts. S5 landed the streaming-success script (orchestrator provider) plus /e4/provider-requests dispatch evidence; the remaining scenarios stay unwritten until a spec needs them",
+      "unlock": "each remaining scenario is added with the spec that needs it (steer/queue/interrupt/retry are V2 vocabulary and are not on the V1 path)"
     },
     "pty-file-fixtures": {
       "owner": "S5",
-      "scope": "real PTY lifecycle and file fixtures per §5.1; the E4 workspace is a real git dir since S2, PTY rides the backend's native capability",
-      "unlock": "S5 Files/PTY lifeline specs"
-    },
-    "clean-clone-dod": {
-      "owner": "S12",
-      "scope": "plan §5.3 DoD line: the real-project command must run on a clean clone with exit 0; Linux-local semantics verified in S2, CI wiring is the pending half",
-      "unlock": "CI wiring lands at the S12 gate, or the Owner explicitly revises the DoD line — one of the two, not left open"
+      "scope": "real PTY lifecycle and filesystem fixtures",
+      "unlock": "landed in S5 (e2e/real/session-pty.spec.ts, e2e/real/session-files.spec.ts) — remove this entry when S5 merges"
     }
   },
   "entries": [

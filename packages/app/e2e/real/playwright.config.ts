@@ -27,6 +27,7 @@ const backendPort = Number(process.env.E4_BACKEND_PORT) || freePortSync()
 const previewPort = Number(process.env.E4_PREVIEW_PORT) || freePortSync()
 const runDir = process.env.E4_RUN_DIR || mkdtempSync(path.join(tmpdir(), "aigcfroge-e4-"))
 const env = {
+  E4_V2_RUNTIME: process.env.E4_V2_RUNTIME ?? "",
   E4_PROVIDER_PORT: String(providerPort),
   E4_BACKEND_PORT: String(backendPort),
   E4_PREVIEW_PORT: String(previewPort),

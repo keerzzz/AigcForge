@@ -142,7 +142,9 @@ test("no deferred scope may float without an owner and an unlock condition", () 
   expect(deferredKeys.length, "deferred scope is registered").toBeGreaterThan(0)
   for (const key of deferredKeys) {
     const entry = manifest.deferred[key]
-    expect(entry.owner, `deferred ${key} owner is a slice`).toMatch(/^S\d+(\/S\d+)?$/)
+    // Slices are labelled S9A/S9B/S9C in the plan, so the gate accepts the
+    // optional suffix rather than forcing owners to drop it.
+    expect(entry.owner, `deferred ${key} owner is a slice`).toMatch(/^S\d+[A-Z]?(\/S\d+[A-Z]?)?$/)
     expect(entry.scope.length, `deferred ${key} scope`).toBeGreaterThan(0)
     expect(entry.unlock.length, `deferred ${key} unlock`).toBeGreaterThan(0)
   }

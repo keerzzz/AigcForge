@@ -17,6 +17,7 @@
  * `GET /global/health` endpoint, the preview through any HTTP response. The
  * provider records request method+path only — never prompt bodies.
  */
+import { Database } from "bun:sqlite"
 import { spawn, spawnSync, type ChildProcess } from "node:child_process"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -28,6 +29,11 @@ const REPO_ROOT = path.resolve(import.meta.dir, "../../../..")
 const APP_ROOT = path.join(REPO_ROOT, "packages/app")
 const BACKEND_ROOT = path.join(REPO_ROOT, "packages/aigcfroge")
 
+// Explicit V2-variant switch (default OFF). The default backend must never carry
+// AIGCFROGE_V2_RUNTIME: the durable-admission path is opt-in, incomplete, and not
+// the product default — a harness that silently enabled it would be asserting a
+// non-product chain. Only this switch injects the flag, and only into the backend.
+const v2Runtime = process.env.E4_V2_RUNTIME === "1"
 const providerPort = Number(process.env.E4_PROVIDER_PORT)
 const backendPort = Number(process.env.E4_BACKEND_PORT)
 const previewPort = Number(process.env.E4_PREVIEW_PORT)
@@ -52,6 +58,24 @@ const previewUrl = `http://127.0.0.1:${previewPort}`
 
 for (const dir of [configDir, workspaceDir]) mkdirSync(dir, { recursive: true })
 
+const BACKEND_ARGS = [
+  "run",
+  "--conditions=browser",
+  "./src/index.ts",
+  "serve",
+  "--port",
+  String(backendPort),
+  "--hostname",
+  "127.0.0.1",
+]
+
+/** The only place AIGCFROGE_V2_RUNTIME can enter the backend: the explicit switch. */
+const backendEnv = (): Record<string, string> => ({
+  AIGCFROGE_DB: dbPath,
+  AIGCFROGE_CONFIG_DIR: configDir,
+  ...(v2Runtime ? { AIGCFROGE_V2_RUNTIME: "true" } : {}),
+})
+
 // Durable copy of this process's output. /tmp cleaners wiped the S2 round
 // logs; the gate evidence must not depend on volatile tmp files.
 const logPath = path.join(runDir, "orchestrator.log")
@@ -72,9 +96,96 @@ function sseChunk(delta: Record<string, unknown>, finish?: string) {
   })}\n\n`
 }
 
+/**
+ * Durable-admission evidence (plan §8.1): `session_input` has no HTTP surface,
+ * and `bun:sqlite` only exists in this bun process — so the harness serves a
+ * read-only view of the run's own DB. WAL mode allows a second reader while the
+ * backend writes; nothing here touches production routes.
+ */
+function readAdmission(sessionID: string) {
+  const db = new Database(dbPath, { readonly: true })
+  try {
+    // Deliberately excludes the `prompt` column: session_input rows carry the
+    // user's full input, and this evidence surface must stay safe to paste into
+    // reports. IDs, sequence numbers and timestamps are all a test needs.
+    const columns = "id, session_id as sessionID, kind, delivery, admitted_seq, promoted_seq, time_created"
+    if (!sessionID) {
+      return db.query(`select ${columns} from session_input order by time_created desc limit 20`).all()
+    }
+    return db.query(`select ${columns} from session_input where session_id = ? order by admitted_seq`).all(sessionID)
+  } finally {
+    db.close()
+  }
+}
+
 const provider: Server = createServer((request: IncomingMessage, response: ServerResponse) => {
   const record = { method: request.method ?? "?", path: request.url ?? "?" }
   providerRequests.push(record)
+  // Restart the real backend (S5 restart window). Answers 202 immediately and
+  // restarts in the background: holding the HTTP response open for a cold start
+  // trips the client's header timeout long before the backend is healthy. The
+  // test polls /e4/backend-health for the real readiness signal instead.
+  if (request.method === "POST" && record.path.startsWith("/e4/restart-backend")) {
+    void (async () => {
+      try {
+        const previous = backendChild
+        if (previous && previous.exitCode === null && previous.signalCode === null) {
+          const stopped = new Promise<void>((resolve) => previous.once("exit", () => resolve()))
+          previous.kill("SIGTERM")
+          await Promise.race([stopped, new Promise((resolve) => setTimeout(resolve, 5_000))])
+          if (previous.exitCode === null && previous.signalCode === null) previous.kill("SIGKILL")
+        }
+        backendChild = spawnChild("backend", process.execPath, BACKEND_ARGS, BACKEND_ROOT, backendEnv())
+        const health = await waitForHealthy(backendUrl, 300_000)
+        log(`[E4] backend restarted and healthy (version ${health.version})\n`)
+      } catch (error) {
+        log(`[E4] backend restart failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      }
+    })()
+    response.writeHead(202, { "content-type": "application/json" })
+    response.end(JSON.stringify({ restarting: true }))
+    return
+  }
+  // Readiness probe for the restart flow: a real request to the backend's own
+  // health endpoint, never a sleep.
+  if (request.method === "GET" && record.path.startsWith("/e4/backend-health")) {
+    void (async () => {
+      try {
+        const probe = await fetch(`${backendUrl}/global/health`)
+        const body: unknown = probe.ok ? await probe.json() : undefined
+        response.writeHead(200, { "content-type": "application/json" })
+        response.end(
+          JSON.stringify({
+            healthy: probe.ok,
+            version: isRecordLocal(body) && typeof body.version === "string" ? body.version : undefined,
+          }),
+        )
+      } catch {
+        response.writeHead(200, { "content-type": "application/json" })
+        response.end(JSON.stringify({ healthy: false }))
+      }
+    })()
+    return
+  }
+  // Backend-visible provider dispatch evidence for the V2 gap spec: method+path
+  // only, same redaction rule as the run log.
+  if (request.method === "GET" && record.path.startsWith("/e4/provider-requests")) {
+    response.writeHead(200, { "content-type": "application/json" })
+    response.end(JSON.stringify({ requests: providerRequests }))
+    return
+  }
+  if (request.method === "GET" && record.path.startsWith("/e4/admission")) {
+    const sessionID = new URL(record.path, "http://127.0.0.1").searchParams.get("sessionID") ?? ""
+    try {
+      const rows = readAdmission(sessionID)
+      response.writeHead(200, { "content-type": "application/json" })
+      response.end(JSON.stringify({ sessionID, rows }))
+    } catch (error) {
+      response.writeHead(500, { "content-type": "application/json" })
+      response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }))
+    }
+    return
+  }
   if (request.method === "POST" && record.path.endsWith("/chat/completions")) {
     response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
     response.write(sseChunk({ role: "assistant", content: "" }))
@@ -98,6 +209,7 @@ function startProvider(): Promise<void> {
 // ── child process helpers ────────────────────────────────────────────────────
 
 const children: Array<ChildProcess> = []
+let backendChild: ChildProcess | undefined
 
 /**
  * This process's group id. Playwright spawns the webServer with `shell: true`,
@@ -105,6 +217,8 @@ const children: Array<ChildProcess> = []
  * address the group. /proc/self/stat field 5 is the pgrp on Linux; fall back to
  * our own pid when it is unavailable so teardown still has a target.
  */
+const isRecordLocal = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
+
 function currentPgid(): number {
   try {
     const stat = readFileSync("/proc/self/stat", "utf8")
@@ -284,22 +398,7 @@ async function main() {
   log(`[E4] provider listening on ${providerBaseURL}\n`)
 
   // 4. real backend; readiness is its own /global/health.
-  spawnChild(
-    "backend",
-    process.execPath,
-    [
-      "run",
-      "--conditions=browser",
-      "./src/index.ts",
-      "serve",
-      "--port",
-      String(backendPort),
-      "--hostname",
-      "127.0.0.1",
-    ],
-    BACKEND_ROOT,
-    { AIGCFROGE_DB: dbPath, AIGCFROGE_CONFIG_DIR: configDir },
-  )
+  backendChild = spawnChild("backend", process.execPath, BACKEND_ARGS, BACKEND_ROOT, backendEnv())
   const health = await waitForHealthy(backendUrl, 600_000)
   log(`[E4] backend healthy at ${backendUrl} (version ${health.version})\n`)
 
@@ -334,6 +433,7 @@ async function main() {
         configDir,
         dbPath,
         workspaceDir,
+        v2Runtime,
         pid: process.pid,
         pgid: currentPgid(),
       },

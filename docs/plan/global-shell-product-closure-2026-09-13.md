@@ -354,20 +354,24 @@ E4 加真实 unknown server/404 与 reload，证明 mock/real 错误形状一致
 
 ### 8.1 Session 执行
 
-E4 必须覆盖：
+**运行时事实（2026-09-14 S5 RED 追查修订，纠偏原文前提）**：生产默认路径是 V1 直写。`promptAsync`（`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:819`）经 `shouldUseV2Runtime`（`packages/core/src/product-mode-policy.ts:102`）分流——`custom` 恒走 V2，其余模式看 `AIGCFROGE_V2_RUNTIME`，而该 flag 默认 false 且 `app-runtime.ts:87-97` 注释明载两个未解 bug（LLM auth 未传入 LLMClient 致 401；V2 handler 形状与 V1 API schema 不匹配）。四层实测：默认路径 `session_input` 零行、message/part 直写并驱动 provider；flag 开启时 admission 行写入但零 dispatch、V1 读端投影为空。**原文的「POST durable prompt admission → session_input 可观测」链描述的是 V2 模型，不是默认产品路径**——该前提在两轮审批（含技术审批修订）中均未经运行时核验，S5 RED spec 首次执行时被证伪。教训与 §7.2 同类：运行时行为的契约前提必须运行时验证，只引 specs 文档不够。
+
+**P0 主链（按真实产品默认路径交付，方案 A，2026-09-14 裁决）**：
 
 ```text
-browser submit
-→ POST durable prompt admission
-→ session_input 可观测
+browser submit（默认 V1 路径）
+→ provider turn（真实确定性 provider）
 → SSE user/assistant/tool parts
 → completion 或 typed error
 → reload 后投影一致
+→ backend 重启后 message/part 行仍在且可见
 ```
 
-再覆盖 steer、queue、interrupt/resume、exact retry、重复 message ID、断流重连和 backend process restart。重启只断言安全窗口：admission 前、admission 后尚未 dispatch、以及显式 `run/resume`；provider dispatch 已发生但结果不确定时，断言 typed recovery/保守终止，不自动重试。
+耐久性证据 = 真实 DB 的 message/part 行 + 重启后可见，不以 DOM 出现一行文本代替。中断/失败/重连覆盖按 V1 实际支持的语义枚举（先盘点 V1 的 prompt_async 行为再写 spec，不强套 V2 概念）；重启断言只覆盖**已完成 turn** 的耐久性，不断言任何「进行中 turn 的恢复」。
 
-这条边界的规范依据必须逐字引用，不能转述：`specs/v2/session.md:188` 明确 "Post-crash continuation recovery is intentionally deferred. A wake does not infer that ambiguous provider work is safe to retry after an input has already been promoted."，`:127` 把 "Add durable post-crash continuation recovery for promoted or provider-dispatched work" 列为未来工作，`:176` 同时把 provider timeout/retry/watchdog 策略整体延后。因此任何 E4 断言若要求"崩溃后自动续跑"，就是在要求改变 V2 不变量，属于 §20 的整体停止条件。可用的正向事实是 `:58` 的 `session_input` durable admission inbox 与 `:60` 的 `admittedSeq`——断言耐久事件/投影，不以 DOM 出现一行文本代替 admission 证据。
+**V2 admission 现状契约 spec（显式标注，独立 flag-on 后端，不混入默认链）**：单独命名的 E4 project/config，orchestrator 经显式开关注入 `AIGCFROGE_V2_RUNTIME`（默认后端永不携带此 flag，AIGCFROGE\_\* 剥离语义不变）。断言 V2 今天确实做到的（admission 行写入），**并**以「expected current behavior」命名钉住两个已记录缺口（零 dispatch、V1 投影为空）——V2 补全时这些断言转红，强制更新本契约（与 §7.2 pin-defect 同一模式，green 不代表 V2 可用）。缺口登记 `docs/technical-debt.md`（v2-runtime-execution-gap，含四层实验与代码引用）与 coverage-manifest deferred（owner S9C——`custom` 恒走 V2，S9C 正向 E4 必撞此墙；unlock = 开工前 Owner 裁决「补全 V2 execution（需单独授权，触碰 durable admission 不变量，§20）」或「重定 S9C 正向路径范围」）。
+
+V2 不变量语言保留并只适用于该 spec 的范围：`specs/v2/session.md:188` 明确 "Post-crash continuation recovery is intentionally deferred. A wake does not infer that ambiguous provider work is safe to retry after an input has already been promoted."，`:127` 把 "Add durable post-crash continuation recovery for promoted or provider-dispatched work" 列为未来工作，`:176` 同时把 provider timeout/retry/watchdog 策略整体延后。因此任何 E4 断言若要求「崩溃后自动续跑」，就是在要求改变 V2 不变量，属于 §20 的整体停止条件。可用的正向事实是 `:58` 的 `session_input` durable admission inbox 与 `:60` 的 `admittedSeq`。
 
 ### 8.2 Files
 

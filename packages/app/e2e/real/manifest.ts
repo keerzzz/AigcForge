@@ -37,6 +37,7 @@ export interface E4Manifest {
   configDir: string
   dbPath: string
   workspaceDir: string
+  v2Runtime: boolean
   pid: number
   pgid?: number
 }
@@ -64,6 +65,7 @@ export function readManifest(runDir: string): E4Manifest {
     configDir: stringField(raw, "configDir", source),
     dbPath: stringField(raw, "dbPath", source),
     workspaceDir: stringField(raw, "workspaceDir", source),
+    v2Runtime: raw.v2Runtime === true,
     pid: numberField(raw, "pid", source),
     pgid,
   }
