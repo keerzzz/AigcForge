@@ -57,9 +57,7 @@ test.beforeEach(async ({ page }) => {
   await installMock(page)
 })
 
-// RED 2026-09-13: the persisted draft pins server http://localhost:4096 but the draft route resolves 127.0.0.1:4096 only — composer never renders.
-// Unlock at S4/S8 with the server host-alias owner (closure plan §7.1, §11.2).
-test.fixme("directly opens a persisted draft without submitting a model request", async ({ page }) => {
+test("directly opens a persisted draft without submitting a model request", async ({ page }) => {
   await installDraft(page)
   const writes: string[] = []
   page.on("request", (request) => {
@@ -74,9 +72,7 @@ test.fixme("directly opens a persisted draft without submitting a model request"
   expect(writes).toEqual([])
 })
 
-// RED 2026-09-13: the persisted draft pins server http://localhost:4096 but the draft route resolves 127.0.0.1:4096 only — composer never renders.
-// Unlock at S4/S8 with the server host-alias owner (closure plan §7.1, §11.2).
-test.fixme("recovers the routed draft and its unsent prompt after refresh", async ({ page }) => {
+test("recovers the routed draft and its unsent prompt after refresh", async ({ page }) => {
   await installDraft(page)
   await page.goto(draftHref)
   await expectAppVisible(composer(page))
@@ -102,9 +98,7 @@ test("redirects missing and unknown draft ids to the visible home page", async (
   await expectAppVisible(home(page))
 })
 
-// RED 2026-09-13: the persisted draft pins server http://localhost:4096 but the draft route resolves 127.0.0.1:4096 only — composer never renders.
-// Unlock at S4/S8 with the server host-alias owner (closure plan §7.1, §11.2).
-test.fixme("hydrates prompt query while the current dirty guard blocks one-shot cleanup", async ({ page }) => {
+test("hydrates prompt query while the current dirty guard blocks one-shot cleanup", async ({ page }) => {
   await installDraft(page)
   const prompt = "Draft a launch plan & list risks"
   const writes: string[] = []

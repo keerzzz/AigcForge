@@ -2,7 +2,11 @@
   "note": "Slice 0 draft (2026-09-13). S2 owns the machine-readable manifest with a validator test (closure plan §5.2); this draft records the baseline failure groups with owner and unlock so nothing is quarantined indefinitely.",
   "baseline": {
     "date": "2026-09-13",
-    "discovery": { "tests": 198, "files": 50, "project": "chromium" },
+    "discovery": {
+      "tests": 198,
+      "files": 50,
+      "project": "chromium"
+    },
     "protocol": "2 rounds same-order + 1 round reversed per-file invocation; workers=1, retries=0, no sleep, no waits",
     "result": "13 stable failures (identical sets in rounds 1-2) + 1 single-occurrence flake; bench 59/60 green with 1 stable narrow failure"
   },
@@ -57,19 +61,6 @@
   },
   "entries": [
     {
-      "id": "canonical-tabs-host-alias",
-      "spec": "e2e/regression/canonical-session-route.spec.ts",
-      "test": "keeps same-id tabs isolated when the canonical URL targets a non-current server",
-      "layer": "E3",
-      "route": "/server/:key/session/:id",
-      "mode": "work",
-      "platform": "chromium",
-      "failure": "host-alias",
-      "status": "red-fixme",
-      "owner": "S4/S8",
-      "unlock": "server host-alias owner lands (closure plan §7.1, §11.2)"
-    },
-    {
       "id": "canonical-404-blank-main",
       "spec": "e2e/regression/canonical-session-route.spec.ts",
       "test": "leaves the main surface blank when the requested Session returns 404",
@@ -94,97 +85,6 @@
       "status": "red-fixme",
       "owner": "S4",
       "unlock": "§7.2 typed parent-missing rewrite; product already fail-closes — pin the new baseline"
-    },
-    {
-      "id": "legacy-redirect-host",
-      "spec": "e2e/regression/legacy-session-route.spec.ts",
-      "test": "replaces an id-bearing legacy URL with the canonical session URL",
-      "layer": "E3",
-      "route": "/:base64Dir/session/:id",
-      "mode": "chat",
-      "platform": "chromium",
-      "failure": "host-alias",
-      "status": "red-fixme",
-      "owner": "S4/S8",
-      "unlock": "server host-alias owner lands"
-    },
-    {
-      "id": "legacy-redirect-query-hash",
-      "spec": "e2e/regression/legacy-session-route.spec.ts",
-      "test": "drops query and hash while redirecting an id-bearing legacy URL",
-      "layer": "E3",
-      "route": "/:base64Dir/session/:id",
-      "mode": "chat",
-      "platform": "chromium",
-      "failure": "host-alias",
-      "status": "red-fixme",
-      "owner": "S4/S8",
-      "unlock": "server host-alias owner lands"
-    },
-    {
-      "id": "new-session-draft-open",
-      "spec": "e2e/regression/new-session-route.spec.ts",
-      "test": "directly opens a persisted draft without submitting a model request",
-      "layer": "E3",
-      "route": "/new-session?draftId",
-      "mode": "work",
-      "platform": "chromium",
-      "failure": "host-alias",
-      "status": "red-fixme",
-      "owner": "S4/S8",
-      "unlock": "draft route resolves the localhost-pinned server only after alias normalization"
-    },
-    {
-      "id": "new-session-draft-recovery",
-      "spec": "e2e/regression/new-session-route.spec.ts",
-      "test": "recovers the routed draft and its unsent prompt after refresh",
-      "layer": "E3",
-      "route": "/new-session?draftId",
-      "mode": "work",
-      "platform": "chromium",
-      "failure": "host-alias",
-      "status": "red-fixme",
-      "owner": "S4/S8",
-      "unlock": "same as new-session-draft-open"
-    },
-    {
-      "id": "new-session-dirty-guard",
-      "spec": "e2e/regression/new-session-route.spec.ts",
-      "test": "hydrates prompt query while the current dirty guard blocks one-shot cleanup",
-      "layer": "E3",
-      "route": "/new-session?draftId&prompt",
-      "mode": "work",
-      "platform": "chromium",
-      "failure": "host-alias",
-      "status": "red-fixme",
-      "owner": "S4/S8",
-      "unlock": "same as new-session-draft-open"
-    },
-    {
-      "id": "terminal-pty-lifecycle",
-      "spec": "e2e/regression/session-terminal-route.spec.ts",
-      "test": "creates, connects, sends input, resizes, and deletes a PTY from a canonical Session route",
-      "layer": "E3",
-      "route": "/server/:key/session/:id",
-      "mode": "coding",
-      "platform": "chromium",
-      "failure": "host-alias",
-      "status": "red-fixme",
-      "owner": "S4/S8",
-      "unlock": "WebSocket URL host normalization (ws://127.0.0.1:4096 vs ws://localhost:4096)"
-    },
-    {
-      "id": "presentation-chat-controls",
-      "spec": "e2e/regression/global-shell-presentation.spec.ts",
-      "test": "keeps Project, Feature, and Session controls reachable across locale and viewport projects",
-      "layer": "E3",
-      "route": "legacy session redirect → mode workspace",
-      "mode": "chat",
-      "platform": "chromium + dark/zh/zht/narrow",
-      "failure": "host-alias",
-      "status": "red-fixme",
-      "owner": "S4",
-      "unlock": "redirect chain lands on the canonical session route so chatTarget() resolves (TDD residue: spec 7fa01bab7 predates sidebar 11ffeb60a)"
     },
     {
       "id": "composer-shift-enter-zwsp",
@@ -250,6 +150,19 @@
       "status": "red-stable",
       "owner": "S7/S16",
       "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true)"
+    },
+    {
+      "id": "presentation-chat-controls",
+      "spec": "e2e/regression/global-shell-presentation.spec.ts",
+      "test": "keeps Project, Feature, and Session controls reachable across locale and viewport projects",
+      "layer": "E3",
+      "route": "legacy session redirect → canonical session detail",
+      "mode": "chat",
+      "platform": "chromium + dark/zh/zht/narrow",
+      "failure": "legacy redirect chain fixed in S4 (host-alias); chat-* controls still absent on the session DETAIL route",
+      "status": "red-fixme",
+      "owner": "S7",
+      "unlock": "S7 product ruling: should the chat secondary sidebar (chatTarget/routeContribution) render on the session DETAIL route?"
     }
   ]
 }

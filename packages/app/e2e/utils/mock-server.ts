@@ -18,6 +18,11 @@ const emptyObject = new Set(["/global/config", "/config", "/provider/auth", "/mc
 export interface MockServerConfig {
   provider: unknown
   directory: string
+  /** Server port this registration answers on. Defaults to
+   * PLAYWRIGHT_SERVER_PORT (4096). A second registration with a different port
+   * lets one page mock two physical servers — non-matching ports fall through
+   * via route.fallback(). */
+  port?: string
   project: unknown
   sessions: ({ id: string } & Record<string, unknown>)[]
   pageMessages: (sessionId: string, limit: number, before?: string) => { items: unknown[]; cursor?: string }
@@ -67,7 +72,7 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
 
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url())
-    const targetPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
+    const targetPort = config.port ?? process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
     const appPort = new URL(
       process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? "3000"}`,
     ).port

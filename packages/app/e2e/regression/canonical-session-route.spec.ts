@@ -31,8 +31,9 @@ const session = (id: string, sessionTitle: string, parentID?: string) => ({
   time: { created: 1700000000000, updated: 1700000000000 },
 })
 
-async function installServerMock(page: Parameters<typeof mockAigcfrogeServer>[0]) {
+async function installServerMock(page: Parameters<typeof mockAigcfrogeServer>[0], port?: string) {
   await mockAigcfrogeServer(page, {
+    port,
     directory,
     project: {
       id: projectID,
@@ -89,11 +90,12 @@ test("cold-loads and refreshes the canonical session URL", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`${path}$`))
 })
 
-// RED 2026-09-13: the app merges the localhost:4096 tab with the 127.0.0.1:4096 canonical URL into one tab.
-// Unlock at S4/S8 once the server host-alias owner lands (closure plan §7.1, §11.2).
-test.fixme("keeps same-id tabs isolated when the canonical URL targets a non-current server", async ({ page }) => {
+// Host-alias ruling (plan §7.1 附则): two PHYSICALLY different servers keep
+// same-id tabs isolated; one server under two host spellings is ONE tab.
+test("keeps same-id tabs isolated when the canonical URL targets a non-current server", async ({ page }) => {
+  const otherServer = "http://127.0.0.1:4097"
   await page.addInitScript(
-    ({ activeServer, id }) => {
+    ({ activeServer, servers, id }) => {
       localStorage.setItem(
         "aigcfroge.global.dat:tabs",
         JSON.stringify([{ type: "session", server: activeServer, sessionId: id }]),
@@ -101,17 +103,20 @@ test.fixme("keeps same-id tabs isolated when the canonical URL targets a non-cur
       localStorage.setItem(
         "aigcfroge.global.dat:server",
         JSON.stringify({
-          list: [{ type: "http", http: { url: "http://127.0.0.1:4096" } }],
+          list: servers.map((url) => ({ type: "http", http: { url } })),
           projects: {},
           lastProject: {},
         }),
       )
     },
-    { activeServer: currentServer, id: sessionID },
+    { activeServer: server, servers: [server, otherServer], id: sessionID },
   )
 
-  const targetPath = canonicalPath(sessionID)
-  const currentPath = canonicalPath(sessionID, currentServer)
+  await installServerMock(page)
+  await installServerMock(page, "4097")
+
+  const targetPath = canonicalPath(sessionID, otherServer)
+  const currentPath = canonicalPath(sessionID, server)
   await gotoWhenReady(page, targetPath)
   await expectSessionTitle(page, title)
 
@@ -122,6 +127,36 @@ test.fixme("keeps same-id tabs isolated when the canonical URL targets a non-cur
     targetPath,
   ])
   await expect(page).toHaveURL(new RegExp(`${targetPath}$`))
+})
+
+test("merges a persisted localhost-spelled tab into the canonical server tab (host alias)", async ({ page }) => {
+  await page.addInitScript(
+    ({ activeServer, id }) => {
+      localStorage.setItem(
+        "aigcfroge.global.dat:tabs",
+        JSON.stringify([{ type: "session", server: activeServer, sessionId: id }]),
+      )
+      localStorage.setItem(
+        "aigcfroge.global.dat:server",
+        JSON.stringify({
+          list: [{ type: "http", http: { url: activeServer } }],
+          projects: {},
+          lastProject: {},
+        }),
+      )
+    },
+    { activeServer: currentServer, id: sessionID },
+  )
+
+  await installServerMock(page)
+  await gotoWhenReady(page, canonicalPath(sessionID))
+  await expectSessionTitle(page, title)
+
+  // One tab — the two spellings are the same server. The rendered href keeps
+  // the persisted raw spelling: identity is canonical, display is preserved.
+  const tabLinks = page.locator('[data-slot="titlebar-tabs"] a')
+  await expect(tabLinks).toHaveCount(1)
+  await expect(tabLinks.first()).toHaveAttribute("href", canonicalPath(sessionID, currentServer))
 })
 
 test("keeps a child URL while opening one root-session tab and reuses its placement", async ({ page }) => {

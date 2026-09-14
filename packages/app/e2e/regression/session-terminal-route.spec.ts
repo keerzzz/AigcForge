@@ -266,87 +266,77 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-// RED 2026-09-13: the terminal WebSocket URL is ws://127.0.0.1:4096, the fixture expects the localhost spelling.
-// Unlock at S4/S8 with the server host-alias owner (closure plan §7.1, §11.2).
-test.fixme(
-  "creates, connects, sends input, resizes, and deletes a PTY from a canonical Session route",
-  async ({ page }) => {
-    test.info().annotations.push({
-      type: "coverage",
-      description:
-        "PARTIAL: the browser-side HTTP and WebSocket contracts are exercised with a fake socket; real process I/O, server WebSocket upgrade, process exit, and cleanup remain covered only by the backend PTY integration tests.",
-    })
-    const mock = await installMocks(page)
+test("creates, connects, sends input, resizes, and deletes a PTY from a canonical Session route", async ({ page }) => {
+  test.info().annotations.push({
+    type: "coverage",
+    description:
+      "PARTIAL: the browser-side HTTP and WebSocket contracts are exercised with a fake socket; real process I/O, server WebSocket upgrade, process exit, and cleanup remain covered only by the backend PTY integration tests.",
+  })
+  const mock = await installMocks(page)
 
-    await gotoSession(page, sessionA, "Terminal session A")
-    const panel = await openTerminal(page)
+  await gotoSession(page, sessionA, "Terminal session A")
+  const panel = await openTerminal(page)
 
-    await expect
-      .poll(() => mock.requests.filter((request) => request.method === "POST" && request.path === "/pty").length)
-      .toBe(1)
-    const create = mock.requests.find((request) => request.method === "POST" && request.path === "/pty")
-    expect(create).toMatchObject({
+  await expect
+    .poll(() => mock.requests.filter((request) => request.method === "POST" && request.path === "/pty").length)
+    .toBe(1)
+  const create = mock.requests.find((request) => request.method === "POST" && request.path === "/pty")
+  expect(create).toMatchObject({
+    directory: encodeURIComponent(directoryA),
+    body: { title: "Terminal 1" },
+  })
+
+  await expect
+    .poll(() => mock.requests.find((request) => request.path.endsWith("/connect-token")))
+    .toMatchObject({
+      method: "POST",
       directory: encodeURIComponent(directoryA),
-      body: { title: "Terminal 1" },
+      ticketHeader: "1",
     })
 
-    await expect
-      .poll(() => mock.requests.find((request) => request.path.endsWith("/connect-token")))
-      .toMatchObject({
-        method: "POST",
-        directory: encodeURIComponent(directoryA),
-        ticketHeader: "1",
-      })
+  await expect.poll(async () => (await socketState(page)).urls.length).toBeGreaterThanOrEqual(1)
+  const connected = new URL((await socketState(page)).urls.at(-1) ?? "")
+  expect(connected.origin).toBe("ws://127.0.0.1:4096")
+  expect(connected.pathname).toBe("/pty/pty_terminal_1/connect")
+  expect(connected.searchParams.get("directory")).toBe(directoryA)
+  expect(connected.searchParams.get("cursor")).toBe("0")
+  expect(connected.searchParams.get("ticket")).toBe("ticket-pty_terminal_1")
 
-    await expect.poll(async () => (await socketState(page)).urls.length).toBeGreaterThanOrEqual(1)
-    const connected = new URL((await socketState(page)).urls.at(-1) ?? "")
-    expect(connected.origin).toBe("ws://localhost:4096")
-    expect(connected.pathname).toBe("/pty/pty_terminal_1/connect")
-    expect(connected.searchParams.get("directory")).toBe(directoryA)
-    expect(connected.searchParams.get("cursor")).toBe("0")
-    expect(connected.searchParams.get("ticket")).toBe("ticket-pty_terminal_1")
+  const terminal = panel.locator('[data-component="terminal"]')
+  await terminal.click()
+  await page.keyboard.type("printf terminal-e2e")
+  await page.keyboard.press("Enter")
+  await expect.poll(async () => (await socketState(page)).sent.join("")).toContain("printf terminal-e2e\r")
 
-    const terminal = panel.locator('[data-component="terminal"]')
-    await terminal.click()
-    await page.keyboard.type("printf terminal-e2e")
-    await page.keyboard.press("Enter")
-    await expect.poll(async () => (await socketState(page)).sent.join("")).toContain("printf terminal-e2e\r")
+  await expect
+    .poll(() =>
+      mock.requests.find((request) => {
+        if (request.method !== "PUT" || request.path !== "/pty/pty_terminal_1") return false
+        return (
+          isRecord(request.body) && isRecord(request.body.size) && !!request.body.size.cols && !!request.body.size.rows
+        )
+      }),
+    )
+    .toBeTruthy()
 
-    await expect
-      .poll(() =>
-        mock.requests.find((request) => {
-          if (request.method !== "PUT" || request.path !== "/pty/pty_terminal_1") return false
-          return (
-            isRecord(request.body) &&
-            isRecord(request.body.size) &&
-            !!request.body.size.cols &&
-            !!request.body.size.rows
-          )
-        }),
-      )
-      .toBeTruthy()
+  const updateCount = mock.requests.filter(
+    (request) => request.method === "PUT" && request.path === "/pty/pty_terminal_1",
+  ).length
+  await page.setViewportSize({ width: 1100, height: 720 })
+  await expect
+    .poll(
+      () =>
+        mock.requests.filter((request) => request.method === "PUT" && request.path === "/pty/pty_terminal_1").length,
+    )
+    .toBeGreaterThan(updateCount)
 
-    const updateCount = mock.requests.filter(
-      (request) => request.method === "PUT" && request.path === "/pty/pty_terminal_1",
-    ).length
-    await page.setViewportSize({ width: 1100, height: 720 })
-    await expect
-      .poll(
-        () =>
-          mock.requests.filter((request) => request.method === "PUT" && request.path === "/pty/pty_terminal_1").length,
-      )
-      .toBeGreaterThan(updateCount)
-
-    await panel.getByRole("button", { name: "Close terminal" }).click()
-    await expect
-      .poll(() =>
-        mock.requests.some((request) => request.method === "DELETE" && request.path === "/pty/pty_terminal_1"),
-      )
-      .toBe(true)
-    await expect(panel).toHaveAttribute("aria-hidden", "true")
-    expect(mock.ptys.has("pty_terminal_1")).toBe(false)
-  },
-)
+  await panel.getByRole("button", { name: "Close terminal" }).click()
+  await expect
+    .poll(() => mock.requests.some((request) => request.method === "DELETE" && request.path === "/pty/pty_terminal_1"))
+    .toBe(true)
+  await expect(panel).toHaveAttribute("aria-hidden", "true")
+  expect(mock.ptys.has("pty_terminal_1")).toBe(false)
+})
 
 test("shares terminal state across Sessions in one directory and isolates another directory", async ({ page }) => {
   test.info().annotations.push({

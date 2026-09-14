@@ -49,10 +49,20 @@ export const draftHref = (draftID: string) => `/new-session?draftId=${encodeURIC
 export const tabHref = (tab: Tab) =>
   tab.type === "draft" ? draftHref(tab.draftID) : sessionHref(tab.server, tab.sessionId)
 
-export const tabKey = (tab: Tab) => (tab.type === "draft" ? `draft:${tab.draftID}` : `${tab.server}\n${tabHref(tab)}`)
+// Identity is canonical (the href inside the key must be built from the
+// canonical server too, or raw-vs-canonical spellings split one tab in two);
+// the rendered href (tabHref) keeps the persisted spelling.
+export const tabKey = (tab: Tab) => {
+  if (tab.type === "draft") return `draft:${tab.draftID}`
+  const server = ServerConnection.canonicalKey(tab.server)
+  return `${server}\n${sessionHref(server, tab.sessionId)}`
+}
 
 export function sessionHasOpenTab(tabs: Tab[], server: ServerConnection.Key, session: Session) {
-  return tabs.some((tab) => tab.type === "session" && tab.server === server && tab.sessionId === session.id)
+  // Persisted tab keys predate canonicalization — sameKey, not equality.
+  return tabs.some(
+    (tab) => tab.type === "session" && ServerConnection.sameKey(tab.server, server) && tab.sessionId === session.id,
+  )
 }
 
 export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
@@ -117,10 +127,13 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
     createEffect(() => {
       if (!ready() || !recentReady()) return
       const servers = new Set(server.list.map(ServerConnection.key))
-      const next = store.filter((tab) => servers.has(tab.server))
+      // Persisted tab.server values predate canonicalization (raw `localhost`
+      // spellings) — compare through the canonical form or this effect wipes
+      // every pre-S4 tab on boot (plan §7.1 附则, lock B).
+      const next = store.filter((tab) => servers.has(ServerConnection.canonicalKey(tab.server)))
       if (next.length !== store.length) {
         for (const tab of store) {
-          if (!servers.has(tab.server)) memory.remove(tabKey(tab))
+          if (!servers.has(ServerConnection.canonicalKey(tab.server))) memory.remove(tabKey(tab))
         }
         setStore(() => next)
       }

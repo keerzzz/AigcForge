@@ -56,7 +56,7 @@ for (const dir of [configDir, workspaceDir]) mkdirSync(dir, { recursive: true })
 // logs; the gate evidence must not depend on volatile tmp files.
 const logPath = path.join(runDir, "orchestrator.log")
 const log = (line: string) => {
-  log(line)
+  process.stdout.write(line)
   writeFileSync(logPath, line, { flag: "a" })
 }
 

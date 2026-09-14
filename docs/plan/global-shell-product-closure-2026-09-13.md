@@ -320,6 +320,16 @@ Legacy/Draft：
 - 内部清理不触发 Dirty Guard。当前 `DirtyDraftGuard`（`packages/app/src/context/chat-workspace.tsx:145-160`，挂载于 `app.tsx:555`）通过 `useBeforeLeave` 拦截，而草稿页在 `new-session.tsx:42` 注册了 dirty，导致水合后的清理导航被"Unsaved content"对话框阻断——`new-session-route.spec.ts:101-116` 已钉住这个缺陷。修复必须让 guard 能区分内部 replace 清理与用户离开，并把该 spec 从"钉住缺陷"改为"钉住正确行为"；失败保留 draft 内容但不在 URL；
 - 无项目/Location 时显示恢复入口，不创建不可用 tab。
 
+**§7.1 附则：Server host 别名裁决（2026-09-14，S4 第一项定案）**
+
+- **归一规则**：同一 scheme + 同端口下，`localhost` 与 `127.0.0.1` 是同一个 server。归一函数唯一（`canonicalServerUrl`）：trim → 补 http/https 默认 scheme → hostname 小写化 → `localhost` 映射 `127.0.0.1` → 省略 scheme 默认端口（http:80 / https:443）→ 去尾斜杠。server 身份的**所有比较**（registry 去重、路由 key 匹配、draft/tab 引用、WebSocket base）都过 canonical 形态；用户可见展示保留原始拼写。
+- **canonical 拼写**：`127.0.0.1`（与 `playwright.config.ts` 的 `PLAYWRIGHT_SERVER_HOST` 默认一致）。terminal 的 ws 断言、legacy redirect 期望 key 随之翻转。
+- **双锁设计**：锁 A = `ServerConnection.key()` 的 http 分支经 `canonicalServerUrl` 派生（覆盖一切从 connection 对象派生的比较点）；锁 B = `ServerConnection.sameKey(a, b)`（两侧归一后比较，覆盖**存量持久化 key**——旧 localStorage 的 tab.server/draft.server/active 是原始拼写字符串，绕过 key()）。registry 的 `list` 存储保留用户原始拼写，添加时同 canonical 合并进既有条目（只更新展示字段），不产生重复条目。
+- **`[::1]` 不与 IPv4 环回互认**：跨协议栈的同义性是额外假设，保守排除；`::1` 是独立身份。后续若需互认，改 `canonicalServerUrl` 一处即可。
+- **Windows path key 不参与 host 归一**：`isWindowsPath` 族（`C:/...`）是目录路径身份，不是 server URL，两种形态互不转换。
+- **实现边界**：读路径（localStorage 读取、路由 key 解码）同为摄入边界，必须归一——存量 draft/tab 持久化了旧拼写，仅靠"新输入归一"会让真实用户旧数据继续断裂（S0 的 new-session 三例正是此形态）。工作区 `.aigcfroge/` 由后端自建，属 workspace 残留白名单。
+- **canonical:92 语义修正**："同 ID 两 tab 隔离"改用两个**物理不同**的 server（`:4096`/`:4097`）验证；"同物异名归一为单 tab"成为 alias 的正向断言。
+
 ### 7.2 测试矩阵
 
 扩展已有 `canonical-session-route`、`legacy-session-route`、`new-session-route`、`unknown-route`：同 Session ID 跨 server、unknown/malformed server、leaf/parent 404、Windows/WSL path、query/hash、refresh/back/forward、敏感 prompt history。

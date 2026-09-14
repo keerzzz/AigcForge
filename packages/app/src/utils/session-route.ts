@@ -9,7 +9,9 @@ export function sessionHref(server: ServerConnection.Key, sessionID: string) {
 export function requireServerKey(segment: string | undefined) {
   const key = decode64(segment)
   if (!key || base64Encode(key) !== segment) throw new Error("Invalid server route")
-  return ServerConnection.Key.make(key)
+  // Old bookmarks may carry the raw `localhost` spelling — canonicalize on the
+  // way in so route keys always compare equal to registry keys (plan §7.1 附则).
+  return ServerConnection.canonicalKey(ServerConnection.Key.make(key))
 }
 
 type SessionParent = { id: string; parentID?: string }

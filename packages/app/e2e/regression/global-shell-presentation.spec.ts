@@ -41,8 +41,11 @@ async function mount(page: Page) {
   await gotoWhenReady(page, `/${base64Encode(directory)}/session/${sessionID}`)
 }
 
-// RED 2026-09-13: chat-* collapse controls only render when chatTarget() resolves on the canonical session route; the legacy URL redirect chain fails first (A-family root cause).
-// Unlock at S4 when the redirect chain lands on the canonical route.
+// RED 2026-09-14 update: the S4 host-alias fix landed the legacy redirect chain —
+// the canonical session detail page renders (title resolves). Remaining blocker:
+// chat-* collapse controls do not render on the session DETAIL route
+// (chatTarget/routeContribution registration on the detail route) — a chat
+// sidebar architecture question owned by S7, not a routing defect.
 test.fixme(
   "keeps Project, Feature, and Session controls reachable across locale and viewport projects",
   async ({ page }) => {

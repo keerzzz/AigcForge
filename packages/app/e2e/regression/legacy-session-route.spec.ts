@@ -9,7 +9,7 @@ const directory = "C:/Aigcfroge/LegacySession"
 const projectID = "proj_legacy_session"
 const sessionID = "ses_legacy_session"
 const title = "Legacy session"
-const server = "http://localhost:4096"
+const server = "http://127.0.0.1:4096"
 const legacyBase = `/${base64Encode(directory)}/session`
 const canonicalPath = `/server/${base64Encode(server)}/session/${sessionID}`
 
@@ -59,9 +59,7 @@ test.beforeEach(async ({ page }) => {
   }, directory)
 })
 
-// RED 2026-09-13: the canonical redirect emits the 127.0.0.1:4096 server key, the fixture expects the localhost spelling.
-// Unlock at S4/S8 with the server host-alias owner (closure plan §7.1, §11.2).
-test.fixme("replaces an id-bearing legacy URL with the canonical session URL", async ({ page }) => {
+test("replaces an id-bearing legacy URL with the canonical session URL", async ({ page }) => {
   await gotoWhenReady(page, "/mode/chat")
   await page.goto(`${legacyBase}/${sessionID}`)
 
@@ -81,9 +79,7 @@ test("creates a draft from an id-less legacy URL", async ({ page }) => {
   await expect(page.getByRole("textbox").first()).toBeVisible()
 })
 
-// RED 2026-09-13: the canonical redirect emits the 127.0.0.1:4096 server key, the fixture expects the localhost spelling.
-// Unlock at S4/S8 with the server host-alias owner (closure plan §7.1, §11.2).
-test.fixme("drops query and hash while redirecting an id-bearing legacy URL", async ({ page }) => {
+test("drops query and hash while redirecting an id-bearing legacy URL", async ({ page }) => {
   await gotoWhenReady(page, `${legacyBase}/${sessionID}?insert=legacy-context#message-old`)
 
   await expect(page).toHaveURL(new RegExp(`${canonicalPath}$`))

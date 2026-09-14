@@ -22,7 +22,10 @@ const storageState = (entries: Array<[string, string]>) => ({
 
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: process.env.AIGCFROGE_PERFORMANCE === "1" ? "performance/**/*.test.ts" : "performance/**",
+  // `performance/**` belongs to the production-bench config; `real/**` belongs
+  // to the real-backend E4 config (e2e/real/playwright.config.ts). Neither is
+  // collected by this E3/E2 presentation config.
+  testIgnore: process.env.AIGCFROGE_PERFORMANCE === "1" ? "performance/**/*.test.ts" : ["performance/**", "real/**"],
   outputDir: "./e2e/test-results",
   // Generous per-test budget: the Vite dev server cold-compiles routes on
   // demand, and the branch's assistant dashboard (imported by the app-wide

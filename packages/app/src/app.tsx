@@ -224,7 +224,10 @@ function DraftRoute() {
 function ResolvedDraftRoute(props: { draft: DraftTab }) {
   const server = useServer()
   const mode = useMode()
-  const conn = createMemo(() => server.list.find((item) => ServerConnection.key(item) === props.draft.server))
+  // Persisted draft keys predate canonicalization — sameKey, not equality.
+  const conn = createMemo(() =>
+    server.list.find((item) => ServerConnection.sameKey(props.draft.server, ServerConnection.key(item))),
+  )
   const directory = () => props.draft.directory
   const serverKey = () => props.draft.server
 

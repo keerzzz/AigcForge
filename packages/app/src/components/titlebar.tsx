@@ -289,7 +289,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                 if (route.type !== "session") return undefined
                 const conn = global.servers
                   .list()
-                  .find((item) => ServerConnection.key(item) === (route.server ?? server.key))
+                  .find((item) => ServerConnection.sameKey(route.server ?? server.key, ServerConnection.key(item)))
                 return conn ? { route, sdk: global.ensureServerCtx(conn).sdk } : undefined
               },
               ({ route, sdk }) =>
@@ -366,7 +366,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                   return
                 }
                 const generic = mode.currentMode
-                const conn = server.list.find((item) => ServerConnection.key(item) === serverKey)
+                const conn = server.list.find((item) => ServerConnection.sameKey(serverKey, ServerConnection.key(item)))
                 if (conn) {
                   const ctx = global.ensureServerCtx(conn)
                   launchModeSession({
@@ -574,7 +574,10 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                           }
 
                           const serverCtx = createMemo(() => {
-                            const conn = server.list.find((item) => ServerConnection.key(item) === tab.server)
+                            // Persisted tab keys predate canonicalization.
+                            const conn = server.list.find((item) =>
+                              ServerConnection.sameKey(tab.server, ServerConnection.key(item)),
+                            )
                             return conn ? global.ensureServerCtx(conn) : undefined
                           })
                           const sdk = createMemo(() => serverCtx()?.sdk ?? null)
