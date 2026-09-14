@@ -142,11 +142,35 @@ export function useChatWorkspace(): ChatWorkspaceContext | undefined {
   return useContext(Ctx)
 }
 
+/**
+ * Marks a navigation the app performs on itself — a one-shot URL cleanup, not
+ * the user leaving. The dirty guard must not intercept these: the cleanup runs
+ * *after* hydration has already made the draft dirty, so a guard that cannot
+ * tell them apart blocks the cleanup and parks the param in the URL (plan §7.1).
+ * Nesting is counted so an internal navigation that triggers another stays
+ * internal for the whole synchronous chain.
+ */
+let internalNavigationDepth = 0
+
+export function runInternalNavigation<T>(run: () => T): T {
+  internalNavigationDepth += 1
+  try {
+    return run()
+  } finally {
+    internalNavigationDepth -= 1
+  }
+}
+
+export function isInternalNavigation(): boolean {
+  return internalNavigationDepth > 0
+}
+
 export function DirtyDraftGuard() {
   const workspace = useChatWorkspace()
 
   useBeforeLeave((event) => {
     if (event.defaultPrevented) return
+    if (isInternalNavigation()) return
     if (!workspace) return
     const key = workspace.route.activeTabKey()
     if (!key || !workspace.dirty.has(key)) return

@@ -69,7 +69,8 @@ import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
-import { useChatWorkspace } from "@/context/chat-workspace"
+import { runInternalNavigation, useChatWorkspace } from "@/context/chat-workspace"
+import { UrlParams } from "@/utils/url-params"
 import { tabKey } from "@/context/tabs"
 import { useRouteContribution } from "@/context/route-contribution"
 import { openSessionContext } from "@/components/open-session-context"
@@ -125,7 +126,9 @@ export default function Page(props: { rootID: string }) {
       const text = searchParams.prompt
       if (!text) return
       prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
-      setSearchParams({ ...searchParams, prompt: undefined })
+      runInternalNavigation(() =>
+        navigate(UrlParams.withoutParams(location, ["prompt"]), { replace: true, scroll: false, resolve: false }),
+      )
     })
   })
 
@@ -137,7 +140,16 @@ export default function Page(props: { rootID: string }) {
     if (!params.id) return
     const path = searchParams.insert
     if (!path) return
-    const clear = () => untrack(() => setSearchParams({ ...searchParams, insert: undefined, insertKind: undefined }))
+    const clear = () =>
+      untrack(() =>
+        runInternalNavigation(() =>
+          navigate(UrlParams.withoutParams(location, ["insert", "insertKind"]), {
+            replace: true,
+            scroll: false,
+            resolve: false,
+          }),
+        ),
+      )
     const kind = parseInsertKind(searchParams.insertKind)
     if (!kind) {
       console.warn("session: ?insert= missing or invalid insertKind, skipping injection", searchParams.insertKind)

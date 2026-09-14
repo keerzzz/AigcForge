@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { ServerConnection, canonicalServerUrl } from "@/context/server"
-import { parseServerKey, requireServerKey, sessionHref } from "./session-route"
+import { legacyRedirectSuffix, parseServerKey, requireServerKey, sessionHref } from "./session-route"
 
 describe("session routes", () => {
   test("builds and decodes a server-keyed session route", () => {
@@ -79,5 +79,26 @@ describe("server host canonicalization", () => {
     expect(ServerConnection.sameKey(wsl, wsl)).toBe(true)
     expect(ServerConnection.sameKey(ssh, ssh)).toBe(true)
     expect(ServerConnection.sameKey(sidecar, "sidecar2")).toBe(false)
+  })
+})
+
+describe("legacy redirect forwarding", () => {
+  test("keeps only whitelisted session-scoped params and a safe anchor", () => {
+    expect(
+      legacyRedirectSuffix({
+        query: { insert: "assets/a.md", insertKind: "prompt", prompt: "secret" },
+        hash: "#message-old",
+      }),
+    ).toBe("?insert=assets%2Fa.md&insertKind=prompt#message-old")
+    expect(legacyRedirectSuffix({ query: { prompt: "secret", token: "abc" }, hash: "#message-old" })).toBe(
+      "#message-old",
+    )
+    expect(legacyRedirectSuffix({ query: {}, hash: "" })).toBe("")
+  })
+
+  test("drops unsafe or empty fields instead of forwarding them", () => {
+    expect(legacyRedirectSuffix({ query: { insert: "" }, hash: "" })).toBe("")
+    expect(legacyRedirectSuffix({ query: {}, hash: "#<script>" })).toBe("")
+    expect(legacyRedirectSuffix({ query: {}, hash: "#has space" })).toBe("")
   })
 })

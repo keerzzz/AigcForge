@@ -79,15 +79,20 @@ test("creates a draft from an id-less legacy URL", async ({ page }) => {
   await expect(page.getByRole("textbox").first()).toBeVisible()
 })
 
-test("drops query and hash while redirecting an id-bearing legacy URL", async ({ page }) => {
-  await gotoWhenReady(page, `${legacyBase}/${sessionID}?insert=legacy-context#message-old`)
+test("forwards the whitelist while redirecting an id-bearing legacy URL", async ({ page }) => {
+  await gotoWhenReady(page, `${legacyBase}/${sessionID}?insert=legacy-context&prompt=secret&token=abc#message-old`)
 
-  await expect(page).toHaveURL(new RegExp(`${canonicalPath}$`))
+  // The redirect lands on the canonical route and keeps the message anchor.
+  // (`insert`/`insertKind` are consumed and cleaned by the session route itself,
+  // so their absence below is the contract working, not a dropped forward — the
+  // query the whitelist builds is pinned by `legacyRedirectSuffix` unit tests.)
+  await expect(page).toHaveURL(new RegExp(`/server/[^/]+/session/${sessionID}#message-old$`))
   await expectSessionTitle(page, title)
-  expect(await page.evaluate(() => ({ search: location.search, hash: location.hash }))).toEqual({
-    search: "",
-    hash: "",
-  })
+
+  const forwarded = await page.evaluate(() => ({ search: location.search, hash: location.hash }))
+  expect(forwarded.hash).toBe("#message-old")
+  expect(forwarded.search).not.toContain("prompt")
+  expect(forwarded.search).not.toContain("token")
 })
 
 test("drops query and hash when an id-less legacy URL creates a draft", async ({ page }) => {

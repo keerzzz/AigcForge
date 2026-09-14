@@ -20,8 +20,14 @@ export const RouteErrorSurface: Component<{ error: RouteError; onRetry?: () => v
 
   async function copyDiagnostics() {
     const payload = routeDiagnostics(props.error)
-    await navigator.clipboard?.writeText(payload).catch(() => undefined)
-    setCopied(true)
+    // Only claim success when the write actually happened: a non-secure context
+    // has no clipboard, and telling the user "Copied" with an empty clipboard is
+    // worse than saying nothing.
+    const written = await navigator.clipboard
+      ?.writeText(payload)
+      .then(() => true)
+      .catch(() => false)
+    setCopied(written === true)
   }
 
   return (

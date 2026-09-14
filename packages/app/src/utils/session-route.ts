@@ -25,3 +25,23 @@ export function requireServerKey(segment: string | undefined) {
   if (!parsed.ok) throw new Error("Invalid server route")
   return parsed.key
 }
+
+/**
+ * Legacy → canonical redirect keeps only explicitly declared fields (plan §7.1).
+ * The whitelist is the session-scoped injection params the target route actually
+ * consumes, plus a message anchor. Everything else is dropped — notably
+ * `prompt`, which the session route ignores for an existing session, so keeping
+ * it would park user content in the URL and browser history.
+ */
+export const LEGACY_REDIRECT_QUERY_WHITELIST = ["insert", "insertKind"] as const
+
+export function legacyRedirectSuffix(input: { query: Record<string, string | undefined>; hash: string }): string {
+  const params = new URLSearchParams()
+  for (const key of LEGACY_REDIRECT_QUERY_WHITELIST) {
+    const value = input.query[key]
+    if (value) params.set(key, value)
+  }
+  const query = params.toString()
+  const anchor = /^#[A-Za-z0-9_-]+$/.test(input.hash) ? input.hash : ""
+  return `${query ? `?${query}` : ""}${anchor}`
+}

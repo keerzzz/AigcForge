@@ -10,7 +10,16 @@ import { Font } from "@aigcfroge/ui/font"
 import { Splash } from "@aigcfroge/ui/logo"
 import { ThemeProvider } from "@aigcfroge/ui/theme/context"
 import { MetaProvider } from "@solidjs/meta"
-import { Navigate, Route, Router, type BaseRouterProps, useNavigate, useParams, useSearchParams } from "@solidjs/router"
+import {
+  Navigate,
+  Route,
+  Router,
+  type BaseRouterProps,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "@solidjs/router"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { Effect } from "effect"
 import {
@@ -56,7 +65,7 @@ import { DirectoryDataProvider } from "@/pages/directory-layout"
 import Layout from "@/pages/layout"
 import { ErrorPage } from "./pages/error"
 import { useCheckServerHealth } from "./utils/server-health"
-import { parseServerKey, sessionHref } from "./utils/session-route"
+import { legacyRedirectSuffix, parseServerKey, sessionHref } from "./utils/session-route"
 import { describeFailure, isNotFound, type RouteError } from "./utils/route-error"
 import { RouteErrorSurface } from "@/components/route-error-surface"
 import { type ServerSDK } from "@/context/server-sdk"
@@ -76,12 +85,19 @@ const NewSession = lazy(() => import("@/pages/new-session"))
 // and any other /:dir/session hit path land here as a safety net.
 function LegacySessionRedirect() {
   const params = useParams<{ dir: string; id?: string }>()
+  const [searchParams] = useSearchParams<{ insert?: string; insertKind?: string }>()
   const server = useServer()
   const tabs = useTabs()
   const global = useGlobal()
   const mode = useMode()
   const navigate = useNavigate()
-  if (params.id) return <Navigate href={sessionHref(server.key, params.id)} />
+  const location = useLocation()
+  if (params.id) {
+    // Only whitelisted fields survive the redirect (plan §7.1): unknown params
+    // and the ignored `prompt` must not leak into the new URL or history.
+    const suffix = legacyRedirectSuffix({ query: searchParams, hash: location.hash })
+    return <Navigate href={`${sessionHref(server.key, params.id)}${suffix}`} />
+  }
   // First render: redirect to new-session placeholder; createEffect runs once
   // to create an actual draft with the first available project directory.
   const [failure, setFailure] = createSignal<RouteError>()

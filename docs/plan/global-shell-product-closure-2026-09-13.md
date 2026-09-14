@@ -344,9 +344,7 @@ Legacy/Draft：
 | `canonical-session-route.spec.ts:143-150` | 真 404（`failSessionRead`，`:59-68`）下 `main` 为空且无错误页                   | typed error + recovery                  |
 | `canonical-session-route.spec.ts:152-158` | parent 404 时静默失败、无错误页                                                 | 明确显示 parent missing                 |
 
-同时必须改 mock：`packages/app/e2e/utils/mock-server.ts:95-99` 对未知 session 返回 HTTP 200 `{}`（`session ?? {}`），`:161` 对目标端口的一切未匹配请求也返回 200 `{}`。真 404 形状测不出来，是因为 mock 从不产生 404。E3 mock 必须能表达 404，否则 `mock/real 错误形状一致` 无法验证。
-
-E4 加真实 unknown server/404 与 reload，证明 mock/real 错误形状一致。
+同时必须改 mock：`packages/app/e2e/utils/mock-server.ts:95-99` 对未知 session 返回 HTTP 200 `{}`（`session ?? {}`）——这一条按真实 404 形状修复（`{ name: "NotFoundError", data: { message } }`，S4 #3 已落地）。**边界裁决（2026-09-14，纠偏原文歧义）**：`:161` 对未匹配请求的 200 `{}` 兜底**保留**——它是隐式承重结构，`/api/permission/request` 等未被显式 mock 的容忍路径依赖它（约 30 个 spec 的"无意外浏览器错误"断言）；blanket-404 已实测并回退（console 洪流 + 超套件预算，证据在 mock 注释）。本计划对 mock 的要求是**能表达** 404（`notFound` helper + 定向使用），不是未匹配一律 404；更强严格性走显式 opt-in strict 模式，由 #4 的 mock/real 一致性 spec 裁决有无消费者，无则闭案。（原文此段曾同时暗示"让 mock 产生 404"与"能表达 404"两种读法，是 S4 #3 blanket-404 实验的诱因，特此改写消除。）
 
 E4 加真实 unknown server/404 与 reload，证明 mock/real 错误形状一致。
 

@@ -1,10 +1,12 @@
 import { createEffect, createMemo, onCleanup, onMount, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
-import { useSearchParams } from "@solidjs/router"
+import { useLocation, useNavigate, useSearchParams } from "@solidjs/router"
 import { useChatWorkspace } from "@/context/chat-workspace"
 import { NewSessionDesignView } from "@/components/session"
 import { useComments } from "@/context/comments"
 import { usePrompt } from "@/context/prompt"
+import { runInternalNavigation } from "@/context/chat-workspace"
+import { UrlParams } from "@/utils/url-params"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { createSessionComposerState, SessionComposerRegion } from "@/pages/session/composer"
@@ -20,7 +22,9 @@ export default function NewSessionPage() {
   const sync = useSync()
   const comments = useComments()
   const workspace = useChatWorkspace()
-  const [searchParams, setSearchParams] = useSearchParams<{ draftId?: string; prompt?: string }>()
+  const [searchParams] = useSearchParams<{ draftId?: string; prompt?: string }>()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   let inputRef: HTMLDivElement | undefined
 
@@ -65,7 +69,11 @@ export default function NewSessionPage() {
       const text = searchParams.prompt
       if (!text) return
       prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
-      setSearchParams({ ...searchParams, prompt: undefined })
+      // One-shot cleanup: replace (no history entry) and flagged as internal so
+      // the dirty guard does not treat it as the user leaving (plan §7.1).
+      runInternalNavigation(() =>
+        navigate(UrlParams.withoutParams(location, ["prompt"]), { replace: true, scroll: false, resolve: false }),
+      )
     })
   })
 

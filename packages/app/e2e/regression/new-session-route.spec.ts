@@ -98,7 +98,7 @@ test("redirects missing and unknown draft ids to the visible home page", async (
   await expectAppVisible(home(page))
 })
 
-test("hydrates prompt query while the current dirty guard blocks one-shot cleanup", async ({ page }) => {
+test("hydrates the prompt query and cleans it from the URL without tripping the dirty guard", async ({ page }) => {
   await installDraft(page)
   const prompt = "Draft a launch plan & list risks"
   const writes: string[] = []
@@ -108,9 +108,20 @@ test("hydrates prompt query while the current dirty guard blocks one-shot cleanu
 
   await page.goto(`${draftHref}&prompt=${encodeURIComponent(prompt)}`)
 
+  // Hydration still happens; the cleanup no longer blocks on the guard.
   await expectAppVisible(composer(page))
   await expect(composer(page)).toContainText(prompt)
-  await expect(page).toHaveURL(new RegExp(`prompt=${encodeURIComponent(prompt)}$`))
-  await expect(page.getByRole("dialog", { name: "Unsaved content" })).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/new-session\\?draftId=${draftID}$`))
+  await expect(page.getByRole("dialog", { name: "Unsaved content" })).toHaveCount(0)
+
+  // The parameter must not survive a refresh or a history round-trip — that was
+  // the leak the old pinned-defect assertion accepted.
+  await page.reload()
+  await expectAppVisible(composer(page))
+  await expect(page).toHaveURL(new RegExp(`/new-session\\?draftId=${draftID}$`))
+  expect(await page.evaluate(() => location.search)).not.toContain("prompt")
+
+  await page.goBack()
+  await expect(page).not.toHaveURL(/prompt=/)
   expect(writes).toEqual([])
 })

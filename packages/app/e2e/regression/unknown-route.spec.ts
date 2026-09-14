@@ -111,3 +111,25 @@ test("an unknown session renders a typed session-not-found surface, not a path c
   await expect(surface).not.toContainText("isWindowsPath")
   await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0)
 })
+
+// The mock must emit the SAME body shape the real backend does, or the typed
+// surface assertions above would be proving nothing about production. The real
+// shape lives in packages/aigcfroge/src/server/routes/instance/httpapi/errors.ts
+// (ApiNotFoundError → `{ name: "NotFoundError", data: { message } }`) and E4
+// asserts the same two fields against a real backend
+// (e2e/real/session-not-found.spec.ts) — keep the pair in sync.
+test("the mock answers unknown sessions with the real NotFoundError shape", async ({ page }) => {
+  await gotoWhenReady(page, "/")
+  // Read it through the page: `page.route` intercepts page traffic, not the
+  // APIRequestContext, so a direct `request.get` would never reach the mock.
+  const result = await page.evaluate(async () => {
+    const response = await fetch("/session/ses_mock_missing", { headers: { "x-aigcfroge-directory": "x" } })
+    return { status: response.status, body: await response.json() }
+  })
+
+  expect(result.status).toBe(404)
+  expect(result.body).toMatchObject({
+    name: "NotFoundError",
+    data: { message: expect.stringContaining("ses_mock_missing") },
+  })
+})

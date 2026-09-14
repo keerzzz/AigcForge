@@ -172,8 +172,14 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     // (`/api/permission/request`, …) turned into console-error floods that failed
     // every spec asserting "no unexpected browser errors" and stretched the suite
     // past its budget. The mock CAN express the real 404 shape (`notFound`) and
-    // does so for unknown sessions, which is the surface §7.2 needs; an explicit
-    // opt-in for unmatched paths lands with the mock/real shape-consistency spec.
+    // does so for unknown sessions, which is the surface §7.2 needs.
+    //
+    // Strict-mode verdict (S4 #4, plan §7.2 边界裁决): an opt-in "unmatched → 404"
+    // mode is NOT added. The consumer it was reserved for — the mock/real
+    // shape-consistency proof — is satisfied by E4's real backend
+    // (e2e/real/session-not-found.spec.ts) plus the E3 shape assertion in
+    // unknown-route.spec.ts; a second, stricter mock mode would have no caller.
+    // Reopen only if a future spec needs unmatched-path 404s.
     if (url.port === targetPort && targetPort !== appPort) return json(route, {})
     return route.fallback()
   })
