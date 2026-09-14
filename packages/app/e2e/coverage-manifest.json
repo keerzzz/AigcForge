@@ -49,9 +49,9 @@
       "unlock": "Owner ruling before S9C starts: complete V2 execution (separate authorisation, touches durable-admission invariants) or re-scope S9C's positive path to admission + snapshot lifecycle with the turn gap recorded as residual"
     },
     "provider-scenario-scripts": {
-      "owner": "S5",
+      "owner": "S9A",
       "scope": "streaming success + tool-call/HTTP-failure/SSE-interruption/duplicate/slow scripts. S5 landed the streaming-success script (orchestrator provider) plus /e4/provider-requests dispatch evidence; the remaining scenarios stay unwritten until a spec needs them",
-      "unlock": "each remaining scenario is added with the spec that needs it (steer/queue/interrupt/retry are V2 vocabulary and are not on the V1 path)"
+      "unlock": "each remaining scenario (tool call, HTTP failure, SSE interruption, duplicate/out-of-order, slow response) is added with the spec that needs it — the real consumer is S9A (plan §12.4 requires provider failure/recovery E4)"
     },
     "pty-file-fixtures": {
       "owner": "S5",

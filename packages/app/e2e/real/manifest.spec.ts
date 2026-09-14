@@ -102,7 +102,9 @@ test("every manifest entry carries the full route × mode × layer × failure ×
       expect(value.length, `${entry.id}.${field} is non-empty`).toBeGreaterThan(0)
     }
     expect(entry.status, `${entry.id} status`).toMatch(/^(red-fixme|flake-observed-once|red-stable)$/)
-    expect(entry.owner, `${entry.id} owner is a slice`).toMatch(/^S\d+(\/S\d+)?$/)
+    // Same optional suffix as the deferred side: the plan labels slices
+    // S9A/S9B/S9C, and S9-era entries must not trip the gate.
+    expect(entry.owner, `${entry.id} owner is a slice`).toMatch(/^S\d+[A-Z]?(\/S\d+[A-Z]?)?$/)
   }
 })
 
