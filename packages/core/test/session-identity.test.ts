@@ -5,6 +5,8 @@ import { SessionIdentity } from "@aigcfroge/schema/session-identity"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { Permission } from "@aigcfroge/schema/permission"
+import { Git } from "@aigcfroge/core/git"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionComposition } from "@aigcfroge/core/session/composition"
@@ -73,16 +75,30 @@ const compositionLayer = (snapshot: Composition.Snapshot) =>
 const askWildcard: Permission.Ruleset = [{ action: "*", resource: "*", effect: "ask" }]
 const allowWildcard: Permission.Ruleset = [{ action: "*", resource: "*", effect: "allow" }]
 
+/** A repo whose working-tree root differs from the session directory (subdirectory case). */
+const gitLayer = (repo: { directory: string; branch?: string } | undefined) =>
+  Layer.mock(Git.Service, {
+    find: () =>
+      Effect.succeed(
+        repo === undefined
+          ? undefined
+          : { directory: AbsolutePath.make(repo.directory), store: AbsolutePath.make(`${repo.directory}/.git`) },
+      ),
+    branch: () => Effect.succeed(repo?.branch),
+  })
+
 const projectionLayer = (
   session: SessionV2.Info | undefined,
   rules: Permission.Ruleset,
   snapshot?: Composition.Snapshot,
+  repo: { directory: string; branch?: string } | undefined = undefined,
 ) =>
   SessionIdentityProjection.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
         sessionLayer(session),
         permissionLayer(rules),
+        gitLayer(repo),
         // Only consulted for custom sessions; a default keeps the other cases honest.
         compositionLayer(snapshot ?? snapshotOf("a".repeat(64))),
       ),
@@ -105,7 +121,7 @@ describe("SessionIdentityProjection", () => {
     }),
   )
 
-  it.effect("keeps a coding session ready while its VCS datum is missing (identity facts do not degrade)", () =>
+  it.effect("reports both VCS datums as missing for a non-Git location, and stays ready", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
       const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
@@ -113,8 +129,10 @@ describe("SessionIdentityProjection", () => {
       if (identity.detail.status !== "ready" || identity.detail.detail.source !== "coding") {
         throw new Error("expected a ready coding detail")
       }
+      // ADR-23 §3: a non-Git Location reports `missing`, never an empty string and
+      // never an unearned `ready`. Identity facts do not degrade the capability.
       expect(identity.detail.detail.vcs.branch.status).toBe("missing")
-      expect(identity.detail.detail.vcs.worktree.status).toBe("ready")
+      expect(identity.detail.detail.vcs.worktree.status).toBe("missing")
       expect(identity.capability.health).toBe("ready")
       expect(identity.capability.reasons).toEqual([])
     }),
@@ -184,6 +202,29 @@ describe("SessionIdentityProjection: rows missing a required identity field", ()
       const projection = yield* SessionIdentityProjection.Service
       const error = yield* projection.project(SessionV2.ID.make("ses_identity_fixture")).pipe(Effect.flip)
       expect(error._tag).toBe("SessionIdentity.IdentityFieldMissing")
+    }),
+  )
+})
+
+describe("SessionIdentityProjection: git-backed coding detail", () => {
+  const itRepo = testEffect(
+    projectionLayer(sessionInfo({}), askWildcard, undefined, {
+      directory: "/tmp/aigcfroge-worktree",
+      branch: "feature/x",
+    }),
+  )
+
+  itRepo.effect("takes branch and worktree from the git owner, not from the session directory", () =>
+    Effect.gen(function* () {
+      const projection = yield* SessionIdentityProjection.Service
+      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+
+      if (identity.detail.status !== "ready" || identity.detail.detail.source !== "coding") {
+        throw new Error("expected a ready coding detail")
+      }
+      expect(identity.detail.detail.vcs.branch).toEqual({ status: "ready", value: "feature/x" })
+      // The repo root, which is NOT the session directory (sessions may live in a subdirectory).
+      expect(identity.detail.detail.vcs.worktree).toEqual({ status: "ready", value: "/tmp/aigcfroge-worktree" })
     }),
   )
 })

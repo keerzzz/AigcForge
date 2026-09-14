@@ -3,6 +3,7 @@ export * as SessionIdentityProjection from "./session-identity"
 import { Context, Effect, Layer, Schema } from "effect"
 import { SessionIdentity } from "@aigcfroge/schema/session-identity"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { Git } from "../git"
 import { PermissionV2 } from "../permission"
 import { ProductModePolicy } from "../product-mode-policy"
 import { SessionV2 } from "../session"
@@ -20,8 +21,11 @@ import { SessionStore } from "./store"
  *    The projection authorizes nothing and copies no algorithm.
  *
  * Mode detail is only claimed where an owner exists TODAY:
- *  - `coding`: worktree is the session directory; `branch` is `missing` because the
- *    git owner exposes no branch reader (`core/src/git.ts`: origin/head/dir only).
+ *  - `coding`: both datums come from the git owner — `worktree` is the repo's
+ *    working-tree root (which differs from the session directory when a session
+ *    lives in a subdirectory) and `branch` is the owner's symbolic-ref read. A
+ *    non-Git Location reports BOTH as `missing`, per ADR-23 §3 — never an empty
+ *    string and never an unearned `ready`.
  *  - `custom`: snapshot digest plus policy health from the kill switch, both real.
  *  - `chat` (asset counts), `work` (contract/artifact) and `assistant`
  *    (scope/reminders) have no owning contract yet, so they report the typed
@@ -60,6 +64,7 @@ export const layer = Layer.effect(
     const sessions = yield* SessionStore.Service
     const permission = yield* PermissionV2.Service
     const composition = yield* SessionComposition.Service
+    const git = yield* Git.Service
 
     const capability = (
       health: SessionIdentity.CapabilityHealth,
@@ -70,6 +75,22 @@ export const layer = Layer.effect(
       const notProjected = SessionIdentity.ReasonCodes.modeDetailNotProjected
 
       if (session.mode === "coding") {
+        const repo = yield* git.find(session.location.directory)
+        if (!repo) {
+          // Non-Git Location: ADR-23 §3 — absent VCS identity is `missing`, and an
+          // identity fact never degrades the capability.
+          return {
+            capability: capability("ready", []),
+            detail: {
+              status: "ready" as const,
+              detail: {
+                source: "coding" as const,
+                vcs: { branch: { status: "missing" as const }, worktree: { status: "missing" as const } },
+              },
+            },
+          }
+        }
+        const branchName = yield* git.branch(repo.directory)
         return {
           capability: capability("ready", []),
           detail: {
@@ -77,8 +98,12 @@ export const layer = Layer.effect(
             detail: {
               source: "coding" as const,
               vcs: {
-                branch: { status: "missing" as const },
-                worktree: { status: "ready" as const, value: session.location.directory },
+                branch:
+                  branchName === undefined
+                    ? { status: "missing" as const }
+                    : { status: "ready" as const, value: branchName },
+                // The owner's working-tree root, not the session directory.
+                worktree: { status: "ready" as const, value: repo.directory },
               },
             },
           },

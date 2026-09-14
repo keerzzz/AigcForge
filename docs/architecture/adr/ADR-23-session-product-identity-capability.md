@@ -27,6 +27,12 @@ S0 基线（2026-09-13，185/13/198 fixme 后回绿）确认：产品身份与�
 
 **Reason code 是协议不是文案**：`^[a-z][a-z0-9]*(-[a-z0-9]+)*$` kebab-case brand，不随 locale 翻译；展示文案由消费端 i18n 解析。恢复动作同理（`ActionCode`）。当前注册表：`mode-detail-not-projected`、`work-preset-revision-pending`、`assistant-reminders-unavailable`、`assistant-memory-m2-pending`、`assistant-kb-m2-pending`、`custom-mode-disabled`。扩展是加法；改名是协议破坏。`assistant-reminders-unavailable` 的触发条件由 S9B owner 定义，在此之前任何代码不得发射该 code（占位保护，防止语义被既成事实定义）。
 
+`mode-detail-not-projected` 的语义（S6 修订）：**该模式的 detail 尚未投影**，覆盖两种情况——①历史 Session 早于 detail owner；②S6 期该模式尚无 owner（`chat` 的资产计数待 S3 的单一资源 owner、`work` 的 contract 属 S9A、`assistant` 的 scope/reminders 属 S9B）。组合服务用同一 code 表达二者，消费端据此显示 degraded；S9A/S9B 落地后仅剩情况 ①。此修订是把已在实现的用法写进文本，避免 §7.2 式的隐性拉伸。
+
+## S6 的显式边界（记录在案，非惊喜）
+
+S6 交付的组合服务只声称有 owner 的 detail：`common`/`permission`（session 行 + `PermissionV2.effectiveRules`，后者是工具门禁同一 owner）、`custom`（snapshot digest + kill switch policy）、`coding`（`Git.find` 的 worktree 根 + `Git.branch`，非 Git Location 两者皆 `missing`）。**显式不在 S6**：`chat` 的 assetCounts（待 S3 把三路读取归并为单一资源 owner 后接线）、`work` 的 contract/artifact（S9A，artifact 目前为非持久内存态）、`assistant` 的 scope/reminders（S9B）。三者一律返回 `mode-detail-not-projected` + capability degraded，**不伪造零计数、空列表或 ready**。S12 审计据此判读，不视为遗漏。
+
 ## 决策 2：Owner 拓扑
 
 | 层                | Owner                                                                   | 本 ADR 约束                                                                                     |
