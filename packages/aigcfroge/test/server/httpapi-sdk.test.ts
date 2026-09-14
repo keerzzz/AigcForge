@@ -384,6 +384,12 @@ describe("HttpApi SDK", () => {
         // The file-search index (Fff native scan, or the ripgrep fork that fills
         // state.files) is built asynchronously; on Windows CI the warm-up can
         // exceed pollWithTimeout's 5s default, so give it a generous window.
+        //
+        // This window MUST stay below the package's `bun test --timeout` budget
+        // (currently 90s in package.json): when it equalled the 30s budget, a
+        // cold machine spent the whole budget inside the poll and the runner
+        // killed the test with a timeout — reproduced as 17/1 vs 18/0. Raise both
+        // together, never just this one.
         const found = yield* pollWithTimeout(
           call(() => sdk.v2.fs.find({ query: "hello", type: "file" })).pipe(
             Effect.map((result) => (result.data?.data.length ? result : undefined)),
