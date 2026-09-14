@@ -10,6 +10,7 @@ export * as ProductModeAgentPolicy from "./product-mode-agent-policy"
 
 import { Effect, Schema } from "effect"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 export class AgentNotAllowedError extends Schema.TaggedErrorClass<AgentNotAllowedError>()("AgentNotAllowedError", {
   mode: Schema.String,
@@ -79,6 +80,17 @@ export type CommandPolicyVerdict =
  * chat/work: meta is the default primary; the mode orchestrator remains a valid
  * primary choice (and a task delegation target for meta).
  */
+/**
+ * The modes where `agent` is a valid root/primary agent — the constructive inverse
+ * of {@link checkPrimaryAgent}, iterated over the canonical mode list rather than a
+ * second table, so the two can never drift. Chat/work/assistant therefore answer
+ * [mode] for their own orchestrator and ["chat","work","assistant"] for meta,
+ * coding answers ["coding"], and custom answers only for meta.
+ */
+export function primaryModes(agent: string): ReadonlyArray<ProductMode.ID> {
+  return ProductMode.ID.literals.filter((mode) => checkPrimaryAgent(mode, agent).allowed)
+}
+
 export function checkPrimaryAgent(mode: string, agent?: string): PrimaryPolicyVerdict {
   if (mode === "chat") {
     if (agent !== META && agent !== CHAT_ORCHESTRATOR) {

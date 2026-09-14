@@ -1,5 +1,5 @@
 import type {
-  Agent,
+  AgentWithPrimaryModes,
   Command,
   Config,
   LspStatus,
@@ -34,7 +34,7 @@ export type ProjectMeta = {
 
 export type State = {
   status: "loading" | "partial" | "complete"
-  agent: Agent[]
+  agent: AgentWithPrimaryModes[]
   command: Command[]
   project: string
   projectMeta: ProjectMeta | undefined

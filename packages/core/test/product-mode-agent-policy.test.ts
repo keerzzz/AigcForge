@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   checkPrimaryAgent,
+  primaryModes,
   checkCommandAllowed,
   checkCliDelegationAllowed,
   resolvePrimaryAgent,
@@ -161,5 +162,32 @@ describe("checkCliDelegationAllowed", () => {
   test("unknown mode is fail-safe denied (plan §2.4)", () => {
     expect(checkCliDelegationAllowed("something-else", "full").allowed).toBe(false)
     expect(checkCliDelegationAllowed("something-else", "propose").allowed).toBe(false)
+  })
+})
+
+describe("primaryModes (inverse of checkPrimaryAgent)", () => {
+  const modes = ["chat", "coding", "work", "assistant", "custom"] as const
+
+  test("meta is a valid primary in every mode", () => {
+    expect(primaryModes(META)).toEqual([...modes])
+  })
+
+  test("a mode orchestrator is primary only in its own mode", () => {
+    expect(primaryModes(CHAT_ORCHESTRATOR)).toEqual(["chat"])
+    expect(primaryModes(WORK_ORCHESTRATOR)).toEqual(["work"])
+    expect(primaryModes(ASSISTANT_ORCHESTRATOR)).toEqual(["assistant"])
+  })
+
+  test("an ordinary agent is primary only in coding", () => {
+    expect(primaryModes("build")).toEqual(["coding"])
+    expect(primaryModes("")).toEqual(["coding"])
+  })
+
+  test("agrees with the predicate for every mode and agent (no drift)", () => {
+    for (const mode of modes) {
+      for (const agent of [META, CHAT_ORCHESTRATOR, WORK_ORCHESTRATOR, ASSISTANT_ORCHESTRATOR, "build"]) {
+        expect(primaryModes(agent).includes(mode)).toBe(checkPrimaryAgent(mode, agent).allowed)
+      }
+    }
   })
 })

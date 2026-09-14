@@ -2,7 +2,7 @@ import { createRoot } from "solid-js"
 import { describe, expect, test } from "bun:test"
 import fs from "fs"
 import path from "path"
-import type { Agent, Command, PromptAssetInvalidEntry } from "@aigcfroge/sdk/v2/client"
+import type { AgentWithPrimaryModes, Command, PromptAssetInvalidEntry } from "@aigcfroge/sdk/v2/client"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 import {
   buildRows,
@@ -52,11 +52,13 @@ const cmd = (over: Partial<Command> = {}): Command => ({
   ...over,
 })
 
-const agent = (over: Partial<Agent> = {}): Agent => ({
+const agent = (over: Partial<AgentWithPrimaryModes> = {}): AgentWithPrimaryModes => ({
   name: "build",
   mode: "primary",
   permission: [],
   options: {},
+  // S6: the server projection carries the modes this agent may serve as primary.
+  primaryModes: ["coding"],
   ...over,
 })
 

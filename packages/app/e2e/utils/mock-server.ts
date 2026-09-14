@@ -65,7 +65,9 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     },
     "/project": [config.project],
     "/project/current": config.project,
-    "/agent": [{ name: "build", mode: "primary" }],
+    // `primaryModes` mirrors the real server projection (S6): the picker filters on
+    // it for display, so a mock without it would render an empty agent control.
+    "/agent": [{ name: "build", mode: "primary", primaryModes: ["chat", "coding", "work", "assistant", "custom"] }],
     "/vcs": { branch: "main", default_branch: "main" },
     "/session": config.sessions,
   }

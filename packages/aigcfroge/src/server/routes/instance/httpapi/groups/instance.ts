@@ -1,4 +1,5 @@
 import { Agent } from "@/agent/agent"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { Command } from "@/command"
 import { Format } from "@/format"
 import { LSP } from "@/lsp/lsp"
@@ -58,6 +59,17 @@ export const InstancePaths = {
   lsp: "/lsp",
   formatter: "/formatter",
 } as const
+
+/**
+ * `/agent` response projection: the shared core `Agent.Info` stays untouched, and
+ * the modes each agent may serve as primary are computed by the policy owner
+ * (ProductModeAgentPolicy.primaryModes) so the client can filter for display
+ * without re-implementing the policy.
+ */
+const AgentWithPrimaryModes = Schema.Struct({
+  ...Agent.Info.fields,
+  primaryModes: Schema.Array(ProductMode.ID),
+}).annotate({ identifier: "Agent.WithPrimaryModes" })
 
 export const InstanceApi = HttpApi.make("instance")
   .add(
@@ -202,7 +214,7 @@ export const InstanceApi = HttpApi.make("instance")
         ),
         HttpApiEndpoint.get("agent", InstancePaths.agent, {
           query: WorkspaceRoutingQuery,
-          success: described(Schema.Array(Agent.Info), "List of agents"),
+          success: described(Schema.Array(AgentWithPrimaryModes), "List of agents"),
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "app.agents",

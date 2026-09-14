@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { Agent } from "@aigcfroge/sdk/v2/client"
+import type { AgentWithPrimaryModes } from "@aigcfroge/sdk/v2/client"
 import { directoryKey, normalizeAgentList } from "./utils"
 
 const agent = (name = "build") =>
@@ -8,7 +8,7 @@ const agent = (name = "build") =>
     mode: "primary",
     permission: {},
     options: {},
-  }) as Agent
+  }) as AgentWithPrimaryModes
 
 describe("normalizeAgentList", () => {
   test("keeps array payloads", () => {
@@ -37,7 +37,7 @@ describe("normalizeAgentList", () => {
     const agentWithHandoffs = {
       ...agent("build"),
       handoffs: [{ label: "Ask docs", agent: "docs", prompt: "Review this" }],
-    } as Agent
+    } as AgentWithPrimaryModes
     const result = normalizeAgentList([agentWithHandoffs])
     expect(result).toHaveLength(1)
     expect(result[0]?.handoffs).toEqual([{ label: "Ask docs", agent: "docs", prompt: "Review this" }])
