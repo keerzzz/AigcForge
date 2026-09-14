@@ -117,7 +117,7 @@ describe("SessionIdentityProjection", () => {
       expect(identity.permission.effect).toBe("ask")
       expect(identity.mode).toBe("coding")
       expect(identity.agent).toBe("build")
-      expect(identity.model).toEqual({ providerID: "aigcfroge", modelID: "gpt-test" })
+      expect(identity.model).toEqual({ status: "ready", value: { providerID: "aigcfroge", modelID: "gpt-test" } })
     }),
   )
 
@@ -225,6 +225,23 @@ describe("SessionIdentityProjection: git-backed coding detail", () => {
       expect(identity.detail.detail.vcs.branch).toEqual({ status: "ready", value: "feature/x" })
       // The repo root, which is NOT the session directory (sessions may live in a subdirectory).
       expect(identity.detail.detail.vcs.worktree).toEqual({ status: "ready", value: "/tmp/aigcfroge-worktree" })
+    }),
+  )
+})
+
+describe("SessionIdentityProjection: a session with no model yet", () => {
+  const itNoModel = testEffect(projectionLayer(sessionInfo({ model: null }), askWildcard))
+
+  itNoModel.effect("reports the model as missing without degrading the capability", () =>
+    Effect.gen(function* () {
+      const projection = yield* SessionIdentityProjection.Service
+      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+
+      // A newly-created session has no model until its first prompt: the datum is
+      // honest and, being an identity fact, does not contribute to the capability.
+      expect(identity.model).toEqual({ status: "missing" })
+      expect(identity.capability.health).toBe("ready")
+      expect(identity.capability.reasons).toEqual([])
     }),
   )
 })

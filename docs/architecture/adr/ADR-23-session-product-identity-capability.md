@@ -23,11 +23,17 @@ S0 基线（2026-09-13，185/13/198 fixme 后回绿）确认：产品身份与�
 | datum 级      | `ready \| missing \| unsupported` | `ready` 携带 `value`；`missing` = owner 对该 Session 无数据（历史 Session 早于 detail owner）；`unsupported` = 设计上延后（WorkPreset revision 未落地、Assistant Memory/KB 属 M2），必须携带稳定 reason code |
 | capability 级 | `ready \| degraded \| blocked`    | `blocked` = 策略性 fail-closed（Custom kill switch、capability header 不匹配）；`degraded` 必须携带 typed reasons                                                                                            |
 
-**聚合规则（全仓唯一，`Identity` 的 Schema filter 可执行强制）**：任一**贡献 datum/capability** 非 `ready` ⇒ 顶层 capability 不得为 `ready`，health 不得低于贡献者 floor（任一贡献者 `blocked` ⇒ 顶层必须 `blocked`，否则 `degraded`），且其 reasons 必须折叠贡献者的全部 code。**贡献映射**：`detail.missing`、work 契约 preset revision `unsupported`、assistant 的 reminders/memory/knowledge 三个 Capability、custom 的 policy Capability **贡献**；coding 的 vcs datum、work 的 artifact datum、chat 的 assetCounts 是**身份事实，不贡献**——无 VCS、尚未产出 artifact 是正常态而非降级。反向不约束：无贡献者时 `blocked` 仍可由策略门独立成立（如 custom kill switch）。`health: "ready"` 配任何非 ready 贡献者的组合在解码期直接失败。Header、列表、StatusBar、disabled 按钮、Custom diagnostics 只消费这条规则，不得各自计算 health（计划 §9.2）。
+**聚合规则（全仓唯一，`Identity` 的 Schema filter 可执行强制）**：任一**贡献 datum/capability** 非 `ready` ⇒ 顶层 capability 不得为 `ready`，health 不得低于贡献者 floor（任一贡献者 `blocked` ⇒ 顶层必须 `blocked`，否则 `degraded`），且其 reasons 必须折叠贡献者的全部 code。**贡献映射**：`detail.missing`、work 契约 preset revision `unsupported`、assistant 的 reminders/memory/knowledge 三个 Capability、custom 的 policy Capability **贡献**；coding 的 vcs datum、work 的 artifact datum、chat 的 assetCounts、以及 **common 的 `model` datum** 是**身份事实，不贡献**——无 VCS、尚未产出 artifact、以及新建会话尚未有 model（首次 prompt 才写入）都是正常态而非降级；若 model 缺失算降级，每个新建会话的 Header 都会是降级态，噪声会淹没真信号。反向不约束：无贡献者时 `blocked` 仍可由策略门独立成立（如 custom kill switch）。`health: "ready"` 配任何非 ready 贡献者的组合在解码期直接失败。Header、列表、StatusBar、disabled 按钮、Custom diagnostics 只消费这条规则，不得各自计算 health（计划 §9.2）。
 
 **Reason code 是协议不是文案**：`^[a-z][a-z0-9]*(-[a-z0-9]+)*$` kebab-case brand，不随 locale 翻译；展示文案由消费端 i18n 解析。恢复动作同理（`ActionCode`）。当前注册表：`mode-detail-not-projected`、`work-preset-revision-pending`、`assistant-reminders-unavailable`、`assistant-memory-m2-pending`、`assistant-kb-m2-pending`、`custom-mode-disabled`。扩展是加法；改名是协议破坏。`assistant-reminders-unavailable` 的触发条件由 S9B owner 定义，在此之前任何代码不得发射该 code（占位保护，防止语义被既成事实定义）。
 
 `mode-detail-not-projected` 的语义（S6 修订）：**该模式的 detail 尚未投影**，覆盖两种情况——①历史 Session 早于 detail owner；②S6 期该模式尚无 owner（`chat` 的资产计数待 S3 的单一资源 owner、`work` 的 contract 属 S9A、`assistant` 的 scope/reminders 属 S9B）。组合服务用同一 code 表达二者，消费端据此显示 degraded；S9A/S9B 落地后仅剩情况 ①。此修订是把已在实现的用法写进文本，避免 §7.2 式的隐性拉伸。
+
+## S6 amendment：common 的 `model` 改为 datum（2026-09-15，Owner 裁决）
+
+S1 冻结时的假设是「App 创建的会话都带 model」，实现期证伪为「**所有**会话都带 model」不成立：经真实路由实测，新建会话在首次 prompt 前合法地没有 model（创建响应即无该字段），而旧契约要求 common 必填，导致投影对每个新会话返回 typed 400。按 typed-missing 原则（与 file-content 债同构）把 `model` 改为 datum：`{status:"ready",value}|{status:"missing"}|{status:"unsupported"}`。**`model` 是身份事实、不贡献**（见决策 1 贡献映射），因此缺失不降级；`agent` 保持必填——无 agent 是数据损坏而非常态，投影继续以 typed 失败拒绝。
+
+否决的替代方案：解析 agent/config 默认模型并填回。那会让投影声称一个会话尚未拥有的模型，伪造数据比缺数据更糟。
 
 ## S6 的显式边界（记录在案，非惊喜）
 

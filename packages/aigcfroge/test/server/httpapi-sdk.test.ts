@@ -381,16 +381,20 @@ describe("HttpApi SDK", () => {
         expect(["allow", "ask", "deny"]).toContain(permission.effect)
         const capability = record(body.capability)
         expect(["ready", "degraded", "blocked"]).toContain(capability.health)
+        expect(record(body.model).status).toBe("ready")
         expect(record(body.detail).status).toBe("ready")
 
-        // Gap pin: a session with no model cannot satisfy the frozen contract, and
-        // the endpoint says so instead of inventing a model or a default identity.
+        // S6 amendment: a session legitimately has no model until its first prompt.
+        // The projection reports the datum as missing and stays ready — model is an
+        // identity fact, not a contributor, so a fresh session shows no degradation.
         const bare = yield* call(() => sdk.session.create({ title: "identity without model" }))
         const bareID = record(bare.data).id
         if (typeof bareID !== "string") throw new Error("session create returned no id")
         const missing = yield* call(() => sdk.session.identity({ sessionID: bareID }))
-        expect(missing.response.status).toBeGreaterThanOrEqual(400)
-        expect(missing.response.status).toBeLessThan(500)
+        expect(missing.response.status).toBe(200)
+        const bareBody = record(missing.data)
+        expect(record(bareBody.model).status).toBe("missing")
+        expect(record(bareBody.capability).health).toBe("ready")
       }),
   )
 

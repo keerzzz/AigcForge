@@ -6755,6 +6755,25 @@ export type SessionIdentityModel = {
   modelID: string
 }
 
+export type SessionIdentityModelRefReady = {
+  status: "ready"
+  value: SessionIdentityModel
+}
+
+export type SessionIdentityModelRefMissing = {
+  status: "missing"
+}
+
+export type SessionIdentityModelRefUnsupported = {
+  status: "unsupported"
+  reason: string
+}
+
+export type SessionIdentityModelRef =
+  | SessionIdentityModelRefReady
+  | SessionIdentityModelRefMissing
+  | SessionIdentityModelRefUnsupported
+
 export type PermissionV2Effect = "allow" | "deny" | "ask"
 
 export type SessionIdentityPermission = {
@@ -6951,7 +6970,7 @@ export type SessionIdentityIdentity = {
   location: LocationRef
   projectID: string
   agent: string
-  model: SessionIdentityModel
+  model: SessionIdentityModelRef
   permission: SessionIdentityPermission
   capability: SessionIdentityCapability
   detail: SessionIdentityModeDetailAvailability
@@ -17637,9 +17656,9 @@ export type SessionIdentityData = {
 
 export type SessionIdentityErrors = {
   /**
-   * BadRequest | InvalidRequestError
+   * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
   /**
    * NotFoundError
    */

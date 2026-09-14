@@ -44,7 +44,7 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionIdentityProjection") {}
 
-/** The frozen identity schema requires agent/model; a row without them cannot be projected honestly. */
+/** A session with no agent is corrupt data, not a normal state: the projection refuses it. */
 export class IdentityFieldMissing extends Schema.TaggedErrorClass<IdentityFieldMissing>()(
   "SessionIdentity.IdentityFieldMissing",
   { sessionID: SessionV2.ID, field: Schema.String },
@@ -142,10 +142,11 @@ export const layer = Layer.effect(
       const session = yield* sessions.get(sessionID)
       if (!session) return yield* new SessionV2.NotFoundError({ sessionID })
 
+      // `agent` is required: a session with no agent is corrupt data. `model` is a
+      // datum — a session legitimately has none until its first prompt.
       const agent = session.agent === undefined ? undefined : String(session.agent)
       if (agent === undefined) return yield* new IdentityFieldMissing({ sessionID, field: "agent" })
       const model = session.model
-      if (model === undefined) return yield* new IdentityFieldMissing({ sessionID, field: "model" })
 
       // Baseline posture only: the wildcard verdict of the session's own effective
       // ruleset. A specific action may resolve differently, and this is not an
@@ -165,7 +166,10 @@ export const layer = Layer.effect(
         location: { directory: session.location.directory },
         projectID: session.projectID,
         agent,
-        model: { providerID: String(model.providerID), modelID: String(model.id) },
+        model:
+          model === undefined
+            ? { status: "missing" as const }
+            : { status: "ready" as const, value: { providerID: String(model.providerID), modelID: String(model.id) } },
         permission: { declaredTier: session.permissionTier ?? PermissionTier.Default, effect },
         capability: resolved.capability,
         detail: resolved.detail,

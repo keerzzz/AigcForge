@@ -205,10 +205,21 @@ const IdentityStruct = Schema.Struct({
   location: Location.Ref,
   projectID: Project.ID,
   agent: Schema.String,
-  model: Schema.Struct({
-    providerID: Schema.String,
-    modelID: Schema.String,
-  }).annotate({ identifier: "SessionIdentity.Model" }),
+  /**
+   * A session legitimately carries no model until its first prompt sets one, so
+   * `model` is a datum (S6 amendment, Owner ruling 2026-09-15). It is an
+   * **identity fact and does NOT contribute** to the aggregation rule: a
+   * newly-created session would otherwise show a degraded capability for every
+   * Header, drowning the real signals. `agent` stays required — a session with no
+   * agent is corrupt data, not a normal state.
+   */
+  model: datum(
+    Schema.Struct({
+      providerID: Schema.String,
+      modelID: Schema.String,
+    }).annotate({ identifier: "SessionIdentity.Model" }),
+    "SessionIdentity.ModelRef",
+  ),
   permission: Schema.Struct({
     declaredTier: PermissionTier.ID,
     /** Redacted summary computed by the existing PermissionEffective owner; the projection never re-derives authorization. */

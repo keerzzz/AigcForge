@@ -15,7 +15,8 @@ const common = {
   location: { directory: "/tmp/aigcfroge-identity" },
   projectID: "proj_identity",
   agent: "build",
-  model: { providerID: "aigcfroge", modelID: "test-model" },
+  // Datum since the S6 amendment: a session may legitimately have no model yet.
+  model: { status: "ready", value: { providerID: "aigcfroge", modelID: "test-model" } },
   permission: { declaredTier: "propose", effect: "ask" },
   capability: { health: "ready", reasons: [] },
 }
@@ -394,5 +395,35 @@ describe("SessionIdentity.Identity", () => {
       },
     })
     expect(identity.capability.health).toBe("ready")
+  })
+})
+
+describe("SessionIdentity model datum (S6 amendment)", () => {
+  test("accepts a missing model and keeps the capability ready — it is an identity fact", () => {
+    const identity = Schema.decodeUnknownSync(SessionIdentity.Identity)({
+      ...common,
+      model: { status: "missing" },
+      mode: "coding",
+      detail: {
+        status: "ready",
+        detail: { source: "coding", vcs: { branch: { status: "missing" }, worktree: { status: "missing" } } },
+      },
+    })
+    expect(identity.model).toEqual({ status: "missing" })
+    // Not a contributor: a model-less session must not read as degraded, or every
+    // newly-created session would show a degraded Header.
+    expect(identity.capability.health).toBe("ready")
+  })
+
+  test("still decodes a ready model as a datum", () => {
+    const identity = Schema.decodeUnknownSync(SessionIdentity.Identity)({
+      ...common,
+      mode: "coding",
+      detail: {
+        status: "ready",
+        detail: { source: "coding", vcs: { branch: { status: "missing" }, worktree: { status: "missing" } } },
+      },
+    })
+    expect(identity.model).toEqual({ status: "ready", value: { providerID: "aigcfroge", modelID: "test-model" } })
   })
 })
