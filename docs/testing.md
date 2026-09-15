@@ -129,7 +129,7 @@ CI 注记：
 ### 8.1 E4（真实后端 harness）与契约门禁（S6 接线）
 
 - **E4 独立 job，不进 PR 必跑集合**：`test.yml` 的 `e4` job 只在非 PR（push / workflow_dispatch）触发，跑两个 variant——默认运行时（产品链）与 `E4_V2_RUNTIME=1`（V2 现状 spec 的唯一执行环境；那里的 green 表示 V2 缺口仍在，见该 spec 头注释）。PR 上的浏览器面由 `e2e` job 的 E3 套件覆盖。
-- **证据必须上传**：job 把 `E4_RUN_DIR` 指到 workspace 内的 `packages/app/e2e/real/run-evidence/`，因此每个 variant 的 `manifest.json`、`teardown-gate.json`、`orchestrator.log` 都作为 artifact 上传（失败时另含 `test-results`）。手工跑时不会上传，所以本地证据要自己归档——S0–S5 的基线在 `/media/win_data/aigcfroge-shell-closure-*`。
+- **证据必须上传**：job 把 `E4_RUN_DIR` 指到 workspace 内的 `packages/app/e2e/real/run-evidence/`，因此每个 variant 的 `manifest.json`、`teardown-gate.json`、`orchestrator.log` 都作为 artifact 上传（失败时另含 `test-results`）。手工跑时不会上传，所以本地证据要自己归档——S0–S5 的基线在 `/media/win_data/aigcfroge-shell-closure-*`；S6 的四个轮次（E3 全套、E4 双 variant、exerciser 三模式、benchmark）在 `/media/win_data/aigcfroge-shell-closure-s6/`，目录里的 README 记录每个 run dir 对应哪个 variant，不要凭目录名猜（`manifest.json` 的 `v2Runtime` 是唯一权威）。
 - **Node 钉定 24.15**：与 `e2e` job 同因（Playwright 1.59 在 24.16 上提取 Chromium 挂起）。
 - **OpenAPI 契约门禁**：`packages/aigcfroge/test/server/openapi-drift.test.ts` 随 unit job 运行，两条断言——①每个 operation 必须带 `OpenApi.annotations({ identifier })`（缺了会让生成 SDK 的方法在运行时变 `undefined`，其它门禁都不报）；②live spec 与 checked-in 快照必须逐字一致。快照故意变更时用 `UPDATE_OPENAPI_SNAPSHOT=1 bun test ./test/server/openapi-drift.test.ts` 显式重生成，让 diff 进入评审。
 - **测试预算耦合**：`packages/aigcfroge` 的 `bun test --timeout 90000` 与 `httpapi-sdk.test.ts` 内 30s 的就绪轮询窗口是一对——窗口必须低于包预算，两者一起改（该用例注释里有同样的告警）。曾因两者都是 30s 而在饱和 runner 上出现 17/1 超时。
