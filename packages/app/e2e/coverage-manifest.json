@@ -80,8 +80,8 @@
     },
     "chat-asset-single-owner": {
       "owner": "S3",
-      "scope": "plan §6.2 requires the seven Chat asset categories to be read by one resource owner and the request-count plus A→B→A recovery assertions to land with it. Reconnaissance is done and recorded in docs/technical-debt.md §4: there are three read points, not two, and the sidebar's count is not the workbench's count (the workbench adds bridged plugin rows and server-sync system rows) — so the product ruling on which number the sidebar shows comes before the merge.",
-      "unlock": "rule on the sidebar count, move the counting into the existing ModeWorkspaceAssetCtx, delete ChatFeatureList's own dirSdk + createResource, then add the request-count and A→B→A cases to e2e/regression/chat-asset-categories.spec.ts and run them in a browser round"
+      "scope": "plan §6.2 requires the seven Chat asset categories to be read by one resource owner and the request-count plus A→B→A recovery assertions to land with it. Reconnaissance is recorded in docs/technical-debt.md §4: three read points, and a rule-level re-check in the same session corrected an earlier claim — the sidebar's count and the workbench's count are equal by construction (same ingredients including bridged plugin rows, same kind+name shadow rule), so the debt is duplicated requests and duplicated computation, not a divergent number. The merge must therefore not 'exclude bridged from the sidebar': the sidebar shows bridged rows today and removing them would be the regression.",
+      "unlock": "preserve three things while merging into ModeWorkspaceAssetCtx: bridged rows reach both surfaces, the sidebar's whenActive(P2-14) gate and the workbench's chatShown latch keep their distinct trigger timing, and per-kind settle keeps a single 500 from rejecting the whole resource. Then add the request-count and A→B→A cases plus a pure-function unit test pinning that bridged counts as plugin, and run them in a browser round."
     },
 
     "fuse-mount-build-and-cleanup-stalls": {
