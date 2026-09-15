@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { CompositionDiagnostic, CompositionPlan } from "@aigcfroge/sdk/v2/client"
 import {
+  blockerOf,
   classifyPlanFailure,
   classifySnapshotFailure,
   DISABLED_MESSAGE_MARKER,
@@ -193,5 +194,25 @@ describe("evaluateStartGate", () => {
     })
     expect(gate({ draft: { source: "temporary", agentCount: 1 } })).toEqual({ canStart: true })
     expect(gate({ draft: { source: "profile", agentCount: 0 } })).toEqual({ canStart: true })
+  })
+})
+
+describe("blockerOf", () => {
+  test("names the blocker for a blocked gate and stays undefined when Start may run", () => {
+    const blocked = evaluateStartGate({
+      starting: false,
+      hasSdk: true,
+      result: undefined,
+      draft: { source: "asset", agentCount: 1 },
+    })
+    expect(blockerOf(blocked)).toBe("plan-pending")
+
+    const open = evaluateStartGate({
+      starting: false,
+      hasSdk: true,
+      result: { plan: { digest: "d".repeat(64), diagnostics: [], agents: [{}] } } as never,
+      draft: { source: "asset", agentCount: 1 },
+    })
+    expect(blockerOf(open)).toBeUndefined()
   })
 })

@@ -81,6 +81,16 @@ export type StartBlocker =
 export type StartGate = { canStart: true } | { canStart: false; blocker: StartBlocker }
 
 /**
+ * The reason Start is unavailable, or `undefined` when it is available. Lives
+ * beside the gate (and takes the gate as an argument) so the view cannot derive it
+ * out of order — a memo that referenced a later declaration would throw inside
+ * `createMemo`, which evaluates eagerly.
+ */
+export function blockerOf(gate: StartGate): StartBlocker | undefined {
+  return gate.canStart ? undefined : gate.blocker
+}
+
+/**
  * Decides whether Start may be pressed.
  *
  * Every "not yet known" case has to block, not fall through: the server will

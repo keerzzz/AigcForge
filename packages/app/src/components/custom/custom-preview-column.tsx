@@ -19,7 +19,13 @@ import { ServerConnection } from "@/context/server"
 import { openSessionByID } from "@/pages/layout/helpers"
 import type { DirectorySDK } from "@/context/sdk"
 import type { CompositionPlan } from "@aigcfroge/sdk/v2/client"
-import { blockingDiagnostics, classifyPlanFailure, evaluateStartGate, parseErrorDetails } from "./custom-plan-state"
+import {
+  blockerOf,
+  blockingDiagnostics,
+  classifyPlanFailure,
+  evaluateStartGate,
+  parseErrorDetails,
+} from "./custom-plan-state"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 export interface CustomPreviewColumnProps {
@@ -71,10 +77,6 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
    */
   const result = createMemo(() => planResult.latest)
   const plan = createMemo(() => result()?.plan)
-  const startBlocker = createMemo(() => {
-    const gate = startGate()
-    return gate.canStart ? undefined : gate.blocker
-  })
   const blockingCount = createMemo(() => blockingDiagnostics(plan()))
   const startGate = createMemo(() =>
     evaluateStartGate({
@@ -84,6 +86,8 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       draft: { source: draft.state.source, agentCount: draft.state.agents.length },
     }),
   )
+
+  const startBlocker = createMemo(() => blockerOf(startGate()))
 
   async function handleStart() {
     const sdk = props.dirSdk()
