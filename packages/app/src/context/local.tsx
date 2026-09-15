@@ -1,6 +1,5 @@
 import { createSimpleContext } from "@aigcfroge/ui/context"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { useParams } from "@solidjs/router"
 import { batch, createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"

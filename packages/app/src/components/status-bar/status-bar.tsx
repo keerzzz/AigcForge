@@ -128,6 +128,29 @@ export function StatusBar(props: { source: StatusBarSource }) {
             )}
           </Show>
 
+          <Show when={props.source.permission()}>
+            {(permission) => (
+              <span
+                data-component="status-bar-permission"
+                data-kind={permission().kind}
+                class="text-xs"
+                classList={{
+                  "text-icon-warning-base": permission().kind === "full",
+                  "text-icon-critical-base": permission().kind === "blocked",
+                  "text-icon-weak": permission().kind === "degraded",
+                }}
+                aria-label={`${language.t("statusBar.permission.aria")}: ${language.t(`statusBar.permission.${permission().kind}`)}${permission().reason ? ` (${permission().reason})` : ""}`}
+                title={
+                  permission().reason
+                    ? `${language.t(`statusBar.permission.${permission().kind}`)} · ${permission().reason}`
+                    : language.t(`statusBar.permission.${permission().kind}`)
+                }
+              >
+                {language.t(`statusBar.permission.${permission().kind}`)}
+              </span>
+            )}
+          </Show>
+
           <div class="flex items-center gap-4">
             <For each={props.source.pinnedMetrics()}>
               {(metric) => <span class="text-xs text-text-weak">{metric.value()}</span>}
