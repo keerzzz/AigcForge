@@ -1,5 +1,7 @@
 import type { Page, Route } from "@playwright/test"
 
+const isRecordOf = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
+
 const emptyList = new Set([
   "/skill",
   "/command",
@@ -158,6 +160,42 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     // miss — specs that need real content override the route locally.
     if (path === "/file/content") {
       return notFound(route, `File not found: ${url.searchParams.get("path") ?? ""}`)
+    }
+
+    // Identity projection (S6): the status bar reads this. It mirrors the real
+    // service's shape — including the typed `model` datum and the mode-detail
+    // availability — so E3 exercises the same contract the server produces.
+    const identityMatch = path.match(/^\/session\/([^/]+)\/identity$/)
+    if (identityMatch) {
+      const session = config.sessions.find((s) => s.id === identityMatch[1])
+      if (!session) return notFound(route, `Session not found: ${identityMatch[1]}`)
+      const tier = session.permissionTier === "full" ? "full" : "propose"
+      const mode = typeof session.mode === "string" ? session.mode : "coding"
+      const model = isRecordOf(session.model)
+        ? { status: "ready" as const, value: session.model }
+        : { status: "missing" as const }
+      const codingDetail = {
+        status: "ready" as const,
+        detail: {
+          source: "coding" as const,
+          vcs: { branch: { status: "missing" as const }, worktree: { status: "missing" as const } },
+        },
+      }
+      const missingDetail = { status: "missing" as const, reason: "mode-detail-not-projected" }
+      return json(route, {
+        sessionID: session.id,
+        mode,
+        location: { directory: session.directory },
+        projectID: session.projectID,
+        agent: typeof session.agent === "string" ? session.agent : "meta",
+        model,
+        permission: { declaredTier: tier, effect: "ask" },
+        capability:
+          mode === "coding"
+            ? { health: "ready", reasons: [] }
+            : { health: "degraded", reasons: [{ code: "mode-detail-not-projected", severity: "info" }] },
+        detail: mode === "coding" ? codingDetail : missingDetail,
+      })
     }
 
     const messagesMatch = path.match(/^\/session\/([^/]+)\/message$/)

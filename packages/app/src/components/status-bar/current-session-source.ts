@@ -99,7 +99,10 @@ export function createCurrentSessionSource(): StatusBarSource {
   const permission = createMemo((): StatusBarPermissionInfo | undefined => {
     if (!params.id) return undefined
     const projected = projectedPermission()
-    if (projected) {
+    // Shape guard, not politeness: a server (or mock) that answers 200 with an
+    // unrelated body must not crash the bar — an unusable payload is the same as
+    // no payload here.
+    if (projected?.permission && projected.capability) {
       return permissionDisplay({
         declaredTier: projected.permission.declaredTier,
         effect: projected.permission.effect,
