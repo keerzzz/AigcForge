@@ -1,10 +1,10 @@
-import type { AgentWithPrimaryModes, Project, ProviderListResponse } from "@aigcfroge/sdk/v2/client"
+import type { Agent, Project, ProviderListResponse } from "@aigcfroge/sdk/v2/client"
 import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 export { pathKey as directoryKey, type PathKey as DirectoryKey } from "@/utils/path-key"
 
 export const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
-function isAgent(input: unknown): input is AgentWithPrimaryModes {
+function isAgent(input: unknown): input is Agent {
   if (!input || typeof input !== "object") return false
   const item = input as { name?: unknown; mode?: unknown; source?: unknown }
   if (typeof item.name !== "string") return false
@@ -13,7 +13,7 @@ function isAgent(input: unknown): input is AgentWithPrimaryModes {
   return true
 }
 
-export function normalizeAgentList(input: unknown): AgentWithPrimaryModes[] {
+export function normalizeAgentList(input: unknown): Agent[] {
   if (Array.isArray(input)) return input.filter(isAgent)
   if (isAgent(input)) return [input]
   if (!input || typeof input !== "object") return []

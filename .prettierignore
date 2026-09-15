@@ -18,3 +18,7 @@ packages/app/e2e/real/test-results/
 packages/app/e2e/real/playwright-report/
 packages/desktop/out/
 packages/storybook/storybook-static/
+
+packages/app/e2e/real/run-evidence/
+# Generated contract snapshot; drift is gated by openapi-drift.test.ts.
+packages/aigcfroge/test/server/openapi.snapshot.json

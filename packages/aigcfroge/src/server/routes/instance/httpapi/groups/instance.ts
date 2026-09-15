@@ -69,7 +69,7 @@ export const InstancePaths = {
 const AgentWithPrimaryModes = Schema.Struct({
   ...Agent.Info.fields,
   primaryModes: Schema.Array(ProductMode.ID),
-}).annotate({ identifier: "Agent.WithPrimaryModes" })
+}).annotate({ identifier: "Agent" })
 
 export const InstanceApi = HttpApi.make("instance")
   .add(

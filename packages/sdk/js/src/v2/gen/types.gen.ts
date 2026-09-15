@@ -3134,6 +3134,31 @@ export type Handoff = {
   model?: string
 }
 
+export type Agent = {
+  name: string
+  description?: string
+  mode: "subagent" | "primary" | "all"
+  source?: "native" | "external-cli"
+  native?: boolean
+  hidden?: boolean
+  topP?: number
+  temperature?: number
+  color?: string
+  permission: PermissionRuleset
+  model?: {
+    modelID: string
+    providerID: string
+  }
+  variant?: string
+  prompt?: string
+  options: {
+    [key: string]: unknown
+  }
+  steps?: number
+  handoffs?: Array<Handoff>
+  primaryModes: Array<ProductMode>
+}
+
 export type LspStatus = {
   id: string
   name: string
@@ -5856,31 +5881,6 @@ export type ConfigV2ExperimentalPolicy = {
 }
 
 export type WorkPresetCategory = "it-development" | "video-creation" | "academic" | "general-office"
-
-export type AgentWithPrimaryModes = {
-  name: string
-  description?: string
-  mode: "subagent" | "primary" | "all"
-  source?: "native" | "external-cli"
-  native?: boolean
-  hidden?: boolean
-  topP?: number
-  temperature?: number
-  color?: string
-  permission: PermissionRuleset
-  model?: {
-    modelID: string
-    providerID: string
-  }
-  variant?: string
-  prompt?: string
-  options: {
-    [key: string]: unknown
-  }
-  steps?: number
-  handoffs?: Array<Handoff>
-  primaryModes: Array<ProductMode>
-}
 
 export type ProjectDirectories = Array<{
   directory: string
@@ -13745,7 +13745,7 @@ export type AppAgentsResponses = {
   /**
    * List of agents
    */
-  200: Array<AgentWithPrimaryModes>
+  200: Array<Agent>
 }
 
 export type AppAgentsResponse = AppAgentsResponses[keyof AppAgentsResponses]
