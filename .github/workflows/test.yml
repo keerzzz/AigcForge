@@ -162,7 +162,11 @@ jobs:
           CI: true
           E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/default
         run: bun --cwd packages/app test:e2e --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
-        timeout-minutes: 30
+        # Kill switch, not a wait-for-green budget: the harness polls readiness
+        # rather than sleeping, so this only bounds a hang. Local wall on an idle
+        # machine: 13.4m default, 7.0m flag-on (cold production build included),
+        # and the worst case inside a single run is the 600s backend health poll.
+        timeout-minutes: 45
 
       - name: Run E4 — V2 variant
         env:
@@ -170,7 +174,7 @@ jobs:
           E4_V2_RUNTIME: "1"
           E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/v2
         run: bun --cwd packages/app test:e2e --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
-        timeout-minutes: 30
+        timeout-minutes: 45
 
       - name: Upload E4 evidence
         # Always: a failed harness is exactly when the teardown report and the
