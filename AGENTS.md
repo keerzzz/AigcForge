@@ -20,6 +20,14 @@ Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributi
 
 To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 
+## Slice Checkpoints
+
+Checkpoint reports are accounting, not narrative. Three rules, each of which has already caught a real error:
+
+- **Generate every commit list, never write it by hand.** Paste the output of `git log --oneline <last commit of the previous batch>..HEAD`. Hand-written lists have drifted three times (24 reported vs 25 actual, 8 vs 11, an "ahead" count that did not match the branch). If a claim cannot be produced by a command, do not make it in a list.
+- **Separate what was verified from what was not.** A green round means the command exited 0 with the tally shown; anything else is described in its own words, with the failing evidence quoted. Do not let a summary sentence cover both.
+- **Report scope you did not deliver.** Any plan item in the slice's own section that was not landed gets registered in `packages/app/e2e/coverage-manifest.json` (or the debt ledger) with an owner and an unlock condition before the slice closes. Unregistered gaps are the failure mode this protocol exists to prevent.
+
 ## Code Retrieval
 
 Pick the tool by query shape. The `codegraph` MCP indexes symbols (definitions, calls, imports), not every text occurrence.
