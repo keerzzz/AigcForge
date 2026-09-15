@@ -78,6 +78,18 @@
       "scope": "plan §9.3 asks E4 for refresh, cross-server and historical Session. Refresh landed (e2e/real/session-identity-consumers.spec.ts reload case). Cross-server isolation and pre-identity-era historical sessions have unit/E3 coverage only: the projection is rebuilt per request from Location-scoped services, so reuse across servers is structurally impossible, but no E4 case exercises two backends or a session created before the fields existed.",
       "unlock": "land with S9A's E4 expansion (which already adds provider failure/recovery): a second backend plus a historical seed, asserting the projection does not leak across server or Location boundaries"
     },
+    "chat-asset-single-owner": {
+      "owner": "S3",
+      "scope": "plan §6.2 requires the seven Chat asset categories to be read by one resource owner and the request-count plus A→B→A recovery assertions to land with it. Reconnaissance is done and recorded in docs/technical-debt.md §4: there are three read points, not two, and the sidebar's count is not the workbench's count (the workbench adds bridged plugin rows and server-sync system rows) — so the product ruling on which number the sidebar shows comes before the merge.",
+      "unlock": "rule on the sidebar count, move the counting into the existing ModeWorkspaceAssetCtx, delete ChatFeatureList's own dirSdk + createResource, then add the request-count and A→B→A cases to e2e/regression/chat-asset-categories.spec.ts and run them in a browser round"
+    },
+
+    "fuse-mount-build-and-cleanup-stalls": {
+      "owner": "S3",
+      "scope": "the repo and its A/B build trees live on two different mounts: /media/win_data is fuseblk (ntfs-3g) and /home is ext4. On FUSE the same `vite build` that takes 40-50s on ext4 sat in `transforming` for 15+ minutes at 2-6% CPU with wchan=request_wait_answer, `du` on a e2e artifact dir timed out, deleting node_modules took 13 minutes, vite dev reported ready after 63s and its first request took 30s+. This is what made the S3 browser rounds unusable in the 2026-09-16 session, and it is also why the benchmark numbers drift so much on this host.",
+      "unlock": "run e2e and builds from an ext4 checkout (or move the repo), and keep e2e artifacts off the FUSE mount; the debt ledger row carries the measurements"
+    },
+
     "identity-narrow-viewport-controls": {
       "owner": "S7",
       "scope": "plan §9.2 requires the new agent picker and permission state to stay keyboard-reachable and fully readable at narrow widths, with long lists scrolling rather than squeezing the model and submit controls. S6's E3 coverage for these controls runs at the default viewport only.",
