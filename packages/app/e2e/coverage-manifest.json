@@ -54,34 +54,34 @@
       "unlock": "each remaining scenario (tool call, HTTP failure, SSE interruption, duplicate/out-of-order, slow response) is added with the spec that needs it — the real consumer is S9A (plan §12.4 requires provider failure/recovery E4)"
     },
     "break-glass-bar-entry": {
-      "owner": "S6",
+      "owner": "S12",
       "scope": "the status bar projects permission state but offers no entry into the break-glass control surface; the lease owner (30s renew / 60s lease) lives in the composer and duplicating it in the bar would create the second truth source ADR-23 forbids",
-      "unlock": "when a bar-reachable break-glass entry becomes a requirement, first refactor the lease owner out of the composer into a shared hook, then attach the entry — not before"
+      "unlock": "S12 final review must rule on the shared permission control surface (this entry and permission-tier-mutation-entry ride on the same owner extraction). Either fund that slice — refactor the lease owner out of the composer, then attach both the break-glass entry and the tier mutation entry — or record an explicit product decision that the app has no break-glass entry. It may not pass silently."
     },
     "agent-picker-custom-narrowing": {
-      "owner": "S6",
+      "owner": "S7",
       "scope": "the picker no longer hides when showCustomAgents is off, but narrowing the list to official agents still needs asset provenance (AgentV2.Info.originRelativePath) in the /agent payload, which the instance endpoint does not serve today",
       "unlock": "add origin provenance to the /agent response projection (same shape the V2 agent registry sets via core/agent/asset-bridge.ts), then the setting can mean 'include extra custom agents' as ruled"
     },
     "permission-tier-mutation-entry": {
-      "owner": "S6",
-      "scope": "the resident PermissionTierSelector is deleted (plan §9.2), so the app currently has no UI entry that changes a session's tier. The data path is intact: submit still carries permissionTier at creation, drafts keep their persisted value, the server field is unchanged and the projection still reads it.",
-      "unlock": "when tier mutation becomes reachable again, attach it to the same shared permission control surface that the break-glass entry needs — one owner extraction, not two"
+      "owner": "S12",
+      "scope": "the resident PermissionTierSelector is deleted (plan §9.2), so the app currently has no UI entry that changes a session's tier. Plan §9.2 intended relocation into a control surface, not a bare deletion — that gap is a product fact, not a detail. The data path is intact: submit still carries permissionTier at creation, drafts keep their persisted value, the server field is unchanged and the projection still reads it.",
+      "unlock": "S12 final review must rule: fund the shared permission control surface (one owner extraction shared with break-glass-bar-entry, not two) or explicitly accept 'no tier-change UI' as a recorded product decision. Until then no release note may imply the tier is editable in-app."
     },
     "session-product-header-projection": {
-      "owner": "S6",
-      "scope": "plan §9.2 opens with a shared Session Header projecting mode, Location/scope, agent/model source, permission, mode-specific identity and health from the same ADR-23 projection, and §9.3 asks for an E3 row across all five modes. S6 landed the projection and its StatusBar and agent-picker consumers; the Header is not delivered. packages/app/src/components/session/session-header.tsx is OS window chrome (titlebar mounts), not an identity surface, so nothing today shows identity or health at session level.",
-      "unlock": "decide which surface owns mode/Location/agent/model/permission/health for all five modes, feed it from SessionIdentityProjection with no UI-side inference and no second truth source, then add the §9.3 five-mode E3 row. Assistant M1 (plan §13.1) also requires the Header to carry its scope contract, so this gates S9B."
+      "owner": "S9B",
+      "scope": "plan §9.2 opens with a shared Session Header projecting mode, Location/scope, agent/model source, permission, mode-specific identity and health from the same ADR-23 projection, and §9.3 asks for an E3 row across all five modes. S6 landed the projection and its StatusBar and agent-picker consumers; the Header is not delivered. packages/app/src/components/session/session-header.tsx is OS window chrome (titlebar mounts), not an identity surface, so nothing today shows identity or health at session level. It gates S9B: Assistant M1 (plan §13.1) requires the Header to carry its scope contract.",
+      "unlock": "run it as its own small slice before S9B starts: first the product ruling on which surface carries session-level identity/health (Owner-deferred question, not an implementation choice), then feed it from SessionIdentityProjection with no UI-side inference and no second truth source, then the §9.3 five-mode E3 row"
     },
     "identity-e4-cross-server-and-historical": {
-      "owner": "S6",
+      "owner": "S9A",
       "scope": "plan §9.3 asks E4 for refresh, cross-server and historical Session. Refresh landed (e2e/real/session-identity-consumers.spec.ts reload case). Cross-server isolation and pre-identity-era historical sessions have unit/E3 coverage only: the projection is rebuilt per request from Location-scoped services, so reuse across servers is structurally impossible, but no E4 case exercises two backends or a session created before the fields existed.",
-      "unlock": "extend the E4 harness with a second backend (or seed a session whose rows predate the projection) and assert the projection does not leak across server or Location boundaries"
+      "unlock": "land with S9A's E4 expansion (which already adds provider failure/recovery): a second backend plus a historical seed, asserting the projection does not leak across server or Location boundaries"
     },
     "identity-narrow-viewport-controls": {
-      "owner": "S6",
+      "owner": "S7",
       "scope": "plan §9.2 requires the new agent picker and permission state to stay keyboard-reachable and fully readable at narrow widths, with long lists scrolling rather than squeezing the model and submit controls. S6's E3 coverage for these controls runs at the default viewport only.",
-      "unlock": "add a narrow-viewport (chromium-narrow) case asserting keyboard reach, full accessible name and that the picker's growth does not displace model or submit"
+      "unlock": "land with S7's narrow-screen and keyboard a11y slice: a chromium-narrow case asserting keyboard reach, full accessible name and that the picker's growth does not displace model or submit"
     }
   },
   "entries": [
