@@ -71,6 +71,10 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
    */
   const result = createMemo(() => planResult.latest)
   const plan = createMemo(() => result()?.plan)
+  const startBlocker = createMemo(() => {
+    const gate = startGate()
+    return gate.canStart ? undefined : gate.blocker
+  })
   const blockingCount = createMemo(() => blockingDiagnostics(plan()))
   const startGate = createMemo(() =>
     evaluateStartGate({
@@ -154,6 +158,23 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
             {language.t("custom.builder.startSession")}
           </ButtonV2>
         </div>
+
+        {/*
+          The blocker comes straight from the start gate (custom-plan-state.ts) —
+          one source for "why is Start disabled", rendered next to the control it
+          belongs to (plan §9.2). It is never recomputed here.
+        */}
+        <Show when={startBlocker()}>
+          {(blocker) => (
+            <p
+              data-component="custom-start-blocker"
+              data-blocker={blocker()}
+              class="text-11-regular text-v2-text-text-muted"
+            >
+              {language.t(`custom.builder.startBlocker.${blocker()}`)}
+            </p>
+          )}
+        </Show>
 
         <div class="flex items-center justify-between text-11-regular text-v2-text-text-muted border-t border-v2-border-border-base pt-2">
           <div class="flex items-center gap-2">
