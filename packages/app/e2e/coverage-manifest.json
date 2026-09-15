@@ -1,5 +1,5 @@
 {
-  "note": "Slice 0 draft (2026-09-13). S2 owns the machine-readable manifest with a validator test (closure plan §5.2); this draft records the baseline failure groups with owner and unlock so nothing is quarantined indefinitely.",
+  "note": "Quarantine and deferred-scope ledger (closure plan §5.2). The draft landed in Slice 0; S2 added the machine-readable validator (e2e/real/manifest.spec.ts), which now enforces the entry contract, forbids silent `test.fixme` quarantine, and requires every deferred scope to carry an owner and an unlock. The `baseline` block below is the frozen Slice 0 reference, not the current tally.",
   "baseline": {
     "date": "2026-09-13",
     "discovery": {
@@ -52,11 +52,6 @@
       "owner": "S9A",
       "scope": "streaming success + tool-call/HTTP-failure/SSE-interruption/duplicate/slow scripts. S5 landed the streaming-success script (orchestrator provider) plus /e4/provider-requests dispatch evidence; the remaining scenarios stay unwritten until a spec needs them",
       "unlock": "each remaining scenario (tool call, HTTP failure, SSE interruption, duplicate/out-of-order, slow response) is added with the spec that needs it — the real consumer is S9A (plan §12.4 requires provider failure/recovery E4)"
-    },
-    "pty-file-fixtures": {
-      "owner": "S5",
-      "scope": "real PTY lifecycle and filesystem fixtures",
-      "unlock": "landed in S5 (e2e/real/session-pty.spec.ts, e2e/real/session-files.spec.ts) — remove this entry when S5 merges"
     },
     "break-glass-bar-entry": {
       "owner": "S6",
