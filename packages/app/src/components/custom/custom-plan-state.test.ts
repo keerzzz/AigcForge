@@ -210,7 +210,7 @@ describe("blockerOf", () => {
     const open = evaluateStartGate({
       starting: false,
       hasSdk: true,
-      result: { plan: { digest: "d".repeat(64), diagnostics: [], agents: [{}] } } as never,
+      result: { plan: plan({ agents: [] }) },
       draft: { source: "asset", agentCount: 1 },
     })
     expect(blockerOf(open)).toBeUndefined()
