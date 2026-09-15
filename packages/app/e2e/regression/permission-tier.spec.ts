@@ -124,7 +124,14 @@ async function openSession(page: Page, wire: PermissionWire, sessionData: Return
   return composer
 }
 
-test("chat meta session shows the tier selector with propose active by default", async ({ page }) => {
+// Plan §9.2 / O-4.1: the resident tier selector is deleted. Permission state is
+// projected in the global status bar now (see session-identity-consumers.spec.ts
+// for the propose-silent / full-warning assertions), and the tier's remaining write
+// path is the session-create payload, covered end to end in
+// e2e/real/session-identity-consumers.spec.ts. What this file still guards is that
+// the resident control does not come back, for the two session shapes that used to
+// differ, plus the override control's own lifecycle below.
+test("chat meta session no longer carries a resident tier selector", async ({ page }) => {
   const wire: PermissionWire = {
     tierPuts: [],
     overridePuts: [],
@@ -134,20 +141,12 @@ test("chat meta session shows the tier selector with propose active by default",
   }
   await openSession(page, wire, session({ id: "ses_tier_chat_default", mode: "chat", agent: "meta" }))
 
-  const selector = page.locator('[data-slot="permission-tier-selector"]')
-  await expectAppVisible(selector)
-  await expect(selector).toContainText("Permission tier")
-  await expect(selector.locator('[data-slot="permission-tier-option"][data-value="propose"]')).toHaveAttribute(
-    "data-active",
-    "true",
-  )
-  await expect(selector.locator('[data-slot="permission-tier-option"][data-value="full"]')).toHaveAttribute(
-    "data-active",
-    "false",
-  )
+  await expect(page.locator('[data-slot="permission-tier-selector"]')).toHaveCount(0)
+  // A control that silently returned to the composer would re-introduce the noise
+  // §9.2 removed; the assertion above is the guard.
 })
 
-test("coding session hides the tier selector", async ({ page }) => {
+test("coding session carries no resident tier selector either", async ({ page }) => {
   const wire: PermissionWire = {
     tierPuts: [],
     overridePuts: [],
@@ -160,7 +159,7 @@ test("coding session hides the tier selector", async ({ page }) => {
   await expect(page.locator('[data-slot="permission-tier-selector"]')).toHaveCount(0)
 })
 
-test("work session shows the tier selector", async ({ page }) => {
+test("work session carries no resident tier selector either", async ({ page }) => {
   const wire: PermissionWire = {
     tierPuts: [],
     overridePuts: [],
@@ -170,23 +169,7 @@ test("work session shows the tier selector", async ({ page }) => {
   }
   await openSession(page, wire, session({ id: "ses_tier_work_visible", mode: "work", agent: "meta" }))
 
-  await expectAppVisible(page.locator('[data-slot="permission-tier-selector"]'))
-})
-
-test("switching to full sends permissionTier through the session update", async ({ page }) => {
-  const wire: PermissionWire = {
-    tierPuts: [],
-    overridePuts: [],
-    overrideDeletes: 0,
-    enabled: false,
-    tierPutStatus: 200,
-  }
-  await openSession(page, wire, session({ id: "ses_tier_switch_full", mode: "chat", agent: "meta" }))
-
-  await page.locator('[data-slot="permission-tier-option"][data-value="full"]').click()
-  await expect
-    .poll(() => wire.tierPuts.filter((body) => body.permissionTier === "full").length, { timeout: 10_000 })
-    .toBeGreaterThan(0)
+  await expect(page.locator('[data-slot="permission-tier-selector"]')).toHaveCount(0)
 })
 
 test("override control requires acknowledgement before enabling and round-trips enable/disable", async ({ page }) => {
