@@ -104,7 +104,12 @@ export function createCurrentSessionSource(): StatusBarSource {
         declaredTier: projected.permission.declaredTier,
         effect: projected.permission.effect,
         health: projected.capability.health,
-        ...(projected.capability.reasons[0] ? { reason: projected.capability.reasons[0].code } : {}),
+        // Every folded reason, not just the first: a capability can degrade for
+        // several reasons at once (assistant memory + knowledge both pending M2),
+        // and dropping the tail would hide half the story in the tooltip.
+        ...(projected.capability.reasons.length > 0
+          ? { reason: projected.capability.reasons.map((reason) => reason.code).join(" · ") }
+          : {}),
       })
     }
     // Transitional fallback recorded in S1: the session record carries the

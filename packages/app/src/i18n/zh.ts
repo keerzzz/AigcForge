@@ -997,8 +997,8 @@ export const dict = {
   "settings.general.row.showStatus.description": "在标题栏中显示服务器状态按钮",
   "settings.general.row.pinchZoom.title": "双指缩放",
   "settings.general.row.pinchZoom.description": "允许通过触控板双指捏合和 Ctrl+滚轮手势进行缩放",
-  "settings.general.row.showCustomAgents.title": "自定义智能体",
-  "settings.general.row.showCustomAgents.description": "在输入框中显示智能体选择器",
+  "settings.general.row.showCustomAgents.title": "智能体切换快捷键",
+  "settings.general.row.showCustomAgents.description": "启用键盘快捷键在智能体之间切换",
 
   "settings.updates.row.startup.title": "启动时检查更新",
   "settings.updates.row.startup.description": "在 Aigcfroge 启动时自动检查更新",

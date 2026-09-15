@@ -57,6 +57,16 @@
       "owner": "S5",
       "scope": "real PTY lifecycle and filesystem fixtures",
       "unlock": "landed in S5 (e2e/real/session-pty.spec.ts, e2e/real/session-files.spec.ts) — remove this entry when S5 merges"
+    },
+    "break-glass-bar-entry": {
+      "owner": "S6",
+      "scope": "the status bar projects permission state but offers no entry into the break-glass control surface; the lease owner (30s renew / 60s lease) lives in the composer and duplicating it in the bar would create the second truth source ADR-23 forbids",
+      "unlock": "when a bar-reachable break-glass entry becomes a requirement, first refactor the lease owner out of the composer into a shared hook, then attach the entry — not before"
+    },
+    "agent-picker-custom-narrowing": {
+      "owner": "S6",
+      "scope": "the picker no longer hides when showCustomAgents is off, but narrowing the list to official agents still needs asset provenance (AgentV2.Info.originRelativePath) in the /agent payload, which the instance endpoint does not serve today",
+      "unlock": "add origin provenance to the /agent response projection (same shape the V2 agent registry sets via core/agent/asset-bridge.ts), then the setting can mean 'include extra custom agents' as ruled"
     }
   },
   "entries": [

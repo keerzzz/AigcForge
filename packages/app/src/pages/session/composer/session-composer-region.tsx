@@ -127,7 +127,12 @@ export function SessionComposerRegion(props: {
     })
   }
   const controls = createMemo(() => {
-    // local.agent.list() already pins the current mode's orchestrator per ADR-13; no extra filter needed.
+    // local.agent.list() is already narrowed by the server's `primaryModes` (S6).
+    // The `showCustomAgents` setting no longer hides the picker at all. Narrowing
+    // the list to "official agents only" additionally needs asset provenance
+    // (AgentV2.Info.originRelativePath, ADR-20 §2.6) in this payload, which the
+    // `/agent` endpoint does not serve yet — recorded as a deferred S6 item rather
+    // than faked with a field that is not there.
     const agentOptions = local.agent.list().map((agent) => agent.name)
     return {
       agents: {
@@ -135,7 +140,7 @@ export function SessionComposerRegion(props: {
         options: agentOptions,
         current: local.agent.current()?.name ?? "",
         loading: agentsQuery.isLoading,
-        visible: settings.visibility.customAgents(),
+        visible: true,
         select: local.agent.set,
       },
       model: {

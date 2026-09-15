@@ -1435,6 +1435,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (!search) return projects()
     return projects().filter((project) => displayName(project).toLowerCase().includes(search))
   })
+  // The picker itself is never hidden by a setting (S6 §9.2): the mode policy
+  // decides which agents exist and `showCustomAgents` only decides whether extra
+  // asset-backed agents join them, upstream in the composer region.
   const showAgentControl = createMemo(() => props.controls.agents.visible && props.controls.agents.options.length > 0)
   const selectProject = (worktree: string) => {
     setPicker({
