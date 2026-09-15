@@ -25,6 +25,15 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     port: 3000,
+    // Playwright writes its report, traces and webm videos under `e2e/`, which is
+    // inside the dev server's watch root. A write mid-run makes Vite push a full
+    // client reload, which detaches the frame a test is navigating in — observed as
+    // `page.goto: net::ERR_ABORTED; maybe frame was detached?` plus a 120s
+    // "dev server is not answering" predicate timeout in composer-submit. Test
+    // artifacts are not app source, so they must not trigger HMR at all.
+    watch: {
+      ignored: ["**/e2e/test-results/**", "**/e2e/playwright-report/**", "**/e2e/real/**"],
+    },
   },
   build: {
     target: "esnext",

@@ -83,9 +83,14 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-// RED 2026-09-13: the editor plants a U+200B placeholder and the product strips it on read (prompt-input.tsx); this spec asserts raw innerText instead.
-// Unlock at S3 by asserting through the product's read path (test-side change).
-test.fixme("Shift+Enter inserts a newline without submitting", async ({ page }) => {
+// The editor plants U+200B as a caret placeholder and the product strips it on
+// read (`parseFromDOM` in prompt-input.tsx, `getTextLength` in
+// prompt-input/editor-dom.ts), so raw `innerText` is not the product's value.
+// Read it the way the product does instead of asserting the placeholder.
+const editorText = (page: Page) =>
+  input(page).evaluate((element) => (element instanceof HTMLElement ? element.innerText : "").replace(/\u200B/g, ""))
+
+test("Shift+Enter inserts a newline without submitting", async ({ page }) => {
   const writes: string[] = []
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.endsWith("/prompt_async")) writes.push(request.url())
@@ -96,15 +101,18 @@ test.fixme("Shift+Enter inserts a newline without submitting", async ({ page }) 
   await input(page).press("Shift+Enter")
   await input(page).pressSequentially("second line")
 
-  await expect
-    .poll(() => input(page).evaluate((element) => (element instanceof HTMLElement ? element.innerText : "")))
-    .toBe("first line\nsecond line")
+  await expect.poll(() => editorText(page)).toBe("first line\nsecond line")
   expect(writes).toEqual([])
 })
 
-// RED 2026-09-13: submit clears the prompt store but not the contenteditable DOM — a one-way store→DOM sync gap (clearInput vs clearEditor).
-// Unlock at S3 with the product-side DOM-clearing fix.
-test.fixme("Enter sends the selected session, agent, model, message id, and text", async ({ page }) => {
+// S3 note: the S0 quarantine here claimed "submit clears the prompt store but not
+// the contenteditable DOM — a one-way store→DOM sync gap". That does not reproduce:
+// with a warm dev server this case is green unchanged, including `toBeEmpty()` on
+// the editor. The S0 failure was the dev server pushing a full client reload while
+// Playwright wrote its report under `e2e/` (see the `server.watch.ignored` entries in
+// vite.config.ts) — the reload aborted the navigation, and the symptom was attributed
+// to the composer instead. No product change was made to make this pass.
+test("Enter sends the selected session, agent, model, message id, and text", async ({ page }) => {
   let request:
     | {
         pathname: string
