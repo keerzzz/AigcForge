@@ -1,0 +1,77 @@
+/**
+ * Presentation-tagging contract (S3 §6.2).
+ *
+ * The matrix projects run `PRESENTATION_GREP` instead of the full suite, which is
+ * only safe while two invariants hold: the grep actually reaches the specs that
+ * assert presentation behaviour, and no spec branches on the project name without
+ * carrying the tag (a project-aware spec without the tag would silently stop
+ * running in the very project it was written for).
+ *
+ * Both are checked against the source tree rather than restated by hand, so
+ * renaming a tag or dropping it from a spec fails here instead of quietly
+ * shrinking the matrix. Node-side: no browser needed.
+ */
+import { readFileSync, readdirSync } from "node:fs"
+import { fileURLToPath } from "node:url"
+import path from "node:path"
+import { expect, test } from "@playwright/test"
+import { MATRIX_PROJECTS, PRESENTATION_GREP, PRESENTATION_TAGS } from "../presentation-matrix"
+
+const here = path.dirname(fileURLToPath(import.meta.url))
+const e2eRoot = path.resolve(here, "..")
+
+function specSources(): Array<{ file: string; source: string }> {
+  const files: string[] = []
+  for (const dir of ["regression", "smoke"]) {
+    const full = path.join(e2eRoot, dir)
+    for (const name of readdirSync(full).filter((entry) => entry.endsWith(".spec.ts"))) {
+      files.push(path.join(full, name))
+    }
+  }
+  return files.map((file) => ({ file: path.relative(e2eRoot, file), source: readFileSync(file, "utf8") }))
+}
+
+function taggedTitles(source: string): string[] {
+  const titles: string[] = []
+  for (const tag of PRESENTATION_TAGS) {
+    if (!source.includes(`"${tag}"`)) continue
+    titles.push(tag)
+  }
+  return titles
+}
+
+test("the grep the matrix projects use matches every declared tag", () => {
+  expect(PRESENTATION_TAGS.length).toBeGreaterThan(0)
+  for (const tag of PRESENTATION_TAGS) {
+    expect(new RegExp(PRESENTATION_GREP).test(tag), `${tag} is reachable through PRESENTATION_GREP`).toBe(true)
+  }
+  expect(MATRIX_PROJECTS.length, "matrix projects are declared").toBeGreaterThan(0)
+})
+
+test("every spec that branches on the project name carries a presentation tag", () => {
+  const offenders: string[] = []
+  for (const { file, source } of specSources()) {
+    if (!source.includes("project.name")) continue
+    if (taggedTitles(source).length === 0) offenders.push(file)
+  }
+  expect(offenders, "project-aware specs must carry @presentation or @a11y or they stop running in the matrix").toEqual(
+    [],
+  )
+})
+
+test("the specs that define the matrix carry a tag", () => {
+  // Named rather than "any tagged spec exists": these are the files whose whole
+  // purpose is presentation or a11y, so losing their tag is a regression even if
+  // other specs keep the mechanism alive.
+  const required: Record<string, string> = {
+    "regression/presentation-matrix.spec.ts": "@presentation",
+    "regression/mode-slot-fallback-a11y.spec.ts": "@a11y",
+    "regression/global-shell-presentation.spec.ts": "@presentation",
+  }
+  const sources = new Map(specSources().map((entry) => [entry.file, entry.source]))
+  for (const [file, tag] of Object.entries(required)) {
+    const source = sources.get(file)
+    expect(source, `${file} still exists`).toBeDefined()
+    expect(source?.includes(`"${tag}"`), `${file} carries ${tag}`).toBe(true)
+  }
+})

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test"
+import { PRESENTATION_GREP } from "./e2e/presentation-matrix"
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3000)
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`
@@ -58,11 +59,14 @@ export default defineConfig({
   },
   projects: [
     {
+      // Business suite: everything runs here. The other four projects filter on
+      // `PRESENTATION_GREP` — see e2e/presentation-matrix.ts for why.
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "chromium-dark",
+      grep: PRESENTATION_GREP,
       use: {
         ...devices["Desktop Chrome"],
         storageState: storageState([["aigcfroge-color-scheme", "dark"]]),
@@ -70,6 +74,7 @@ export default defineConfig({
     },
     {
       name: "chromium-zh",
+      grep: PRESENTATION_GREP,
       use: {
         ...devices["Desktop Chrome"],
         storageState: storageState([["aigcfroge.global.dat:language", '{"locale":"zh"}']]),
@@ -77,6 +82,7 @@ export default defineConfig({
     },
     {
       name: "chromium-zht",
+      grep: PRESENTATION_GREP,
       use: {
         ...devices["Desktop Chrome"],
         storageState: storageState([["aigcfroge.global.dat:language", '{"locale":"zht"}']]),
@@ -84,6 +90,7 @@ export default defineConfig({
     },
     {
       name: "chromium-narrow",
+      grep: PRESENTATION_GREP,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 390, height: 844 },

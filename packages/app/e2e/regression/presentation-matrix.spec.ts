@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { APP_READY_TIMEOUT, gotoWhenReady } from "../utils/waits"
+import { PRESENTATION_EXPECTED as EXPECTED } from "../presentation-matrix"
 
 const directory = "C:/Aigcfroge/PresentationMatrix"
 const projectID = "proj_presentation_matrix"
@@ -23,20 +24,6 @@ const created = 1700000000000
  * (packages/ui/src/theme/context.tsx:153-154) and `documentElement.lang` by
  * the language provider (packages/app/src/context/language.tsx:227).
  */
-type Presentation = {
-  colorScheme: string
-  lang: string
-  viewport: { width: number; height: number }
-}
-
-const EXPECTED: Record<string, Presentation> = {
-  chromium: { colorScheme: "light", lang: "en", viewport: { width: 1280, height: 720 } },
-  "chromium-dark": { colorScheme: "dark", lang: "en", viewport: { width: 1280, height: 720 } },
-  "chromium-zh": { colorScheme: "light", lang: "zh", viewport: { width: 1280, height: 720 } },
-  "chromium-zht": { colorScheme: "light", lang: "zht", viewport: { width: 1280, height: 720 } },
-  "chromium-narrow": { colorScheme: "light", lang: "en", viewport: { width: 390, height: 844 } },
-}
-
 async function mountApp(page: Page) {
   await mockAigcfrogeServer(page, {
     directory,
@@ -67,7 +54,7 @@ async function mountApp(page: Page) {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "oc-2", { timeout: APP_READY_TIMEOUT })
 }
 
-test.describe("regression: presentation matrix contract", () => {
+test.describe("regression: presentation matrix contract", { tag: "@presentation" }, () => {
   test("applies theme, locale, viewport and base keyboard focus", async ({ page }, testInfo) => {
     const want = EXPECTED[testInfo.project.name]
     if (!want) throw new Error(`unexpected project ${testInfo.project.name}`)

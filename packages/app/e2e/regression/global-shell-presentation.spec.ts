@@ -48,6 +48,7 @@ async function mount(page: Page) {
 // sidebar architecture question owned by S7, not a routing defect.
 test.fixme(
   "keeps Project, Feature, and Session controls reachable across locale and viewport projects",
+  { tag: "@presentation" },
   async ({ page }) => {
     await mount(page)
 

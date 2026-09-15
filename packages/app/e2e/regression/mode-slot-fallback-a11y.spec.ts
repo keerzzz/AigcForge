@@ -53,7 +53,7 @@ async function setup(page: Page) {
   await page.goto(`/${base64Encode(directory)}`)
 }
 
-test.describe("regression: mode slot fallback is reachable narrow and by keyboard", () => {
+test.describe("regression: mode slot fallback is reachable narrow and by keyboard", { tag: "@a11y" }, () => {
   test("the pending indicator is visible at 390px and names itself", async ({ page }) => {
     await page.setViewportSize(NARROW)
     await setup(page)
