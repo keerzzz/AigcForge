@@ -10,7 +10,6 @@ import { showToast } from "@/utils/toast"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
-import { PermissionTierSelector } from "@/pages/session/composer/permission-tier-selector"
 import { SessionPermissionOverrideControl } from "@/pages/session/composer/session-permission-override-dialog"
 import { SessionQuestionDock } from "@/pages/session/composer/session-question-dock"
 import { SessionFollowupDock } from "@/pages/session/composer/session-followup-dock"
@@ -170,9 +169,6 @@ export function SessionComposerRegion(props: {
 
   // 权限档位 selector：draft（new-session）与已有会话双场景；仅
   // chat/work/assistant × meta 显示（组件内部判断）。
-  const tierMode = createMemo(() => draft()?.mode ?? info()?.mode)
-  const tierAgent = createMemo(() => draft()?.agent ?? info()?.agent)
-  const tierValue = createMemo<"propose" | "full" | undefined>(() => draft()?.permissionTier ?? info()?.permissionTier)
   const [overrideEnabled, setOverrideEnabled] = createSignal(false)
   const overrideStatus = async () => {
     const id = route.params.id
@@ -205,20 +201,6 @@ export function SessionComposerRegion(props: {
     } catch {
       showToast({ title: language.t("common.requestFailed") })
     }
-  }
-
-  const onTierChange = async (tier: "propose" | "full") => {
-    if (search.draftId) {
-      tabs.updateDraft(search.draftId, { permissionTier: tier })
-      return
-    }
-    const id = route.params.id
-    if (!id) return
-    await sdk()
-      .client.session.update({ sessionID: id, permissionTier: tier })
-      .catch(() => {
-        showToast({ title: language.t("common.requestFailed") })
-      })
   }
 
   const previewPrompt = () =>
@@ -295,8 +277,6 @@ export function SessionComposerRegion(props: {
             </div>
           )}
         </Show>
-
-        <PermissionTierSelector mode={tierMode()} agent={tierAgent()} value={tierValue()} onChange={onTierChange} />
 
         <Show when={route.params.id}>
           <SessionPermissionOverrideControl

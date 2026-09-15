@@ -67,6 +67,11 @@
       "owner": "S6",
       "scope": "the picker no longer hides when showCustomAgents is off, but narrowing the list to official agents still needs asset provenance (AgentV2.Info.originRelativePath) in the /agent payload, which the instance endpoint does not serve today",
       "unlock": "add origin provenance to the /agent response projection (same shape the V2 agent registry sets via core/agent/asset-bridge.ts), then the setting can mean 'include extra custom agents' as ruled"
+    },
+    "permission-tier-mutation-entry": {
+      "owner": "S6",
+      "scope": "the resident PermissionTierSelector is deleted (plan §9.2), so the app currently has no UI entry that changes a session's tier. The data path is intact: submit still carries permissionTier at creation, drafts keep their persisted value, the server field is unchanged and the projection still reads it.",
+      "unlock": "when tier mutation becomes reachable again, attach it to the same shared permission control surface that the break-glass entry needs — one owner extraction, not two"
     }
   },
   "entries": [
