@@ -213,7 +213,12 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       <Show when={errorMessage()}>
         <div class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center justify-between">
           <span>{errorMessage()}</span>
-          <button type="button" onClick={() => setErrorMessage(undefined)}>
+          <button
+            type="button"
+            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+            aria-label={language.t("common.dismiss")}
+            onClick={() => setErrorMessage(undefined)}
+          >
             <Icon name="close" size="small" />
           </button>
         </div>

@@ -92,6 +92,11 @@
       "owner": "S3",
       "scope": "e2e/utils/waits.ts expectDevServerReady polls /@vite/client from inside the test and intermittently times out at 120s on this host while the same URL answers in ~25ms from a shell; three occurrences in one session, each passing on rerun. Adjacent, the 180s per-test budget is sometimes too small for the heaviest cases on this host.",
       "unlock": "replace the readiness signal with one that does not depend on page.request (DOM readiness after goto, or a harness port-health probe) and decouple the long cases' budgets from host load"
+    },
+    "mode-detail-personas-closure-observations": {
+      "owner": "S9A/S9B",
+      "scope": "the three `closed:false` observation bundles in e2e/regression/mode-detail-personas.spec.ts are about Work/Assistant identity and scope (Work presetCategoryId=null and its artifact empty state, Assistant not showing personal/project scope, the identity header missing scope/preset/inherited model source). plan §10 had assigned their conversion to real assertions to S7, but their subject matter belongs with the slices that own it.",
+      "unlock": "S9A/S9B convert them into expect() assertions when the Work and Assistant closures land; the session-product-header-projection entry (S9B) is the Header half of the third bundle"
     }
   },
   "entries": [

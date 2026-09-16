@@ -434,7 +434,9 @@ E1 schema/fold；E2 API/auth/cache/effective-permission owner；E3 五模式 Hea
 - hidden panel 不重复请求、不 remount 业务 owner；
 - Custom 两个无名称 icon button 补可访问名称与命中区域。
 
-RED 用现有 `mode-detail-personas.spec.ts` 和 `mode-slot-fallback-a11y.spec.ts` 固定“能力不可达”。**必须理解 `closed:false` 的真实性质**：`mode-detail-personas.spec.ts:83-88` 的 `attachClosure` 是 `testInfo.attach(...)` 写 JSON 附件，不是 `expect()`；`:196-209`、`:245-258`、`:295-308` 三处 `logic/flow/interaction: { closed: false, evidence: ... }` **无论真假都不会让测试失败**。所以它们既不是 RED 也不是门禁，只是观察记录。GREEN 的定义是：把这些观察替换成真实的 `expect()` 可达性断言（panel 可见、可键盘到达、aria 关系正确），并让 `closed` 字段消失或成为断言的产物，而不是"把 false 改成 true"。
+RED 用现有 `mode-slot-fallback-a11y.spec.ts` 固定窄屏入口的“能力不可达”。**范围更正（2026-09-16，Owner 裁定）**：本段原先把 `mode-detail-personas.spec.ts` 的三处 `closed:false` 观察交给 S7 转正，但按主题归属它们不属于本切片——那三处的实际内容是 Work 的 `presetCategoryId=null`/产物空状态、Assistant 未显示 personal/project scope、以及 identity header 缺 scope/preset/继承的 model source，主题是 **Work/Assistant 身份与 scope contract**，而 `session-product-header-projection` 已判给 S9B（§13.1 依赖 Header）。因此这三处随主题归 **S9A/S9B**，不由 S7 越界转正；S7 的 RED 只建在窄屏 panel 导航入口上。
+
+**必须理解 `closed:false` 的真实性质**：`mode-detail-personas.spec.ts:83-88` 的 `attachClosure` 是 `testInfo.attach(...)` 写 JSON 附件，不是 `expect()`；`:196-209`、`:245-258`、`:295-308` 三处 `logic/flow/interaction: { closed: false, evidence: ... }` **无论真假都不会让测试失败**。所以它们既不是 RED 也不是门禁，只是观察记录。GREEN 的定义是：把这些观察替换成真实的 `expect()` 可达性断言（panel 可见、可键盘到达、aria 关系正确），并让 `closed` 字段消失或成为断言的产物，而不是"把 false 改成 true"。
 
 内容 owner 的准确名称（避免照抄不存在的符号）：`SessionSidePanel`（`packages/app/src/pages/session/session-side-panel.tsx`）、`AssistantSessionPanel`（`pages/session/assistant-session-panel.tsx`）、Work 侧为 `pages/work-artifact-panel.tsx`（**不叫** `WorkArtifactPanel` 组件导出，实施前先确认导出名）、Custom 侧 snapshot 相关面板须在 S7 开工时用 codegraph 定位实际 owner，本计划不预设名称。200% 必须使用真实浏览器缩放/重排检查，不以把 viewport 缩小代替；不得通过隐藏 panel 或 remount owner 制造假绿。
 
