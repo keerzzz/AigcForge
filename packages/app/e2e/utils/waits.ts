@@ -23,19 +23,28 @@ export async function expectSessionTitle(page: Page, title: string) {
  * 200 from it is proof the server is listening and past its own startup — polled, not slept,
  * and reported as a server problem rather than an app problem when it never arrives.
  *
+ * The probe is a Node-side `fetch`, deliberately NOT `page.request`: the latter shares the
+ * browser context, and every spec that installs a `page.route` mock before navigating routes
+ * this request through that mock. Four occurrences in one session had it time out at 120s
+ * while the same URL answered in ~25ms from a shell on the same host, and it blocked both a
+ * single spec and a 12-test matrix run. Node's fetch cannot be intercepted, so the signal now
+ * means what it says. (Registered in docs/technical-debt.md §8; this is that row's unlock.)
+ *
  * The parallel-worker cold-start timeouts the 2026-09-03 run recorded were contention on route
  * compilation, which this does not remove. What it removes is spending the whole budget to find
  * out the server was never there.
  */
-export async function expectDevServerReady(page: Page) {
+export async function expectDevServerReady() {
+  const port = process.env.PLAYWRIGHT_PORT ?? "3000"
+  const base = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`
   await expect(async () => {
-    const response = await page.request.get("/@vite/client")
-    expect(response.status(), "dev server is not answering yet").toBe(200)
+    const response = await fetch(new URL("/@vite/client", base))
+    expect(response.status, "dev server is not answering yet").toBe(200)
   }).toPass({ timeout: APP_READY_TIMEOUT, intervals: [250, 500, 1_000, 2_000] })
 }
 
 /** `page.goto` behind {@link expectDevServerReady}. */
 export async function gotoWhenReady(page: Page, path: string, options?: Parameters<Page["goto"]>[1]) {
-  await expectDevServerReady(page)
+  await expectDevServerReady()
   await page.goto(path, options)
 }
