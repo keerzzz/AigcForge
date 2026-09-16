@@ -431,7 +431,7 @@ E1 schema/fold；E2 API/auth/cache/effective-permission owner；E3 五模式 Hea
 - 390×844 与 200% 下 Session、Composer、模式专属 panel 都有明确入口；
 - panel 打开/关闭、back、Escape、focus restore、aria-selected/controls 完整；
 - desktop resize 到 narrow 再恢复，不丢 active tab/store/scroll；
-- hidden panel 不重复请求、不 remount 业务 owner；
+- ~~hidden panel 不重复请求、不 remount 业务 owner~~ **范围更正（2026-09-17，Owner 同意）**：本条虽列在本切片，但主题是**渲染所有权**（隐藏面仍挂载是仓库刻意设计，`ModeSlotActiveProvider` 负责屏蔽副作用），不属窄屏布局；已按主题改派给 **S11（Desktop、可访问性、视觉与性能）**，登记于 coverage manifest `hidden-panel-request-and-remount`；
 - Custom 两个无名称 icon button 补可访问名称与命中区域。
 
 RED 用现有 `mode-slot-fallback-a11y.spec.ts` 固定窄屏入口的“能力不可达”。**范围更正（2026-09-16，Owner 裁定）**：本段原先把 `mode-detail-personas.spec.ts` 的三处 `closed:false` 观察交给 S7 转正，但按主题归属它们不属于本切片——那三处的实际内容是 Work 的 `presetCategoryId=null`/产物空状态、Assistant 未显示 personal/project scope、以及 identity header 缺 scope/preset/继承的 model source，主题是 **Work/Assistant 身份与 scope contract**，而 `session-product-header-projection` 已判给 S9B（§13.1 依赖 Header）。因此这三处随主题归 **S9A/S9B**，不由 S7 越界转正；S7 的 RED 只建在窄屏 panel 导航入口上。

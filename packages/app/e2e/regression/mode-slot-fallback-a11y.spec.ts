@@ -237,3 +237,25 @@ test("a desktop to narrow round trip keeps the panel's active section", { tag: "
   // The selection is component state, not a DOM remnant: it has to survive both resizes.
   await expect(panel.getByRole("button", { name: /^Skills(?:\s+\d+)?$/ })).toHaveAttribute("data-selected", "")
 })
+
+/**
+ * An existing precedent for the 200% condition is `settings-dialog.spec.ts:226-229`, which
+ * represents browser zoom with the equivalent halved CSS viewport — 720x450 for a 1440x900
+ * window. Plan §10 requires the panel's reachability to hold at 200% too, and the
+ * observation run measured this case: with the panel open, `<main>` keeps 398px docked and
+ * ~654px once it floats.
+ *
+ * This is a guard for the contract, not a discriminator for the floating fix: 398px already
+ * satisfied the floor before the panel learned to float, so the 390x844 case above is the one
+ * that catches a squeeze. Both are kept because the plan asks for both conditions.
+ */
+test("the session area stays usable with the mode panel open at 200% zoom", { tag: "@a11y" }, async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 450 })
+  const toggle = await openSessionWithPanel(page)
+  await toggle.click()
+  await expect(page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })).toBeVisible()
+
+  const mainWidth = await page.evaluate(() => Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0))
+  expect(mainWidth, `main is ${mainWidth}px wide with the panel open at 720x450`).toBeGreaterThanOrEqual(USABLE_MAIN_PX)
+  await expect(page.locator('[data-component="session-composer"]')).toBeVisible()
+})
