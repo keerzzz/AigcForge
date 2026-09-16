@@ -59,6 +59,7 @@ import { MessageTimeline } from "@/pages/session/timeline/message-timeline"
 import { createTimelineModel } from "@/pages/session/timeline/model"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import { parseServerKey } from "@/utils/session-route"
 import { syncSessionModel } from "@/pages/session/session-model-helpers"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { TerminalPanel } from "@/pages/session/terminal-panel"
@@ -179,6 +180,17 @@ export default function Page(props: { rootID: string }) {
   // cannot clear a newer registration of the same key.
   const routeIdentityToken = Symbol("session-route-identity")
   const dirtyToken = Symbol("session-dirty")
+  // URL-scoped server identity. `useServer()` is the GLOBAL active server, which is a
+  // different server whenever the URL names one that is not active; registering that made
+  // every consumer of this contribution read the wrong server — the session sidebar's
+  // asset owner among them, where it issued the seven asset requests against the current
+  // server while rendering a session from another one. The route's own param is the
+  // authoritative source and is the same value `app.tsx` parses to resolve this route.
+  const routeServerKey = createMemo(() => {
+    const parsed = parseServerKey(params.serverKey ?? "")
+    return parsed.ok ? parsed.key : server.key
+  })
+
   const topLevelTabKey = createMemo(() => {
     if (!params.id) return undefined
     return tabKey({ type: "session", server: server.key, sessionId: props.rootID })
@@ -197,10 +209,10 @@ export default function Page(props: { rootID: string }) {
     const sessionTabs = tabs()
     const sessionView = view()
     const dispose = routeContribution?.register({
-      routeIdentity: `${server.key}\0${params.id}`,
+      routeIdentity: `${routeServerKey()}\0${params.id}`,
       activeTopLevelTabKey: key,
       key: sessionKey(),
-      server: server.key,
+      server: routeServerKey(),
       scope: serverSDK().scope,
       directory: sdk().directory,
       leafID: params.id,

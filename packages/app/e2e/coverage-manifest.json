@@ -78,11 +78,6 @@
       "scope": "plan §9.3 asks E4 for refresh, cross-server and historical Session. Refresh landed (e2e/real/session-identity-consumers.spec.ts reload case). Cross-server isolation and pre-identity-era historical sessions have unit/E3 coverage only: the projection is rebuilt per request from Location-scoped services, so reuse across servers is structurally impossible, but no E4 case exercises two backends or a session created before the fields existed.",
       "unlock": "land with S9A's E4 expansion (which already adds provider failure/recovery): a second backend plus a historical seed, asserting the projection does not leak across server or Location boundaries"
     },
-    "chat-asset-single-owner": {
-      "owner": "S3",
-      "scope": "S3-3 landed the single asset owner and the P1 provider gap is fixed at both readers with a throwing hook. Open: the provider resolves its server ctx from the global current server, so a canonical URL pointing at another server can either skip all seven requests or read the WRONG server's directory; the deciding rule is currentDir() in secondary-sidebar.tsx:104-109 and both branches are reachable, so it needs measurement as well as a fix.",
-      "unlock": "give ChatAssetsProvider a server identity (global.ensureServerCtxByKey does NOT exist; use global.ensureServerCtx(conn) with server.list.find + ServerConnection.sameKey, precedent app.tsx:142-145), pass the URL server from the sidebar, then a cross-server e2e (session on B with A current) asserting the requests target B — see docs/technical-debt.md for the full evidence chain"
-    },
     "fuse-mount-build-and-cleanup-stalls": {
       "owner": "S3",
       "scope": "the repo and its A/B build trees live on two different mounts: /media/win_data is fuseblk (ntfs-3g) and /home is ext4. On FUSE the same `vite build` that takes 40-50s on ext4 sat in `transforming` for 15+ minutes at 2-6% CPU with wchan=request_wait_answer, `du` on a e2e artifact dir timed out, deleting node_modules took 13 minutes, vite dev reported ready after 63s and its first request took 30s+. This is what made the S3 browser rounds unusable in the 2026-09-16 session, and it is also why the benchmark numbers drift so much on this host.",
@@ -125,19 +120,6 @@
       "status": "red-stable",
       "owner": "S7/S16",
       "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true)"
-    },
-    {
-      "id": "chat-assets-cross-server",
-      "spec": "e2e/regression/chat-assets-cross-server.spec.ts",
-      "test": "the session sidebar reads assets from the URL's server, not the current one",
-      "layer": "E3",
-      "route": "/server/:serverKey/session/:id (session on B, A current)",
-      "mode": "chat",
-      "platform": "chromium",
-      "failure": "the sidebar's ChatAssetsProvider resolves no directory SDK for this mount, so it issues no requests and renders no counts; requests seen on the URL's port come from another consumer",
-      "status": "red-fixme",
-      "owner": "S3",
-      "unlock": "resolve the directory SDK for the session-side mount (the server key it receives still needs confirming against the route-scoped ServerKey provider) and make the guard green"
     }
   ]
 }

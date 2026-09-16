@@ -47,7 +47,15 @@ const sessionB = {
   time: { created: 1_700_000_000_000, updated: 1_700_000_000_000 },
 }
 
-const listPaths = ["/prompt-asset", "/skill-asset", "/mcp-asset", "/command-asset", "/agent-asset", "/workflow-asset", "/plugin-asset"]
+const listPaths = [
+  "/prompt-asset",
+  "/skill-asset",
+  "/mcp-asset",
+  "/command-asset",
+  "/agent-asset",
+  "/workflow-asset",
+  "/plugin-asset",
+]
 
 /** Serves one asset category for the given directory, so the badge has something to count. */
 async function serveAssets(page: Page, port: string, label: string) {
@@ -133,11 +141,16 @@ async function openSessionOnBWithACurrent(page: Page) {
 // seen here comes from another consumer. Isolating that is the blocker's remaining work; this
 // case is the acceptance for it. Quarantined rather than deleted, and registered in
 // packages/app/e2e/coverage-manifest.json.
-test.fixme("the session sidebar reads assets from the URL's server, not the current one", async ({ page }) => {
+// Green since `pages/session.tsx` registered the ROUTE's server key instead of
+// `useServer().key`: measured before the fix, the sidebar's provider issued the seven
+// lists against 4096 (the global active server) while the URL named 4098, and the badges
+// were empty. After: all seven target 4098. The extra `4098/prompt-asset` is the right
+// panel's candidate prefetch, registered separately in docs/technical-debt.md §8.
+test("the session sidebar reads assets from the URL's server, not the current one", async ({ page }) => {
   const assetRequests: string[] = []
   page.on("request", (request) => {
     const url = new URL(request.url())
-    if (listPaths.includes(url.pathname)) assetRequests.push(url.port)
+    if (listPaths.includes(url.pathname)) assetRequests.push(`${url.port}${url.pathname}`)
   })
 
   await openSessionOnBWithACurrent(page)
@@ -151,14 +164,22 @@ test.fixme("the session sidebar reads assets from the URL's server, not the curr
   await expect
     .poll(() => assetRequests.length, { message: "the sidebar issued no asset list requests at all" })
     .toBeGreaterThan(0)
-  expect([...new Set(assetRequests)], "must read the URL's server").toContain("4098")
+  expect(
+    assetRequests.some((entry) => entry.startsWith("4098")),
+    `must read the URL server; saw ${assetRequests.join(", ")}`,
+  ).toBe(true)
   // The current server (A, 4097) must never be read for this session's sidebar.
-  expect([...new Set(assetRequests)], "must not read the current server").not.toContain("4097")
+  expect(
+    assetRequests.some((entry) => entry.startsWith("4097")),
+    `must not read the current server; saw ${assetRequests.join(", ")}`,
+  ).toBe(false)
   // NOT asserted away: a third port (4096) shows up here and is not yet attributed to an
   // owner. It is the same class as `/prompt-asset`'s second reader, registered in
   // docs/technical-debt.md §8, and pinning the port list down to exactly ["4098"] would
   // hide it instead of tracking it.
 
-  const counted = sidebar.getByRole("button", { name: /^(Prompts|Skills|MCP|Commands|Agents|Workflows|Plugins)\s+\d+$/ })
+  const counted = sidebar.getByRole("button", {
+    name: /^(Prompts|Skills|MCP|Commands|Agents|Workflows|Plugins)\s+\d+$/,
+  })
   await expect(counted).toHaveCount(listPaths.length)
 })
