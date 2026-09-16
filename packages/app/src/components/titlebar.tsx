@@ -45,6 +45,7 @@ import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
 import { modeDraft, useMode, modeDefinition } from "@/context/mode"
+import { secondarySidebarShown } from "@/context/layout-helpers"
 import { debounce } from "@solid-primitives/scheduled"
 import { shouldPrefetchTab } from "./titlebar-prefetch-policy"
 
@@ -921,6 +922,9 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
   const language = useLanguage()
   const settings = useSettings()
   const layout = useLayout()
+  // Whether emitting `aria-controls` has a resolvable target; the panel's lifecycle uses the
+  // same predicate (pages/layout.tsx), so the reference cannot drift from the mount.
+  const secondaryPanelMounted = () => secondarySidebarShown(mode.secondarySidebarOpen, layout.route().type)
   return (
     <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
       <Show when={props.state.update.visible}>
@@ -941,7 +945,10 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
             // the attribute resolved to "icon-button-v2" and the restore selector matched 0
             // nodes). `id` also gives the panel relationship a real target.
             id="secondary-sidebar-toggle"
-            aria-controls="secondary-sidebar-panel"
+            // Only while the panel is mounted: an IDREF pointing at an unmounted node is
+            // invalid at any time (measured review finding — closed, the attribute was emitted
+            // with no target). Same predicate as the panel's lifecycle, not a copy of it.
+            aria-controls={secondaryPanelMounted() ? "secondary-sidebar-panel" : undefined}
             state={mode.secondarySidebarOpen ? "pressed" : undefined}
             icon={<IconV2 name="sidebar-right" />}
             aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}

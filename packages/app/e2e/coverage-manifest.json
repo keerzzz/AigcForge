@@ -111,7 +111,7 @@
     "real-200-percent-zoom": {
       "owner": "S7",
       "scope": "plan §10 and the DoD both require the 200% check to use REAL browser zoom/reflow, explicitly not a shrunk viewport. The repo's existing convention (settings-dialog.spec.ts:226-229) represents zoom as the halved CSS viewport; that guard is kept (720x450) but it does NOT discharge this clause, and the reviewer rejected counting it as the 200% acceptance.",
-      "unlock": "produce real-zoom evidence (Electron/browser zoom, or CDP device-metrics scale) for the narrow panel contract, or have the Owner amend §10's acceptance wording"
+      "unlock": "produce real page-zoom evidence (browser or Electron page zoom) for the narrow panel contract. Owner ruling 2026-09-17: §10's wording is NOT amended, and CDP `Emulation.setDeviceMetricsOverride` cannot substitute — measured: `scale: 2` leaves the layout viewport at 1440x900, DPR at 1 and media queries unchanged, and `deviceScaleFactor: 2` only raises DPR; the protocol defines `scale` as scaling the final view image, not the layout. Those parameters may be used for auxiliary observation only. Changing width/height to fake relief is the already-excluded viewport-shrink approach."
     }
   },
   "entries": [

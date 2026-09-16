@@ -53,6 +53,15 @@ export const currentRoute = (pathname: string, search: string): LayoutRoute => {
   return { type: "dir-new-sesssion", dir, dirBase64 }
 }
 
+/**
+ * Whether the secondary sidebar is mounted. Single source for two consumers that must agree:
+ * `pages/layout.tsx` decides the panel's lifecycle with it, and `titlebar.tsx` decides whether
+ * emitting `aria-controls` has a resolvable target. An IDREF that points at an unmounted node
+ * is invalid at any time, so the attribute follows the mount, not the preference.
+ */
+export const secondarySidebarShown = (open: boolean, routeType: LayoutRoute["type"]) =>
+  open && routeType === "session"
+
 export function ensureSessionKey(key: string, touch: (key: string) => void, seed: (key: string) => void) {
   touch(key)
   seed(key)

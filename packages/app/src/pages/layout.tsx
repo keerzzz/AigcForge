@@ -2,6 +2,7 @@ import { createEffect, onCleanup, Suspense, type ParentProps, Show } from "solid
 import { createMediaQuery } from "@solid-primitives/media"
 import { useNavigate, useParams } from "@solidjs/router"
 import { DebugBar } from "@/components/debug-bar"
+import { secondarySidebarShown } from "@/context/layout-helpers"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
 import { useNotification } from "@/context/notification"
 import { usePlatform } from "@/context/platform"
@@ -23,7 +24,7 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   const isWide = createMediaQuery("(min-width: 1024px)")
   const statusSource = createCurrentSessionSource()
 
-  const showSecondarySidebar = () => mode.secondarySidebarOpen && layout.route().type === "session"
+  const showSecondarySidebar = () => secondarySidebarShown(mode.secondarySidebarOpen, layout.route().type)
 
   // S7: below `lg` the panel floats OVER the content instead of docking beside it (see the
   // wrapper in the JSX), so it needs the two affordances an overlay owes a keyboard user:

@@ -227,17 +227,27 @@ test("the floating panel closes on Escape and returns focus to its toggle", { ta
   await expect(toggle).toBeFocused()
 })
 
-test("the toggle and the panel are bound by aria-controls", { tag: "@a11y" }, async ({ page }) => {
+test("the toggle and the panel are bound by aria-controls while the panel exists", { tag: "@a11y" }, async ({ page }) => {
   await page.setViewportSize(NARROW)
   const toggle = await openSessionWithPanel(page)
-  await toggle.click()
 
-  // Assert the RELATION, both ends: the previous "no orphan references" check only walked
-  // aria-controls that already existed, so a missing attribute passed it trivially.
-  const controls = await toggle.getAttribute("aria-controls")
-  expect(controls, "the toggle must name the panel it controls").toBeTruthy()
-  await expect(page.locator(`#${controls}`)).toHaveCount(1)
-  await expect(page.locator(`#${controls}`)).toHaveAttribute("role", "complementary")
+  // Closed: the panel is unmounted, so an emitted IDREF would be unresolvable. The attribute
+  // therefore follows the mount rather than the preference (review finding: it used to be
+  // emitted with no target, which is invalid at any time).
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  expect(await toggle.getAttribute("aria-controls"), "no reference may point at an unmounted panel").toBeNull()
+  expect(await page.locator("#secondary-sidebar-panel").count(), "the panel is not mounted while closed").toBe(0)
+
+  // Open: the relation resolves at both ends.
+  await toggle.click()
+  await expect(toggle).toHaveAttribute("aria-controls", "secondary-sidebar-panel")
+  await expect(page.locator("#secondary-sidebar-panel")).toHaveCount(1)
+  await expect(page.locator("#secondary-sidebar-panel")).toHaveAttribute("role", "complementary")
+
+  // Closed again: the reference goes away with the target, so no dangling IDREF is left behind.
+  await toggle.click()
+  await expect(page.locator("#secondary-sidebar-panel")).toHaveCount(0)
+  expect(await toggle.getAttribute("aria-controls"), "closing must drop the reference too").toBeNull()
 })
 
 test("Escape follows the breakpoint in both directions", { tag: "@a11y" }, async ({ page }) => {
