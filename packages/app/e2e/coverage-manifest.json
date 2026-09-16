@@ -80,8 +80,8 @@
     },
     "chat-asset-single-owner": {
       "owner": "S3",
-      "scope": "landed in S3-3: one counting rule (countAssetsByKind off the merged rows), the sidebar reads ModeWorkspaceAssetCtx.assetCounts, systemCountFor and its duplicate request resource are gone.",
-      "unlock": "remove this entry once the S3 checkpoint is reviewed"
+      "scope": "S3-3 landed the single asset owner (countAssetsByKind off the merged rows; the sidebar reads it). The first attempt removed the sidebar's own resource without giving the session secondary sidebar a provider, emptying its badges silently; that is fixed by ChatAssetsProvider mounted at both sites, with useChatAssets() throwing outside a provider so the failure cannot be silent again.",
+      "unlock": "review confirmed the P1 provider gap and the P2 assetVersion refresh; keep this row until the discriminating case (e2e/regression/chat-session-sidebar-counts.spec.ts) has been observed green in a clean window"
     },
     "fuse-mount-build-and-cleanup-stalls": {
       "owner": "S3",
@@ -92,6 +92,11 @@
       "owner": "S7",
       "scope": "plan §9.2 requires the new agent picker and permission state to stay keyboard-reachable and fully readable at narrow widths, with long lists scrolling rather than squeezing the model and submit controls. S6's E3 coverage for these controls runs at the default viewport only.",
       "unlock": "land with S7's narrow-screen and keyboard a11y slice: a chromium-narrow case asserting keyboard reach, full accessible name and that the picker's growth does not displace model or submit"
+    },
+    "e2e-readiness-predicate-flake": {
+      "owner": "S3",
+      "scope": "e2e/utils/waits.ts expectDevServerReady polls /@vite/client from inside the test and intermittently times out at 120s on this host while the same URL answers in ~25ms from a shell; three occurrences in one session, each passing on rerun. Adjacent, the 180s per-test budget is sometimes too small for the heaviest cases on this host.",
+      "unlock": "replace the readiness signal with one that does not depend on page.request (DOM readiness after goto, or a harness port-health probe) and decouple the long cases' budgets from host load"
     }
   },
   "entries": [

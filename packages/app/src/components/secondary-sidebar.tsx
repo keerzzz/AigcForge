@@ -1,6 +1,7 @@
 import { Show, createEffect, createMemo, createSignal, For, onCleanup, onMount, untrack, type Accessor } from "solid-js"
 import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
 import { useRouteContribution, type SessionContribution } from "@/context/route-contribution"
+import { ChatAssetsProvider } from "@/components/chat/chat-assets"
 import { createStore, produce } from "solid-js/store"
 import { useNavigate, useParams } from "@solidjs/router"
 import { getFilename } from "@aigcfroge/core/util/path"
@@ -732,6 +733,11 @@ function ChatSessionSidebar(props: {
     Persist.serverWorkspace(props.target.scope, props.target.directory, "sidebar.secondary.chat-sections"),
     createStore({ project: true, feature: true, session: true }),
   )
+  // S3-3: this sidebar renders `ChatFeatureList`, so it has to mount the Chat asset
+  // owner too — it is a sibling of the route outlet (layout.tsx), not a descendant of
+  // the mode workspace's provider. Its directory is the session's, not the workspace's
+  // "last session / first project" mode directory.
+  const chatAssets = createMemo(() => props.directory() || undefined)
   const toggle = (section: ChatSection) => {
     if (!ready()) return
     setSections(section, !sections[section])
@@ -740,94 +746,96 @@ function ChatSessionSidebar(props: {
     "flex h-8 w-full items-center justify-between px-3 text-11-medium text-v2-text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-v2-border-border-focus"
 
   return (
-    <ModeSlotActiveProvider value={() => true}>
-      <div class="flex min-h-0 flex-1 flex-col" data-owner-key={props.target.ownerKey}>
-        <section class="shrink-0 border-b border-v2-border-border-base" aria-labelledby="chat-project-section">
-          <button
-            id="chat-project-section"
-            type="button"
-            class={headingClass}
-            aria-expanded={sections.project}
-            aria-controls="chat-project-content"
-            disabled={!ready()}
-            onClick={() => toggle("project")}
-          >
-            {language.t("chat.feature.project")}
-            <Icon name={sections.project ? "chevron-down" : "chevron-right"} size="small" />
-          </button>
-          <Show when={sections.project}>
-            <div id="chat-project-content">
-              <ChatProjectSidebar directory={props.directory}>
-                <IconButtonV2
-                  variant="ghost-muted"
-                  size="small"
-                  icon={<Icon name="edit" />}
-                  aria-label={language.t("command.session.new")}
-                  onClick={props.onNewSession}
-                />
-              </ChatProjectSidebar>
-            </div>
-          </Show>
-        </section>
-
-        <section
-          class="flex min-h-0 shrink flex-col border-b border-v2-border-border-base"
-          aria-labelledby="chat-feature-section"
-        >
-          <button
-            id="chat-feature-section"
-            type="button"
-            class={headingClass}
-            aria-expanded={sections.feature}
-            aria-controls="chat-feature-content"
-            disabled={!ready()}
-            onClick={() => toggle("feature")}
-          >
-            {language.t("chat.feature.title")}
-            <Icon name={sections.feature ? "chevron-down" : "chevron-right"} size="small" />
-          </button>
-          <Show when={sections.feature}>
-            <div id="chat-feature-content" class="min-h-0 overflow-y-auto">
-              <ChatFeatureList />
-            </div>
-          </Show>
-        </section>
-
-        <section class="flex min-h-0 flex-1 flex-col" aria-labelledby="chat-session-section">
-          <div class="flex h-9 shrink-0 items-center pr-2">
+    <ChatAssetsProvider directory={chatAssets}>
+      <ModeSlotActiveProvider value={() => true}>
+        <div class="flex min-h-0 flex-1 flex-col" data-owner-key={props.target.ownerKey}>
+          <section class="shrink-0 border-b border-v2-border-border-base" aria-labelledby="chat-project-section">
             <button
-              id="chat-session-section"
+              id="chat-project-section"
               type="button"
-              class={`${headingClass} min-w-0 flex-1`}
-              aria-expanded={sections.session}
-              aria-controls="chat-session-content"
+              class={headingClass}
+              aria-expanded={sections.project}
+              aria-controls="chat-project-content"
               disabled={!ready()}
-              onClick={() => toggle("session")}
+              onClick={() => toggle("project")}
             >
-              {language.t("sidebar.secondary.sessionList")}
-              <Icon name={sections.session ? "chevron-down" : "chevron-right"} size="small" />
+              {language.t("chat.feature.project")}
+              <Icon name={sections.project ? "chevron-down" : "chevron-right"} size="small" />
             </button>
-            <IconButtonV2
-              variant="ghost-muted"
-              size="small"
-              icon={<Icon name="edit" />}
-              aria-label={language.t("command.session.new")}
-              onClick={props.onNewSession}
-            />
-          </div>
-          <Show when={sections.session && props.directory()}>
-            <div id="chat-session-content" class="min-h-0 flex-1 overflow-y-auto">
-              <ChatSessionList
-                directory={props.directory}
-                sortNow={props.sortNow}
-                ctx={props.ctx}
-                serverKey={props.serverKey}
+            <Show when={sections.project}>
+              <div id="chat-project-content">
+                <ChatProjectSidebar directory={props.directory}>
+                  <IconButtonV2
+                    variant="ghost-muted"
+                    size="small"
+                    icon={<Icon name="edit" />}
+                    aria-label={language.t("command.session.new")}
+                    onClick={props.onNewSession}
+                  />
+                </ChatProjectSidebar>
+              </div>
+            </Show>
+          </section>
+
+          <section
+            class="flex min-h-0 shrink flex-col border-b border-v2-border-border-base"
+            aria-labelledby="chat-feature-section"
+          >
+            <button
+              id="chat-feature-section"
+              type="button"
+              class={headingClass}
+              aria-expanded={sections.feature}
+              aria-controls="chat-feature-content"
+              disabled={!ready()}
+              onClick={() => toggle("feature")}
+            >
+              {language.t("chat.feature.title")}
+              <Icon name={sections.feature ? "chevron-down" : "chevron-right"} size="small" />
+            </button>
+            <Show when={sections.feature}>
+              <div id="chat-feature-content" class="min-h-0 overflow-y-auto">
+                <ChatFeatureList />
+              </div>
+            </Show>
+          </section>
+
+          <section class="flex min-h-0 flex-1 flex-col" aria-labelledby="chat-session-section">
+            <div class="flex h-9 shrink-0 items-center pr-2">
+              <button
+                id="chat-session-section"
+                type="button"
+                class={`${headingClass} min-w-0 flex-1`}
+                aria-expanded={sections.session}
+                aria-controls="chat-session-content"
+                disabled={!ready()}
+                onClick={() => toggle("session")}
+              >
+                {language.t("sidebar.secondary.sessionList")}
+                <Icon name={sections.session ? "chevron-down" : "chevron-right"} size="small" />
+              </button>
+              <IconButtonV2
+                variant="ghost-muted"
+                size="small"
+                icon={<Icon name="edit" />}
+                aria-label={language.t("command.session.new")}
+                onClick={props.onNewSession}
               />
             </div>
-          </Show>
-        </section>
-      </div>
-    </ModeSlotActiveProvider>
+            <Show when={sections.session && props.directory()}>
+              <div id="chat-session-content" class="min-h-0 flex-1 overflow-y-auto">
+                <ChatSessionList
+                  directory={props.directory}
+                  sortNow={props.sortNow}
+                  ctx={props.ctx}
+                  serverKey={props.serverKey}
+                />
+              </div>
+            </Show>
+          </section>
+        </div>
+      </ModeSlotActiveProvider>
+    </ChatAssetsProvider>
   )
 }
 

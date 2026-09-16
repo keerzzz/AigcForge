@@ -3,6 +3,7 @@ import type { HomeProjectSelection } from "@/pages/layout/helpers"
 import type { ServerConnection } from "@/context/server"
 import { type DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "@/components/chat/asset-workbench"
+import type { AssetKindId } from "@aigcfroge/schema/asset"
 import { useGlobal } from "@/context/global"
 import { useServer } from "@/context/server"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
@@ -25,7 +26,7 @@ export type ModeWorkspaceAssetContext = {
    * instead of issuing its own seven list requests; the tally and the rendered rows
    * are then the same list, so they cannot disagree.
    */
-  assetCounts: Accessor<Record<string, number>>
+  assetCounts: Accessor<Partial<Record<AssetKindId, number>>>
   refetchAssets: () => void
 }
 

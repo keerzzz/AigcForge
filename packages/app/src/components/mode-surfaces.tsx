@@ -1,12 +1,13 @@
 import type { Component, ParentProps } from "solid-js"
-import { For, Show, createMemo } from "solid-js"
+import { For, Show } from "solid-js"
 import { modeDefinition, type Mode, type ModeSurfaceSlot } from "@/context/mode"
 import { useChatFeature, type ChatFeatureID } from "@/context/chat-feature"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { useLanguage } from "@/context/language"
-import { useModeDirectory, useModeWorkspaceAssets } from "@/pages/mode-workspace-context"
+import { useModeDirectory } from "@/pages/mode-workspace-context"
+import { useChatAssets } from "@/components/chat/chat-assets"
 import { useGlobal } from "@/context/global"
 import { ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
@@ -46,14 +47,7 @@ function useChatFeatureData() {
   const sync = useServerSync()
   const { conn, ctx, directory } = useModeDirectory()
 
-  // Command and MCP data load only when the child store opts into MCP bootstrap.
-  const directoryData = createMemo(() => {
-    const current = directory()
-    if (!current) return
-    return sync().child(current, { mcp: true })[0]
-  })
-
-  return { conn, ctx, directory, directoryData }
+  return { conn, ctx, directory }
 }
 
 /** Chat project summary and location switcher. */
@@ -105,17 +99,19 @@ export function ChatFeatureList() {
   const language = useLanguage()
   const { selected: chatFeature, set: setChatFeature } = useChatFeature()
 
-  // S3-3: the counts come from the workspace's single asset resource
-  // (`ModeWorkspaceAssetCtx.assetCounts`). This component used to own a second
-  // `DirectorySDK` context plus its own `createResource` over the same seven list
-  // endpoints, then recompute the shadow rule with `systemCountFor` — the same rule
+  // S3-3: the counts come from the shared Chat asset owner. This component used to own
+  // a second `DirectorySDK` context plus its own `createResource` over the same seven
+  // list endpoints, then recompute the shadow rule with `systemCountFor` — the same rule
   // `mergeAssets` already applies, written twice, over a duplicated request set.
-  // Reading the context removes both. `useModeSlotActive` is no longer needed here
-  // either: the context's resource is gated upstream (`chatShown` latch), and an
-  // inactive slot's sidebar reads the same numbers the workspace already holds.
-  const counts = useModeWorkspaceAssets()
+  //
+  // The hook is the REQUIRED form: this component has two mount points (the mode
+  // workspace and the session secondary sidebar), and only the first one used to have a
+  // provider, so removing the second resource emptied the session-sidebar badges with no
+  // error. `useChatAssets` throws instead of returning empty counts, which is what turns
+  // that class of mistake into a failure at the mount site rather than a silent absence.
+  const counts = useChatAssets()
   const countFor = (feature: ChatFeatureID) => {
-    const total = counts?.assetCounts()[feature] ?? 0
+    const total = counts.counts()[feature] ?? 0
     return total > 0 ? total : undefined
   }
 
