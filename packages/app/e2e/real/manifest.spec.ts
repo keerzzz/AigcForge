@@ -120,11 +120,17 @@ test("every quarantined test.fixme case has a manifest entry — no silent quara
       fixmeCases.push({ file, title: match[2] })
     }
   }
-  expect(fixmeCases.length, "there are quarantined cases to account for").toBeGreaterThan(0)
+  // The ledger may go empty — S7 un-quarantined the last three cases and they pass
+  // (`composer-submit` two, `global-shell-presentation` one). What must never
+  // happen is a fixme the manifest does not account for, so the loop below is the
+  // assertion and the count is only reported for the reader.
   const manifestTitles = new Set(manifest.entries.map((entry) => entry.test))
   for (const fixme of fixmeCases) {
     expect(manifestTitles.has(fixme.title), `fixme "${fixme.title}" in ${fixme.file} has a manifest entry`).toBe(true)
   }
+  expect(fixmeCases.length, "quarantined cases currently open").toBe(
+    manifest.entries.filter((entry) => entry.status === "red-fixme").length,
+  )
 })
 
 test("all five modes declare their current coverage layer", () => {

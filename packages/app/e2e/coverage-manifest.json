@@ -8,7 +8,7 @@
       "project": "chromium"
     },
     "protocol": "2 rounds same-order + 1 round reversed per-file invocation; workers=1, retries=0, no sleep, no waits",
-    "result": "13 stable failures (identical sets in rounds 1-2) + 1 single-occurrence flake; bench 59/60 green with 1 stable narrow failure"
+    "result": "13 stable failures (identical sets in rounds 1-2) + 1 single-occurrence flake; bench 59/60 green with 1 stable narrow failure. All three quarantined cases were un-quarantined in S3/S7 and pass: composer-submit two (one was a dev-server reload abort, one a test-side ZWSP read), global-shell-presentation one (a non-unique complementary locator plus a closed-by-default sidebar — no product change)."
   },
   "modes": {
     "chat": {
@@ -83,13 +83,11 @@
       "scope": "plan §6.2 requires the seven Chat asset categories to be read by one resource owner and the request-count plus A→B→A recovery assertions to land with it. Reconnaissance is recorded in docs/technical-debt.md §4: three read points, and a rule-level re-check in the same session corrected an earlier claim — the sidebar's count and the workbench's count are equal by construction (same ingredients including bridged plugin rows, same kind+name shadow rule), so the debt is duplicated requests and duplicated computation, not a divergent number. The merge must therefore not 'exclude bridged from the sidebar': the sidebar shows bridged rows today and removing them would be the regression.",
       "unlock": "preserve three things while merging into ModeWorkspaceAssetCtx: bridged rows reach both surfaces, the sidebar's whenActive(P2-14) gate and the workbench's chatShown latch keep their distinct trigger timing, and per-kind settle keeps a single 500 from rejecting the whole resource. Then add the request-count and A→B→A cases plus a pure-function unit test pinning that bridged counts as plugin, and run them in a browser round."
     },
-
     "fuse-mount-build-and-cleanup-stalls": {
       "owner": "S3",
       "scope": "the repo and its A/B build trees live on two different mounts: /media/win_data is fuseblk (ntfs-3g) and /home is ext4. On FUSE the same `vite build` that takes 40-50s on ext4 sat in `transforming` for 15+ minutes at 2-6% CPU with wchan=request_wait_answer, `du` on a e2e artifact dir timed out, deleting node_modules took 13 minutes, vite dev reported ready after 63s and its first request took 30s+. This is what made the S3 browser rounds unusable in the 2026-09-16 session, and it is also why the benchmark numbers drift so much on this host.",
       "unlock": "run e2e and builds from an ext4 checkout (or move the repo), and keep e2e artifacts off the FUSE mount; the debt ledger row carries the measurements"
     },
-
     "identity-narrow-viewport-controls": {
       "owner": "S7",
       "scope": "plan §9.2 requires the new agent picker and permission state to stay keyboard-reachable and fully readable at narrow widths, with long lists scrolling rather than squeezing the model and submit controls. S6's E3 coverage for these controls runs at the default viewport only.",
@@ -97,32 +95,6 @@
     }
   },
   "entries": [
-    {
-      "id": "composer-shift-enter-zwsp",
-      "spec": "e2e/regression/composer-submit.spec.ts",
-      "test": "Shift+Enter inserts a newline without submitting",
-      "layer": "E3",
-      "route": "/server/:key/session/:id",
-      "mode": "chat",
-      "platform": "chromium",
-      "failure": "composer-readpath",
-      "status": "red-fixme",
-      "owner": "S3",
-      "unlock": "spec asserts through the product's ZWSP-stripping read path (test-side change)"
-    },
-    {
-      "id": "composer-enter-clear",
-      "spec": "e2e/regression/composer-submit.spec.ts",
-      "test": "Enter sends the selected session, agent, model, message id, and text",
-      "layer": "E3",
-      "route": "/server/:key/session/:id",
-      "mode": "chat",
-      "platform": "chromium",
-      "failure": "composer-dom-sync",
-      "status": "red-fixme",
-      "owner": "S3",
-      "unlock": "product-side fix: submit clears the contenteditable DOM, not only the store"
-    },
     {
       "id": "delegation-persistent-loop-flake",
       "spec": "e2e/regression/delegation-persistent-loop.spec.ts",
@@ -148,19 +120,6 @@
       "status": "red-stable",
       "owner": "S7/S16",
       "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true)"
-    },
-    {
-      "id": "presentation-chat-controls",
-      "spec": "e2e/regression/global-shell-presentation.spec.ts",
-      "test": "keeps Project, Feature, and Session controls reachable across locale and viewport projects",
-      "layer": "E3",
-      "route": "legacy session redirect → canonical session detail",
-      "mode": "chat",
-      "platform": "chromium + dark/zh/zht/narrow",
-      "failure": "legacy redirect chain fixed in S4 (host-alias); chat-* controls still absent on the session DETAIL route",
-      "status": "red-fixme",
-      "owner": "S7",
-      "unlock": "S7 product ruling: should the chat secondary sidebar (chatTarget/routeContribution) render on the session DETAIL route?"
     }
   ]
 }
