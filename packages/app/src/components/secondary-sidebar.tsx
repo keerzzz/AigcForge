@@ -550,6 +550,7 @@ function SecondarySidebar() {
 
   return (
     <aside
+      id="secondary-sidebar-panel"
       role="complementary"
       aria-label={language.t("sidebar.secondary.projectList")}
       class="flex w-64 shrink-0 flex-col border-r border-v2-border-border-base bg-v2-background-bg-base"

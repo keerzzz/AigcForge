@@ -1,4 +1,5 @@
 import { createEffect, onCleanup, Suspense, type ParentProps, Show } from "solid-js"
+import { createMediaQuery } from "@solid-primitives/media"
 import { useNavigate, useParams } from "@solidjs/router"
 import { DebugBar } from "@/components/debug-bar"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
@@ -19,6 +20,7 @@ import { SurfacePending } from "@/pages/surface-pending"
 function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   const mode = useMode()
   const layout = useLayout()
+  const isWide = createMediaQuery("(min-width: 1024px)")
   const statusSource = createCurrentSessionSource()
 
   const showSecondarySidebar = () => mode.secondarySidebarOpen && layout.route().type === "session"
@@ -27,7 +29,11 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   // wrapper in the JSX), so it needs the two affordances an overlay owes a keyboard user:
   // Escape dismisses it, and focus returns to the control that opened it. Both are gated on
   // the same breakpoint as the floating behaviour, so desktop interaction is unchanged.
-  const panelFloats = () => typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches
+  // `createMediaQuery` rather than a raw `matchMedia().matches`: that value is not reactive,
+  // so an effect reading it never re-runs when the breakpoint changes and the listener would
+  // be installed (or never cleaned up) for the wrong width. Measured before this: open on
+  // desktop then shrink, Escape did nothing; open narrow then grow, Escape still closed it.
+  const panelFloats = () => !isWide()
   createEffect(() => {
     if (!showSecondarySidebar() || !panelFloats()) return
     const onKeyDown = (event: KeyboardEvent) => {
@@ -42,7 +48,7 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   createEffect(() => {
     const open = mode.secondarySidebarOpen
     if (panelWasOpen && !open && panelFloats()) {
-      document.querySelector<HTMLElement>('[data-component="titlebar-secondary-sidebar-toggle"]')?.focus()
+      document.getElementById("secondary-sidebar-toggle")?.focus()
     }
     panelWasOpen = open
   })

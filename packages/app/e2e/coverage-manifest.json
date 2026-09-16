@@ -60,7 +60,7 @@
     },
     "agent-picker-custom-narrowing": {
       "owner": "S7",
-      "scope": "the picker no longer hides when showCustomAgents is off, but narrowing the list to official agents still needs asset provenance (AgentV2.Info.originRelativePath) in the /agent payload, which the instance endpoint does not serve today",
+      "scope": "the picker no longer hides when showCustomAgents is off, but narrowing the list to official agents still needs asset provenance (AgentV2.Info.originRelativePath) in the /agent payload, which the instance endpoint does not serve today (Bookkeeping correction: the dependency on `originRelativePath` belongs to THIS entry; an earlier report attributed it to identity-narrow-viewport-controls.)",
       "unlock": "add origin provenance to the /agent response projection (same shape the V2 agent registry sets via core/agent/asset-bridge.ts), then the setting can mean 'include extra custom agents' as ruled"
     },
     "permission-tier-mutation-entry": {
@@ -100,8 +100,18 @@
     },
     "hidden-panel-request-and-remount": {
       "owner": "S11",
-      "scope": "plan §10 listed this under S7 alongside the narrow-panel work, but its subject is render ownership, not narrow layout: a hidden/closed panel must not re-issue requests and must not remount the business owner. This repo keeps hidden surfaces MOUNTED on purpose (render-all + display:none, with ModeSlotActiveProvider gating side effects — the same property P2-14 protected), so the invariant covers every mode surface, not just the secondary sidebar.",
+      "scope": "plan §10 listed this under S7 alongside the narrow-panel work, but its subject is render ownership, not narrow layout: a hidden/closed panel must not re-issue requests and must not remount the business owner. This repo keeps hidden surfaces MOUNTED on purpose (render-all + display:none, with ModeSlotActiveProvider gating side effects — the same property P2-14 protected), so the invariant covers every mode surface, not just the secondary sidebar. Reviewer correction: `layout.tsx` renders the closed secondary sidebar through `<Show>`, so closing it DOES unmount — P2-14's render-all applies to mode slots inside ModeWorkspace, not to this panel. S11's verification must therefore distinguish mode-switch hiding (stays mounted by design) from sidebar close/reopen (unmounted today).",
       "unlock": "assert request counts and node identity across a hide/show cycle for the mode surfaces (the request-count pattern already exists in e2e/regression/chat-asset-categories.spec.ts), and update plan §10 so the line is not inherited as narrow-panel work"
+    },
+    "narrow-mode-content-panels": {
+      "owner": "S7",
+      "scope": "plan §10 asks that at 390x844 and 200% the Session, Composer AND mode-specific panels all have a clear entry. S7 so far fixed and asserted the SECONDARY SIDEBAR (left navigation) only. The real content owners stay gated: `session-side-panel.tsx` renders `when={isDesktop() && !!params.id}` (768px), so Work/Assistant/Custom content panels do not render at 390 or 720 at all, and the mobile branch offers Session/Changes only. The 'entry exists' claim therefore covers navigation, not the mode panels — reopened by the reviewer with a browser repro.",
+      "unlock": "give the mode content owners a narrow-width access path (the panel already owns the content; what is missing is a narrow presentation), then assert reachability for Work/Assistant/Custom at 390x844 and 200% — before the back/scroll items, which are smaller and share this carrier"
+    },
+    "real-200-percent-zoom": {
+      "owner": "S7",
+      "scope": "plan §10 and the DoD both require the 200% check to use REAL browser zoom/reflow, explicitly not a shrunk viewport. The repo's existing convention (settings-dialog.spec.ts:226-229) represents zoom as the halved CSS viewport; that guard is kept (720x450) but it does NOT discharge this clause, and the reviewer rejected counting it as the 200% acceptance.",
+      "unlock": "produce real-zoom evidence (Electron/browser zoom, or CDP device-metrics scale) for the narrow panel contract, or have the Owner amend §10's acceptance wording"
     }
   },
   "entries": [

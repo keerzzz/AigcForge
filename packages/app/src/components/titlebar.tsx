@@ -936,7 +936,12 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
             variant="ghost-muted"
             size="large"
             class="titlebar-icon mr-1 !w-9 shrink-0"
-            data-component="titlebar-secondary-sidebar-toggle"
+            // `id`, not `data-component`: IconButtonV2 spreads caller props first and then
+            // sets its own `data-component`, so a marker passed in is overwritten (measured:
+            // the attribute resolved to "icon-button-v2" and the restore selector matched 0
+            // nodes). `id` also gives the panel relationship a real target.
+            id="secondary-sidebar-toggle"
+            aria-controls="secondary-sidebar-panel"
             state={mode.secondarySidebarOpen ? "pressed" : undefined}
             icon={<IconV2 name="sidebar-right" />}
             aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}

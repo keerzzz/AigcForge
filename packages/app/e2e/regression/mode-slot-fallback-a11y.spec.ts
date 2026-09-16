@@ -161,7 +161,7 @@ async function openSessionWithPanel(page: Page) {
   return toggle
 }
 
-test("the mode panel has an entry, an accessible name, and matched aria relationships at 390px", { tag: "@a11y" }, async ({ page }) => {
+test("the mode panel has an entry and an accessible name at 390px", { tag: "@a11y" }, async ({ page }) => {
   await page.setViewportSize(NARROW)
   const toggle = await openSessionWithPanel(page)
 
@@ -174,7 +174,10 @@ test("the mode panel has an entry, an accessible name, and matched aria relation
   const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
   await expect(panel).toBeVisible()
 
-  // No orphan region references: every aria-controls points at an element that exists.
+  // No orphan region references. This is a WEAKER check than it looks — it only walks
+  // aria-controls that are present, so a missing attribute passes it (the toggle has no
+  // aria-controls to the panel unless S7 binds them; that relation is asserted separately
+  // by "the toggle and the panel are bound by aria-controls").
   const orphans = await page.evaluate(() =>
     Array.from(document.querySelectorAll("[aria-controls]"))
       .map((node) => node.getAttribute("aria-controls") ?? "")
@@ -212,11 +215,59 @@ test("the floating panel closes on Escape and returns focus to its toggle", { ta
   const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
   await expect(panel).toBeVisible()
 
+  // Focus must actually LEAVE the toggle first, or "returns focus" is unfalsifiable: the
+  // previous version of this case pressed Escape without moving focus, so it passed even
+  // while the restore selector matched nothing (measured: focus landed on BODY).
+  await panel.getByRole("button").first().focus()
+  await expect(panel.getByRole("button").first()).toBeFocused()
+
   await page.keyboard.press("Escape")
   await expect(panel).toHaveCount(0)
   await expect(toggle).toHaveAttribute("aria-expanded", "false")
-  // Focus must not be left on a control that no longer exists.
   await expect(toggle).toBeFocused()
+})
+
+test("the toggle and the panel are bound by aria-controls", { tag: "@a11y" }, async ({ page }) => {
+  await page.setViewportSize(NARROW)
+  const toggle = await openSessionWithPanel(page)
+  await toggle.click()
+
+  // Assert the RELATION, both ends: the previous "no orphan references" check only walked
+  // aria-controls that already existed, so a missing attribute passed it trivially.
+  const controls = await toggle.getAttribute("aria-controls")
+  expect(controls, "the toggle must name the panel it controls").toBeTruthy()
+  await expect(page.locator(`#${controls}`)).toHaveCount(1)
+  await expect(page.locator(`#${controls}`)).toHaveAttribute("role", "complementary")
+})
+
+test("Escape follows the breakpoint in both directions", { tag: "@a11y" }, async ({ page }) => {
+  // Wide first: open, shrink, then Escape must dismiss (the listener has to exist for the
+  // width we are at NOW, not the one we started at).
+  await page.setViewportSize({ width: 1280, height: 720 })
+  const toggle = await openSessionWithPanel(page)
+  await toggle.click()
+  const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
+  await expect(panel).toBeVisible()
+
+  await page.setViewportSize(NARROW)
+  await expect(panel).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(panel).toHaveCount(0)
+
+  // Narrow first: reopen, then grow. Escape is a NARROW-ONLY affordance — the listener is
+  // gated on the same breakpoint as the floating behaviour — so at desktop width Escape must
+  // leave the docked panel alone (that is the desktop behaviour that existed before S7, and
+  // this is the case that pins it). Shrinking again must re-arm it.
+  await toggle.click()
+  await expect(panel).toBeVisible()
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await expect(panel).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(panel, "Escape must not dismiss the docked panel at desktop width").toBeVisible()
+
+  await page.setViewportSize(NARROW)
+  await page.keyboard.press("Escape")
+  await expect(panel, "shrinking back must re-arm Escape").toHaveCount(0)
 })
 
 test("a desktop to narrow round trip keeps the panel's active section", { tag: "@a11y" }, async ({ page }) => {

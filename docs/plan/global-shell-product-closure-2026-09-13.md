@@ -428,7 +428,7 @@ E1 schema/fold；E2 API/auth/cache/effective-permission owner；E3 五模式 Hea
 
 复用 `SessionSidePanel`、`WorkArtifact`、`AssistantSessionPanel`、Custom snapshot panel 与 Coding review/files 内容 owner，新增共享 contribution registry/窄屏 tab 或 drawer：
 
-- 390×844 与 200% 下 Session、Composer、模式专属 panel 都有明确入口；
+- 390×844 与 200% 下 Session、Composer、模式专属 panel 都有明确入口；**范围更正（2026-09-17，Owner 复审驳回）**：S7 首批只修并断言了**次级侧栏（左侧导航）**，而本条点名的**模式内容面板**仍受 `pages/session/session-side-panel.tsx` 的 `when={isDesktop() && !!params.id}`（768px 断点）门控——390×844 与 720×450 下 Work/Assistant/Custom 内容 owner **根本不渲染**，移动分支只有 Session/Changes。故「入口已存在」不成立，本条的完整验收仍欠**内容 owner 的窄屏接入**；登记于 coverage manifest `narrow-mode-content-panels`（owner S7）。另：本条与 DoD 要求的 200% 必须是**真实浏览器缩放/重排**，不得以缩小 viewport 代替——仓库既有 720×450「等效视口」先例（`settings-dialog.spec.ts:226-229`）不能核销本约束，该守卫保留但另登记 `real-200-percent-zoom`；
 - panel 打开/关闭、back、Escape、focus restore、aria-selected/controls 完整；
 - desktop resize 到 narrow 再恢复，不丢 active tab/store/scroll；
 - ~~hidden panel 不重复请求、不 remount 业务 owner~~ **范围更正（2026-09-17，Owner 同意）**：本条虽列在本切片，但主题是**渲染所有权**（隐藏面仍挂载是仓库刻意设计，`ModeSlotActiveProvider` 负责屏蔽副作用），不属窄屏布局；已按主题改派给 **S11（Desktop、可访问性、视觉与性能）**，登记于 coverage manifest `hidden-panel-request-and-remount`；
