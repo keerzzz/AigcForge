@@ -80,8 +80,8 @@
     },
     "chat-asset-single-owner": {
       "owner": "S3",
-      "scope": "S3-3 landed the single asset owner (countAssetsByKind off the merged rows; the sidebar reads it). The first attempt removed the sidebar's own resource without giving the session secondary sidebar a provider, emptying its badges silently; that is fixed by ChatAssetsProvider mounted at both sites, with useChatAssets() throwing outside a provider so the failure cannot be silent again.",
-      "unlock": "review confirmed the P1 provider gap and the P2 assetVersion refresh; keep this row until the discriminating case (e2e/regression/chat-session-sidebar-counts.spec.ts) has been observed green in a clean window"
+      "scope": "S3-3 landed the single asset owner and the P1 provider gap is fixed at both readers with a throwing hook. Open: the provider resolves its server ctx from the global current server, so a canonical URL pointing at another server can either skip all seven requests or read the WRONG server's directory; the deciding rule is currentDir() in secondary-sidebar.tsx:104-109 and both branches are reachable, so it needs measurement as well as a fix.",
+      "unlock": "give ChatAssetsProvider a server identity (global.ensureServerCtxByKey does NOT exist; use global.ensureServerCtx(conn) with server.list.find + ServerConnection.sameKey, precedent app.tsx:142-145), pass the URL server from the sidebar, then a cross-server e2e (session on B with A current) asserting the requests target B — see docs/technical-debt.md for the full evidence chain"
     },
     "fuse-mount-build-and-cleanup-stalls": {
       "owner": "S3",
