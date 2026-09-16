@@ -97,6 +97,11 @@
       "owner": "S9A/S9B",
       "scope": "the three `closed:false` observation bundles in e2e/regression/mode-detail-personas.spec.ts are about Work/Assistant identity and scope (Work presetCategoryId=null and its artifact empty state, Assistant not showing personal/project scope, the identity header missing scope/preset/inherited model source). plan §10 had assigned their conversion to real assertions to S7, but their subject matter belongs with the slices that own it.",
       "unlock": "S9A/S9B convert them into expect() assertions when the Work and Assistant closures land; the session-product-header-projection entry (S9B) is the Header half of the third bundle"
+    },
+    "narrow-panel-interaction": {
+      "owner": "S7",
+      "scope": "the narrow panel now floats instead of docking (verified: main >= 200px at 390x844, 3 passed). Still unimplemented from plan §10's acceptance for this surface: Escape/back dismissal of the floating panel, focus restore to the toggle on close, and desktop->narrow->desktop resize preserving the active tab/store/scroll.",
+      "unlock": "add Escape/back handling plus focus restore to the secondary sidebar, and a resize round-trip case asserting the active tab, store and scroll survive; the resize case belongs with the remaining narrow matrix work"
     }
   },
   "entries": [

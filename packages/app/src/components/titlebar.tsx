@@ -939,6 +939,10 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
             state={mode.secondarySidebarOpen ? "pressed" : undefined}
             icon={<IconV2 name="sidebar-right" />}
             aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+            // Matches the primary sidebar toggle above, which already exposes this; the
+            // secondary one announced only its current action, so assistive tech could not
+            // tell whether the panel was open (measured absent, S7).
+            aria-expanded={mode.secondarySidebarOpen}
             onClick={() => mode.toggleSecondarySidebar()}
           />
         </TooltipV2>

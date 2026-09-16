@@ -37,7 +37,17 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
           <ModeSwitcher />
         </Show>
         <Show when={showSecondarySidebar()}>
-          <SecondarySidebar />
+          {/*
+            S7: below `lg` the panel floats over the content instead of docking beside it.
+            Docked at 390x844 it took 256px and left `<main>` 68px (measured), because the
+            gate has no width condition while the PRIMARY sidebar's affordance is hidden
+            below `xl`. Floating keeps the plan's requirement (an entry at 390x844) without
+            destroying the session area; from `lg` up it is the same flex sibling as before.
+            `relative` on the parent (above) is what this positions against.
+          */}
+          <div class="absolute inset-y-0 left-0 z-40 max-w-[85%] shadow-[var(--v2-elevation-raised)] lg:static lg:z-auto lg:max-w-none lg:shadow-none">
+            <SecondarySidebar />
+          </div>
         </Show>
         <main class="flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col items-start contain-strict">
           {/*
