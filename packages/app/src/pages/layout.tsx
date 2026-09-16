@@ -1,4 +1,4 @@
-import { createEffect, Suspense, type ParentProps, Show } from "solid-js"
+import { createEffect, onCleanup, Suspense, type ParentProps, Show } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
 import { DebugBar } from "@/components/debug-bar"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
@@ -22,6 +22,30 @@ function LayoutContent(props: ParentProps & { update: TitlebarUpdate }) {
   const statusSource = createCurrentSessionSource()
 
   const showSecondarySidebar = () => mode.secondarySidebarOpen && layout.route().type === "session"
+
+  // S7: below `lg` the panel floats OVER the content instead of docking beside it (see the
+  // wrapper in the JSX), so it needs the two affordances an overlay owes a keyboard user:
+  // Escape dismisses it, and focus returns to the control that opened it. Both are gated on
+  // the same breakpoint as the floating behaviour, so desktop interaction is unchanged.
+  const panelFloats = () => typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches
+  createEffect(() => {
+    if (!showSecondarySidebar() || !panelFloats()) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      event.preventDefault()
+      mode.toggleSecondarySidebar()
+    }
+    document.addEventListener("keydown", onKeyDown)
+    onCleanup(() => document.removeEventListener("keydown", onKeyDown))
+  })
+  let panelWasOpen = false
+  createEffect(() => {
+    const open = mode.secondarySidebarOpen
+    if (panelWasOpen && !open && panelFloats()) {
+      document.querySelector<HTMLElement>('[data-component="titlebar-secondary-sidebar-toggle"]')?.focus()
+    }
+    panelWasOpen = open
+  })
 
   return (
     <div

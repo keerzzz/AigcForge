@@ -197,3 +197,43 @@ test("the session area stays usable with the mode panel open at 390px", { tag: "
   expect(mainWidth, `main is ${mainWidth}px wide with the panel open at 390px`).toBeGreaterThanOrEqual(USABLE_MAIN_PX)
   await expect(page.locator('[data-component="session-composer"]')).toBeVisible()
 })
+
+/**
+ * S7: the floating narrow panel owes a keyboard user the same affordances an overlay does —
+ * Escape dismisses it, focus returns to the control that opened it — and a desktop→narrow→
+ * desktop round trip must not lose the panel's own state (plan §10's acceptance for this
+ * surface). Below `lg` the panel floats (pages/layout.tsx); these cases pin that contract.
+ */
+test("the floating panel closes on Escape and returns focus to its toggle", { tag: "@a11y" }, async ({ page }) => {
+  await page.setViewportSize(NARROW)
+  const toggle = await openSessionWithPanel(page)
+  await toggle.click()
+
+  const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
+  await expect(panel).toBeVisible()
+
+  await page.keyboard.press("Escape")
+  await expect(panel).toHaveCount(0)
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  // Focus must not be left on a control that no longer exists.
+  await expect(toggle).toBeFocused()
+})
+
+test("a desktop to narrow round trip keeps the panel's active section", { tag: "@a11y" }, async ({ page }) => {
+  await page.setViewportSize(NARROW)
+  const toggle = await openSessionWithPanel(page)
+  await toggle.click()
+
+  const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
+  await expect(panel).toBeVisible()
+  const skills = panel.getByRole("button", { name: /^Skills(?:\s+\d+)?$/ })
+  await skills.click()
+  await expect(skills).toHaveAttribute("data-selected", "")
+
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await expect(panel).toBeVisible()
+  await page.setViewportSize(NARROW)
+  await expect(panel).toBeVisible()
+  // The selection is component state, not a DOM remnant: it has to survive both resizes.
+  await expect(panel.getByRole("button", { name: /^Skills(?:\s+\d+)?$/ })).toHaveAttribute("data-selected", "")
+})

@@ -98,10 +98,10 @@
       "scope": "the three `closed:false` observation bundles in e2e/regression/mode-detail-personas.spec.ts are about Work/Assistant identity and scope (Work presetCategoryId=null and its artifact empty state, Assistant not showing personal/project scope, the identity header missing scope/preset/inherited model source). plan §10 had assigned their conversion to real assertions to S7, but their subject matter belongs with the slices that own it.",
       "unlock": "S9A/S9B convert them into expect() assertions when the Work and Assistant closures land; the session-product-header-projection entry (S9B) is the Header half of the third bundle"
     },
-    "narrow-panel-interaction": {
+    "narrow-panel-remaining": {
       "owner": "S7",
-      "scope": "the narrow panel now floats instead of docking (verified: main >= 200px at 390x844, 3 passed). Still unimplemented from plan §10's acceptance for this surface: Escape/back dismissal of the floating panel, focus restore to the toggle on close, and desktop->narrow->desktop resize preserving the active tab/store/scroll.",
-      "unlock": "add Escape/back handling plus focus restore to the secondary sidebar, and a resize round-trip case asserting the active tab, store and scroll survive; the resize case belongs with the remaining narrow matrix work"
+      "scope": "landed and verified on chromium-narrow (5 passed): floating panel below lg, Escape dismissal, focus restore to the toggle, desktop<->narrow resize keeping the active section. Still open from plan §10 for this surface: (a) a hidden panel must not re-issue requests or remount the business owner, and (b) the 200%-zoom-equivalent condition (720x450) has a measurement (main 398px) but no assertion — the width case only runs at 390x844 today.",
+      "unlock": "add a request-count/remount assertion for the hidden panel and a 720x450 case for the usable-width contract; both ride the narrow matrix work"
     }
   },
   "entries": [

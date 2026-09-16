@@ -936,6 +936,7 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
             variant="ghost-muted"
             size="large"
             class="titlebar-icon mr-1 !w-9 shrink-0"
+            data-component="titlebar-secondary-sidebar-toggle"
             state={mode.secondarySidebarOpen ? "pressed" : undefined}
             icon={<IconV2 name="sidebar-right" />}
             aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
