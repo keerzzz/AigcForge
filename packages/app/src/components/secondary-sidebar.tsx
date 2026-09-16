@@ -737,7 +737,14 @@ function ChatSessionSidebar(props: {
   // owner too — it is a sibling of the route outlet (layout.tsx), not a descendant of
   // the mode workspace's provider. Its directory is the session's, not the workspace's
   // "last session / first project" mode directory.
-  const chatAssets = createMemo(() => props.directory() || undefined)
+  // The provider takes the URL server and the SESSION's directory. `props.directory`
+  // is the sidebar's own computed directory, whose fallback chain consults the global
+  // current server (`chatDirectory` above) — correct for the workspace, wrong for a
+  // canonical URL naming another server, where it yields that server's directory and
+  // the requests then go to the wrong server. The route contribution carries both
+  // authoritative values: `server` (the URL's) and `directory` (the session's).
+  const chatAssetServerKey = createMemo(() => props.target.server)
+  const chatAssetDirectory = createMemo(() => props.target.directory || props.directory() || undefined)
   const toggle = (section: ChatSection) => {
     if (!ready()) return
     setSections(section, !sections[section])
@@ -746,7 +753,7 @@ function ChatSessionSidebar(props: {
     "flex h-8 w-full items-center justify-between px-3 text-11-medium text-v2-text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-v2-border-border-focus"
 
   return (
-    <ChatAssetsProvider directory={chatAssets}>
+    <ChatAssetsProvider serverKey={chatAssetServerKey} directory={chatAssetDirectory}>
       <ModeSlotActiveProvider value={() => true}>
         <div class="flex min-h-0 flex-1 flex-col" data-owner-key={props.target.ownerKey}>
           <section class="shrink-0 border-b border-v2-border-border-base" aria-labelledby="chat-project-section">

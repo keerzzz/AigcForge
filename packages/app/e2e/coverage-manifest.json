@@ -125,6 +125,19 @@
       "status": "red-stable",
       "owner": "S7/S16",
       "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true)"
+    },
+    {
+      "id": "chat-assets-cross-server",
+      "spec": "e2e/regression/chat-assets-cross-server.spec.ts",
+      "test": "the session sidebar reads assets from the URL's server, not the current one",
+      "layer": "E3",
+      "route": "/server/:serverKey/session/:id (session on B, A current)",
+      "mode": "chat",
+      "platform": "chromium",
+      "failure": "the sidebar's ChatAssetsProvider resolves no directory SDK for this mount, so it issues no requests and renders no counts; requests seen on the URL's port come from another consumer",
+      "status": "red-fixme",
+      "owner": "S3",
+      "unlock": "resolve the directory SDK for the session-side mount (the server key it receives still needs confirming against the route-scoped ServerKey provider) and make the guard green"
     }
   ]
 }

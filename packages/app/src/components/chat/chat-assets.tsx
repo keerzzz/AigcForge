@@ -34,8 +34,9 @@
  */
 import { createContext, createEffect, createMemo, createResource, createSignal, useContext } from "solid-js"
 import type { Accessor, JSX } from "solid-js"
-import { useModeDirectory } from "@/pages/mode-workspace-context"
 import { useServerSync } from "@/context/server-sync"
+import { useGlobal } from "@/context/global"
+import { useServer, ServerConnection } from "@/context/server"
 import type { State } from "@/context/global-sync/types"
 import { type DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "./asset-workbench"
@@ -76,9 +77,29 @@ export function useChatAssetsOptional(): ChatAssetsValue | undefined {
   return useContext(Ctx)
 }
 
-export function ChatAssetsProvider(props: { directory: Accessor<string | undefined>; children: JSX.Element }) {
+export function ChatAssetsProvider(props: {
+  /**
+   * Which server this subtree belongs to. Required, not defaulted to the global
+   * current server: a canonical URL can point at another server, and resolving the
+   * directory against the wrong one silently issues the seven requests against that
+   * other server (or returns nothing when its directory is unknown). The connection is
+   * looked up from `server.list` by canonical key — the same resolution `app.tsx` uses
+   * for the route — because `global.ensureServerCtx` takes a connection, not a key.
+   */
+  serverKey: Accessor<ServerConnection.Key | undefined>
+  directory: Accessor<string | undefined>
+  children: JSX.Element
+}) {
   const sync = useServerSync()
-  const { ctx: chatCtx } = useModeDirectory()
+  const global = useGlobal()
+  const server = useServer()
+  const chatCtx = createMemo(() => {
+    const key = props.serverKey()
+    if (!key) return undefined
+    const conn = server.list.find((item) => ServerConnection.sameKey(key, ServerConnection.key(item)))
+    if (!conn) return undefined
+    return global.ensureServerCtx(conn)
+  })
 
   // ensureDirSdkContext registers cleanup hooks, so it must run under an effect that
   // disposes the previous directory context when the location changes.

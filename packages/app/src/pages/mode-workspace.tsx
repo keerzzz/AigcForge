@@ -78,6 +78,7 @@ function SlotError(props: { error: unknown; reset: () => void }) {
  */
 export function ModeWorkspace() {
   const mode = useMode()
+  const server = useServer()
   const { directory: chatDirectory } = useModeDirectory()
   const [chatShown, setChatShown] = createSignal(false)
   createEffect(() => {
@@ -86,7 +87,7 @@ export function ModeWorkspace() {
   const directory = createMemo(() => (chatShown() ? chatDirectory() : undefined))
 
   return (
-    <ChatAssetsProvider directory={directory}>
+    <ChatAssetsProvider serverKey={() => (server.current ? ServerConnection.key(server.current) : undefined)} directory={directory}>
       <ModeWorkspaceBody />
     </ChatAssetsProvider>
   )
