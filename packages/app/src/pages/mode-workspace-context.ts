@@ -20,6 +20,12 @@ export type ModeWorkspaceAssetContext = {
     /** Asset kinds whose list request did not answer; see components/asset-load-error.tsx. */
     failed: readonly string[]
   }>
+  /**
+   * Per-kind counts derived from `mergedAssetData` (S3-3). The sidebar reads this
+   * instead of issuing its own seven list requests; the tally and the rendered rows
+   * are then the same list, so they cannot disagree.
+   */
+  assetCounts: Accessor<Record<string, number>>
   refetchAssets: () => void
 }
 

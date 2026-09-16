@@ -251,11 +251,19 @@ export function ModeWorkspace() {
     return { assets: merged, invalid: project?.invalid ?? [], failed: (project?.failed ?? []) as readonly string[] }
   })
 
+  // S3-3: the sidebar used to read the same seven endpoints a second time and
+  // recompute the shadow rule (`systemCountFor`) to get its numbers. Those numbers
+  // are equal to a per-kind tally of the merged rows by construction — measured in
+  // `asset-workbench.test.ts` — so the counting lives here, off the one resource,
+  // and `ChatFeatureList` reads it instead of owning a resource.
+  const assetCounts = createMemo(() => AssetWorkbench.countAssetsByKind(mergedAssetData().assets))
+
   const assetCtx = {
     chatDirSdk,
     chatAssetList,
     chatSystemData,
     mergedAssetData,
+    assetCounts,
     refetchAssets,
   }
 

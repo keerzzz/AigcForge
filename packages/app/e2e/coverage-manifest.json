@@ -80,8 +80,8 @@
     },
     "chat-asset-single-owner": {
       "owner": "S3",
-      "scope": "plan §6.2 requires the seven Chat asset categories to be read by one resource owner and the request-count plus A→B→A recovery assertions to land with it. Reconnaissance is recorded in docs/technical-debt.md §4: three read points, and a rule-level re-check in the same session corrected an earlier claim — the sidebar's count and the workbench's count are equal by construction (same ingredients including bridged plugin rows, same kind+name shadow rule), so the debt is duplicated requests and duplicated computation, not a divergent number. The merge must therefore not 'exclude bridged from the sidebar': the sidebar shows bridged rows today and removing them would be the regression.",
-      "unlock": "preserve three things while merging into ModeWorkspaceAssetCtx: bridged rows reach both surfaces, the sidebar's whenActive(P2-14) gate and the workbench's chatShown latch keep their distinct trigger timing, and per-kind settle keeps a single 500 from rejecting the whole resource. Then add the request-count and A→B→A cases plus a pure-function unit test pinning that bridged counts as plugin, and run them in a browser round."
+      "scope": "landed in S3-3: one counting rule (countAssetsByKind off the merged rows), the sidebar reads ModeWorkspaceAssetCtx.assetCounts, systemCountFor and its duplicate request resource are gone.",
+      "unlock": "remove this entry once the S3 checkpoint is reviewed"
     },
     "fuse-mount-build-and-cleanup-stalls": {
       "owner": "S3",

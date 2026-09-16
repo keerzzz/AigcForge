@@ -157,13 +157,23 @@ export function mergeAssets(project: readonly AssetInput[], system: readonly Sys
   return [...project.map((a) => ({ ...a, origin: a.origin ?? ("project" as const) })), ...systemRows]
 }
 
-/** 系统级计数（M4 功能树）：与 mergeAssets 同规则剔除被项目级遮蔽的同名项，保证侧栏计数与表格行一致。 */
-export function systemCountFor(
-  system: readonly SystemAsset[],
-  kind: AssetKindId,
-  projectNames: ReadonlySet<string>,
-): number {
-  return system.filter((s) => s.kind === kind && !projectNames.has(s.name)).length
+/**
+ * 每类资产的计数，从**合并后的行**派生（S3-3）。
+ *
+ *
+ * 侧栏此前有自己的 `kindCounts` 资源：同一批七个 endpoint 再请求一次，再用
+ * `systemCountFor` 把「项目 + 未被遮蔽的系统行」重算一遍。那条路与 `mergeAssets` 是
+ * 同一条遮蔽规则写了两遍，两侧数字按构造相等，理由有两条实测：
+ * `systemCountFor` 只对 skill/command/mcp/agent 有系统行可剔（`systemAssets` 不产出
+ * prompt/workflow/plugin），而 plugin 一类在两侧都等于「项目行 + bridged 行」且都不按
+ * 同名去重（bridged 由调用方并进 project 数组，绕过了 mergeAssets 的 project/system 去重键）。
+ *
+ * 所以计数不必再算一遍：合并行就是唯一真源，这里只做分桶。
+ */
+export function countAssetsByKind(rows: readonly AssetInput[]): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const row of rows) counts[row.kind] = (counts[row.kind] ?? 0) + 1
+  return counts
 }
 
 // -- Store (UI state: filter / search / selection) --

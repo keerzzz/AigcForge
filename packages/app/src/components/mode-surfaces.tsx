@@ -1,16 +1,12 @@
 import type { Component, ParentProps } from "solid-js"
-import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
-import { For, Show, createEffect, createMemo, createResource, createSignal } from "solid-js"
+import { For, Show, createMemo } from "solid-js"
 import { modeDefinition, type Mode, type ModeSurfaceSlot } from "@/context/mode"
 import { useChatFeature, type ChatFeatureID } from "@/context/chat-feature"
-import { type DirectorySDK } from "@/context/sdk"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { useLanguage } from "@/context/language"
-import { assetVersion } from "@/components/chat/prompt-asset-store"
-import { useModeDirectory } from "@/pages/mode-workspace-context"
-import { AssetWorkbench } from "@/components/chat/asset-workbench"
+import { useModeDirectory, useModeWorkspaceAssets } from "@/pages/mode-workspace-context"
 import { useGlobal } from "@/context/global"
 import { ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
@@ -108,76 +104,18 @@ export function ChatProjectSidebar(props: { directory?: () => string; children?:
 export function ChatFeatureList() {
   const language = useLanguage()
   const { selected: chatFeature, set: setChatFeature } = useChatFeature()
-  const { ctx, directory, directoryData } = useChatFeatureData()
 
-  // ensureDirSdkContext registers cleanup hooks, so it must run under an effect
-  // that disposes the previous directory context when the location changes.
-  const [dirSdk, setDirSdk] = createSignal<DirectorySDK | undefined>()
-  createEffect(() => {
-    const dir = directory()
-    const currentCtx = ctx()
-    if (!dir || !currentCtx) {
-      setDirSdk(undefined)
-      return
-    }
-    setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
-  })
-  // Keep names with counts so system assets can be deduplicated consistently.
-  // P2-14: hidden mode slots must not issue asset requests.
-  const slotActive = useModeSlotActive()
-  const [kindCounts] = createResource(
-    () => whenActive(slotActive(), () => ({ sdk: dirSdk(), version: assetVersion() })),
-    async (source) => {
-      if (!source.sdk) return { counts: {} as Record<string, number>, names: {} as Record<string, Set<string>> }
-      const settle = <T,>(call: Promise<T>): Promise<T | { data: undefined }> =>
-        call.then(
-          (value) => value,
-          () => ({ data: undefined }),
-        )
-      const [p, s, m, c, a, w, pl] = await Promise.all([
-        settle(source.sdk.client.promptAsset.list()),
-        settle(source.sdk.client.skillAsset.list()),
-        settle(source.sdk.client.mcpAsset.list()),
-        settle(source.sdk.client.commandAsset.list()),
-        settle(source.sdk.client.agentAsset.list()),
-        settle(source.sdk.client.workflowAsset.list()),
-        settle(source.sdk.client.pluginAsset.list()),
-      ])
-      const byKind = {
-        prompt: p.data?.assets ?? [],
-        skill: s.data?.assets ?? [],
-        mcp: m.data?.assets ?? [],
-        command: c.data?.assets ?? [],
-        agent: a.data?.assets ?? [],
-        workflow: w.data?.assets ?? [],
-        plugin: [
-          ...(pl.data?.assets ?? []),
-          ...(pl.data?.bridged?.map((b) => ({
-            name: b.name,
-            description: b.description,
-            relativePath: b.originPath,
-            revision: "",
-          })) ?? []),
-        ],
-      }
-      return {
-        counts: Object.fromEntries(Object.entries(byKind).map(([kind, assets]) => [kind, assets.length])),
-        names: Object.fromEntries(
-          Object.entries(byKind).map(([kind, assets]) => [kind, new Set(assets.map((x) => x.name))]),
-        ),
-      }
-    },
-  )
+  // S3-3: the counts come from the workspace's single asset resource
+  // (`ModeWorkspaceAssetCtx.assetCounts`). This component used to own a second
+  // `DirectorySDK` context plus its own `createResource` over the same seven list
+  // endpoints, then recompute the shadow rule with `systemCountFor` — the same rule
+  // `mergeAssets` already applies, written twice, over a duplicated request set.
+  // Reading the context removes both. `useModeSlotActive` is no longer needed here
+  // either: the context's resource is gated upstream (`chatShown` latch), and an
+  // inactive slot's sidebar reads the same numbers the workspace already holds.
+  const counts = useModeWorkspaceAssets()
   const countFor = (feature: ChatFeatureID) => {
-    const data = kindCounts()
-    const syncData = directoryData()
-    const system = AssetWorkbench.systemAssets({
-      commands: syncData?.command ?? [],
-      agents: syncData?.agent ?? [],
-      mcp: syncData?.mcp ?? {},
-    })
-    const total =
-      (data?.counts[feature] ?? 0) + AssetWorkbench.systemCountFor(system, feature, data?.names[feature] ?? new Set())
+    const total = counts?.assetCounts()[feature] ?? 0
     return total > 0 ? total : undefined
   }
 
