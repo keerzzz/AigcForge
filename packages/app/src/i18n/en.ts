@@ -443,6 +443,7 @@ export const dict = {
   "dialog.project.edit.worktree.startup": "Workspace startup script",
   "dialog.project.edit.worktree.startup.description": "Runs after creating a new workspace (worktree).",
   "dialog.project.edit.worktree.startup.placeholder": "e.g. bun install",
+  "dialog.project.edit.saveFailed": "Could not save the project. The colour was left unchanged.",
 
   "dialog.releaseNotes.action.getStarted": "Get started",
   "dialog.releaseNotes.action.next": "Next",

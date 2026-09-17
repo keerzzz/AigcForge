@@ -253,6 +253,12 @@ export function DialogEditProject(props: { project: LocalProject; server: Server
           />
         </div>
 
+        <Show when={saveMutation.isError}>
+          <div role="alert" data-component="project-edit-save-error" class="text-12-regular text-icon-critical-base">
+            {language.t("dialog.project.edit.saveFailed")}
+          </div>
+        </Show>
+
         <div class="flex justify-end gap-2">
           <Button type="button" variant="ghost" size="large" onClick={() => dialog.close()}>
             {language.t("common.cancel")}

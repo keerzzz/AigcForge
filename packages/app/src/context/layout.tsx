@@ -380,6 +380,19 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
 
     const [colors, setColors] = createStore<Record<string, AvatarColorKey>>({})
     const colorRequested = new Map<string, AvatarColorKey>()
+    // Worktrees whose colour the server rejected. Without this the rejection is only a deleted
+    // in-flight guard, so the next time anything re-runs this effect the same colour is picked and
+    // the same doomed write is issued again — indefinitely, on a permanent rejection. The marker
+    // also lets the optimistic colour be dropped, which is what the Owner asked for: the local
+    // store holds what the server accepted, not what we hoped for.
+    //
+    // Scope, so nobody reads more into it than was measured: this is the store's honesty and the
+    // retry boundary. It is NOT a visible colour change — the surfaces that render a project
+    // avatar read the per-server list (`context/global.tsx:172`), which never merges this store;
+    // only `layout.projects.list` (`:466-472`) does, and its consumers look projects up by path
+    // rather than rendering them. Making the fallback visible means feeding a render path from
+    // this list, which is a product change nobody asked for. Registered in the coverage manifest.
+    const colorRejected = new Set<string>()
 
     function pickAvailableColor(used: Set<string>): AvatarColorKey {
       const available = AVATAR_COLOR_KEYS.filter((c) => !used.has(c))
@@ -486,7 +499,10 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       if (projects.length === 0) return
 
       for (const project of projects) {
-        if (project.icon?.color) colorRequested.delete(project.worktree)
+        if (project.icon?.color) {
+          colorRequested.delete(project.worktree)
+          colorRejected.delete(project.worktree)
+        }
       }
 
       const used = new Set<string>()
@@ -497,6 +513,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
 
       for (const project of projects) {
         if (project.icon?.color || project.icon?.override || project.icon?.url) continue
+        if (colorRejected.has(project.worktree)) continue
         const worktree = project.worktree
         const existing = colors[worktree]
         const color = existing ?? pickAvailableColor(used)
@@ -519,6 +536,16 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           .client.project.update({ projectID: project.id, directory: worktree, icon: { color } })
           .catch(() => {
             if (colorRequested.get(worktree) === color) colorRequested.delete(worktree)
+            // Mark first, then drop the optimistic colour: the drop re-runs this effect, and the
+            // marker is what stops that re-run from picking a new colour and re-issuing the write.
+            colorRejected.add(worktree)
+            if (colors[worktree] === color) {
+              setColors(
+                produce((draft) => {
+                  delete draft[worktree]
+                }),
+              )
+            }
           })
       }
     })

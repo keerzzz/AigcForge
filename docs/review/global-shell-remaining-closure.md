@@ -182,3 +182,48 @@
 - 本片新登记 6 条 deferred：`path-identity`、`project-color-save-rollback`、`home-multi-server-aggregation`、`home-offline-state`、`project-large-list`、`project-invalid-path`（外加 `home-no-project-recovery`，共 7 条）。
 - 计划文档 §11 追加了「实测勘误与边界（2026-09-17）」四条，与 S7 的 §10 处理方式一致：**不降级产品要求，只把实施前必须知道的事实与冲突写明**。
 - manifest 用与 `e2e/real/manifest.spec.ts` 同规则的脚本复算通过（entries=2 / modes=5 / deferred=20）。**权威校验器（`e2e/real/manifest.spec.ts`）本轮未运行**：它的 project 会拉起 E4 harness（production build），在本机 FUSE 上代价过大；如实记账，不把它算作已取证。
+
+## S8-4 颜色保存失败：一处修复并取证，一处被实测推翻（进行中）
+
+**产品裁决（2026-09-17，Owner）**：失败后回落到默认颜色。
+
+### 已修并已取证：编辑对话框不再静默失败
+
+`components/dialog-edit-project.tsx` 的 `saveMutation` 从不读取 `error`，被拒绝的 PATCH 表现是"对话框停在那里、Save 重新可用、什么都不说"。现在失败时显示 `role="alert"` 的 `[data-component="project-edit-save-error"]` 且对话框保持打开，新增 `dialog.project.edit.saveFailed`（en/zh/zht 三语，parity 通过）。
+
+**证据**：`project-color-save-failure.spec.ts` 第三条 —— 驱动 Home 的项目菜单 → Edit → 选颜色 → Save 被 spec 内的 500 拦下 → 断言 alert 可见且对话框仍在。**实测 passed**。
+
+### 已修但只覆盖重试边界：自动上色
+
+`context/layout.tsx:484-524` 原先在失败时只删在途守卫、留下乐观颜色，于是**任何后续 effect pass 都会重挑同一颜色、重发同一注定失败的写入**（永久性拒绝下无休止重试）。现在改为：先记录拒绝、再丢弃乐观颜色；服务端一旦报告颜色则清除该记录。
+
+### 被实测推翻的断言（对我自己上一条记录的更正）
+
+我在 S8-2 写过"行内颜色是服务端从未接受的值，于是页面显示一个下次重载就会变的颜色"。**这句不成立**，且错在方法上：我从 `list()` 的合并推断症状，没有去找**决定这个关系的函数以及谁消费它**——正是 `AGENTS.md` 警告的失败模式。
+
+实测与静态追查的结果：
+
+- 乐观颜色只被 `context/layout.tsx:466-472` 的 `list` memo 合并进项目，且只暴露为 `layout.projects.list`；它的消费者（`app.tsx:117`、`titlebar.tsx:146/399`、`dialog-select-file.tsx:292`、`session-header.tsx:135`）都是**按路径查找项目**，不渲染项目。
+- 所有**渲染项目头像**的界面读的是 per-server 列表 `context/global.tsx:172`，它只合并 workspace 的 icon override，**从不合并该 store**。
+- 浏览器实测（临时探针，已删除）：即使把写入答成 **200**，侧栏项目头像仍是 `data-variant="gray"`（`[data-slot="project-avatar-surface"]`，页面内恰好 1 个；`data-component="project-avatar-v2"` 计数 1）。
+
+**结论**：「回落到默认颜色」在当前界面上是**视觉空操作**，任何 E3 用例都无法在两个方向判别它。因此：
+
+- 我把断言改成**能真正成立且有意义的两条**：拒绝写入会被发出且不被重复（重试环守卫，含"至少发出过一次"以避免空绿），以及 200 下的对照（一次 pass 也是健康的形状，说明上界不是失败的副产品）；并**明确注明**头像的可见回落未被断言及原因。
+- 该产品问题登记为 `project-color-fallback-visibility`：需要 Owner 决定自动上色的颜色**是否应该可见**。若应可见，就要让某个渲染路径消费 `layout.projects.list`（或把该 store 合进 per-server 列表），届时回落才可观测并且**必须**被断言——因为"一个会因保存失败而悄悄消失的可见颜色"正是 Owner 反对的状态；若不应可见，则这套自动上色本身就是半接线的死重，值得删除而不是留着。
+
+### 命令与结果（逐条）
+
+| 命令                                                                       | 结果                                                                                      |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `test:e2e --project=chromium`（该 spec，第一次整跑）                       | 2 passed / 1 failed                                                                       |
+| 失败项：`is issued, then not repeated`（首例）                             | 挂在 `gotoWhenReady` 就绪探测（环境卡顿，非断言；已登记 `e2e-readiness-predicate-flake`） |
+| 失败项单独重跑：`-g "is issued, then not repeated"`                        | **1 passed (43.4s)**                                                                      |
+| `an accepted colour write is also issued once` + `the edit dialog says so` | **2 passed**                                                                              |
+| `test:unit:file src/i18n/parity.test.ts`                                   | 2 passed / 0 fail                                                                         |
+| app typecheck                                                              | exit 0                                                                                    |
+| `LINT_BASE_REF=origin/main lint-changed`                                   | passed（129 changed files）                                                               |
+| prettier / `git diff --check`                                              | clean                                                                                     |
+| manifest 同规则复算                                                        | OK deferred=20 entries=2 modes=5                                                          |
+
+**诚实边界**：这三条没有一次"单次 3/3 全绿"的运行——首例在第一次整跑里被环境卡顿吃掉，随后单独重跑通过。我不把它写成"3 passed"。

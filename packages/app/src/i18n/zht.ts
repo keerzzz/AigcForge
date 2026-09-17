@@ -375,6 +375,7 @@ export const dict = {
   "dialog.project.edit.worktree.startup": "工作區啟動腳本",
   "dialog.project.edit.worktree.startup.description": "在建立新的工作區 (worktree) 後執行。",
   "dialog.project.edit.worktree.startup.placeholder": "例如 bun install",
+  "dialog.project.edit.saveFailed": "無法儲存專案，顏色維持原樣。",
   "context.breakdown.title": "上下文拆分",
   "context.breakdown.note": "輸入 token 的大致拆分。「其他」包含工具定義和額外開銷。",
   "context.breakdown.system": "系統",
