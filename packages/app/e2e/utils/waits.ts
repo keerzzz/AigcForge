@@ -43,7 +43,17 @@ export async function expectDevServerReady() {
   }).toPass({ timeout: APP_READY_TIMEOUT, intervals: [250, 500, 1_000, 2_000] })
 }
 
-/** `page.goto` behind {@link expectDevServerReady}. */
+/**
+ * `page.goto` behind {@link expectDevServerReady}.
+ *
+ * The cold first round of a dev server can spend this whole budget on module compilation — the
+ * long-lived, FUSE-backed server queues even static paths while it compiles — and the case that
+ * pays for it is the FIRST of the round. That is a known, measured environment property with an
+ * owner, not a product signal: `docs/technical-debt.md` §8 records the mechanism and prescribes
+ * warming the server (hit the target route until first paint) or re-running the case warm
+ * (~28s) rather than enlarging this budget, which would also slow down catching a server that is
+ * genuinely down.
+ */
 export async function gotoWhenReady(page: Page, path: string, options?: Parameters<Page["goto"]>[1]) {
   await expectDevServerReady()
   await page.goto(path, options)

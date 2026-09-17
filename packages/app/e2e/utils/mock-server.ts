@@ -50,6 +50,10 @@ export interface MockServerConfig {
   delegations?: unknown[]
   delegationDelay?: number
   delegationStatus?: number
+  /** Optional override for the `/agent` projection. The default is the single
+   * `build` primary the picker needs to render at all; a caller that needs a
+   * long list (the narrow picker's overflow contract) supplies its own. */
+  agents?: unknown[]
 }
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
@@ -69,7 +73,9 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     "/project/current": config.project,
     // `primaryModes` mirrors the real server projection (S6): the picker filters on
     // it for display, so a mock without it would render an empty agent control.
-    "/agent": [{ name: "build", mode: "primary", primaryModes: ["chat", "coding", "work", "assistant", "custom"] }],
+    "/agent": config.agents ?? [
+      { name: "build", mode: "primary", primaryModes: ["chat", "coding", "work", "assistant", "custom"] },
+    ],
     "/vcs": { branch: "main", default_branch: "main" },
     "/session": config.sessions,
   }
