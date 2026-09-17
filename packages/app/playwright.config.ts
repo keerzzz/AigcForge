@@ -24,9 +24,12 @@ const storageState = (entries: Array<[string, string]>) => ({
 export default defineConfig({
   testDir: "./e2e",
   // `performance/**` belongs to the production-bench config; `real/**` belongs
-  // to the real-backend E4 config (e2e/real/playwright.config.ts). Neither is
+  // to the real-backend E4 config (e2e/real/playwright.config.ts); `zoom/**`
+  // belongs to the real-page-zoom config (e2e/zoom/playwright.config.ts), which
+  // needs a seeded persistent profile this config cannot express. None is
   // collected by this E3/E2 presentation config.
-  testIgnore: process.env.AIGCFROGE_PERFORMANCE === "1" ? "performance/**/*.test.ts" : ["performance/**", "real/**"],
+  testIgnore:
+    process.env.AIGCFROGE_PERFORMANCE === "1" ? "performance/**/*.test.ts" : ["performance/**", "real/**", "zoom/**"],
   outputDir: "./e2e/test-results",
   // Generous per-test budget: the Vite dev server cold-compiles routes on
   // demand, and the branch's assistant dashboard (imported by the app-wide
