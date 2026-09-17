@@ -565,6 +565,7 @@ export const dict = {
   "home.overview.modeFilter": "模式筛选",
   "home.overview.allProjects": "全部项目",
   "home.overview.projectFilter": "项目",
+  "home.overview.offline.description": "服务器无法访问时无法加载会话。",
 
   "mode.chat": "对话",
   "mode.chat.description": "通用对话和问答",
@@ -1342,6 +1343,7 @@ export const dict = {
   "cacheDiagnostics.confidence.unavailable": "不可用",
 
   "git.statusBar.branch": "分支",
+  "git.statusBar.noVcs": "无 VCS",
   "git.statusBar.stageAll": "全部暂存",
   "git.statusBar.unstageAll": "取消全部暂存",
   "git.commitBar.placeholder": "提交信息 (Cmd+Enter)",

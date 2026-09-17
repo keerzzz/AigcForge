@@ -684,6 +684,7 @@ export const dict = {
   "home.overview.modeFilter": "Mode filter",
   "home.overview.allProjects": "All projects",
   "home.overview.projectFilter": "Projects",
+  "home.overview.offline.description": "Sessions can't be loaded while this server is unreachable.",
 
   "mode.chat": "Chat",
   "mode.chat.description": "General conversation and Q&A",
@@ -1453,6 +1454,7 @@ export const dict = {
   "cacheDiagnostics.confidence.unavailable": "Unavailable",
 
   "git.statusBar.branch": "Branch",
+  "git.statusBar.noVcs": "No VCS",
   "git.statusBar.stageAll": "Stage all",
   "git.statusBar.unstageAll": "Unstage all",
   "git.commitBar.placeholder": "Commit message (Cmd+Enter)",

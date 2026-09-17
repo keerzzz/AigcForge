@@ -8,7 +8,7 @@ import type { Session } from "@aigcfroge/sdk/v2/client"
 import { useLanguage } from "@/context/language"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
-import { useServer, ServerConnection } from "@/context/server"
+import { useServer, serverName, ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { MODE_DEFINITIONS, useMode, type Mode } from "@/context/mode"
@@ -56,6 +56,7 @@ export function HomeOverview() {
   const global = useGlobal()
   const navigate = useNavigate()
   const tabs = useTabs()
+  const dialog = useDialog()
 
   const [state, setState] = createStore({
     search: "",
@@ -65,6 +66,17 @@ export function HomeOverview() {
   })
 
   const focusedServer = createMemo(() => server.current)
+  /**
+   * The focused connection, but only once the shared health poll (`context/global.tsx`)
+   * has marked it unreachable. `undefined` also covers "not checked yet", so Home never
+   * claims offline without evidence — and stops claiming "no sessions" while the list it
+   * would show cannot be fetched.
+   */
+  const offlineServer = createMemo(() => {
+    const conn = focusedServer()
+    if (!conn) return undefined
+    return global.servers.health[ServerConnection.key(conn)]?.healthy === false ? conn : undefined
+  })
   const focusedServerCtx = createMemo(() => {
     const conn = focusedServer()
     if (!conn) return undefined
@@ -234,6 +246,17 @@ export function HomeOverview() {
     setState("searchFocused", false)
   }
 
+  /**
+   * Way forward for an unreachable server. Reuses the shell's own server-management dialog
+   * rather than inventing a recovery path: the user can point at another server, edit the
+   * unreachable one, or add a new one, and the 10s health poll clears the notice on its own.
+   */
+  function openServerSettings() {
+    void import("@/components/dialog-select-server").then((x) => {
+      void dialog.show(() => <x.DialogSelectServer />)
+    })
+  }
+
   function selectSearchSession(session: Session) {
     const record = searchResults().find((item) => item.session.id === session.id)
     if (!record) return
@@ -286,12 +309,17 @@ export function HomeOverview() {
         <ScrollView class="mt-3 min-h-0 flex-1">
           <div class="pt-3 flex flex-col gap-6">
             <Show when={!sessionLoad.isLoading} fallback={<HomeSessionSkeleton label={language.t("common.loading")} />}>
+              <Show when={offlineServer()}>
+                {(conn) => <HomeOfflineNotice server={conn()} onManageServers={openServerSettings} />}
+              </Show>
               <Show
                 when={pinned().pinned || groups().length > 0}
                 fallback={
-                  <div class="flex min-w-0 flex-col gap-4">
-                    <HomeSessionGroupHeader title={language.t("home.sessions.empty")} onNewSession={openNewSession} />
-                  </div>
+                  <Show when={!offlineServer()}>
+                    <div class="flex min-w-0 flex-col gap-4">
+                      <HomeSessionGroupHeader title={language.t("home.sessions.empty")} onNewSession={openNewSession} />
+                    </div>
+                  </Show>
                 }
               >
                 <Show when={pinned().pinned}>
@@ -338,6 +366,43 @@ export function HomeOverview() {
           </div>
         </ScrollView>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Inline truthful state for a focused server the shared health poll has marked unreachable.
+ *
+ * It exists because an unreachable server used to render the ordinary empty state: session
+ * loading failures are swallowed into a transient toast (`context/server-sync.tsx:434-441`),
+ * so "No sessions found" was shown for an account Home never managed to read. The visual
+ * language mirrors the app-level `ConnectionError` (`app.tsx:604-625`) — same `app.server.*`
+ * wording, same auto-retry line — but inline, because Home is a page rather than a gate.
+ */
+function HomeOfflineNotice(props: { server: ServerConnection.Any; onManageServers: () => void }) {
+  const language = useLanguage()
+  // Splitting on a sentinel mirrors `app.tsx:609-610`, so the server name can be emphasised
+  // without a new key or markup baked into the translated string.
+  const serverToken = "\u0000server\u0000"
+  const unreachable = createMemo(() => language.t("app.server.unreachable", { server: serverToken }).split(serverToken))
+  return (
+    <div
+      data-component="home-overview-offline"
+      role="status"
+      class="flex min-w-0 flex-col items-start gap-3 rounded-[8px] border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4"
+    >
+      <div class="flex min-w-0 flex-col gap-1">
+        <p class="text-13-medium text-v2-text-text-base">
+          {unreachable()[0]}
+          <span class="font-medium">{serverName(props.server)}</span>
+          {unreachable()[1]}
+        </p>
+        <p class="text-12-regular text-v2-text-text-muted">{language.t("home.overview.offline.description")}</p>
+        <p class="text-12-regular text-v2-text-text-faint">{language.t("app.server.retrying")}</p>
+      </div>
+      <ButtonV2 variant="neutral" onClick={props.onManageServers}>
+        {language.t("status.popover.action.manageServers")}
+      </ButtonV2>
     </div>
   )
 }

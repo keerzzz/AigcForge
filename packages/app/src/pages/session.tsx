@@ -1047,16 +1047,20 @@ export default function Page(props: { rootID: string }) {
 
     return (
       <div class="flex flex-col h-full overflow-hidden bg-background-stronger contain-strict">
-        <Show when={isGit}>
-          <GitStatusBar
-            branch={branch}
-            stagedCount={git.stagedCount()}
-            unstagedCount={git.unstagedCount()}
-            hasChanges={git.stagedCount() + git.unstagedCount() > 0}
-            onStageAll={git.stageAll}
-            onUnstageAll={git.unstageAll}
-          />
-        </Show>
+        {/* A non-Git Location says so explicitly instead of leaving the branch
+            row empty (§11.2). `nogit()` is the same `project.vcs` decision the
+            diff/commit wiring below already uses, so this adds no second truth
+            source; `GitStatusBar` still renders nothing while a Git branch is
+            merely unloaded. */}
+        <GitStatusBar
+          branch={branch}
+          noVcs={nogit()}
+          stagedCount={git.stagedCount()}
+          unstagedCount={git.unstagedCount()}
+          hasChanges={git.stagedCount() + git.unstagedCount() > 0}
+          onStageAll={git.stageAll}
+          onUnstageAll={git.unstageAll}
+        />
         <div class="relative flex-1 min-h-0 overflow-hidden">
           {reviewContent({
             diffStyle: layout.review.diffStyle(),
