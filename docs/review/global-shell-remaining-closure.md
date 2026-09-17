@@ -227,3 +227,21 @@
 | manifest 同规则复算                                                        | OK deferred=20 entries=2 modes=5                                                          |
 
 **诚实边界**：这三条没有一次"单次 3/3 全绿"的运行——首例在第一次整跑里被环境卡顿吃掉，随后单独重跑通过。我不把它写成"3 passed"。
+
+## S8-5 无项目恢复的机制追查：收窄了，但没钉死（进行中）
+
+`home-no-project-recovery.spec.ts` 是故意红的复现。这一轮把嫌疑从「机制未知」收窄到一处，**但没有钉死**，原因如实记录。
+
+**静态收窄（已核实，含 file:line）**：
+
+- 路由是 `<Route path="/new-session" component={DraftRoute} />`（`packages/app/src/app.tsx:749`），而 `NewSession` 是 `lazy(() => import("@/pages/new-session"))`（`:79`）。因此"懒模块从未被请求"这一实测事实等价于：**`DraftRoute` 从未渲染出 `ResolvedDraftRoute`**。
+- `DraftRoute`（`app.tsx:345-359`）是两层 `Show`：外层 `when={tabs.ready()}`，内层 `when={tabs.store.find(tab => tab.type === "draft" && tab.draftID === search.draftId)}`，且内层带 `fallback={<Navigate href="/" />}`。
+- `tabs.ready()` 是 `persisted` 产出的**响应式** accessor（`packages/app/src/utils/persist.ts:622-638`），其 `initialValue` 为 `!isAsync`：对同步的 localStorage 路径**一开始就是 true**。这条把"外层 Show 一直为假"降为弱嫌疑，指向**内层**：
+  - 若该瞬间找不到匹配草稿，则触发 `Navigate href="/"`，它会与 picker 流程自己的前向导航相互竞争——这能解释"URL 停在草稿、页面什么都没渲染"；
+  - 若匹配到了，则 `ResolvedDraftRoute` 在 `<NewSession />` 之前退出了。
+
+**为什么没钉死**：需要一次带插桩的运行（在 init script 里记录 `history.pushState/replaceState` 与 `popstate` 的实参，并在选择后立刻、以及 1 秒后再各 dump 一次 URL 与草稿标签页的 `draftID` 比对），这能区分"fallback 导航到 `/` 又被流程导航回来"与"外层 Show 从未为真"。本轮为此跑了 4 次，**全部在断言之前死在 `expectDevServerReady`**（本机 FUSE 卡顿），没有一次拿到插桩输出；插桩已还原（`git checkout`），工作树保持已提交状态。
+
+**下一次的最小实验已写进 manifest 的 unlock**，不留给下一次重新推导。
+
+**环境小结（本批）**：这一批 e2e 相关的失败中，绝大多数是就绪卡顿而非断言；私有端口方案会先付约 115 秒的 vite 冷启动，并且我观测到两个 vite 抢同一端口互相拖死（已只清理自己起的进程）。因此在当前主机上，**取证吞吐而不是结论质量**才是瓶颈。
