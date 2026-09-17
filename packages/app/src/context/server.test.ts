@@ -115,6 +115,97 @@ describe("createServerProjects", () => {
       dispose()
     })
   })
+
+  /**
+   * S8: one directory is one registration, whatever spelling reached the registry.
+   *
+   * The registry used to compare worktree strings verbatim, so the same directory added as
+   * `C:/AigcForge/App` and `C:\AigcForge\App` — the two spellings a native picker and a URL can
+   * each hand over — produced two rows, two sidebars entries and two Locations. The comparison
+   * now goes through `pathKey`, the spelling normalizer the rest of the app already uses for
+   * directory keys. It normalizes separators and a trailing slash; it deliberately does NOT
+   * fold case, and it makes no claim about physical identity (two spellings of one inode are a
+   * separate, backend-owned question: see `coverage-manifest.json` `path-identity`).
+   */
+  describe("directory spelling", () => {
+    const setup = () => {
+      const [store, setStore] = createStore({ projects: {}, lastProject: {} })
+      return {
+        store,
+        local: createServerProjects({ scope: () => ServerScope.local, store, setStore }),
+        // The owner's own constructor rather than a cast: `fromServerKey` is what production code
+        // goes through to turn a connection key into a scope, and it keeps the brand real.
+        remote: createServerProjects({
+          scope: () => ServerScope.fromServerKey(ServerConnection.Key.make("https://debian.example")),
+          store,
+          setStore,
+        }),
+      }
+    }
+
+    test("adds one entry per directory, not one per spelling", () => {
+      const { local } = setup()
+
+      local.open("C:/AigcForge/App")
+      local.open("C:\\AigcForge\\App")
+      local.open("C:/AigcForge/App/")
+
+      expect(local.list()).toEqual([{ worktree: "C:/AigcForge/App", expanded: true }])
+    })
+
+    test("closes the registration a different spelling refers to", () => {
+      const { local } = setup()
+
+      local.open("C:/AigcForge/App")
+      local.open("C:/AigcForge/Other")
+      local.close("C:\\AigcForge\\App")
+
+      expect(local.list()).toEqual([{ worktree: "C:/AigcForge/Other", expanded: true }])
+    })
+
+    test("applies expand, collapse and reorder to the entry the spelling refers to", () => {
+      const { local } = setup()
+
+      local.open("/a")
+      local.open("/b")
+      expect(local.list().map((project) => project.worktree)).toEqual(["/b", "/a"])
+
+      local.collapse("/a")
+      expect(local.list()).toEqual([
+        { worktree: "/b", expanded: true },
+        { worktree: "/a", expanded: false },
+      ])
+
+      local.expand("/a/")
+      expect(local.list()[1]).toEqual({ worktree: "/a", expanded: true })
+
+      local.move("/a/", 0)
+      expect(local.list().map((project) => project.worktree)).toEqual(["/a", "/b"])
+    })
+
+    /**
+     * The plan's destructive-delete constraint at the unit level: removing a project removes its
+     * registration and nothing else. Closing is not a delete of the directory, of its Sessions,
+     * or of the other servers' buckets — and it must not clear `lastProject`, which is what the
+     * Home "continue last" affordance reads.
+     */
+    test("closing a project drops its registration and touches nothing else", () => {
+      const { store, local, remote } = setup()
+
+      local.open("/keep")
+      local.open("/drop")
+      local.touch("/keep")
+      remote.open("/remote")
+
+      local.close("/drop")
+
+      expect(store.projects).toEqual({
+        local: [{ worktree: "/keep", expanded: true }],
+        "https://debian.example": [{ worktree: "/remote", expanded: true }],
+      })
+      expect(store.lastProject).toEqual({ local: "/keep" })
+    })
+  })
 })
 
 describe("migrateCanonicalLocalServerState", () => {

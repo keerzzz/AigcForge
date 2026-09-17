@@ -2,6 +2,7 @@ import { createSimpleContext } from "@aigcfroge/ui/context"
 import { type Accessor, batch, createMemo } from "solid-js"
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
+import { pathKey } from "@/utils/path-key"
 import { ServerScope } from "@/utils/server-scope"
 
 type StoredProject = { worktree: string; expanded: boolean }
@@ -100,30 +101,36 @@ export function createServerProjects<T extends ServerProjectState>(input: {
 }) {
   const setStore = input.setStore as unknown as SetStoreFunction<ServerProjectState>
   const current = () => input.store.projects[input.scope()] ?? []
+  // One directory is one registration, whichever spelling reached the registry. The key is
+  // `pathKey`, the same normalizer the rest of the app uses for directory keys: separators and a
+  // trailing slash are spelling, so `C:\x` and `C:/x/` are one registration rather than two rows
+  // in two sidebars. It says nothing about physical identity — two spellings of one inode remain
+  // a backend-owned question, registered separately.
+  const sameDirectory = (a: string, b: string) => pathKey(a) === pathKey(b)
   return {
     list: current,
     open(directory: string) {
       const scope = input.scope()
-      if (current().some((project) => project.worktree === directory)) return
+      if (current().some((project) => sameDirectory(project.worktree, directory))) return
       setStore("projects", scope, [{ worktree: directory, expanded: true }, ...current()])
     },
     close(directory: string) {
       setStore(
         "projects",
         input.scope(),
-        current().filter((project) => project.worktree !== directory),
+        current().filter((project) => !sameDirectory(project.worktree, directory)),
       )
     },
     expand(directory: string) {
-      const index = current().findIndex((project) => project.worktree === directory)
+      const index = current().findIndex((project) => sameDirectory(project.worktree, directory))
       if (index !== -1) setStore("projects", input.scope(), index, "expanded", true)
     },
     collapse(directory: string) {
-      const index = current().findIndex((project) => project.worktree === directory)
+      const index = current().findIndex((project) => sameDirectory(project.worktree, directory))
       if (index !== -1) setStore("projects", input.scope(), index, "expanded", false)
     },
     move(directory: string, toIndex: number) {
-      const fromIndex = current().findIndex((project) => project.worktree === directory)
+      const fromIndex = current().findIndex((project) => sameDirectory(project.worktree, directory))
       if (fromIndex === -1 || fromIndex === toIndex) return
       const next = [...current()]
       const [item] = next.splice(fromIndex, 1)
