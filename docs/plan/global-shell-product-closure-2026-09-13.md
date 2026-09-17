@@ -462,13 +462,23 @@ Home 继续遵守 ADR-16 全局聚合，筛选不创建/恢复 Session；模式�
 
 **实测勘误与边界（2026-09-17，S8 开工侦察）**——以下四条是开工时对源码与现行 ADR 的核对结果，不改写上面的产品要求，但实施前必须知道：
 
-1. **§11.2 的路径身份不存在任何 owner，本片因此被切成两半。** 全仓 `packages/core/src`、`packages/schema/src`、`packages/aigcfroge/src` 内 `inode`/`st_dev`/`st_ino`/`sameFile` 命中数为 0，也没有任何路径 alias 表或关系；`Project.resolve`（`packages/core/src/project.ts:110-122`）用 git remote 或 root-commit 哈希标识项目，**不用路径**，非 Git 目录一律落到字面量 id `global`（`:112` 与 `packages/core/src/session.ts:448-464`）；`ProjectDirectoryTable` 以 `(project_id, directory)` 为主键且 `directory` 已 realpath（`packages/core/src/project/directories.ts:65-82`），而 realpath 无法合并 bind-mount / 同 inode 别名；`LocationServiceMap` 以原始 `Location.Ref` 结构为键（`packages/core/src/location-layer.ts:101`），所以同一物理目录的两种拼写会得到两套 Location 服务图。结论：**跨 server / 别名 / 失效路径重定位这一半需要独立 ADR 与后端合同**（§22-2 已原则同意，§4.3 要求 ADR 先于任何迁移或 endpoint），登记为 `coverage-manifest.json` 的 `path-identity`；本片可先做的是生命周期那一半，且**前端只做拼写归一（复用 `pathKey`），不对物理身份做任何断言**。
+1. **§11.2 的路径身份不存在任何 owner，本片因此被切成两半，且原始场景的诊断需要更正。** 全仓 `packages/core/src`、`packages/schema/src`、`packages/aigcfroge/src` 内 `inode`/`st_dev`/`st_ino`/`sameFile` 命中数为 0，也没有任何路径 alias 表或关系；`Project.resolve`（`packages/core/src/project.ts:110-122`）用 git remote 或 root-commit 哈希标识项目，**不用路径**，非 Git 目录一律落到字面量 id `global`（`:112` 与 `packages/core/src/session.ts:448-464`）；`LocationServiceMap` 以原始 `Location.Ref` 结构为键（`packages/core/src/location-layer.ts:101`），所以同一物理目录的两种拼写会得到两套 Location 服务图。结论：**跨 server / 别名 / 失效路径重定位这一半需要独立 ADR 与后端合同**，草案已写入 `docs/architecture/adr/ADR-25-path-identity.md`（DRAFT，含兼容/回滚与候选方案），实现等待该 ADR 获批（§4.3：ADR 先于任何迁移或 endpoint）；本片可先做的是生命周期那一半，且**前端只做拼写归一（复用 `pathKey`），不对物理身份做任何断言**。
+
+   **更正（2026-09-17，实测）**：本节开头引用的报告场景被写成了「realpath 无法合并同 inode 别名」，**该描述不成立**。实测 `/media/keer/办公` 是指向 `/media/win_data` 的**符号链接**（dev 2072 / ino 152473），realpath **可以**归一它；realpath 真正的盲区是 bind mount、mount namespace 与 Windows 拼写差异。另实测 `/media/win_data` 为 `fuseblk`，所以「inode 一定稳定」也不成立。也就是说：这一对路径的重复分组（如确实存在）**不能**用"realpath 不够"解释，需要按 ADR-25 的证据方法重新定位。任何据此场景写下的实现假设都必须先重测。
 
 2. **「多 server 聚合」与 ADR-16 冲突，不能按字面实施。** 本条最后一句要求 Home 继续遵守 ADR-16，而 ADR-16 明确把跨 server 合并收敛为后续项（`docs/architecture/adr/ADR-16-global-home-overview.md`「多 server 聚合本期按当前 server 收敛，跨 server 合并为后续项」）。今天 Home 只渲染当前 server（`packages/app/src/pages/home-overview.tsx:75`），唯一的跨 server 项目树属 Coding（`packages/app/src/pages/coding-project-column.tsx:61-94`）。这需要 Owner 裁决（修订 ADR-16 并出资合并，或确认 §11.1 该行受 ADR-16 约束），登记为 `home-multi-server-aggregation`。
 
 3. **「颜色保存失败回滚」的缺陷位置已定位，且其中一句原始描述已被实测推翻。** 手动编辑对话框（`packages/app/src/components/dialog-edit-project.tsx:77-102`）从不读取 `saveMutation.error`，被拒绝的 PATCH 完全静默 —— 这条已修并取证。自动上色效应（`packages/app/src/context/layout.tsx:484-524`）原先在失败时只删在途守卫、留下乐观颜色，导致**任何后续 effect pass 都会重挑同一颜色并重发同一注定失败的写入**（永久性拒绝下无休止重试）；现已改为丢弃乐观颜色并记录拒绝，但这只修了**重试边界**。**更正**：开工时曾写「行内颜色是服务端从未接受的值」，该断言**不成立** —— 乐观颜色只被 `layout.projects.list`（`context/layout.tsx:466-472`）合并，而它的消费者都按路径查找项目、不渲染；所有渲染项目头像的界面读的是 per-server 列表（`context/global.tsx:172`），从不合并该 store。浏览器实测：写入返回 200 时，侧栏头像仍是 `data-variant="gray"`。因此「回落到默认颜色」在**当前界面上是视觉空操作**，任何 E3 用例都无法在两个方向判别它；该产品问题登记为 `project-color-fallback-visibility`，需 Owner 决定自动上色颜色是否应该可见。
 
 4. **本条的多数行为今天没有任何证据，`coverage-manifest.json` 也没有相应 deferred key。** 「无 deferred key」不等于免做：no-project 恢复只被断言了否定的一半（反馈出现、不创建 Session、留在 `/`），恢复分支本身从未被驱动；invalid/inaccessible 路径在注册时不做校验；large list 无上限也无虚拟化；Home 完全不读 health 状态。这四项分别登记为 `home-no-project-recovery`、`project-invalid-path`、`project-large-list`、`home-offline-state`。
+
+**按协议文本先行的决策（2026-09-17；统一审批后置）**——以下五条只用了现行计划/ADR 的文本就能定，因此先定并记在此处，等批次审批时一并复核：
+
+- **多 server 聚合：不实现。** §11 末句要求 Home 遵守 ADR-16，而 ADR-16 明确把跨 server 合并推迟；按字面实现会做出获批 ADR 明确推迟的东西。判定为「§11.1 该行受 ADR-16 约束」，登记 `home-multi-server-aggregation` 保留。
+- **颜色的可见性：不新增。** 计划只要求「颜色保存失败回滚」（store 层已满足），没有任何条文要求自动上色的颜色必须可见；为它新增渲染路径属于未批准的新产品范围。保留为产品问题（`project-color-fallback-visibility`），交批次审批。
+- **§22-3 的读法：「意图纳入、条件未满足」。** M2 Memory/KB 与 Work 侧自建 Preset 在独立 ADR/PRD amendment 之前不具备纳入条件（§12.1/§12.4/§13.2 与 §0.2 硬条件 1 原文），因此保持 conditional，且不得被写成已实现。
+- **path-identity：只出 ADR 草案，不实现。** §4.3 要求 ADR 先于任何迁移与 endpoint；草案见 `ADR-25-path-identity.md`（让出 ADR-24：该号已被 `v2-architecture-governance-slice-0-3.md` 预留给 Composition scopes）。
+- **`back` 的语义：协议文本无法判定，因此不猜、不实现。** §10 只列出要求，没有定义 `back` 指浏览器返回还是面板内的返回；两种读法的实现代价与风险完全不同（前者要操纵历史，会与 §7 的 fail-closed 路由和 Dirty Guard 相互作用）。按「以模糊执行为耻」保留 `mode-panel-back-and-scroll`，等一次明确裁决。
 
 已落地（2026-09-17）：注册表的目录拼写契约——`context/server.tsx` 的 `open`/`close`/`expand`/`collapse`/`move` 原先逐字比较 worktree，同一目录的两种写法（`C:\x` vs `C:/x/`，原生 picker 与 URL 各能给一种）会变成两行注册、两个侧栏条目、两个 Location；现复用既有 `pathKey`，另加单测覆盖「同目录一次注册」「变体拼写可关闭/可重排」与「关闭只删注册、不动其他 scope 与 `lastProject`」。
 
