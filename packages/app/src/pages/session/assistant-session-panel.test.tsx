@@ -65,27 +65,41 @@ describe("AssistantSessionPanel (right panel, batch 1 G2)", () => {
   })
 })
 
-describe("SessionSidePanel assistant slot (batch 1 G2)", () => {
+/**
+ * S7 replaced the four hand-written mode slots with one `modePanel(id, children)` helper, so the
+ * per-mode inline-style literals these cases used to match no longer exist. What they protected is
+ * the slot MODEL — every mode renders together and visibility is `display`, not a `Show` that
+ * would unmount the owner — and that is what is asserted here. The behaviour itself (mounted at
+ * both widths, reachable at 390 and at real 200% zoom, tab surviving a desktop↔narrow round trip)
+ * is asserted in `e2e/regression/mode-slot-fallback-a11y.spec.ts` and `e2e/zoom/`, where it can
+ * actually fail; a source check cannot see a mount.
+ */
+describe("SessionSidePanel mode slots (batch 1 G2, reshaped by S7)", () => {
   test("renders AssistantSessionPanel instead of the placeholder", () => {
-    expect(sidePanel).toContain("<AssistantSessionPanel")
+    expect(sidePanel).toContain("<AssistantSessionPanel />")
     expect(sidePanel).not.toContain("<PlaceholderPanel")
   })
 
-  test("keeps the render-all + display:none slot model for assistant", () => {
-    expect(sidePanel).toContain('mode.currentMode === "assistant"')
-    expect(sidePanel).toContain('style={{ display: mode.currentMode === "assistant" ? "" : "none" }}')
+  test("keeps every mode panel mounted and toggles it by display, never per-mode unmount", () => {
+    expect(sidePanel).toContain("const modePanel = (id: string, children: JSX.Element)")
+    for (const mode of ["chat", "work", "assistant", "custom"]) {
+      // Whitespace-tolerant: the custom slot's children are long enough that the formatter wraps
+      // the call onto its own line, which a literal match would miss for the wrong reason.
+      expect(sidePanel, `${mode} is rendered through the shared slot`).toMatch(new RegExp(`modePanel\\(\\s*"${mode}"`))
+    }
+    expect(sidePanel).toContain(
+      'style={{ display: mode.currentMode === id && (isDesktop() || mode.contentPanelOpen) ? "" : "none" }}',
+    )
   })
 
-  test("the assistant slot fills the remaining width (flex-1, matching chat/work)", () => {
-    const slotStart = sidePanel.indexOf('mode.currentMode === "assistant"')
-    const slot = sidePanel.slice(slotStart, slotStart + 600)
-    expect(slot).toContain("flex-1 min-w-0")
+  test("the mode slot fills the remaining width when docked", () => {
+    expect(sidePanel).toContain('"flex-1 min-w-0": isDesktop()')
   })
 
-  test("the assistant slot contains no fileTree rendering (no B-zone empty placeholder)", () => {
-    const slotStart = sidePanel.indexOf('mode.currentMode === "assistant"')
-    const slot = sidePanel.slice(slotStart, slotStart + 600)
-    expect(slot).not.toContain("FileTree")
-    expect(slot).not.toContain("reviewPanel")
+  test("no slot renders a FileTree or the review panel of its own", () => {
+    const start = sidePanel.indexOf("const modePanel =")
+    const body = sidePanel.slice(start, sidePanel.indexOf("return (", start))
+    expect(body).not.toContain("FileTree")
+    expect(body).not.toContain("reviewPanel")
   })
 })

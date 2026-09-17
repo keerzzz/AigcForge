@@ -196,7 +196,9 @@ test("the session area stays usable with the mode panel open at 390px", { tag: "
   await toggle.click()
   await expect(page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })).toBeVisible()
 
-  const mainWidth = await page.evaluate(() => Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0))
+  const mainWidth = await page.evaluate(() =>
+    Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0),
+  )
   expect(mainWidth, `main is ${mainWidth}px wide with the panel open at 390px`).toBeGreaterThanOrEqual(USABLE_MAIN_PX)
   await expect(page.locator('[data-component="session-composer"]')).toBeVisible()
 })
@@ -227,28 +229,32 @@ test("the floating panel closes on Escape and returns focus to its toggle", { ta
   await expect(toggle).toBeFocused()
 })
 
-test("the toggle and the panel are bound by aria-controls while the panel exists", { tag: "@a11y" }, async ({ page }) => {
-  await page.setViewportSize(NARROW)
-  const toggle = await openSessionWithPanel(page)
+test(
+  "the toggle and the panel are bound by aria-controls while the panel exists",
+  { tag: "@a11y" },
+  async ({ page }) => {
+    await page.setViewportSize(NARROW)
+    const toggle = await openSessionWithPanel(page)
 
-  // Closed: the panel is unmounted, so an emitted IDREF would be unresolvable. The attribute
-  // therefore follows the mount rather than the preference (review finding: it used to be
-  // emitted with no target, which is invalid at any time).
-  await expect(toggle).toHaveAttribute("aria-expanded", "false")
-  expect(await toggle.getAttribute("aria-controls"), "no reference may point at an unmounted panel").toBeNull()
-  expect(await page.locator("#secondary-sidebar-panel").count(), "the panel is not mounted while closed").toBe(0)
+    // Closed: the panel is unmounted, so an emitted IDREF would be unresolvable. The attribute
+    // therefore follows the mount rather than the preference (review finding: it used to be
+    // emitted with no target, which is invalid at any time).
+    await expect(toggle).toHaveAttribute("aria-expanded", "false")
+    expect(await toggle.getAttribute("aria-controls"), "no reference may point at an unmounted panel").toBeNull()
+    expect(await page.locator("#secondary-sidebar-panel").count(), "the panel is not mounted while closed").toBe(0)
 
-  // Open: the relation resolves at both ends.
-  await toggle.click()
-  await expect(toggle).toHaveAttribute("aria-controls", "secondary-sidebar-panel")
-  await expect(page.locator("#secondary-sidebar-panel")).toHaveCount(1)
-  await expect(page.locator("#secondary-sidebar-panel")).toHaveAttribute("role", "complementary")
+    // Open: the relation resolves at both ends.
+    await toggle.click()
+    await expect(toggle).toHaveAttribute("aria-controls", "secondary-sidebar-panel")
+    await expect(page.locator("#secondary-sidebar-panel")).toHaveCount(1)
+    await expect(page.locator("#secondary-sidebar-panel")).toHaveAttribute("role", "complementary")
 
-  // Closed again: the reference goes away with the target, so no dangling IDREF is left behind.
-  await toggle.click()
-  await expect(page.locator("#secondary-sidebar-panel")).toHaveCount(0)
-  expect(await toggle.getAttribute("aria-controls"), "closing must drop the reference too").toBeNull()
-})
+    // Closed again: the reference goes away with the target, so no dangling IDREF is left behind.
+    await toggle.click()
+    await expect(page.locator("#secondary-sidebar-panel")).toHaveCount(0)
+    expect(await toggle.getAttribute("aria-controls"), "closing must drop the reference too").toBeNull()
+  },
+)
 
 test("Escape follows the breakpoint in both directions", { tag: "@a11y" }, async ({ page }) => {
   // Wide first: open, shrink, then Escape must dismiss (the listener has to exist for the
@@ -316,7 +322,257 @@ test("the session area stays usable with the mode panel open at 200% zoom", { ta
   await toggle.click()
   await expect(page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })).toBeVisible()
 
-  const mainWidth = await page.evaluate(() => Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0))
+  const mainWidth = await page.evaluate(() =>
+    Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0),
+  )
   expect(mainWidth, `main is ${mainWidth}px wide with the panel open at 720x450`).toBeGreaterThanOrEqual(USABLE_MAIN_PX)
   await expect(page.locator('[data-component="session-composer"]')).toBeVisible()
+})
+
+/**
+ * S7: the mode-specific CONTENT panel at narrow widths — the half the first S7 batch did not
+ * deliver. Everything above this line is the secondary sidebar (left navigation).
+ *
+ * `pages/session/session-side-panel.tsx` gates every mode panel behind
+ * `<Show when={isDesktop() && !!params.id}>` (`:170`, 768px), so at 390x844 a Work session has
+ * no Artifact panel and an Assistant session has no Assistant panel: they are not hidden,
+ * they are never mounted. The manifest entry is `narrow-mode-content-panels`.
+ *
+ * Locators here are ids and structural markers rather than English accessible names, because
+ * this file is tagged `@a11y` and therefore also runs under chromium-dark/zh/zht — where
+ * `work.artifact.tab` and `assistant.panel.title` are translated. Naming them in English
+ * would either fail those rows or force a locale pin that made them dishonest.
+ */
+const modeDirectory = "C:/Aigcfroge/ModeContentPanel"
+const modeProjectID = "proj_mode_content_panel"
+const modeWorkSessionID = "ses_mode_content_work"
+const modeAssistantSessionID = "ses_mode_content_assistant"
+const modeCodingSessionID = "ses_mode_content_coding"
+const modeCustomSessionID = "ses_mode_content_custom"
+const modeServer = `http://127.0.0.1:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
+const modeSessionPath = (sessionID: string) => `/server/${base64Encode(modeServer)}/session/${sessionID}`
+
+const MODE_PANEL_TOGGLE = "#session-mode-panel-toggle"
+const modePanel = (page: Page, mode: string) =>
+  page.locator(`[data-component="session-mode-panel"][data-mode="${mode}"]`)
+
+async function mockModeContentServer(page: Page) {
+  await mockAigcfrogeServer(page, {
+    directory: modeDirectory,
+    project: {
+      id: modeProjectID,
+      worktree: modeDirectory,
+      vcs: "git",
+      name: "mode-content-panel",
+      time: { created, updated: created },
+      sandboxes: [],
+    },
+    provider: { providers: [], default: {} },
+    sessions: [
+      {
+        id: modeWorkSessionID,
+        slug: "mode-content-work",
+        projectID: modeProjectID,
+        directory: modeDirectory,
+        title: "Mode content Work session",
+        mode: "work",
+        agent: "meta",
+        version: "dev",
+        time: { created, updated: created },
+      },
+      {
+        id: modeAssistantSessionID,
+        slug: "mode-content-assistant",
+        projectID: modeProjectID,
+        directory: modeDirectory,
+        title: "Mode content Assistant session",
+        mode: "assistant",
+        agent: "assistant-orchestrator",
+        version: "dev",
+        time: { created, updated: created },
+      },
+      {
+        id: modeCodingSessionID,
+        slug: "mode-content-coding",
+        projectID: modeProjectID,
+        directory: modeDirectory,
+        title: "Mode content Coding session",
+        mode: "coding",
+        agent: "build",
+        version: "dev",
+        time: { created, updated: created },
+      },
+      {
+        id: modeCustomSessionID,
+        slug: "mode-content-custom",
+        projectID: modeProjectID,
+        directory: modeDirectory,
+        title: "Mode content Custom session",
+        mode: "custom",
+        agent: "meta",
+        version: "dev",
+        time: { created, updated: created },
+      },
+    ],
+    pageMessages: () => ({ items: [] }),
+    events: () => [],
+    eventRetry: 16,
+  })
+  for (const path of ["agent-asset", "prompt-asset", "skill-asset", "command-asset", "workflow-asset"]) {
+    await page.route(`**/${path}?*`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ assets: [], invalid: [] }),
+      }),
+    )
+  }
+  for (const path of ["schedule/pending", "delivery/recent", "memory", "kb", "kb/dangling"]) {
+    await page.route(`**/${path}*`, (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
+    )
+  }
+  // Custom's kill switch is off by default, so the panel is asserted in its typed-blocked form —
+  // the same shape `mode-detail-personas.spec.ts` serves — rather than the mock's catch-all `{}`.
+  await page.route("**/custom-composition/plan*", (route) =>
+    route.fulfill({
+      status: 501,
+      contentType: "application/json",
+      body: JSON.stringify({
+        name: "UnsupportedProductModeError",
+        message: "Custom mode is disabled on this server.",
+      }),
+    }),
+  )
+  await page.addInitScript((worktree: string) => {
+    localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true } }))
+    localStorage.setItem(
+      "aigcfroge.global.dat:server",
+      JSON.stringify({ list: [], projects: { local: [{ worktree, expanded: true }] }, lastProject: {} }),
+    )
+  }, modeDirectory)
+}
+
+async function openModeContentSession(page: Page, sessionID: string, title: string) {
+  await gotoWhenReady(page, modeSessionPath(sessionID))
+  await expect(page.getByRole("heading", { name: title })).toBeVisible({ timeout: 120_000 })
+}
+
+test.describe("S7: the mode content panel is reachable at narrow widths", { tag: "@a11y" }, () => {
+  test.beforeEach(async ({ page }) => {
+    await mockModeContentServer(page)
+  })
+
+  test("a Work session reaches its Artifact panel at 390px, by keyboard", async ({ page }) => {
+    await page.setViewportSize(NARROW)
+    await openModeContentSession(page, modeWorkSessionID, "Mode content Work session")
+
+    const work = modePanel(page, "work")
+    await expect(work, "the content panel is not docked at 390px until it is asked for").toBeHidden()
+
+    const toggle = page.locator(MODE_PANEL_TOGGLE)
+    await expect(toggle).toBeVisible()
+    await expect(toggle).toHaveAttribute("aria-expanded", "false")
+
+    // A pointer-only entry is not an entry for a keyboard user, and the state has to be
+    // announced rather than merely rendered.
+    await toggle.focus()
+    await expect(toggle).toBeFocused()
+    await page.keyboard.press("Enter")
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await expect(work).toBeVisible()
+
+    const name = await work.locator("#review-panel").getAttribute("aria-label")
+    expect(name?.trim().length ?? 0, "the panel must keep a non-empty accessible name").toBeGreaterThan(0)
+
+    // Focus has to LEAVE the toggle first, or "Escape returns focus" is unfalsifiable.
+    await work.locator("button").first().focus()
+    await page.keyboard.press("Escape")
+    await expect(work).toBeHidden()
+    await expect(toggle).toHaveAttribute("aria-expanded", "false")
+    await expect(toggle).toBeFocused()
+  })
+
+  test("an Assistant session reaches its panel at 390px", async ({ page }) => {
+    await page.setViewportSize(NARROW)
+    await openModeContentSession(page, modeAssistantSessionID, "Mode content Assistant session")
+
+    const assistant = modePanel(page, "assistant")
+    await expect(assistant).toBeHidden()
+
+    await page.locator(MODE_PANEL_TOGGLE).click()
+    await expect(assistant).toBeVisible()
+    await expect(assistant.locator("#review-panel")).toHaveAttribute("aria-label", /\S/)
+  })
+
+  /**
+   * The third mode the manifest names for this contract. Custom is gated by a kill switch that is
+   * off by default, so what is asserted is reachability of the panel — which the mock serves in
+   * its disabled/blocked form — not that a composition runs.
+   */
+  test("a Custom session reaches its panel at 390px", async ({ page }) => {
+    await page.setViewportSize(NARROW)
+    await openModeContentSession(page, modeCustomSessionID, "Mode content Custom session")
+
+    const custom = modePanel(page, "custom")
+    await expect(custom).toBeHidden()
+    await page.locator(MODE_PANEL_TOGGLE).click()
+    await expect(custom).toBeVisible()
+  })
+
+  test("desktop keeps the panel docked and offers no narrow toggle", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await openModeContentSession(page, modeWorkSessionID, "Mode content Work session")
+
+    // A guard, not a new capability: this is the desktop behaviour S7 must leave alone, so it
+    // is asserted on the surface that exists today rather than on the narrow-only marker.
+    const docked = page.locator("#review-panel:visible")
+    await expect(docked).toHaveCount(1)
+    const name = await docked.getAttribute("aria-label")
+    expect(name?.trim().length ?? 0, "the docked panel keeps an accessible name").toBeGreaterThan(0)
+
+    // The narrow entry is absent rather than present-and-dead.
+    await expect(page.locator(MODE_PANEL_TOGGLE)).toHaveCount(0)
+  })
+
+  test("a coding session offers no narrow entry, because its owner is already reachable", async ({ page }) => {
+    await page.setViewportSize(NARROW)
+    await openModeContentSession(page, modeCodingSessionID, "Mode content Coding session")
+
+    // Pins the exclusion rather than leaving it implicit: coding's content owner is the
+    // review/files surface, and a narrow coding session reaches it through its own tabs, so a
+    // second floating copy would be a duplicate presentation of the same owner.
+    await expect(page.locator(MODE_PANEL_TOGGLE)).toHaveCount(0)
+    await expect(page.locator('[data-component="session-mode-panel"]')).toHaveCount(0)
+  })
+
+  test("a desktop to narrow to desktop round trip keeps the panel's active tab", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await openModeContentSession(page, modeWorkSessionID, "Mode content Work session")
+
+    // Which tab the panel opens on belongs to the panel owner, not to this spec, so it is read
+    // rather than assumed (`work-artifact-panel.tsx` defaults it to Artifact). What S7 owes is
+    // that a selection made here survives the presentation change, so the other tab is chosen
+    // and then required to persist — a reset to the default would fail that.
+    const artifact = page.getByRole("tab", { name: "Artifact", exact: true })
+    const context = page.getByRole("tab", { name: "Context", exact: true })
+    const selected = (await context.getAttribute("data-selected")) === "" ? context : artifact
+    const other = selected === context ? artifact : context
+    await other.click()
+    await expect(other).toHaveAttribute("data-selected", "")
+    await expect(selected).not.toHaveAttribute("data-selected", "")
+
+    // Narrow: the panel is closed by default, so what must survive is the panel's OWN state
+    // across the wrapper's presentation change, not a DOM remnant of an open panel.
+    await page.setViewportSize(NARROW)
+    await expect(modePanel(page, "work")).toBeHidden()
+    await page.locator(MODE_PANEL_TOGGLE).click()
+    await expect(other, "the selected tab must survive the move to narrow").toHaveAttribute("data-selected", "")
+
+    // And back again. This is the assertion that would fail if the narrow presentation had been
+    // built as a second, separately-mounted copy of the owner instead of a re-boxing of it.
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await expect(modePanel(page, "work")).toBeVisible()
+    await expect(other, "the selected tab must survive the round trip").toHaveAttribute("data-selected", "")
+  })
 })

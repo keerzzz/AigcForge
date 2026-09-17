@@ -45,7 +45,7 @@ import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
 import { modeDraft, useMode, modeDefinition } from "@/context/mode"
-import { secondarySidebarShown } from "@/context/layout-helpers"
+import { modeContentPanelShown, MODE_CONTENT_PANEL_QUERY, secondarySidebarShown } from "@/context/layout-helpers"
 import { debounce } from "@solid-primitives/scheduled"
 import { shouldPrefetchTab } from "./titlebar-prefetch-policy"
 
@@ -925,6 +925,13 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
   // Whether emitting `aria-controls` has a resolvable target; the panel's lifecycle uses the
   // same predicate (pages/layout.tsx), so the reference cannot drift from the mount.
   const secondaryPanelMounted = () => secondarySidebarShown(mode.secondarySidebarOpen, layout.route().type)
+  const contentPanelDocked = createMediaQuery(MODE_CONTENT_PANEL_QUERY)
+  // S7: the narrow entry to a session's mode content panel. It exists only where the panel is
+  // NOT docked, and only in the modes that have a narrow content owner at all — coding's owner is
+  // the review/files surface, which the Session/Changes tabs already reach.
+  const contentPanelOffered = () =>
+    !contentPanelDocked() &&
+    modeContentPanelShown({ routeType: layout.route().type, mode: mode.currentMode, docked: false })
   return (
     <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
       <Show when={props.state.update.visible}>
@@ -957,6 +964,30 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
             // tell whether the panel was open (measured absent, S7).
             aria-expanded={mode.secondarySidebarOpen}
             onClick={() => mode.toggleSecondarySidebar()}
+          />
+        </TooltipV2>
+      </Show>
+      <Show when={contentPanelOffered()}>
+        <TooltipV2
+          value={language.t(mode.contentPanelOpen ? "session.panel.hide" : "session.panel.show")}
+          placement="bottom"
+          gutter={8}
+        >
+          <IconButtonV2
+            variant="ghost-muted"
+            size="large"
+            class="titlebar-icon mr-1 !w-9 shrink-0"
+            id="session-mode-panel-toggle"
+            // Emitted unconditionally here, unlike the sidebar's: that panel unmounts when it
+            // closes, so its IDREF has to follow the mount. This one is never unmounted for the
+            // narrow case (see `session-side-panel.tsx`), so the target exists whenever this
+            // entry does and the reference stays valid either way.
+            aria-controls={`session-mode-panel-${mode.currentMode}`}
+            state={mode.contentPanelOpen ? "pressed" : undefined}
+            icon={<IconV2 name={modeDefinition(mode.currentMode).icon} />}
+            aria-label={language.t(mode.contentPanelOpen ? "session.panel.hide" : "session.panel.show")}
+            aria-expanded={mode.contentPanelOpen}
+            onClick={() => mode.toggleContentPanel()}
           />
         </TooltipV2>
       </Show>

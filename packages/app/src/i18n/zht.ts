@@ -541,6 +541,8 @@ export const dict = {
   "session.tab.review": "審查",
   "session.tab.context": "上下文",
   "session.panel.reviewAndFiles": "審查與檔案",
+  "session.panel.show": "顯示工作階段面板",
+  "session.panel.hide": "隱藏工作階段面板",
   "session.review.filesChanged": "{{count}} 個檔案變更",
   "session.review.change.one": "變更",
   "session.review.change.other": "變更",

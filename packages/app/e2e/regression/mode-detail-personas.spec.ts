@@ -436,7 +436,7 @@ test.describe("persona audit: mode and detail closure", () => {
     })
   })
 
-  test("narrow keyboard user can audit Settings but loses mode-specific panels", async ({ page }, testInfo) => {
+  test("narrow keyboard user reaches the mode panels and can audit Settings", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 })
 
     await test.step("logic and flow: narrow session details are measured, not inferred", async () => {
@@ -444,12 +444,19 @@ test.describe("persona audit: mode and detail closure", () => {
       await expect(page.getByRole("button", { name: "Show sidebar" })).toBeVisible({ timeout: 120_000 })
       await expect(page.getByRole("heading", { name: "Persona Work session" })).toBeVisible({ timeout: 120_000 })
       await expect(page.getByRole("textbox", { name: "Ask anything, / for commands, @ for context..." })).toBeVisible()
+
+      // S7 converted this from a pin of the DEFECT. It used to assert `toHaveCount(0)` below the
+      // 768px gate — i.e. it recorded that a narrow user could not reach the panel at all. The
+      // panel now exists at every width and is closed here, not absent.
       await expect(page.getByRole("tab", { name: "Artifact", exact: true })).toHaveCount(0)
+      await page.locator("#session-mode-panel-toggle").click()
+      await expect(page.getByRole("tab", { name: "Artifact", exact: true })).toBeVisible()
 
       await page.goto(canonicalPath(assistantSessionID))
       await expect(page.getByRole("button", { name: "Show sidebar" })).toBeVisible({ timeout: 120_000 })
       await expect(page.getByRole("heading", { name: "Persona Assistant session" })).toBeVisible({ timeout: 120_000 })
-      await expect(page.locator('#review-panel[aria-label="Assistant panel"]')).toHaveCount(0)
+      await page.locator("#session-mode-panel-toggle").click()
+      await expect(page.locator('#review-panel[aria-label="Assistant panel"]')).toBeVisible()
     })
 
     await test.step("interaction: Settings remains keyboard reachable at 390x844", async () => {
@@ -478,14 +485,14 @@ test.describe("persona audit: mode and detail closure", () => {
 
     await attachClosure(testInfo, {
       logic: {
-        closed: false,
+        closed: true,
         evidence:
-          "Narrow Work and Assistant preserve the session and composer, but hide their mode-specific Artifact and Assistant panels.",
+          "Narrow Work and Assistant preserve the session and composer, and the mode panel is closed rather than absent; opening it reveals the Artifact tab and the Assistant panel.",
       },
       flow: {
-        closed: false,
+        closed: true,
         evidence:
-          "A 390x844 user can read and compose but cannot reach the mode-specific output/assistant panels; Settings remains operable.",
+          "A 390x844 user can read, compose, and reach the mode-specific output/assistant panels through the titlebar entry; Settings remains operable.",
       },
       interaction: {
         closed: false,

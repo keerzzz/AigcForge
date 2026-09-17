@@ -38,6 +38,8 @@ import { executeHandoff, handoffAuthorizationKey, planHandoff } from "@aigcfroge
 import { confirmHandoffEscalation } from "@/pages/session/handoff-confirm"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import { modeContentPanelShown, MODE_CONTENT_PANEL_QUERY } from "@/context/layout-helpers"
+import { useMode } from "@/context/mode"
 import { usePrompt } from "@/context/prompt"
 import { useSDK } from "@/context/sdk"
 import { useServerSDK } from "@/context/server-sdk"
@@ -95,6 +97,7 @@ type VcsMode = "git" | "branch"
 export default function Page(props: { rootID: string }) {
   const serverSync = useServerSync()
   const layout = useLayout()
+  const productMode = useMode()
   const local = useLocal()
   const file = useFile()
   const sync = useSync()
@@ -280,7 +283,7 @@ export default function Page(props: { rootID: string }) {
     ),
   )
 
-  const isDesktop = createMediaQuery("(min-width: 768px)")
+  const isDesktop = createMediaQuery(MODE_CONTENT_PANEL_QUERY)
   const size = createSizing()
   const desktopReviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
   const desktopFileTreeOpen = createMemo(
@@ -298,6 +301,17 @@ export default function Page(props: { rootID: string }) {
     return `calc(100% - ${layout.fileTree.width()}px)`
   })
   const centered = createMemo(() => isDesktop() && !desktopReviewOpen())
+
+  // S7: below `md` the mode content panel floats OVER the session body, so the body underneath
+  // has to stop taking focus and clicks — otherwise the panel is an overlay for the eye only and
+  // a keyboard user tabs into the content it covers. The column stays MOUNTED and merely
+  // `inert`, so the overlay cannot reset the timeline's scroll position.
+  const narrowContentPanelOpen = () =>
+    !isDesktop() &&
+    productMode.contentPanelOpen &&
+    // `docked: false` is the situation being asked about: the body only has to step aside when
+    // the panel is actually floating (a docked panel sits beside it, not over it).
+    modeContentPanelShown({ routeType: layout.route().type, mode: productMode.currentMode, docked: false })
 
   function normalizeTab(tab: string) {
     if (!tab.startsWith("file://")) return tab
@@ -1998,6 +2012,9 @@ export default function Page(props: { rootID: string }) {
         class="flex-1 min-h-0 flex flex-col md:flex-row"
         classList={{
           "gap-2 p-2": true,
+          // S7: the containing block for the narrow mode content panel's floating wrapper.
+          // Narrow-only so the desktop box model is unchanged.
+          relative: !isDesktop(),
         }}
       >
         <Show when={!isDesktop() && !!params.id && false}>{mobileTabs()}</Show>
@@ -2011,6 +2028,8 @@ export default function Page(props: { rootID: string }) {
           style={{
             width: sessionPanelWidth(),
           }}
+          inert={narrowContentPanelOpen()}
+          aria-hidden={narrowContentPanelOpen()}
         >
           <div
             classList={{

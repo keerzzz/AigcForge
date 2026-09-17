@@ -13,6 +13,7 @@ import { useCommand } from "@/context/command"
 import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import { modeContentPanelShown, MODE_CONTENT_PANEL_QUERY } from "@/context/layout-helpers"
 import { useMode } from "@/context/mode"
 import { useSDK } from "@/context/sdk"
 import { CustomDraftProvider } from "@/context/custom-draft"
@@ -55,7 +56,41 @@ export function SessionSidePanel(props: {
   const sdk = useSDK()
   const { sessionKey, tabs, view, params } = useSessionLayout()
 
-  const isDesktop = createMediaQuery("(min-width: 768px)")
+  const isDesktop = createMediaQuery(MODE_CONTENT_PANEL_QUERY)
+
+  // S7: the mode content panel is docked from `md` up exactly as before. Below it the same
+  // owner floats OVER the session body — the narrow mode already reaches the review surface
+  // through its own Session/Changes tabs, and a docked column would squeeze the session it
+  // belongs to (measured before this: the panels were not hidden at 390px, they were never
+  // mounted, because the whole block sat behind the `md` gate).
+  //
+  // The panel is never unmounted for the narrow case: the main column stays mounted underneath
+  // (made `inert` by `session.tsx`), so resizing cannot reset the active tab or the scroll.
+  const contentPanelShown = () =>
+    modeContentPanelShown({ routeType: layout.route().type, mode: mode.currentMode, docked: isDesktop() })
+  const contentPanelFloats = () => contentPanelShown() && !isDesktop()
+  const contentPanelOpen = () => contentPanelFloats() && mode.contentPanelOpen
+
+  // The two affordances an overlay owes a keyboard user, gated on the same breakpoint as the
+  // floating behaviour so desktop interaction is unchanged. `createMediaQuery` rather than a raw
+  // `matchMedia().matches`, which is not reactive and would install the listener for the wrong
+  // width (the lesson `pages/layout.tsx` records for the secondary sidebar).
+  createEffect(() => {
+    if (!contentPanelOpen()) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      event.preventDefault()
+      mode.toggleContentPanel()
+    }
+    document.addEventListener("keydown", onKeyDown)
+    onCleanup(() => document.removeEventListener("keydown", onKeyDown))
+  })
+  let contentPanelWasOpen = false
+  createEffect(() => {
+    const open = contentPanelOpen()
+    if (contentPanelWasOpen && !open) document.getElementById("session-mode-panel-toggle")?.focus()
+    contentPanelWasOpen = open
+  })
 
   const reviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
   const reviewTab = createMemo(() => isDesktop())
@@ -166,9 +201,27 @@ export function SessionSidePanel(props: {
     })
   })
 
+  // One wrapper per mode, kept mounted and toggled by `display` (the pre-existing contract:
+  // switching modes must not reset a panel's state). The narrow presentation only changes the
+  // wrapper's box, never the owner inside it.
+  const modePanel = (id: string, children: JSX.Element) => (
+    <div
+      data-component="session-mode-panel"
+      data-mode={id}
+      id={`session-mode-panel-${id}`}
+      classList={{
+        "flex-1 min-w-0": isDesktop(),
+        "absolute inset-0 z-30 overflow-hidden rounded-[10px] bg-v2-background-bg-base": contentPanelFloats(),
+      }}
+      style={{ display: mode.currentMode === id && (isDesktop() || mode.contentPanelOpen) ? "" : "none" }}
+    >
+      {children}
+    </div>
+  )
+
   return (
-    <Show when={isDesktop() && !!params.id}>
-      <Show when={mode.currentMode === "coding"}>
+    <Show when={!!params.id}>
+      <Show when={isDesktop() && mode.currentMode === "coding"}>
         <SessionRightPanel
           size={props.size}
           ariaLabel={language.t("session.panel.reviewAndFiles")}
@@ -312,25 +365,22 @@ export function SessionSidePanel(props: {
         </SessionRightPanel>
       </Show>
       {/* Keep mode panels mounted so switching modes does not reset their state. */}
-      <div class="flex-1 min-w-0" style={{ display: mode.currentMode === "chat" ? "" : "none" }}>
-        <ChatRightPanel />
-      </div>
-      <div class="flex-1 min-w-0" style={{ display: mode.currentMode === "work" ? "" : "none" }}>
-        <WorkSessionPanel />
-      </div>
-      <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }} class="flex-1 min-w-0">
-        <AssistantSessionPanel />
-      </div>
-      <div style={{ display: mode.currentMode === "custom" ? "" : "none" }} class="flex-1 min-w-0">
-        <CustomDraftProvider
-          location={() => {
-            const current = sdk()
-            return current ? { scope: current.scope, directory: current.directory } : undefined
-          }}
-        >
-          <CustomSessionPanel sessionID={params.id} />
-        </CustomDraftProvider>
-      </div>
+      <Show when={contentPanelShown()}>
+        {modePanel("chat", <ChatRightPanel />)}
+        {modePanel("work", <WorkSessionPanel />)}
+        {modePanel("assistant", <AssistantSessionPanel />)}
+        {modePanel(
+          "custom",
+          <CustomDraftProvider
+            location={() => {
+              const current = sdk()
+              return current ? { scope: current.scope, directory: current.directory } : undefined
+            }}
+          >
+            <CustomSessionPanel sessionID={params.id} />
+          </CustomDraftProvider>,
+        )}
+      </Show>
     </Show>
   )
 }

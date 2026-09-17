@@ -803,6 +803,8 @@ export const dict = {
   "session.tab.review": "审查",
   "session.tab.context": "上下文",
   "session.panel.reviewAndFiles": "审查和文件",
+  "session.panel.show": "显示会话面板",
+  "session.panel.hide": "隐藏会话面板",
   "session.review.filesChanged": "{{count}} 个文件变更",
   "session.review.change.one": "更改",
   "session.review.change.other": "更改",
