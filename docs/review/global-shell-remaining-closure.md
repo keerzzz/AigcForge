@@ -245,3 +245,30 @@
 **下一次的最小实验已写进 manifest 的 unlock**，不留给下一次重新推导。
 
 **环境小结（本批）**：这一批 e2e 相关的失败中，绝大多数是就绪卡顿而非断言；私有端口方案会先付约 115 秒的 vite 冷启动，并且我观测到两个 vite 抢同一端口互相拖死（已只清理自己起的进程）。因此在当前主机上，**取证吞吐而不是结论质量**才是瓶颈。
+
+## S8-6 恢复缺陷：可观测机制已钉死，内部原因仍未（按指令不投机修复）
+
+**已钉死的可观测机制**（证据来自在**已提交复现内部**打点，而非另写探针）：
+
+| 观测                              | 结果                        |
+| --------------------------------- | --------------------------- |
+| `DIAG module app.tsx evaluated`   | 触发（应用模块已加载）      |
+| `DIAG Routes render path=…`       | **只出现过 `path=/`，两次** |
+| `DraftRoute` 自身日志             | **从未触发**                |
+| 浏览器 URL                        | `/new-session?draftId=<id>` |
+| 持久草稿的 draftID                | **与 URL 中的 id 完全相同** |
+| `[data-component="prompt-input"]` | 缺失                        |
+
+结论：应用与路由器都挂载了，路由器**只为 `/` 渲染过**，从未为浏览器已显示的 `/new-session?draftId=…` 渲染——即**第一次**导航没有被路由器处理；第二次（不经 picker）正常。插桩确实被 vite 提供（`curl /src/app.tsx` 命中 4 处 DIAG），排除了"打点没生效"这个会否掉结论的可能。
+
+**被实验排除的假设（不是靠读代码）**：
+
+1. **`DirtyDraftGuard` 不是原因**：它在 Home 上直接早退（`chat-workspace.tsx:168-181`：无 active tab key、非 dirty），且 URL 确实变了，说明导航未被拦。
+2. **对话框延迟焦点恢复不是原因**：把 `packages/ui/src/context/dialog.tsx` 的 `current.trigger?.focus()` 停掉后复现依旧红。
+3. **"先提交再关对话框"的顺序不是原因**：把 `dialog-select-directory.tsx:120-122` 改成先 `dialog.close()` 再 `onSelect` 后复现依旧红。
+
+**仍未钉死的内部原因**：剩下的是"第一次的导航提交没有抵达路由器"。候选 owner 是 `context/tabs.tsx:174` 拿到的那个 `navigate`，或 picker 回调经 `launchModeSessionOrRoute`/`openProjectNewSession` 调用它的方式。**下一次实验**（已写入 manifest unlock，不留给下次重新推导）：在 `newDraft` 内记录 draftID/href 与 `navigate` 是否真被调用，再记录路由器的导航入口，与 `Routes` 的渲染日志三者对齐，即可在不猜的前提下把断点定位到 `navigate` 的哪一侧。
+
+**为什么没修**：按审批指令，机制未钉死前不得按猜测修复，也不得用 sleep/重试/刷新/放宽断言遮盖。三次实验全部无效应经还原，工作树保持 `dc0fed0ed` 的已提交状态。**取证吞吐是本机瓶颈**：本轮多次尝试在 `expectDevServerReady` 处卡死，包括同一 spec 的热态重跑。
+
+**环境纪律**：本轮我自己起的两个私有 vite（3033/3034）已停止；3000 端口上的服务未被我启动或停止。
