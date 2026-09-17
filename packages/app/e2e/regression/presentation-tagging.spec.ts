@@ -40,6 +40,18 @@ function taggedTitles(source: string): string[] {
   return titles
 }
 
+/**
+ * Playwright's own project name, as specs actually read it.
+ *
+ * This used to be the bare substring `project.name`, which flagged any fixture carrying a
+ * `project` object. Measured at HEAD: `smoke/session-timeline.spec.ts:343` passes
+ * `fixture.project.name` to a helper, nothing in that file branches on the Playwright project, and
+ * the gate failed on it — a red gate that made the whole suite unfinishable for a false positive.
+ * Narrowed to the access forms that do branch on it. The blind spot is stated rather than hidden:
+ * a spec that renames it first (`const { project } = test.info()`) is not caught.
+ */
+const PROJECT_NAME = /(?:testInfo|\binfo)\.project\.name|test\.info\(\)\.project\.name/
+
 test("the grep the matrix projects use matches every declared tag", () => {
   expect(PRESENTATION_TAGS.length).toBeGreaterThan(0)
   for (const tag of PRESENTATION_TAGS) {
@@ -48,10 +60,18 @@ test("the grep the matrix projects use matches every declared tag", () => {
   expect(MATRIX_PROJECTS.length, "matrix projects are declared").toBeGreaterThan(0)
 })
 
+// Pinned so a later edit cannot quietly loosen the rule (and let a project-aware spec stop
+// running in the matrix) or over-tighten it back into the false positive above.
+test("the project-name rule matches the Playwright access and not a fixture field", () => {
+  expect(PROJECT_NAME.test("report({ browser: testInfo.project.name, viewports, results })")).toBe(true)
+  expect(PROJECT_NAME.test("if (testInfo.project.name !== 'chromium') return")).toBe(true)
+  expect(PROJECT_NAME.test("await selectHomeProject(page, fixture.project.name)")).toBe(false)
+})
+
 test("every spec that branches on the project name carries a presentation tag", () => {
   const offenders: string[] = []
   for (const { file, source } of specSources()) {
-    if (!source.includes("project.name")) continue
+    if (!PROJECT_NAME.test(source)) continue
     if (taggedTitles(source).length === 0) offenders.push(file)
   }
   expect(offenders, "project-aware specs must carry @presentation or @a11y or they stop running in the matrix").toEqual(
