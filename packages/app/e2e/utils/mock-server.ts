@@ -54,29 +54,53 @@ export interface MockServerConfig {
    * `build` primary the picker needs to render at all; a caller that needs a
    * long list (the narrow picker's overflow contract) supplies its own. */
   agents?: unknown[]
+  /** Optional project list served by GET /project. Defaults to `[config.project]`;
+   * a second server or a multi-project case supplies its own list. */
+  projects?: unknown[]
+  /** Optional response for PATCH /project/:id, the write the colour auto-assign
+   * (`context/layout.tsx`) and the edit dialog (`dialog-edit-project.tsx`) issue.
+   * Absent, the route stays unmatched and falls through to the same 200 `{}` it
+   * always has; `projectUpdateStatus` defaults to 200, so a rejected write is
+   * expressed as a status plus the typed error shape. */
+  projectUpdate?: unknown
+  projectUpdateStatus?: number
+  /** Optional replacement for GET /path's projection. Absent, the default
+   * `{ state, config, worktree, directory, home }` is served byte-for-byte, so
+   * only a caller that needs an inaccessible or invalid directory sets it.
+   * `pathStatus` defaults to 200. */
+  pathResponse?: unknown
+  pathStatus?: number
+  /** Optional listing served by GET /file. Default [] (the `emptyList` set), which
+   * leaves the directory picker's tree empty; a caller that drives a picker-driven
+   * or file-dialog flow supplies a listing here. */
+  files?: unknown[]
+  /** Optional override for GET /vcs. Default `{ branch: "main", default_branch: "main" }`;
+   * the real server answers `{}` (both fields undefined) for a non-git location. */
+  vcs?: unknown
 }
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
   const cursors = new Map<string, string>()
   let nextCursor = 0
   let nextTaskID = 0
+  const pathProjection = {
+    state: config.directory,
+    config: config.directory,
+    worktree: config.directory,
+    directory: config.directory,
+    home: "C:/Aigcfroge",
+  }
   const staticRoutes: Record<string, unknown> = {
     "/provider": config.provider,
-    "/path": {
-      state: config.directory,
-      config: config.directory,
-      worktree: config.directory,
-      directory: config.directory,
-      home: "C:/Aigcfroge",
-    },
-    "/project": [config.project],
+    "/path": pathProjection,
+    "/project": config.projects ?? [config.project],
     "/project/current": config.project,
     // `primaryModes` mirrors the real server projection (S6): the picker filters on
     // it for display, so a mock without it would render an empty agent control.
     "/agent": config.agents ?? [
       { name: "build", mode: "primary", primaryModes: ["chat", "coding", "work", "assistant", "custom"] },
     ],
-    "/vcs": { branch: "main", default_branch: "main" },
+    "/vcs": config.vcs ?? { branch: "main", default_branch: "main" },
     "/session": config.sessions,
   }
 
@@ -98,8 +122,26 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     // Checked before `emptyObject`, which would otherwise pin every session to idle.
     if (path === "/session/status") return json(route, config.sessionStatus ?? {})
     if (emptyObject.has(path)) return json(route, {})
+    // Checked before `emptyList`, which would otherwise answer `[]`. Absent, the
+    // route still falls through to that same `[]`.
+    if (path === "/file" && config.files !== undefined) return json(route, config.files)
     if (emptyList.has(path)) return json(route, [])
+    // Checked before `staticRoutes` only when the knob asks for it; an absent pair
+    // leaves the default projection and status untouched.
+    if (path === "/path" && (config.pathResponse !== undefined || config.pathStatus !== undefined)) {
+      return json(route, config.pathResponse ?? pathProjection, undefined, config.pathStatus ?? 200)
+    }
     if (path in staticRoutes) return json(route, staticRoutes[path])
+    // Project write (`PATCH /project/:id`). Unmatched before this knob existed, so it
+    // fell through to the blanket 200 `{}` and a rejected write was inexpressible.
+    // Only answered when the knob is present; every other method and path is unchanged.
+    if (
+      /^\/project\/[^/]+$/.test(path) &&
+      route.request().method() === "PATCH" &&
+      (config.projectUpdate !== undefined || config.projectUpdateStatus !== undefined)
+    ) {
+      return json(route, config.projectUpdate ?? {}, undefined, config.projectUpdateStatus ?? 200)
+    }
     // M4 Agent Hub cross-session aggregation read (agent-task group).
     if (path === "/agent-task") return json(route, config.tasks ?? [])
     if (path === "/api/delegation" || path === "/delegation") {
