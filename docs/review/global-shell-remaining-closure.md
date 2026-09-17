@@ -9,18 +9,18 @@
 
 ## 1. 范围与状态
 
-| 事项                                                                   | 状态        | 说明                                                                                                          |
-| ---------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------- |
-| 模式内容面板的窄屏接入（Work / Assistant / Custom）                    | **verified** | `narrow-mode-content-panels` 已从 deferred 台账移除                                                            |
-| 窄屏入口的键盘可达 / Escape / 焦点回归 / aria 关系                     | **verified** | 与上同一 spec                                                                                                 |
-| desktop→narrow→desktop 的 active tab / store 往返                      | **verified** | 面板状态由共享 tab store 承载                                                                                 |
-| Agent picker 在 390 宽下的键盘可达、完整名称、长列表不挤压             | **verified** | `identity-narrow-viewport-controls` 已移除                                                                    |
-| 窄屏权限状态可读（声明档位 + degraded 优先级）                         | **verified** | 同上                                                                                                          |
-| 真实浏览器 200% 缩放的证据                                             | **verified** | `real-200-percent-zoom` 已移除；配方见 §4.3                                                                   |
-| 窄屏 overlay 的 browser **back** 行为                                  | **pending** | 合同未定（面板开合刻意不进 URL），已登记 `mode-panel-back-and-scroll`                                         |
-| 窄屏 overlay 打开/关闭后的**滚动位置保持**                             | **pending** | 现有 mock 无消息可滚动，无法构造判别式；已登记同一条目                                                        |
-| Agent 列表按 provenance 收窄（official-only）                          | **blocked** | 依赖 `/agent` 投影新增 `AgentV2.Info.originRelativePath`，属服务端合同，未获批前不动；`agent-picker-custom-narrowing` 保持开放 |
-| chat 模式的真实 provider turn E4                                       | **pending** | 新登记 `chat-mode-e4-turn`，见 §6                                                                             |
+| 事项                                                       | 状态         | 说明                                                                                                                           |
+| ---------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| 模式内容面板的窄屏接入（Work / Assistant / Custom）        | **verified** | `narrow-mode-content-panels` 已从 deferred 台账移除                                                                            |
+| 窄屏入口的键盘可达 / Escape / 焦点回归 / aria 关系         | **verified** | 与上同一 spec                                                                                                                  |
+| desktop→narrow→desktop 的 active tab / store 往返          | **verified** | 面板状态由共享 tab store 承载                                                                                                  |
+| Agent picker 在 390 宽下的键盘可达、完整名称、长列表不挤压 | **verified** | `identity-narrow-viewport-controls` 已移除                                                                                     |
+| 窄屏权限状态可读（声明档位 + degraded 优先级）             | **verified** | 同上                                                                                                                           |
+| 真实浏览器 200% 缩放的证据                                 | **verified** | `real-200-percent-zoom` 已移除；配方见 §4.3                                                                                    |
+| 窄屏 overlay 的 browser **back** 行为                      | **pending**  | 合同未定（面板开合刻意不进 URL），已登记 `mode-panel-back-and-scroll`                                                          |
+| 窄屏 overlay 打开/关闭后的**滚动位置保持**                 | **pending**  | 现有 mock 无消息可滚动，无法构造判别式；已登记同一条目                                                                         |
+| Agent 列表按 provenance 收窄（official-only）              | **blocked**  | 依赖 `/agent` 投影新增 `AgentV2.Info.originRelativePath`，属服务端合同，未获批前不动；`agent-picker-custom-narrowing` 保持开放 |
+| chat 模式的真实 provider turn E4                           | **pending**  | 新登记 `chat-mode-e4-turn`，见 §6                                                                                              |
 
 **本片未交付且必须显式记账的**：`back`/scroll 两项（原因与解锁条件见 §6），以及 `agent-picker-custom-narrowing` 依赖的服务端字段。
 
@@ -70,18 +70,18 @@
 
 ### 4.2 GREEN（本次实际运行，均为 `--workers=1 --retries=0`）
 
-| 命令                                                                     | 结果                    | 层级/模式                     |
-| ------------------------------------------------------------------------ | ----------------------- | ----------------------------- |
-| `test:e2e --project=chromium-narrow -g "S7: the mode content panel"`     | **6 passed**（2.3m）    | E3 / chat·work·assistant·custom·coding 的窄屏呈现 |
-| `test:e2e --project=chromium-narrow`（`narrow-composer-controls`）       | **3 passed**（1.6m）    | E3 / composer 身份控件        |
-| `test:e2e --project=chromium -g "narrow keyboard user"`                  | **1 passed**（1.8m）    | E3 / personas 转正断言        |
-| `test:e2e:zoom --project=chromium-real-zoom-768`                         | **2 passed**（1.2m）    | E4-ish / 真实浏览器缩放       |
-| `bun --cwd packages/app test`                                            | **1042 pass / 0 fail**（120s），virtualizer 3 pass | E1/E2 |
-| `bun --cwd packages/app typecheck`                                       | exit 0                  |                               |
-| `LINT_BASE_REF=origin/main bun run script/lint-changed.ts`               | passed（124 changed files）|                            |
-| `bunx prettier --check`（18 个改动源文件）                               | clean                   |                               |
-| `git diff --check`                                                       | clean                   |                               |
-| manifest 结构校验（字段/owner/status/fixme 口径，脚本复算）              | 通过，deferred 13 / entries 2 |                          |
+| 命令                                                                 | 结果                                               | 层级/模式                                         |
+| -------------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------- |
+| `test:e2e --project=chromium-narrow -g "S7: the mode content panel"` | **6 passed**（2.3m）                               | E3 / chat·work·assistant·custom·coding 的窄屏呈现 |
+| `test:e2e --project=chromium-narrow`（`narrow-composer-controls`）   | **3 passed**（1.6m）                               | E3 / composer 身份控件                            |
+| `test:e2e --project=chromium -g "narrow keyboard user"`              | **1 passed**（1.8m）                               | E3 / personas 转正断言                            |
+| `test:e2e:zoom --project=chromium-real-zoom-768`                     | **2 passed**（1.2m）                               | E4-ish / 真实浏览器缩放                           |
+| `bun --cwd packages/app test`                                        | **1042 pass / 0 fail**（120s），virtualizer 3 pass | E1/E2                                             |
+| `bun --cwd packages/app typecheck`                                   | exit 0                                             |                                                   |
+| `LINT_BASE_REF=origin/main bun run script/lint-changed.ts`           | passed（124 changed files）                        |                                                   |
+| `bunx prettier --check`（18 个改动源文件）                           | clean                                              |                                                   |
+| `git diff --check`                                                   | clean                                              |                                                   |
+| manifest 结构校验（字段/owner/status/fixme 口径，脚本复算）          | 通过，deferred 13 / entries 2                      |                                                   |
 
 ### 4.3 真实 200% 缩放的配方（本片新建 `packages/app/e2e/zoom/`）
 
@@ -147,3 +147,38 @@
   - `back` 的产品合同：浮层关闭式，还是保持导航语义并据此写断言？
   - `AgentV2.Info.originRelativePath` 是否进入 `/agent` 投影（服务端合同 + Schema/迁移审批）。
   - 主计划 §22 的其余 gate：ADR/迁移/HTTP endpoint、M2 Memory/KB、Work-side custom Preset、附件/导入导出、Desktop packaged smoke 的 release scope、共享权限控制面，以及 Git 授权（commit/push/PR）。
+
+---
+
+# S8（进行中）：Home / Project / Location 生命周期
+
+> 追加于 2026-09-17。S8 尚未关闭：本片落地了第一个垂直单元，其余按下面的账目登记。上文 §1–§8 是 S7 的记录，未改动。
+
+## S8-1 已落地：注册表的目录拼写契约（verified）
+
+**缺陷**：`packages/app/src/context/server.tsx` 的 `open`/`close`/`expand`/`collapse`/`move` 全部逐字比较 `worktree`。同一个目录只要换一种写法就绕过去重 —— `C:\AigcForge\App` 与 `C:/AigcForge/App`（原生 picker 与 URL 各能给一种）会变成两条注册、两个侧栏条目、两个 Location 作用域。
+
+**RED**（目标契约上的失败，非 setup）：三条用例分别断言「同目录只注册一条」「变体拼写能关闭对应注册」「变体拼写能 expand/collapse/reorder」，实测 3 fail；同时新增的守卫用例（关闭只删注册、不动其他 scope 与 `lastProject`）与 `pathKey` 边界用例为 pass，说明红的是目标行为本身。
+
+**GREEN**：复用仓库既有的目录键归一 owner `pathKey`（`packages/app/src/utils/path-key.ts`，已被 11 处使用），`sameDirectory(a, b)` 一个谓词替换五处逐字比较。**边界必须说清**：`pathKey` 归一的是*拼写*（分隔符、结尾斜杠、裸盘符），它**不折叠大小写**，也**不比较任何文件系统事实**，因此对物理身份不做任何断言 —— 这与计划「前端不自行 realpath 猜路径」的要求一致，也是我没有借这个改动去顺手"解决"同 inode 别名的原因。
+
+**新增证据**：`packages/app/src/context/server.test.ts` 新增 4 例。关于 `pathKey` 本身：我先写了一个独立测试文件，随后发现 `packages/app/src/pages/layout/helpers.test.ts:204-215` **已经**覆盖分隔符、结尾斜杠、POSIX 根与裸盘符，于是删掉新文件、只把既有测试缺的那条边界（是否折叠大小写）补进那一处 —— 按「复用 → 归并 → 新增」的顺序，重复铺一套测试不是证据而是负债。
+
+**命令**：`bun --cwd packages/app test:unit:file src/context/server.test.ts src/pages/layout/helpers.test.ts` → **41 pass / 0 fail**。
+
+## S8-2 侦察结论：本片被切成两半（这是本片最重要的发现）
+
+三路侦察（app 层 / core 层 / e2e 覆盖）在开工时改变了 S8 的形状：
+
+1. **路径身份这一半根本不存在 owner，必须单独走 ADR。** 详见计划 §11 新增的实测勘误第 1 条。核心事实：`Project.resolve` 用 git remote / root-commit 标识项目而**不用路径**，非 Git 目录一律落到字面量 `global`；`LocationServiceMap` 以原始 Ref 结构为键，所以同一物理目录的两种拼写会得到两套 Location 服务图。登记 `path-identity`（owner S8，解锁：§22-2 的 ADR + 能"证明"并在无法证明时返回 typed unknown/degraded 的后端合同；任何持久化部分按 §4.3 需兼容解码与回滚设计）。
+2. **「多 server 聚合」与 ADR-16 直接冲突。** 计划 §11.1 列了它，同片最后一句又要求 Home 遵守 ADR-16，而 ADR-16 明确把跨 server 合并收敛为后续项。今天 Home 只渲染当前 server。这需要 Owner 裁决，不是我能在实现里选的事 —— 登记 `home-multi-server-aggregation`。**若不登记，照 §11.1 字面实施就会做出 ADR 明确推迟的东西。**
+3. **计划点名的"颜色保存失败回滚"有两处真缺陷，且含一个会咬人的陷阱。** 自动上色效应在 `layout.tsx:505` 写入乐观颜色、失败时只清在途守卫（`:520-522`），于是行内颜色是服务端从未接受的值；而**天真回滚会重新触发同一效应、再次发出失败请求**，重试环必须被显式打断。手动编辑对话框从不读 `saveMutation.error`，被拒绝的 PATCH 完全静默。两处都未修，登记 `project-color-save-rollback`：需要先裁决"失败后显示成什么"（中性头像 vs 保留并警示），证据必须是 E3（spec 内 `page.route` 把 `PATCH /project/:id` 改成 500，断言行内不显示被拒颜色**且请求数有界**）。
+4. **本片多数行为今天零证据，且 manifest 里原本没有任何相应 key。** 「无 deferred key」不等于免做 —— no-project 恢复只断言了否定的一半，恢复分支从未被驱动；注册时对非法/不可访问路径零校验；项目列表无上限无虚拟化；Home 完全不读 health 状态。分别登记 `home-no-project-recovery`、`project-invalid-path`、`project-large-list`、`home-offline-state`。
+
+**mock 保真度是本片多数的前置**（都写进了各自 unlock）：`GET /path` 恒返回 `config.directory`、`GET /project` 恒一条、`PATCH /project/:id` 未匹配即回 200 `{}`、`GET /file` 恒 `[]`、`/vcs` 恒 git。也就是说非法路径、颜色失败、多项目、picker 驱动的恢复，今天**都无法在 E3 里表达**。
+
+## S8-3 账目
+
+- 本片新登记 6 条 deferred：`path-identity`、`project-color-save-rollback`、`home-multi-server-aggregation`、`home-offline-state`、`project-large-list`、`project-invalid-path`（外加 `home-no-project-recovery`，共 7 条）。
+- 计划文档 §11 追加了「实测勘误与边界（2026-09-17）」四条，与 S7 的 §10 处理方式一致：**不降级产品要求，只把实施前必须知道的事实与冲突写明**。
+- manifest 用与 `e2e/real/manifest.spec.ts` 同规则的脚本复算通过（entries=2 / modes=5 / deferred=20）。**权威校验器（`e2e/real/manifest.spec.ts`）本轮未运行**：它的 project 会拉起 E4 harness（production build），在本机 FUSE 上代价过大；如实记账，不把它算作已取证。

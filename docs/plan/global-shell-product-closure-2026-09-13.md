@@ -460,6 +460,18 @@ RED 用现有 `mode-slot-fallback-a11y.spec.ts` 固定窄屏入口的“能力�
 
 Home 继续遵守 ADR-16 全局聚合，筛选不创建/恢复 Session；模式首页继续使用 `/mode/:mode`。
 
+**实测勘误与边界（2026-09-17，S8 开工侦察）**——以下四条是开工时对源码与现行 ADR 的核对结果，不改写上面的产品要求，但实施前必须知道：
+
+1. **§11.2 的路径身份不存在任何 owner，本片因此被切成两半。** 全仓 `packages/core/src`、`packages/schema/src`、`packages/aigcfroge/src` 内 `inode`/`st_dev`/`st_ino`/`sameFile` 命中数为 0，也没有任何路径 alias 表或关系；`Project.resolve`（`packages/core/src/project.ts:110-122`）用 git remote 或 root-commit 哈希标识项目，**不用路径**，非 Git 目录一律落到字面量 id `global`（`:112` 与 `packages/core/src/session.ts:448-464`）；`ProjectDirectoryTable` 以 `(project_id, directory)` 为主键且 `directory` 已 realpath（`packages/core/src/project/directories.ts:65-82`），而 realpath 无法合并 bind-mount / 同 inode 别名；`LocationServiceMap` 以原始 `Location.Ref` 结构为键（`packages/core/src/location-layer.ts:101`），所以同一物理目录的两种拼写会得到两套 Location 服务图。结论：**跨 server / 别名 / 失效路径重定位这一半需要独立 ADR 与后端合同**（§22-2 已原则同意，§4.3 要求 ADR 先于任何迁移或 endpoint），登记为 `coverage-manifest.json` 的 `path-identity`；本片可先做的是生命周期那一半，且**前端只做拼写归一（复用 `pathKey`），不对物理身份做任何断言**。
+
+2. **「多 server 聚合」与 ADR-16 冲突，不能按字面实施。** 本条最后一句要求 Home 继续遵守 ADR-16，而 ADR-16 明确把跨 server 合并收敛为后续项（`docs/architecture/adr/ADR-16-global-home-overview.md`「多 server 聚合本期按当前 server 收敛，跨 server 合并为后续项」）。今天 Home 只渲染当前 server（`packages/app/src/pages/home-overview.tsx:75`），唯一的跨 server 项目树属 Coding（`packages/app/src/pages/coding-project-column.tsx:61-94`）。这需要 Owner 裁决（修订 ADR-16 并出资合并，或确认 §11.1 该行受 ADR-16 约束），登记为 `home-multi-server-aggregation`。
+
+3. **「颜色保存失败回滚」的缺陷位置已定位，但存在一个会咬人的陷阱。** 自动上色效应（`packages/app/src/context/layout.tsx:484-524`）在 `:505` 写入乐观颜色，失败时只清掉在途守卫（`:520-522`），于是行内颜色是服务端从未接受的值；而**天真地回滚会重新触发同一效应并再次发出失败的请求**，所以重试环必须被显式打断，不能靠删掉乐观写入来解决。手动编辑对话框（`packages/app/src/components/dialog-edit-project.tsx:77-102`）从不读取 `saveMutation.error`，被拒绝的 PATCH 是完全静默的。两条缺陷与所需证据登记为 `project-color-save-rollback`，其中"失败后显示成什么"是产品分叉，需先裁决。
+
+4. **本条的多数行为今天没有任何证据，`coverage-manifest.json` 也没有相应 deferred key。** 「无 deferred key」不等于免做：no-project 恢复只被断言了否定的一半（反馈出现、不创建 Session、留在 `/`），恢复分支本身从未被驱动；invalid/inaccessible 路径在注册时不做校验；large list 无上限也无虚拟化；Home 完全不读 health 状态。这四项分别登记为 `home-no-project-recovery`、`project-invalid-path`、`project-large-list`、`home-offline-state`。
+
+已落地（2026-09-17）：注册表的目录拼写契约——`context/server.tsx` 的 `open`/`close`/`expand`/`collapse`/`move` 原先逐字比较 worktree，同一目录的两种写法（`C:\x` vs `C:/x/`，原生 picker 与 URL 各能给一种）会变成两行注册、两个侧栏条目、两个 Location；现复用既有 `pathKey`，另加单测覆盖「同目录一次注册」「变体拼写可关闭/可重排」与「关闭只删注册、不动其他 scope 与 `lastProject`」。
+
 ---
 
 ## 12. Slice 9A：Work 最小产品闭环（按已批准 PRD 收敛）
