@@ -14,7 +14,7 @@
     "chat": {
       "route": "/mode/chat + canonical session detail",
       "e3": "asset categories, composer submit, session routes",
-      "e4": "planned S5 (real provider turn)",
+      "e4": "NOT covered: `e2e/real/session-turn.spec.ts` creates its session without a `mode`, so what the landed turn E4 exercises is the server default (coding — `packages/core` product-mode defaults), and the session-side-panel E3s for the chat content panel run mocked. Registered as deferred `chat-mode-e4-turn` rather than left implied by the S5 label.",
       "status": "planned"
     },
     "coding": {
@@ -53,6 +53,11 @@
       "scope": "streaming success + tool-call/HTTP-failure/SSE-interruption/duplicate/slow scripts. S5 landed the streaming-success script (orchestrator provider) plus /e4/provider-requests dispatch evidence; the remaining scenarios stay unwritten until a spec needs them",
       "unlock": "each remaining scenario (tool call, HTTP failure, SSE interruption, duplicate/out-of-order, slow response) is added with the spec that needs it — the real consumer is S9A (plan §12.4 requires provider failure/recovery E4)"
     },
+    "chat-mode-e4-turn": {
+      "owner": "S9A",
+      "scope": "The five-mode E4 requirement (plan §5.2: at least one happy path per mode) is not met for chat. `e2e/real/session-turn.spec.ts` posts to `/session` without a `mode`, so the turn it drives runs under the server's default (coding), and `modes.chat.e4` had said only `planned S5`. Nothing in the real suite creates a chat-mode session; its coverage is E3 against the mock.",
+      "unlock": "add a chat-mode turn case to the E4 harness expansion S9A already opens (the same slice as provider-scenario-scripts): create the session with `mode: \"chat\"` and assert the projection/persistence the coding case asserts. Registered during S7 rather than left implied by the S5 label, because a `planned` field cannot decide whether a case exists — the spec's own request is what decides it."
+    },
     "break-glass-bar-entry": {
       "owner": "S12",
       "scope": "the status bar projects permission state but offers no entry into the break-glass control surface; the lease owner (30s renew / 60s lease) lives in the composer and duplicating it in the bar would create the second truth source ADR-23 forbids",
@@ -83,35 +88,25 @@
       "scope": "the repo and its A/B build trees live on two different mounts: /media/win_data is fuseblk (ntfs-3g) and /home is ext4. On FUSE the same `vite build` that takes 40-50s on ext4 sat in `transforming` for 15+ minutes at 2-6% CPU with wchan=request_wait_answer, `du` on a e2e artifact dir timed out, deleting node_modules took 13 minutes, vite dev reported ready after 63s and its first request took 30s+. This is what made the S3 browser rounds unusable in the 2026-09-16 session, and it is also why the benchmark numbers drift so much on this host.",
       "unlock": "run e2e and builds from an ext4 checkout (or move the repo), and keep e2e artifacts off the FUSE mount; the debt ledger row carries the measurements"
     },
-    "identity-narrow-viewport-controls": {
-      "owner": "S7",
-      "scope": "plan §9.2 requires the new agent picker and permission state to stay keyboard-reachable and fully readable at narrow widths, with long lists scrolling rather than squeezing the model and submit controls. S6's E3 coverage for these controls runs at the default viewport only.",
-      "unlock": "land with S7's narrow-screen and keyboard a11y slice: a chromium-narrow case asserting keyboard reach, full accessible name and that the picker's growth does not displace model or submit"
-    },
     "e2e-readiness-predicate-flake": {
       "owner": "S3",
-      "scope": "e2e/utils/waits.ts expectDevServerReady polls /@vite/client from inside the test and intermittently times out at 120s on this host while the same URL answers in ~25ms from a shell; three occurrences in one session, each passing on rerun. Adjacent, the 180s per-test budget is sometimes too small for the heaviest cases on this host.",
-      "unlock": "replace the readiness signal with one that does not depend on page.request (DOM readiness after goto, or a harness port-health probe) and decouple the long cases' budgets from host load"
+      "scope": "e2e/utils/waits.ts expectDevServerReady polls /@vite/client from inside the test and intermittently times out at 120s on this host while the same URL answers in ~25ms from a shell; three occurrences in one session, each passing on rerun. Adjacent, the 180s per-test budget is sometimes too small for the heaviest cases on this host. The mechanism is recorded with its correction in docs/technical-debt.md §8 (`冷态 dev server 的首轮编译会顶穿就绪探测预算`): the cold first round compiles on the server's single event loop, so even static paths queue, and the case that pays for it is the FIRST of the round — re-measured during S7, where warming `/` alone took 293s while every later route took 7-10s, and a run that warmed only `/` still stalled on its second navigation.",
+      "unlock": "keep the readiness signal honest and stop paying the cold round per suite: either give the first case of a round its own budget (the ledger's second option), or land the ledger's first option — warm the target routes (including a session-detail route, which is where the mode content panels compile) to first paint before the round. S7 warmed with a scratch script outside the harness; the fix belongs in the harness's global setup. The ledger explicitly rules out enlarging APP_READY_TIMEOUT globally, because that also slows catching a server that is genuinely down."
     },
     "mode-detail-personas-closure-observations": {
       "owner": "S9A/S9B",
       "scope": "the three `closed:false` observation bundles in e2e/regression/mode-detail-personas.spec.ts are about Work/Assistant identity and scope (Work presetCategoryId=null and its artifact empty state, Assistant not showing personal/project scope, the identity header missing scope/preset/inherited model source). plan §10 had assigned their conversion to real assertions to S7, but their subject matter belongs with the slices that own it.",
       "unlock": "S9A/S9B convert them into expect() assertions when the Work and Assistant closures land; the session-product-header-projection entry (S9B) is the Header half of the third bundle"
     },
+    "mode-panel-back-and-scroll": {
+      "owner": "S7",
+      "scope": "plan §10's line for this carrier also asks for `back` and for a desktop→narrow→desktop round trip that loses neither the active tab, the store, nor the scroll. The tab/store half landed and is asserted (mode-slot-fallback-a11y.spec.ts: the selected tab survives the move to narrow and back). Two parts did NOT: (a) no browser-back behaviour is asserted for the narrow overlay, and the intended contract is not settled — the panel's open state is deliberately not in the URL, so `back` would currently navigate away rather than close the panel, and which of those is wanted is a product call; (b) scroll preservation is unasserted because the mode specs' mock serves no messages, so the timeline has nothing to scroll.",
+      "unlock": "(a) settle the product contract for back (dismiss the overlay, or leave navigation alone and say so), then assert it; (b) give the Work mock enough message parts to produce a scrollable timeline, scroll it, open and close the overlay, and assert the offset is unchanged — the body is never unmounted (it is only `inert`), so a reset would be a real defect rather than a fixture artifact."
+    },
     "hidden-panel-request-and-remount": {
       "owner": "S11",
       "scope": "plan §10 listed this under S7 alongside the narrow-panel work, but its subject is render ownership, not narrow layout: a hidden/closed panel must not re-issue requests and must not remount the business owner. This repo keeps hidden surfaces MOUNTED on purpose (render-all + display:none, with ModeSlotActiveProvider gating side effects — the same property P2-14 protected), so the invariant covers every mode surface, not just the secondary sidebar. Reviewer correction: `layout.tsx` renders the closed secondary sidebar through `<Show>`, so closing it DOES unmount — P2-14's render-all applies to mode slots inside ModeWorkspace, not to this panel. S11's verification must therefore distinguish mode-switch hiding (stays mounted by design) from sidebar close/reopen (unmounted today).",
       "unlock": "assert request counts and node identity across a hide/show cycle for the mode surfaces (the request-count pattern already exists in e2e/regression/chat-asset-categories.spec.ts), and update plan §10 so the line is not inherited as narrow-panel work"
-    },
-    "narrow-mode-content-panels": {
-      "owner": "S7",
-      "scope": "plan §10 asks that at 390x844 and 200% the Session, Composer AND mode-specific panels all have a clear entry. S7 so far fixed and asserted the SECONDARY SIDEBAR (left navigation) only. The real content owners stay gated: `session-side-panel.tsx` renders `when={isDesktop() && !!params.id}` (768px), so Work/Assistant/Custom content panels do not render at 390 or 720 at all, and the mobile branch offers Session/Changes only. The 'entry exists' claim therefore covers navigation, not the mode panels — reopened by the reviewer with a browser repro.",
-      "unlock": "give the mode content owners a narrow-width access path (the panel already owns the content; what is missing is a narrow presentation), then assert reachability for Work/Assistant/Custom at 390x844 and 200% — before the back/scroll items, which are smaller and share this carrier"
-    },
-    "real-200-percent-zoom": {
-      "owner": "S7",
-      "scope": "plan §10 and the DoD both require the 200% check to use REAL browser zoom/reflow, explicitly not a shrunk viewport. The repo's existing convention (settings-dialog.spec.ts:226-229) represents zoom as the halved CSS viewport; that guard is kept (720x450) but it does NOT discharge this clause, and the reviewer rejected counting it as the 200% acceptance.",
-      "unlock": "produce real page-zoom evidence (browser or Electron page zoom) for the narrow panel contract. Owner ruling 2026-09-17: §10's wording is NOT amended, and CDP `Emulation.setDeviceMetricsOverride` cannot substitute — measured: `scale: 2` leaves the layout viewport at 1440x900, DPR at 1 and media queries unchanged, and `deviceScaleFactor: 2` only raises DPR; the protocol defines `scale` as scaling the final view image, not the layout. Those parameters may be used for auxiliary observation only. Changing width/height to fake relief is the already-excluded viewport-shrink approach."
     }
   },
   "entries": [
@@ -138,8 +133,8 @@
       "platform": "chromium-narrow",
       "failure": "narrow-review-staging",
       "status": "red-stable",
-      "owner": "S7/S16",
-      "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true)"
+      "owner": "S7",
+      "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true). Owner corrected from `S7/S16` to `S7` during S7: no `S16` exists in the closure plan (its slices stop at S12), in the review report, or in any ADR/PRD, so the second owner named a slice that does not exist and could never have closed it. The S7 work that landed covers the mode CONTENT panels; this entry is about the coding review surface, which the narrow mode reaches through its own Session/Changes tabs, so it stays open."
     }
   ]
 }
