@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
-import { mockAigcfrogeServer } from "../utils/mock-server"
+import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
 import { pinDesktopViewport } from "../utils/viewport"
 import { expectAppVisible, gotoWhenReady } from "../utils/waits"
@@ -31,27 +31,48 @@ const project = {
 }
 
 const offlineNotice = (page: Page) => page.locator('[data-component="home-overview-offline"]')
+const homeRows = (page: Page) => page.locator('[data-component="home-session-row"]')
 
-async function openHome(page: Page, options: { unreachable: boolean }) {
+const cachedSession = {
+  id: "ses_cached_while_offline",
+  slug: "cached-while-offline",
+  projectID,
+  directory,
+  title: "Cached session remains visible",
+  mode: "chat",
+  agent: "build",
+  version: "dev",
+  time: { created: 1700000000000, updated: 1700000000000 },
+}
+
+/**
+ * Mutable switch, consulted per request, so a case can start against a healthy server and
+ * then take it away without reloading the page — the transition the one-shot cases cannot
+ * express, and the only way to ask whether the offline treatment is additive.
+ */
+type Offline = { current: boolean }
+
+async function openHome(page: Page, options: { sessions?: MockServerConfig["sessions"]; offline?: Offline } = {}) {
+  const offline = options.offline ?? { current: false }
   await mockAigcfrogeServer(page, {
     directory,
     project,
     provider: { providers: [], default: {} },
-    sessions: [],
+    sessions: options.sessions ?? [],
     pageMessages: () => ({ items: [] }),
     events: () => [],
     eventRetry: 16,
   })
 
-  if (options.unreachable) {
-    // Only the mocked backend port; the dev server's own requests must pass through.
-    const serverPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
-    const backend = (url: string) => new URL(url).port === serverPort
-    await page.route("**/global/health*", (route) => route.abort("connectionrefused"))
-    await page.route("**/session**", (route) =>
-      backend(route.request().url()) ? route.abort("connectionrefused") : route.fallback(),
-    )
-  }
+  // Only the mocked backend port; the dev server's own requests must pass through.
+  const serverPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
+  const backend = (url: string) => new URL(url).port === serverPort
+  await page.route("**/global/health*", (route) =>
+    offline.current ? route.abort("connectionrefused") : route.fallback(),
+  )
+  await page.route("**/session**", (route) =>
+    offline.current && backend(route.request().url()) ? route.abort("connectionrefused") : route.fallback(),
+  )
 
   await page.addInitScript((worktree) => {
     localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true } }))
@@ -72,7 +93,7 @@ test.beforeEach(async ({ page }) => {
 
 test.describe("regression: Home against an unreachable server", () => {
   test("says the server is unreachable instead of claiming the account is empty", async ({ page }) => {
-    await openHome(page, { unreachable: true })
+    await openHome(page, { offline: { current: true } })
 
     const notice = offlineNotice(page)
     await expect(notice).toBeVisible()
@@ -86,7 +107,7 @@ test.describe("regression: Home against an unreachable server", () => {
   })
 
   test("offers the shell's server-management dialog as the way forward", async ({ page }) => {
-    await openHome(page, { unreachable: true })
+    await openHome(page, { offline: { current: true } })
 
     const manage = offlineNotice(page).getByRole("button", { name: "Manage servers" })
     await expect(manage).toBeVisible()
@@ -97,9 +118,26 @@ test.describe("regression: Home against an unreachable server", () => {
   // Control: the offline treatment is keyed to health, not to Home being empty. A reachable
   // server with no sessions still shows the ordinary page it always did.
   test("a healthy server still shows the ordinary empty page", async ({ page }) => {
-    await openHome(page, { unreachable: false })
+    await openHome(page)
 
     await expect(offlineNotice(page)).toHaveCount(0)
     await expect(page.getByText("No sessions found")).toBeVisible()
+  })
+
+  // The offline treatment is additive: a session list already loaded from a healthy server
+  // must survive the health transition, with the notice above it rather than replacing it
+  // with the empty state. This is the half the one-shot offline cases cannot reach, because
+  // they abort the endpoints before the first load ever succeeds.
+  test("keeps cached sessions visible under the offline notice", async ({ page }) => {
+    const offline = { current: false }
+    await openHome(page, { sessions: [cachedSession], offline })
+
+    await expect(homeRows(page).filter({ hasText: cachedSession.title })).toBeVisible()
+
+    offline.current = true
+    // The budget must cover one poll interval (server-health.ts: pollMs), so a failure here
+    // means the health poll stopped reporting, not that it was given too little time.
+    await expect(offlineNotice(page)).toBeVisible({ timeout: 15_000 })
+    await expect(homeRows(page).filter({ hasText: cachedSession.title })).toBeVisible()
   })
 })

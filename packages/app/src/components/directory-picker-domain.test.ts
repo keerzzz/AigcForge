@@ -162,7 +162,7 @@ test("treats unexpected directory-search response bodies as no results", async (
         files: () => Promise.resolve({ data: { error: "not a path list" } }),
       },
     },
-  } as unknown as Parameters<typeof createDirectorySearch>[0]["sdk"]
+  }
   const search = createDirectorySearch({ sdk, home: () => "/home/luke", base: () => "/repo" })
 
   expect(await search("components")).toEqual([])

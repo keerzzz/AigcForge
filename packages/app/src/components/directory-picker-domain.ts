@@ -267,6 +267,20 @@ import { getFilename } from "@aigcfroge/core/util/path"
 import fuzzysort from "fuzzysort"
 import { ServerSDK } from "@/context/server-sdk"
 
+/**
+ * The two reads `createDirectorySearch` performs, with their response bodies declared
+ * `unknown`. The SDK types those bodies as arrays, but the bytes on the wire are not the
+ * type system's business (see `isPickerNode`), so the search already narrows them; declaring
+ * that here lets a caller supply just these two reads without fabricating an entire SDK.
+ * The input types stay sourced from the SDK so they cannot drift from it.
+ */
+export type DirectorySearchSdk = {
+  client: {
+    file: { list: (input: Parameters<ServerSDK["client"]["file"]["list"]>[0]) => Promise<{ data: unknown }> }
+    find: { files: (input: Parameters<ServerSDK["client"]["find"]["files"]>[0]) => Promise<{ data: unknown }> }
+  }
+}
+
 export function cleanPickerInput(value: string) {
   const first = (value ?? "").split(/\r?\n/)[0] ?? ""
   return first.replace(/[\u0000-\u001F\u007F]/g, "").trim()
@@ -339,7 +353,11 @@ export function displayPickerPath(path: string, input: string, home: string) {
   return pickerTilde(value, home) || value
 }
 
-export function createDirectorySearch(args: { sdk: ServerSDK; base: () => string | undefined; home: () => string }) {
+export function createDirectorySearch(args: {
+  sdk: DirectorySearchSdk
+  base: () => string | undefined
+  home: () => string
+}) {
   const cache = new Map<string, Promise<Array<{ name: string; absolute: string }>>>()
   let current = 0
 
