@@ -19,9 +19,11 @@
  * COMPLETED turn's projection must survive a backend restart. Nothing here
  * claims anything about provider-dispatched-but-unresolved work.
  *
- * The last two cases (S9A) add the per-mode half of plan §5.2: one happy path
- * driven in `chat`, plus a control that reads back the mode the two cases above
- * actually ran under, since neither of them sends one.
+ * The last four cases (S9A) add the per-mode half of plan §5.2 and the provider
+ * failure/recovery half of §12.4: one happy path driven in `chat`, a control that
+ * reads back the mode the two cases above actually ran under (neither sends one),
+ * a first-attempt control for the provider count, and a turn driven through two
+ * armed transient 5xx answers to the retry that recovers it.
  */
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
@@ -69,6 +71,27 @@ async function promptViaBrowser(page: Page, text: string) {
   await expectAppVisible(input(page))
   await input(page).fill(text)
   await input(page).press("Enter")
+}
+
+/**
+ * How many completions the deterministic provider has answered so far in this run. The counter
+ * lives in the harness and is shared by every case in the file, so the failure cases compare a
+ * before/after delta rather than an absolute.
+ */
+async function providerCompletions(request: APIRequestContext) {
+  const harness = new URL(e4().providerBaseURL).origin
+  const response = await request.get(`${harness}/e4/provider-requests`)
+  const body: unknown = await response.json()
+  if (!isRecord(body) || !Array.isArray(body.requests)) throw new Error("provider requests response has no requests")
+  return body.requests.filter(
+    (entry) => isRecord(entry) && typeof entry.path === "string" && entry.path.endsWith("/chat/completions"),
+  ).length
+}
+
+async function armProviderFailures(request: APIRequestContext, count: number) {
+  const harness = new URL(e4().providerBaseURL).origin
+  const response = await request.post(`${harness}/e4/provider-failures?count=${count}`)
+  expect(response.ok(), `arm provider failures: ${await response.text()}`).toBeTruthy()
 }
 
 // The default runtime is the product path; the V2 variant run skips this file.
@@ -166,4 +189,49 @@ test("a chat-mode session runs a real provider turn and keeps its mode", async (
 test("a session created without a mode reports the server default", async ({ request }) => {
   const sessionID = await createSession(request, "S9A default-mode control")
   expect((await persistedSession(request, sessionID)).mode).toBe("coding")
+})
+
+// Provider failure/recovery (plan §12.4). Both cases are about the same number: how many times
+// the provider was asked to answer ONE turn. The control fixes that number with nothing armed,
+// which is what makes the armed case's count attributable to the armed failures rather than to
+// something else asking twice. The failure is armed in the harness and answered as a real 5xx
+// inside the turn, so the retry is the backend's own `SessionRetry.policy` — not a mocked status.
+test("an unarmed provider answers the turn on its first attempt", async ({ page, request }) => {
+  const e4m = e4()
+  const sessionID = await createSession(request, "S9A first-attempt control")
+  await armProviderFailures(request, 0)
+
+  seedRealBackend(page, e4m.backendUrl)
+  await page.goto(`/server/${base64Encode(e4m.backendUrl)}/session/${sessionID}`)
+
+  const before = await providerCompletions(request)
+  await promptViaBrowser(page, "Answer on the first attempt")
+  await expect(assistantText(page)).toBeVisible({ timeout: 90_000 })
+
+  expect((await providerCompletions(request)) - before, "one prompt, one completion").toBe(1)
+})
+
+test("a transient provider failure is retried, and the turn still lands", async ({ page, request }) => {
+  const e4m = e4()
+  const sessionID = await createSession(request, "S9A provider recovery")
+
+  seedRealBackend(page, e4m.backendUrl)
+  await page.goto(`/server/${base64Encode(e4m.backendUrl)}/session/${sessionID}`)
+
+  const before = await providerCompletions(request)
+  await armProviderFailures(request, 2)
+
+  await promptViaBrowser(page, "Recover from a transient provider failure")
+
+  // The user is told the turn is being retried, from the backend's own retry status. This is
+  // the product surface (`SessionRetry`, packages/session-ui/src/components/session-retry.tsx);
+  // the case asserts presence, not timing, because the retry window is a product detail.
+  await expect(page.locator('[data-slot="session-turn-retry"]')).toBeVisible({ timeout: 60_000 })
+
+  // And the retry is what recovers it: no second prompt, no reload, no user action.
+  await expect(assistantText(page)).toBeVisible({ timeout: 120_000 })
+  await expect(page.getByText("Recover from a transient provider failure")).toBeVisible()
+
+  expect((await providerCompletions(request)) - before, "two armed failures plus the attempt that succeeded").toBe(3)
+  await expect(page.locator('[data-slot="session-turn-retry"]')).toHaveCount(0)
 })

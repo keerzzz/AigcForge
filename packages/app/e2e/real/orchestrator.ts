@@ -88,6 +88,16 @@ const log = (line: string) => {
 
 const providerRequests: Array<{ method: string; path: string }> = []
 
+/**
+ * Armed transient failures for the provider failure/recovery case (plan §12.4). Each armed
+ * failure makes the next completion answer 5xx *inside a real turn*, which the backend treats
+ * as retryable regardless of what the provider SDK thinks (`session/retry.ts:74`: any status
+ * >= 500 is retryable), so the retry the case observes is the product's own. The spec arms it
+ * over HTTP rather than faking a failure in the test, and reads its attempt counts back from
+ * `/e4/provider-requests`.
+ */
+let providerFailures = 0
+
 function sseChunk(delta: Record<string, unknown>, finish?: string) {
   return `data: ${JSON.stringify({
     id: "chatcmpl-e4",
@@ -186,7 +196,24 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
     }
     return
   }
+  // Arm (or disarm, with count=0) the next N completion requests to answer 5xx. A query
+  // parameter rather than a body, matching /e4/admission above and keeping this process free
+  // of request-body parsing.
+  if (request.method === "POST" && record.path.startsWith("/e4/provider-failures")) {
+    const count = new URL(record.path, "http://127.0.0.1").searchParams.get("count") ?? "0"
+    const parsed = Number.parseInt(count, 10)
+    providerFailures = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+    response.writeHead(200, { "content-type": "application/json" })
+    response.end(JSON.stringify({ armed: providerFailures }))
+    return
+  }
   if (request.method === "POST" && record.path.endsWith("/chat/completions")) {
+    if (providerFailures > 0) {
+      providerFailures -= 1
+      response.writeHead(500, { "content-type": "application/json" })
+      response.end(JSON.stringify({ error: { type: "server_error", message: "E4 armed transient failure" } }))
+      return
+    }
     response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
     response.write(sseChunk({ role: "assistant", content: "" }))
     response.write(sseChunk({ content: "E4 deterministic response" }))

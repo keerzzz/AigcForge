@@ -595,3 +595,67 @@ No product code changed: the E4 provider still streams only its success script, 
 slow response) stays open with its unlock unchanged — plan §12.4's provider failure/recovery E4 is
 still owed. Also not run: the presentation matrix, `test:bench`, Desktop, `bun typecheck` for the
 whole repo, and the other E4 lifelines (files/pty/identity/not-found/v2-admission).
+
+## S9A: a transient provider failure is retried, and the turn still lands (2026-09-19)
+
+This section **appends**. It delivers the HTTP-failure family of plan §12.4's provider
+failure/recovery E4 and narrows the `provider-scenario-scripts` entry to the families that remain.
+
+### What was owed
+
+`provider-scenario-scripts` listed tool call, HTTP failure, SSE interruption,
+duplicate/out-of-order and slow response, with the unlock "each remaining scenario is added with
+the spec that needs it". §12.4 requires provider failure **and recovery**, and the harness could
+only answer success: its `/chat/completions` handler had exactly one script.
+
+### The harness knob
+
+`POST /e4/provider-failures?count=N` arms the next N completion requests to answer a real 5xx
+(`packages/app/e2e/real/orchestrator.ts`). A query parameter rather than a body, matching
+`/e4/admission`, so the harness still parses no request bodies — and the failure happens _inside a
+real turn_ instead of being faked in the test. The counter is bounded by construction, so an
+unarmed provider behaves exactly as before and no other case changes.
+
+Why the retry observed is the product's own: `retryable` treats any status ≥ 500 as retryable
+regardless of what the provider SDK reports (`packages/aigcfroge/src/session/retry.ts:74`), and
+the turn path sets the SDK's own `maxRetries` to 0
+(`packages/aigcfroge/src/session/prompt.ts:1545` — against the title path's 2, which no case here
+reaches because every case passes an explicit title, so `isDefaultTitle` is false and no title
+call is made). Backoff is 2s then 4s (`RETRY_INITIAL_DELAY` 2000 × factor 2, capped at 30s), so
+two armed failures hold the retry status on screen for about six seconds: long enough to assert
+presence without asserting timing.
+
+### The cases
+
+`session-turn.spec.ts:214` arms two failures, prompts once, and asserts four things: the retry
+surface becomes visible (`[data-slot="session-turn-retry"]`, rendered from the backend's own
+status by `SessionRetry`), the turn then lands with no second prompt and no reload, the provider
+was asked exactly 3 times, and the retry surface is gone at the end. `:199` is the control —
+nothing armed, exactly 1 completion. That pair is what makes the count attributable: one reader
+(`providerCompletions`, a filtered read of `/e4/provider-requests`), two states of the harness.
+
+### Runs
+
+All on the ext4 worktree `/home/keer/s8w` at `4eb723700` + this patch, `--project=chromium-real`,
+`workers=1`, `retries=0`, no sleep, no relaxed assertion:
+
+| command                                         | result                                               |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| the armed case alone                            | **1 passed (1.9m)**                                  |
+| both provider-failure cases                     | **2 passed (7.0m)**                                  |
+| the whole `session-turn.spec.ts` file (6 cases) | **6 passed (8.0m)**, `leaked=[] providerRequests=19` |
+
+### Ledger
+
+`provider-scenario-scripts` stays **open**, with a narrower scope: the HTTP-5xx family is
+delivered; the interruption/variance family (tool call, SSE interruption, duplicate/out-of-order,
+slow response) is not, and its unlock now says those need different harness knobs before they can
+have a spec. Closing the entry on this run would be the "registered debt as completion" the
+protocol forbids.
+
+### Not covered
+
+SSE interruption, duplicate/out-of-order delivery, slow responses and tool calls; S9A's Work
+persistent-contract half (needs the Schema/migration approval, so it is not started here); the
+presentation matrix, `test:bench`, Desktop, the full-repo `bun typecheck` and the other E4
+lifelines.
