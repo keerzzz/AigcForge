@@ -309,3 +309,53 @@
 另有一条会改变实验设计的更正：裁决要求的 `Transition.promises.size` / `Transition.queue.size` / `Transition.running` **无法从 app 代码读取**——`Transition` 是模块私有（`solid-js/dist/solid.js:167` 的 `let Transition = null`），精确导出表里有 `startTransition`、`useTransition`，没有裸 `Transition`。公开可用的等价观测是 `useIsRouting()`（router 已导出；transition 被扣住时 router 的 `.finally` 无法运行，该信号会一直为 `true`），配合 route 边界 fallback 的实际出现与否。
 
 **下一步唯一获批动作**：在健康主机、CI 或 ext4 检出上做**一次**聚焦浏览器确认运行，直接对齐 `newDraft` / router received-returned / `pushState` / location signal / `Routes` render / `DraftRoute` / 内存 `tabs.store.find` / 实际 pending resource 的时序，并记录 `pageerror`、console error、ErrorBoundary/`ErrorPage` 是否出现。禁止项同上，另加：不得把 happy-dom 结果改写成浏览器结果、不得改动或提交未跟踪的 `docs/plan/prompt-global-shell-remaining-closure.md`。临时 DIAG 允许，但运行后必须还原，不得进入产品提交。**若该实验确认了具体 owner，则已获条件性预批准进入单变量修复单元，无需再次审批。**
+
+---
+
+## S7 / S11 追加证据（2026-09-19）
+
+本节**追加**，不修改上文任何历史结论。上文 §4.3 的缩放配方已按本节第 3 条复跑确认。
+
+### 1. S7 滚动往返：由 pending 转绿（含变异探针）
+
+上文 §1 记「窄屏 overlay 打开/关闭后的滚动位置保持」为 pending（当时 mock 无消息可滚动）。现在该前提已不成立：mock 改为提供 40 条消息，用例 `mode-slot-fallback-a11y.spec.ts:509` 先断言 fixture 确实会溢出，再用真实滚轮手势把偏移推离底部锚点，然后开/关浮层，最后同时断言**同一个元素仍在挂载**（`data-scroll-probe`）与**偏移未变**。
+
+- 单跑 **1 passed (18.9s)**；整份 spec **15 passed (38.6s)**。
+- 可判别性用**变异探针**证明，不是靠断言自证：把 `pages/session.tsx:309-314` 的 `narrowContentPanelOpen()` 强制为 `false` 后，该用例变红于 `the floating panel must mark the session body inert, not remove it`（**1 failed**）；探针已撤回，`git diff --exit-code` 确认 `session.tsx` 与 HEAD 一致。
+- 未声称：滚动断言依赖「列只被置 `inert`、不被卸载」（`session.tsx:305-308` + `:2035`），这条链路是**读出来的**，本身没有做变异。
+
+### 2. S11 `hidden-panel-request-and-remount`：补齐节点身份
+
+既有 `mode-surface-wiring.spec.ts:112` 用 `toHaveCount(1)`，而 **1 个新节点同样满足计数**，所以"是否 remount"此前没有证据。新增用例 `:125`：
+
+- 先断言 10 个 slot 全部盖到 `data-node-probe`（少一个就在该步失败，不会滑成空转）；
+- 用 rail 按钮做**应用内**切换（不是 `page.goto`），要求 Chat 的 main/sidebar 回来时仍是**同一节点**；
+- 请求计数只限定 Chat 自己的 asset 列表（`/workflow-asset` 排除，因为 Work 也读它）——新显示的模式合法加载自己的数据。
+
+计数：单跑 **1 passed (14.7s)**；整份 spec **14 passed (51.3s)**。第二条生命周期（次级侧栏关闭/重开）保持独立覆盖：`mode-slot-fallback-a11y.spec.ts:244-254` 断言关闭时 count 0、打开时有 `role="complementary"` 与 `aria-controls`。
+
+未声称：该用例**没有**跑变异探针。
+
+### 3. 真实 200% 缩放：复跑确认 §4.3 仍然成立
+
+```bash
+PLAYWRIGHT_PORT=3082 bun run test:e2e:zoom -- --reporter=line
+```
+
+- 结果：**2 passed (10.9s)**（control「the seed is what zooms, not the window」+「a seeded profile zooms, reflows, and must keep the mode panels reachable」）。
+- 更正记录：本次会话早前的一次 manifest 编辑曾把 `real-200-percent-zoom` 当作 S7 未取证缺口重新登记——那是错的，依据只是执行手册 §2 的快照，没有先读本报告 §4.3。该条目已从台账移除，证据改记在本节与 S7 条目里。教训与手册 §2 的告诫一致：**旧绿色报告不能单独证明当前通过，但也不能在不复跑的情况下被当作当前缺失。**
+
+### 4. 基础 Chromium E3 全量（DoD 门）
+
+```bash
+PLAYWRIGHT_PORT=3082 PLAYWRIGHT_SERVER_PORT=4096 PLAYWRIGHT_WORKERS=1 \
+  bun run test:e2e -- --project=chromium --reporter=line --timeout=300000
+```
+
+- 结果：**247 passed (14.1m)**，exit 0，workers=1，无 retry，未放宽任何断言。
+- 该轮已包含本轮新增的 S11 身份用例与第 1 条的滚动用例。
+- 环境：ext4 worktree `/home/keer/s8w`（detached `5473f53a8` + 当时未提交 patch），私有端口 3082。FUSE 工作树上的 dev server 冷启 `ready in 99574 ms`，同一 spec 两次死在 `page.goto` 的 600s 超时——那是环境失败，不计作产品 RED。
+
+### 5. 本节未覆盖的门（不得据本节推断通过）
+
+E4（`test:e2e:real` 两轮 runtime）、`test:bench`、Desktop 独立 launch smoke（脚本尚未建立）、展示矩阵四项目（zh/zht/dark/narrow）、`bun typecheck` 全仓与 `bun run lint` 全量。本节只跑了：zoom 套件、基础 E3 全量、以及若干定向批次（24 passed / 30 passed），外加改动文件的 `oxlint`、`prettier --check`、`tsgo --noEmit -p e2e/tsconfig.json`、`git diff --check`。
