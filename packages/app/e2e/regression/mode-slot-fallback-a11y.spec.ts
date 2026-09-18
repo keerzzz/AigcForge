@@ -175,7 +175,7 @@ test("the mode panel has an entry and an accessible name at 390px", { tag: "@a11
   await toggle.click()
   await expect(toggle).toHaveAttribute("aria-expanded", "true")
 
-  const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
+  const panel = modePanel(page, "chat")
   await expect(panel).toBeVisible()
 
   // No orphan region references. This is a WEAKER check than it looks — it only walks
@@ -198,7 +198,7 @@ test("the session area stays usable with the mode panel open at 390px", { tag: "
   await page.setViewportSize(NARROW)
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
-  await expect(page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })).toBeVisible()
+  await expect(modePanel(page, "chat")).toBeVisible()
 
   const mainWidth = await page.evaluate(() =>
     Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0),
@@ -218,7 +218,7 @@ test("the floating panel closes on Escape and returns focus to its toggle", { ta
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
 
-  const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
+  const panel = modePanel(page, "chat")
   await expect(panel).toBeVisible()
 
   // Focus must actually LEAVE the toggle first, or "returns focus" is unfalsifiable: the
@@ -266,7 +266,7 @@ test("Escape follows the breakpoint in both directions", { tag: "@a11y" }, async
   await page.setViewportSize({ width: 1280, height: 720 })
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
-  const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
+  const panel = modePanel(page, "chat")
   await expect(panel).toBeVisible()
 
   await page.setViewportSize(NARROW)
@@ -295,7 +295,7 @@ test("a desktop to narrow round trip keeps the panel's active section", { tag: "
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
 
-  const panel = page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })
+  const panel = modePanel(page, "chat")
   await expect(panel).toBeVisible()
   const skills = panel.getByRole("button", { name: /^Skills(?:\s+\d+)?$/ })
   await skills.click()
@@ -324,7 +324,7 @@ test("the session area stays usable with the mode panel open at 200% zoom", { ta
   await page.setViewportSize({ width: 720, height: 450 })
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
-  await expect(page.getByRole("complementary", { name: /Project list|项目列表|專案列表/i })).toBeVisible()
+  await expect(modePanel(page, "chat")).toBeVisible()
 
   const mainWidth = await page.evaluate(() =>
     Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0),
