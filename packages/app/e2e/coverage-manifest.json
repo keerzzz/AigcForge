@@ -180,6 +180,19 @@
       "status": "red-stable",
       "owner": "S7",
       "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true). Owner corrected from `S7/S16` to `S7` during S7: no `S16` exists in the closure plan (its slices stop at S12), in the review report, or in any ADR/PRD, so the second owner named a slice that does not exist and could never have closed it. The S7 work that landed covers the mode CONTENT panels; this entry is about the coding review surface, which the narrow mode reaches through its own Session/Changes tabs, so it stays open."
+    },
+    {
+      "id": "session-todo-writeback-order-flake",
+      "spec": "e2e/regression/session-todo-progress.spec.ts",
+      "test": "shows id-bearing nodes, opens the fold-over, and PATCHes a checkbox writeback",
+      "layer": "E3",
+      "route": "session detail → todo progress fold-over",
+      "mode": "cross",
+      "platform": "chromium",
+      "failure": "order-flake",
+      "status": "flake-observed-once",
+      "owner": "S3",
+      "unlock": "run the baseline protocol (2 same-order rounds + 1 reversed) before treating this as a product failure. Observed ONCE in an 18.0m full `--project=chromium` round at a4f0e6720 on the ext4 worktree `/home/keer/s8w`, private port 3083, workers=1, retries=0: `page.waitForResponse` for `PATCH /session/:id/task` timed out at the 180s test budget after a Kobalte checkbox click, while the same snapshot shows the page itself healthy and rendered. The whole spec file then passed alone in the same environment, same commit, same port, same minute: 17 passed (45.1s), the failing case included. Nothing in that slice touched the todo-progress path — the only production change was a type-only narrowing in `components/directory-picker-domain.ts` — so the leading explanation is the documented long-round dev-server stall (`e2e-readiness-predicate-flake`), not a regression. Not quarantined: no fixme while the file passes standalone."
     }
   ]
 }

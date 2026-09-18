@@ -659,3 +659,74 @@ SSE interruption, duplicate/out-of-order delivery, slow responses and tool calls
 persistent-contract half (needs the Schema/migration approval, so it is not started here); the
 presentation matrix, `test:bench`, Desktop, the full-repo `bun typecheck` and the other E4
 lifelines.
+
+## Session verification round (2026-09-19)
+
+Appended for the runs that close this session's slices. Nothing above is rewritten. Two citations
+in the sections above went stale when later cases were appended to the same file; they are
+corrected here rather than edited in place, because those sections were committed with them.
+
+### E4, default environment, all eight specs at `a4f0e6720`
+
+```bash
+cd /home/keer/s8w/packages/app
+E4_RUN_DIR=/tmp/e4-default-all bun run test:e2e:real -- --project=chromium-real --reporter=line
+# 23 passed, 1 skipped (7.9m); [E4] teardown gate passed: ports free, process group gone,
+# workspace clean, backend local, report clean
+```
+
+The one skip is the V2 variant's own switch, by design: `v2-admission-gap.spec.ts:25` —
+`test.skip(() => !e4().v2Runtime, "V2 variant only — run with E4_V2_RUNTIME=1")`. So the default
+round does **not** pin the V2 admission gap; that is the second round below. The other four
+`test.skip` calls in `e2e/real/` are the mirror image (they skip when `v2Runtime` is true), which
+is exactly why the two rounds exist rather than one.
+
+### E4, V2 variant, same commit
+
+```bash
+E4_V2_RUNTIME=1 E4_RUN_DIR=/tmp/e4-v2-round bun run test:e2e:real -- --project=chromium-real --reporter=line
+# 10 passed, 14 skipped (6.8m); teardown gate passed
+```
+
+14 skipped = the four V1 chains (files 3, identity 2, pty 3, turn 6). 10 passed = manifest 4,
+lifeline 3, not-found 2, and `v2-admission-gap.spec.ts:71` — whose green means **the gap is still
+there**, not that V2 works: durable admission lands, execution is not dispatched, and the
+V1-shaped projection is empty. Do not read that tally as S9C progress.
+
+### E3, base Chromium, all 247 cases at the same commit
+
+```bash
+PLAYWRIGHT_PORT=3083 PLAYWRIGHT_SERVER_PORT=4096 PLAYWRIGHT_WORKERS=1 \
+  bun run test:e2e -- --project=chromium --workers=1 --retries=0 --reporter=line
+# 246 passed, 1 failed (18.0m), exit 1
+```
+
+The failure is `session-todo-progress.spec.ts:85` — `page.waitForResponse` for
+`PATCH /session/:id/task` never resolved after a Kobalte checkbox click, hitting the 180s test
+budget while the failure snapshot shows the page itself healthy and rendered. It was classified
+rather than excused:
+
+- the whole spec file passed alone immediately afterwards in the same environment, same commit,
+  same private port: **17 passed (45.1s)**, the failing case included;
+- nothing in this session touched the todo-progress path. The only production change was a
+  type-only narrowing in `components/directory-picker-domain.ts`;
+- it is registered as `session-todo-writeback-order-flake` (`entries`, `flake-observed-once`,
+  owner S3) with the baseline-protocol re-run as its unlock, and **not** quarantined.
+
+So the honest reading of that round is **246/247 with one unclassified-but-registered order
+flake**, not "green" and not "a regression".
+
+### Corrections to two citations in the sections above
+
+- the chat-mode cases moved when the provider-failure cases were appended to the same file: they
+  are `session-turn.spec.ts:169` and `:189`, not `:146` and `:166`. The provider-failure cases are
+  `:199` and `:214`, as recorded.
+- `DirectorySearchSdk` is declared at `directory-picker-domain.ts:277` and consumed as the
+  parameter type at `:356`, so the earlier "269-283" was the pre-edit range.
+
+### Gates this session did not run
+
+The presentation matrix (zh/zht/dark/narrow), `test:bench`, `bun --cwd packages/desktop test`,
+Desktop launch smoke (the script still does not exist), `bun typecheck` for the whole repo, and
+`bun run lint` in full. The E4 rounds above, the base E3 round, `bun --cwd packages/app test`
+(1048 pass), the app typecheck, `lint-changed` and `prettier --check` are the ones that ran.
