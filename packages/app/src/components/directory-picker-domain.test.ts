@@ -152,6 +152,23 @@ test("resolves directory autocomplete from the current browser root", async () =
   expect(directories).toEqual(["/repo", "/repo/src"])
 })
 
+test("treats unexpected directory-search response bodies as no results", async () => {
+  const sdk = {
+    client: {
+      file: {
+        list: () => Promise.resolve({ data: { error: "not a file list" } }),
+      },
+      find: {
+        files: () => Promise.resolve({ data: { error: "not a path list" } }),
+      },
+    },
+  } as unknown as Parameters<typeof createDirectorySearch>[0]["sdk"]
+  const search = createDirectorySearch({ sdk, home: () => "/home/luke", base: () => "/repo" })
+
+  expect(await search("components")).toEqual([])
+  expect(await search("/")).toEqual([])
+})
+
 test("identifies the next directory level to preload", () => {
   expect(
     preloadTreeDirectories("src/", [
