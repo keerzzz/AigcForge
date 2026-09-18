@@ -428,3 +428,109 @@ the plan's S7 contract requires the panel entry, Escape, focus restore, and aria
 that the passing cases now assert. If a future accessibility audit wants a named landmark on a
 mode content wrapper, it must be filed with its own evidence and owner rather than inferred from
 this locator repair.
+
+---
+
+## S8 offline notice: the cached-session half, and the first authoritative manifest run (2026-09-19)
+
+This section **appends**; the S8 record above is unchanged. Item (1) of `home-offline-state`
+("the notice above a NON-empty list is implemented but unasserted") is now asserted, and the
+entry's evidence half closes with it.
+
+### What was owed, and why the three landed cases could not pay it
+
+All three abort `/global/health` and the session endpoints _before_ the first load, so they can
+only observe Home with nothing to lose. The open question is the additive one: once a healthy
+server has handed Home a session list and the server then becomes unreachable, does the notice
+sit **above** that list, or does the empty state (or the notice) replace it? Those are different
+products, and the implementation claims the former. A `toHaveCount(0)`-style negative cannot
+distinguish them, which is why this half was left unasserted rather than asserted weakly.
+
+### The case
+
+`e2e/regression/home-server-unreachable.spec.ts:131` loads one session from a healthy mock,
+flips a mutable `offline` switch so the health and session routes start aborting, then requires
+**both** the notice (`:140`) and the session row (`:141`) to be visible.
+
+The switch is a box the two route handlers consult per request, so the case starts healthy and
+loses the server mid-page without a reload. Folding it in also removed the second copy of mocks,
+routes and init script: all four cases now share the single `openHome` setup. The 15s budget on
+the notice is deliberate — one health-poll interval is 10s (`utils/server-health.ts`, `pollMs`),
+so a failure there means the poll stopped reporting rather than that it was given too little
+time. Event-driven polling; no sleep and no retry anywhere in the file.
+
+### Discriminating power, measured rather than asserted
+
+A green that only says "a row is visible" could be satisfied by a row that never depended on the
+notice. So the case was also run against a mutation: the group block at `home-overview.tsx:316`
+becomes `Show when={!offlineServer() && (pinned().pinned || groups().length > 0)}`, i.e. the
+notice _replaces_ the list instead of sitting above it. Result: **1 failed** at `:141`, with
+`:140` (notice visible) already green — the notice appeared and the list is exactly what
+disappeared. The mutation was reverted and `git diff --exit-code` confirms the file is identical
+to HEAD.
+
+### Runs
+
+| command                                                                                 | result                                 |
+| --------------------------------------------------------------------------------------- | -------------------------------------- |
+| `bun run test:e2e -- e2e/regression/home-server-unreachable.spec.ts --project=chromium` | **4 passed (22.0s)**                   |
+| same, with the replacement mutation applied                                             | **1 failed** (the new case, at `:141`) |
+| same, after folding the setup back into `openHome`                                      | **4 passed (22.4s)**                   |
+
+All on the ext4 worktree `/home/keer/s8w` at `87b9d0af2` + this patch, private port 3083,
+`workers=1`, `--retries=0`, no sleep, no relaxed assertion. The user's port 3000 was neither
+started nor stopped.
+
+### The authoritative manifest validator has now been run
+
+`e2e/real/manifest.spec.ts` — the machine-readable entry contract that forbids silent `test.fixme`
+quarantine and requires every deferred scope to carry an owner and an unlock — had been recorded
+as **not run** through S7 and S8 because its project boots the full E4 stack (production build +
+backend). It runs on the ext4 worktree in about a minute:
+
+```bash
+cd /home/keer/s8w/packages/app
+E4_RUN_DIR=/tmp/e4-manifest-run bun run test:e2e:real -- --project=chromium-real manifest --reporter=line
+# build 47.11s, preview up, 4 passed (56.0s)
+# [E4] teardown gate passed: ports free, process group gone, workspace clean, backend local, report clean (SIGTERM)
+# [E4] teardown report: leaked=[] providerRequests=0
+```
+
+Four cases pass against the manifest as edited by this slice: every entry carries the full
+route × mode × layer × failure × platform contract; every quarantined `test.fixme` case has an
+entry; all five modes declare their coverage layer; no deferred scope floats without an owner
+and an unlock. The prior "not run" note is therefore stale in the direction of _less_ coverage
+than exists — but note what this does **not** say: it validates the ledger's shape, not that any
+behaviour in it is verified, and the 4 passing cases are not E4 lifelines.
+
+### Lint gate repair inherited from `5473f53a8`
+
+`LINT_BASE_REF=origin/main bun run script/lint-changed.ts` was **red on this branch** before this
+slice: `packages/app/src/components/directory-picker-domain.test.ts` carried an added line,
+`} as unknown as Parameters<typeof createDirectorySearch>[0]["sdk"]`, against the guarded rule
+`typescript/no-unsafe-type-assertion`. The gate checks _added_ lines only, which is why the
+identical assertion 21 lines above it (grandfathered, unchanged) is not reported: the violation
+belongs to the commit that added the unexpected-body case, not to this one.
+
+Repair, in the "depend on the interface you use" direction rather than by loosening the test:
+`createDirectorySearch` now takes `DirectorySearchSdk` (`directory-picker-domain.ts:269-283`) —
+its two reads, with response bodies typed `unknown`. That is already what the body assumes (it
+narrows with `isPickerNode`, which landed with the recovery fix in the same file), and it lets a
+caller supply those two reads without fabricating an entire SDK. The **input** types stay sourced
+from `ServerSDK` through `Parameters<...>`, so they cannot drift from it. Types only, no runtime
+change; both real callers (`dialog-select-directory.tsx:76`, `dialog-select-directory-v2.tsx:85`)
+pass a full `ServerSDK` and still typecheck.
+
+### Gates (exit codes)
+
+`bun --cwd packages/app typecheck` **0** · `bun --cwd packages/app test:unit` **1048 pass / 0 fail**
+· `test:virtualizer` **3 pass / 0 fail** · `prettier --check` clean · `LINT_BASE_REF=origin/main
+lint-changed` **passed** (138 changed files) · `git diff --check` clean.
+
+### Not covered by this section
+
+The presentation matrix, `test:bench`, Desktop, the full-repo `bun typecheck` and the E4 lifelines
+(turn/files/pty/identity/v2-admission) were **not** re-run here; only the E4 _manifest_ spec was.
+`home-offline-state` keeps one open item that is a product question, not a gap in evidence:
+whether the offline state owes a retry affordance of its own (today it reuses the app-level
+"Retrying automatically..." wording and points at Manage servers).
