@@ -359,3 +359,72 @@ PLAYWRIGHT_PORT=3082 PLAYWRIGHT_SERVER_PORT=4096 PLAYWRIGHT_WORKERS=1 \
 ### 5. 本节未覆盖的门（不得据本节推断通过）
 
 E4（`test:e2e:real` 两轮 runtime）、`test:bench`、Desktop 独立 launch smoke（脚本尚未建立）、展示矩阵四项目（zh/zht/dark/narrow）、`bun typecheck` 全仓与 `bun run lint` 全量。本节只跑了：zoom 套件、基础 E3 全量、以及若干定向批次（24 passed / 30 passed），外加改动文件的 `oxlint`、`prettier --check`、`tsgo --noEmit -p e2e/tsconfig.json`、`git diff --check`。
+
+---
+
+## S7 presentation-locale repair: closed on the full four-project matrix (2026-09-19)
+
+This section **appends** to the S7 record; the earlier English-only `verified` claims and the
+intermediate failure counts above remain part of the history.
+
+### Root cause and change
+
+The remaining presentation failures were test ownership/locator defects, not product failures.
+The `Skills` section entry in `ChatFeatureList` had no stable hook, so the spec matched it by an
+English-only accessible-name regex. That regex cannot match zh/zht, and the resulting
+`locator.click` waited until the 180s test timeout. The fix adds `data-feature={feature.id}` to
+the Chat feature button (`packages/app/src/components/mode-surfaces.tsx:124`) and locates the
+selection by that hook (`packages/app/e2e/regression/mode-slot-fallback-a11y.spec.ts:306`).
+The secondary-sidebar panel/toggle cases now use their stable IDs, so the block tests the
+surface it actually opens; the mode-content-panel cases remain on the
+`[data-component="session-mode-panel"][data-mode=...]` hooks.
+
+No assertion was weakened, no retry or sleep was added, and no product behaviour was changed.
+The earlier failed run is retained as a real RED observation: `chromium-zh` timed out at
+`mode-slot-fallback-a11y.spec.ts:307` because the translated label did not match; the run was
+interrupted after the unrelated zht readiness failure, so it is **not** counted as a product
+failure.
+
+### Verification
+
+Environment: ext4 worktree `/home/keer/s8w` at `5473f53a8` plus the uncommitted S7 patch, private
+Vite on port 3083, API port 4096; `workers=1`, `--retries=0`; the user's process on port 3000 was
+not started or stopped.
+
+```bash
+cd /home/keer/s8w/packages/app
+
+PLAYWRIGHT_PORT=3083 PLAYWRIGHT_SERVER_PORT=4096 PLAYWRIGHT_WORKERS=1 \
+  bun run test:e2e -- e2e/regression/mode-slot-fallback-a11y.spec.ts \
+  --project=chromium-zh --project=chromium-zht --workers=1 --retries=0 --reporter=line
+# 28 passed (1.1m), exit 0
+
+PLAYWRIGHT_PORT=3083 PLAYWRIGHT_SERVER_PORT=4096 PLAYWRIGHT_WORKERS=1 \
+  bun run test:e2e -- e2e/regression/mode-slot-fallback-a11y.spec.ts \
+  --project=chromium-dark --project=chromium-zh --project=chromium-zht --project=chromium-narrow \
+  --workers=1 --retries=0 --reporter=line
+# 56 passed (2.5m), exit 0
+
+PLAYWRIGHT_PORT=3083 PLAYWRIGHT_SERVER_PORT=4096 PLAYWRIGHT_WORKERS=1 \
+  bun run test:e2e --project=chromium-dark --project=chromium-zh --project=chromium-zht \
+  --project=chromium-narrow --workers=1 --retries=0 --reporter=line
+# 76 passed (3.3m), exit 0
+```
+
+The full matrix includes `global-shell-presentation.spec.ts`,
+`narrow-composer-controls.spec.ts`, `presentation-matrix.spec.ts`, and the complete S7/S11
+`mode-slot-fallback-a11y.spec.ts` file, so this closes the manifest entry
+`mode-panel-locale-locators` with all four presentation projects green. The previous 66/10
+count is superseded by the final 76/0 count and is retained above as the RED history.
+
+### Residual note
+
+The old `getByRole("complementary", { name: ... })` assertion was not asserting the mode content
+panel; its English-profile pass came from the separately named secondary sidebar. The repair
+removes that ownership ambiguity. No separate landmark-naming defect is registered here because
+the current source has one `role="complementary"` (the secondary sidebar at
+`packages/app/src/components/secondary-sidebar.tsx:553-555`, with an explicit `aria-label`), and
+the plan's S7 contract requires the panel entry, Escape, focus restore, and aria relationships
+that the passing cases now assert. If a future accessibility audit wants a named landmark on a
+mode content wrapper, it must be filed with its own evidence and owner rather than inferred from
+this locator repair.

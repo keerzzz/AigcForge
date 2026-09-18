@@ -160,7 +160,13 @@ async function openSessionWithPanel(page: Page) {
   // regex listing en + zh-Hans made the traditional-Chinese presentation project fail with
   // "element(s) not found" in ten cases. The accessible NAME is asserted separately (the
   // "has an entry and an accessible name" case), so this does not weaken that requirement.
-  const toggle = page.locator(MODE_PANEL_TOGGLE)
+  // This block covers the SECONDARY SIDEBAR panel (titles aside): its assertions are
+  // mount/unmount based (`toHaveCount(0)` when closed, `aria-controls="secondary-sidebar-panel"`),
+  // which is `#secondary-sidebar-toggle` -> `#secondary-sidebar-panel` behaviour. The mode content
+  // panel is a `display:none` wrapper that is never unmounted, and it is covered separately below.
+  // Located by id, not by the translated label: the previous regex listed en + zh-Hans only, so the
+  // traditional-Chinese presentation project could never match it.
+  const toggle = page.locator("#secondary-sidebar-toggle")
   await expect(toggle).toBeVisible()
   return toggle
 }
@@ -175,7 +181,7 @@ test("the mode panel has an entry and an accessible name at 390px", { tag: "@a11
   await toggle.click()
   await expect(toggle).toHaveAttribute("aria-expanded", "true")
 
-  const panel = modePanel(page, "chat")
+  const panel = page.locator("#secondary-sidebar-panel")
   await expect(panel).toBeVisible()
 
   // No orphan region references. This is a WEAKER check than it looks — it only walks
@@ -198,7 +204,7 @@ test("the session area stays usable with the mode panel open at 390px", { tag: "
   await page.setViewportSize(NARROW)
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
-  await expect(modePanel(page, "chat")).toBeVisible()
+  await expect(page.locator("#secondary-sidebar-panel")).toBeVisible()
 
   const mainWidth = await page.evaluate(() =>
     Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0),
@@ -218,7 +224,7 @@ test("the floating panel closes on Escape and returns focus to its toggle", { ta
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
 
-  const panel = modePanel(page, "chat")
+  const panel = page.locator("#secondary-sidebar-panel")
   await expect(panel).toBeVisible()
 
   // Focus must actually LEAVE the toggle first, or "returns focus" is unfalsifiable: the
@@ -266,7 +272,7 @@ test("Escape follows the breakpoint in both directions", { tag: "@a11y" }, async
   await page.setViewportSize({ width: 1280, height: 720 })
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
-  const panel = modePanel(page, "chat")
+  const panel = page.locator("#secondary-sidebar-panel")
   await expect(panel).toBeVisible()
 
   await page.setViewportSize(NARROW)
@@ -295,9 +301,9 @@ test("a desktop to narrow round trip keeps the panel's active section", { tag: "
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
 
-  const panel = modePanel(page, "chat")
+  const panel = page.locator("#secondary-sidebar-panel")
   await expect(panel).toBeVisible()
-  const skills = panel.getByRole("button", { name: /^Skills(?:\s+\d+)?$/ })
+  const skills = panel.locator('[data-feature="skill"]')
   await skills.click()
   await expect(skills).toHaveAttribute("data-selected", "")
 
@@ -306,7 +312,7 @@ test("a desktop to narrow round trip keeps the panel's active section", { tag: "
   await page.setViewportSize(NARROW)
   await expect(panel).toBeVisible()
   // The selection is component state, not a DOM remnant: it has to survive both resizes.
-  await expect(panel.getByRole("button", { name: /^Skills(?:\s+\d+)?$/ })).toHaveAttribute("data-selected", "")
+  await expect(panel.locator('[data-feature="skill"]')).toHaveAttribute("data-selected", "")
 })
 
 /**
@@ -324,7 +330,7 @@ test("the session area stays usable with the mode panel open at 200% zoom", { ta
   await page.setViewportSize({ width: 720, height: 450 })
   const toggle = await openSessionWithPanel(page)
   await toggle.click()
-  await expect(modePanel(page, "chat")).toBeVisible()
+  await expect(page.locator("#secondary-sidebar-panel")).toBeVisible()
 
   const mainWidth = await page.evaluate(() =>
     Math.round(document.querySelector("main")?.getBoundingClientRect().width ?? 0),

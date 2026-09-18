@@ -121,6 +121,7 @@ export function ChatFeatureList() {
         {(feature) => (
           <button
             type="button"
+            data-feature={feature.id}
             class="flex h-8 w-full cursor-default items-center gap-2 rounded-[6px] px-2 text-left text-v2-text-text-muted transition-colors hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-text-text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base"
             data-selected={chatFeature() === feature.id ? "" : undefined}
             aria-current={chatFeature() === feature.id ? "page" : undefined}
