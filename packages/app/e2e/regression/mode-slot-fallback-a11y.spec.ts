@@ -356,7 +356,7 @@ const MODE_PANEL_TOGGLE = "#session-mode-panel-toggle"
 const modePanel = (page: Page, mode: string) =>
   page.locator(`[data-component="session-mode-panel"][data-mode="${mode}"]`)
 
-async function mockModeContentServer(page: Page) {
+async function mockModeContentServer(page: Page, options: { messages?: unknown[] } = {}) {
   await mockAigcfrogeServer(page, {
     directory: modeDirectory,
     project: {
@@ -414,7 +414,7 @@ async function mockModeContentServer(page: Page) {
         time: { created, updated: created },
       },
     ],
-    pageMessages: () => ({ items: [] }),
+    pageMessages: () => ({ items: options.messages ?? [] }),
     events: () => [],
     eventRetry: 16,
   })
@@ -457,6 +457,114 @@ async function openModeContentSession(page: Page, sessionID: string, title: stri
   await gotoWhenReady(page, modeSessionPath(sessionID))
   await expect(page.getByRole("heading", { name: title })).toBeVisible({ timeout: 120_000 })
 }
+
+/**
+ * S7: the scroll half of plan §10's round trip, which the tab assertion above cannot cover.
+ *
+ * `pages/session.tsx` keeps the session column MOUNTED and only marks it `inert` while the narrow
+ * panel floats (`:2030-2036`, and the comment at `:306-308` states the intent: "so the overlay
+ * cannot reset the timeline's scroll position"). That is a claim about behaviour, so it is
+ * asserted rather than read: the timeline is actually scrolled, the overlay is opened and closed,
+ * and the offset must be identical afterwards.
+ *
+ * Two things make this a real assertion rather than a vacuous one:
+ * - the mock now serves enough turns to overflow, and the test FAILS if the viewport does not
+ *   actually overflow, so "unchanged" cannot be satisfied by there being nothing to scroll;
+ * - the scroll is produced by a real wheel gesture over the viewport, not by assigning
+ *   `scrollTop`, because the timeline treats a programmatic write as not-a-user-scroll and
+ *   re-anchors to the bottom.
+ *
+ * The element identity is checked too. A remount would leave the locator pointing at a fresh
+ * element whose offset happens to match, which the offset assertion alone cannot see.
+ */
+const SCROLL_TURNS = 40
+const scrollModel = { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" }
+const scrollMessages = Array.from({ length: SCROLL_TURNS }, (_, index) => {
+  const messageID = `msg_scroll_${index}`
+  return {
+    info: {
+      id: messageID,
+      sessionID: modeWorkSessionID,
+      role: "user",
+      time: { created: created + index * 1_000 },
+      summary: { diffs: [] },
+      agent: "meta",
+      model: scrollModel,
+    },
+    parts: [
+      {
+        id: `prt_scroll_${index}`,
+        sessionID: modeWorkSessionID,
+        messageID,
+        type: "text",
+        text: `Scroll fixture turn ${index}. ${"Padding so the row occupies real height. ".repeat(3)}`,
+      },
+    ],
+  }
+})
+
+/** The timeline's own scroll container, identified by its content rather than by position. */
+const timelineViewport = (page: Page) => page.locator(".scroll-view__viewport:has([data-timeline-row])")
+
+test("opening and closing the floating panel leaves the timeline's scroll offset alone", async ({ page }) => {
+  await page.setViewportSize(NARROW)
+  await mockModeContentServer(page, { messages: scrollMessages })
+  await openModeContentSession(page, modeWorkSessionID, "Mode content Work session")
+
+  const viewport = timelineViewport(page)
+  await expect(viewport).toHaveCount(1)
+  await expect(page.locator("[data-timeline-row]").first()).toBeVisible()
+
+  // Guard: a fixture that does not overflow would make the assertion below vacuous, so it is a
+  // failure of the test rather than a pass.
+  const overflow = await viewport.evaluate((el) => el.scrollHeight - el.clientHeight)
+  expect(overflow, "the fixture must produce a timeline that can actually scroll").toBeGreaterThan(0)
+
+  // A real gesture: the timeline anchors to the bottom on load (measured: `scrollTop` equals
+  // `scrollHeight - clientHeight` once the turns arrive), and a wheel scroll away from it is what
+  // a user does.
+  //
+  // The offset is POLLED rather than read once, because the wheel is applied asynchronously —
+  // measured on the probe run: `scrollTop` was unchanged immediately after `mouse.wheel` and had
+  // moved by exactly the wheel delta by +400ms, then stayed put. A single read here would have
+  // asserted against the pre-scroll value and failed for a reason that has nothing to do with the
+  // contract. This is a readiness signal, not a sleep: it waits for the state to change.
+  await viewport.hover()
+  await page.mouse.wheel(0, -800)
+  await expect
+    .poll(() => viewport.evaluate((el) => Math.round(el.scrollTop)), { timeout: 10_000 })
+    .toBeLessThan(overflow)
+
+  const scrolled = await viewport.evaluate((el) => Math.round(el.scrollTop))
+  expect(scrolled, "the wheel gesture must move the timeline off its bottom anchor").toBeGreaterThan(0)
+  expect(scrolled, "the offset must land inside the range, not be clamped at either end").toBeLessThan(overflow)
+
+  // Stamp the element so a remount is distinguishable from a preserved offset.
+  await viewport.evaluate((el) => {
+    el.dataset.scrollProbe = "s7"
+  })
+
+  const toggle = page.locator(MODE_PANEL_TOGGLE)
+  await toggle.click()
+  await expect(modePanel(page, "work")).toBeVisible()
+
+  // The premise of the contract: the body stepped aside rather than unmounting. `inert` is set on
+  // the session COLUMN (`pages/session.tsx:2035`), which is an ancestor of the timeline viewport,
+  // so it is found by walking up rather than assumed to be on the viewport itself.
+  const inertWhileOpen = await viewport.evaluate((el) => el.closest("[inert]") !== null)
+  expect(inertWhileOpen, "the floating panel must mark the session body inert, not remove it").toBe(true)
+  await expect(viewport).toHaveCount(1)
+
+  await page.keyboard.press("Escape")
+  await expect(modePanel(page, "work")).toBeHidden()
+  expect(
+    await viewport.evaluate((el) => el.closest("[inert]") !== null),
+    "closing the panel must hand the body back",
+  ).toBe(false)
+
+  await expect(viewport, "the same scroll container must still be mounted").toHaveAttribute("data-scroll-probe", "s7")
+  expect(await viewport.evaluate((el) => el.scrollTop), "the overlay must not reset the timeline scroll").toBe(scrolled)
+})
 
 test.describe("S7: the mode content panel is reachable at narrow widths", { tag: "@a11y" }, () => {
   test.beforeEach(async ({ page }) => {
