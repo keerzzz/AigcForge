@@ -534,3 +534,64 @@ The presentation matrix, `test:bench`, Desktop, the full-repo `bun typecheck` an
 `home-offline-state` keeps one open item that is a product question, not a gap in evidence:
 whether the offline state owes a retry affordance of its own (today it reuses the app-level
 "Retrying automatically..." wording and points at Manage servers).
+
+## S9A opening: the chat-mode E4 turn, and the default it replaces (2026-09-19)
+
+This section **appends**. It closes deferred `chat-mode-e4-turn` and moves `modes.chat` to
+`landed` for E4 — with the scope of that claim written down rather than implied.
+
+### What was missing, and why the existing turn E4 could not cover it
+
+`e2e/real/session-turn.spec.ts` created its session with no `mode` field, so the "landed" turn E4
+was driving the server default. A `planned` field cannot settle that question — the spec's own
+request does — which is why the entry was registered during S7 instead of being left implied by
+the S5 label. Two things followed: the five-mode requirement in plan §5.2 was unmet for chat, and
+the sentence "the landed turn E4 runs under coding" was itself unmeasured.
+
+### The two cases
+
+`session-turn.spec.ts:146` creates a session with `mode: "chat"` and drives exactly the chain the
+coding case drives: submit through `[data-component="prompt-input"]`, the real provider's turn
+reaching the timeline, then a reload serving that projection from the real DB. `:166` applies the
+same reader to a session created _without_ a mode.
+
+The mode is **read back** from the session record (`persistedSession(...)`), not inferred: it is
+not in the turn's projection and it is not in the URL. One reader, two create payloads, two
+different answers in the same run — `chat` versus `coding` — and that A/B is what makes the chat
+assertion discriminating, rather than a mutation probe. The turn also runs under a different
+agent policy than the coding case (`resolvePrimaryAgent`: chat → `meta`,
+`packages/core/src/product-mode-agent-policy.ts:52-56`), so it exercises a different system
+prompt and a different set of panels.
+
+### Runs
+
+All on the ext4 worktree `/home/keer/s8w` at `d5a938f6b` + this patch, `--project=chromium-real`,
+`workers=1`, `retries=0`, no sleep and no relaxed assertion. Every run ends with the harness's own
+teardown gate (ports free, process group gone, workspace clean, backend local, report clean):
+
+| command                                                             | result                                              |
+| ------------------------------------------------------------------- | --------------------------------------------------- |
+| the two new cases only, `-g "chat-mode session\|without a mode"`    | **2 passed (7.0m)**                                 |
+| the whole `session-turn.spec.ts` file                               | **4 passed (8.1m)**                                 |
+| the authoritative validator `manifest.spec.ts` on the edited ledger | **4 passed (6.1m)**, `leaked=[] providerRequests=0` |
+
+Boot dominates these numbers: the same manifest spec took 56.0s on a warm earlier run and 6.1m
+here, so the durations are not a property of the cases.
+
+### Ledger
+
+- `modes.chat.e4` rewritten to what actually landed, including its limit; `modes.chat.status`
+  `planned` → `landed`.
+- `chat-mode-e4-turn` **removed as delivered** (deferred 23 → 22). The old text is retained in
+  the entry's history in this report's §6, which is why §6's "pending" row above is now stale —
+  the manifest is the live ledger, this report is the record.
+- Plan §5.2's "one happy path per mode" is now met for chat **only**. work, assistant and custom
+  keep their own S9A/S9B/S9C E4 entries; nothing here touches them.
+
+### Not covered by this section
+
+No product code changed: the E4 provider still streams only its success script, so the rest of
+`provider-scenario-scripts` (tool call, HTTP failure, SSE interruption, duplicate/out-of-order,
+slow response) stays open with its unlock unchanged — plan §12.4's provider failure/recovery E4 is
+still owed. Also not run: the presentation matrix, `test:bench`, Desktop, `bun typecheck` for the
+whole repo, and the other E4 lifelines (files/pty/identity/not-found/v2-admission).

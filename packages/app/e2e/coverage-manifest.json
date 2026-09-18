@@ -14,8 +14,8 @@
     "chat": {
       "route": "/mode/chat + canonical session detail",
       "e3": "asset categories, composer submit, session routes",
-      "e4": "NOT covered: `e2e/real/session-turn.spec.ts` creates its session without a `mode`, so what the landed turn E4 exercises is the server default (coding — `packages/core` product-mode defaults), and the session-side-panel E3s for the chat content panel run mocked. Registered as deferred `chat-mode-e4-turn` rather than left implied by the S5 label.",
-      "status": "planned"
+      "e4": "landed 2026-09-19: `e2e/real/session-turn.spec.ts` now creates one session with `mode: \"chat\"`, drives the same chain the coding case drives (browser submit → real provider turn → projected parts → reload) and reads the persisted record back with `persistedSession(...)` — `mode` is on the session record, not in the turn's projection, so it is read rather than inferred. The same reader is applied to a session created WITHOUT a mode, which reports `coding`: an A/B on one reader against two create payloads, in one run, is what makes the chat assertion discriminating (2 passed, 7.0m, both cases). Scope of the claim: that is the one happy-path turn §5.2 asks for under chat's agent policy (chat resolves to `meta`), not a chat-mode lifeline — session-side-panel E3s for the chat content panel still run mocked, which is what E3 is for. The earlier text here said this was NOT covered and named deferred `chat-mode-e4-turn`; that entry is removed as delivered.",
+      "status": "landed"
     },
     "coding": {
       "route": "/mode/coding + session detail (files/terminal)",
@@ -52,11 +52,6 @@
       "owner": "S9A",
       "scope": "streaming success + tool-call/HTTP-failure/SSE-interruption/duplicate/slow scripts. S5 landed the streaming-success script (orchestrator provider) plus /e4/provider-requests dispatch evidence; the remaining scenarios stay unwritten until a spec needs them",
       "unlock": "each remaining scenario (tool call, HTTP failure, SSE interruption, duplicate/out-of-order, slow response) is added with the spec that needs it — the real consumer is S9A (plan §12.4 requires provider failure/recovery E4)"
-    },
-    "chat-mode-e4-turn": {
-      "owner": "S9A",
-      "scope": "The five-mode E4 requirement (plan §5.2: at least one happy path per mode) is not met for chat. `e2e/real/session-turn.spec.ts` posts to `/session` without a `mode`, so the turn it drives runs under the server's default (coding), and `modes.chat.e4` had said only `planned S5`. Nothing in the real suite creates a chat-mode session; its coverage is E3 against the mock.",
-      "unlock": "add a chat-mode turn case to the E4 harness expansion S9A already opens (the same slice as provider-scenario-scripts): create the session with `mode: \"chat\"` and assert the projection/persistence the coding case asserts. Registered during S7 rather than left implied by the S5 label, because a `planned` field cannot decide whether a case exists — the spec's own request is what decides it."
     },
     "break-glass-bar-entry": {
       "owner": "S12",

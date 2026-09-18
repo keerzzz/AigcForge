@@ -18,6 +18,10 @@
  * Restart coverage stays inside the safe window of specs/v2/session.md:188: a
  * COMPLETED turn's projection must survive a backend restart. Nothing here
  * claims anything about provider-dispatched-but-unresolved work.
+ *
+ * The last two cases (S9A) add the per-mode half of plan §5.2: one happy path
+ * driven in `chat`, plus a control that reads back the mode the two cases above
+ * actually ran under, since neither of them sends one.
  */
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
@@ -32,16 +36,33 @@ const assistantText = (page: Page) => page.getByText(ASSISTANT_TEXT).first()
 const composer = (page: Page) => page.locator('[data-component="session-composer"]')
 const input = (page: Page) => composer(page).locator('[data-component="prompt-input"]')
 
-async function createSession(request: APIRequestContext, title: string) {
+async function createSession(request: APIRequestContext, title: string, mode?: string) {
   const e4m = e4()
   const created = await request.post(`${e4m.backendUrl}/session?directory=${encodeURIComponent(e4m.workspaceDir)}`, {
     headers: { "x-aigcfroge-directory": e4m.workspaceDir },
-    data: { location: { directory: e4m.workspaceDir }, title },
+    data: { location: { directory: e4m.workspaceDir }, title, ...(mode ? { mode } : {}) },
   })
   expect(created.ok(), `session create: ${await created.text()}`).toBeTruthy()
   const body: unknown = await created.json()
   if (!isRecord(body) || typeof body.id !== "string") throw new Error("session create response has no id")
   return body.id
+}
+
+/**
+ * The persisted session record, read from the real backend. The mode lives here and nowhere in
+ * the turn's own projection, so a case that claims to drive mode X has to read it back rather
+ * than infer it from the URL or from which panels happen to render.
+ */
+async function persistedSession(request: APIRequestContext, sessionID: string) {
+  const e4m = e4()
+  const response = await request.get(
+    `${e4m.backendUrl}/session/${sessionID}?directory=${encodeURIComponent(e4m.workspaceDir)}`,
+    { headers: { "x-aigcfroge-directory": e4m.workspaceDir } },
+  )
+  expect(response.ok(), `session read: ${await response.text()}`).toBeTruthy()
+  const body: unknown = await response.json()
+  if (!isRecord(body) || typeof body.mode !== "string") throw new Error("session read response has no mode")
+  return body
 }
 
 async function promptViaBrowser(page: Page, text: string) {
@@ -115,4 +136,34 @@ test("a completed turn's projection survives a backend restart", async ({ page, 
   await page.reload()
   await expect(page.getByText("Durable across restart")).toBeVisible({ timeout: 90_000 })
   await expect(assistantText(page)).toBeVisible({ timeout: 90_000 })
+})
+
+// Plan §5.2 asks for at least one happy path per mode in E4, and chat was the one mode without
+// one: the two cases above never send a `mode`, so what they drive is the server default. The
+// control below measures what that default is instead of leaving it to be read off the schema,
+// and the chat case drives the same chain under a mode that resolves a *different* agent
+// (chat → `meta`, ADR-13 Amendment-2) and renders a different set of panels.
+test("a chat-mode session runs a real provider turn and keeps its mode", async ({ page, request }) => {
+  const e4m = e4()
+  const sessionID = await createSession(request, "S9A chat-mode session turn", "chat")
+  expect((await persistedSession(request, sessionID)).mode, "created as chat, not defaulted").toBe("chat")
+
+  seedRealBackend(page, e4m.backendUrl)
+  await page.goto(`/server/${base64Encode(e4m.backendUrl)}/session/${sessionID}`)
+
+  await promptViaBrowser(page, "Explain the E4 chat lifeline")
+
+  // The same two halves the coding-path case asserts: the provider's turn reached the
+  // timeline, and a reload serves that projection from the real DB.
+  await expect(assistantText(page)).toBeVisible({ timeout: 90_000 })
+  await expect(page.getByText("Explain the E4 chat lifeline")).toBeVisible()
+  await page.reload()
+  await expect(assistantText(page)).toBeVisible({ timeout: 90_000 })
+
+  expect((await persistedSession(request, sessionID)).mode, "mode survives the turn and reload").toBe("chat")
+})
+
+test("a session created without a mode reports the server default", async ({ request }) => {
+  const sessionID = await createSession(request, "S9A default-mode control")
+  expect((await persistedSession(request, sessionID)).mode).toBe("coding")
 })
