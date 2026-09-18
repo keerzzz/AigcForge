@@ -250,25 +250,44 @@
 
 **已钉死的可观测机制**（证据来自在**已提交复现内部**打点，而非另写探针）：
 
-| 观测                              | 结果                        |
-| --------------------------------- | --------------------------- |
-| `DIAG module app.tsx evaluated`   | 触发（应用模块已加载）      |
-| `DIAG Routes render path=…`       | **只出现过 `path=/`，两次** |
-| `DraftRoute` 自身日志             | **从未触发**                |
-| 浏览器 URL                        | `/new-session?draftId=<id>` |
-| 持久草稿的 draftID                | **与 URL 中的 id 完全相同** |
-| `[data-component="prompt-input"]` | 缺失                        |
+| 观测                              | 结果                                              |
+| --------------------------------- | ------------------------------------------------- |
+| `DIAG module app.tsx evaluated`   | 触发（应用模块已加载）                            |
+| `DIAG Routes render path=…`       | **只出现过 `path=/`，两次**                       |
+| `DraftRoute` 自身日志             | **从未触发**                                      |
+| 浏览器 URL                        | `/new-session?draftId=<id>`                       |
+| 持久草稿的 draftID                | 与 URL 中的 id 相同（**注意：这只是持久化记录**） |
+| `[data-component="prompt-input"]` | 缺失                                              |
 
-结论：应用与路由器都挂载了，路由器**只为 `/` 渲染过**，从未为浏览器已显示的 `/new-session?draftId=…` 渲染——即**第一次**导航没有被路由器处理；第二次（不经 picker）正常。插桩确实被 vite 提供（`curl /src/app.tsx` 命中 4 处 DIAG），排除了"打点没生效"这个会否掉结论的可能。
+结论（已按复审收窄）：应用与路由器都挂载了，路由器**只为 `/` 渲染过**，从未为浏览器已显示的 `/new-session?draftId=…` 渲染——即**第一次**导航没有被路由器处理；第二次（不经 picker）正常。插桩确实被 vite 提供（`curl /src/app.tsx` 命中 4 处 DIAG），排除了"打点没生效"这个会否掉结论的可能。
 
-**被实验排除的假设（不是靠读代码）**：
+**一处必须纠正的过度推断（复审指出，成立）**：我先前写「持久草稿的 draftID 与 URL 完全相同，因此内存里的 tab lookup 本该匹配」——**后半句越界**。`DraftRoute` 读的是**内存 store**（`tabs.store.find(...)`，`packages/app/src/app.tsx:351`，这才是决定该关系的函数），而我观测到的是**持久化层**的记录；由于 `DraftRoute` 从未被调用，**内存里那一刻 `tabs.store.find` 的结果从未被观测**。正确表述是：持久化记录中的 draftID 与 URL 相同；内存 lookup 在该时刻是否匹配**未知**。
 
-1. **`DirtyDraftGuard` 不是原因**：它在 Home 上直接早退（`chat-workspace.tsx:168-181`：无 active tab key、非 dirty），且 URL 确实变了，说明导航未被拦。
-2. **对话框延迟焦点恢复不是原因**：把 `packages/ui/src/context/dialog.tsx` 的 `current.trigger?.focus()` 停掉后复现依旧红。
-3. **"先提交再关对话框"的顺序不是原因**：把 `dialog-select-directory.tsx:120-122` 改成先 `dialog.close()` 再 `onSelect` 后复现依旧红。
+**在本次复现路径与所测变体中，三项均保留同一失败签名；因此它们不是本缺陷的当前解释**（按复审口径，不泛化为普遍因果结论）：
+
+1. **`DirtyDraftGuard`**：URL 确实变了（说明导航未被拦），且它在 Home 上早退（`chat-workspace.tsx:168-181`：无 active tab key、非 dirty）。**注意：这条是运行观测 + 源码结构共同得出，不是纯实验排除**，证据强度弱于第 2 条。
+2. **对话框延迟焦点恢复**：停掉 `packages/ui/src/context/dialog.tsx` 的 `current.trigger?.focus()` 后复现依旧红。三条里最干净。
+3. **"先提交再关对话框"的顺序**：把 `dialog-select-directory.tsx:120-122` 改成先 `dialog.close()` 再 `onSelect` 后复现依旧红；**但该变体的第一次尝试死在 `expectDevServerReady`，只有重跑才真正到达断言**，故证据强度弱于第 2 条。
+
+不得据此写成"所有焦点恢复路径"或"所有提交/关闭顺序"都已被排除。
 
 **仍未钉死的内部原因**：剩下的是"第一次的导航提交没有抵达路由器"。候选 owner 是 `context/tabs.tsx:174` 拿到的那个 `navigate`，或 picker 回调经 `launchModeSessionOrRoute`/`openProjectNewSession` 调用它的方式。**下一次实验**（已写入 manifest unlock，不留给下次重新推导）：在 `newDraft` 内记录 draftID/href 与 `navigate` 是否真被调用，再记录路由器的导航入口，与 `Routes` 的渲染日志三者对齐，即可在不猜的前提下把断点定位到 `navigate` 的哪一侧。
 
 **为什么没修**：按审批指令，机制未钉死前不得按猜测修复，也不得用 sleep/重试/刷新/放宽断言遮盖。三次实验全部无效应经还原，工作树保持 `dc0fed0ed` 的已提交状态。**取证吞吐是本机瓶颈**：本轮多次尝试在 `expectDevServerReady` 处卡死，包括同一 spec 的热态重跑。
 
-**环境纪律**：本轮我自己起的两个私有 vite（3033/3034）已停止；3000 端口上的服务未被我启动或停止。
+**环境纪律（按复审修正）**：本轮自启的私有 Vite（3033/3034）已清理；未操作用户服务。审查期间存在工具侧 Playwright 进程，不将其计为产品或本轮私有服务器。3000 当时是否健康，本轮未重新验证，也不把当前无监听归因给任何一方。
+
+### S8-6 审批记录（2026-09-18，Owner 主审）
+
+| 项              | 裁决                         |
+| --------------- | ---------------------------- |
+| S8-6 诊断检查点 | **ACCEPTED**                 |
+| 可观测机制      | verified-by-execution-report |
+| 内部原因        | **BLOCKED**                  |
+| 产品修复        | 未授权、未实施               |
+| S8 整体         | **OPEN**                     |
+| READY           | **NO**                       |
+
+接受的结论**仅**为：第一次经过 picker 的流程中，地址栏已进入 `/new-session?draftId=…`，但 `Routes` 的观察状态仍只渲染 `/`，`DraftRoute` 未进入，draft surface 未挂载。**不得**扩大为"navigate 一定没被调用"或"一定是某个特定 owner 阻止了导航"。三项候选只按当前实验变体排除（详见上节），不构成普遍因果结论。
+
+**下一步唯一获批动作**：三点对齐实验（`newDraft` / router navigation entry / `Routes` render 三处日志 + 内存 `tabs.store.find` 结果 + URL draftId + 时间戳顺序），必须在健康主机、CI 或 ext4 检出上执行。判读走决策树（见 manifest unlock）。**禁止**：sleep 作修复、自动 retry、reload、重复点击、放宽断言、先改多个候选点再看是否变绿、为取证再压 3000 端口。**若三点对齐仍无法定位断点，不得转为试探性修改**，应上报证据不足并请求扩大取证范围。
