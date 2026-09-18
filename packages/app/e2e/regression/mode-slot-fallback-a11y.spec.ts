@@ -156,7 +156,11 @@ async function openSessionWithPanel(page: Page) {
   await page.goto(`/${base64Encode(directory)}/session/ses_slot_fallback_narrow_panel`)
   await expectAppVisible(page.getByRole("heading", { name: "Narrow panel" }))
 
-  const toggle = page.getByRole("button", { name: /Show sidebar|Hide sidebar|显示侧边栏|隐藏侧边栏/i })
+  // Located by its stable id, not by an aria-label regex: the label is translated, and a
+  // regex listing en + zh-Hans made the traditional-Chinese presentation project fail with
+  // "element(s) not found" in ten cases. The accessible NAME is asserted separately (the
+  // "has an entry and an accessible name" case), so this does not weaken that requirement.
+  const toggle = page.locator(MODE_PANEL_TOGGLE)
   await expect(toggle).toBeVisible()
   return toggle
 }
@@ -662,8 +666,10 @@ test.describe("S7: the mode content panel is reachable at narrow widths", { tag:
     // rather than assumed (`work-artifact-panel.tsx` defaults it to Artifact). What S7 owes is
     // that a selection made here survives the presentation change, so the other tab is chosen
     // and then required to persist — a reset to the default would fail that.
-    const artifact = page.getByRole("tab", { name: "Artifact", exact: true })
-    const context = page.getByRole("tab", { name: "Context", exact: true })
+    // `data-value` is the trigger's stable hook (`ui/src/v2/components/tabs-v2.tsx:85`); the
+    // labels are translated, so matching them by English name only worked in the en project.
+    const artifact = page.locator('[data-slot="tabs-v2-trigger"][data-value="artifact"]')
+    const context = page.locator('[data-slot="tabs-v2-trigger"][data-value="context"]')
     const selected = (await context.getAttribute("data-selected")) === "" ? context : artifact
     const other = selected === context ? artifact : context
     await other.click()
