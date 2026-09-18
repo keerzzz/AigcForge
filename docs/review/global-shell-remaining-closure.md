@@ -291,3 +291,21 @@
 接受的结论**仅**为：第一次经过 picker 的流程中，地址栏已进入 `/new-session?draftId=…`，但 `Routes` 的观察状态仍只渲染 `/`，`DraftRoute` 未进入，draft surface 未挂载。**不得**扩大为"navigate 一定没被调用"或"一定是某个特定 owner 阻止了导航"。三项候选只按当前实验变体排除（详见上节），不构成普遍因果结论。
 
 **下一步唯一获批动作**：三点对齐实验（`newDraft` / router navigation entry / `Routes` render 三处日志 + 内存 `tabs.store.find` 结果 + URL draftId + 时间戳顺序），必须在健康主机、CI 或 ext4 检出上执行。判读走决策树（见 manifest unlock）。**禁止**：sleep 作修复、自动 retry、reload、重复点击、放宽断言、先改多个候选点再看是否变绿、为取证再压 3000 端口。**若三点对齐仍无法定位断点，不得转为试探性修改**，应上报证据不足并请求扩大取证范围。
+
+### S8-6 后续进展（2026-09-18，第二次裁决之后） — 上面那段已过期
+
+上面 293 行写的是"下一步唯一获批动作：三点对齐实验"。**该实验已经执行完毕**，因此那一段不再是当前状态。本节记录此后发生的事；**当前账目真源是 `packages/app/e2e/coverage-manifest.json` 的 `deferred["home-no-project-recovery"]`**，本节只是索引，冲突时以 manifest 为准。
+
+已落地的三个提交，均只改 `packages/app/e2e/coverage-manifest.json`，未提交任何产品修复：
+
+- `f5efe5479` — 三点对齐 + router 内部实验（Owner 批准的 option A）。排除了"`replaceState(undefined)` 是元凶"这一头号嫌疑：它出现在**每一个**变体里，包括所有正常工作的那些，是 router 内部 `saveCurrentDepth()`（`@solidjs/router/dist/lifecycle.js:36-41`）写 `_depth`，不是 app 的 `clearAuthToken`。
+- `5988ccc5c` — 排除 `DraftRoute` 自身的 `tabs.ready()` 闸门与 `keyed` fallback `<Navigate href="/" />`（`app.tsx:345-359`）：三种时序全部正常，fallback 从未触发。
+- `8a2b0c80f` — 记录机制和解：URL 由 `navigateEnd` → `setSource` 写入（`@solidjs/router/dist/index.js:744-754`），location signal 由另一条 native 路径提升（`index.js:662-664`），而提升只在 `!Transition.promises.size && !Transition.queue.size` 时发生（`solid-js/dist/solid.js:819`），否则 `completeUpdates` 走 `solid.js:843-849` 直接 return、不跑 effects。
+
+**当前口径：高置信度候选机制，不是浏览器已验证根因。** manifest 自己仍写着 `CONFIRMATION STILL OWED`。证据来自 happy-dom + 真实版本的 `@solidjs/router` / `solid-js` + 库源码 + 已记录的浏览器表面行为；**没有**直接观测浏览器运行时的 `Transition` 状态。把它改写成"根因已验证"会违反 `AGENTS.md:27-30`。
+
+**修复面尚不是 `pages/layout.tsx:99`。** Owner 第二次裁决已明确指出该边界只是候选之一，并且更值得怀疑的是 picker 自身的资源：`dialog-select-directory.tsx:60-68` 与 `dialog-select-directory-v2.tsx:67-74` 都写着 `createResource(() => (missingBase() ? true : undefined), …)`，而 `DESIGN.md:39-43` 恰好把这一形状列为禁止项——"one stray entry silently freezes navigation: no error, no pending request, the old screen simply stays"，这正是本缺陷的签名。首轮-only 的触发也被这一候选解释：`missingBase()` 是 `!(sync.data.path.home || sync.data.path.directory)`，全新 profile 下为真所以 fetch 真的发出；第二轮 `path.home` 已有值，source 为假，根本不 fetch，也就没有 pending。**实际是哪一个资源持有 pending，仍需浏览器时序证据。** 修复 owner 由实验决定，不得预设。
+
+另有一条会改变实验设计的更正：裁决要求的 `Transition.promises.size` / `Transition.queue.size` / `Transition.running` **无法从 app 代码读取**——`Transition` 是模块私有（`solid-js/dist/solid.js:167` 的 `let Transition = null`），精确导出表里有 `startTransition`、`useTransition`，没有裸 `Transition`。公开可用的等价观测是 `useIsRouting()`（router 已导出；transition 被扣住时 router 的 `.finally` 无法运行，该信号会一直为 `true`），配合 route 边界 fallback 的实际出现与否。
+
+**下一步唯一获批动作**：在健康主机、CI 或 ext4 检出上做**一次**聚焦浏览器确认运行，直接对齐 `newDraft` / router received-returned / `pushState` / location signal / `Routes` render / `DraftRoute` / 内存 `tabs.store.find` / 实际 pending resource 的时序，并记录 `pageerror`、console error、ErrorBoundary/`ErrorPage` 是否出现。禁止项同上，另加：不得把 happy-dom 结果改写成浏览器结果、不得改动或提交未跟踪的 `docs/plan/prompt-global-shell-remaining-closure.md`。临时 DIAG 允许，但运行后必须还原，不得进入产品提交。**若该实验确认了具体 owner，则已获条件性预批准进入单变量修复单元，无需再次审批。**
