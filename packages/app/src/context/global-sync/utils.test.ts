@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import type { Agent } from "@aigcfroge/sdk/v2/client"
-import { directoryKey, normalizeAgentList } from "./utils"
+import type { Agent, ProductMode } from "@aigcfroge/sdk/v2/client"
+import { directoryKey, filterAgentList, normalizeAgentList } from "./utils"
 
 const agent = (name = "build") =>
   ({
@@ -41,6 +41,21 @@ describe("normalizeAgentList", () => {
     const result = normalizeAgentList([agentWithHandoffs])
     expect(result).toHaveLength(1)
     expect(result[0]?.handoffs).toEqual([{ label: "Ask docs", agent: "docs", prompt: "Review this" }])
+  })
+})
+
+describe("filterAgentList", () => {
+  const mode: ProductMode = "coding"
+  const primary = { ...agent("build"), primaryModes: [mode] } satisfies Agent
+  const asset = { ...agent("custom"), primaryModes: [mode], originRelativePath: "custom.md" } satisfies Agent
+
+  test("includes asset-backed agents only when the setting permits them", () => {
+    expect(filterAgentList([primary, asset], mode, true).map((item) => item.name)).toEqual(["build", "custom"])
+    expect(filterAgentList([primary, asset], mode, false).map((item) => item.name)).toEqual(["build"])
+  })
+
+  test("keeps an agent whose provenance is unknown, without guessing it is official", () => {
+    expect(filterAgentList([primary], mode, false).map((item) => item.name)).toEqual(["build"])
   })
 })
 

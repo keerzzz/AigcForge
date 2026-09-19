@@ -1219,8 +1219,8 @@ export const dict = {
   "settings.general.row.mobileTitlebarBottom.title": "Bottom navigation",
   "settings.general.row.mobileTitlebarBottom.description":
     "Place the title bar and session tabs at the bottom of the screen on mobile",
-  "settings.general.row.showCustomAgents.title": "Agent switching shortcuts",
-  "settings.general.row.showCustomAgents.description": "Enable keyboard shortcuts to cycle between agents",
+  "settings.general.row.showCustomAgents.title": "Custom agents",
+  "settings.general.row.showCustomAgents.description": "Show asset-backed extras in the agent picker",
   "settings.general.row.subagentAttendedDefault.title": "Subagent attended mode",
   "settings.general.row.subagentAttendedDefault.description":
     "When enabled, subagents wait for user approval on permission requests (attended). When disabled, asks are auto-denied (unattended).",

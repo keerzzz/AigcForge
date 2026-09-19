@@ -55,8 +55,8 @@
     },
     "agent-picker-custom-narrowing": {
       "owner": "S7",
-      "scope": "the picker no longer hides when showCustomAgents is off, but narrowing the list to official agents still needs asset provenance (AgentV2.Info.originRelativePath) in the /agent payload, which the instance endpoint does not serve today (Bookkeeping correction: the dependency on `originRelativePath` belongs to THIS entry; an earlier report attributed it to identity-narrow-viewport-controls.)",
-      "unlock": "add origin provenance to the /agent response projection (same shape the V2 agent registry sets via core/agent/asset-bridge.ts), then the setting can mean 'include extra custom agents' as ruled"
+      "scope": "the /agent response now projects AgentV2.Info.originRelativePath for AgentAsset-backed entries, while the App picker filters official versus asset-backed entries through one shared predicate; unit and generated-SDK HTTP evidence are green, but browser E3 evidence is still outstanding (Bookkeeping correction: the dependency on `originRelativePath` belongs to THIS entry; an earlier report attributed it to identity-narrow-viewport-controls.)",
+      "unlock": "run the App E3 picker flow on a healthy ext4 host or CI, asserting official-only filtering when the setting is off, asset-backed inclusion when it is on, and cycle commands remain available; do not remove this entry until that browser evidence is green"
     },
     "permission-tier-mutation-entry": {
       "owner": "S12",

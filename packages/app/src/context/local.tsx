@@ -12,6 +12,8 @@ import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 import { useServerSDK } from "./server-sdk"
 import { ScopedKey, type ServerScope } from "@/utils/server-scope"
+import { useSettings } from "./settings"
+import { filterAgentList } from "./global-sync/utils"
 
 export type ModelKey = { providerID: string; modelID: string; variant?: string }
 
@@ -60,6 +62,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const params = useParams()
     const sdk = useSDK()
     const sync = useSync()
+    const settings = useSettings()
     const serverSDK = useServerSDK()
     const providers = useProviders()
     const models = useModels()
@@ -72,9 +75,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       // picker no longer carries a second copy of the policy. Zero policy logic
       // here; a missing list means "unknown", and the picker shows nothing rather
       // than offering an agent the server would reject.
-      return sync()
-        .data.agent.filter((item) => item.mode !== "subagent" && !item.hidden)
-        .filter((item) => (item.primaryModes ?? []).includes(mode.currentMode))
+      return filterAgentList(sync().data.agent, mode.currentMode, settings.visibility.customAgents())
     })
     const connected = createMemo(() => new Set(providers.connected().map((item) => item.id)))
 

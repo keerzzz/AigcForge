@@ -18067,6 +18067,80 @@
         "summary": "Get location"
       }
     },
+    "/api/path-identity/compare": {
+      "post": {
+        "tags": [
+          "pathIdentity"
+        ],
+        "operationId": "v2.pathIdentity.compare",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "directory": {
+                  "type": "string"
+                },
+                "workspace": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "PathIdentity.Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathIdentityResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Prove that two local path references identify the same filesystem object, or return a typed unknown result.",
+        "summary": "Compare local path identities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathIdentityCompareInput"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/api/agent": {
       "get": {
         "tags": [
@@ -39659,6 +39733,9 @@
               "$ref": "#/components/schemas/Handoff"
             }
           },
+          "originRelativePath": {
+            "type": "string"
+          },
           "primaryModes": {
             "type": "array",
             "items": {
@@ -57210,6 +57287,208 @@
           "project"
         ],
         "additionalProperties": false
+      },
+      "PathIdentityRef": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "PathIdentityCompareInput": {
+        "type": "object",
+        "properties": {
+          "left": {
+            "$ref": "#/components/schemas/PathIdentityRef"
+          },
+          "right": {
+            "$ref": "#/components/schemas/PathIdentityRef"
+          }
+        },
+        "required": [
+          "left",
+          "right"
+        ],
+        "additionalProperties": false
+      },
+      "PathIdentityRealPathEvidence": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "realpath"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "PathIdentityDeviceInodeEvidence": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "device-inode"
+            ]
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "NaN"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "Infinity"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "-Infinity"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "Infinity",
+                  "-Infinity",
+                  "NaN"
+                ]
+              }
+            ]
+          },
+          "inode": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "NaN"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "Infinity"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "-Infinity"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "Infinity",
+                  "-Infinity",
+                  "NaN"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "method",
+          "device",
+          "inode"
+        ],
+        "additionalProperties": false
+      },
+      "PathIdentityEvidence": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/PathIdentityRealPathEvidence"
+          },
+          {
+            "$ref": "#/components/schemas/PathIdentityDeviceInodeEvidence"
+          }
+        ]
+      },
+      "PathIdentitySame": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "same"
+            ]
+          },
+          "refs": {
+            "$ref": "#/components/schemas/PathIdentityCompareInput"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/PathIdentityEvidence"
+          }
+        },
+        "required": [
+          "status",
+          "refs",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "PathIdentityUnknownReason": {
+        "type": "string",
+        "enum": [
+          "no-local-proof",
+          "stat-unavailable",
+          "inode-unavailable",
+          "not-same-realpath",
+          "recorded-relation-unverified"
+        ]
+      },
+      "PathIdentityUnknown": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "unknown"
+            ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/PathIdentityUnknownReason"
+          }
+        },
+        "required": [
+          "status",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "PathIdentityResult": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/PathIdentitySame"
+          },
+          {
+            "$ref": "#/components/schemas/PathIdentityUnknown"
+          }
+        ]
       },
       "PermissionV2Rule": {
         "type": "object",
@@ -79737,6 +80016,10 @@
     {
       "name": "aigcfroge HttpApi",
       "description": "Experimental HttpApi surface for selected instance routes."
+    },
+    {
+      "name": "pathIdentity",
+      "description": "Read-only, location-scoped local path identity proof."
     },
     {
       "name": "aigcfroge HttpApi",

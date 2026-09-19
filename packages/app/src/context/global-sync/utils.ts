@@ -1,4 +1,4 @@
-import type { Agent, Project, ProviderListResponse } from "@aigcfroge/sdk/v2/client"
+import type { Agent, ProductMode, Project, ProviderListResponse } from "@aigcfroge/sdk/v2/client"
 import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 export { pathKey as directoryKey, type PathKey as DirectoryKey } from "@/utils/path-key"
 
@@ -18,6 +18,13 @@ export function normalizeAgentList(input: unknown): Agent[] {
   if (isAgent(input)) return [input]
   if (!input || typeof input !== "object") return []
   return Object.values(input).filter(isAgent)
+}
+
+export function filterAgentList(input: Agent[], mode: ProductMode, includeAssetBacked: boolean): Agent[] {
+  return input
+    .filter((item) => item.mode !== "subagent" && !item.hidden)
+    .filter((item) => (item.primaryModes ?? []).includes(mode))
+    .filter((item) => includeAssetBacked || item.originRelativePath === undefined)
 }
 
 export function normalizeProviderList(input: ProviderListResponse): NormalizedProviderListResponse {

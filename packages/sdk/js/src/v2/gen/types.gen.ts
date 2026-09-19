@@ -3156,6 +3156,7 @@ export type Agent = {
   }
   steps?: number
   handoffs?: Array<Handoff>
+  originRelativePath?: string
   primaryModes: Array<ProductMode>
 }
 

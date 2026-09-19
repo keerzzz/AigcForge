@@ -197,6 +197,7 @@ function httpapiInstance<A, E>(
     git?: boolean
     config?: Partial<ConfigV1.Info>
     setup?: (dir: string) => Effect.Effect<void, E, TestServices>
+    init?: (dir: string) => Effect.Effect<void, E, TestServices>
   },
   run: (input: ProjectFixture) => Effect.Effect<A, E, TestScope>,
 ) {
@@ -207,7 +208,11 @@ function httpapiInstance<A, E>(
       yield* options.setup?.(instance.directory) ?? Effect.void
       return yield* run({ sdk: yield* client(options.serverPath, instance.directory), directory: instance.directory })
     }),
-    { git: options.git ?? true, config: { formatter: false, lsp: false, ...options.config } },
+    {
+      git: options.git ?? true,
+      config: { formatter: false, lsp: false, ...options.config },
+      init: options.init,
+    },
   )
 }
 
@@ -285,6 +290,22 @@ description: A project skill visible to REST API prompts.
 ---
 
 # Project REST Skill
+`,
+    ),
+  )
+}
+
+function writeProvenanceAgent(dir: string) {
+  return FSUtil.Service.use((fs) =>
+    fs.writeWithDirs(
+      path.join(dir, ".aigcfroge", "agents", "provenance-agent.md"),
+      `---
+kind: agent
+name: provenance-agent
+description: AgentAsset-backed provenance fixture
+---
+
+You exist to prove the /agent projection carries its source path.
 `,
     ),
   )
@@ -664,6 +685,23 @@ describe("HttpApi SDK", () => {
         }
       }),
     ),
+  )
+
+  httpapiInstance(
+    "projects AgentAsset provenance through the generated SDK",
+    { serverPath: "raw", init: writeProvenanceAgent },
+    ({ sdk }) =>
+      Effect.gen(function* () {
+        const response = yield* capture(() => sdk.app.agents())
+        const agents = array(response.data).map(record)
+        const custom = agents.find((entry) => entry.name === "provenance-agent")
+        const builtin = agents.find((entry) => entry.name === "build")
+
+        expect(response.status).toBe(200)
+        expect(custom?.originRelativePath).toBe("provenance-agent.md")
+        expect(builtin).toBeDefined()
+        expect("originRelativePath" in (builtin ?? {})).toBe(false)
+      }),
   )
 
   serverPathParity("matches generated SDK session lifecycle routes", (serverPath) =>

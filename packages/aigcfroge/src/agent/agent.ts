@@ -30,6 +30,7 @@ import { AbsolutePath, type DeepMutable } from "@aigcfroge/core/schema"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { AgentV2 } from "@aigcfroge/core/agent"
 import { Reference } from "@aigcfroge/core/reference"
 import { Location } from "@aigcfroge/core/location"
 import { PluginV2 } from "@aigcfroge/core/plugin"
@@ -61,8 +62,41 @@ export const Info = Schema.Struct({
   options: Schema.Record(Schema.String, Schema.Unknown),
   steps: Schema.optional(Schema.Finite),
   handoffs: Schema.optional(Schema.mutable(Schema.Array(Handoff))),
+  /** Asset provenance (ADR-20 §2.6), joined from the canonical AgentV2 registry. */
+  originRelativePath: Schema.optional(Schema.String),
 }).annotate({ identifier: "Agent" })
 export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>
+
+function fromAgentV2(info: AgentV2.Info): Info {
+  return {
+    name: String(info.id),
+    description: info.description,
+    mode: info.mode,
+    native: false,
+    hidden: info.hidden,
+    color: info.color,
+    // AgentV2 stores permission rules in the V2 {action,resource,effect}
+    // vocabulary; this legacy payload is the V1 {permission,pattern,action}
+    // projection consumed by the app.
+    permission: info.permissions.map((rule) => ({
+      permission: rule.action,
+      pattern: rule.resource,
+      action: rule.effect,
+    })),
+    model: info.model
+      ? {
+          modelID: info.model.id,
+          providerID: info.model.providerID,
+        }
+      : undefined,
+    variant: info.model?.variant,
+    prompt: info.system,
+    options: info.request.body,
+    steps: info.steps,
+    handoffs: info.handoffs,
+    originRelativePath: info.originRelativePath,
+  }
+}
 
 const GeneratedAgent = Schema.Struct({
   identifier: Schema.String,
@@ -431,6 +465,24 @@ export const layer = Layer.effect(
           )
         }
 
+        // The legacy /agent surface is assembled from a parallel config shape.
+        // Join the canonical registry here, where the same LocationServiceMap
+        // instance already owns AgentV2 and AgentAssetBridge, instead of making
+        // the HTTP handler build a second location graph just for provenance.
+        const canonical = yield* AgentV2.Service.pipe(
+          Effect.provide(locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx.directory) }))),
+          Effect.orDie,
+        )
+        const canonicalAgents = yield* canonical.all()
+        const provenance = new Map(
+          canonicalAgents.flatMap((entry) =>
+            entry.originRelativePath === undefined ? [] : [[String(entry.id), entry.originRelativePath] as const],
+          ),
+        )
+        const canonicalAssets = canonicalAgents
+          .filter((entry) => entry.originRelativePath !== undefined)
+          .map(fromAgentV2)
+
         const get = Effect.fnUntraced(function* (agent: string) {
           return agents[agent]
         })
@@ -449,8 +501,13 @@ export const layer = Layer.effect(
             options: {},
           }))
 
+          const configured = Object.values(agents).map((entry) => {
+            const originRelativePath = provenance.get(entry.name)
+            return { ...entry, ...(originRelativePath === undefined ? {} : { originRelativePath }) }
+          })
+          const configuredNames = new Set(configured.map((entry) => entry.name))
           return pipe(
-            [...Object.values(agents), ...cliAgents],
+            [...configured, ...canonicalAssets.filter((entry) => !configuredNames.has(entry.name)), ...cliAgents],
             sortBy(
               [
                 (x) =>
