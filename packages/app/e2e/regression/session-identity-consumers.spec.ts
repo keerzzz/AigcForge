@@ -24,7 +24,20 @@ const path = `/server/${base64Encode(server)}/session/${sessionID}`
 const agentPicker = (page: Page) => page.locator('[data-action="prompt-agent"]')
 const permissionChip = (page: Page) => page.locator('[data-component="status-bar-permission"]')
 
-async function installMock(page: Page, permissionTier: "propose" | "full", showCustomAgents: boolean) {
+async function installMock(
+  page: Page,
+  permissionTier: "propose" | "full",
+  showCustomAgents: boolean,
+  agents: unknown[] = [
+    { name: "build", mode: "primary", primaryModes: ["coding"] },
+    {
+      name: "asset-backed",
+      mode: "primary",
+      primaryModes: ["coding"],
+      originRelativePath: "asset-backed.md",
+    },
+  ],
+) {
   await page.addInitScript(
     ({ tier, show }) => {
       localStorage.setItem(
@@ -78,15 +91,7 @@ async function installMock(page: Page, permissionTier: "propose" | "full", showC
         },
       },
     },
-    agents: [
-      { name: "build", mode: "primary", primaryModes: ["coding"] },
-      {
-        name: "asset-backed",
-        mode: "primary",
-        primaryModes: ["coding"],
-        originRelativePath: "asset-backed.md",
-      },
-    ],
+    agents,
     pageMessages: () => ({ items: [] }),
   })
 }
@@ -122,6 +127,23 @@ test("includes asset-backed agents when custom agents are on", async ({ page }) 
   await agentPicker(page).click()
   const options = page.locator('[data-slot="select-select-item"]')
   await expect(options).toHaveText(["build", "asset-backed"])
+})
+
+test("keeps the agent cycle command available when custom agents are off", async ({ page }) => {
+  // Two OFFICIAL agents (no provenance) and the custom-agent setting off: this is the
+  // state where `disabled: !customAgents()` used to kill mod+. entirely. The command
+  // must still cycle between the official agents that remain in the picker.
+  await installMock(page, "propose", false, [
+    { name: "build", mode: "primary", primaryModes: ["coding"] },
+    { name: "plan", mode: "primary", primaryModes: ["coding"] },
+  ])
+  await gotoWhenReady(page, path)
+
+  await expect(agentPicker(page)).toContainText("build")
+  await page.keyboard.press("Control+.")
+  await expect(agentPicker(page)).toContainText("plan")
+  await page.keyboard.press("Control+Shift+Period")
+  await expect(agentPicker(page)).toContainText("build")
 })
 
 test("shows no permission chip for the default propose tier", async ({ page }) => {

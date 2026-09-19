@@ -55,8 +55,8 @@
     },
     "agent-picker-custom-narrowing": {
       "owner": "S7",
-      "scope": "the /agent response now projects AgentV2.Info.originRelativePath for AgentAsset-backed entries, while the App picker filters official versus asset-backed entries through one shared predicate; unit, generated-SDK HTTP and browser E3 evidence are green (`session-identity-consumers.spec.ts` asset-backed pair: 2 passed / 5.8s on ext4, real Chromium, one worker) (Bookkeeping correction: the dependency on `originRelativePath` belongs to THIS entry; an earlier report attributed it to identity-narrow-viewport-controls.)",
-      "unlock": "cycle/reverse-cycle keyboard-command availability on the same picker was covered by `use-session-commands` disabled:false and its unit-visible shape, but no browser assertion names those two commands yet; either land that assertion or record the cycle half as accepted residual, then close this entry"
+      "scope": "the /agent response now projects AgentV2.Info.originRelativePath for AgentAsset-backed entries, while the App picker filters official versus asset-backed entries through one shared predicate; unit, generated-SDK HTTP and browser E3 evidence are green (`session-identity-consumers.spec.ts` asset-backed pair: 2 passed / 5.8s; cycle/reverse-cycle pair: 1 passed / 4.3s — ext4, real Chromium, one worker, default watcher off) (Bookkeeping correction: the dependency on `originRelativePath` belongs to THIS entry; an earlier report attributed it to identity-narrow-viewport-controls.)",
+      "unlock": "closed 2026-09-19: the browser assertion drives build->plan->build through `mod+.` / `shift+mod+.`, which also caught and fixed a real matcher defect — `normalizeKey(event.key)` left Shift+Period as `>` while `parseKeybind(shift+mod+.)` stored `.`, so the reverse shortcut was unreachable on a US layout. `matchKeybind` now folds `event.code` back to the configured base key; see `command-keybind.test.ts` regression case. Only re-open if a real keyboard/IME reports the fold failing."
     },
     "permission-tier-mutation-entry": {
       "owner": "S12",
