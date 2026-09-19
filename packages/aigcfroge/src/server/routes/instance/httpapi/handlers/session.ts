@@ -37,7 +37,7 @@ import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
 import { WorkflowExecution } from "@aigcfroge/core/workflow/workflow-execution"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { NamedError } from "@aigcfroge/core/util/error"
-import { Cause, Effect, Option, Schema, Scope } from "effect"
+import { Cause, Effect, Layer, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiError, HttpApiSchema } from "effect/unstable/httpapi"
@@ -191,8 +191,13 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           ...(info.workspaceID ? { workspaceID: WorkspaceV2.ID.make(info.workspaceID) } : {}),
         }),
       )
-      const projection = yield* SessionIdentityProjection.Service.pipe(Effect.provide(layer), Effect.orDie)
-      return yield* projection.project(ctx.params.sessionID).pipe(
+      return yield* Effect.gen(function* () {
+        const projection = yield* SessionIdentityProjection.Service
+        return yield* projection.project(ctx.params.sessionID)
+      }).pipe(
+        // Resolve the projection service and execute its owner reads in one Location
+        // environment, so in-memory owners such as WorkArtifact are the same instance.
+        Effect.provide(layer.pipe(Layer.orDie)),
         // Every typed projection failure maps to a stable HTTP surface; nothing is
         // swallowed and no default identity is fabricated for the caller.
         Effect.catchTag("Session.NotFoundError", () =>

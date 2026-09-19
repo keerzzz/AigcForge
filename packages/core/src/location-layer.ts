@@ -146,10 +146,6 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(base),
       )
       const services = Layer.mergeAll(base, resources, permissionsAndTools)
-      // SessionProductIdentity projection (ADR-23): its owners — the session row,
-      // PermissionV2, the composition snapshot store and git — are all Location
-      // scoped, so it is built here rather than in the app-global runtime.
-      const sessionIdentity = SessionIdentityProjection.layer.pipe(Layer.provide(services))
       // Canonical MCP credential binding store (ADR-21 §2.2 v1.2): Location-scoped
       // but data partitioned by directory; reads Location.Service internally, never
       // trusts caller-supplied directory.
@@ -206,9 +202,16 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(MetaAgentMemory.layer.pipe(Layer.provide(MetaAgentService.layer))),
         Layer.provide(services),
       )
+      const scheduleService = ScheduleService.layer.pipe(Layer.provide(services))
+      const deliveryService = ScheduleService.deliveryLayer.pipe(Layer.provide(services))
+      // SessionProductIdentity projection (ADR-23): compose its Location-scoped
+      // common and mode-detail owners once, rather than reconstructing any owner.
+      const sessionIdentity = SessionIdentityProjection.layer.pipe(
+        Layer.provide(Layer.mergeAll(services, scheduleService, deliveryService, workflowRun, workArtifact)),
+      )
       const builtInTools = BuiltInTools.locationLayer.pipe(
         Layer.provide(services),
-        Layer.provide(ScheduleService.layer),
+        Layer.provide(scheduleService),
         Layer.provide(PersonalMemory.layer),
         Layer.provide(KBService.layer),
         Layer.provide(mutation),
@@ -277,6 +280,8 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         workArtifact,
         model,
         runner,
+        scheduleService,
+        deliveryService,
         builtInTools,
         referenceGuidance,
         projectCopyRefresh,

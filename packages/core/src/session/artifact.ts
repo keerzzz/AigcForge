@@ -2,11 +2,13 @@ export * as WorkArtifact from "./artifact"
 
 import { Context, DateTime, Effect, Layer, Schema } from "effect"
 import path from "path"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { EventV2 } from "../event"
 import { FileMutation } from "../file-mutation"
 import { LocationMutation } from "../location-mutation"
 import { FSUtil } from "../fs-util"
 import { Identifier } from "../id/id"
+import { Hash } from "../util/hash"
 import { SessionSchema } from "./schema"
 
 /**
@@ -61,8 +63,15 @@ export interface ApplyResult {
   readonly existed: boolean
 }
 
+/** The in-memory artifact owner's current identity for a Session: record plus content revision. */
+export interface ArtifactSnapshot {
+  readonly artifact: ArtifactRecord
+  readonly revision: WorkflowAsset.Revision
+}
+
 export interface Interface {
   readonly apply: (input: ApplyInput) => Effect.Effect<ApplyResult, PathValidationError | ConflictError | FSUtil.Error>
+  readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ArtifactSnapshot | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/WorkArtifact") {}
@@ -74,6 +83,7 @@ export const layer = Layer.effect(
     const fileMutation = yield* FileMutation.Service
     const fs = yield* FSUtil.Service
     const events = yield* EventV2.Service
+    const snapshots = new Map<string, ArtifactSnapshot>()
 
     const validate = Effect.fnUntraced(function* (relativePath: string) {
       if (relativePath.trim() === "") {
@@ -124,10 +134,18 @@ export const layer = Layer.effect(
         updatedAt: now.getTime(),
       }
       yield* events.publish(Event.ArtifactApplied, { sessionID: input.sessionID, artifactID })
+      snapshots.set(input.sessionID, {
+        artifact,
+        revision: Schema.decodeUnknownSync(WorkflowAsset.Revision)(Hash.sha256(Buffer.from(input.content))),
+      })
       return { artifact, existed }
     })
 
-    return Service.of({ apply })
+    const get = Effect.fn("WorkArtifact.get")(function* (sessionID: SessionSchema.ID) {
+      return snapshots.get(sessionID)
+    })
+
+    return Service.of({ apply, get })
   }),
 )
 

@@ -1,14 +1,24 @@
 export * as SessionIdentityProjection from "./session-identity"
 
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Option, Schema } from "effect"
+import { AgentAsset } from "../agent-asset"
+import { CommandAsset } from "../command-asset"
 import { SessionIdentity } from "@aigcfroge/schema/session-identity"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { Git } from "../git"
+import { MCPAsset } from "../mcp-asset"
 import { PermissionV2 } from "../permission"
+import { PluginAsset } from "../plugin-asset"
 import { ProductModePolicy } from "../product-mode-policy"
+import { PromptAsset } from "../prompt-asset"
 import { SessionV2 } from "../session"
+import { WorkArtifact } from "./artifact"
 import { SessionComposition } from "./composition"
+import { ScheduleService } from "./schedule-service"
 import { SessionStore } from "./store"
+import { SkillAsset } from "../skill-asset"
+import { WorkflowAsset } from "../workflow-asset"
+import { WorkflowRun } from "../workflow/workflow-run"
 
 /**
  * Read-only SessionProductIdentity projection (ADR-23, S6).
@@ -27,11 +37,14 @@ import { SessionStore } from "./store"
  *    non-Git Location reports BOTH as `missing`, per ADR-23 §3 — never an empty
  *    string and never an unearned `ready`.
  *  - `custom`: snapshot digest plus policy health from the kill switch, both real.
- *  - `chat` (asset counts), `work` (contract/artifact) and `assistant`
- *    (scope/reminders) have no owning contract yet, so they report the typed
- *    `mode-detail-not-projected` and the aggregation rule degrades their capability.
- *    Fabricating zero counts, an empty asset list or a ready reminder state is not an
- *    option; those owners belong to S9A/S9B.
+ *  - `chat`: counts come from the seven Location-scoped asset owners; no session
+ *    metadata or catalog digest participates.
+ *  - `work`: the contract comes from the durable WorkflowRun owner when present,
+ *    otherwise the session is explicitly ad-hoc. Artifact identity/revision comes
+ *    from WorkArtifact's in-memory owner. `presetCategoryId` is never read.
+ *  - `assistant`: the current owner contract is personal schedules/reminders;
+ *    Memory and Knowledge remain typed M2-degraded. Project scope is not emitted
+ *    because no owner currently persists it.
  */
 export interface Interface {
   readonly project: (sessionID: SessionV2.ID) => Effect.Effect<
@@ -65,6 +78,17 @@ export const layer = Layer.effect(
     const permission = yield* PermissionV2.Service
     const composition = yield* SessionComposition.Service
     const git = yield* Git.Service
+    const prompts = yield* Effect.serviceOption(PromptAsset.Service)
+    const skills = yield* Effect.serviceOption(SkillAsset.Service)
+    const mcps = yield* Effect.serviceOption(MCPAsset.Service)
+    const commands = yield* Effect.serviceOption(CommandAsset.Service)
+    const agents = yield* Effect.serviceOption(AgentAsset.Service)
+    const workflows = yield* Effect.serviceOption(WorkflowAsset.Service)
+    const plugins = yield* Effect.serviceOption(PluginAsset.Service)
+    const runs = yield* Effect.serviceOption(WorkflowRun.Service)
+    const artifacts = yield* Effect.serviceOption(WorkArtifact.Service)
+    const schedules = yield* Effect.serviceOption(ScheduleService.Service)
+    const deliveries = yield* Effect.serviceOption(ScheduleService.DeliveryService)
 
     const capability = (
       health: SessionIdentity.CapabilityHealth,
@@ -73,6 +97,10 @@ export const layer = Layer.effect(
 
     const resolveDetail = Effect.fnUntraced(function* (session: SessionV2.Info) {
       const notProjected = SessionIdentity.ReasonCodes.modeDetailNotProjected
+      const missing = () => ({
+        capability: capability("degraded", [{ code: notProjected, severity: "info" as const }]),
+        detail: { status: "missing" as const, reason: notProjected },
+      })
 
       if (session.mode === "coding") {
         const repo = yield* git.find(session.location.directory)
@@ -110,6 +138,85 @@ export const layer = Layer.effect(
         }
       }
 
+      if (session.mode === "chat") {
+        if (
+          Option.isNone(prompts) ||
+          Option.isNone(skills) ||
+          Option.isNone(mcps) ||
+          Option.isNone(commands) ||
+          Option.isNone(agents) ||
+          Option.isNone(workflows) ||
+          Option.isNone(plugins)
+        ) {
+          return missing()
+        }
+        const [promptList, skillList, mcpList, commandList, agentList, workflowList, pluginList] = yield* Effect.all([
+          prompts.value.list(),
+          skills.value.list(),
+          mcps.value.list(),
+          commands.value.list(),
+          agents.value.list(),
+          workflows.value.list(),
+          plugins.value.list(),
+        ])
+        const assetCounts = [
+          { kind: "prompt" as const, count: promptList.length },
+          { kind: "skill" as const, count: skillList.length },
+          { kind: "mcp" as const, count: mcpList.length },
+          { kind: "command" as const, count: commandList.length },
+          { kind: "agent" as const, count: agentList.length },
+          { kind: "workflow" as const, count: workflowList.length },
+          { kind: "plugin" as const, count: pluginList.length },
+        ].filter((item) => item.count > 0)
+        return {
+          capability: capability("ready", []),
+          detail: { status: "ready" as const, detail: { source: "chat" as const, assetCounts } },
+        }
+      }
+
+      if (session.mode === "work") {
+        const run = Option.isSome(runs) ? yield* runs.value.getBySession(session.id) : undefined
+        const artifact = Option.isSome(artifacts) ? yield* artifacts.value.get(session.id) : undefined
+        return {
+          capability: capability("ready", []),
+          detail: {
+            status: "ready" as const,
+            detail: {
+              source: "work" as const,
+              contract: run
+                ? { source: "workflow" as const, revision: run.workflowRevision }
+                : { source: "ad-hoc" as const },
+              artifact: artifact ? { status: "ready" as const, value: artifact.revision } : { status: "missing" as const },
+            },
+          },
+        }
+      }
+
+      if (session.mode === "assistant") {
+        const reminders =
+          Option.isSome(schedules) && Option.isSome(deliveries)
+            ? yield* Effect.all([schedules.value.list(session.id), deliveries.value.listInbox(session.id)]).pipe(
+                Effect.as(capability("ready", [])),
+              )
+            : capability("degraded", [
+                { code: SessionIdentity.ReasonCodes.assistantRemindersUnavailable, severity: "warning" },
+              ])
+        const memory = capability("degraded", [
+          { code: SessionIdentity.ReasonCodes.assistantMemoryM2Pending, severity: "info" },
+        ])
+        const knowledge = capability("degraded", [
+          { code: SessionIdentity.ReasonCodes.assistantKbM2Pending, severity: "info" },
+        ])
+        const reasons = [reminders, memory, knowledge].flatMap((item) => item.reasons)
+        return {
+          capability: capability(reminders.health === "blocked" ? "blocked" : "degraded", reasons),
+          detail: {
+            status: "ready" as const,
+            detail: { source: "assistant" as const, scope: { kind: "personal" as const }, reminders, memory, knowledge },
+          },
+        }
+      }
+
       if (session.mode === "custom") {
         const snapshot = yield* composition
           .get(session.id)
@@ -132,10 +239,7 @@ export const layer = Layer.effect(
         }
       }
 
-      return {
-        capability: capability("degraded", [{ code: notProjected, severity: "info" }]),
-        detail: { status: "missing" as const, reason: notProjected },
-      }
+      return missing()
     })
 
     const project = Effect.fn("SessionIdentityProjection.project")(function* (sessionID: SessionV2.ID) {
@@ -163,7 +267,10 @@ export const layer = Layer.effect(
       return yield* Schema.decodeUnknownEffect(SessionIdentity.Identity)({
         sessionID: session.id,
         mode: session.mode,
-        location: { directory: session.location.directory },
+        location: {
+          directory: session.location.directory,
+          ...(session.location.workspaceID ? { workspaceID: session.location.workspaceID } : {}),
+        },
         projectID: session.projectID,
         agent,
         model:
