@@ -8,9 +8,11 @@ import { expectAppVisible, gotoWhenReady } from "../utils/waits"
 const directory = "C:/Aigcfroge/ComposerSubmit"
 const projectID = "proj_composer_submit"
 const sessionID = "ses_composer_submit"
+const secondSessionID = "ses_composer_submit_second"
 const server = "http://localhost:4096"
 const model = { providerID: "aigcfroge", modelID: "composer-model" }
-const path = `/server/${base64Encode(server)}/session/${sessionID}`
+const pathFor = (id: string) => `/server/${base64Encode(server)}/session/${id}`
+const path = pathFor(sessionID)
 
 const composer = (page: Page) => page.locator('[data-component="session-composer"]')
 const input = (page: Page) => composer(page).locator('[data-component="prompt-input"]')
@@ -59,6 +61,17 @@ async function installMock(page: Page) {
         agent: "build",
         version: "dev",
         time: { created: 1_700_000_000_000, updated: 1_700_000_000_000 },
+      },
+      {
+        id: secondSessionID,
+        slug: secondSessionID,
+        projectID,
+        directory,
+        title: "Composer submit second",
+        mode: "coding",
+        agent: "build",
+        version: "dev",
+        time: { created: 1_700_000_001_000, updated: 1_700_000_001_000 },
       },
     ],
     pageMessages: () => ({ items: [] }),
@@ -159,6 +172,45 @@ test("shows the user message optimistically while the request is pending", async
 
   await expect(userMessage(page)).toContainText("Keep this visible while sending")
   release?.()
+})
+
+test("recovers an unsubmitted draft and attachment without leaking either into another session", async ({ page }) => {
+  const writes: string[] = []
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/prompt_async")) writes.push(request.url())
+  })
+  await openSession(page)
+
+  await input(page).fill("Recover this draft")
+  await composer(page).locator('input[type="file"]').setInputFiles({
+    name: "pixel.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  })
+  await expect(page.getByRole("img", { name: "pixel.png" })).toBeVisible()
+
+  await gotoWhenReady(page, pathFor(secondSessionID))
+  await expectAppVisible(input(page))
+  await expect(input(page)).toBeEmpty()
+  await expect(page.getByRole("img", { name: "pixel.png" })).toHaveCount(0)
+
+  await gotoWhenReady(page, path)
+  await expectAppVisible(input(page))
+  await expect(input(page)).toContainText("Recover this draft")
+  await expect(page.getByRole("img", { name: "pixel.png" })).toBeVisible()
+
+  await page.getByRole("button", { name: "Remove attachment" }).click()
+  await expect(page.getByRole("img", { name: "pixel.png" })).toHaveCount(0)
+
+  await gotoWhenReady(page, pathFor(secondSessionID))
+  await expect(input(page)).toBeEmpty()
+  await gotoWhenReady(page, path)
+  await expect(input(page)).toContainText("Recover this draft")
+  await expect(page.getByRole("img", { name: "pixel.png" })).toHaveCount(0)
+  expect(writes).toEqual([])
 })
 
 test("removes the optimistic message and restores the draft after a 500", async ({ page }) => {
