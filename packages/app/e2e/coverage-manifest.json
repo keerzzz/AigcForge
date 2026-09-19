@@ -55,8 +55,8 @@
     },
     "agent-picker-custom-narrowing": {
       "owner": "S7",
-      "scope": "the /agent response now projects AgentV2.Info.originRelativePath for AgentAsset-backed entries, while the App picker filters official versus asset-backed entries through one shared predicate; unit and generated-SDK HTTP evidence are green, but browser E3 evidence is still outstanding (Bookkeeping correction: the dependency on `originRelativePath` belongs to THIS entry; an earlier report attributed it to identity-narrow-viewport-controls.)",
-      "unlock": "run the App E3 picker flow on a healthy ext4 host or CI, asserting official-only filtering when the setting is off, asset-backed inclusion when it is on, and cycle commands remain available; do not remove this entry until that browser evidence is green"
+      "scope": "the /agent response now projects AgentV2.Info.originRelativePath for AgentAsset-backed entries, while the App picker filters official versus asset-backed entries through one shared predicate; unit, generated-SDK HTTP and browser E3 evidence are green (`session-identity-consumers.spec.ts` asset-backed pair: 2 passed / 5.8s on ext4, real Chromium, one worker) (Bookkeeping correction: the dependency on `originRelativePath` belongs to THIS entry; an earlier report attributed it to identity-narrow-viewport-controls.)",
+      "unlock": "cycle/reverse-cycle keyboard-command availability on the same picker was covered by `use-session-commands` disabled:false and its unit-visible shape, but no browser assertion names those two commands yet; either land that assertion or record the cycle half as accepted residual, then close this entry"
     },
     "permission-tier-mutation-entry": {
       "owner": "S12",

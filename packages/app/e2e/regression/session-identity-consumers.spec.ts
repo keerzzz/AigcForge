@@ -78,6 +78,15 @@ async function installMock(page: Page, permissionTier: "propose" | "full", showC
         },
       },
     },
+    agents: [
+      { name: "build", mode: "primary", primaryModes: ["coding"] },
+      {
+        name: "asset-backed",
+        mode: "primary",
+        primaryModes: ["coding"],
+        originRelativePath: "asset-backed.md",
+      },
+    ],
     pageMessages: () => ({ items: [] }),
   })
 }
@@ -94,6 +103,25 @@ test("keeps the agent picker visible when custom agents are switched off", async
   // The setting no longer deletes the control (S6): the mode policy decides which
   // agents exist, and this assertion is the flip of the old "picker disappears" one.
   await expectAppVisible(agentPicker(page))
+})
+
+test("filters asset-backed agents out of the picker when custom agents are off", async ({ page }) => {
+  await installMock(page, "propose", false)
+  await gotoWhenReady(page, path)
+
+  await agentPicker(page).click()
+  const options = page.locator('[data-slot="select-select-item"]')
+  await expect(options).toHaveText(["build"])
+  await expect(options).not.toContainText("asset-backed")
+})
+
+test("includes asset-backed agents when custom agents are on", async ({ page }) => {
+  await installMock(page, "propose", true)
+  await gotoWhenReady(page, path)
+
+  await agentPicker(page).click()
+  const options = page.locator('[data-slot="select-select-item"]')
+  await expect(options).toHaveText(["build", "asset-backed"])
 })
 
 test("shows no permission chip for the default propose tier", async ({ page }) => {

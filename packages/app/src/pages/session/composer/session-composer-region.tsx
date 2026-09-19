@@ -126,12 +126,10 @@ export function SessionComposerRegion(props: {
     })
   }
   const controls = createMemo(() => {
-    // local.agent.list() is already narrowed by the server's `primaryModes` (S6).
-    // The `showCustomAgents` setting no longer hides the picker at all. Narrowing
-    // the list to "official agents only" additionally needs asset provenance
-    // (AgentV2.Info.originRelativePath, ADR-20 §2.6) in this payload, which the
-    // `/agent` endpoint does not serve yet — recorded as a deferred S6 item rather
-    // than faked with a field that is not there.
+    // local.agent.list() is already narrowed by the server's `primaryModes` and
+    // the shared local owner applies the custom-agent visibility rule using
+    // AgentV2.Info.originRelativePath (ADR-20 §2.6). Keep the composer as a
+    // consumer; it must not reimplement the provenance predicate.
     const agentOptions = local.agent.list().map((agent) => agent.name)
     return {
       agents: {
