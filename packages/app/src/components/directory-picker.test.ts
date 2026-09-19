@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { directoryPickerKind } from "./directory-picker-policy"
+import { directoryPickerKind, validateDirectorySelection } from "./directory-picker-policy"
 
 const local = {
   type: "sidecar",
@@ -17,5 +17,25 @@ describe("directoryPickerKind", () => {
     expect(directoryPickerKind("desktop", local)).toBe("native")
     expect(directoryPickerKind("desktop", remote)).toBe("server")
     expect(directoryPickerKind("web", local)).toBe("server")
+  })
+})
+
+describe("validateDirectorySelection", () => {
+  test("rejects an unreadable native picker result before selection reaches the caller", async () => {
+    const rejected = "/missing"
+    await expect(
+      validateDirectorySelection(rejected, async (directory) => {
+        if (directory === rejected) throw new Error("not found")
+      }),
+    ).rejects.toThrow("not found")
+  })
+
+  test("validates every directory in a multiple native selection", async () => {
+    const checked: string[] = []
+    const result = await validateDirectorySelection(["/one", "/two"], async (directory) => {
+      checked.push(directory)
+    })
+    expect(result).toEqual(["/one", "/two"])
+    expect(checked).toEqual(["/one", "/two"])
   })
 })
