@@ -133,6 +133,32 @@
       "status": "flake-observed-once",
       "owner": "S3",
       "unlock": "run the baseline protocol (2 same-order rounds + 1 reversed) before treating this as a product failure. Observed ONCE in an 18.0m full `--project=chromium` round at a4f0e6720 on the ext4 worktree `/home/keer/s8w`, private port 3083, workers=1, retries=0: `page.waitForResponse` for `PATCH /session/:id/task` timed out at the 180s test budget after a Kobalte checkbox click, while the same snapshot shows the page itself healthy and rendered. The whole spec file then passed alone in the same environment, same commit, same port, same minute: 17 passed (45.1s), the failing case included. Nothing in that slice touched the todo-progress path — the only production change was a type-only narrowing in `components/directory-picker-domain.ts` — so the leading explanation is the documented long-round dev-server stall (`e2e-readiness-predicate-flake`), not a regression. Not quarantined: no fixme while the file passes standalone."
+    },
+    {
+      "id": "terminal-route-ws-host-mismatch",
+      "spec": "e2e/regression/session-terminal-route.spec.ts",
+      "test": "creates, connects, sends input, resizes, and deletes a PTY from a canonical Session route",
+      "layer": "E3",
+      "route": "canonical Session route + terminal panel",
+      "mode": "work",
+      "platform": "chromium",
+      "failure": "websocket-url-host-mismatch",
+      "status": "red-stable",
+      "owner": "S10",
+      "unlock": "Pre-existing on this host: the terminal socket opened ws://localhost:4096 where the spec asserts ws://127.0.0.1:4096. Reproduced twice, once with this branch's ResizeHandle change and once with it stashed (A/B), so it is not caused by that work. Determine on a healthy host or CI whether the host name is a loopback-alias artifact of this environment or a product bug in the socket URL; then either fix the URL producer or narrow the assertion, and remove this entry."
+    },
+    {
+      "id": "terminal-route-reconnect-cursor",
+      "spec": "e2e/regression/session-terminal-route.spec.ts",
+      "test": "reconnects an interrupted WebSocket at the last acknowledged cursor",
+      "layer": "E3",
+      "route": "canonical Session route + terminal panel",
+      "mode": "work",
+      "platform": "chromium",
+      "failure": "reconnect-cursor-not-resumed",
+      "status": "red-stable",
+      "owner": "S10",
+      "unlock": "Pre-existing on this host: after a forced close the reconnect URL carried cursor=0 instead of the acknowledged offset 17. Reproduced with the ResizeHandle change present and stashed (A/B). Decide on a healthy host or CI whether the fake socket's ack path or the app's reconnect cursor is at fault, fix that producer, and keep the assertion."
     }
   ]
 }
