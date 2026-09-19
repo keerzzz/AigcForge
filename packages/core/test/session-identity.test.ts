@@ -107,7 +107,9 @@ const gitLayer = (repo: { directory: string; branch?: string } | undefined) =>
     branch: () => Effect.succeed(repo?.branch),
   })
 
-const assets = (count: number) => Effect.succeed(Array.from({ length: count }, () => ({} as never)))
+// The projection only reads each list's length. A sparse `never[]` keeps this
+// fixture honest about that boundary without fabricating seven asset shapes.
+const assets = (count: number) => Effect.succeed(new Array<never>(count))
 
 const assetLayers = (counts: Partial<Record<SessionIdentity.AssetKind, number>> = {}) =>
   Layer.mergeAll(
@@ -196,9 +198,7 @@ const workflowRun = Schema.decodeUnknownSync(WorkflowAsset.WorkflowRunInfo)({
 })
 
 const it = testEffect(projectionLayer())
-const itWorkspace = testEffect(
-  projectionLayer({ session: sessionInfo({ workspaceID: "wrk_identity_fixture" }) }),
-)
+const itWorkspace = testEffect(projectionLayer({ session: sessionInfo({ workspaceID: "wrk_identity_fixture" }) }))
 
 describe("SessionIdentityProjection", () => {
   it.effect("projects the session's own baseline permission verdict, not a re-derived one", () =>
@@ -348,7 +348,11 @@ describe("SessionIdentityProjection: Assistant detail", () => {
 
 describe("SessionIdentityProjection: custom gate", () => {
   const itCustom = testEffect(
-    projectionLayer({ session: sessionInfo({ mode: "custom" }), rules: allowWildcard, snapshot: snapshotOf("b".repeat(64)) }),
+    projectionLayer({
+      session: sessionInfo({ mode: "custom" }),
+      rules: allowWildcard,
+      snapshot: snapshotOf("b".repeat(64)),
+    }),
   )
 
   itCustom.effect("exposes only the snapshot digest and the policy state, never snapshot contents", () =>

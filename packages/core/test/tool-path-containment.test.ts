@@ -113,7 +113,7 @@ describe("grep/glob path containment", () => {
           await fs.symlink(outside, link, "dir")
         } catch (error) {
           await fs.rm(outside, { recursive: true, force: true })
-          if (typeof error === "object" && error !== null && "code" in error && error.code === "EPERM") return
+          if (typeof error === "object" && error !== null && "code" in error && error.code === "EPERM") return undefined
           throw error
         }
         return { outside, link }
