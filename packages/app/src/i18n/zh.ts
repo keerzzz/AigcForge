@@ -236,6 +236,8 @@ export const dict = {
   "model.tooltip.context": "上下文上限 {{limit}}",
 
   "common.search.placeholder": "搜索",
+  "common.all": "全部",
+  "common.refresh": "刷新",
   "common.goBack": "返回",
   "common.goForward": "前进",
   "common.loading": "加载中",

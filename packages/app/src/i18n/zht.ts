@@ -213,6 +213,8 @@ export const dict = {
   "model.tooltip.reasoning.none": "不支援推理",
   "model.tooltip.context": "上下文上限 {{limit}}",
   "common.search.placeholder": "搜尋",
+  "common.all": "全部",
+  "common.refresh": "重新整理",
   "common.goBack": "返回",
   "common.goForward": "前進",
   "common.loading": "載入中",

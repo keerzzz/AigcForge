@@ -476,11 +476,17 @@ test.describe("persona audit: mode and detail closure", () => {
       await expect(trigger).toBeFocused()
     })
 
-    await test.step("interaction: Custom keyboard order exposes unlabeled controls", async () => {
+    await test.step("interaction: Custom names every control in keyboard order", async () => {
       await page.goto("/mode/custom")
       await expect(page.getByText("Project Assets", { exact: true })).toBeVisible()
+      // The refresh and category-all controls used to render with no accessible name:
+      // `common.refresh` / `common.all` were absent from every dictionary, so the
+      // translator returned undefined and Solid omitted both the aria-label attribute
+      // and the text node. The keys now exist, so the recorded defect must be gone.
+      await expect(page.getByRole("button", { name: "Refresh" }).first()).toBeVisible()
+      await expect(page.getByRole("button", { name: "All", exact: true }).first()).toBeVisible()
       const unlabeled = page.locator("button:visible:not([aria-label]):not([title])").filter({ hasText: /^$/ })
-      await expect(unlabeled).toHaveCount(2)
+      await expect(unlabeled).toHaveCount(0)
     })
 
     await attachClosure(testInfo, {
@@ -495,8 +501,9 @@ test.describe("persona audit: mode and detail closure", () => {
           "A 390x844 user can read, compose, and reach the mode-specific output/assistant panels through the titlebar entry; Settings remains operable.",
       },
       interaction: {
-        closed: false,
-        evidence: "Custom places two unnamed buttons in keyboard order; Settings tabs and Escape/focus return pass.",
+        closed: true,
+        evidence:
+          "Custom names its refresh and category-all controls in keyboard order; Settings tabs and Escape/focus return pass.",
       },
     })
   })
