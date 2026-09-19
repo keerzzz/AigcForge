@@ -311,6 +311,9 @@ export const dict = {
     "This allows all agents in the current session to read sensitive files, run commands, write files, and access the network. Chat dangerous actions still confirm each time. It turns off automatically on service restart and does not apply to child sessions or other sessions.",
   "permission.override.confirm.acknowledge": "I understand the risks and confirm",
   "permission.override.confirm.enable": "Enable",
+  "permission.tier.propose": "Propose",
+  "permission.tier.full": "Full access",
+  "permission.tier.change": "Change permission tier",
   "prompt.action.stop": "Stop",
 
   "prompt.toast.pasteUnsupported.title": "Unsupported attachment",

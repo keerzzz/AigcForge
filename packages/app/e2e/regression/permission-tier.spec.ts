@@ -106,12 +106,22 @@ async function mockPermissionRoutes(page: Page, wire: PermissionWire) {
   })
 }
 
-async function openSession(page: Page, wire: PermissionWire, sessionData: ReturnType<typeof session>) {
+// Child sessions render the child-disabled block instead of `PromptInput`,
+// so the default `session-composer` anchor (which PromptInput owns) never
+// appears for them. `ready` lets a child-session case anchor on the composer
+// region wrapper instead — a real readiness signal, not a relaxed assertion.
+async function openSession(
+  page: Page,
+  wire: PermissionWire,
+  sessionData: ReturnType<typeof session>,
+  ready = '[data-component="session-composer"]',
+  extraSessions: ReturnType<typeof session>[] = [],
+) {
   await mockAigcfrogeServer(page, {
     directory,
     project,
     provider,
-    sessions: [sessionData],
+    sessions: [sessionData, ...extraSessions],
     pageMessages: () => ({ items: [] }),
   })
   await mockPermissionRoutes(page, wire)
@@ -119,7 +129,7 @@ async function openSession(page: Page, wire: PermissionWire, sessionData: Return
     localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true } }))
   })
   await page.goto(`/${base64Encode(directory)}/session/${sessionData.id}`)
-  const composer = page.locator('[data-component="session-composer"]')
+  const composer = page.locator(ready)
   await expectAppVisible(composer)
   return composer
 }
@@ -218,4 +228,50 @@ test("unattended session hides the override control", async ({ page }) => {
   await openSession(page, wire, session({ id: "ses_tier_unattended", mode: "chat", agent: "meta", attended: false }))
 
   await expect(page.locator('[data-slot="permission-override-control"]')).toHaveCount(0)
+})
+
+// S12 shared permission control surface (plan 6.8): the tier mutation entry
+// rides the same owner as the break-glass lease. It is a deliberate control
+// (`permission-tier-control`), NOT the resident selector that 9.2/O-4.1 removed
+// (asserted above), and it round-trips PATCH /session/:id { permissionTier }.
+test("tier mutation entry round-trips through the shared permission owner", async ({ page }) => {
+  const wire: PermissionWire = {
+    tierPuts: [],
+    overridePuts: [],
+    overrideDeletes: 0,
+    enabled: false,
+    tierPutStatus: 200,
+  }
+  await openSession(page, wire, session({ id: "ses_tier_entry_roundtrip", mode: "chat", agent: "meta" }))
+
+  await expectAppVisible(page.locator('[data-slot="permission-tier-control"]'))
+  await page.locator('[data-slot="permission-tier-toggle"]').click()
+
+  await expect.poll(() => wire.tierPuts.length, { timeout: 10_000 }).toBeGreaterThan(0)
+  expect(wire.tierPuts[0]?.permissionTier).toBe("full")
+})
+
+test("tier mutation entry is hidden for child sessions", async ({ page }) => {
+  const wire: PermissionWire = {
+    tierPuts: [],
+    overridePuts: [],
+    overrideDeletes: 0,
+    enabled: false,
+    tierPutStatus: 200,
+  }
+  // Two facts decide this case's anchors, both measured:
+  // 1. A child route with no parent renders the parent-not-found guard, so the
+  //    parent must exist in the mock for the child-disabled path to render.
+  // 2. A child does not render `PromptInput`, so `session-composer` never
+  //    appears for it; the always-rendered composer wrapper is the readiness
+  //    signal. Asserting the tier control is absent is the actual contract.
+  await openSession(
+    page,
+    wire,
+    session({ id: "ses_tier_entry_child", mode: "chat", agent: "meta", parentID: "ses_parent" }),
+    '[data-component="session-prompt-dock"]',
+    [session({ id: "ses_parent", mode: "chat", agent: "meta" })],
+  )
+
+  await expect(page.locator('[data-slot="permission-tier-control"]')).toHaveCount(0)
 })

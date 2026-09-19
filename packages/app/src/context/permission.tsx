@@ -241,8 +241,61 @@ export const { use: usePermission, provider: PermissionProvider } = createSimple
       )
     }
 
+    // S12 shared permission control surface (plan 6.8): the break-glass lease
+    // entry and the permission-tier mutation entry share this owner so there is
+    // no second timer, state, or permission computation. `override` is
+    // ephemeral by design (the server lease expires on restart), so it is NOT
+    // folded into the persisted autoAccept store.
+    const [override, setOverride] = createStore<Record<string, boolean>>({})
+
+    function directoryClient() {
+      const directory = props.directory?.() ?? decode64(params.dir)
+      if (!directory) return undefined
+      // Same client `useSDK()` resolves, so directory scoping is preserved.
+      return serverSDK().ensureDirSdkContext(directory).client
+    }
+
+    async function refreshOverride(sessionID: string) {
+      const client = directoryClient()
+      if (!client) return
+      try {
+        const res = await client.permission.override.get({ sessionID })
+        setOverride(sessionID, res.data?.enabled === true)
+      } catch {
+        setOverride(sessionID, false)
+      }
+    }
+
+    async function updateOverride(input: { sessionID: string; method: "PUT" | "DELETE"; acknowledged?: boolean }) {
+      const client = directoryClient()
+      if (!client) return
+      if (input.method === "PUT") {
+        const res = await client.permission.override.put({
+          sessionID: input.sessionID,
+          ...(input.acknowledged !== undefined ? { acknowledged: input.acknowledged } : {}),
+        })
+        setOverride(input.sessionID, res.data?.enabled === true)
+        return
+      }
+      await client.permission.override.delete({ sessionID: input.sessionID })
+      setOverride(input.sessionID, false)
+    }
+
+    async function setPermissionTier(sessionID: string, permissionTier: "propose" | "full") {
+      const client = directoryClient()
+      if (!client) return
+      await client.session.update({ sessionID, permissionTier })
+    }
+
     return {
       ready,
+      refreshOverride,
+      overrideEnabled(sessionID: string) {
+        return override[sessionID] === true
+      },
+      updateOverride,
+      setPermissionTier,
+
       respond,
       autoResponds(permission: PermissionRequest, directory?: string) {
         return shouldAutoRespond(permission, directory)

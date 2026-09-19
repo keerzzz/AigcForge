@@ -303,6 +303,9 @@ export const dict = {
     "這將允許當前會話的所有 Agent 讀取敏感檔案、執行命令、寫入檔案和存取網路。Chat 危險操作仍逐次確認。服務重啟自動關閉，不會套用到子會話或其他會話。",
   "permission.override.confirm.acknowledge": "我已了解風險並確認",
   "permission.override.confirm.enable": "啟用",
+  "permission.tier.propose": "提議",
+  "permission.tier.full": "完全存取",
+  "permission.tier.change": "變更權限等級",
   "prompt.action.stop": "停止",
 
   "prompt.toast.pasteUnsupported.title": "不支援的附件",
