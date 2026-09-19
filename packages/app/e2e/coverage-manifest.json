@@ -68,11 +68,6 @@
       "scope": "the three `closed:false` observation bundles in e2e/regression/mode-detail-personas.spec.ts are about Work/Assistant identity and scope (Work presetCategoryId=null and its artifact empty state, Assistant not showing personal/project scope, the identity header missing scope/preset/inherited model source). plan §10 had assigned their conversion to real assertions to S7, but their subject matter belongs with the slices that own it.",
       "unlock": "S9A/S9B convert them into expect() assertions when the Work and Assistant closures land; the session-product-header-projection entry (S9B) is the Header half of the third bundle"
     },
-    "project-invalid-path": {
-      "owner": "S8",
-      "scope": "plan §11.1 requires invalid and inaccessible paths to be handled, and registration accepts any string: `createServerProjects.open` (packages/app/src/context/server.tsx) validates nothing (it now normalizes spelling via pathKey and that is all it claims), the native picker returns whatever the OS dialog gave with no server check (packages/app/src/components/directory-picker.tsx:24-27), and the V2 picker only verifies that it could list the navigated root (packages/app/src/components/dialog-select-directory-v2.tsx:57,107-135,357). A directory the server cannot read is therefore registered and only fails later, at session load, where the failure is per-directory toasts rather than an answer about the path.",
-      "unlock": "needs a way to ask the backend whether a directory is usable before it is trusted — which brushes `path-identity`, so the same §22-2 ADR is the gate — then a typed failure at add time instead of a silent registration. Mock first: `GET /path` always answers with config.directory (packages/app/e2e/utils/mock-server.ts:65-71), so no test can express an inaccessible path today."
-    },
     "project-fanout-on-home": {
       "owner": "S11",
       "scope": "Home load fans out per registered project: ~2N+2 requests at N=500 and N=2000 in the measurement above (/path N+1, /lsp N, /session N+1, provider requests at least 2 each), and the time-to-rows slope (~10-20ms per project, same order as run-to-run variance) tracks that fan-out rather than the list rendering. Nothing errors, so this is a scalability cost and not a defect; it is registered because §16.3 owns performance evidence and because 'the list is unbounded' would otherwise be treated as the cause.",
@@ -144,6 +139,19 @@
       "status": "red-stable",
       "owner": "S10",
       "unlock": "Pre-existing on this host: after a forced close the reconnect URL carried cursor=0 instead of the acknowledged offset 17. Reproduced with the ResizeHandle change present and stashed (A/B). Decide on a healthy host or CI whether the fake socket's ack path or the app's reconnect cursor is at fault, fix that producer, and keep the assertion."
+    },
+    {
+      "id": "picker-funnel-validation-unit-only",
+      "spec": "src/components/directory-picker.test.ts",
+      "test": "the non-native picker path validates the selection before forwarding it",
+      "layer": "unit",
+      "route": "add project -> pick directory",
+      "mode": "cross",
+      "platform": "bun",
+      "failure": "browser-negative-unexpressible",
+      "status": "verified-unit",
+      "owner": "S8",
+      "unlock": "CLOSED at the funnel, with an honest boundary. `useDirectoryPicker` now validates every picked directory through `validateDirectorySelection` before `input.onSelect`, on BOTH branches (native and server dialog), so no unreadable path reaches `projects.open()` from any add-project call site — all of them go through this one funnel. Evidence: `directory-picker.test.ts` 5 passed (2 new funnel contracts, 2 existing native-path contracts, 1 kind contract); app typecheck exit 0; lint-changed 190 files exit 0; prettier clean; `git diff --check` clean. `throwOnError: true` is set on both clients in server-sdk.tsx (:268 server-level, :326 dir-level), so a 404 from `file.list` rejects rather than resolving — the validation is not a false green. BROWSER NEGATIVE IS NOT EXPRESSIBLE BY DESIGN, measured not assumed: the V2 dialog disables its confirm button while the root is unlistable (dialog-select-directory-v2.tsx:142,153,357), and the legacy web picker swallows `file.list` failure into an empty list (directory-picker-domain.ts:384), so an unreadable directory never becomes a selectable row. The funnel validation is therefore defense-in-depth at the trust boundary (including the desktop native OS dialog, which can return any path), not a fix for a UI-reachable path. No browser spec was invented to make this look stronger than it is."
     }
   ]
 }
