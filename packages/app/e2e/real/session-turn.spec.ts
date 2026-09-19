@@ -78,28 +78,73 @@ async function promptViaBrowser(page: Page, text: string) {
  * lives in the harness and is shared by every case in the file, so the failure cases compare a
  * before/after delta rather than an absolute.
  */
-async function providerCompletions(request: APIRequestContext) {
+async function providerCompletionRecords(request: APIRequestContext) {
   const harness = new URL(e4().providerBaseURL).origin
   const response = await request.get(`${harness}/e4/provider-requests`)
   const body: unknown = await response.json()
   if (!isRecord(body) || !Array.isArray(body.requests)) throw new Error("provider requests response has no requests")
-  return body.requests.filter(
-    (entry) => isRecord(entry) && typeof entry.path === "string" && entry.path.endsWith("/chat/completions"),
-  ).length
+  return body.requests.flatMap((entry) =>
+    isRecord(entry) && typeof entry.path === "string" && entry.path.endsWith("/chat/completions")
+      ? [
+          {
+            scenario: typeof entry.scenario === "string" ? entry.scenario : undefined,
+            receivedAt: typeof entry.receivedAt === "number" ? entry.receivedAt : undefined,
+            responseStartedAt: typeof entry.responseStartedAt === "number" ? entry.responseStartedAt : undefined,
+          },
+        ]
+      : [],
+  )
 }
 
-async function armProviderFailures(
-  request: APIRequestContext,
-  count: number,
-  mode: "http-500" | "sse-cut" = "http-500",
-) {
+async function providerCompletions(request: APIRequestContext) {
+  return (await providerCompletionRecords(request)).length
+}
+
+type ProviderMode = "http-500" | "sse-cut" | "slow" | "duplicate"
+
+async function armProviderFailures(request: APIRequestContext, count: number, mode: ProviderMode = "http-500") {
   const harness = new URL(e4().providerBaseURL).origin
   const response = await request.post(`${harness}/e4/provider-failures?count=${count}&mode=${mode}`)
   expect(response.ok(), `arm provider failures: ${await response.text()}`).toBeTruthy()
 }
 
+/**
+ * What the backend persisted for the session — the projection the app re-reads after a reload.
+ * Used where the question is about message identity rather than about what is on screen, which is
+ * all the DOM can answer.
+ */
+async function persistedAssistantMessages(request: APIRequestContext, sessionID: string) {
+  const e4m = e4()
+  const response = await request.get(
+    `${e4m.backendUrl}/session/${sessionID}/message?directory=${encodeURIComponent(e4m.workspaceDir)}`,
+    { headers: { "x-aigcfroge-directory": e4m.workspaceDir } },
+  )
+  expect(response.ok(), `messages read: ${await response.text()}`).toBeTruthy()
+  const body: unknown = await response.json()
+  if (!Array.isArray(body)) throw new Error("messages response is not an array")
+  return body.filter(
+    (entry): entry is Record<string, unknown> =>
+      isRecord(entry) && isRecord(entry.info) && entry.info.role === "assistant",
+  )
+}
+
+/** The text parts of a persisted message, narrowed rather than asserted. */
+function textParts(message: Record<string, unknown>) {
+  if (!Array.isArray(message.parts)) return []
+  return message.parts.flatMap((part) =>
+    isRecord(part) && part.type === "text" && typeof part.text === "string" ? [part.text] : [],
+  )
+}
+
 // The default runtime is the product path; the V2 variant run skips this file.
 test.skip(() => e4().v2Runtime, "V1 product chain — not the V2 variant run")
+
+// The provider's armed mode is harness-global. Always disarm it after a case, including an early
+// assertion failure before the completion request reaches the provider, so one RED cannot poison
+// the next case and turn an isolated failure into an order-dependent cascade.
+test.afterEach(async ({ request }) => {
+  await armProviderFailures(request, 0)
+})
 
 test("browser submit runs a real provider turn that survives reload", async ({ page, request }) => {
   const e4m = e4()
@@ -266,4 +311,60 @@ test("an interrupted provider stream is retried instead of left hanging", async 
   // The interruption does not wedge the session: a later turn still reaches the provider.
   await promptViaBrowser(page, "Still usable after the cut")
   await expect.poll(async () => (await providerCompletions(request)) - before, { timeout: 60_000 }).toBe(3)
+})
+
+// A stalled upstream (plan §12.4 / §15 "slow"): the response headers are withheld for seconds
+// before the stream begins. The contract is that a slow provider is waited for, not aborted.
+test("a slow provider is waited for, not failed", async ({ page, request }) => {
+  const e4m = e4()
+  const sessionID = await createSession(request, "S9A slow provider")
+
+  seedRealBackend(page, e4m.backendUrl)
+  await page.goto(`/server/${base64Encode(e4m.backendUrl)}/session/${sessionID}`)
+
+  const before = await providerCompletions(request)
+  await armProviderFailures(request, 1, "slow")
+  await promptViaBrowser(page, "Wait for a slow provider")
+
+  await expect(assistantText(page)).toBeVisible({ timeout: 120_000 })
+  await expect(page.locator('[data-timeline-row="Error"]')).toHaveCount(0)
+  const attempts = (await providerCompletionRecords(request)).slice(before)
+  expect(attempts.length, "one prompt, one completion").toBe(1)
+  expect(attempts[0]?.scenario, "the armed slow mode was consumed").toBe("slow")
+  const receivedAt = attempts[0]?.receivedAt
+  const responseStartedAt = attempts[0]?.responseStartedAt
+  if (receivedAt === undefined || responseStartedAt === undefined)
+    throw new Error("slow completion has no timing evidence")
+  expect(
+    responseStartedAt - receivedAt,
+    "the provider withheld response headers for the configured stall",
+  ).toBeGreaterThanOrEqual(4_500)
+})
+
+// A duplicated delta — the downstream half of a proxy retry, where the same content chunk arrives
+// twice. What this asserts is message-level integrity: a repeated delta must not create a second
+// assistant message in the persisted projection. What a repeated delta does to the TEXT is
+// measured and printed rather than asserted, because "the same text twice" is also a legitimate
+// provider answer and no contract here says which one the client must produce.
+test("a duplicated provider delta does not duplicate the message", async ({ page, request }) => {
+  const e4m = e4()
+  const sessionID = await createSession(request, "S9A duplicated delta")
+
+  seedRealBackend(page, e4m.backendUrl)
+  await page.goto(`/server/${base64Encode(e4m.backendUrl)}/session/${sessionID}`)
+
+  const before = await providerCompletions(request)
+  await armProviderFailures(request, 1, "duplicate")
+  await promptViaBrowser(page, "Receive a duplicated delta")
+  await expect(assistantText(page)).toBeVisible({ timeout: 120_000 })
+
+  expect((await providerCompletions(request)) - before, "one prompt, one completion").toBe(1)
+  const messages = await persistedAssistantMessages(request, sessionID)
+  expect(messages.length, "one assistant message, not two").toBe(1)
+  console.log(`[probe] duplicated delta persisted text: ${JSON.stringify(textParts(messages[0] ?? {}))}`)
+
+  // And the projection is durable: a reload serves the same single message.
+  await page.reload()
+  await expect(assistantText(page)).toBeVisible({ timeout: 90_000 })
+  expect((await persistedAssistantMessages(request, sessionID)).length, "still one after reload").toBe(1)
 })

@@ -86,18 +86,33 @@ const log = (line: string) => {
 
 // ── deterministic provider ───────────────────────────────────────────────────
 
-const providerRequests: Array<{ method: string; path: string }> = []
+type ProviderFailureMode = "http-500" | "sse-cut" | "slow" | "duplicate"
+type ProviderScenario = ProviderFailureMode | "healthy"
+type ProviderRequest = {
+  method: string
+  path: string
+  receivedAt: number
+  scenario?: ProviderScenario
+  responseStartedAt?: number
+}
+
+const providerRequests: ProviderRequest[] = []
 
 /**
  * Armed transient failures for the provider failure/recovery cases (plan §12.4). Each armed
- * failure makes the next completion fail *inside a real turn*, in one of two shapes
- * (`providerFailureMode`): an HTTP 5xx, which the backend treats as retryable regardless of what
- * the provider SDK thinks (`session/retry.ts:74`: any status >= 500 is retryable), or an
- * interrupted stream, which never gets a status at all. The spec arms it over HTTP rather than
- * faking a failure in the test, and reads its attempt counts back from `/e4/provider-requests`.
+ * failure makes the next completion change *inside a real turn*. The four modes cover a
+ * classifiable HTTP 5xx, an interrupted stream with no status, a delayed response, and a repeated
+ * content delta. The spec arms them over HTTP rather than faking behavior in the test, and reads
+ * attempt counts plus non-prompt timing metadata back from `/e4/provider-requests`.
  */
 let providerFailures = 0
-let providerFailureMode: "http-500" | "sse-cut" = "http-500"
+let providerFailureMode: ProviderFailureMode = "http-500"
+const providerFailureModes: ReadonlyArray<ProviderFailureMode> = ["http-500", "sse-cut", "slow", "duplicate"]
+const isProviderFailureMode = (value: string): value is ProviderFailureMode =>
+  providerFailureModes.some((mode) => mode === value)
+/** How long `mode=slow` withholds the response headers. Long enough to be a real stall, short
+ * enough that no client-side timeout can be blamed for what the case observes. */
+const providerSlowDelayMs = 5_000
 
 function sseChunk(delta: Record<string, unknown>, finish?: string) {
   return `data: ${JSON.stringify({
@@ -105,6 +120,23 @@ function sseChunk(delta: Record<string, unknown>, finish?: string) {
     object: "chat.completion.chunk",
     choices: [{ delta, ...(finish ? { finish_reason: finish } : {}) }],
   })}\n\n`
+}
+
+/**
+ * The ordinary completion body, shared by the healthy path and by the modes that only change what
+ * surrounds it (`slow` withholds it, `duplicate` repeats one delta). `repeat` exists so the
+ * duplicated-delta case sends byte-identical chunks from one source rather than a hand-copied
+ * line that could drift from the healthy one.
+ */
+function writeCompletion(response: ServerResponse, options: { repeat?: number } = {}) {
+  response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
+  response.write(sseChunk({ role: "assistant", content: "" }))
+  response.write(
+    Array.from({ length: options.repeat ?? 1 }, () => sseChunk({ content: "E4 deterministic response" })).join(""),
+  )
+  response.write(sseChunk({}, "stop"))
+  response.write("data: [DONE]\n\n")
+  response.end()
 }
 
 /**
@@ -130,7 +162,7 @@ function readAdmission(sessionID: string) {
 }
 
 const provider: Server = createServer((request: IncomingMessage, response: ServerResponse) => {
-  const record = { method: request.method ?? "?", path: request.url ?? "?" }
+  const record: ProviderRequest = { method: request.method ?? "?", path: request.url ?? "?", receivedAt: Date.now() }
   providerRequests.push(record)
   // Restart the real backend (S5 restart window). Answers 202 immediately and
   // restarts in the background: holding the HTTP response open for a cold start
@@ -200,13 +232,14 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
   // Arm (or disarm, with count=0) the next N completion requests to answer the armed failure.
   // A query parameter rather than a body, matching /e4/admission above and keeping this process
   // free of request-body parsing. `mode` selects the family: `http-500` is a status the client
-  // can classify, `sse-cut` is a stream that starts correctly and then dies — the shape a proxy
-  // or a crashed upstream produces, which reaches the client as a terminated stream rather than
-  // an HTTP status. An unknown mode is refused instead of silently defaulting.
+  // can classify; `sse-cut` is a stream that starts correctly and then dies — the shape a proxy or
+  // a crashed upstream produces, which reaches the client as a terminated stream rather than an
+  // HTTP status; `slow` withholds the headers; `duplicate` repeats one content delta, which is the
+  // downstream half of a proxy retry. An unknown mode is refused instead of silently defaulting.
   if (request.method === "POST" && record.path.startsWith("/e4/provider-failures")) {
     const query = new URL(record.path, "http://127.0.0.1").searchParams
     const mode = query.get("mode") ?? "http-500"
-    if (mode !== "http-500" && mode !== "sse-cut") {
+    if (!isProviderFailureMode(mode)) {
       response.writeHead(400, { "content-type": "application/json" })
       response.end(JSON.stringify({ error: `unknown provider failure mode: ${mode}` }))
       return
@@ -221,7 +254,9 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
   if (request.method === "POST" && record.path.endsWith("/chat/completions")) {
     if (providerFailures > 0) {
       providerFailures -= 1
+      record.scenario = providerFailureMode
       if (providerFailureMode === "sse-cut") {
+        record.responseStartedAt = Date.now()
         response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
         response.write(sseChunk({ role: "assistant", content: "" }))
         response.write(sseChunk({ content: "E4 truncated" }))
@@ -230,16 +265,26 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
         response.destroy()
         return
       }
+      if (providerFailureMode === "slow") {
+        setTimeout(() => {
+          record.responseStartedAt = Date.now()
+          writeCompletion(response)
+        }, providerSlowDelayMs)
+        return
+      }
+      if (providerFailureMode === "duplicate") {
+        record.responseStartedAt = Date.now()
+        writeCompletion(response, { repeat: 2 })
+        return
+      }
+      record.responseStartedAt = Date.now()
       response.writeHead(500, { "content-type": "application/json" })
       response.end(JSON.stringify({ error: { type: "server_error", message: "E4 armed transient failure" } }))
       return
     }
-    response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
-    response.write(sseChunk({ role: "assistant", content: "" }))
-    response.write(sseChunk({ content: "E4 deterministic response" }))
-    response.write(sseChunk({}, "stop"))
-    response.write("data: [DONE]\n\n")
-    response.end()
+    record.scenario = "healthy"
+    record.responseStartedAt = Date.now()
+    writeCompletion(response)
     return
   }
   response.writeHead(404, { "content-type": "application/json" })
@@ -296,12 +341,25 @@ function spawnChild(name: string, command: string, args: Array<string>, cwd: str
   return child
 }
 
+/** Bound one readiness probe so a connection accepted during backend boot cannot hold the whole
+ * run past the outer deadline. This is an external HTTP boundary, not a sleep-based readiness
+ * substitute: success still comes only from the backend's own health response. */
+async function fetchWithin(url: string, timeoutMs: number) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** Poll a health endpoint until it answers `ok` — the backend's own readiness signal. */
 function waitForHealthy(url: string, timeoutMs: number): Promise<{ version: string }> {
   const deadline = Date.now() + timeoutMs
   const attempt = async (): Promise<{ version: string }> => {
     try {
-      const response = await fetch(`${url}/global/health`)
+      const response = await fetchWithin(`${url}/global/health`, 5_000)
       if (response.ok) {
         const body: unknown = await response.json()
         if (isRecord(body) && typeof body.version === "string") return { version: body.version }
@@ -325,7 +383,7 @@ async function waitForHttp(url: string, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs
   const attempt = async (): Promise<void> => {
     try {
-      await fetch(url)
+      await fetchWithin(url, 5_000)
       return
     } catch {
       // not ready yet — retry until the deadline

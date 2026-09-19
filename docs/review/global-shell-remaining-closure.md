@@ -781,3 +781,35 @@ claim is made here or in the assertions.
 
 `provider-scenario-scripts` stays **open** and now names one remaining family: tool call,
 duplicate/out-of-order, slow response — each needing its own knob before it can have a spec.
+
+---
+
+## S9A provider variance: slow and duplicate completion evidence (2026-09-19)
+
+This section appends the final evidence for the `slow` and `duplicate` deterministic-provider
+scenarios; it does not rewrite the earlier HTTP-5xx or interrupted-stream evidence.
+
+- `mode=slow` withholds response headers for 5 seconds. The harness records only non-prompt
+  metadata (`scenario`, `receivedAt`, `responseStartedAt`), and the spec requires the consumed
+  scenario to be `slow` plus at least 4500ms between receipt and response start. This makes the
+  case discriminating without a test-side sleep or an inference from total UI duration.
+- `mode=duplicate` sends one byte-identical content delta twice from the same completion. The real
+  projection persists exactly one assistant message and still has one after reload. The measured
+  text is doubled: `E4 deterministic responseE4 deterministic response`.
+- Each case disarms the harness in `afterEach`, so a failure before dispatch cannot leak an armed
+  scenario into the next test. Unknown scenario names still fail closed with HTTP 400.
+- Readiness polling now bounds each external health/preview fetch to 5 seconds; readiness still
+  comes only from the real endpoint and the existing outer deadline, not from a fixed sleep.
+
+Final run on the isolated ext4 E4 worktree (`workers=1`, `retries=0`):
+
+```text
+session-turn.spec.ts: 9 passed (3.8m)
+manifest.spec.ts: 4 passed (51.5s)
+teardown: ports free, process group gone, workspace clean, backend local, leaked=[]
+```
+
+Owner ruling for provider text duplication: **no heuristic text deduplication without a per-delta
+identity**. Repeated content is a legitimate provider answer and cannot be distinguished from an
+unidentified proxy replay. The delivered contract is message identity, not content rewriting.
+Identifiable SSE/WS replay after reconnect remains an independent S10 idempotency obligation.
