@@ -41,7 +41,22 @@ ModeRoute(/mode/chat)
 | `ChatAssetWorkbenchMain`      | 当前资产类型的列表与动作编排                   | 在首页内嵌完整 Session 执行链         |
 | canonical Session page        | timeline、Composer、tool、permission、context  | Chat 首页复制消息和工具状态           |
 
-## 4. 已实现与证据边界
+## 4. current / target / verified
+
+| 维度                         | current（代码事实）                                                                                                                                      | target                                          | verified（证据）                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 路由与 slot                  | `/mode/chat` + `ModeWorkspace` typed slot；切模式 render-all + `display:none`，不 remount                                                                | 不变                                            | `mode-workspace.tsx`；`mode-slot-active.ts`                                                                      |
+| 七类资产                     | prompt / skill / mcp / command / agent / workflow / plugin 七类均可列出                                                                                  | 每类有明确 create/read/update/delete 或只读边界 | core 各 Asset service 测试；`chat-asset-categories.spec.ts`                                                      |
+| 资产工作台                   | 项目资产与系统资产在工作台合并；失败显示局部错误 + Retry，不白屏                                                                                         | 不变                                            | `components/chat/`；局部 load error 用例                                                                         |
+| inactive gate                | 首次激活前不请求七类资产；隐藏 slot 不发请求                                                                                                             | 不变                                            | `mode-slot-active.ts`；`hidden-panel-request-and-remount` 已闭合                                                 |
+| Session 导航                 | 只导航到 canonical Session，不在 Chat 首页复制 timeline/Composer                                                                                         | 不变                                            | `openSessionRecord`；`home-shared.tsx`                                                                           |
+| 资产计数投影                 | 七类 assetCounts 进入 SessionProductIdentity projection；Header 渲染七行且计数各自不同                                                                   | 不变                                            | `session-identity.ts:162-173`；core `session-identity.test.ts` 11 passed；`session-product-header.spec.ts:40-51` |
+| 真实 provider turn（E4）     | **已 landed**：`session-turn.spec.ts` 有 chat 模式用例（浏览器 submit → 真实 provider turn → 投影 parts → reload），与无 mode 的 coding 用例同一读者 A/B | 不变                                            | manifest `modes.chat.e4`；2 passed (7.0m)                                                                        |
+| 七类资产 CRUD 的真实后端闭环 | **未取证**：现有覆盖以 E3 mock contract 为主                                                                                                             | 需 E2/E4                                        | 无本机证据                                                                                                       |
+
+**未闭环**：七类资产的跨项目隔离、revision 冲突、真实导入不受信内容与失败恢复仍无 E4；不得据 E3 mock 断言发布级闭环。
+
+## 5. 已实现与证据边界
 
 已实现：七类资产列表，创建/导入/删除入口，资产插入会话，Project→Feature→Session 左栏，inactive-slot 网络 gate，局部 load error，canonical Session 导航。
 

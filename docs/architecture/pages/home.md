@@ -132,7 +132,22 @@ Coding 项目搜索、Chat 资产/文件搜索为各自领域 owner，不复用 
 - filteredRecords memo 中仅匹配 name/directory，非深搜
 - render-all + display:none 保持模式 slot 状态（ADR-15 §4），切换不 remount
 
-## 8. 上下游文件索引
+## 8. current / target / verified
+
+| 维度           | current（代码事实）                                            | target                                    | verified（证据）                                                        |
+| -------------- | -------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------- |
+| 路由           | `/` = HomeOverview（ADR-16）；`/mode/:mode` = ModeWorkspace    | 不变                                      | `app.tsx` 的 `Route path="/"` 与 `Route path="/mode/:mode"`             |
+| 模式筛选       | 由 `MODE_DEFINITIONS` 派生五档，不手抄                         | 不变                                      | S6 修掉漏 custom 的副本；`mode.tsx:6`                                   |
+| 会话聚合       | 共享 `home-shared` 纯管线（build/group/search）                | 不变                                      | `home-shared.tsx`；`project-list-scale.spec.ts`                         |
+| 多 server 聚合 | **当前 server only**（ADR-16 批准范围）                        | 跨 server 合并需 ADR-16 amendment         | manifest `home-multi-server-aggregation` 已按批准范围关闭               |
+| offline 状态   | 已实现：通知与已缓存会话并存，`offlineServer` 无证据不宣称离线 | 不变                                      | `home-offline-state` 已闭合（含变异探针）                               |
+| 无项目恢复     | 已实现：picker → 注册 → draft 路由；router 边界缺陷已修        | 不变                                      | `home-no-project-recovery` 已闭合；`home-no-project-recovery.spec.ts`   |
+| 大列表         | 列表渲染健康；成本在 per-project fan-out                       | 用 production benchmark 判定是否 batching | `project-large-list` 已关（渲染）；`project-fanout-on-home` 仍 deferred |
+| 项目 fan-out   | **未解决**：~2N+2 请求，N=500/2000 实测                        | 生产 benchmark 后决定 batching/bound      | manifest `project-fanout-on-home`（S11）                                |
+
+**未闭环**：`project-fanout-on-home` 需要 production benchmark harness（本机只有 dev server）。
+
+## 9. 上下游文件索引
 
 | 层级              | 文件                                                               |
 | ----------------- | ------------------------------------------------------------------ |

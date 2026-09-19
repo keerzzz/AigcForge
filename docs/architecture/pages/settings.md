@@ -176,7 +176,21 @@ settings.keybinds: Record<string, string>
 
 ---
 
-## 10. 上下游文件索引
+## 10. current / target / verified
+
+| 维度           | current（代码事实）                                                                          | target     | verified（证据）                                           |
+| -------------- | -------------------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------- |
+| 持久化         | `persisted("settings.v3", createStore(defaultSettings))`，localStorage 同步 + 工作区文件异步 | 不变       | `context/settings.tsx:21`；`utils/persist.ts`              |
+| 读取           | `useSettings()` → `withFallback(store.x, default)` 返回 Accessor                             | 不变       | 上述源码路径                                               |
+| V2 UI          | 5 tabs（general/shortcuts/servers/providers/models）                                         | 不变       | `components/settings-v2/dialog-settings-v2.tsx`            |
+| 默认值         | `withFallback` + `utils/settings-default.ts`；非 prod 部分默认开启                           | 不变       | 源码                                                       |
+| 权限档位       | **设置面只暴露 `autoApprove`**；tier 变更入口在 Session composer（S12 共享权限控制面）       | 不变       | `permission-tier.spec.ts`；本页 §3 Schema                  |
+| 错误边界       | Store 读失败 → 默认值；localStorage 不可用 → try/catch；无效值 → Schema decode + fallback    | 不变       | 本页 §9 表                                                 |
+| 受限角色 scope | **未实现**：Settings 无 restricted-role scope                                                | 需产品裁决 | `mode-detail-personas.spec.ts` 的 `closed: false` 观察之一 |
+
+**未闭环**：restricted-role scope 属产品决策，未纳入本批。
+
+## 11. 上下游文件索引
 
 | 层级          | 文件                                          |
 | ------------- | --------------------------------------------- |
