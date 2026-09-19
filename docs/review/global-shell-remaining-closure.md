@@ -730,3 +730,54 @@ The presentation matrix (zh/zht/dark/narrow), `test:bench`, `bun --cwd packages/
 Desktop launch smoke (the script still does not exist), `bun typecheck` for the whole repo, and
 `bun run lint` in full. The E4 rounds above, the base E3 round, `bun --cwd packages/app test`
 (1048 pass), the app typecheck, `lint-changed` and `prettier --check` are the ones that ran.
+
+## S9A: an interrupted provider stream is retried, not left hanging (2026-09-19)
+
+Appends to the provider failure/recovery work above. This delivers the second family of plan
+§12.4's requirement and leaves `provider-scenario-scripts` open for the variance family only.
+
+### The knob
+
+The existing endpoint gains a mode: `POST /e4/provider-failures?count=N&mode=sse-cut` writes one
+delta and then destroys the response socket, with no finish reason and no `[DONE]` — so unlike the
+5xx family there is no HTTP status for the client to classify. `mode` defaults to `http-500`, so
+the calls the earlier cases make are unchanged, and an unknown mode is refused with 400 rather
+than defaulted: a knob that silently fell back to another family would let a case pass while
+testing nothing.
+
+### Measured before asserted
+
+The first run of the case was deliberately a probe. It asserted only that _some_ terminal surface
+appears and printed which one; the result was `retry=1 error=0`, i.e. a terminated stream is
+classified as retryable and is not claimed as a failure. The probe was then replaced by the
+measured assertions and the union is gone.
+
+### The case
+
+`session-turn.spec.ts:248` arms one cut, prompts once, and asserts: the retry surface appears
+(`[data-slot="session-turn-retry"]`, driven by the backend's own status), no Error row is claimed
+for it, the answer lands with no second prompt and no reload, the provider was asked exactly 2
+times (the cut plus the attempt that recovered), and a later turn still reaches the provider — the
+interruption does not wedge the session.
+
+### Runs
+
+Ext4 worktree `/home/keer/s8w` at `91fa40088` + this patch, `--project=chromium-real`, workers=1,
+retries=0, no sleep:
+
+| command                                          | result                                                |
+| ------------------------------------------------ | ----------------------------------------------------- |
+| the interrupted-stream case alone                | **1 passed (6.7m)**                                   |
+| the whole file (7 cases)                         | **7 passed (12.1m)**, `leaked=[] providerRequests=28` |
+| the authoritative validator on the edited ledger | **4 passed (5.9m)**                                   |
+
+Not asserted, and worth saying out loud: the case does not bound how long the client takes to
+notice the cut. That one case took 6.7m where the 5xx family's single case took 1.9m, and the
+difference is consistent with the client waiting on its own stream timeout rather than reacting to
+the socket teardown — but that is an inference from two durations, not a measurement, so no timing
+claim is made here or in the assertions.
+
+### Ledger
+
+`provider-scenario-scripts` stays **open** and now names one remaining family: tool call,
+duplicate/out-of-order, slow response — each needing its own knob before it can have a spec.

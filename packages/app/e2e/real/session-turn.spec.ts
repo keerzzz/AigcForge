@@ -88,9 +88,13 @@ async function providerCompletions(request: APIRequestContext) {
   ).length
 }
 
-async function armProviderFailures(request: APIRequestContext, count: number) {
+async function armProviderFailures(
+  request: APIRequestContext,
+  count: number,
+  mode: "http-500" | "sse-cut" = "http-500",
+) {
   const harness = new URL(e4().providerBaseURL).origin
-  const response = await request.post(`${harness}/e4/provider-failures?count=${count}`)
+  const response = await request.post(`${harness}/e4/provider-failures?count=${count}&mode=${mode}`)
   expect(response.ok(), `arm provider failures: ${await response.text()}`).toBeTruthy()
 }
 
@@ -234,4 +238,32 @@ test("a transient provider failure is retried, and the turn still lands", async 
 
   expect((await providerCompletions(request)) - before, "two armed failures plus the attempt that succeeded").toBe(3)
   await expect(page.locator('[data-slot="session-turn-retry"]')).toHaveCount(0)
+})
+
+// Interrupted stream (plan §12.4 / §15): the response starts correctly and then dies, so unlike
+// the 5xx case there is no HTTP status for the client to classify. MEASURED, not assumed: with
+// one cut armed the first run printed `retry=1 error=0`, so a terminated stream is retryable and
+// is not claimed as a failure. The case pins that, plus the two things that must hold either way —
+// the turn ends instead of spinning, and the session stays usable afterwards.
+test("an interrupted provider stream is retried instead of left hanging", async ({ page, request }) => {
+  const e4m = e4()
+  const sessionID = await createSession(request, "S9A stream interruption")
+
+  seedRealBackend(page, e4m.backendUrl)
+  await page.goto(`/server/${base64Encode(e4m.backendUrl)}/session/${sessionID}`)
+
+  const before = await providerCompletions(request)
+  await armProviderFailures(request, 1, "sse-cut")
+  await promptViaBrowser(page, "Interrupt this stream")
+
+  await expect(page.locator('[data-slot="session-turn-retry"]')).toBeVisible({ timeout: 120_000 })
+  await expect(page.locator('[data-timeline-row="Error"]')).toHaveCount(0)
+
+  // The retry is what ends the turn: the answer lands with no second prompt and no reload.
+  await expect(assistantText(page)).toBeVisible({ timeout: 120_000 })
+  expect((await providerCompletions(request)) - before, "one cut stream plus the attempt that succeeded").toBe(2)
+
+  // The interruption does not wedge the session: a later turn still reaches the provider.
+  await promptViaBrowser(page, "Still usable after the cut")
+  await expect.poll(async () => (await providerCompletions(request)) - before, { timeout: 60_000 }).toBe(3)
 })

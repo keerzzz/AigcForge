@@ -89,14 +89,15 @@ const log = (line: string) => {
 const providerRequests: Array<{ method: string; path: string }> = []
 
 /**
- * Armed transient failures for the provider failure/recovery case (plan §12.4). Each armed
- * failure makes the next completion answer 5xx *inside a real turn*, which the backend treats
- * as retryable regardless of what the provider SDK thinks (`session/retry.ts:74`: any status
- * >= 500 is retryable), so the retry the case observes is the product's own. The spec arms it
- * over HTTP rather than faking a failure in the test, and reads its attempt counts back from
- * `/e4/provider-requests`.
+ * Armed transient failures for the provider failure/recovery cases (plan §12.4). Each armed
+ * failure makes the next completion fail *inside a real turn*, in one of two shapes
+ * (`providerFailureMode`): an HTTP 5xx, which the backend treats as retryable regardless of what
+ * the provider SDK thinks (`session/retry.ts:74`: any status >= 500 is retryable), or an
+ * interrupted stream, which never gets a status at all. The spec arms it over HTTP rather than
+ * faking a failure in the test, and reads its attempt counts back from `/e4/provider-requests`.
  */
 let providerFailures = 0
+let providerFailureMode: "http-500" | "sse-cut" = "http-500"
 
 function sseChunk(delta: Record<string, unknown>, finish?: string) {
   return `data: ${JSON.stringify({
@@ -196,20 +197,39 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
     }
     return
   }
-  // Arm (or disarm, with count=0) the next N completion requests to answer 5xx. A query
-  // parameter rather than a body, matching /e4/admission above and keeping this process free
-  // of request-body parsing.
+  // Arm (or disarm, with count=0) the next N completion requests to answer the armed failure.
+  // A query parameter rather than a body, matching /e4/admission above and keeping this process
+  // free of request-body parsing. `mode` selects the family: `http-500` is a status the client
+  // can classify, `sse-cut` is a stream that starts correctly and then dies — the shape a proxy
+  // or a crashed upstream produces, which reaches the client as a terminated stream rather than
+  // an HTTP status. An unknown mode is refused instead of silently defaulting.
   if (request.method === "POST" && record.path.startsWith("/e4/provider-failures")) {
-    const count = new URL(record.path, "http://127.0.0.1").searchParams.get("count") ?? "0"
-    const parsed = Number.parseInt(count, 10)
+    const query = new URL(record.path, "http://127.0.0.1").searchParams
+    const mode = query.get("mode") ?? "http-500"
+    if (mode !== "http-500" && mode !== "sse-cut") {
+      response.writeHead(400, { "content-type": "application/json" })
+      response.end(JSON.stringify({ error: `unknown provider failure mode: ${mode}` }))
+      return
+    }
+    const parsed = Number.parseInt(query.get("count") ?? "0", 10)
     providerFailures = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+    providerFailureMode = mode
     response.writeHead(200, { "content-type": "application/json" })
-    response.end(JSON.stringify({ armed: providerFailures }))
+    response.end(JSON.stringify({ armed: providerFailures, mode: providerFailureMode }))
     return
   }
   if (request.method === "POST" && record.path.endsWith("/chat/completions")) {
     if (providerFailures > 0) {
       providerFailures -= 1
+      if (providerFailureMode === "sse-cut") {
+        response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
+        response.write(sseChunk({ role: "assistant", content: "" }))
+        response.write(sseChunk({ content: "E4 truncated" }))
+        // No finish reason, no [DONE]: the response just ends. `destroy` rather than `end` so the
+        // client sees a terminated stream instead of a well-formed empty completion.
+        response.destroy()
+        return
+      }
       response.writeHead(500, { "content-type": "application/json" })
       response.end(JSON.stringify({ error: { type: "server_error", message: "E4 armed transient failure" } }))
       return
