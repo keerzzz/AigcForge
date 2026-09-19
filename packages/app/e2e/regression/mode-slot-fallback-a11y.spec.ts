@@ -266,6 +266,55 @@ test(
   },
 )
 
+/**
+ * S11 `hidden-panel-request-and-remount`, the secondary-sidebar half.
+ *
+ * The mode-content half is covered in `mode-surface-wiring.spec.ts` (render-all slots keep
+ * their node and re-issue none of the hidden mode's reads). This panel is the opposite
+ * lifecycle: `pages/layout.tsx:70` wraps `<SecondarySidebar />` in a `Show`, so closing it
+ * genuinely unmounts the owner and reopening remounts it. The existing aria-controls case
+ * pins that mount/unmount; what it cannot see is whether the remount re-issues the reads the
+ * owner had already settled — the failure the debt row names. Counted on the paths this
+ * sidebar owns (`ChatSessionList` -> session list, `ChatFeatureList` -> the shared asset
+ * store), not on all traffic, so a legitimate read by another owner cannot mask a repeat.
+ */
+test(
+  "reopening the secondary sidebar does not re-issue the reads it already settled",
+  { tag: "@a11y" },
+  async ({ page }) => {
+    const owned = ["/session", "/prompt-asset", "/skill-asset", "/mcp-asset", "/command-asset", "/plugin-asset"]
+    const reads: string[] = []
+    page.on("request", (request) => {
+      const url = new URL(request.url())
+      if (url.port !== apiPort) return
+      if (!owned.includes(url.pathname)) return
+      reads.push(`${request.method()} ${url.pathname}`)
+    })
+
+    await page.setViewportSize(NARROW)
+    const toggle = await openSessionWithPanel(page)
+
+    await toggle.click()
+    const panel = page.locator("#secondary-sidebar-panel")
+    await expect(panel).toHaveCount(1)
+    // Settled signal: the sidebar has rendered its own content, so any read it issues has
+    // been issued. No sleep, no fixed wait.
+    await expect(panel.getByText("Narrow panel").first()).toBeVisible()
+    const afterFirstOpen = reads.length
+
+    await toggle.click()
+    await expect(panel).toHaveCount(0)
+    const afterClose = reads.length
+    expect(afterClose, `closing the panel issued ${afterClose - afterFirstOpen} read(s)`).toBe(afterFirstOpen)
+
+    await toggle.click()
+    await expect(panel).toHaveCount(1)
+    await expect(panel.getByText("Narrow panel").first()).toBeVisible()
+    const reopened = reads.slice(afterFirstOpen)
+    expect(reopened, `reopening re-issued ${reopened.length} read(s): ${reopened.join(", ")}`).toEqual([])
+  },
+)
+
 test("Escape follows the breakpoint in both directions", { tag: "@a11y" }, async ({ page }) => {
   // Wide first: open, shrink, then Escape must dismiss (the listener has to exist for the
   // width we are at NOW, not the one we started at).
