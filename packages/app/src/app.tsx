@@ -13,7 +13,6 @@ import { MetaProvider } from "@solidjs/meta"
 import {
   Navigate,
   Route,
-  Router,
   type BaseRouterProps,
   useLocation,
   useNavigate,
@@ -28,7 +27,6 @@ import {
   createMemo,
   createResource,
   createSignal,
-  ErrorBoundary,
   For,
   type JSX,
   lazy,
@@ -38,7 +36,6 @@ import {
   Show,
   Switch,
 } from "solid-js"
-import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { FileProvider } from "@/context/file"
@@ -71,6 +68,7 @@ import { RouteErrorSurface } from "@/components/route-error-surface"
 import { type ServerSDK } from "@/context/server-sdk"
 import { launchModeSessionOrRoute } from "@/pages/layout/helpers"
 import { ApprovalCenter } from "@/components/approval-center"
+import { AppRouterBoundary } from "@/app-router-boundary"
 
 import Session from "@/pages/session"
 import { ModeWorkspace } from "@/pages/mode-workspace"
@@ -504,7 +502,11 @@ function DraftProviders(props: ParentProps) {
   )
 }
 
-export function AppBaseProviders(props: ParentProps<{ locale?: Locale }>) {
+export function AppBaseProviders(props: {
+  locale?: Locale
+  router?: Component<BaseRouterProps>
+  render: (routeOutlet: () => JSX.Element) => JSX.Element
+}) {
   return (
     <MetaProvider>
       <Font />
@@ -518,22 +520,25 @@ export function AppBaseProviders(props: ParentProps<{ locale?: Locale }>) {
       >
         <LanguageProvider locale={props.locale}>
           <UiI18nBridge>
-            <ErrorBoundary
+            <AppRouterBoundary.Root
+              router={props.router}
+              routes={() => <Routes />}
               fallback={(error) => {
                 Sentry.captureException(error)
                 return <ErrorPage error={error} />
               }}
-            >
-              <QueryProvider>
-                <WslServersProvider>
-                  <DialogProvider>
-                    <MarkedProvider>
-                      <FileComponentProvider component={File}>{props.children}</FileComponentProvider>
-                    </MarkedProvider>
-                  </DialogProvider>
-                </WslServersProvider>
-              </QueryProvider>
-            </ErrorBoundary>
+              render={(routeOutlet) => (
+                <QueryProvider>
+                  <WslServersProvider>
+                    <DialogProvider>
+                      <MarkedProvider>
+                        <FileComponentProvider component={File}>{props.render(routeOutlet)}</FileComponentProvider>
+                      </MarkedProvider>
+                    </DialogProvider>
+                  </WslServersProvider>
+                </QueryProvider>
+              )}
+            />
           </UiI18nBridge>
         </LanguageProvider>
       </ThemeProvider>
@@ -659,10 +664,10 @@ function ServerKey(props: ParentProps) {
 
 export function AppInterface(props: {
   children?: JSX.Element
+  routeOutlet: () => JSX.Element
   defaultServer: ServerConnection.Key
   canonicalLocalServer?: ServerConnection.Key
   servers?: Array<ServerConnection.Any>
-  router?: Component<BaseRouterProps>
   disableHealthCheck?: boolean
 }) {
   // The visual new layout lives in the router root so it remains mounted across
@@ -687,23 +692,14 @@ export function AppInterface(props: {
         <SettingsProvider>
           <ConnectionGate disableHealthCheck={props.disableHealthCheck}>
             <ChatWorkspaceProvider>
-              <Dynamic
-                component={props.router ?? Router}
-                root={(routerProps) => (
-                  <>
-                    <RouteContributionProvider>
-                      <DirtyDraftGuard />
-                      <TabsProvider>
-                        <ServerShell>
-                          <AppLayout>{routerProps.children}</AppLayout>
-                        </ServerShell>
-                      </TabsProvider>
-                    </RouteContributionProvider>
-                  </>
-                )}
-              >
-                <Routes />
-              </Dynamic>
+              <RouteContributionProvider>
+                <DirtyDraftGuard />
+                <TabsProvider>
+                  <ServerShell>
+                    <AppLayout>{props.routeOutlet()}</AppLayout>
+                  </ServerShell>
+                </TabsProvider>
+              </RouteContributionProvider>
             </ChatWorkspaceProvider>
           </ConnectionGate>
         </SettingsProvider>

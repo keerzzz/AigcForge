@@ -18,7 +18,7 @@ import type { UpdaterState } from "@aigcfroge/app/updater"
 import * as Sentry from "@sentry/solid"
 import type { AsyncStorage } from "@solid-primitives/storage"
 import { MemoryRouter } from "@solidjs/router"
-import { createEffect, createMemo, createResource, createSignal, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
 import { render } from "solid-js/web"
 import pkg from "../../package.json"
 import { initI18n, t } from "./i18n"
@@ -337,7 +337,7 @@ render(() => {
     return null
   }
 
-  function App() {
+  function App(props: { routeOutlet: () => JSX.Element }) {
     const wslServers = useWslServers()
     const splash = (
       <div class="h-dvh w-screen flex flex-col items-center justify-center bg-background-base">
@@ -374,7 +374,7 @@ render(() => {
       <Show when={ready()} fallback={splash}>
         <Show when={effectiveDefaultServer()} keyed>
           {(key) => (
-            <AppInterface defaultServer={key} servers={servers()} router={MemoryRouter}>
+            <AppInterface routeOutlet={props.routeOutlet} defaultServer={key} servers={servers()}>
               <Inner />
             </AppInterface>
           )}
@@ -392,9 +392,11 @@ render(() => {
 
   return (
     <PlatformProvider value={platform}>
-      <AppBaseProviders locale={locale.latest}>
-        <Show when={true}>{(_) => <App />}</Show>
-      </AppBaseProviders>
+      <AppBaseProviders
+        locale={locale.latest}
+        router={MemoryRouter}
+        render={(routeOutlet) => <Show when={true}>{(_) => <App routeOutlet={routeOutlet} />}</Show>}
+      />
     </PlatformProvider>
   )
 }, root!)

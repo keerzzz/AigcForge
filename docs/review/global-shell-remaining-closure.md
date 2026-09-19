@@ -813,3 +813,53 @@ Owner ruling for provider text duplication: **no heuristic text deduplication wi
 identity**. Repeated content is a legitimate provider answer and cannot be distinguished from an
 unidentified proxy replay. The delivered contract is message identity, not content rewriting.
 Identifiable SSE/WS replay after reconnect remains an independent S10 idempotency obligation.
+
+---
+
+## S8 router/error-boundary root cause: fixed without reducing fatal coverage (2026-09-19)
+
+The open `router-recreated-by-error-boundary-reset` defect is closed. The measured RED was already
+recorded above: after an error reached the app-level Solid `ErrorBoundary`, the router's next
+transition reset that boundary, re-evaluated its children, created a second Router before
+`navigateEnd` committed history, and then pushed the URL through the dead first context.
+
+### Ruling and implementation
+
+The selected structure is **stable Router outside, the existing complete fatal boundary inside the
+Router root**. It is deliberately not “add another inner boundary” (the outer boundary would still
+be reset and recreate the Router), and not “wrap only the route outlet” (which would silently drop
+fatal coverage for the shell and Provider constructors).
+
+`AppRouterBoundary.Root` now owns that invariant. `AppBaseProviders` puts Query, WSL, Dialog,
+Marked, FileComponent, `AppInterface`, the server/global/settings providers, the shell, and the
+route outlet under the one existing Sentry + `ErrorPage` boundary. Only Router construction itself
+is outside it. Web passes `Router`; Desktop passes `MemoryRouter` to the same owner and consumes a
+lazy route-outlet accessor only after its startup resources are ready.
+
+### Discriminating evidence
+
+`packages/app/src/app-router-boundary.test.tsx` uses the real Solid Router integration and asserts:
+
+1. after one render error reaches the fatal fallback, the next navigation renders `/next`, history
+   is `/next`, and Router construction count remains exactly 1;
+2. a Provider-construction error still reaches the fatal fallback exactly once;
+3. the error-free control also navigates with one Router and no fallback.
+
+Final targeted result: **3 passed / 0 failed**.
+
+Two temporary mutations proved both halves and were reverted:
+
+- moving the boundary back outside Router made the first test RED with Router mounts **2 instead
+  of 1**;
+- moving the provider/shell render outside the boundary made `provider-construction` escape and
+  the second test RED.
+
+Browser controls on the ext4 worktree, private Vite 3083, workers=1/retries=0:
+
+```text
+home-no-project-recovery.spec.ts: 1 passed (11.6s)
+new-session-route.spec.ts: 4 passed (13.4s)
+```
+
+The private server was stopped after the runs and port 3083 was confirmed free. No process on port
+3000 was started or stopped.

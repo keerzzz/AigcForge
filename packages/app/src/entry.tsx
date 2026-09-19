@@ -167,14 +167,17 @@ if (root instanceof HTMLElement) {
   render(
     () => (
       <PlatformProvider value={platform}>
-        <AppBaseProviders>
-          <AppInterface
-            defaultServer={ServerConnection.Key.make(getDefaultUrl())}
-            canonicalLocalServer={ServerConnection.key(server)}
-            servers={[server]}
-            disableHealthCheck
-          />
-        </AppBaseProviders>
+        <AppBaseProviders
+          render={(routeOutlet) => (
+            <AppInterface
+              routeOutlet={routeOutlet}
+              defaultServer={ServerConnection.Key.make(getDefaultUrl())}
+              canonicalLocalServer={ServerConnection.key(server)}
+              servers={[server]}
+              disableHealthCheck
+            />
+          )}
+        />
       </PlatformProvider>
     ),
     root,

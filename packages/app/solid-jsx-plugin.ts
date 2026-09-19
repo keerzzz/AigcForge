@@ -20,16 +20,19 @@ import babelPresetSolid from "babel-preset-solid"
 export const solidJsxPlugin: Bun.Plugin = {
   name: "solid-jsx",
   setup(builder) {
-    builder.onLoad({ filter: /[\\/]pages[\\/]session[\\/]text-diff-view(?:\.test)?\.tsx$/ }, async (args) => {
-      const source = await Bun.file(args.path).text()
-      const result = transformSync(source, {
-        filename: args.path,
-        presets: [[presetTypescript, { jsx: "preserve" }], [babelPresetSolid]],
-        sourceMaps: "inline",
-        babelrc: false,
-        configFile: false,
-      })
-      return result?.code ? { contents: result.code, loader: "js" } : { contents: source, loader: "ts" }
-    })
+    builder.onLoad(
+      { filter: /[\\/](?:pages[\\/]session[\\/]text-diff-view|app-router-boundary)(?:\.test)?\.tsx$/ },
+      async (args) => {
+        const source = await Bun.file(args.path).text()
+        const result = transformSync(source, {
+          filename: args.path,
+          presets: [[presetTypescript, { jsx: "preserve" }], [babelPresetSolid]],
+          sourceMaps: "inline",
+          babelrc: false,
+          configFile: false,
+        })
+        return result?.code ? { contents: result.code, loader: "js" } : { contents: source, loader: "ts" }
+      },
+    )
   },
 }
