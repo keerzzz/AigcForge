@@ -212,6 +212,7 @@ export function TerminalPanel() {
           classList={{
             "-top-1": true,
           }}
+          label={language.t("resize.terminal")}
           direction="vertical"
           size={pane()}
           min={100}

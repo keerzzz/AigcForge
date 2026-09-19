@@ -2146,6 +2146,7 @@ export default function Page(props: { rootID: string }) {
                 classList={{
                   "-right-1": true,
                 }}
+                label={language.t("resize.sessionReview")}
                 direction="horizontal"
                 size={layout.session.width()}
                 min={450}

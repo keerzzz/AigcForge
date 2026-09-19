@@ -216,6 +216,9 @@ export const dict = {
   "model.tooltip.context": "Context limit {{limit}}",
 
   "common.search.placeholder": "Search",
+  "resize.fileTree": "Resize file tree",
+  "resize.sessionReview": "Resize session changes panel",
+  "resize.terminal": "Resize terminal",
   "common.all": "All",
   "common.refresh": "Refresh",
   "common.goBack": "Navigate back",

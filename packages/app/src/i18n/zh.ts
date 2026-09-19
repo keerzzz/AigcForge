@@ -236,6 +236,9 @@ export const dict = {
   "model.tooltip.context": "上下文上限 {{limit}}",
 
   "common.search.placeholder": "搜索",
+  "resize.fileTree": "调整文件树宽度",
+  "resize.sessionReview": "调整会话变更面板宽度",
+  "resize.terminal": "调整终端高度",
   "common.all": "全部",
   "common.refresh": "刷新",
   "common.goBack": "返回",
