@@ -38,6 +38,11 @@ type PtyInfo = {
   pid: number
 }
 
+type SocketControl = {
+  emitMeta: (cursor: number) => void
+  closeLatest: (code: number, reason: string) => void
+}
+
 type SocketState = {
   urls: string[]
   sent: string[]
@@ -86,6 +91,7 @@ async function installSocketMock(page: Page) {
   await page.addInitScript(() => {
     const state: SocketState = { urls: [], sent: [], closes: [] }
     Object.defineProperty(window, "__terminalSocketState", { value: state })
+    const sockets: Array<{ dispatchEvent: (event: Event) => boolean; close: (code?: number, reason?: string) => void }> = []
 
     class MockWebSocket extends EventTarget {
       static readonly CONNECTING = 0
@@ -110,6 +116,7 @@ async function installSocketMock(page: Page) {
       constructor(url: string | URL) {
         super()
         this.url = String(url)
+        sockets.push(this)
         state.urls.push(this.url)
         queueMicrotask(() => {
           this.readyState = MockWebSocket.OPEN
@@ -130,6 +137,19 @@ async function installSocketMock(page: Page) {
     }
 
     Object.defineProperty(window, "WebSocket", { configurable: true, value: MockWebSocket })
+    const control: SocketControl = {
+      emitMeta(cursor) {
+        const payload = new TextEncoder().encode(JSON.stringify({ cursor }))
+        const frame = new Uint8Array(payload.length + 1)
+        frame[0] = 0
+        frame.set(payload, 1)
+        sockets.at(-1)?.dispatchEvent(new MessageEvent("message", { data: frame.buffer }))
+      },
+      closeLatest(code, reason) {
+        sockets.at(-1)?.close(code, reason)
+      },
+    }
+    Object.defineProperty(window, "__terminalSocketControl", { value: control })
   })
 }
 
@@ -336,6 +356,38 @@ test("creates, connects, sends input, resizes, and deletes a PTY from a canonica
     .toBe(true)
   await expect(panel).toHaveAttribute("aria-hidden", "true")
   expect(mock.ptys.has("pty_terminal_1")).toBe(false)
+})
+
+test("reconnects an interrupted WebSocket at the last acknowledged cursor", async ({ page }) => {
+  const mock = await installMocks(page)
+  await gotoSession(page, sessionA, "Terminal session A")
+  await openTerminal(page)
+
+  await expect.poll(async () => (await socketState(page)).urls.length).toBe(1)
+  await page.evaluate(() => {
+    const value: unknown = Reflect.get(window, "__terminalSocketControl")
+    if (typeof value !== "object" || value === null || !("emitMeta" in value) || typeof value.emitMeta !== "function")
+      throw new Error("Terminal WebSocket control is unavailable")
+    value.emitMeta(17)
+  })
+
+  await page.evaluate(() => {
+    const value: unknown = Reflect.get(window, "__terminalSocketControl")
+    if (
+      typeof value !== "object" ||
+      value === null ||
+      !("closeLatest" in value) ||
+      typeof value.closeLatest !== "function"
+    )
+      throw new Error("Terminal WebSocket control is unavailable")
+    value.closeLatest(1006, "network lost")
+  })
+
+  await expect.poll(async () => (await socketState(page)).urls.length).toBe(2)
+  const reconnected = new URL((await socketState(page)).urls.at(-1) ?? "")
+  expect(reconnected.pathname).toBe("/pty/pty_terminal_1/connect")
+  expect(reconnected.searchParams.get("cursor"), "resumes after the acknowledged byte offset").toBe("17")
+  expect(mock.requests.filter((request) => request.path === "/pty/pty_terminal_1/connect-token")).toHaveLength(2)
 })
 
 test("shares terminal state across Sessions in one directory and isolates another directory", async ({ page }) => {
