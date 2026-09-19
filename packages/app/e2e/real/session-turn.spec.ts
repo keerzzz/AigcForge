@@ -100,7 +100,7 @@ async function providerCompletions(request: APIRequestContext) {
   return (await providerCompletionRecords(request)).length
 }
 
-type ProviderMode = "http-500" | "sse-cut" | "slow" | "duplicate"
+type ProviderMode = "http-500" | "sse-cut" | "slow" | "duplicate" | "tool-call"
 
 async function armProviderFailures(request: APIRequestContext, count: number, mode: ProviderMode = "http-500") {
   const harness = new URL(e4().providerBaseURL).origin
@@ -134,6 +134,34 @@ function textParts(message: Record<string, unknown>) {
   return message.parts.flatMap((part) =>
     isRecord(part) && part.type === "text" && typeof part.text === "string" ? [part.text] : [],
   )
+}
+
+/** Stable persisted fields from completed tool parts; transient timing is intentionally excluded. */
+function completedToolParts(messages: Record<string, unknown>[], tool: string) {
+  return messages.flatMap((message) => {
+    if (!Array.isArray(message.parts)) return []
+    return message.parts.flatMap((part) => {
+      if (!isRecord(part) || part.type !== "tool" || part.tool !== tool || typeof part.callID !== "string") return []
+      const state = part.state
+      if (
+        !isRecord(state) ||
+        state.status !== "completed" ||
+        !isRecord(state.input) ||
+        typeof state.output !== "string" ||
+        typeof state.title !== "string"
+      )
+        return []
+      return [
+        {
+          callID: part.callID,
+          tool: part.tool,
+          input: state.input,
+          output: state.output,
+          title: state.title,
+        },
+      ]
+    })
+  })
 }
 
 // The default runtime is the product path; the V2 variant run skips this file.
@@ -367,4 +395,44 @@ test("a duplicated provider delta does not duplicate the message", async ({ page
   await page.reload()
   await expect(assistantText(page)).toBeVisible({ timeout: 90_000 })
   expect((await persistedAssistantMessages(request, sessionID)).length, "still one after reload").toBe(1)
+})
+
+// The provider streams a genuine OpenAI-compatible function call, not a browser-side synthetic
+// result. `read` targets the run's own workspace, so it needs neither external network nor a user
+// permission prompt. Its completed projection and output prove backend dispatch; the second
+// provider completion proves the tool result was followed by continuation.
+test("a streamed tool call is dispatched, continued, and durable", async ({ page, request }) => {
+  const e4m = e4()
+  const sessionID = await createSession(request, "S9A provider tool call")
+  const harness = new URL(e4m.providerBaseURL).origin
+
+  const rejected = await request.post(`${harness}/e4/provider-failures?count=1&mode=not-a-provider-mode`)
+  expect(rejected.status(), "unknown provider modes stay fail-closed").toBe(400)
+
+  seedRealBackend(page, e4m.backendUrl)
+  await page.goto(`/server/${base64Encode(e4m.backendUrl)}/session/${sessionID}`)
+
+  const before = await providerCompletions(request)
+  await armProviderFailures(request, 1, "tool-call")
+  await promptViaBrowser(page, "Read the E4 workspace, then answer")
+
+  // This text only comes from the healthy second provider turn after the tool settles.
+  await expect(assistantText(page)).toBeVisible({ timeout: 120_000 })
+  const completions = (await providerCompletionRecords(request)).slice(before)
+  expect(
+    completions.map((entry) => entry.scenario),
+    "tool turn followed by continuation",
+  ).toEqual(["tool-call", "healthy"])
+
+  const projection = completedToolParts(await persistedAssistantMessages(request, sessionID), "read")
+  expect(projection, "one completed backend-dispatched tool projection").toHaveLength(1)
+  expect(projection[0]?.callID).toBe("call_e4_read_workspace")
+  expect(projection[0]?.input).toEqual({ filePath: e4m.workspaceDir })
+  expect(projection[0]?.output).toContain(`<path>${e4m.workspaceDir}</path>`)
+  expect(projection[0]?.output).toContain("<type>directory</type>")
+
+  // Reload rehydrates the exact same persisted tool result and final assistant turn.
+  await page.reload()
+  await expect(assistantText(page)).toBeVisible({ timeout: 90_000 })
+  expect(completedToolParts(await persistedAssistantMessages(request, sessionID), "read")).toEqual(projection)
 })

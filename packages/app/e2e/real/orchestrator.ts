@@ -86,7 +86,7 @@ const log = (line: string) => {
 
 // ── deterministic provider ───────────────────────────────────────────────────
 
-type ProviderFailureMode = "http-500" | "sse-cut" | "slow" | "duplicate"
+type ProviderFailureMode = "http-500" | "sse-cut" | "slow" | "duplicate" | "tool-call"
 type ProviderScenario = ProviderFailureMode | "healthy"
 type ProviderRequest = {
   method: string
@@ -99,15 +99,21 @@ type ProviderRequest = {
 const providerRequests: ProviderRequest[] = []
 
 /**
- * Armed transient failures for the provider failure/recovery cases (plan §12.4). Each armed
- * failure makes the next completion change *inside a real turn*. The four modes cover a
- * classifiable HTTP 5xx, an interrupted stream with no status, a delayed response, and a repeated
- * content delta. The spec arms them over HTTP rather than faking behavior in the test, and reads
- * attempt counts plus non-prompt timing metadata back from `/e4/provider-requests`.
+ * Armed provider scenarios for the failure/recovery and tool-loop cases. The four failure modes
+ * cover a classifiable HTTP 5xx, an interrupted stream with no status, a delayed response, and a
+ * repeated content delta; `tool-call` starts a real two-turn tool loop. The spec arms each scenario
+ * over HTTP rather than faking behavior in the browser, and reads attempt counts plus non-prompt
+ * metadata back from `/e4/provider-requests`.
  */
 let providerFailures = 0
 let providerFailureMode: ProviderFailureMode = "http-500"
-const providerFailureModes: ReadonlyArray<ProviderFailureMode> = ["http-500", "sse-cut", "slow", "duplicate"]
+const providerFailureModes: ReadonlyArray<ProviderFailureMode> = [
+  "http-500",
+  "sse-cut",
+  "slow",
+  "duplicate",
+  "tool-call",
+]
 const isProviderFailureMode = (value: string): value is ProviderFailureMode =>
   providerFailureModes.some((mode) => mode === value)
 /** How long `mode=slow` withholds the response headers. Long enough to be a real stall, short
@@ -135,6 +141,39 @@ function writeCompletion(response: ServerResponse, options: { repeat?: number } 
     Array.from({ length: options.repeat ?? 1 }, () => sseChunk({ content: "E4 deterministic response" })).join(""),
   )
   response.write(sseChunk({}, "stop"))
+  response.write("data: [DONE]\n\n")
+  response.end()
+}
+
+const providerToolCallID = "call_e4_read_workspace"
+
+/**
+ * One real OpenAI-compatible streamed function call. The arguments are split across two deltas so
+ * the backend has to assemble the provider protocol before it can dispatch the existing `read`
+ * tool. The target is the run's own empty git workspace: local, deterministic, and covered by the
+ * default read permission without any external network or user approval.
+ */
+function writeToolCall(response: ServerResponse) {
+  const input = JSON.stringify({ filePath: workspaceDir })
+  const split = Math.ceil(input.length / 2)
+  response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
+  response.write(
+    sseChunk({
+      role: "assistant",
+      content: null,
+      tool_calls: [
+        {
+          index: 0,
+          id: providerToolCallID,
+          type: "function",
+          function: { name: "read", arguments: "" },
+        },
+      ],
+    }),
+  )
+  response.write(sseChunk({ tool_calls: [{ index: 0, function: { arguments: input.slice(0, split) } }] }))
+  response.write(sseChunk({ tool_calls: [{ index: 0, function: { arguments: input.slice(split) } }] }))
+  response.write(sseChunk({}, "tool_calls"))
   response.write("data: [DONE]\n\n")
   response.end()
 }
@@ -235,7 +274,9 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
   // can classify; `sse-cut` is a stream that starts correctly and then dies — the shape a proxy or
   // a crashed upstream produces, which reaches the client as a terminated stream rather than an
   // HTTP status; `slow` withholds the headers; `duplicate` repeats one content delta, which is the
-  // downstream half of a proxy retry. An unknown mode is refused instead of silently defaulting.
+  // downstream half of a proxy retry; `tool-call` streams a real function call that the backend
+  // dispatches before its second provider turn. An unknown mode is refused instead of silently
+  // defaulting.
   if (request.method === "POST" && record.path.startsWith("/e4/provider-failures")) {
     const query = new URL(record.path, "http://127.0.0.1").searchParams
     const mode = query.get("mode") ?? "http-500"
@@ -275,6 +316,11 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
       if (providerFailureMode === "duplicate") {
         record.responseStartedAt = Date.now()
         writeCompletion(response, { repeat: 2 })
+        return
+      }
+      if (providerFailureMode === "tool-call") {
+        record.responseStartedAt = Date.now()
+        writeToolCall(response)
         return
       }
       record.responseStartedAt = Date.now()

@@ -933,3 +933,31 @@ exists.
 This approval unlocks Schema/Core/instance-HttpApi/generated-SDK implementation and E1/E2 proof.
 It does not by itself close `path-identity` or `project-invalid-path`; both remain open until the
 accepted contract is implemented and the latter has a typed add-time validation flow.
+
+---
+
+## S9A deterministic-provider scenario set: tool-call closure (2026-09-19)
+
+The final `provider-scenario-scripts` item is delivered. `mode=tool-call` now emits a real
+OpenAI-compatible streamed function call with split argument deltas. The call targets the existing
+`read` tool against the E4 run's own empty git workspace, so it uses a real backend dispatch while
+remaining loopback/local, deterministic, external-network free, and approval free.
+
+The browser test proves the complete chain rather than inserting a tool result:
+
+- an unknown provider mode is rejected with HTTP 400 before any armed state changes;
+- provider completion order is exactly `tool-call` then `healthy`;
+- the persisted tool part has call ID `call_e4_read_workspace`, tool `read`, the real workspace
+  input, and a completed directory result containing the workspace path;
+- reload rehydrates the identical completed tool projection and final assistant response.
+
+Final isolated E4 run (`workers=1`, `retries=0`):
+
+```text
+session-turn.spec.ts: 10 passed (4.2m)
+teardown: ports free, process group gone, workspace clean, backend local, leaked=[]
+```
+
+Together with the already recorded streaming success, HTTP 5xx, interrupted stream, slow response
+and duplicate-delta scenarios, this closes `provider-scenario-scripts`; the entry is removed from
+the deferred manifest.
