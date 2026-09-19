@@ -863,3 +863,27 @@ new-session-route.spec.ts: 4 passed (13.4s)
 
 The private server was stopped after the runs and port 3083 was confirmed free. No process on port
 3000 was started or stopped.
+
+---
+
+## S7 narrow panel `back` ruling: ordinary navigation, not overlay history (2026-09-19)
+
+Owner ruling: the narrow mode-content panel is presentation state and remains outside URL/history.
+Browser Back therefore keeps its ordinary navigation meaning; opening the overlay neither inserts
+nor consumes a history entry. This avoids coupling transient panel state to Dirty Guard and router
+recovery semantics.
+
+The new negative contract establishes Home as a real previous entry, opens a Work Session and its
+narrow floating panel, invokes browser Back, then requires all three outcomes: URL is `/`, the Home
+overview renders, and the Session panel is unmounted. An implementation that intercepted Back only
+to dismiss the overlay would remain on the Session URL and fail this case.
+
+Ext4/private-port evidence, workers=1/retries=0:
+
+```text
+new Back case: 1 passed (14.7s)
+mode-slot-fallback-a11y.spec.ts: 16 passed (41.1s)
+```
+
+The scroll half had already been measured and mutation-proved. With this ruling and negative test,
+`mode-panel-back-and-scroll` is closed and removed from the deferred manifest.

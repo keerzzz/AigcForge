@@ -638,6 +638,25 @@ test.describe("S7: the mode content panel is reachable at narrow widths", { tag:
     await expect(custom).toBeVisible()
   })
 
+  test("browser Back keeps navigating instead of becoming an overlay dismiss action", async ({ page }) => {
+    await page.setViewportSize(NARROW)
+
+    // Establish a real previous history entry. The panel is presentation state, not route state:
+    // opening it must not insert or consume a history entry of its own.
+    await gotoWhenReady(page, "/")
+    await expectAppVisible(page.locator('[data-component="home-overview"]'))
+    await openModeContentSession(page, modeWorkSessionID, "Mode content Work session")
+
+    const panel = modePanel(page, "work")
+    await page.locator(MODE_PANEL_TOGGLE).click()
+    await expect(panel).toBeVisible()
+
+    await page.goBack()
+    await expect(page).toHaveURL(/\/$/)
+    await expectAppVisible(page.locator('[data-component="home-overview"]'))
+    await expect(panel).toHaveCount(0)
+  })
+
   test("desktop keeps the panel docked and offers no narrow toggle", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 })
     await openModeContentSession(page, modeWorkSessionID, "Mode content Work session")
