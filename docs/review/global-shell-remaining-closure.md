@@ -915,3 +915,21 @@ original failure and replacement evidence remain in the historical sections abov
 This is bookkeeping, not evidence deletion: no historical failure text was removed from the review
 report or main plan. Remaining manifest entries now represent work or external conditions that are
 actually still open.
+
+---
+
+## ADR-25 Owner decision: migration-free path identity first version (2026-09-19)
+
+ADR-25 is accepted with a deliberately narrow safety boundary. The first implementation returns
+`proved` only for equal realpaths or for `device+inode` pairs that both exist and match inside the
+backend's own namespace. Every other result is typed `unknown`; there is no `different` result.
+
+Durable alias relations are **not approved** in this release: no alias table, migration, recorded
+relationship or `degraded` output is introduced. The App does not realpath or infer remote paths,
+and this slice does not change project grouping, permission scope, destructive operations or the
+`LocationServiceMap` key. Those consumers require separate evidence after the read-only contract
+exists.
+
+This approval unlocks Schema/Core/instance-HttpApi/generated-SDK implementation and E1/E2 proof.
+It does not by itself close `path-identity` or `project-invalid-path`; both remain open until the
+accepted contract is implemented and the latter has a typed add-time validation flow.

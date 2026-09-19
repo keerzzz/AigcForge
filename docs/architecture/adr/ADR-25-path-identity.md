@@ -1,6 +1,6 @@
 # ADR-25: Path Identity 契约（本地可证身份与 unknown 降级）
 
-> 状态：**DRAFT / Proposed for Owner approval**（2026-09-17 起草；**未获 Owner 批准前不实施**——不创建 migration、不新增 endpoint、不修改任何现有相等性判定）。批准方式沿用本仓惯例：文本获批后在状态行改为 `Accepted`，并记录批准日期、批准依据与逐条裁决；批准时必须一并裁决 §2 的契约形状与 §6 的四个候选方案。
+> 状态：**Accepted**（2026-09-19 Owner 裁决；首版采用 typed `unknown` 基线 + 本地可证的 `realpath` / `device+inode`，不批准 durable alias relation，不修改现有相等性或 `LocationServiceMap` key）
 > 日期：2026-09-17
 > 事实基线：§1.1 每条事实均于 2026-09-17 在本工作区直接读源码、`grep`、`stat` 复核（file:line 为可复跑证据）；凡未复核的不写作事实。§1.3 记录一处对侦察转述的实测勘误。
 > 关联：[全局壳产品闭环计划](../../plan/global-shell-product-closure-2026-09-13.md) §4.3/§11.2/§20、[ADR-23](ADR-23-session-product-identity-capability.md)（只读投影规则）、[ADR-14](ADR-14-persistence-and-scope-strategy.md) §5（迁移与兼容）、[ADR-16](ADR-16-global-home-overview.md)（多 server 收敛）、`packages/app/e2e/coverage-manifest.json` 的 `path-identity` 条目
@@ -115,6 +115,26 @@ datum 级：
 6. **ADR-16**：跨 server 合并仍为后续项（`docs/architecture/adr/ADR-16-global-home-overview.md:62`、`:68`）；本 ADR 不借路径身份提前实现。
 
 ## 6. 候选方案与失败模式（Owner 裁决项）
+
+### Owner 裁决（2026-09-19）
+
+批准 **D 的 typed unknown 基线 + B 的本地可证比较器，并保留 §2.2 的 realpath 证据**：
+
+1. 两侧 realpath 相等时返回 `proved(realpath)`；否则继续尝试同一 server / mount namespace
+   内的 `device+inode`。
+2. 只有两侧 `dev` 与 `ino` 都存在且同时相等时返回 `proved(device+inode)`；任何失败、缺失、
+   不相等或平台不可比都返回 typed `unknown(reason)`，不返回 `different`。
+3. **不批准 A 的 durable alias relation**：首版无 migration、无 alias 表、无记录关系的写入面，
+   因而 `degraded` 保留为未来加法词汇但首版 resolver 不产生它。
+4. **拒绝 C 作为身份判定**；`pathKey`/字符串哈希继续只做拼写归一或数据结构 key，不升级为
+   物理身份。
+5. 首版只交付 Schema、Core resolver、现有 instance HttpApi/生成 SDK 与判别式 E1/E2；App
+   不 realpath、不猜测。任何使用该结果改变项目分组、权限作用域或 `LocationServiceMap` key 的
+   消费变更必须另有证据和审批。
+
+批准依据：误合会跨 Location 边界合并审批、历史与破坏性动作，而漏合只保留今天的重复展示；
+因此“不能证明就 unknown”是首版的安全默认。无持久化首版也满足计划 §4.3 的顺序要求而不引入
+尚无失效策略的新真源。
 
 ### A. 可归一化 resolver + 记录 alias 关系
 
