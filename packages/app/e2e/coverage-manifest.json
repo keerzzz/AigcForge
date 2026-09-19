@@ -53,11 +53,6 @@
       "scope": "the status bar projects permission state but offers no entry into the break-glass control surface; the lease owner (30s renew / 60s lease) lives in the composer and duplicating it in the bar would create the second truth source ADR-23 forbids",
       "unlock": "S12 final review must rule on the shared permission control surface (this entry and permission-tier-mutation-entry ride on the same owner extraction). Either fund that slice — refactor the lease owner out of the composer, then attach both the break-glass entry and the tier mutation entry — or record an explicit product decision that the app has no break-glass entry. It may not pass silently."
     },
-    "agent-picker-custom-narrowing": {
-      "owner": "S7",
-      "scope": "the /agent response now projects AgentV2.Info.originRelativePath for AgentAsset-backed entries, while the App picker filters official versus asset-backed entries through one shared predicate; unit, generated-SDK HTTP and browser E3 evidence are green (`session-identity-consumers.spec.ts` asset-backed pair: 2 passed / 5.8s; cycle/reverse-cycle pair: 1 passed / 4.3s — ext4, real Chromium, one worker, default watcher off) (Bookkeeping correction: the dependency on `originRelativePath` belongs to THIS entry; an earlier report attributed it to identity-narrow-viewport-controls.)",
-      "unlock": "closed 2026-09-19: the browser assertion drives build->plan->build through `mod+.` / `shift+mod+.`, which also caught and fixed a real matcher defect — `normalizeKey(event.key)` left Shift+Period as `>` while `parseKeybind(shift+mod+.)` stored `.`, so the reverse shortcut was unreachable on a US layout. `matchKeybind` now folds `event.code` back to the configured base key; see `command-keybind.test.ts` regression case. Only re-open if a real keyboard/IME reports the fold failing."
-    },
     "permission-tier-mutation-entry": {
       "owner": "S12",
       "scope": "the resident PermissionTierSelector is deleted (plan §9.2), so the app currently has no UI entry that changes a session's tier. Plan §9.2 intended relocation into a control surface, not a bare deletion — that gap is a product fact, not a detail. The data path is intact: submit still carries permissionTier at creation, drafts keep their persisted value, the server field is unchanged and the projection still reads it.",
