@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect"
 import { Session } from "./session"
+import { optionalOmitUndefined } from "./schema"
 import { WorkflowAsset } from "./workflow-asset"
 
 // Branded types
@@ -362,9 +363,9 @@ export type SnapshotData = typeof SnapshotData.Type
 export class SnapshotV1 extends Schema.Class<SnapshotV1>("Composition.SnapshotV1")({
   version: Schema.Literal(1),
   digest: Digest,
-  sessionID: Schema.optional(Schema.String),
-  profilePath: Schema.optional(Schema.String),
-  profileRevision: Schema.optional(Revision),
+  sessionID: Schema.String.pipe(optionalOmitUndefined),
+  profilePath: Schema.String.pipe(optionalOmitUndefined),
+  profileRevision: Revision.pipe(optionalOmitUndefined),
   createdAt: Schema.Finite,
   data: SnapshotDataV1,
 }) {}
@@ -372,9 +373,9 @@ export class SnapshotV1 extends Schema.Class<SnapshotV1>("Composition.SnapshotV1
 export class SnapshotV2 extends Schema.Class<SnapshotV2>("Composition.SnapshotV2")({
   version: Schema.Literal(2),
   digest: Digest,
-  sessionID: Schema.optional(Schema.String),
-  profilePath: Schema.optional(Schema.String),
-  profileRevision: Schema.optional(Revision),
+  sessionID: Schema.String.pipe(optionalOmitUndefined),
+  profilePath: Schema.String.pipe(optionalOmitUndefined),
+  profileRevision: Revision.pipe(optionalOmitUndefined),
   createdAt: Schema.Finite,
   data: SnapshotDataV2,
 }) {}
