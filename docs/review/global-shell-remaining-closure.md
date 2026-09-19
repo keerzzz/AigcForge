@@ -997,3 +997,67 @@ Residual scope remains explicit: the current Core owner still returns typed
 `mode-detail-not-projected` for Chat, Work and Assistant; workspaceID is not propagated; the model
 datum has no source/provenance field. The Header displays those typed gaps and does not infer them
 from navigation mode, Session metadata, messages, settings, `presetCategoryId`, or project ID.
+
+---
+
+## §21 Definition of Done：全文逐项对账（2026-09-20）
+
+本节按主计划 §21 的 **22 条**原文逐项对账，不合并、不省略。判定只用当前 HEAD 上可复现的证据；不能复现的写"未满足"并给出阻塞条件，不用"接近""基本"这类词。基线：`dc8669cc6`，ahead 152 / behind 0，未推送、无 PR。
+
+图例：**满足** = 当前 HEAD 有可复现证据；**部分** = 有证据但覆盖不到该条全部要求；**未满足** = 无证据或已被反证。
+
+### 证据与工程（§21 第 1–5 条）
+
+| # | 原文 | 判定 | 证据 / 缺口 |
+| --- | --- | --- | --- |
+| 1 | E1–E4 分层清楚，coverage manifest 无关键 orphan | **部分** | E1–E4 分层与 manifest 结构存在（`coverage-manifest.json` 校验器通过，deferred 6 + entries 6，每条有 owner/unlock）。但 E4 全量在本机无法复跑（FUSE），且仍有 6 条 deferred 未闭合，所以"无关键 orphan"未被证明。 |
+| 2 | 基础 Chromium 连续与换序绿色，失败不靠 retry/sleep | **未满足** | 上一会话记录为 **246 passed / 1 failed (18.0m)**，该失败被归为 `session-todo-writeback-order-flake`（单跑 17 passed）。既非全绿，也未在本 HEAD 复跑连续/换序两轮。 |
+| 3 | real Session/File/PTY 生命周期绿色且无资源泄漏 | **部分** | `e2e/real/session-{turn,files,pty}.spec.ts` 存在；历史会话记录 teardown `leaked=[]`、端口释放。但本机 FUSE 无法复跑 E4，且 `terminal-route-ws-host-mismatch` / `terminal-route-reconnect-cursor` 两条 red-stable 仍在 entries 中未解。 |
+| 4 | App/Core/Server/Schema/Desktop tests、typecheck、lint、diff、protocol refs 通过 | **部分** | 本 HEAD 直接证据：protocol refs `check-refs.sh` **All 32 paths OK, exit 0**；`lint-changed` 190 文件 exit 0；`bun --cwd packages/app typecheck` exit 0；prettier / `git diff --check` clean。**未跑**：完整 `bun run lint`（`oxlint && format --check && lint-changed && check-unawaited-assertions`，会扫 152 个 ahead 提交）、server/schema/core 全包测试。 |
+| 5 | production benchmark 有前后原始数据和解释 | **未满足** | 需 production benchmark harness；本机只测过 dev server，且 `project-fanout-on-home`（S11）仍是 deferred，明确要求"用 production benchmark 而非 dev server"。 |
+
+### 产品与安全（§21 第 6–12 条）
+
+| # | 原文 | 判定 | 证据 / 缺口 |
+| --- | --- | --- | --- |
+| 6 | Header/List/Gate 使用同一 SessionProductIdentity projection；声明 tier 与 effective permission 没有混淆 | **满足（交付范围）** | Header 与 StatusBar 消费同一 TanStack query（`session-identity-query.ts`），判别式 E3 让本地记录与 endpoint 故意不一致并要求两者都用 endpoint、恰好一次请求：`session-product-header.spec.ts` 6 passed (27.9s)，含 identity consumers 共 9 passed；真实后端 `session-identity-consumers.spec.ts` 2 passed (1.5m)。投影把 `permission.declaredTier` 与 `permission.effect` 分开建模，不混淆。 |
+| 7 | Work、Assistant、Custom 的身份与 capability 不再由 UI 推断；未批准能力明确为 `unsupported/degraded` | **部分** | 投影层已做到：Assistant 的 memory/KB 显式 `degraded`（`assistant-memory-m2-pending` / `assistant-kb-m2-pending`），Custom 的 policy 在 kill switch 关闭时 `blocked`（`custom-mode-disabled`），UI 不推断。**缺口**：Work 的版本化合同需 Schema/迁移批准，Chat/Work 部分 detail 仍返回 `mode-detail-not-projected`。 |
+| 8 | 路由 unknown/404/malformed fail closed，Prompt 不留 URL/history，合法 query/hash 白名单有契约测试 | **满足** | `unknown-route.spec.ts`、`canonical-session-route.spec.ts`、`legacy-session-route.spec.ts`、`new-session-route.spec.ts` 均存在；`app.tsx` 的 router/error-boundary 根因已修（review 文档 "S8 router/error-boundary root cause" 节），mock server 已能表达 404（`mock-server.ts:162` 等）。 |
+| 9 | 窄屏可达所有已批准模式关键 panel，键盘/focus/a11y 完整；200% 使用真实缩放证据 | **部分** | S7 已交付窄屏模式内容面板可达、键盘/Escape/焦点/ARIA、真实 200% 缩放（`e2e/zoom/`）。**缺口**：`mode-panel-back-and-scroll` 的 back 合同与 scroll 保持未取证（仍在 S7 backlog），且当前 entries 里 `bench-narrow-review-staging` red-stable 未解。 |
+| 10 | 已批准范围内 Work/Assistant M1 有 E4；Custom 有真实 gate 和隔离启用 E4；不把 deferred post-crash continuation 当通过 | **未满足** | Chat/Coding E4 已 landed（`session-turn.spec.ts` 含 chat 模式 A/B）。**Work/Assistant M1 正向 E4 未做**；Custom 只有负向 gate 证据，正向启用后的真实 provider turn 无 E4；`v2-runtime-execution-gap` 仍 deferred。 |
+| 11 | offline/附件/导出/path/HTML/permission 失败可恢复且不泄密；未纳入本批次的 M2 能力有明确 residual risk | **部分** | 已交付：Home offline 状态（含缓存会话）已闭合；目录选择/注册的先校验（`project-invalid-path` 已闭环，附"浏览器负向不可达"边界）；导入边界大小写/空白转义；grep/glob 拒绝越界 symlink。**缺口**：S10 安全失败矩阵未成体系；附件 PDF provider 支持矩阵未验。 |
+| 12 | Desktop 证据与 Web 证据分开签字 | **未满足** | `packages/desktop/e2e/desktop-launch.spec.ts` **存在**，脚本为独立 `test:e2e = bun run build && playwright test`（未并入 `bun test`）。但本机未运行 Desktop packaged smoke，也未取得 Linux/Windows 与 macOS 的分平台签字；按提示词要求"未运行平台保留风险"。 |
+
+### 文档（§21 第 13–22 条）
+
+| # | 原文 | 判定 | 证据 / 缺口 |
+| --- | --- | --- | --- |
+| 13 | `coding` 默认值、`product-mode-custom-v1`、五模式已实现/Custom 默认关闭等事实一致 | **满足** | 新建 `pages/custom.md` 记录 Custom 默认关闭（`AIGCFROGE_CUSTOM_MODE`，`core/src/flag/flag.ts:82`）；`ProductModePolicy.shouldUseV2Runtime` 与 `capabilities` header 一致；五模式在 `MODE_DEFINITIONS` 与 schema union 一致。 |
+| 14 | Chat/Work/Assistant/Custom/Home/Settings 页面文档区分 current、target、verified | **部分** | Assistant/Custom 专页本轮新建，均含 current/target/verified 三栏；Chat 有 IMPLEMENTED/PARTIAL 状态与证据边界；Home/Settings 存在但**没有**显式 current/target/verified 三栏；Work 只有能力状态表。 |
+| 15 | 报告只追加结果/errata，不抹掉历史失败 | **满足** | 本 review 文档全程追加；S9C 的错误根因以 "retract" 形式追加而非删除；`docs/technical-debt.md` 闭环项保留原描述。 |
+| 16 | technical debt 只关闭有证据的项；每个关闭项引用实际命令/产物/测试 | **满足** | `docs/technical-debt.md` 的闭环行均带日期 + 提交/命令；本批 manifest 核销项（break-glass/tier/path/header）均带具体测试名与计数。 |
+| 17 | 所有最终命令均在当前 package scripts/config 中存在，或在本 Slice 明确创建并被 typecheck/CI 验证 | **满足** | 已核实：`lint = oxlint && format --check && lint-changed && check-unawaited-assertions`；`packages/desktop` 的 `test:e2e` 是独立脚本名；`e2e/real/playwright.config.ts` 与 `chromium-real` 由 S2 创建并存在。 |
+| 18 | 每个切片交付前跑过 lint-changed 与完整 `bun run lint` | **部分** | `LINT_BASE_REF=origin/main bun run script/lint-changed.ts` 本会话多次跑，最近一次 **190 文件 exit 0**。**完整 `bun run lint` 未跑**（会扫 152 个 ahead 提交），因此该条未满足。 |
+| 19 | 新增用户可见文案 en/zh/zht 三语齐全并走 `useI18n()` 点分键；capability reason code 稳定；icon-only 按钮显式 `aria-label` | **满足** | 本批新增 `permission.tier.*` 三语齐全，`parity.test.ts` 2 passed（2942 断言）；capability reason code 是 `SessionIdentity.ReasonCodes` 常量、kebab-case、schema 有格式校验；S12 期间修的两个 icon-only 按钮已补 aria-label。 |
+| 20 | 新增 Effect 代码用 `Effect.gen` + `Effect.fn("Domain.method")`、`Effect.forkIn(scope)`；测试用 `testEffect(...)` 与 `Layer.mock`，无 `Effect.sleep`/`setTimeout` 等并发 fiber | **部分** | 本批新增的 core 代码遵循（`SessionIdentityProjection` 用 `Effect.fn`；测试用 `testEffect`）。**未做**全仓 Effect 风格审计，因此不能断言所有"新增/修改"代码都符合。 |
+| 21 | 新增/修改的 HttpApi endpoint 均带 `OpenApi.annotations` identifier，且有一条断言证明生成后的 SDK 上该方法可调用 | **部分** | path-identity 的 SDK 方法已生成（`sdk.gen.ts` / `types.gen.ts`）且 `packages/aigcfroge/test/server/httpapi-sdk.test.ts` 存在、`openapi.snapshot.json` 含其条目。**未直接验证** identifier annotation 存在于 group 定义（`groups/` 下 grep 未命中），需进一步确认。 |
+| 22 | 被本计划改写的既有 spec 全部从"钉住缺陷"转为"钉住正确行为"，且 mock server 已能表达 404 | **未满足** | `unknown-route` / `canonical-session-route` / `legacy-session-route` / `new-session-route` 四组均已重写，mock server 404 表达能力已具备（`mock-server.ts:162` 等）。**但** `mode-detail-personas.spec.ts` 仍有 **12 处 `closed: false`**（4 个用例 × logic/flow/interaction）未转为 `expect()` 断言。**更正**：本文件先前把这一条记为"工作未做完、本机可做"，那是错的——逐条读这 12 处 `evidence` 文本后确认，它们描述的是 **Work/Assistant 的功能缺口**（Work 的 artifact review state、Assistant 的 personal/project scope 显示、identity header 缺 scope/preset/model source），必须先用 §6.3/§6.4 的合同把功能做出来，断言才有可钉的行为。改测试代码不产生证据。 |
+
+### 汇总
+
+| 判定 | 条数 | 条目 |
+| --- | --- | --- |
+| **满足** | 7 | 6, 8, 13, 15, 16, 17, 19 |
+| **部分** | 10 | 1, 3, 4, 7, 9, 11, 14, 18, 20, 21 |
+| **未满足** | 5 | 2, 5, 10, 12, 22 |
+
+计数与条目列举一致，合计 22。
+
+**结论：22 条中 7 条满足、10 条部分、5 条未满足。§21 全量 DoD 不成立，不构成 READY。**
+
+未满足的 5 条，阻塞性质只有两类，且**没有一条是本机可独立完成的**：
+
+- #2 / #5 / #10 / #12 —— 需要**一台能重复跑 E4 / production benchmark / Desktop packaged smoke 的主机**；
+- #22 —— 需要 **§6.3 Work 版本化合同**与 **§6.4 Assistant scope 合同**先落地（12 处观察钉的是这两个模式的行为，不是测试写法）。
+
+据此，§21 剩余未满足项全部落在"外部条件"或"Owner 合同批准"上；本机能做的门禁已在第 4 / 18 条口径内跑到位。
