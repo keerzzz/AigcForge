@@ -1731,6 +1731,22 @@ const scenarios: Scenario[] = [
     check(body.healthy === true, "v2 server should report healthy")
   }),
   http.protected.get("/api/location", "v2.location.get").json(200, object),
+  http.protected
+    .post("/api/path-identity/compare", "v2.pathIdentity.compare")
+    .at((ctx) => ({
+      path: "/api/path-identity/compare",
+      headers: ctx.headers(),
+      body: {
+        left: { path: ctx.directory ?? process.cwd() },
+        right: { path: ctx.directory ?? process.cwd() },
+      },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.status === "same", "identical local refs should have a same proof")
+      object(body.evidence)
+      check(body.evidence.method === "realpath", "realpath must be the first proof method")
+    }),
   http.protected.get("/api/agent", "v2.agent.list").json(200, locationData(array)),
   http.protected.get("/api/model", "v2.model.list").json(200, locationData(array)),
   http.protected.get("/api/provider", "v2.provider.list").json(200, locationData(array)),

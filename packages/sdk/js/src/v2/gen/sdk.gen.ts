@@ -250,6 +250,7 @@ import type {
   PartUpdateResponses,
   PathGetErrors,
   PathGetResponses,
+  PathIdentityCompareInput,
   PermissionListErrors,
   PermissionListResponses,
   PermissionOverrideDeleteErrors,
@@ -535,6 +536,8 @@ import type {
   V2LocationGetResponses,
   V2ModelListErrors,
   V2ModelListResponses,
+  V2PathIdentityCompareErrors,
+  V2PathIdentityCompareResponses,
   V2PermissionGrantListErrors,
   V2PermissionGrantListResponses,
   V2PermissionGrantRevokeErrors,
@@ -8842,6 +8845,50 @@ export class Location extends HeyApiClient {
   }
 }
 
+export class PathIdentity extends HeyApiClient {
+  /**
+   * Compare local path identities
+   *
+   * Prove that two local path references identify the same filesystem object, or return a typed unknown result.
+   */
+  public compare<ThrowOnError extends boolean = false>(
+    parameters: {
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      pathIdentityCompareInput: PathIdentityCompareInput
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "location" },
+            { key: "pathIdentityCompareInput", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2PathIdentityCompareResponses,
+      V2PathIdentityCompareErrors,
+      ThrowOnError
+    >({
+      url: "/api/path-identity/compare",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Agent extends HeyApiClient {
   /**
    * List agents
@@ -11573,6 +11620,11 @@ export class V2 extends HeyApiClient {
   private _location?: Location
   get location(): Location {
     return (this._location ??= new Location({ client: this.client }))
+  }
+
+  private _pathIdentity?: PathIdentity
+  get pathIdentity(): PathIdentity {
+    return (this._pathIdentity ??= new PathIdentity({ client: this.client }))
   }
 
   private _agent?: Agent

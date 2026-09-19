@@ -7097,6 +7097,48 @@ export type LocationInfo = {
   }
 }
 
+export type PathIdentityRef = {
+  path: string
+}
+
+export type PathIdentityCompareInput = {
+  left: PathIdentityRef
+  right: PathIdentityRef
+}
+
+export type PathIdentityRealPathEvidence = {
+  method: "realpath"
+  path: string
+}
+
+export type PathIdentityDeviceInodeEvidence = {
+  method: "device-inode"
+  device: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  inode: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type PathIdentityEvidence = PathIdentityRealPathEvidence | PathIdentityDeviceInodeEvidence
+
+export type PathIdentitySame = {
+  status: "same"
+  refs: PathIdentityCompareInput
+  evidence: PathIdentityEvidence
+}
+
+export type PathIdentityUnknownReason =
+  | "no-local-proof"
+  | "stat-unavailable"
+  | "inode-unavailable"
+  | "not-same-realpath"
+  | "recorded-relation-unverified"
+
+export type PathIdentityUnknown = {
+  status: "unknown"
+  reason: PathIdentityUnknownReason
+}
+
+export type PathIdentityResult = PathIdentitySame | PathIdentityUnknown
+
 export type PermissionV2Rule = {
   action: string
   resource: string
@@ -19931,6 +19973,40 @@ export type V2LocationGetResponses = {
 }
 
 export type V2LocationGetResponse = V2LocationGetResponses[keyof V2LocationGetResponses]
+
+export type V2PathIdentityCompareData = {
+  body: PathIdentityCompareInput
+  path?: never
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/path-identity/compare"
+}
+
+export type V2PathIdentityCompareErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+}
+
+export type V2PathIdentityCompareError = V2PathIdentityCompareErrors[keyof V2PathIdentityCompareErrors]
+
+export type V2PathIdentityCompareResponses = {
+  /**
+   * PathIdentity.Result
+   */
+  200: PathIdentityResult
+}
+
+export type V2PathIdentityCompareResponse = V2PathIdentityCompareResponses[keyof V2PathIdentityCompareResponses]
 
 export type V2AgentListData = {
   body?: never

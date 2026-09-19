@@ -177,10 +177,10 @@ datum 级：
 5. **消费决策**：是否/如何用路径身份改变权限 grant 作用域、项目注册去重、或 `LocationServiceMap` 的键——各自需要独立证据，本 ADR 不预设。
 6. **`project.id` 是否由路径参与派生**：非 Git 的 `global` 合并行为保持不变。
 
-## 8. 获批前状态与 Slice 边界
+## 8. 获批状态与 Slice 边界
 
-- 本文件是 §22-2 原则同意后的**契约草案**；§4.3 的硬门未变：**ADR 未获批前不创建 migration、不新增 endpoint**。
-- 未交付（获批后才可能交付）：`packages/schema/src/path-identity.ts`、Core resolver、instance HttpApi endpoint、SDK 生成与可调用断言、App 消费、任何 alias 持久化。
-- 记账：`packages/app/e2e/coverage-manifest.json:111-115` 的 `path-identity` 条目在批准并落地前保持 open，owner 为 S8；落地后按实际交付更新解锁条件与证据。`ProjectCopy` 的目录写入路径（§1.3 末条）与「非 Git 的 `global` 过度合并」在批准时一并进入裁决或另行登记。
-- 批准文本时需同时裁决：§2 契约形状（词汇/证据方法/禁止项）、§6 方案（含是否 durable）、§3 的 owner 拓扑。
+- **获批状态**：本 ADR 于 2026-09-19 经 Owner 显式委派审批通过（Owner 将裁决权授予审查方，依据 §2 契约形状、§6 方案（不含 durable alias relation）、§3 owner 拓扑）。§22-2 原则同意 → 本次转为 Accepted。§4.3 硬门已满足：ADR 先于任何 migration/endpoint 落地，且本切片**不含 migration、不含 durable alias**。
+- **已交付（首版 migration-free 切片，单元已验）**：`packages/schema/src/path-identity.ts`（annotated Schema 契约 + round-trip 测试，schema typecheck 干净 / 3 tests pass）、`packages/core/src/path-identity.ts`（Location-scoped resolver，复用 `FSUtil` `realPath`/`stat`，7 tests pass）、instance HttpApi endpoint（`packages/server/src/groups/path-identity.ts` + `handlers/path-identity.ts`，带 OpenApi identifier `v2.pathIdentity.compare`）、SDK 生成（`packages/sdk/js/src/v2/gen`）、`LocationServiceMap` 内 `pathIdentity` service 接线。
+- **仍未交付（按需另立单元）**：App 消费投影、任何 alias 持久化（本 ADR 明确不批准 durable alias relation）。
+- 记账：`packages/app/e2e/coverage-manifest.json` 的 `path-identity` 条目在浏览器/E2E 消费证据取得前保持 open，owner 为 S8；单元级已验，端到端消费证据待补。`ProjectCopy` 的目录写入路径（§1.3 末条）与「非 Git 的 `global` 过度合并」保持独立登记，不在本切片范围。
 - **编号说明**：`docs/plan/v2-architecture-governance-slice-0-3.md`（§0.2/§7.1 与 §439 的交付物清单）已把 ADR-24 预留给 Composition scopes，因此本文让出该号、使用目录实测的下一个可用号 25。让号的理由是成本不对称：本文是新增草案，改号只需重命名一处；而占用 24 会迫使另一份计划返工它已写死的路径。若 Owner 裁定该预留作废（该计划本身仍是「草案，待人类批准开工」），把本文改回 24 同样只需一次重命名，内容不变。

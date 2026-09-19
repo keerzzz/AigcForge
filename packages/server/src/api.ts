@@ -17,6 +17,7 @@ import { QuestionGroup } from "./groups/question"
 import { ReferenceGroup } from "./groups/reference"
 import { Authorization } from "./middleware/authorization"
 import { LocationGroup } from "./groups/location"
+import { PathIdentityGroup } from "./groups/path-identity"
 import { IntegrationGroup } from "./groups/integration"
 import { CredentialGroup } from "./groups/credential"
 import { ProjectCopyGroup } from "./groups/project-copy"
@@ -25,6 +26,7 @@ import { DelegationGroup } from "./groups/delegation"
 export const Api = HttpApi.make("server")
   .add(HealthGroup)
   .add(LocationGroup)
+  .add(PathIdentityGroup)
   .add(AgentGroup)
   .add(SessionGroup)
   .add(MessageGroup)

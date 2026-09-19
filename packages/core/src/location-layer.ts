@@ -17,6 +17,7 @@ import { Credential } from "./credential"
 import { Npm } from "./npm"
 import { ModelsDev } from "./models-dev"
 import { FSUtil } from "./fs-util"
+import { PathIdentity } from "./path-identity"
 import { Git } from "./git"
 import { Global } from "./global"
 import { Database } from "./database/database"
@@ -146,6 +147,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(base),
       )
       const services = Layer.mergeAll(base, resources, permissionsAndTools)
+      const pathIdentity = PathIdentity.locationLayer.pipe(Layer.provide(services))
       // Canonical MCP credential binding store (ADR-21 §2.2 v1.2): Location-scoped
       // but data partitioned by directory; reads Location.Service internally, never
       // trusts caller-supplied directory.
@@ -289,6 +291,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         mcpBindingStore,
         mcpConnections,
         sessionIdentity,
+        pathIdentity,
       ).pipe(Layer.fresh, Layer.orDie)
     },
     idleTimeToLive: "60 minutes",

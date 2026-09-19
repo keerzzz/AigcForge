@@ -399,6 +399,52 @@ describe("HttpApi SDK", () => {
   )
 
   httpapiInstance(
+    "exposes path identity as a callable same-or-unknown SDK method",
+    { serverPath: "raw", git: true },
+    ({ sdk, directory }) =>
+      Effect.gen(function* () {
+        const fs = yield* FSUtil.Service
+        const target = path.join(directory, "path-identity-target")
+        const alias = path.join(directory, "path-identity-alias")
+        const other = path.join(directory, "path-identity-other")
+        yield* fs.makeDirectory(target)
+        yield* fs.makeDirectory(other)
+        yield* fs.symlink(target, alias)
+
+        expect(typeof sdk.v2.pathIdentity.compare).toBe("function")
+
+        const same = yield* call(() =>
+          sdk.v2.pathIdentity.compare({
+            pathIdentityCompareInput: {
+              left: { path: target },
+              right: { path: alias },
+            },
+          }),
+        )
+        expect(same.response.status).toBe(200)
+        expect(same.data).toEqual({
+          status: "same",
+          refs: {
+            left: { path: target },
+            right: { path: alias },
+          },
+          evidence: { method: "realpath", path: target },
+        })
+
+        const unknown = yield* call(() =>
+          sdk.v2.pathIdentity.compare({
+            pathIdentityCompareInput: {
+              left: { path: target },
+              right: { path: other },
+            },
+          }),
+        )
+        expect(unknown.response.status).toBe(200)
+        expect(unknown.data).toEqual({ status: "unknown", reason: "no-local-proof" })
+      }),
+  )
+
+  httpapiInstance(
     "uses the generated SDK for safe instance routes",
     { serverPath: "raw", git: false, setup: writeStandardFiles },
     ({ sdk }) =>
