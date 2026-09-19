@@ -31,9 +31,24 @@ const cases = [
     health: "ready",
     detail: {
       status: "ready",
-      detail: { source: "chat", assetCounts: [{ kind: "prompt", count: 2 }] },
+      detail: {
+        source: "chat",
+        // All seven kinds the projection can emit, each with a distinct count. A single-kind
+        // mock cannot tell a complete render from one that drops six of seven rows; distinct
+        // counts make a mislabelled or collapsed row show up as a wrong string rather than a
+        // matching one.
+        assetCounts: [
+          { kind: "prompt", count: 2 },
+          { kind: "skill", count: 3 },
+          { kind: "mcp", count: 4 },
+          { kind: "command", count: 5 },
+          { kind: "agent", count: 6 },
+          { kind: "workflow", count: 7 },
+          { kind: "plugin", count: 8 },
+        ],
+      },
     },
-    expected: ["Prompts 2"],
+    expected: ["Prompts 2", "Skills 3", "MCP 4", "Commands 5", "Agents 6", "Workflows 7", "Plugins 8"],
   },
   {
     mode: "work",
