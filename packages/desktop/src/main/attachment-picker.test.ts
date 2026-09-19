@@ -74,6 +74,32 @@ describe("picked file authorizations", () => {
     await expect(authorizations.read(2, token, "a.txt")).rejects.toThrow("not selected")
   })
 
+  test("rejects a path the renderer did not select", async () => {
+    const authorizations = createPickedFileAuthorizations(read)
+    const token = authorizations.add(1, ["approved.txt"])
+
+    await expect(authorizations.read(1, token, "unselected.txt")).rejects.toThrow("not selected")
+    expect(new TextDecoder().decode(await authorizations.read(1, token, "approved.txt"))).toBe("approved.txt")
+  })
+
+  test("consumes each selected path once", async () => {
+    const authorizations = createPickedFileAuthorizations(read)
+    const token = authorizations.add(1, ["once.txt"])
+
+    expect(new TextDecoder().decode(await authorizations.read(1, token, "once.txt"))).toBe("once.txt")
+    await expect(authorizations.read(1, token, "once.txt")).rejects.toThrow("not selected")
+  })
+
+  test("fails closed when an approved read throws", async () => {
+    const authorizations = createPickedFileAuthorizations(async () => {
+      throw new Error("permission denied")
+    })
+    const token = authorizations.add(1, ["denied.txt"])
+
+    await expect(authorizations.read(1, token, "denied.txt")).rejects.toThrow("permission denied")
+    await expect(authorizations.read(1, token, "denied.txt")).rejects.toThrow("not selected")
+  })
+
   test("charges actual reads against the selection budget", async () => {
     const authorizations = createPickedFileAuthorizations(async (_path, maxBytes) => {
       if (6 > maxBytes) throw new Error("budget exceeded")
