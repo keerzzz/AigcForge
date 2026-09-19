@@ -23,6 +23,10 @@ const storageState = (entries: Array<[string, string]>) => ({
 
 export default defineConfig({
   testDir: "./e2e",
+  // Warm the cold route graph before the round — see e2e/global-setup.ts and
+  // docs/technical-debt.md §8 (`e2e-readiness-predicate-flake`). The dev server is already
+  // up here: webServer plugins run in the plugin-setup phase, before globalSetup.
+  globalSetup: "./e2e/global-setup.ts",
   // `performance/**` belongs to the production-bench config; `real/**` belongs
   // to the real-backend E4 config (e2e/real/playwright.config.ts); `zoom/**`
   // belongs to the real-page-zoom config (e2e/zoom/playwright.config.ts), which
