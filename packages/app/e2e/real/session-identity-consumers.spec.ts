@@ -16,6 +16,8 @@ import { expectAppVisible } from "../utils/waits"
 const agentPicker = (page: import("@playwright/test").Page) => page.locator('[data-action="prompt-agent"]')
 const permissionChip = (page: import("@playwright/test").Page) =>
   page.locator('[data-component="status-bar-permission"]')
+const productHeader = (page: import("@playwright/test").Page) =>
+  page.locator('[data-component="session-product-header"]')
 
 test.skip(() => e4().v2Runtime, "consumer chain runs against the default backend")
 
@@ -55,10 +57,36 @@ test("the bar reads the real projection for a full-tier session and survives rel
   const projected: unknown = await identity.json()
   if (!isRecord(projected) || !isRecord(projected.permission)) throw new Error("identity has no permission block")
   expect(projected.permission.declaredTier).toBe("full")
+  if (
+    typeof projected.mode !== "string" ||
+    typeof projected.agent !== "string" ||
+    !isRecord(projected.location) ||
+    typeof projected.location.directory !== "string" ||
+    !isRecord(projected.model) ||
+    projected.model.status !== "ready" ||
+    !isRecord(projected.model.value) ||
+    typeof projected.model.value.providerID !== "string" ||
+    typeof projected.model.value.modelID !== "string" ||
+    !isRecord(projected.capability) ||
+    typeof projected.capability.health !== "string"
+  )
+    throw new Error("identity has no complete common Header projection")
+
+  const header = productHeader(page)
+  await expectAppVisible(header)
+  await expect(header).toHaveAttribute("data-mode", projected.mode)
+  await expect(header).toHaveAttribute("data-health", projected.capability.health)
+  await expect(header.locator('[data-field="location"]')).toHaveAttribute("title", projected.location.directory)
+  await expect(header.locator('[data-field="agent"]')).toHaveText(projected.agent)
+  await expect(header.locator('[data-field="model"]')).toHaveText(
+    `${projected.model.value.providerID}/${projected.model.value.modelID}`,
+  )
 
   await page.reload()
   await expectAppVisible(chip)
   await expect(chip).toHaveAttribute("data-kind", "full")
+  await expectAppVisible(productHeader(page))
+  await expect(productHeader(page)).toHaveAttribute("data-mode", projected.mode)
 })
 
 test("the agent picker renders against the real backend's agent list", async ({ page, request }) => {

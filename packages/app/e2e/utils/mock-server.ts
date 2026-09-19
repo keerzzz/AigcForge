@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test"
 
 const isRecordOf = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
+type MockSession = { id: string } & Record<string, unknown>
 
 const emptyList = new Set([
   "/skill",
@@ -26,7 +27,7 @@ export interface MockServerConfig {
    * via route.fallback(). */
   port?: string
   project: unknown
-  sessions: ({ id: string } & Record<string, unknown>)[]
+  sessions: MockSession[]
   pageMessages: (sessionId: string, limit: number, before?: string) => { items: unknown[]; cursor?: string }
   vcsDiff?: unknown[]
   messageDelay?: number
@@ -77,6 +78,9 @@ export interface MockServerConfig {
   /** Optional override for GET /vcs. Default `{ branch: "main", default_branch: "main" }`;
    * the real server answers `{}` (both fields undefined) for a non-git location. */
   vcs?: unknown
+  /** Optional complete `/session/:id/identity` projection for second-source tests. */
+  identity?: Record<string, unknown> | ((session: MockSession) => unknown)
+  onIdentity?: (sessionID: string) => void
 }
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
@@ -217,6 +221,10 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     if (identityMatch) {
       const session = config.sessions.find((s) => s.id === identityMatch[1])
       if (!session) return notFound(route, `Session not found: ${identityMatch[1]}`)
+      config.onIdentity?.(session.id)
+      if (config.identity !== undefined) {
+        return json(route, typeof config.identity === "function" ? config.identity(session) : config.identity)
+      }
       const tier = session.permissionTier === "full" ? "full" : "propose"
       const mode = typeof session.mode === "string" ? session.mode : "coding"
       const model = isRecordOf(session.model)

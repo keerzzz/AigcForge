@@ -1,4 +1,4 @@
-import { createMemo, createResource } from "solid-js"
+import { createMemo } from "solid-js"
 import { useParams } from "@solidjs/router"
 import type { Message, Part } from "@aigcfroge/sdk/v2/client"
 import { useGlobal } from "@/context/global"
@@ -19,6 +19,7 @@ import type { StatusBarMetric, MetricGroup } from "./metrics"
 import { createStore } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
 import { useRouteContribution } from "@/context/route-contribution"
+import { SessionIdentityQuery } from "@/components/session/session-identity-query"
 
 const DEFAULT_PINNED = ["tokens.total", "cost.total", "tools.count"]
 
@@ -77,28 +78,16 @@ export function createCurrentSessionSource(): StatusBarSource {
     return childStore()?.session.find((item) => item.id === id)
   })
 
-  // Projection first (ADR-23): the endpoint answers the declared tier, the
-  // owner's baseline effect and the capability health. A typed failure leaves the
-  // chip empty — the route error surface owns reporting, not the bar.
-  const [projectedPermission] = createResource(
-    () => {
-      const id = params.id
-      const conn = routeServer()
-      if (!id || !conn) return undefined
-      return { id, sdk: global.ensureServerCtx(conn).sdk }
-    },
-    async (input) => {
-      try {
-        return (await input.sdk.client.session.identity({ sessionID: input.id })).data
-      } catch {
-        return undefined
-      }
-    },
-  )
+  const identityQuery = SessionIdentityQuery.use(() => {
+    const id = params.id
+    const conn = routeServer()
+    if (!id || !conn) return undefined
+    return { sessionID: id, sdk: global.ensureServerCtx(conn).sdk }
+  })
 
   const permission = createMemo((): StatusBarPermissionInfo | undefined => {
     if (!params.id) return undefined
-    const projected = projectedPermission()
+    const projected = identityQuery.data
     // Shape guard, not politeness: a server (or mock) that answers 200 with an
     // unrelated body must not crash the bar — an unusable payload is the same as
     // no payload here.
@@ -115,11 +104,7 @@ export function createCurrentSessionSource(): StatusBarSource {
           : {}),
       })
     }
-    // Transitional fallback recorded in S1: the session record carries the
-    // declared tier. No effect is invented — the mapping shows the chip without one.
-    const tier = sessionInfo()?.permissionTier
-    if (tier !== "full" && tier !== "propose") return undefined
-    return permissionDisplay({ declaredTier: tier })
+    return undefined
   })
 
   const messages = createMemo((): Message[] => {
@@ -137,25 +122,13 @@ export function createCurrentSessionSource(): StatusBarSource {
 
   const sessModel = createMemo((): StatusBarModelInfo | undefined => {
     if (!currentContribution()) return undefined
-    const session = sessionInfo()
-    const model = session?.model
-    if (model) {
-      const found = findModel(model.providerID, model.id)
-      return {
-        providerID: model.providerID,
-        modelID: model.id,
-        variant: model.variant,
-        displayName: found?.name ?? model.id,
-      }
-    }
-    const ctx = context()
-    if (!ctx) return undefined
-    const found = findModel(ctx.message.providerID, ctx.message.modelID)
+    const model = identityQuery.data?.model
+    if (model?.status !== "ready") return undefined
+    const found = findModel(model.value.providerID, model.value.modelID)
     return {
-      providerID: ctx.message.providerID,
-      modelID: ctx.message.modelID,
-      variant: ctx.message.variant,
-      displayName: found?.name ?? ctx.message.modelID,
+      providerID: model.value.providerID,
+      modelID: model.value.modelID,
+      displayName: found?.name ?? model.value.modelID,
     }
   })
 

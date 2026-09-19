@@ -961,3 +961,39 @@ teardown: ports free, process group gone, workspace clean, backend local, leaked
 Together with the already recorded streaming success, HTTP 5xx, interrupted stream, slow response
 and duplicate-delta scenarios, this closes `provider-scenario-scripts`; the entry is removed from
 the deferred manifest.
+
+---
+
+## Shared Session product Header carrier (2026-09-19)
+
+Owner ruling: the existing `SessionHeader` is the only complete Session-level identity carrier.
+Its existing Titlebar Portals remain window-action surfaces; the component now also renders a
+normal-flow visible Header above Session content. The global StatusBar remains a compact secondary
+projection and does not become a second Header.
+
+Header and StatusBar share one TanStack query keyed by server scope and Session ID. The StatusBar's
+transitional Session-record permission/model fallbacks were removed. A discriminating E3 fixture
+sets the local Session record to one agent/model/tier and the identity endpoint to different values;
+both surfaces must use the endpoint, and the mock records exactly one request across the two
+consumers.
+
+Evidence:
+
+```text
+session-product-header.spec.ts: 6 passed (27.9s)
+  - Coding / Chat / Work / Assistant / Custom projection shapes
+  - model missing remains distinct from capability ready at 390px, with no horizontal overflow
+session-product-header + existing identity consumers: 9 passed (35.2s)
+real session-identity-consumers.spec.ts: 2 passed (1.5m), teardown clean
+i18n parity: 2 passed, 2926 assertions
+App typecheck / focused oxlint / prettier / diff-check: exit 0
+```
+
+The E4 case reads the real identity HTTP response and requires Header mode, Location, agent, model,
+permission/health attributes to agree before and after reload. The five-mode E3 uses explicit legal
+projection fixtures; the mock does not reimplement aggregation.
+
+Residual scope remains explicit: the current Core owner still returns typed
+`mode-detail-not-projected` for Chat, Work and Assistant; workspaceID is not propagated; the model
+datum has no source/provenance field. The Header displays those typed gaps and does not infer them
+from navigation mode, Session metadata, messages, settings, `presetCategoryId`, or project ID.
