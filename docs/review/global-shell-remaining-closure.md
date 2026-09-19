@@ -887,3 +887,31 @@ mode-slot-fallback-a11y.spec.ts: 16 passed (41.1s)
 
 The scroll half had already been measured and mutation-proved. With this ruling and negative test,
 `mode-panel-back-and-scroll` is closed and removed from the deferred manifest.
+
+---
+
+## Ledger compaction after S7/S8 rulings (2026-09-19)
+
+Seven entries whose unlocks are already satisfied are removed from `coverage-manifest.json`; their
+original failure and replacement evidence remain in the historical sections above.
+
+- `hidden-panel-request-and-remount`: mode-slot node identity/request counts and the separate
+  secondary-sidebar unmount lifecycle are both asserted.
+- `home-multi-server-aggregation`: closed by the approved ADR-16 scope — Home remains current-server
+  in this release; cross-server merge requires a future ADR amendment.
+- `home-offline-state`: empty, cached-session, healthy-control and Manage Servers paths are asserted.
+  No additional manual Retry button is added: the notice explicitly says automatic retry is active,
+  and the existing server-management action is the manual recovery surface. A second retry owner
+  would duplicate the shared health poll.
+- `project-large-list`: measured list rendering is healthy; the independent per-project fan-out cost
+  remains open under `project-fanout-on-home`.
+- `home-no-project-recovery`: fixed, A/B proved, and its enabling router fragility has now also been
+  fixed separately.
+- `project-color-fallback-visibility`: closed by the recorded product ruling — the plan requires
+  rejected-save rollback/reporting, not a new avatar render path for an otherwise invisible
+  auto-assigned colour.
+- `location-vcs-state-evidence`: non-Git and Git controls both have green browser evidence.
+
+This is bookkeeping, not evidence deletion: no historical failure text was removed from the review
+report or main plan. Remaining manifest entries now represent work or external conditions that are
+actually still open.
