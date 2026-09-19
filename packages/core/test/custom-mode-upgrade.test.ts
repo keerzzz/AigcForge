@@ -5,6 +5,7 @@ import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Location } from "@aigcfroge/core/location"
 import { ProjectV2 } from "@aigcfroge/core/project"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionComposition } from "@aigcfroge/core/session/composition"
@@ -14,9 +15,9 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { Prompt } from "@aigcfroge/core/session/prompt"
 import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
-import { withCustomModeEnabled } from "./lib/product-mode"
+import { withCustomMode } from "./lib/product-mode"
 
-withCustomModeEnabled()
+const withCustomModeEnabled = <A, E, R>(effect: Effect.Effect<A, E, R>) => withCustomMode("true", effect)
 
 const mockDigest = Schema.decodeUnknownSync(Composition.Digest)(
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -136,20 +137,80 @@ const it = testEffect(
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
 
 describe("Custom Mode Upgrade", () => {
+  it.effect("fails closed before freezing when the kill switch is unset", () =>
+    withCustomMode(
+      undefined,
+      Effect.gen(function* () {
+        const sessionID = SessionV2.ID.make("ses_custom_gate_off")
+        const sessionSvc = yield* SessionV2.Service
+        const sessionComposition = yield* SessionComposition.Service
+
+        const err = yield* sessionSvc
+          .createCustom({ id: sessionID, location, composition: mockCompositionInput })
+          .pipe(Effect.flip)
+
+        expect(err).toBeInstanceOf(ProductModePolicy.UnsupportedProductModeError)
+        if (err instanceof ProductModePolicy.UnsupportedProductModeError) {
+          expect(err.mode).toBe("custom")
+          expect(err.message).toBe(ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE)
+        }
+        expect(yield* sessionComposition.read(sessionID)).toBeUndefined()
+      }),
+    ),
+  )
+
+  it.effect("persists the frozen create snapshot and rejects digest drift without replacing it", () =>
+    withCustomModeEnabled(
+      Effect.gen(function* () {
+        const sessionID = SessionV2.ID.make("ses_custom_persisted")
+        const sessionSvc = yield* SessionV2.Service
+        const sessionComposition = yield* SessionComposition.Service
+        nextFreezeDigest = mockDigest
+
+        const created = yield* sessionSvc.createCustom({
+          id: sessionID,
+          location,
+          composition: mockCompositionInput,
+          expectedPlanDigest: mockDigest,
+        })
+        expect(created.session.id).toBe(sessionID)
+        expect(created.snapshot.digest).toBe(mockDigest)
+
+        const reloaded = yield* sessionSvc.get(sessionID)
+        const reloadedSnapshot = yield* sessionComposition.get(sessionID)
+        expect(reloaded.mode).toBe("custom")
+        expect(reloadedSnapshot.digest).toBe(mockDigest)
+
+        const err = yield* sessionSvc
+          .createCustom({
+            id: sessionID,
+            location,
+            composition: mockCompositionInput,
+            expectedPlanDigest: otherDigest,
+          })
+          .pipe(Effect.flip)
+        expect(err).toBeInstanceOf(Composition.ResolveError)
+        if (err instanceof Composition.ResolveError) expect(err.code).toBe("stale_composition_plan")
+        expect((yield* sessionComposition.get(sessionID)).digest).toBe(mockDigest)
+      }),
+    ),
+  )
+
   it.effect("freezes the new composition into a fresh session and leaves the source untouched", () =>
-    Effect.gen(function* () {
-      nextFreezeDigest = mockDigest
-      const sessionSvc = yield* SessionV2.Service
-      const sessionComposition = yield* SessionComposition.Service
+    withCustomModeEnabled(
+      Effect.gen(function* () {
+        nextFreezeDigest = mockDigest
+        const sessionSvc = yield* SessionV2.Service
+        const sessionComposition = yield* SessionComposition.Service
 
-      const source = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput, title: "Source" })
+        const source = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput, title: "Source" })
 
-      nextFreezeDigest = otherDigest
-      const upgraded = yield* sessionSvc.upgradeCustom({
-        sessionID: source.session.id,
-        composition: mockCompositionInput,
-        title: "Upgraded",
-      })
+        nextFreezeDigest = otherDigest
+        const upgraded = yield* sessionSvc.upgradeCustom({
+          sessionID: source.session.id,
+          composition: mockCompositionInput,
+          title: "Upgraded",
+        })
 
       expect(upgraded.session.id).not.toBe(source.session.id)
       expect(upgraded.session.mode).toBe("custom")
@@ -170,73 +231,82 @@ describe("Custom Mode Upgrade", () => {
         prompt: Prompt.make({ text: "Hello upgraded agent" }),
         resume: false,
       })
-      expect(admitted.sessionID).toBe(upgraded.session.id)
-    }),
+        expect(admitted.sessionID).toBe(upgraded.session.id)
+      }),
+    ),
   )
 
   it.effect("rejects upgrade for a non-custom source session with typed UpgradeSourceModeError", () =>
-    Effect.gen(function* () {
-      const sessionSvc = yield* SessionV2.Service
-      const plain = yield* sessionSvc.create({ location, mode: "coding" })
+    withCustomModeEnabled(
+      Effect.gen(function* () {
+        const sessionSvc = yield* SessionV2.Service
+        const plain = yield* sessionSvc.create({ location, mode: "coding" })
 
-      const err = yield* sessionSvc
-        .upgradeCustom({ sessionID: plain.id, composition: mockCompositionInput })
-        .pipe(Effect.flip)
-      expect(err).toBeInstanceOf(SessionV2.UpgradeSourceModeError)
-      if (err instanceof SessionV2.UpgradeSourceModeError) {
-        expect(err.mode).toBe("coding")
-      }
-    }),
+        const err = yield* sessionSvc
+          .upgradeCustom({ sessionID: plain.id, composition: mockCompositionInput })
+          .pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionV2.UpgradeSourceModeError)
+        if (err instanceof SessionV2.UpgradeSourceModeError) {
+          expect(err.mode).toBe("coding")
+        }
+      }),
+    ),
   )
 
   it.effect("rejects upgrade for an unknown session with NotFoundError", () =>
-    Effect.gen(function* () {
-      const sessionSvc = yield* SessionV2.Service
-      const err = yield* sessionSvc
-        .upgradeCustom({ sessionID: SessionV2.ID.make("ses_upgrade_missing"), composition: mockCompositionInput })
-        .pipe(Effect.flip)
-      expect(err).toBeInstanceOf(SessionV2.NotFoundError)
-    }),
+    withCustomModeEnabled(
+      Effect.gen(function* () {
+        const sessionSvc = yield* SessionV2.Service
+        const err = yield* sessionSvc
+          .upgradeCustom({ sessionID: SessionV2.ID.make("ses_upgrade_missing"), composition: mockCompositionInput })
+          .pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionV2.NotFoundError)
+      }),
+    ),
   )
 
   it.effect("rejects upgrade while the source session is actively running (typed SessionBusyError)", () =>
-    Effect.gen(function* () {
-      nextFreezeDigest = mockDigest
-      const sessionSvc = yield* SessionV2.Service
-      const sessionComposition = yield* SessionComposition.Service
+    withCustomModeEnabled(
+      Effect.gen(function* () {
+        nextFreezeDigest = mockDigest
+        const sessionSvc = yield* SessionV2.Service
+        const sessionComposition = yield* SessionComposition.Service
 
-      yield* sessionSvc.createCustom({ id: busySessionID, location, composition: mockCompositionInput })
+        yield* sessionSvc.createCustom({ id: busySessionID, location, composition: mockCompositionInput })
 
-      const err = yield* sessionSvc
-        .upgradeCustom({ sessionID: busySessionID, composition: mockCompositionInput })
-        .pipe(Effect.flip)
-      expect(err).toBeInstanceOf(SessionV2.SessionBusyError)
+        const err = yield* sessionSvc
+          .upgradeCustom({ sessionID: busySessionID, composition: mockCompositionInput })
+          .pipe(Effect.flip)
+        expect(err).toBeInstanceOf(SessionV2.SessionBusyError)
 
-      // Fail-closed without side effects: no new session, source snapshot intact.
-      const customSessions = yield* sessionSvc.list({ mode: "custom" })
-      expect(customSessions).toHaveLength(1)
-      const snapshot = yield* sessionComposition.get(busySessionID)
-      expect(snapshot.digest).toBe(mockDigest)
-    }),
+        // Fail-closed without side effects: no new session, source snapshot intact.
+        const customSessions = yield* sessionSvc.list({ mode: "custom" })
+        expect(customSessions).toHaveLength(1)
+        const snapshot = yield* sessionComposition.get(busySessionID)
+        expect(snapshot.digest).toBe(mockDigest)
+      }),
+    ),
   )
 
   it.effect("propagates a stale expectedPlanDigest as ResolveError", () =>
-    Effect.gen(function* () {
-      nextFreezeDigest = mockDigest
-      const sessionSvc = yield* SessionV2.Service
-      const source = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
+    withCustomModeEnabled(
+      Effect.gen(function* () {
+        nextFreezeDigest = mockDigest
+        const sessionSvc = yield* SessionV2.Service
+        const source = yield* sessionSvc.createCustom({ location, composition: mockCompositionInput })
 
-      const err = yield* sessionSvc
-        .upgradeCustom({
-          sessionID: source.session.id,
-          composition: mockCompositionInput,
-          expectedPlanDigest: otherDigest,
-        })
-        .pipe(Effect.flip)
-      expect(err).toBeInstanceOf(Composition.ResolveError)
-      if (err instanceof Composition.ResolveError) {
-        expect(err.code).toBe("stale_composition_plan")
-      }
-    }),
+        const err = yield* sessionSvc
+          .upgradeCustom({
+            sessionID: source.session.id,
+            composition: mockCompositionInput,
+            expectedPlanDigest: otherDigest,
+          })
+          .pipe(Effect.flip)
+        expect(err).toBeInstanceOf(Composition.ResolveError)
+        if (err instanceof Composition.ResolveError) {
+          expect(err.code).toBe("stale_composition_plan")
+        }
+      }),
+    ),
   )
 })

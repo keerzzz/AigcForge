@@ -528,6 +528,7 @@ export const layer = Layer.effect(
         return yield* result.get(sessionID).pipe(Effect.orDie)
       }),
       createCustom: Effect.fn("V2Session.createCustom")(function* (input) {
+        yield* ProductModePolicy.assertRuntimeSupported("custom")
         const sessionID = input.id ?? SessionSchema.ID.create()
         const resolver = yield* resolveCompositionResolver(input.location)
         const snapshot = yield* resolver.freeze({ input: input.composition, sessionID })

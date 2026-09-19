@@ -42,7 +42,7 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
       return {
         backgroundSubagents: flags.experimentalBackgroundSubagents,
         chatAsset: flags.experimentalChatAsset,
-        customMode: false,
+        customMode: ProductModePolicy.isCustomModeEnabled(),
         productModes: ["chat", "coding", "work", "assistant", "custom"],
         customCompositionVersion: 1,
       }
