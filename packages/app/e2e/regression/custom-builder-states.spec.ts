@@ -58,6 +58,8 @@ type Wire = {
   /** Plan outcome: a body, or a status to drive the failure branch. */
   planStatus?: number
   planMessage?: string
+  /** Mirror the real typed UnsupportedProductModeError body for the kill-switch case. */
+  planErrorTag?: boolean
 }
 
 const wire = (over: Partial<Wire> = {}): Wire => ({ armed: false, hits: {}, fail: new Set(), ...over })
@@ -108,7 +110,15 @@ async function mockBuilderRoutes(page: Page, state: Wire) {
       return route.fulfill({
         status: state.planStatus,
         headers: { "content-type": "application/json", ...cors },
-        body: JSON.stringify({ message: state.planMessage ?? "plan failed" }),
+        body: JSON.stringify(
+          state.planErrorTag
+            ? {
+                _tag: "UnsupportedProductModeError",
+                mode: "custom",
+                message: state.planMessage ?? "plan failed",
+              }
+            : { message: state.planMessage ?? "plan failed" },
+        ),
       })
     }
     return route.fulfill({
@@ -306,6 +316,21 @@ test.describe("regression: Custom Builder request and failure states", () => {
     await expectAppVisible(startButton(page))
     await expect.poll(() => state.hits["plan"] ?? 0).toBeGreaterThan(0)
     await expect(startButton(page)).toBeDisabled()
+  })
+
+  test("the typed kill-switch gate disables Start and explains the same condition", async ({ page }) => {
+    const message = "Custom mode is disabled on this server. Set AIGCFROGE_CUSTOM_MODE=true to enable it."
+    const state = wire({ planStatus: 400, planMessage: message, planErrorTag: true })
+    await openMode(page, state, "custom")
+    await expectAppVisible(assetsTitle(page))
+
+    await expect.poll(() => state.hits["plan"] ?? 0).toBeGreaterThan(0)
+    await expect(startButton(page)).toBeDisabled()
+    await expect(page.locator('[data-component="custom-start-blocker"]')).toHaveAttribute(
+      "data-blocker",
+      "custom-disabled",
+    )
+    await expect(page.getByText(message, { exact: true })).toBeVisible()
   })
 
   test("Start becomes enabled once an agent is picked and a valid plan settles", async ({ page }) => {
