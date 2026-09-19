@@ -213,9 +213,9 @@ test.describe("persona audit: mode and detail closure", () => {
           "Work and Custom stop at disabled actions; Add Project is the only visible recovery route from the no-project state.",
       },
       interaction: {
-        closed: false,
+        closed: true,
         evidence:
-          "Settings explains all five areas, but Start Session provides no actionable explanation for the server-side Custom gate.",
+          "Settings explains all five areas, and the disabled Start Session now renders the start-gate blocker next to the control (custom-preview-column.tsx:171-181) instead of stopping silently.",
       },
     })
   })
@@ -239,6 +239,16 @@ test.describe("persona audit: mode and detail closure", () => {
     await test.step("flow: Custom stops explicitly at its disabled start gate", async () => {
       await page.goto("/mode/custom")
       await expect(page.getByRole("button", { name: "Start Session" })).toBeDisabled()
+      // The gate used to disable Start with no explanation (the recorded S7 observation).
+      // It now renders the blocker next to the control it belongs to, from the same
+      // start gate that decides disabled — see custom-preview-column.tsx:171-181.
+      // The mock answers the plan with UnsupportedProductModeError whose message carries
+      // DISABLED_MESSAGE_MARKER, so classifyPlanFailure (custom-plan-state.ts:80-91) must
+      // classify it as disabled and the gate must name `custom-disabled` — not `no-sdk`
+      // or a generic `plan-failed`. Pinning the code is what makes this discriminating.
+      const blocker = page.locator('[data-component="custom-start-blocker"]')
+      await expect(blocker).toHaveAttribute("data-blocker", "custom-disabled")
+      await expect(blocker).toHaveText("Custom mode is disabled on this server.")
     })
 
     await test.step("interaction: a daily Settings change survives close and reopen", async () => {
