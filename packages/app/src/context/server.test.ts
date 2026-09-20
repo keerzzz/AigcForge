@@ -252,3 +252,52 @@ describe("migrateCanonicalLocalServerState", () => {
     })
   })
 })
+
+describe("server key namespaces", () => {
+  test.each([
+    ["sidecar", "sidecar"],
+    ["wsl:Ubuntu", "wsl:Ubuntu"],
+    ["ssh:Host:22", "ssh:Host:22"],
+    ["ssh:User@Host", "ssh:User@Host"],
+    ["http://sidecar/", "http://sidecar"],
+    ["HTTP://LocalHost:80/", "http://127.0.0.1"],
+    ["https://Example.COM:443/", "https://example.com"],
+    ["localhost:4096/", "http://127.0.0.1:4096"],
+  ])("canonicalizes %s without changing its namespace", (raw, expected) => {
+    const key = ServerConnection.canonicalKey(ServerConnection.Key.make(raw))
+    expect(key).toBe(ServerConnection.Key.make(expected))
+    expect(ServerConnection.canonicalKey(key)).toBe(key)
+  })
+
+  test.each([
+    ["sidecar", "http://sidecar", false],
+    ["sidecar", "SIDECAR", false],
+    ["sidecar", "sidecar/", false],
+    ["wsl:Ubuntu", "wsl:ubuntu", false],
+    ["wsl:Ubuntu", "wsl:Debian", false],
+    ["ssh:Host:22", "ssh:host:22", false],
+    ["ssh:User@Host", "http://ssh:User@Host", false],
+    ["wsl:Ubuntu", "ssh:Ubuntu", false],
+    ["http://localhost:4096", "http://127.0.0.1:4096/", true],
+    ["https://EXAMPLE.com:443", "https://example.com", true],
+    ["http://localhost:4096", "http://127.0.0.1:4097", false],
+    ["http://localhost:4096", "https://localhost:4096", false],
+    ["http://[::1]:4096", "http://127.0.0.1:4096", false],
+    ["not a url", "http://not a url", false],
+  ] as const)("compares %s and %s only within their namespace", (a, b, equal) => {
+    expect(ServerConnection.sameKey(a, b)).toBe(equal)
+    expect(ServerConnection.sameKey(b, a)).toBe(equal)
+    expect(ServerConnection.sameKey(a, a)).toBe(true)
+    expect(ServerConnection.sameKey(b, b)).toBe(true)
+  })
+
+  test.each([
+    { type: "sidecar", variant: "base", http: { url: "http://127.0.0.1:4096" } },
+    { type: "sidecar", variant: "wsl", distro: "Ubuntu", http: { url: "http://127.0.0.1:4097" } },
+    { type: "ssh", host: "User@Host", http: { url: "http://127.0.0.1:4098" } },
+    { type: "http", http: { url: "http://localhost:4096/" } },
+  ] satisfies ServerConnection.Any[])("preserves a generated $type key through canonicalization", (connection) => {
+    const key = ServerConnection.key(connection)
+    expect(ServerConnection.canonicalKey(key)).toBe(key)
+  })
+})

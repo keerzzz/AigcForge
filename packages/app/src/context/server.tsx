@@ -22,8 +22,8 @@ export function normalizeServerUrl(input: string) {
  * is lowercased, scheme-default ports are dropped, trailing slashes stripped.
  * `[::1]` deliberately does NOT fold into the IPv4 loopback. Non-URL keys
  * (`wsl:<distro>`, `ssh:<host>`, `sidecar`) never reach this function:
- * `ServerConnection.key` dispatches on connection type first, and `sameKey`
- * falls back to a literal compare when the value is not a canonical URL.
+ * `ServerConnection.key` dispatches on connection type first; `canonicalKey`
+ * preserves these namespaces before URL parsing, including in `sameKey`.
  * Display values keep the user's original spelling; every identity comparison
  * goes through this function or `sameKey`.
  */
@@ -243,7 +243,10 @@ export namespace ServerConnection {
    * pointer derived from a raw server URL flows through here, so `localhost`
    * spellings collapse onto `127.0.0.1`. Non-URL keys pass through unchanged.
    */
-  export const canonicalKey = (key: Key): Key => Key.make(canonicalServerUrl(key) ?? key)
+  export const canonicalKey = (key: Key): Key => {
+    if (key === "sidecar" || key.startsWith("wsl:") || key.startsWith("ssh:")) return key
+    return Key.make(canonicalServerUrl(key) ?? key)
+  }
 
   /**
    * Compare two keys of uncertain provenance (plan §7.1 附则, lock B): persisted
@@ -251,12 +254,8 @@ export namespace ServerConnection {
    * `localhost` spelling. Both sides go through the canonical form; values that
    * are not server URLs compare literally.
    */
-  export const sameKey = (a: Key | string, b: Key | string): boolean => {
-    const left = canonicalServerUrl(a)
-    const right = canonicalServerUrl(b)
-    if (left === undefined || right === undefined) return a === b
-    return left === right
-  }
+  export const sameKey = (a: Key | string, b: Key | string): boolean =>
+    canonicalKey(Key.make(a)) === canonicalKey(Key.make(b))
 
   export const builtin = (conn: Any) => conn.type === "sidecar" && conn.variant === "base"
   export const local = (conn?: Any) =>
