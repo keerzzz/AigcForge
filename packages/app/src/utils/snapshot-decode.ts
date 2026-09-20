@@ -4,15 +4,13 @@ import { Composition } from "@aigcfroge/schema/composition"
 /**
  * Decodes a composition snapshot out of an HTTP response body.
  *
- * Uses `Schema.toCodecJson`, not the class schema directly, because the server produced
- * this payload through the HttpApi's JSON codec. The two are not interchangeable: a
- * snapshot with no profile serialises `profilePath: null` / `profileRevision: null`, and
- * `Schema.decodeUnknownOption(Snapshot)` rejects those (the fields are declared
- * `Schema.optional`, i.e. `string | undefined`) while the JSON codec accepts them. Both
- * call sites used the class schema, so every real snapshot without a profile decoded as
- * "undecodable" — the panel showed "服务端返回的组合本客户端无法解析" and the slash-command
- * catalog silently fell back to empty. Found by the 2026-09-03 dogfood run
- * (BUG-CUSTOM-SNAPSHOT); the saved response is in
+ * A snapshot with no profile serialises `profilePath: null` / `profileRevision: null`,
+ * but those fields are declared `optionalOmitUndefined` (present-or-absent, never null),
+ * so neither the class schema nor its JSON codec accepts the null form — they mean
+ * "absent", not "null". Normalise null-valued keys to absent before decoding so every
+ * real profile-less snapshot decodes instead of showing
+ * "服务端返回的组合本客户端无法解析" / falling the slash-command catalog back to empty.
+ * Found by the 2026-09-03 dogfood run (BUG-CUSTOM-SNAPSHOT); the saved response is in
  * `docs/review/five-mode-dogfood-2026-09-03/custom-snapshot-response.json`.
  *
  * Accepts either the bare snapshot or `{ snapshot }`, since the composition read and the
@@ -20,12 +18,18 @@ import { Composition } from "@aigcfroge/schema/composition"
  */
 const decodeSnapshot = Schema.decodeUnknownOption(Schema.toCodecJson(Composition.Snapshot))
 
+/** Drop null-valued own keys: the server emits null for absent optional fields. */
+function nullsAsAbsent(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return value
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== null))
+}
+
 export function decodeSnapshotResponse(data: unknown): Composition.Snapshot | undefined {
   if (typeof data !== "object" || data === null) return undefined
-  const direct = decodeSnapshot(data)
+  const direct = decodeSnapshot(nullsAsAbsent(data))
   if (direct._tag === "Some") return direct.value
   if ("snapshot" in data) {
-    const nested = decodeSnapshot((data as { snapshot: unknown }).snapshot)
+    const nested = decodeSnapshot(nullsAsAbsent((data as { snapshot: unknown }).snapshot))
     if (nested._tag === "Some") return nested.value
   }
   return undefined
