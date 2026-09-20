@@ -6362,6 +6362,47 @@ export type CompositionStartInput = {
   title?: string
 }
 
+export type WorkContractVersion = 1
+
+export type WorkPresetRevision = string
+
+export type WorkPresetOutputType = "markdown" | "table" | "mixed"
+
+export type WorkPresetArtifactSpec = {
+  title: string
+  filename: string
+  relativeDir?: string
+}
+
+export type WorkContractOutput = {
+  outputType: WorkPresetOutputType
+  artifact: WorkPresetArtifactSpec
+}
+
+export type WorkContractPreset = {
+  source: "preset"
+  contractVersion: WorkContractVersion
+  presetID: string
+  revision: WorkPresetRevision
+  output: WorkContractOutput
+}
+
+export type WorkContractWorkflow = {
+  source: "workflow"
+  contractVersion: WorkContractVersion
+  workflowID: string
+  revision: string
+  output?: WorkContractOutput
+}
+
+export type WorkContractAdHoc = {
+  source: "ad-hoc"
+  contractVersion: WorkContractVersion
+  output?: WorkContractOutput
+}
+
+export type WorkContractSnapshot = WorkContractPreset | WorkContractWorkflow | WorkContractAdHoc
+
 export type SessionV2Revert = {
   messageID: string
   snapshot?: string
@@ -6378,6 +6419,7 @@ export type SessionV2Info = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
   slug: string
   version: string
   parentID?: string
@@ -6865,7 +6907,7 @@ export type SessionIdentityWorkContractWorkflow = {
 
 export type SessionIdentityPresetRevisionReady = {
   status: "ready"
-  revision: string
+  revision: WorkPresetRevision
 }
 
 export type SessionIdentityPresetRevisionUnsupported = {

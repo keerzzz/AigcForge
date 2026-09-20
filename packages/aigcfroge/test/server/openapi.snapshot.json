@@ -53844,6 +53844,160 @@
         ],
         "additionalProperties": false
       },
+      "WorkContractVersion": {
+        "type": "number",
+        "enum": [
+          1
+        ]
+      },
+      "WorkPresetRevision": {
+        "type": "string",
+        "minLength": 64,
+        "maxLength": 64,
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "WorkPresetOutputType": {
+        "type": "string",
+        "enum": [
+          "markdown",
+          "table",
+          "mixed"
+        ]
+      },
+      "WorkPresetArtifactSpec": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "relativeDir": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "filename"
+        ],
+        "additionalProperties": false
+      },
+      "WorkContractOutput": {
+        "type": "object",
+        "properties": {
+          "outputType": {
+            "$ref": "#/components/schemas/WorkPresetOutputType"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/WorkPresetArtifactSpec"
+          }
+        },
+        "required": [
+          "outputType",
+          "artifact"
+        ],
+        "additionalProperties": false
+      },
+      "WorkContractPreset": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "preset"
+            ]
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/WorkContractVersion"
+          },
+          "presetID": {
+            "type": "string"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/WorkPresetRevision"
+          },
+          "output": {
+            "$ref": "#/components/schemas/WorkContractOutput"
+          }
+        },
+        "required": [
+          "source",
+          "contractVersion",
+          "presetID",
+          "revision",
+          "output"
+        ],
+        "additionalProperties": false
+      },
+      "WorkContractWorkflow": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "workflow"
+            ]
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/WorkContractVersion"
+          },
+          "workflowID": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "output": {
+            "$ref": "#/components/schemas/WorkContractOutput"
+          }
+        },
+        "required": [
+          "source",
+          "contractVersion",
+          "workflowID",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
+      "WorkContractAdHoc": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "ad-hoc"
+            ]
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/WorkContractVersion"
+          },
+          "output": {
+            "$ref": "#/components/schemas/WorkContractOutput"
+          }
+        },
+        "required": [
+          "source",
+          "contractVersion"
+        ],
+        "additionalProperties": false
+      },
+      "WorkContractSnapshot": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/WorkContractPreset"
+          },
+          {
+            "$ref": "#/components/schemas/WorkContractWorkflow"
+          },
+          {
+            "$ref": "#/components/schemas/WorkContractAdHoc"
+          }
+        ]
+      },
       "SessionV2Revert": {
         "type": "object",
         "properties": {
@@ -53895,6 +54049,9 @@
           },
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
+          },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "slug": {
             "type": "string"
@@ -56522,10 +56679,7 @@
             ]
           },
           "revision": {
-            "type": "string",
-            "minLength": 64,
-            "maxLength": 64,
-            "pattern": "^[0-9a-f]{64}$"
+            "$ref": "#/components/schemas/WorkPresetRevision"
           }
         },
         "required": [
