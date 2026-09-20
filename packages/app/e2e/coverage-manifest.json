@@ -72,6 +72,11 @@
       "owner": "S11",
       "scope": "Home load fans out per registered project: ~2N+2 requests at N=500 and N=2000 in the measurement above (/path N+1, /lsp N, /session N+1, provider requests at least 2 each), and the time-to-rows slope (~10-20ms per project, same order as run-to-run variance) tracks that fan-out rather than the list rendering. Nothing errors, so this is a scalability cost and not a defect; it is registered because §16.3 owns performance evidence and because 'the list is unbounded' would otherwise be treated as the cause.",
       "unlock": "S11's performance pass: measure Home with the production benchmark harness rather than the dev server, decide whether the per-project work needs batching, lazy loading or a bound, and report comparable before/after data. Do not set a machine-dependent threshold."
+    },
+    "work-review-lifecycle": {
+      "owner": "S9A",
+      "scope": "Work review lifecycle (open -> fix_requested -> responded -> resolved/reopened) is NOT in the PRD; it is a contract DRAFT at docs/plan/s9a-work-review-lifecycle-contract.md with a RED spec at packages/core/test/work-review-lifecycle.test.ts (12 test.todo, 0 pass/0 fail). No production owner exists: no WorkReview schema, ArtifactRecord has only status available|missing, and the states are unapproved.",
+      "unlock": "Owner approves the draft's §3 states/transitions, §4 schema home (Session.Info.workReview vs ArtifactRecord.review), and §5 persistence (metadata JSON no-migration preferred). Then the 12 test.todo become expect() against the implemented state machine, asserting I1-I4 (illegal transitions rejected, review verdict bound to artifact revision, no auto-carry across revisions, review not forced on ad-hoc). E4 contract->review->artifact lifeline runs single-backend happy-path on CI (ubuntu-latest/ext4); cross-server + historical + failure matrix stay post-MVP."
     }
   },
   "entries": [
