@@ -34,25 +34,25 @@ ModeRoute(/mode/assistant)
 
 ## 3. Owner 边界
 
-| Owner | 职责 | 禁止替代方案 |
-| --- | --- | --- |
-| Core Schedule / Delivery owners | 提醒的持久化、到期投递、inbox | App 内存定时器冒充调度真源 |
-| Core Personal Memory / KB owners | 记忆与笔记的持久化与链接 | 页面内私有 localStorage 副本 |
+| Owner                               | 职责                                                     | 禁止替代方案                                |
+| ----------------------------------- | -------------------------------------------------------- | ------------------------------------------- |
+| Core Schedule / Delivery owners     | 提醒的持久化、到期投递、inbox                            | App 内存定时器冒充调度真源                  |
+| Core Personal Memory / KB owners    | 记忆与笔记的持久化与链接                                 | 页面内私有 localStorage 副本                |
 | `SessionIdentityProjection`（core） | assistant 的 scope/reminders/memory/knowledge capability | 由 UI 从 URL、Agent 名或 Session store 推断 |
-| `AssistantDashboardMain` | 实体聚合面板的编排与导航 | 在首页复制 timeline / Composer |
-| canonical Session page | 消息、工具、权限、context | Assistant 首页内嵌执行链 |
+| `AssistantDashboardMain`            | 实体聚合面板的编排与导航                                 | 在首页复制 timeline / Composer              |
+| canonical Session page              | 消息、工具、权限、context                                | Assistant 首页内嵌执行链                    |
 
 ## 4. current / target / verified
 
-| 维度 | current（代码事实） | target | verified（证据） |
-| --- | --- | --- | --- |
-| 路由与 slot | `/mode/assistant` + ModeWorkspace typed slot | 不变 | `mode-surfaces.tsx:198-201`、`MODE_DEFINITIONS` |
-| 提醒 / 投递（M1） | 已实现，投影在 schedule + delivery owner 就绪时报 `ready` | 时区 / DST / 重启补投全绿 | identity `session-identity.ts:195-203`；core `schedule*.test.ts`、`scheduled-job*.test.ts`；E3 `assistant-dashboard.spec.ts` |
-| 记忆（M2） | **投影显式 `degraded`**：`assistant-memory-m2-pending` | M2 交付后转 ready | `session-identity.ts:204-206`；schema 断言 memory 贡献 degradation |
-| 知识库（M2） | **投影显式 `degraded`**：`assistant-kb-m2-pending` | M2 交付后转 ready | `session-identity.ts:207-209`；core `kb-service.test.ts`、`kb-link.test.ts` |
-| scope | 投影固定 `{ kind: "personal" }` | Personal/Project 双 scope 需服务端合同 | `session-identity.ts:215`；schema `assistant personal scope decodes without a project` |
-| Session 面板 | KB tab + citation 已实现 | 不变 | `pages/session/assistant-*`（10 个单测文件） |
-| E4（真实后端） | 未在本机跑通 | 需要真实 Scheduler + 投递链路的 E4 | 无本机证据；登记在 manifest 的 `identity-e4-cross-server-and-historical` |
+| 维度              | current（代码事实）                                       | target                                 | verified（证据）                                                                                                             |
+| ----------------- | --------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 路由与 slot       | `/mode/assistant` + ModeWorkspace typed slot              | 不变                                   | `mode-surfaces.tsx:198-201`、`MODE_DEFINITIONS`                                                                              |
+| 提醒 / 投递（M1） | 已实现，投影在 schedule + delivery owner 就绪时报 `ready` | 时区 / DST / 重启补投全绿              | identity `session-identity.ts:195-203`；core `schedule*.test.ts`、`scheduled-job*.test.ts`；E3 `assistant-dashboard.spec.ts` |
+| 记忆（M2）        | **投影显式 `degraded`**：`assistant-memory-m2-pending`    | M2 交付后转 ready                      | `session-identity.ts:204-206`；schema 断言 memory 贡献 degradation                                                           |
+| 知识库（M2）      | **投影显式 `degraded`**：`assistant-kb-m2-pending`        | M2 交付后转 ready                      | `session-identity.ts:207-209`；core `kb-service.test.ts`、`kb-link.test.ts`                                                  |
+| scope             | 投影固定 `{ kind: "personal" }`                           | Personal/Project 双 scope 需服务端合同 | `session-identity.ts:215`；schema `assistant personal scope decodes without a project`                                       |
+| Session 面板      | KB tab + citation 已实现                                  | 不变                                   | `pages/session/assistant-*`（10 个单测文件）                                                                                 |
+| E4（真实后端）    | 未在本机跑通                                              | 需要真实 Scheduler + 投递链路的 E4     | 无本机证据；登记在 manifest 的 `identity-e4-cross-server-and-historical`                                                     |
 
 ## 5. 当前未闭环项
 

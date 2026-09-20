@@ -71,7 +71,15 @@ async function openSessionWithSidebar(page: Page) {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          assets: [{ kind, name, description: `${kind} description`, relativePath: `${kind}-one.asset`, revision: "a".repeat(64) }],
+          assets: [
+            {
+              kind,
+              name,
+              description: `${kind} description`,
+              relativePath: `${kind}-one.asset`,
+              revision: "a".repeat(64),
+            },
+          ],
           invalid: [],
           ...(kind === "plugin" ? { bridged: [] } : {}),
         }),
@@ -111,6 +119,8 @@ test("the session secondary sidebar shows the Chat feature counts", async ({ pag
   // server-sync system rows (command/agent/mcp) can add to a kind, and this case is
   // about the sidebar having counts at all, not about their arithmetic (which
   // `chat-asset-categories.spec.ts` covers on the workspace side).
-  const counted = sidebar.getByRole("button", { name: /^(Prompts|Skills|MCP|Commands|Agents|Workflows|Plugins)\s+\d+$/ })
+  const counted = sidebar.getByRole("button", {
+    name: /^(Prompts|Skills|MCP|Commands|Agents|Workflows|Plugins)\s+\d+$/,
+  })
   await expect(counted).toHaveCount(categories.length)
 })

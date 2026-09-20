@@ -135,7 +135,9 @@ test("reads each asset category once per directory, not once per surface", async
   await prepare(page, { onListRequest: (path) => requests.push(path) })
   await expect(page.locator('[data-mode-main="chat"] [data-component="asset-row"]').first()).toBeVisible()
 
-  const tallies = Object.fromEntries(categories.map(([, , , path]) => [path, requests.filter((p) => p === path).length]))
+  const tallies = Object.fromEntries(
+    categories.map(([, , , path]) => [path, requests.filter((p) => p === path).length]),
+  )
   // One each, except `/prompt-asset`: 2. Before S3-3 every one of the seven was 2
   // (workspace + sidebar); a 2 on any other path means a third reader appeared.
   expect(tallies).toEqual({

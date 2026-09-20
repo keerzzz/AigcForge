@@ -212,25 +212,25 @@ describe("Custom Mode Upgrade", () => {
           title: "Upgraded",
         })
 
-      expect(upgraded.session.id).not.toBe(source.session.id)
-      expect(upgraded.session.mode).toBe("custom")
-      expect(upgraded.session.title).toBe("Upgraded")
-      expect(upgraded.session.location.directory).toBe(source.session.location.directory)
-      expect(upgraded.snapshot.digest).toBe(otherDigest)
+        expect(upgraded.session.id).not.toBe(source.session.id)
+        expect(upgraded.session.mode).toBe("custom")
+        expect(upgraded.session.title).toBe("Upgraded")
+        expect(upgraded.session.location.directory).toBe(source.session.location.directory)
+        expect(upgraded.snapshot.digest).toBe(otherDigest)
 
-      // The source session and its frozen snapshot row are never mutated by an
-      // upgrade: the old session stays readable for frozen replay.
-      const reloadedSource = yield* sessionSvc.get(source.session.id)
-      expect(reloadedSource.mode).toBe("custom")
-      const sourceSnapshot = yield* sessionComposition.get(source.session.id)
-      expect(sourceSnapshot.digest).toBe(mockDigest)
+        // The source session and its frozen snapshot row are never mutated by an
+        // upgrade: the old session stays readable for frozen replay.
+        const reloadedSource = yield* sessionSvc.get(source.session.id)
+        expect(reloadedSource.mode).toBe("custom")
+        const sourceSnapshot = yield* sessionComposition.get(source.session.id)
+        expect(sourceSnapshot.digest).toBe(mockDigest)
 
-      // The upgraded session is fully functional against its own snapshot.
-      const admitted = yield* sessionSvc.prompt({
-        sessionID: upgraded.session.id,
-        prompt: Prompt.make({ text: "Hello upgraded agent" }),
-        resume: false,
-      })
+        // The upgraded session is fully functional against its own snapshot.
+        const admitted = yield* sessionSvc.prompt({
+          sessionID: upgraded.session.id,
+          prompt: Prompt.make({ text: "Hello upgraded agent" }),
+          resume: false,
+        })
         expect(admitted.sessionID).toBe(upgraded.session.id)
       }),
     ),

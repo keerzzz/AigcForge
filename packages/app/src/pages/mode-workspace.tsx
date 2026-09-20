@@ -87,7 +87,10 @@ export function ModeWorkspace() {
   const directory = createMemo(() => (chatShown() ? chatDirectory() : undefined))
 
   return (
-    <ChatAssetsProvider serverKey={() => (server.current ? ServerConnection.key(server.current) : undefined)} directory={directory}>
+    <ChatAssetsProvider
+      serverKey={() => (server.current ? ServerConnection.key(server.current) : undefined)}
+      directory={directory}
+    >
       <ModeWorkspaceBody />
     </ChatAssetsProvider>
   )

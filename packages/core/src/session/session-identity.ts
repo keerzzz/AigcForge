@@ -179,7 +179,10 @@ export const layer = Layer.effect(
         const artifact = Option.isSome(artifacts) ? yield* artifacts.value.get(session.id) : undefined
         const contract = session.workContract
           ? session.workContract.source === "preset"
-            ? { source: "preset" as const, revision: { status: "ready" as const, revision: session.workContract.revision } }
+            ? {
+                source: "preset" as const,
+                revision: { status: "ready" as const, revision: session.workContract.revision },
+              }
             : session.workContract.source === "workflow"
               ? { source: "workflow" as const, revision: session.workContract.revision }
               : { source: "ad-hoc" as const }
@@ -193,7 +196,9 @@ export const layer = Layer.effect(
             detail: {
               source: "work" as const,
               contract,
-              artifact: artifact ? { status: "ready" as const, value: artifact.revision } : { status: "missing" as const },
+              artifact: artifact
+                ? { status: "ready" as const, value: artifact.revision }
+                : { status: "missing" as const },
             },
           },
         }
@@ -219,7 +224,13 @@ export const layer = Layer.effect(
           capability: capability(reminders.health === "blocked" ? "blocked" : "degraded", reasons),
           detail: {
             status: "ready" as const,
-            detail: { source: "assistant" as const, scope: { kind: "personal" as const }, reminders, memory, knowledge },
+            detail: {
+              source: "assistant" as const,
+              scope: { kind: "personal" as const },
+              reminders,
+              memory,
+              knowledge,
+            },
           },
         }
       }

@@ -59,9 +59,7 @@ test("launches the real desktop stack with isolated state", async () => {
     await test.step("renderer and preload load through the real owners", async () => {
       expect(page.url()).toBe("oc://renderer/index.html")
       expect(await electronApp!.evaluate(({ app }) => app.getPath("userData"))).toBe(userDataPath)
-      await expect
-        .poll(() => page.locator("#root").evaluate((root) => root.childElementCount))
-        .toBeGreaterThan(0)
+      await expect.poll(() => page.locator("#root").evaluate((root) => root.childElementCount)).toBeGreaterThan(0)
 
       const missingMethods = await page.evaluate(() => {
         const api = window.api
@@ -99,9 +97,7 @@ test("launches the real desktop stack with isolated state", async () => {
         )
         .toBe(true)
 
-      const bounds = await electronApp!.evaluate(
-        ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getBounds(),
-      )
+      const bounds = await electronApp!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getBounds())
       expect(bounds).toMatchObject(restoredBounds)
 
       const scaleFactor = await electronApp!.evaluate(({ screen }) => screen.getPrimaryDisplay().scaleFactor)
@@ -113,9 +109,7 @@ test("launches the real desktop stack with isolated state", async () => {
       await page.keyboard.press("Control+Digit0")
       await expect.poll(() => page.evaluate(() => window.api.getZoomFactor())).toBeCloseTo(1, 5)
       await page.evaluate(() => window.api.setZoomFactor(1.25))
-      await expect
-        .poll(() => page.evaluate(() => window.api.getZoomFactor()))
-        .toBeCloseTo(1.25, 5)
+      await expect.poll(() => page.evaluate(() => window.api.getZoomFactor())).toBeCloseTo(1.25, 5)
     })
 
     await test.step("runs a menu-owned window action", async () => {
@@ -144,9 +138,7 @@ test("launches the real desktop stack with isolated state", async () => {
         { cwd: desktopRoot, env, timeout: 30_000 },
       )
 
-      await expect
-        .poll(() => page.evaluate(() => window.__desktopSmokeDeepLinks ?? []))
-        .toEqual([deepLink])
+      await expect.poll(() => page.evaluate(() => window.__desktopSmokeDeepLinks ?? [])).toEqual([deepLink])
     })
 
     await test.step("handles picker cancellation and updater failure without crashing", async () => {
@@ -162,13 +154,9 @@ test("launches the real desktop stack with isolated state", async () => {
         })
       })
 
-      const pickerResult = await page.evaluate(() =>
-        window.api.openFilePicker({ title: "Desktop launch smoke" }),
-      )
+      const pickerResult = await page.evaluate(() => window.api.openFilePicker({ title: "Desktop launch smoke" }))
       expect(pickerResult).toBeNull()
-      expect(
-        await electronApp!.evaluate(() => (globalThis as PickerGlobal).__desktopSmokePickerCalls),
-      ).toBe(1)
+      expect(await electronApp!.evaluate(() => (globalThis as PickerGlobal).__desktopSmokePickerCalls)).toBe(1)
 
       const updater = await page.evaluate(async () => {
         const api = window.api

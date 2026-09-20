@@ -60,7 +60,8 @@ function numberField(value: unknown, key: string): number | undefined {
 export function parseErrorDetails(err: unknown): ErrorDetails {
   const cause = err instanceof Error && isRecord(err.cause) ? err.cause : undefined
   const body = cause?.body ?? err
-  const fallbackMessage = typeof err === "object" && err !== null ? undefined : err === undefined ? undefined : String(err)
+  const fallbackMessage =
+    typeof err === "object" && err !== null ? undefined : err === undefined ? undefined : String(err)
   const message =
     stringField(body, "message") ??
     (err instanceof Error && err.message.length > 0 ? err.message : undefined) ??

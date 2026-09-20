@@ -91,7 +91,10 @@ async function installSocketMock(page: Page) {
   await page.addInitScript(() => {
     const state: SocketState = { urls: [], sent: [], closes: [] }
     Object.defineProperty(window, "__terminalSocketState", { value: state })
-    const sockets: Array<{ dispatchEvent: (event: Event) => boolean; close: (code?: number, reason?: string) => void }> = []
+    const sockets: Array<{
+      dispatchEvent: (event: Event) => boolean
+      close: (code?: number, reason?: string) => void
+    }> = []
 
     class MockWebSocket extends EventTarget {
       static readonly CONNECTING = 0

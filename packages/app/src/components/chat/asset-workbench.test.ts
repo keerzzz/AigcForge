@@ -178,7 +178,10 @@ describe("countAssetsByKind", () => {
   ]
 
   test("counts each merged row by its kind", () => {
-    const merged = mergeAssets([{ kind: "prompt", name: "p", description: "", relativePath: "p", revision: "" }], systemRows)
+    const merged = mergeAssets(
+      [{ kind: "prompt", name: "p", description: "", relativePath: "p", revision: "" }],
+      systemRows,
+    )
     expect(countAssetsByKind(merged)).toEqual({ prompt: 1, skill: 2, command: 1 })
   })
 

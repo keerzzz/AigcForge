@@ -182,14 +182,16 @@ test("recovers an unsubmitted draft and attachment without leaking either into a
   await openSession(page)
 
   await input(page).fill("Recover this draft")
-  await composer(page).locator('input[type="file"]').setInputFiles({
-    name: "pixel.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=",
-      "base64",
-    ),
-  })
+  await composer(page)
+    .locator('input[type="file"]')
+    .setInputFiles({
+      name: "pixel.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    })
   await expect(page.getByRole("img", { name: "pixel.png" })).toBeVisible()
 
   await gotoWhenReady(page, pathFor(secondSessionID))

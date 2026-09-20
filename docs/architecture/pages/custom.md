@@ -31,24 +31,24 @@ ModeRoute(/mode/custom)
 
 ## 3. Owner 边界
 
-| Owner | 职责 | 禁止替代方案 |
-| --- | --- | --- |
-| `SessionComposition`（core） | Snapshot 的创建、冻结、解码、漂移判定 | 页面内重建组合或放宽 allowlist |
-| `ProductModePolicy`（core） | kill switch 判定（`AIGCFROGE_CUSTOM_MODE`），fail-closed | UI 自行决定模式是否可用 |
-| `SessionIdentityProjection`（core） | custom 的 snapshot digest + policy capability | 从 URL / 本地状态推断 capability |
-| Custom Builder（app） | 组合编辑与预览 | 直接写 Session 执行状态 |
-| canonical Session page | 消息、工具、权限 | Custom 首页内嵌执行链 |
+| Owner                               | 职责                                                     | 禁止替代方案                     |
+| ----------------------------------- | -------------------------------------------------------- | -------------------------------- |
+| `SessionComposition`（core）        | Snapshot 的创建、冻结、解码、漂移判定                    | 页面内重建组合或放宽 allowlist   |
+| `ProductModePolicy`（core）         | kill switch 判定（`AIGCFROGE_CUSTOM_MODE`），fail-closed | UI 自行决定模式是否可用          |
+| `SessionIdentityProjection`（core） | custom 的 snapshot digest + policy capability            | 从 URL / 本地状态推断 capability |
+| Custom Builder（app）               | 组合编辑与预览                                           | 直接写 Session 执行状态          |
+| canonical Session page              | 消息、工具、权限                                         | Custom 首页内嵌执行链            |
 
 ## 4. current / target / verified
 
-| 维度 | current（代码事实） | target | verified（证据） |
-| --- | --- | --- | --- |
-| 默认开关 | **默认关闭**；`AIGCFROGE_CUSTOM_MODE` 控制（`core/src/flag/flag.ts:82`） | 不变 | kill-switch 单测；`ProductModePolicy.assertRuntimeSupported` |
-| 负向 gate | 关闭时 UI 显示 flag 警告，drain 前置 assert 失败且 inbox 行保持 pending | 不变 | E3 `custom-builder-states.spec.ts`、`home-custom-new-session.spec.ts`；core `kill-switch-drain.test.ts` |
-| 组合生命周期 | Snapshot 冻结 + 漂移即 fail closed | 不变 | core `custom-mode-lifecycle`、`custom-mode-drift`、`custom-mode-security`、`custom-mode-upgrade`、`custom-composition-start` |
-| 身份投影 | digest + policy；关闭时 capability `blocked` 且 reason 为 `custom-mode-disabled` | 不变 | `session-identity.ts:220-240`；schema `custom projection carries the snapshot digest only` |
-| 子会话 | 子会话按父 Snapshot allowlist 授权，per-turn 仍校验 | 不变 | core `custom-child-provider-turn.test.ts`、`session-runner-custom-composition.test.ts` |
-| 正向 E4（启用后的真实执行） | 已获 Owner 裁决“补全”，但**未在本机取证** | 启用后有真实 provider turn 的 E4 | 无本机证据 |
+| 维度                        | current（代码事实）                                                              | target                           | verified（证据）                                                                                                             |
+| --------------------------- | -------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 默认开关                    | **默认关闭**；`AIGCFROGE_CUSTOM_MODE` 控制（`core/src/flag/flag.ts:82`）         | 不变                             | kill-switch 单测；`ProductModePolicy.assertRuntimeSupported`                                                                 |
+| 负向 gate                   | 关闭时 UI 显示 flag 警告，drain 前置 assert 失败且 inbox 行保持 pending          | 不变                             | E3 `custom-builder-states.spec.ts`、`home-custom-new-session.spec.ts`；core `kill-switch-drain.test.ts`                      |
+| 组合生命周期                | Snapshot 冻结 + 漂移即 fail closed                                               | 不变                             | core `custom-mode-lifecycle`、`custom-mode-drift`、`custom-mode-security`、`custom-mode-upgrade`、`custom-composition-start` |
+| 身份投影                    | digest + policy；关闭时 capability `blocked` 且 reason 为 `custom-mode-disabled` | 不变                             | `session-identity.ts:220-240`；schema `custom projection carries the snapshot digest only`                                   |
+| 子会话                      | 子会话按父 Snapshot allowlist 授权，per-turn 仍校验                              | 不变                             | core `custom-child-provider-turn.test.ts`、`session-runner-custom-composition.test.ts`                                       |
+| 正向 E4（启用后的真实执行） | 已获 Owner 裁决“补全”，但**未在本机取证**                                        | 启用后有真实 provider turn 的 E4 | 无本机证据                                                                                                                   |
 
 ## 5. 当前未闭环项
 

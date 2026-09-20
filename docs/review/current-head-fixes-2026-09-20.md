@@ -80,14 +80,14 @@
 
 本机为 FUSE 挂载 + 内存压力，以下项目跑不动或跑不完，**不算通过、也未归因本分支引入**。需在 ext4/CI 或对应平台执行；不得靠加 retry、删断言、跳过失败冒充闭环。
 
-| # | 命令 | 通过判据 | 本机跑不了的原因 |
-|---|---|---|---|
-| V1 | `bun turbo typecheck`（或先 `bun --cwd packages/aigcfroge typecheck`） | exit 0；并在**干净安装**下复证 `session-ui/src/components/markdown-shiki.worker.ts:74,85,86` 的 Shiki/TextMate 双安装路径类型冲突是否为分支引入 | aigcfroge 包 tsgo 约 5.7GB RSS，本机 OOM/超时 |
-| V2 | `LINT_BASE_REF=origin/main bun run lint` | exit 0（oxlint + format --check + lint-changed + unawaited-assertions 全绿） | 全树 lint 超 180s 预算；源码范围增量 lint 已 exit 0 |
-| V3 | `bun --cwd packages/app test:e2e:real` | F02 隔离 / F09 manifest / F10 PTY / F11 大文件门禁对**真实后端**绿 | 需隔离 HOME/XDG + 真实 backend/browser，本机受限不启动 |
-| V4 | `bun --cwd packages/app test:bench` | 生产性能基准通过（非 `--list`） | 同 V3，需真实 webServer |
-| V5 | Desktop packaged smoke | 打包产物可启动、核心链路通 | 无桌面打包/运行时环境 |
-| V6 | Windows / WSL 验证 | 路径/PTY/文件链路在目标平台通 | 本机 Linux |
+| #   | 命令                                                                   | 通过判据                                                                                                                                        | 本机跑不了的原因                                       |
+| --- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| V1  | `bun turbo typecheck`（或先 `bun --cwd packages/aigcfroge typecheck`） | exit 0；并在**干净安装**下复证 `session-ui/src/components/markdown-shiki.worker.ts:74,85,86` 的 Shiki/TextMate 双安装路径类型冲突是否为分支引入 | aigcfroge 包 tsgo 约 5.7GB RSS，本机 OOM/超时          |
+| V2  | `LINT_BASE_REF=origin/main bun run lint`                               | exit 0（oxlint + format --check + lint-changed + unawaited-assertions 全绿）                                                                    | 全树 lint 超 180s 预算；源码范围增量 lint 已 exit 0    |
+| V3  | `bun --cwd packages/app test:e2e:real`                                 | F02 隔离 / F09 manifest / F10 PTY / F11 大文件门禁对**真实后端**绿                                                                              | 需隔离 HOME/XDG + 真实 backend/browser，本机受限不启动 |
+| V4  | `bun --cwd packages/app test:bench`                                    | 生产性能基准通过（非 `--list`）                                                                                                                 | 同 V3，需真实 webServer                                |
+| V5  | Desktop packaged smoke                                                 | 打包产物可启动、核心链路通                                                                                                                      | 无桌面打包/运行时环境                                  |
+| V6  | Windows / WSL 验证                                                     | 路径/PTY/文件链路在目标平台通                                                                                                                   | 本机 Linux                                             |
 
 **补齐后推 PR 的前置**（沿用审批报告 §交付门禁）：
 
