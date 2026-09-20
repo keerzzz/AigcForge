@@ -1,3 +1,4 @@
+import type { WorkContract } from "@aigcfroge/schema/work-contract"
 import type { FilePartInput, Message, Session } from "@aigcfroge/sdk/v2/client"
 import { CommandParse } from "@aigcfroge/schema/command-parse"
 import { showToast } from "@/utils/toast"
@@ -403,11 +404,16 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       const draftTab = draftID
         ? tabs.store.find((tab): tab is DraftTab => tab.type === "draft" && tab.draftID === draftID)
         : undefined
+      const workContract: WorkContract.Snapshot | undefined =
+        draftTab?.mode === "work"
+          ? (draftTab.workContract ?? { source: "ad-hoc", contractVersion: 1 })
+          : draftTab?.workContract
       const created = await client.session
         .create({
           mode: draftTab?.mode ?? "coding",
           agent: draftTab?.agent,
           presetCategoryId: draftTab?.presetCategoryId,
+          metadata: workContract ? { workContract } : undefined,
           permissionTier: draftTab?.permissionTier,
         })
         .then((x) => x.data ?? undefined)

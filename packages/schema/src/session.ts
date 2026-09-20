@@ -10,6 +10,7 @@ import { Project } from "./project"
 import { DateTimeUtcFromMillis, optionalOmitUndefined, RelativePath } from "./schema"
 import { SessionID } from "./session-id"
 import { SessionMessageID } from "./session-message-id"
+import { WorkContract } from "./work-contract"
 import { WorkPreset } from "./work-preset"
 
 export const ID = SessionID.ID
@@ -37,6 +38,7 @@ export const Info = Schema.Struct({
     Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
   ),
   presetCategoryId: WorkPreset.Category.pipe(optionalOmitUndefined),
+  workContract: WorkContract.Snapshot.pipe(optionalOmitUndefined),
   slug: Schema.String,
   version: Schema.String,
   parentID: ID.pipe(optionalOmitUndefined),

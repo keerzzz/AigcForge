@@ -8,6 +8,7 @@ import { PermissionTier } from "./permission-tier"
 import { ProductMode } from "./product-mode"
 import { Project } from "./project"
 import { SessionID } from "./session-id"
+import { WorkPreset } from "./work-preset"
 import { WorkflowAsset } from "./workflow-asset"
 
 // ── §2 status vocabulary (ADR-23) ────────────────────────────────────────────
@@ -101,7 +102,7 @@ export const datum = <S extends Schema.Top>(value: S, identifier: string) =>
 // pretending the whole contract is unavailable. Ad-hoc sessions say so.
 
 export const PresetRevision = Schema.Union([
-  Schema.Struct({ status: Schema.Literal("ready"), revision: WorkflowAsset.Revision }).annotate({
+  Schema.Struct({ status: Schema.Literal("ready"), revision: WorkPreset.Revision }).annotate({
     identifier: "SessionIdentity.PresetRevision.Ready",
   }),
   Schema.Struct({ status: Schema.Literal("unsupported"), reason: ReasonCode }).annotate({

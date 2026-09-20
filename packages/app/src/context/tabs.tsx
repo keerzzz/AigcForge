@@ -13,6 +13,7 @@ import { sessionHref } from "@/utils/session-route"
 import { planTabClose } from "./tab-close"
 import { createTabMemory } from "./tab-memory"
 import { isMode, type Mode } from "./mode"
+import type { WorkContract } from "@aigcfroge/schema/work-contract"
 import type { WorkPreset } from "@aigcfroge/schema/work-preset"
 
 export type SessionTab = {
@@ -30,6 +31,7 @@ export type DraftTab = {
   mode: Mode
   agent?: string
   presetCategoryId?: WorkPreset.Category
+  workContract?: WorkContract.Snapshot
   permissionTier?: "propose" | "full"
 }
 

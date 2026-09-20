@@ -1,6 +1,6 @@
 export * as WorkPresetTool from "./work-preset"
 
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 import { WorkPresetRegistry } from "@aigcfroge/core/session/work-preset"
 import { WorkPresetTool as WorkPresetToolV2 } from "@aigcfroge/core/tool/work-preset"
 import { define } from "./tool"
@@ -25,7 +25,9 @@ export const WorkPresetV1 = define<typeof WorkPresetToolV2.Input, Metadata, neve
             output: `Unknown work preset: ${params.presetID}`,
           }
         }
-        const [part] = WorkPresetToolV2.toModelOutput({ output: { preset } })
+        const [part] = WorkPresetToolV2.toModelOutput({
+          output: Schema.encodeSync(WorkPresetToolV2.Output)({ preset }),
+        })
         return {
           title: `Load work preset: ${preset.title}`,
           metadata: { presetID: params.presetID, found: true },

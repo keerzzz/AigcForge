@@ -24,7 +24,11 @@ export const Output = Schema.Struct({
   preset: WorkPreset.Preset,
 })
 
-export const toModelOutput = ({ output }: { output: { preset: WorkPreset.Preset } }) => {
+type EncodedOutput = {
+  preset: Omit<WorkPreset.Preset, "revision"> & { revision: string }
+}
+
+export const toModelOutput = ({ output }: { output: EncodedOutput }) => {
   const questions = output.preset.questions
     .map(
       (q) =>

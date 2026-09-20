@@ -39,9 +39,9 @@ import { WorkflowRun } from "../workflow/workflow-run"
  *  - `custom`: snapshot digest plus policy health from the kill switch, both real.
  *  - `chat`: counts come from the seven Location-scoped asset owners; no session
  *    metadata or catalog digest participates.
- *  - `work`: the contract comes from the durable WorkflowRun owner when present,
- *    otherwise the session is explicitly ad-hoc. Artifact identity/revision comes
- *    from WorkArtifact's in-memory owner. `presetCategoryId` is never read.
+ *  - `work`: the contract comes from the durable Work contract snapshot when present,
+ *    with the WorkflowRun owner retained as a legacy fallback. Artifact identity/revision
+ *    comes from WorkArtifact's in-memory owner. `presetCategoryId` is never used as identity.
  *  - `assistant`: the current owner contract is personal schedules/reminders;
  *    Memory and Knowledge remain typed M2-degraded. Project scope is not emitted
  *    because no owner currently persists it.
@@ -177,15 +177,22 @@ export const layer = Layer.effect(
       if (session.mode === "work") {
         const run = Option.isSome(runs) ? yield* runs.value.getBySession(session.id) : undefined
         const artifact = Option.isSome(artifacts) ? yield* artifacts.value.get(session.id) : undefined
+        const contract = session.workContract
+          ? session.workContract.source === "preset"
+            ? { source: "preset" as const, revision: { status: "ready" as const, revision: session.workContract.revision } }
+            : session.workContract.source === "workflow"
+              ? { source: "workflow" as const, revision: session.workContract.revision }
+              : { source: "ad-hoc" as const }
+          : run
+            ? { source: "workflow" as const, revision: run.workflowRevision }
+            : { source: "ad-hoc" as const }
         return {
           capability: capability("ready", []),
           detail: {
             status: "ready" as const,
             detail: {
               source: "work" as const,
-              contract: run
-                ? { source: "workflow" as const, revision: run.workflowRevision }
-                : { source: "ad-hoc" as const },
+              contract,
               artifact: artifact ? { status: "ready" as const, value: artifact.revision } : { status: "missing" as const },
             },
           },

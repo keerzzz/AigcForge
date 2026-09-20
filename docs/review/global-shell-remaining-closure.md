@@ -1061,3 +1061,48 @@ from navigation mode, Session metadata, messages, settings, `presetCategoryId`, 
 - #22 —— 需要 **§6.3 Work 版本化合同**与 **§6.4 Assistant scope 合同**先落地（12 处观察钉的是这两个模式的行为，不是测试写法）。
 
 据此，§21 剩余未满足项全部落在"外部条件"或"Owner 合同批准"上；本机能做的门禁已在第 4 / 18 条口径内跑到位。
+
+## 2026-09-20 追加调查：E4 的作用、CI 状态与 production benchmark
+
+本节只记录事实，不把配置存在等同于当前 HEAD 已通过。
+
+### E4 为什么保留
+
+E4 不是 E3 的重复。E3 使用精确 mock，验证浏览器表面和请求契约；E4 使用 production app、隔离的真实 backend、真实 SQLite、workspace、PTY 和确定性 provider，验证 Session/File/PTY/provider turn/工具调用/持久化恢复组成的产品生命线。E4 的价值是发现“各组件单测分别通过、组合后仍失败”的连接错误。
+
+当前实现证据：
+
+- `.github/workflows/test.yml:92-191` 定义独立 `e4 (linux)` job；
+- `packages/app/e2e/real/playwright.config.ts` 使用独立 orchestrator、动态端口、`reuseExistingServer: false`、`workers: 1`、`retries: 0`；
+- `packages/app/e2e/real/session-{turn,files,pty}.spec.ts` 覆盖真实 turn、重载/重启恢复、文件边界和 PTY 生命周期；
+- `packages/app/e2e/real/v2-admission-gap.spec.ts` 当前是缺口钉住测试，绿色表示 V2 execution 缺口仍存在，不表示 V2 已完成。
+
+### E4 当前证据等级
+
+```text
+本地 workflow 配置：verified
+E4 默认 runtime 配置：verified
+E4 V2 variant 配置：verified
+历史本地归档：available（不是当前 HEAD 的 CI 证据）
+当前 HEAD 00c0f62be 的远端 E4 run：未找到
+当前分支远端 ref：不存在/未推送
+```
+
+触发语义为：`push` 到 `dev`、`workflow_dispatch` 会运行；`pull_request` 会跳过 E4 job；当前矩阵只有 `ubuntu-latest`。默认 runtime 失败时，后续未加 `if: always()` 的 V2 step 会被 GitHub Actions 跳过；若“无论默认结果都必须拿 V2 证据”是要求，应在首次远端运行前修正或明确接受该语义。
+
+### Production benchmark 当前证据等级
+
+- Harness 存在：`packages/app/package.json:31` 的 `test:bench`；
+- 它构建 production bundle 后用独立 performance Playwright config 串行运行；
+- `.github/workflows` 当前没有调用 `test:bench` 的正式 job；
+- 外部目录有历史 raw baseline，但不对应当前 HEAD，也不是 tracked/CI artifact；
+- 主计划要求首屏、Home→Session、tab switch、长 timeline、terminal 流、panel open 的前后原始数据和退化解释；没有 Owner 批准的机器无关性能阈值；420 秒只是测试场景完成预算，不是产品 SLA。
+
+因此本节截至 2026-09-20 的判定是：
+
+```text
+E4：配置已落地，当前 HEAD 远端成功运行未证实
+production benchmark：harness 已落地，正式 CI job/baseline/threshold 未闭环
+```
+
+本追加没有启动服务、运行 E4/benchmark、推送或创建 PR。

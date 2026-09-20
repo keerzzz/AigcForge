@@ -1,4 +1,5 @@
 import { createEffect, createMemo, createResource, createRoot, createSignal, For, onCleanup, Show } from "solid-js"
+import { Schema } from "effect"
 import { useNavigate } from "@solidjs/router"
 import { createStore } from "solid-js/store"
 import { useChatFeature } from "@/context/chat-feature"
@@ -44,6 +45,8 @@ import {
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
 import type { Session, WorkflowAssetSummary } from "@aigcfroge/sdk/v2/client"
 import { assetVersion } from "@/components/chat/prompt-asset-store"
@@ -719,7 +722,15 @@ export function WorkPresetCatalogMain() {
             description: asset.description,
             steps: res.data?.steps ?? [],
           }),
-          draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
+          draftOverrides: {
+            agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
+            workContract: {
+              source: "workflow",
+              contractVersion: 1,
+              workflowID: asset.relativePath,
+              revision: Schema.decodeSync(WorkflowAsset.Revision)(asset.revision),
+            } satisfies WorkContract.Workflow,
+          },
         }),
       )
       .catch((error) => {
@@ -732,7 +743,15 @@ export function WorkPresetCatalogMain() {
           directory: dir,
           tabs,
           initialPrompt: workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
-          draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
+          draftOverrides: {
+            agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
+            workContract: {
+              source: "workflow",
+              contractVersion: 1,
+              workflowID: asset.relativePath,
+              revision: Schema.decodeSync(WorkflowAsset.Revision)(asset.revision),
+            } satisfies WorkContract.Workflow,
+          },
         })
       })
   }
@@ -753,6 +772,13 @@ export function WorkPresetCatalogMain() {
       draftOverrides: {
         agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
         presetCategoryId: preset.category,
+        workContract: {
+          source: "preset",
+          contractVersion: 1,
+          presetID: preset.id,
+          revision: preset.revision,
+          output: { outputType: preset.outputType, artifact: preset.artifact },
+        } satisfies WorkContract.Preset,
       },
     })
   }
