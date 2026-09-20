@@ -17,12 +17,12 @@
 
 ## 2. 复用现状（不新造平行实现）
 
-| 已有 owner | 现状 | 本草案如何复用 |
-|---|---|---|
-| `WorkArtifact.ArtifactRecord`（`packages/core/src/session/artifact.ts:21`） | `status: available\|missing`，无 review 态 | 提议在其**旁**加 review 态，不改 `status` 语义 |
-| `WorkContract.Snapshot`（`packages/schema/src/work-contract.ts`） | preset\|workflow\|ad-hoc + `contractVersion:1` | review 生命周期引用 `contractVersion` 做版本门 |
-| `WorkArtifact.ArtifactSnapshot`（`artifact.ts:67`） | `{ artifact, revision }` in-memory | reviewer revision 复用同一 `revision` 概念 |
-| session `metadata` JSON | 已存 `workContract`/`presetCategoryId` | review 态同法存入，**无迁移** |
+| 已有 owner                                                                  | 现状                                           | 本草案如何复用                                 |
+| --------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| `WorkArtifact.ArtifactRecord`（`packages/core/src/session/artifact.ts:21`） | `status: available\|missing`，无 review 态     | 提议在其**旁**加 review 态，不改 `status` 语义 |
+| `WorkContract.Snapshot`（`packages/schema/src/work-contract.ts`）           | preset\|workflow\|ad-hoc + `contractVersion:1` | review 生命周期引用 `contractVersion` 做版本门 |
+| `WorkArtifact.ArtifactSnapshot`（`artifact.ts:67`）                         | `{ artifact, revision }` in-memory             | reviewer revision 复用同一 `revision` 概念     |
+| session `metadata` JSON                                                     | 已存 `workContract`/`presetCategoryId`         | review 态同法存入，**无迁移**                  |
 
 ## 3. 提议状态机（待批）
 
@@ -35,7 +35,7 @@
     fix_requested ◀───────── open ──────────▶ resolved
         │  author responds            reopen │ ▲
         ▼                                     ▼ │
-    responded ───────────▶ open          (resolved) 
+    responded ───────────▶ open          (resolved)
                 reviewer                   author/reviewer
                 re-reviews                 reopen
 ```
@@ -47,6 +47,7 @@
 - `reopened`：从 `resolved` 重新打开 → 语义上回到 `open`（是否单列为态由 Owner 定；我倾向复用 `open` + 一个 `reopenedFrom` 标记，少一个态）。
 
 **不变量（RED spec 将钉死）**：
+
 - I1 迁移必须显式，非法迁移（如 `resolved→responded`）拒绝。
 - I2 每个 `fix_requested`/`resolved` 必须携带**被评审的 artifact revision**——review 结论只对该 revision 有效（防止"审的是旧版、改的是新版"漂移）。
 - I3 artifact 内容更新后，未 `responded` 的 review 结论不得自动生效（对齐 `WorkContract` 的 revision 门）。
@@ -58,10 +59,10 @@
 // packages/schema/src/work-review.ts （草案，尚未创建）
 export const ReviewState = Schema.Literals(["open", "fix_requested", "responded", "resolved"])
 export const Review = Schema.Struct({
-  contractVersion: WorkContract.ContractVersion,      // 复用，不新造
+  contractVersion: WorkContract.ContractVersion, // 复用，不新造
   state: ReviewState,
-  artifactRevision: WorkflowAsset.Revision,           // I2：钉住被评审版本
-  reopenedFrom: Schema.optional(ReviewState),         // reopen 用，避免第 5 态
+  artifactRevision: WorkflowAsset.Revision, // I2：钉住被评审版本
+  reopenedFrom: Schema.optional(ReviewState), // reopen 用，避免第 5 态
   updatedAt: Schema.Number,
 }).annotate({ identifier: "WorkReview.Review" })
 ```
