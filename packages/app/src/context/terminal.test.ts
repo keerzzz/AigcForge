@@ -1,4 +1,8 @@
 import { beforeAll, describe, expect, mock, test } from "bun:test"
+import * as uiContextHelper from "@aigcfroge/ui/context/helper"
+import * as uiContextFile from "@aigcfroge/ui/context/file"
+import * as uiContextDialog from "@aigcfroge/ui/context/dialog"
+import * as uiContextI18n from "@aigcfroge/ui/context/i18n"
 import { ServerScope } from "@/utils/server-scope"
 
 let getWorkspaceTerminalCacheKey: typeof import("./terminal").getWorkspaceTerminalCacheKey
@@ -14,10 +18,10 @@ beforeAll(async () => {
     useBeforeLeave: () => undefined,
   }))
   mock.module("@aigcfroge/ui/context", () => ({
-    createSimpleContext: () => ({
-      use: () => undefined,
-      provider: () => undefined,
-    }),
+    ...uiContextHelper,
+    ...uiContextFile,
+    ...uiContextDialog,
+    ...uiContextI18n,
   }))
   const mod = await import("./terminal")
   getWorkspaceTerminalCacheKey = mod.getWorkspaceTerminalCacheKey

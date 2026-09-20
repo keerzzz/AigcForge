@@ -1,5 +1,4 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test"
-import { MemoryRouter, Route } from "@solidjs/router"
+import { beforeAll, afterEach, describe, expect, mock, spyOn, test } from "bun:test"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { createComponent, createEffect, createRoot, ErrorBoundary, type Accessor } from "solid-js"
@@ -8,18 +7,61 @@ import { render } from "solid-js/web"
 import type { Event, SessionIdentityIdentity } from "@aigcfroge/sdk/v2/client"
 import type { ServerSDK } from "./server-sdk"
 import { ServerScope } from "@/utils/server-scope"
+// Deep specifiers are not mocked by sibling tests, so they resolve to the real
+// implementations used to rebuild the barrel in beforeAll.
+import * as uiContextHelper from "@aigcfroge/ui/context/helper"
+import * as uiContextFile from "@aigcfroge/ui/context/file"
+import * as uiContextDialog from "@aigcfroge/ui/context/dialog"
+import * as uiContextI18n from "@aigcfroge/ui/context/i18n"
 
-const sdkContext = await import("./server-sdk")
-const syncContext = await import("./server-sync")
-const languageContext = await import("./language")
-const { PermissionProvider, usePermission } = await import("./permission")
-const { PlatformProvider } = await import("./platform")
-const { ServerConnection } = await import("./server")
-const { createSdkForServer } = await import("@/utils/server")
-const { SessionIdentityQuery } = await import("@/components/session/session-identity-query")
-const { identityPermission } = await import("@/components/status-bar/current-session-source")
-const { SessionIdentityHeader } = await import("@/components/session/session-header")
-const { Persist, PersistTesting } = await import("@/utils/persist")
+let sdkContext: typeof import("./server-sdk")
+let syncContext: typeof import("./server-sync")
+let languageContext: typeof import("./language")
+let PermissionProvider: typeof import("./permission").PermissionProvider
+let usePermission: typeof import("./permission").usePermission
+let PlatformProvider: typeof import("./platform").PlatformProvider
+let ServerConnection: typeof import("./server").ServerConnection
+let createSdkForServer: typeof import("@/utils/server").createSdkForServer
+let SessionIdentityQuery: typeof import("@/components/session/session-identity-query").SessionIdentityQuery
+let identityPermission: typeof import("@/components/status-bar/current-session-source").identityPermission
+let SessionIdentityHeader: typeof import("@/components/session/session-header").SessionIdentityHeader
+let Persist: typeof import("@/utils/persist").Persist
+let PersistTesting: typeof import("@/utils/persist").PersistTesting
+
+// Sibling tests (context/comments, context/terminal) re-mock @aigcfroge/ui/context to a
+// no-op createSimpleContext inside their own beforeAll and never restore it; bun shares
+// one module registry and re-evaluates importers on each mock.module, so a top-level mock
+// here loses to their later hooks. Re-establish the real surface in beforeAll and import
+// the providers afterward, the same ordering the sibling tests use. components/file-tree
+// likewise mocks @solidjs/router with an incomplete surface — restore the read-only hooks
+// so providers can render directly instead of through MemoryRouter/Route.
+beforeAll(async () => {
+  mock.module("@solidjs/router", () => ({
+    useNavigate: () => () => undefined,
+    useParams: () => ({}),
+    useLocation: () => ({ pathname: "/", query: {} }),
+    useSearchParams: () => [{}, () => undefined],
+    useBeforeLeave: () => undefined,
+  }))
+  mock.module("@aigcfroge/ui/context", () => ({
+    ...uiContextHelper,
+    ...uiContextFile,
+    ...uiContextDialog,
+    ...uiContextI18n,
+  }))
+  sdkContext = await import("./server-sdk")
+  syncContext = await import("./server-sync")
+  languageContext = await import("./language")
+  ;({ PermissionProvider, usePermission } = await import("./permission"))
+  ;({ PlatformProvider } = await import("./platform"))
+  ;({ ServerConnection } = await import("./server"))
+  ;({ createSdkForServer } = await import("@/utils/server"))
+  ;({ SessionIdentityQuery } = await import("@/components/session/session-identity-query"))
+  ;({ identityPermission } = await import("@/components/status-bar/current-session-source"))
+  ;({ SessionIdentityHeader } = await import("@/components/session/session-header"))
+  ;({ Persist, PersistTesting } = await import("@/utils/persist"))
+})
+
 const disposers: Array<() => void> = []
 
 afterEach(() => {
@@ -230,25 +272,17 @@ function setup(input?: { identityGate?: Promise<void> }) {
                 notify: async () => {},
               },
               get children() {
-                return createComponent(MemoryRouter, {
+                return createComponent(ErrorBoundary, {
+                  fallback: (error) => {
+                    setFailure("error", error)
+                    return "Fixture failed"
+                  },
                   get children() {
-                    return createComponent(Route, {
-                      path: "/",
-                      component: () =>
-                        createComponent(ErrorBoundary, {
-                          fallback: (error) => {
-                            setFailure("error", error)
-                            return "Fixture failed"
-                          },
-                          get children() {
-                            return createComponent(languageContext.LanguageProvider, {
-                              locale: "en",
-                              get children() {
-                                return createComponent(Owners, {})
-                              },
-                            })
-                          },
-                        }),
+                    return createComponent(languageContext.LanguageProvider, {
+                      locale: "en",
+                      get children() {
+                        return createComponent(Owners, {})
+                      },
                     })
                   },
                 })

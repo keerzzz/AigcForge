@@ -1,11 +1,36 @@
-import { afterEach, expect, test } from "bun:test"
-import { MemoryRouter, Route } from "@solidjs/router"
+import { afterEach, expect, mock, test } from "bun:test"
 import { createComponent, createEffect, createRoot, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { render } from "solid-js/web"
 import { ServerScope } from "@/utils/server-scope"
+// Deep specifiers are not mocked by sibling tests, so they resolve to the real
+// implementations used to rebuild the barrel below.
+import * as uiContextHelper from "@aigcfroge/ui/context/helper"
+import * as uiContextFile from "@aigcfroge/ui/context/file"
+import * as uiContextDialog from "@aigcfroge/ui/context/dialog"
+import * as uiContextI18n from "@aigcfroge/ui/context/i18n"
 
 import type { Tab } from "./tabs"
+
+// Sibling tests share one bun module registry and never restore their mocks:
+// components/file-tree mocks @solidjs/router with an incomplete surface, and
+// context/comments + context/terminal mock @aigcfroge/ui/context with a no-op
+// createSimpleContext — which turns every provider built at module load into
+// undefined. Restore both to the real surface here (TabsProvider only reads the
+// router via hooks, so render it directly instead of through MemoryRouter/Route).
+mock.module("@solidjs/router", () => ({
+  useNavigate: () => () => undefined,
+  useParams: () => ({}),
+  useLocation: () => ({ pathname: "/", query: {} }),
+  useSearchParams: () => [{}, () => undefined],
+  useBeforeLeave: () => undefined,
+}))
+mock.module("@aigcfroge/ui/context", () => ({
+  ...uiContextHelper,
+  ...uiContextFile,
+  ...uiContextDialog,
+  ...uiContextI18n,
+}))
 
 const { PlatformProvider } = await import("./platform")
 const { ServerConnection, ServerProvider, useServer } = await import("./server")
@@ -85,17 +110,9 @@ test("registered sidecar/http/ssh/wsl tabs and draft memory survive pruning; rem
             defaultServer: ServerConnection.Key.make("sidecar"),
             servers: connections,
             get children() {
-              return createComponent(MemoryRouter, {
+              return createComponent(TabsProvider, {
                 get children() {
-                  return createComponent(Route, {
-                    path: "/",
-                    component: () =>
-                      createComponent(TabsProvider, {
-                        get children() {
-                          return createComponent(Probe, {})
-                        },
-                      }),
-                  })
+                  return createComponent(Probe, {})
                 },
               })
             },
