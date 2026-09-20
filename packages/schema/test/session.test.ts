@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { Session } from "@aigcfroge/schema/session"
 import { DateTime, Schema } from "effect"
+import { Agent } from "../src/agent"
+import { Project } from "../src/project"
+import { AbsolutePath } from "../src/schema"
 
 describe("Session.Info JSON transport", () => {
   test("omits absent optional fields instead of serializing null", () => {
@@ -22,7 +25,7 @@ describe("Session.Info JSON transport", () => {
         archived: undefined,
       },
       title: "Transport optional",
-      location: { directory: "/tmp/transport-optional", workspaceID: undefined },
+      location: { directory: AbsolutePath.make("/tmp/transport-optional"), workspaceID: undefined },
       subpath: undefined,
       attended: undefined,
       permissionTier: "propose",
