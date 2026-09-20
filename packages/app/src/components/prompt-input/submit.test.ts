@@ -1,10 +1,16 @@
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test"
+import { Schema } from "effect"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
+import type { SessionCreateData } from "@aigcfroge/sdk/v2/client"
 import type { Prompt } from "@/context/prompt"
+import type { DraftTab } from "@/context/tabs"
 
 let createPromptSubmit: typeof import("./submit").createPromptSubmit
 
 const createdClients: string[] = []
 const createdSessions: string[] = []
+const createdSessionRequests: Array<SessionCreateData["body"]> = []
+const draftTabs: Array<Omit<DraftTab, "server" | "directory">> = []
 const enabledAutoAccept: Array<{ sessionID: string; directory: string }> = []
 const sentCommand: Array<{ command?: string; arguments?: string; parts?: unknown }> = []
 const optimistic: Array<{
@@ -24,6 +30,8 @@ const sentShell: string[] = []
 const syncedDirectories: string[] = []
 
 let params: { id?: string } = {}
+let search: { draftId?: string } = {}
+let sentPrompt = Promise.withResolvers<{ sessionID: string }>()
 let selected = "/repo/worktree-a"
 let variant: string | undefined
 
@@ -49,8 +57,9 @@ const clientFor = (directory: string) => {
   createdClients.push(directory)
   return {
     session: {
-      create: async () => {
+      create: async (input: SessionCreateData["body"]) => {
         createdSessions.push(directory)
+        createdSessionRequests.push(input)
         return {
           data: {
             id: `session-${createdSessions.length}`,
@@ -66,7 +75,10 @@ const clientFor = (directory: string) => {
         return { data: undefined }
       },
       prompt: async () => ({ data: undefined }),
-      promptAsync: async () => ({ data: undefined }),
+      promptAsync: async (input: { sessionID: string }) => {
+        sentPrompt.resolve(input)
+        return { data: undefined }
+      },
       command: async (input: { command?: string; arguments?: string; parts?: unknown }) => {
         sentCommand.push(input)
         return { data: undefined }
@@ -86,7 +98,7 @@ beforeAll(async () => {
     useNavigate: () => () => undefined,
     useParams: () => params,
     useLocation: () => ({}),
-    useSearchParams: () => [{}, () => undefined],
+    useSearchParams: () => [search, () => undefined],
     useBeforeLeave: () => undefined,
   }))
 
@@ -97,9 +109,11 @@ beforeAll(async () => {
     },
   }))
 
+  // Mock the V2 exports, not the aliases re-exported by @/utils/toast.
   mock.module("@aigcfroge/ui/v2/toast-v2", () => ({
-    Toast: { Region: () => null },
-    showToast: () => 0,
+    ToastV2: { Region: () => null },
+    toasterV2: {},
+    showToastV2: () => 0,
   }))
 
   mock.module("@aigcfroge/core/util/encode", () => ({
@@ -151,6 +165,7 @@ beforeAll(async () => {
 
   mock.module("@/context/tabs", () => ({
     useTabs: () => ({
+      store: draftTabs,
       promoteDraft: () => undefined,
     }),
   }))
@@ -248,12 +263,16 @@ beforeAll(async () => {
 beforeEach(() => {
   createdClients.length = 0
   createdSessions.length = 0
+  createdSessionRequests.length = 0
+  draftTabs.length = 0
   enabledAutoAccept.length = 0
   optimistic.length = 0
   optimisticSeeded.length = 0
   promoted.length = 0
   placements.length = 0
   params = {}
+  search = {}
+  sentPrompt = Promise.withResolvers<{ sessionID: string }>()
   sentShell.length = 0
   syncedDirectories.length = 0
   selected = "/repo/worktree-a"
@@ -399,4 +418,151 @@ describe("prompt submit worktree selection", () => {
     ])
     expect(optimisticSeeded).toEqual([true])
   })
+})
+
+describe("prompt submit Work contracts", () => {
+  const contracts = [
+    {
+      source: "preset",
+      contractVersion: 1,
+      presetID: "storyboard-video",
+      revision: "a1".repeat(32),
+      output: {
+        outputType: "mixed",
+        artifact: { title: "Storyboard", filename: "storyboard.md", relativeDir: "deliverables" },
+      },
+    },
+    {
+      source: "workflow",
+      contractVersion: 1,
+      workflowID: "review.md",
+      revision: "b2".repeat(32),
+      output: { outputType: "markdown", artifact: { title: "Review", filename: "review.md" } },
+    },
+    {
+      source: "ad-hoc",
+      contractVersion: 1,
+      output: { outputType: "table", artifact: { title: "Results", filename: "results.md" } },
+    },
+  ].map((contract) => Schema.decodeUnknownSync(WorkContract.Snapshot)(contract))
+
+  beforeEach(() => {
+    search = { draftId: "draft-selected" }
+  })
+
+  test.each(contracts)("passes the $source draft contract to session.create unchanged", async (workContract) => {
+    draftTabs.push(
+      { type: "draft", draftID: "draft-other", mode: "work" },
+      {
+        type: "draft",
+        draftID: "draft-selected",
+        mode: "work",
+        agent: "work-agent",
+        presetCategoryId: "video-creation",
+        permissionTier: "propose",
+        workContract,
+      },
+    )
+
+    const sent = await submitPrompt()
+
+    expect(createdSessions).toEqual(["/repo/worktree-a"])
+    expect(createdSessionRequests).toEqual([
+      {
+        mode: "work",
+        agent: "work-agent",
+        presetCategoryId: "video-creation",
+        permissionTier: "propose",
+        metadata: { workContract },
+      },
+    ])
+    expect(sent.sessionID).toBe("session-1")
+  })
+
+  test("defaults a Work draft without a preset or contract to ad-hoc", async () => {
+    draftTabs.push({ type: "draft", draftID: "draft-selected", mode: "work" })
+
+    await submitPrompt()
+
+    expect(createdSessionRequests).toEqual([
+      {
+        mode: "work",
+        agent: undefined,
+        presetCategoryId: undefined,
+        permissionTier: undefined,
+        metadata: { workContract: { source: "ad-hoc", contractVersion: 1 } },
+      },
+    ])
+  })
+
+  test.each(["coding", "chat", "assistant", "custom"] as const)(
+    "does not attach Work metadata to %s drafts",
+    async (mode) => {
+      draftTabs.push(
+        { type: "draft", draftID: "draft-other", mode: "work", workContract: contracts[0] },
+        { type: "draft", draftID: "draft-selected", mode },
+      )
+
+      await submitPrompt()
+
+      expect(createdSessionRequests).toHaveLength(1)
+      expect(createdSessionRequests[0]?.mode).toBe(mode)
+      expect(createdSessionRequests[0]?.metadata).toBeUndefined()
+    },
+  )
+
+  test.each([
+    { label: "no draftId", draftId: undefined },
+    { label: "an unmatched draftId", draftId: "draft-missing" },
+  ])("does not borrow another draft's contract with $label", async (route) => {
+    search = { draftId: route.draftId }
+    draftTabs.push({ type: "draft", draftID: "draft-other", mode: "work", workContract: contracts[0] })
+
+    await submitPrompt()
+
+    expect(createdSessionRequests).toHaveLength(1)
+    expect(createdSessionRequests[0]?.mode).toBe("coding")
+    expect(createdSessionRequests[0]?.metadata).toBeUndefined()
+  })
+
+  test.each([
+    { label: "the route has been promoted", id: "session-existing" },
+    { label: "the route has not been promoted yet", id: undefined },
+  ])("reuses an existing session when $label", async (route) => {
+    params = { id: route.id }
+    draftTabs.push({ type: "draft", draftID: "draft-selected", mode: "work", workContract: contracts[0] })
+
+    const sent = await submitPrompt({ id: "session-existing" })
+
+    expect(createdSessions).toEqual([])
+    expect(createdSessionRequests).toEqual([])
+    expect(promoted).toEqual([])
+    expect(placements).toEqual([])
+    expect(sent.sessionID).toBe("session-existing")
+  })
+
+  async function submitPrompt(info?: { id: string }) {
+    const submit = createPromptSubmit({
+      prompt,
+      info: () => info,
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "normal",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+      newSessionWorktree: () => selected,
+    })
+
+    await submit.handleSubmit(new Event("submit"))
+    // handleSubmit starts the sender without awaiting it; wait for the SDK call,
+    // not a timer, so this submission cannot leak into the next test's fixtures.
+    return sentPrompt.promise
+  }
 })

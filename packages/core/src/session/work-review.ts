@@ -1,5 +1,6 @@
 export * as WorkReviewMachine from "./work-review"
 
+import { absurd } from "effect/Function"
 import { WorkReview } from "@aigcfroge/schema/work-review"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 
@@ -20,7 +21,11 @@ export type Event =
   | { readonly kind: "approve"; readonly artifactRevision: WorkflowAsset.Revision; readonly at: number }
   | { readonly kind: "reopen"; readonly at: number }
 
-export type Rejection = { readonly _tag: "IllegalTransition"; readonly from: WorkReview.State | "none"; readonly event: Event["kind"] }
+export type Rejection = {
+  readonly _tag: "IllegalTransition"
+  readonly from: WorkReview.State | "none"
+  readonly event: Event["kind"]
+}
 
 export type Result =
   | { readonly ok: true; readonly review: WorkReview.Review }
@@ -79,6 +84,8 @@ export function transition(current: WorkReview.Review | undefined, event: Event)
       return current.state === "resolved"
         ? make("open", current.artifactRevision, event.at, "resolved")
         : reject(current.state, "reopen")
+    default:
+      return absurd(event)
   }
 }
 

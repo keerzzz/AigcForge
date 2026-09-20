@@ -83,7 +83,6 @@ const DEFINITIONS: ReadonlyArray<Omit<WorkPreset.Preset, "revision">> = [
     outputType: "markdown",
     artifact: { title: "行政公文", filename: "行政公文.md" },
   },
-
 ]
 
 const PRESETS: ReadonlyArray<WorkPreset.Preset> = DEFINITIONS.map((preset) => ({

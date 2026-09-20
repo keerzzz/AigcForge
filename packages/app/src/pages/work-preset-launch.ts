@@ -1,3 +1,6 @@
+import { Schema } from "effect"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
 
 /**
@@ -26,4 +29,17 @@ export function workflowLaunch(input: WorkflowLaunchInput): string {
   const steps = input.steps.map((step, index) => `${index + 1}. ${step.name ?? step.agent ?? "未命名步骤"}`).join("；")
   const stepPart = steps ? `步骤：${steps}。` : "未定义步骤，请先向我澄清任务要求。"
   return `请按用户自定义工作流「${input.name}」执行，跳过预设加载（由你的工作流驱动，引导模式）。工作流说明：${input.description}。${stepPart}`
+}
+
+/** Keep the launch prompt and durable identity bound to one content response. */
+export function workflowDraft(input: WorkflowLaunchInput & { relativePath: string; revision: string }) {
+  return {
+    initialPrompt: workflowLaunch(input),
+    workContract: {
+      source: "workflow",
+      contractVersion: 1,
+      workflowID: input.relativePath,
+      revision: Schema.decodeSync(WorkflowAsset.Revision)(input.revision),
+    } satisfies WorkContract.Workflow,
+  }
 }
