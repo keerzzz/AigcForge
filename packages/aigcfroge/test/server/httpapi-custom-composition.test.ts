@@ -4,6 +4,8 @@ import path from "path"
 import { Context, Schema } from "effect"
 import { CustomCompositionApiGroup } from "../../src/server/routes/instance/httpapi/groups/custom-composition"
 import { Composition } from "@aigcfroge/schema/composition"
+import { SessionIdentity } from "@aigcfroge/schema/session-identity"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
 import { Hash } from "@aigcfroge/core/util/hash"
 import { SessionV2 } from "@aigcfroge/core/session"
@@ -197,6 +199,87 @@ describe("custom composition HttpApi", () => {
     const snapshotAfterArchive = await request(`/session/${sessionID}/composition`, tmp.path, { headers: capable })
     expect(snapshotAfterArchive.status).toBe(200)
     expect(Schema.decodeUnknownSync(Composition.Snapshot)(await snapshotAfterArchive.json()).digest).toBe(plan.digest)
+  })
+
+  test("reads blocked Custom identity after disabling execution without relaxing capability or runtime gates", async () => {
+    await using tmp = await tmpdir()
+    const agentDir = path.join(tmp.path, ".aigcfroge", "agents")
+    await fs.mkdir(agentDir, { recursive: true })
+    const agentRaw = `---\nkind: agent\nname: identity-reader\ndescription: Identity fixture\n---\nRead identity.\n`
+    await Bun.write(path.join(agentDir, "identity-reader.md"), agentRaw)
+    const capable = { [ProductModePolicy.CAPABILITIES_HEADER]: ProductModePolicy.CAPABILITY_CUSTOM_V1 }
+    const start = await request(CustomCompositionApiGroup.CustomCompositionPaths.start, tmp.path, {
+      method: "POST",
+      headers: capable,
+      body: JSON.stringify({
+        sessionID: "ses_custom_identity_disabled",
+        composition: {
+          source: "temporary",
+          agents: [{ kind: "agent", relativePath: "identity-reader.md", revision: Hash.sha256(Buffer.from(agentRaw)) }],
+          bindings: {},
+          presentation: "native",
+          requestedCapabilities: [],
+        },
+      }),
+    })
+    expect(start.status).toBe(200)
+    const started = Schema.decodeUnknownSync(Composition.StartResponse)(await start.json())
+    const route = `/session/${started.session.id}`
+
+    delete process.env["AIGCFROGE_CUSTOM_MODE"]
+    // All requests stay in the in-memory web handler. No provider or backend process is started.
+    for (const headers of [
+      new Headers(),
+      new Headers({ [ProductModePolicy.CAPABILITIES_HEADER]: "unknown-capability" }),
+    ]) {
+      const denied = await request(`${route}/identity`, tmp.path, { headers })
+      expect(denied.status).toBe(400)
+      expect(await denied.json()).toMatchObject({ _tag: "UnsupportedProductModeError", mode: "custom" })
+    }
+    for (const endpoint of [
+      { path: `${route}/prompt_async`, payload: { parts: [{ type: "text", text: "must not execute" }] } },
+      {
+        path: `/api/session/${started.session.id}/prompt`,
+        payload: { prompt: { text: "must not admit" }, resume: false },
+      },
+    ]) {
+      const denied = await request(endpoint.path, tmp.path, {
+        method: "POST",
+        headers: capable,
+        body: JSON.stringify(endpoint.payload),
+      })
+      expect(denied.status).toBe(400)
+      expect(await denied.json()).toMatchObject({
+        _tag: "UnsupportedProductModeError",
+        mode: "custom",
+        message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+      })
+    }
+
+    const response = await request(`${route}/identity`, tmp.path, { headers: capable })
+    expect(response.status).toBe(200)
+    const blocked = { health: "blocked", reasons: [{ code: "custom-mode-disabled", severity: "warning" }] }
+    expect(Schema.decodeUnknownSync(SessionIdentity.Identity)(await response.json())).toMatchObject({
+      sessionID: started.session.id,
+      mode: "custom",
+      capability: blocked,
+      detail: {
+        status: "ready",
+        detail: { source: "custom", snapshot: { digest: started.snapshot.digest }, policy: blocked },
+      },
+    })
+
+    process.env["AIGCFROGE_CUSTOM_MODE"] = "true"
+    const enabled = await request(`${route}/identity`, tmp.path, { headers: capable })
+    expect(enabled.status).toBe(200)
+    expect(Schema.decodeUnknownSync(SessionIdentity.Identity)(await enabled.json())).toMatchObject({
+      sessionID: started.session.id,
+      capability: { health: "ready", reasons: [] },
+      detail: {
+        status: "ready",
+        detail: { snapshot: { digest: started.snapshot.digest }, policy: { health: "ready" } },
+      },
+    })
   })
 
   test("checks health via GET /custom-composition/health", async () => {

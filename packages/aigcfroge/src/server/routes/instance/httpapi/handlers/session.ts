@@ -181,7 +181,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* requireSession(ctx.params.sessionID)
     })
     const identity = Effect.fn("SessionHttpApi.identity")(function* (ctx: { params: { sessionID: SessionID } }) {
-      const info = yield* requireRuntimeSession(ctx.params.sessionID)
+      // Read access must survive a disabled runtime so the projection can explain the blocked policy.
+      const info = yield* requireSession(ctx.params.sessionID)
       // The projection is Location-scoped (its owners — session row, permission,
       // composition, git — live there), so it is resolved through the
       // LocationServiceMap for the session's own directory.
