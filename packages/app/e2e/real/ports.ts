@@ -8,10 +8,10 @@ import { connect } from "node:net"
  * release and the spawned process taking the port; acceptable for local E4 —
  * a collision fails loudly at startup, not silently.
  */
-export function freePortSync(): number {
+export function freePortSync(env: NodeJS.ProcessEnv): number {
   const probe =
     "const s=require('node:net').createServer();s.listen(0,'127.0.0.1',()=>{const a=s.address();console.log(a.port);s.close(()=>process.exit(0))})"
-  const result = spawnSync("bun", ["-e", probe], { encoding: "utf8" })
+  const result = spawnSync("bun", ["--no-env-file", "-e", probe], { encoding: "utf8", env })
   const port = Number(result.stdout.trim())
   if (!Number.isFinite(port) || port <= 0) {
     throw new Error(`free port probe failed: ${result.stderr}`)

@@ -23,6 +23,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { isRecord } from "./manifest"
+import { Environment } from "./environment"
 
 // This file lives at packages/app/e2e/real/ — four levels below the repo root.
 const REPO_ROOT = path.resolve(import.meta.dir, "../../../..")
@@ -56,25 +57,14 @@ const workspaceDir = path.join(runDir, "workspace")
 const backendUrl = `http://127.0.0.1:${backendPort}`
 const previewUrl = `http://127.0.0.1:${previewPort}`
 
-for (const dir of [configDir, workspaceDir]) mkdirSync(dir, { recursive: true })
+Environment.prepare(runDir)
+for (const dir of [configDir, workspaceDir]) mkdirSync(dir, { recursive: true, mode: 0o700 })
 
-const BACKEND_ARGS = [
-  "run",
-  "--conditions=browser",
-  "./src/index.ts",
-  "serve",
-  "--port",
-  String(backendPort),
-  "--hostname",
-  "127.0.0.1",
-]
-
-/** The only place AIGCFROGE_V2_RUNTIME can enter the backend: the explicit switch. */
-const backendEnv = (): Record<string, string> => ({
-  AIGCFROGE_DB: dbPath,
-  AIGCFROGE_CONFIG_DIR: configDir,
-  ...(v2Runtime ? { AIGCFROGE_V2_RUNTIME: "true" } : {}),
-})
+// Startup and restart share the same absolute entrypoint, workspace cwd and isolated env.
+const backend = Environment.backend(
+  { runDir, entrypoint: path.join(BACKEND_ROOT, "src/index.ts"), port: backendPort, v2Runtime },
+  process.env,
+)
 
 // Durable copy of this process's output. /tmp cleaners wiped the S2 round
 // logs; the gate evidence must not depend on volatile tmp files.
@@ -217,7 +207,7 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
           await Promise.race([stopped, new Promise((resolve) => setTimeout(resolve, 5_000))])
           if (previous.exitCode === null && previous.signalCode === null) previous.kill("SIGKILL")
         }
-        backendChild = spawnChild("backend", process.execPath, BACKEND_ARGS, BACKEND_ROOT, backendEnv())
+        backendChild = spawnChild("backend", process.execPath, backend.args, backend.cwd, backend.env)
         const health = await waitForHealthy(backendUrl, 300_000)
         log(`[E4] backend restarted and healthy (version ${health.version})\n`)
       } catch (error) {
@@ -372,9 +362,7 @@ function spawnChild(name: string, command: string, args: Array<string>, cwd: str
   const child = spawn(command, args, {
     cwd,
     env: {
-      // Strip inherited AIGCFROGE_* so the user's local server configuration
-      // can never leak into the isolated E4 run.
-      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("AIGCFROGE_"))),
+      ...Environment.create(runDir, process.env),
       ...extraEnv,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -542,25 +530,47 @@ async function main() {
   )
 
   // 2. git-init the temp workspace so the backend sees a real project directory.
-  spawnSync("git", ["init", "-q", workspaceDir])
+  const git = spawnSync("git", ["init", "-q", workspaceDir], {
+    cwd: workspaceDir,
+    env: Environment.create(runDir, process.env),
+  })
+  if (git.error) throw git.error
+  if (git.status !== 0) throw new Error("E4 workspace git init failed")
 
   // 3. deterministic provider on loopback.
   await startProvider()
   log(`[E4] provider listening on ${providerBaseURL}\n`)
 
   // 4. real backend; readiness is its own /global/health.
-  backendChild = spawnChild("backend", process.execPath, BACKEND_ARGS, BACKEND_ROOT, backendEnv())
+  backendChild = spawnChild("backend", process.execPath, backend.args, backend.cwd, backend.env)
   const health = await waitForHealthy(backendUrl, 600_000)
   log(`[E4] backend healthy at ${backendUrl} (version ${health.version})\n`)
 
   // 5. production build, then preview. The app resolves the backend through the
   //    seeded localStorage registry, so the build carries no port.
-  const build = spawnChild("build", process.execPath, ["run", "build"], APP_ROOT, {})
+  const build = spawnChild(
+    "build",
+    process.execPath,
+    ["--no-env-file", "run", "build", "--config", path.join(import.meta.dir, "vite.config.ts")],
+    APP_ROOT,
+    {},
+  )
   await waitForExit(build, "vite build")
   spawnChild(
     "preview",
     process.execPath,
-    ["run", "serve", "--port", String(previewPort), "--strictPort", "--host", "127.0.0.1"],
+    [
+      "--no-env-file",
+      "run",
+      "serve",
+      "--config",
+      path.join(import.meta.dir, "vite.config.ts"),
+      "--port",
+      String(previewPort),
+      "--strictPort",
+      "--host",
+      "127.0.0.1",
+    ],
     APP_ROOT,
     {},
   )

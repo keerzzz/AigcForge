@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url"
 import { defineConfig, devices } from "@playwright/test"
 import { PRESENTATION_GREP } from "./e2e/presentation-matrix"
 
@@ -26,14 +27,18 @@ export default defineConfig({
   // Warm the cold route graph before the round — see e2e/global-setup.ts and
   // docs/technical-debt.md §8 (`e2e-readiness-predicate-flake`). The dev server is already
   // up here: webServer plugins run in the plugin-setup phase, before globalSetup.
-  globalSetup: "./e2e/global-setup.ts",
+  globalSetup: fileURLToPath(new URL("./e2e/global-setup.ts", import.meta.url)),
   // `performance/**` belongs to the production-bench config; `real/**` belongs
   // to the real-backend E4 config (e2e/real/playwright.config.ts); `zoom/**`
   // belongs to the real-page-zoom config (e2e/zoom/playwright.config.ts), which
   // needs a seeded persistent profile this config cannot express. None is
   // collected by this E3/E2 presentation config.
-  testIgnore:
-    process.env.AIGCFROGE_PERFORMANCE === "1" ? "performance/**/*.test.ts" : ["performance/**", "real/**", "zoom/**"],
+  testIgnore: [
+    "unit/**",
+    ...(process.env.AIGCFROGE_PERFORMANCE === "1"
+      ? ["performance/**/*.test.ts"]
+      : ["performance/**", "real/**", "zoom/**"]),
+  ],
   outputDir: "./e2e/test-results",
   // Generous per-test budget: the Vite dev server cold-compiles routes on
   // demand, and the branch's assistant dashboard (imported by the app-wide

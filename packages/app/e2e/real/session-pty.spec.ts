@@ -9,6 +9,7 @@
 import { expect, test, type APIRequestContext } from "@playwright/test"
 import { e4 } from "./fixture"
 import { isRecord } from "./manifest"
+import { Contracts } from "./contracts"
 
 // `connect-token` is CSRF-guarded: the handler requires this exact header
 // (packages/aigcfroge/src/server/shared/pty-ticket.ts) or answers PtyForbiddenError.
@@ -24,7 +25,8 @@ async function listPtys(request: APIRequestContext) {
   })
   expect(response.ok(), `pty list: ${await response.text()}`).toBeTruthy()
   const body: unknown = await response.json()
-  return Array.isArray(body) ? body : []
+  if (!Array.isArray(body)) throw new Error("pty list response is not an array")
+  return body
 }
 
 async function createPty(request: APIRequestContext, input: { title: string; command: string; args?: string[] }) {
@@ -60,10 +62,10 @@ test("creates a PTY, streams output over the real WebSocket, exits, and deletes"
       `ws://127.0.0.1:${e4m.backendPort}/pty/${ptyID}/connect?directory=${encodeURIComponent(e4m.workspaceDir)}&ticket=${encodeURIComponent(ticket)}`,
     )
     let text = ""
-    socket.addEventListener("open", () => socket.send("printf s5-pty-ok\\n"))
+    socket.addEventListener("open", () => socket.send(Contracts.ptyCommand))
     socket.addEventListener("message", (event) => {
       text += typeof event.data === "string" ? event.data : ""
-      if (text.includes("s5-pty-ok")) {
+      if (Contracts.hasPtyOutput(text)) {
         socket.close()
         resolve(text)
       }
@@ -71,7 +73,7 @@ test("creates a PTY, streams output over the real WebSocket, exits, and deletes"
     socket.addEventListener("error", () => reject(new Error("pty websocket error")))
     socket.addEventListener("close", () => resolve(text))
   })
-  expect(output, "pty streamed the command output").toContain("s5-pty-ok")
+  expect(Contracts.hasPtyOutput(output), "pty streamed the command output").toBe(true)
 
   // Delete is the real cleanup contract; the process must be gone from the list.
   const removed = await request.delete(

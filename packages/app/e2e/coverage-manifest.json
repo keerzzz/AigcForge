@@ -1,5 +1,5 @@
 {
-  "note": "Quarantine and deferred-scope ledger (closure plan §5.2). The draft landed in Slice 0; S2 added the machine-readable validator (e2e/real/manifest.spec.ts), which now enforces the entry contract, forbids silent `test.fixme` quarantine, and requires every deferred scope to carry an owner and an unlock. The `baseline` block below is the frozen Slice 0 reference, not the current tally.",
+  "note": "Quarantine and deferred-scope ledger (closure plan §5.2). The draft landed in Slice 0; S2 added the machine-readable validator (e2e/real/manifest.spec.ts), which now enforces the entry contract, forbids silent `test.fixme` quarantine, and requires every deferred scope to carry an owner and an unlock. The `baseline` block below is the frozen Slice 0 reference, not the current tally. Open defects stay in entries; verified records retain the same IDs and scope contract in verified, whose verified-unit status is restricted to unit/bun evidence and never counts as E4. Both sections and deferred use the same slice-owner rule (e2e/real/coverage.ts).",
   "baseline": {
     "date": "2026-09-13",
     "discovery": {
@@ -77,6 +77,11 @@
       "owner": "S9A",
       "scope": "Owner approved 2026-09-20 (reuse `open` + `reopenedFrom`, no 5th state; persist in session metadata JSON, no migration). LANDED at unit level: WorkReview.Review schema (packages/schema/src/work-review.ts), pure state machine WorkReviewMachine.transition/isVerdictCurrent (packages/core/src/session/work-review.ts), and packages/core/test/work-review-lifecycle.test.ts 12 pass/0 fail covering all six transitions, I1-I4, and the schema JSON round-trip. schema+core typecheck exit=0.",
       "unlock": "Still owed (its own unit, needs a producer): (1) a producer that calls transition() and persists the result into session metadata.workReview, plus the Session.Info.workReview read field + info.fromRow decode (held back deliberately to avoid a read with no writer); (2) the single-backend contract->review->artifact E4 lifeline on CI (ubuntu-latest/ext4), with cross-server + failure matrix post-MVP. The state machine is pure and callable; it is not yet wired to a caller."
+    },
+    "e4-isolated-runtime-revalidation": {
+      "owner": "S10",
+      "scope": "Current-head F02/F08/F09/F10/F11 gate repair: environment/config/manifest/protocol assertions are validated without backend, browser or production build. Real E4 results are NOT re-certified on this host: session turn and reload (chat/coding), provider failure/recovery/tool loop, restart durability, files (including large text), PTY stream/exit/delete, identity consumers/not-found, default and opt-in V2 variants, process/port/workspace teardown. Production benchmark, real zoom and Windows/WSL execution are also not run.",
+      "unlock": "Run the repaired existing E4 configurations on an explicitly approved capable isolated host, with no real HOME/XDG/auth/provider credentials, no reuse of user services, retries=0 and no enlarged timeouts; archive actual exit codes and cleanup evidence. Run production benchmarks and platform/zoom scenarios only in their supported isolated environments. Pure tests and --list are not runtime E4 evidence."
     }
   },
   "entries": [
@@ -144,7 +149,9 @@
       "status": "red-stable",
       "owner": "S10",
       "unlock": "Pre-existing on this host: after a forced close the reconnect URL carried cursor=0 instead of the acknowledged offset 17. Reproduced with the ResizeHandle change present and stashed (A/B). Decide on a healthy host or CI whether the fake socket's ack path or the app's reconnect cursor is at fault, fix that producer, and keep the assertion."
-    },
+    }
+  ],
+  "verified": [
     {
       "id": "picker-funnel-validation-unit-only",
       "spec": "src/components/directory-picker.test.ts",

@@ -11,6 +11,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { e4 } from "./fixture"
 import { isRecord } from "./manifest"
+import { Contracts } from "./contracts"
 
 const headers = () => ({ "x-aigcfroge-directory": e4().workspaceDir })
 
@@ -116,20 +117,12 @@ test("a large file stays bounded and typed", async ({ request }) => {
   const e4m = e4()
   const root = seedFiles()
   const bigName = "large.txt"
-  writeFileSync(path.join(root, bigName), "x".repeat(2 * 1024 * 1024))
+  const expected = "x".repeat(2 * 1024 * 1024)
+  writeFileSync(path.join(root, bigName), expected)
   const relative = path.relative(e4m.workspaceDir, path.join(root, bigName))
 
   const response = await request.get(`${e4m.backendUrl}/file/content?${query()}&path=${encodeURIComponent(relative)}`, {
     headers: headers(),
   })
-  // Either the server serves it, or it refuses with a typed status — never a
-  // silent empty body pretending the file was empty.
-  if (response.ok()) {
-    const body: unknown = await response.json()
-    if (isRecord(body) && typeof body.content === "string") {
-      expect(body.content.length, "large file content is not silently dropped").toBeGreaterThan(0)
-    }
-  } else {
-    expect(response.status(), "large-file refusal is a client/typed status").toBeLessThan(500)
-  }
+  Contracts.largeFile(response.status(), await response.json(), expected)
 })

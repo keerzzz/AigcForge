@@ -15,6 +15,7 @@ import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { isRecord, readManifest } from "./manifest"
+import { Environment } from "./environment"
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -38,9 +39,12 @@ function portInUse(port: number): Promise<boolean> {
  * the orchestrator's pid; the orchestrator records the real pgid in its
  * manifest, and `ps` is the fallback if that field is missing.
  */
-function resolvePgid(pid: number, recorded: number | undefined): number {
+function resolvePgid(runDir: string, pid: number, recorded: number | undefined): number {
   if (recorded && recorded > 0) return recorded
-  const result = spawnSync("ps", ["-o", "pgid=", "-p", String(pid)], { encoding: "utf8" })
+  const result = spawnSync("ps", ["-o", "pgid=", "-p", String(pid)], {
+    encoding: "utf8",
+    env: Environment.create(runDir, process.env),
+  })
   const pgid = Number(result.stdout.trim())
   return Number.isFinite(pgid) && pgid > 0 ? pgid : pid
 }
@@ -76,7 +80,7 @@ export default async function globalTeardown() {
     throw new Error(`E4 run dir has no manifest — the orchestrator never became ready (${runDir})`)
   }
   const manifest = readManifest(runDir)
-  const pgid = resolvePgid(manifest.pid, manifest.pgid)
+  const pgid = resolvePgid(runDir, manifest.pid, manifest.pgid)
 
   const signalGroup = (signal: NodeJS.Signals) => {
     try {

@@ -15,6 +15,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { defineConfig, devices } from "@playwright/test"
 import { freePortSync } from "./ports"
+import { Environment } from "./environment"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -22,10 +23,11 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 // the main process allocates once and publishes via env; workers inherit the
 // env and skip straight to the same ports. A fresh allocation inside a worker
 // would desync it from the orchestrator's webServer.
-const providerPort = Number(process.env.E4_PROVIDER_PORT) || freePortSync()
-const backendPort = Number(process.env.E4_BACKEND_PORT) || freePortSync()
-const previewPort = Number(process.env.E4_PREVIEW_PORT) || freePortSync()
 const runDir = process.env.E4_RUN_DIR || mkdtempSync(path.join(tmpdir(), "aigcfroge-e4-"))
+const isolatedEnv = Environment.create(runDir, process.env)
+const providerPort = Number(process.env.E4_PROVIDER_PORT) || freePortSync(isolatedEnv)
+const backendPort = Number(process.env.E4_BACKEND_PORT) || freePortSync(isolatedEnv)
+const previewPort = Number(process.env.E4_PREVIEW_PORT) || freePortSync(isolatedEnv)
 const env = {
   E4_V2_RUNTIME: process.env.E4_V2_RUNTIME ?? "",
   E4_PROVIDER_PORT: String(providerPort),
@@ -61,7 +63,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `bun ${path.join(here, "orchestrator.ts")}`,
+    command: `bun --no-env-file "${path.join(here, "orchestrator.ts")}"`,
     url: `http://127.0.0.1:${previewPort}`,
     reuseExistingServer: false,
     // Without `gracefulShutdown`, Playwright skips SIGTERM entirely and
@@ -73,6 +75,6 @@ export default defineConfig({
     // transpile of the backend (measured >240s once). Warm runs finish in
     // ~2-4 minutes; the budget is a ceiling, readiness is still polled.
     timeout: 900_000,
-    env,
+    env: { ...Environment.webServer(runDir, process.env), ...env },
   },
 })
