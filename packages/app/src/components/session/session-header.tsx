@@ -245,6 +245,27 @@ function SessionProductHeader(props: { identity: SessionIdentityIdentity }) {
   )
 }
 
+export function SessionIdentityHeader(props: { query: ReturnType<typeof SessionIdentityQuery.use> }) {
+  const language = useLanguage()
+  return (
+    <Show
+      when={!props.query.isError}
+      fallback={
+        <div
+          data-component="session-product-header"
+          data-state="unavailable"
+          role="status"
+          class="flex shrink-0 border-b border-v2-border-border-base bg-v2-background-bg-base px-3 py-2 text-11-regular text-v2-text-text-muted"
+        >
+          {language.t("session.identity.details")}: {language.t("common.requestFailed")}
+        </div>
+      }
+    >
+      <Show when={props.query.data}>{(identity) => <SessionProductHeader identity={identity()} />}</Show>
+    </Show>
+  )
+}
+
 export function SessionHeader() {
   const layout = useLayout()
   const command = useCommand()
@@ -335,7 +356,7 @@ export function SessionHeader() {
 
   return (
     <>
-      <Show when={identityQuery.data}>{(identity) => <SessionProductHeader identity={identity()} />}</Show>
+      <SessionIdentityHeader query={identityQuery} />
       <Show when={search() && centerMount()}>
         {(mount) => (
           <Portal mount={mount()}>

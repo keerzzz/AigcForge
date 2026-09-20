@@ -85,27 +85,9 @@ export function createCurrentSessionSource(): StatusBarSource {
     return { sessionID: id, sdk: global.ensureServerCtx(conn).sdk }
   })
 
-  const permission = createMemo((): StatusBarPermissionInfo | undefined => {
-    if (!params.id) return undefined
-    const projected = identityQuery.data
-    // Shape guard, not politeness: a server (or mock) that answers 200 with an
-    // unrelated body must not crash the bar — an unusable payload is the same as
-    // no payload here.
-    if (projected?.permission && projected.capability) {
-      return permissionDisplay({
-        declaredTier: projected.permission.declaredTier,
-        effect: projected.permission.effect,
-        health: projected.capability.health,
-        // Every folded reason, not just the first: a capability can degrade for
-        // several reasons at once (assistant memory + knowledge both pending M2),
-        // and dropping the tail would hide half the story in the tooltip.
-        ...(projected.capability.reasons.length > 0
-          ? { reason: projected.capability.reasons.map((reason) => reason.code).join(" · ") }
-          : {}),
-      })
-    }
-    return undefined
-  })
+  const permission = createMemo(() =>
+    params.id ? identityPermission(identityQuery, lang.t("common.requestFailed")) : undefined,
+  )
 
   const messages = createMemo((): Message[] => {
     const id = params.id
@@ -293,4 +275,29 @@ export function createCurrentSessionSource(): StatusBarSource {
     togglePin,
     openContext,
   }
+}
+
+export function identityPermission(
+  query: Pick<ReturnType<typeof SessionIdentityQuery.use>, "data" | "isError">,
+  unavailableReason: string,
+): StatusBarPermissionInfo | undefined {
+  if (query.isError) return { kind: "degraded", reason: unavailableReason }
+  const projected = query.data
+  // Shape guard, not politeness: a server (or mock) that answers 200 with an
+  // unrelated body must not crash the bar — an unusable payload is the same as
+  // no payload here.
+  if (projected?.permission && projected.capability) {
+    return permissionDisplay({
+      declaredTier: projected.permission.declaredTier,
+      effect: projected.permission.effect,
+      health: projected.capability.health,
+      // Every folded reason, not just the first: a capability can degrade for
+      // several reasons at once (assistant memory + knowledge both pending M2),
+      // and dropping the tail would hide half the story in the tooltip.
+      ...(projected.capability.reasons.length > 0
+        ? { reason: projected.capability.reasons.map((reason) => reason.code).join(" · ") }
+        : {}),
+    })
+  }
+  return undefined
 }

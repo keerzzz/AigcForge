@@ -4,6 +4,8 @@ import { createSimpleContext } from "@aigcfroge/ui/context"
 import type { PermissionRequest } from "@aigcfroge/sdk/v2/client"
 import { Persist, persisted } from "@/utils/persist"
 import { useServerSDK } from "@/context/server-sdk"
+import { useQueryClient } from "@tanstack/solid-query"
+import { SessionIdentityQuery } from "@/components/session/session-identity-query"
 import { useServerSync } from "./server-sync"
 import { useParams } from "@solidjs/router"
 import { decode64 } from "@/utils/base64"
@@ -52,6 +54,7 @@ export const { use: usePermission, provider: PermissionProvider } = createSimple
     const params = useParams()
     const serverSDK = useServerSDK()
     const serverSync = useServerSync()
+    const queryClient = useQueryClient()
 
     const permissionsEnabled = createMemo(() => {
       const directory = props.directory?.() ?? decode64(params.dir)
@@ -282,9 +285,11 @@ export const { use: usePermission, provider: PermissionProvider } = createSimple
     }
 
     async function setPermissionTier(sessionID: string, permissionTier: "propose" | "full") {
+      const scope = serverSDK().scope
       const client = directoryClient()
-      if (!client) return
-      await client.session.update({ sessionID, permissionTier })
+      if (!client) throw new Error("Session directory is unavailable")
+      await client.session.update({ sessionID, permissionTier }, { throwOnError: true })
+      await SessionIdentityQuery.invalidate(queryClient, scope, sessionID)
     }
 
     return {
