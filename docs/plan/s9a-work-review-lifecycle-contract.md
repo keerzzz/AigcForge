@@ -1,7 +1,7 @@
-# S9A Work Review-Lifecycle 契约草案（DRAFT — 待 Owner 审批）
+# S9A Work Review-Lifecycle 契约（APPROVED 2026-09-20 — 状态机已落地，producer/E4 待续）
 
-> **性质**：契约草案 + RED spec。**不含生产实现**。按 `CLAUDE.md` 提示词 §3.1，写入授权下可编写 RED 与契约草案，但**待批准的生产实现不推进**。
-> **状态**：DRAFT — 等待 Owner 对下述状态机、schema 形状、持久化策略拍板后，才把 RED todo 转成断言并实现状态机。
+> **性质**：Owner 已批准的契约 + 已实现的纯状态机。剩余生产实现（producer + 持久化字段 + E4 lifeline）见 §6。
+> **状态**：APPROVED（Owner 裁决 2026-09-20）。已落地:`WorkReview.Review` schema + 纯状态机 `WorkReviewMachine`（`transition`/`isVerdictCurrent`）+ 12 断言（6 迁移 + I1-I4 + 持久化 round-trip）12 pass/0 fail，schema+core typecheck exit=0。Owner 裁决:复用 `open`+`reopenedFrom`（不设第 5 态）、metadata JSON 无迁移;Assistant M2 scope 不立、转后期。
 > **日期**：2026-09-20 ｜ 分支 `global-shell-e2e`
 > **前置已落地**：`803300877 feat(work): persist a durable Work contract snapshot`（`WorkContract.Snapshot` + `WorkPreset.Revision`，无迁移，metadata JSON）。本草案在其之上补 review 生命周期。
 
@@ -81,10 +81,11 @@ export const Review = Schema.Struct({
 
 ## 6. 待批清单（Owner 逐条）
 
-- [ ] §3 状态集与迁移（5 态 or 复用 `open`+`reopenedFrom`）
-- [ ] §4 schema 归属（Session.Info.workReview vs ArtifactRecord.review）
-- [ ] §5 持久化（metadata JSON 无迁移 ✅倾向 / durable 列需迁移）
-- [ ] §5 E4 MVP scope（单 backend happy-path now，cross-server/历史/失败矩阵 post-MVP）
-- [ ] CI：补 V2 step 的 `if: always()` 与触发方式
+- [x] §3 状态集与迁移 — 批准:复用 `open`+`reopenedFrom`（不设第 5 态）。已实现于 `WorkReviewMachine.transition`。
+- [x] §4 schema 归属 — 批准 `WorkReview.Review`（独立 schema，复用 `WorkContract.ContractVersion` + `WorkflowAsset.Revision`）。
+- [x] §5 持久化 — 批准 metadata JSON 无迁移;schema round-trip 断言已过。
+- [ ] §5 E4 MVP scope（单 backend happy-path now，cross-server/历史/失败矩阵 post-MVP）— **待续**，需 CI/ext4。
+- [ ] CI：补 V2 step 的 `if: always()` 与触发方式 — **待续**。
 
-**批准前不做**：不创建 `work-review.ts` 生产 schema、不实现状态机、不改 `ArtifactRecord`、不加迁移、不 push。批准后 RED todo（见 `packages/core/test/work-review-lifecycle.test.ts`）转断言并实现。
+**已落地（本单元）**：`packages/schema/src/work-review.ts`、`packages/core/src/session/work-review.ts`、`packages/core/test/work-review-lifecycle.test.ts`（12 pass/0 fail）、`schema/index.ts` 导出。
+**仍待续（下一单元，需 producer）**：调用 `transition()` 并把结果写入 session `metadata.workReview` 的 producer + `Session.Info.workReview` 读字段 + `info.fromRow` 解码（**故意未落**，避免"有读无写"半切片）;单 backend E4 lifeline（CI/ext4）。状态机是纯函数、可调用，但尚无调用方。**未 push。**
