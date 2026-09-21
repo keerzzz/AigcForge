@@ -12,37 +12,31 @@ const GlobalHealth = Schema.Struct({
   version: Schema.String,
 })
 
-const SyncEventSchemas = EventV2.registry
-  .values()
-  .flatMap((definition) => {
-    if (!definition.durable) return []
-    return [
-      Schema.Struct({
-        type: Schema.Literal("sync"),
+const SyncEventSchemas = EventV2.definitions().flatMap((definition) => {
+  if (!definition.durable) return []
+  return [
+    Schema.Struct({
+      type: Schema.Literal("sync"),
+      id: EventV2.ID,
+      syncEvent: Schema.Struct({
+        type: Schema.Literal(EventV2.versionedType(definition.type, definition.durable.version)),
         id: EventV2.ID,
-        syncEvent: Schema.Struct({
-          type: Schema.Literal(EventV2.versionedType(definition.type, definition.durable.version)),
-          id: EventV2.ID,
-          seq: Schema.Finite,
-          aggregateID: Schema.String,
-          data: definition.data,
-        }),
-      }).annotate({ identifier: `SyncEvent.${definition.type}` }),
-    ]
-  })
-  .toArray()
+        seq: Schema.Finite,
+        aggregateID: Schema.String,
+        data: definition.data,
+      }),
+    }).annotate({ identifier: `SyncEvent.${definition.type}` }),
+  ]
+})
 
 const GlobalEventSchema = Schema.Struct({
   directory: Schema.String,
   project: Schema.optional(Schema.String),
   workspace: Schema.optional(Schema.String),
   payload: Schema.Union([
-    ...EventV2.registry
-      .values()
-      .map((definition) =>
-        Schema.Struct({ id: EventV2.ID, type: Schema.Literal(definition.type), properties: definition.data }),
-      )
-      .toArray(),
+    ...EventV2.definitions().map((definition) =>
+      Schema.Struct({ id: EventV2.ID, type: Schema.Literal(definition.type), properties: definition.data }),
+    ),
     InstanceDisposed,
     ...SyncEventSchemas,
   ]),

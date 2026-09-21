@@ -146,7 +146,11 @@ export function define<const Type extends string, Fields extends Schema.Struct.F
 }
 
 export function definitions() {
-  return registry.values().toArray()
+  // Registration depends on module evaluation order; API unions must not.
+  return registry
+    .values()
+    .toArray()
+    .sort((left, right) => (left.type < right.type ? -1 : left.type > right.type ? 1 : 0))
 }
 
 export type Transaction = SQLiteEffectTransaction<EffectSQLiteQueryEffectHKT, EffectSQLiteRunResult, EmptyRelations>

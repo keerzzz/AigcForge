@@ -47,16 +47,13 @@ import { Authorization } from "./middleware/authorization"
 import { SchemaErrorMiddleware } from "./middleware/schema-error"
 
 const EventSchema = Schema.Union([
-  ...EventV2.registry
-    .values()
-    .map((definition) =>
-      Schema.Struct({
-        id: EventV2.ID,
-        type: Schema.Literal(definition.type),
-        properties: definition.data,
-      }).annotate({ identifier: `Event.${definition.type}` }),
-    )
-    .toArray(),
+  ...EventV2.definitions().map((definition) =>
+    Schema.Struct({
+      id: EventV2.ID,
+      type: Schema.Literal(definition.type),
+      properties: definition.data,
+    }).annotate({ identifier: `Event.${definition.type}` }),
+  ),
   InstanceDisposed,
 ]).annotate({ identifier: "Event" })
 
