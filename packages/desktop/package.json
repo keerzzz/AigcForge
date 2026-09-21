@@ -11,7 +11,7 @@
   },
   "scripts": {
     "typecheck": "tsgo -b && tsgo --noEmit -p e2e/tsconfig.json",
-    "test": "bun test --timeout 30000 --only-failures",
+    "test": "bun test ./src ./electron-builder.config.test.ts --timeout 30000 --only-failures",
     "test:e2e": "bun run build && playwright test --config=playwright.config.ts",
     "predev": "bun ./scripts/predev.ts",
     "dev": "bun ./scripts/dev.ts",
