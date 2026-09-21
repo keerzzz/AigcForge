@@ -134,12 +134,15 @@ describe("grep/glob path containment", () => {
         }),
       (fixture) =>
         fixture
-          ? Effect.promise(() =>
-              Promise.all([
-                fs.rm(fixture.link, { force: true }),
-                fs.rm(fixture.outside, { recursive: true, force: true }),
-              ]).then(() => undefined),
-            )
+          ? Effect.promise(async () => {
+              // Remove the link itself; recursive rm on a Windows directory
+              // symlink can fail with EFAULT even though the link is valid.
+              await fs.unlink(fixture.link).catch((error) => {
+                if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return
+                throw error
+              })
+              await fs.rm(fixture.outside, { recursive: true, force: true })
+            })
           : Effect.void,
     ),
   )
