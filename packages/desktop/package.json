@@ -10,8 +10,9 @@
     "email": "hello@aigcfroge.ai"
   },
   "scripts": {
-    "typecheck": "tsgo -b",
-    "test": "bun test --timeout 30000 --only-failures",
+    "typecheck": "tsgo -b && tsgo --noEmit -p e2e/tsconfig.json",
+    "test": "bun test ./src ./electron-builder.config.test.ts --timeout 30000 --only-failures",
+    "test:e2e": "bun run build && playwright test --config=playwright.config.ts",
     "predev": "bun ./scripts/predev.ts",
     "dev": "bun ./scripts/dev.ts",
     "prebuild": "bun ./scripts/prebuild.ts",
@@ -39,6 +40,7 @@
     "@lydell/node-pty": "catalog:",
     "@aigcfroge/app": "workspace:*",
     "@aigcfroge/ui": "workspace:*",
+    "@playwright/test": "catalog:",
     "@sentry/solid": "catalog:",
     "@sentry/vite-plugin": "catalog:",
     "@solid-primitives/i18n": "2.2.1",

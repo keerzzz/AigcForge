@@ -2,6 +2,7 @@ import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionIdentityProjection } from "@aigcfroge/core/session/session-identity"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { SessionTask } from "@aigcfroge/core/session/task"
@@ -36,7 +37,7 @@ import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
 import { WorkflowExecution } from "@aigcfroge/core/workflow/workflow-execution"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { NamedError } from "@aigcfroge/core/util/error"
-import { Cause, Effect, Option, Schema, Scope } from "effect"
+import { Cause, Effect, Layer, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiError, HttpApiSchema } from "effect/unstable/httpapi"
@@ -179,6 +180,42 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const get = Effect.fn("SessionHttpApi.get")(function* (ctx: { params: { sessionID: SessionID } }) {
       return yield* requireSession(ctx.params.sessionID)
     })
+    const identity = Effect.fn("SessionHttpApi.identity")(function* (ctx: { params: { sessionID: SessionID } }) {
+      // Read access must survive a disabled runtime so the projection can explain the blocked policy.
+      const info = yield* requireSession(ctx.params.sessionID)
+      // The projection is Location-scoped (its owners — session row, permission,
+      // composition, git — live there), so it is resolved through the
+      // LocationServiceMap for the session's own directory.
+      const layer = locations.get(
+        Location.Ref.make({
+          directory: AbsolutePath.make(info.directory),
+          ...(info.workspaceID ? { workspaceID: WorkspaceV2.ID.make(info.workspaceID) } : {}),
+        }),
+      )
+      return yield* Effect.gen(function* () {
+        const projection = yield* SessionIdentityProjection.Service
+        return yield* projection.project(ctx.params.sessionID)
+      }).pipe(
+        // Resolve the projection service and execute its owner reads in one Location
+        // environment, so in-memory owners such as WorkArtifact are the same instance.
+        Effect.provide(layer.pipe(Layer.orDie)),
+        // Every typed projection failure maps to a stable HTTP surface; nothing is
+        // swallowed and no default identity is fabricated for the caller.
+        Effect.catchTag("Session.NotFoundError", () =>
+          Effect.fail(notFound(`Session not found: ${ctx.params.sessionID}`)),
+        ),
+        Effect.catchTag("SessionIdentity.SnapshotUnavailable", (error) => Effect.fail(notFound(error.reason))),
+        Effect.catchTag("SessionIdentity.IdentityFieldMissing", (error) =>
+          Effect.fail(
+            new InvalidRequestError({ message: `Session ${ctx.params.sessionID} has no resolvable ${error.field}` }),
+          ),
+        ),
+        Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
+          Effect.fail(new InvalidRequestError({ message: error.message })),
+        ),
+      )
+    })
+
     const children = Effect.fn("SessionHttpApi.children")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* requireSession(ctx.params.sessionID)
       const request = yield* HttpServerRequest.HttpServerRequest
@@ -1330,6 +1367,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("status", status)
       .handle("get", get)
       .handle("children", children)
+      .handle("identity", identity)
       .handle("todo", todo)
       .handle("task", task)
       .handle("getTask", getTask)

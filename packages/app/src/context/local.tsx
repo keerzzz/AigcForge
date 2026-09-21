@@ -1,6 +1,5 @@
 import { createSimpleContext } from "@aigcfroge/ui/context"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { useParams } from "@solidjs/router"
 import { batch, createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -13,6 +12,8 @@ import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 import { useServerSDK } from "./server-sdk"
 import { ScopedKey, type ServerScope } from "@/utils/server-scope"
+import { useSettings } from "./settings"
+import { filterAgentList } from "./global-sync/utils"
 
 export type ModelKey = { providerID: string; modelID: string; variant?: string }
 
@@ -61,6 +62,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const params = useParams()
     const sdk = useSDK()
     const sync = useSync()
+    const settings = useSettings()
     const serverSDK = useServerSDK()
     const providers = useProviders()
     const models = useModels()
@@ -68,28 +70,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const id = createMemo(() => params.id || undefined)
     const mode = useMode()
     const list = createMemo(() => {
-      const agents = sync().data.agent.filter((item) => item.mode !== "subagent" && !item.hidden)
-      // 2026-08-11 decision (meta-agent scheduling discussion, plan §3.4): chat/work default to
-      // meta, keeping the orchestrator as the delegation target; assistant defaults to
-      // assistant-orchestrator (fail-closed personal-task executor, plan §3.3). The list only
-      // shows primary agents allowed by policy — chat/work/assistant show meta plus their
-      // orchestrator; other modes exclude the three orchestrators (avoiding agents the policy
-      // rejects from triggering die).
-      if (mode.currentMode === "chat" || mode.currentMode === "work" || mode.currentMode === "assistant") {
-        const orchestrator =
-          mode.currentMode === "chat"
-            ? ProductModeAgentPolicy.CHAT_ORCHESTRATOR
-            : mode.currentMode === "work"
-              ? ProductModeAgentPolicy.WORK_ORCHESTRATOR
-              : ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR
-        return agents.filter((a) => a.name === ProductModeAgentPolicy.META || a.name === orchestrator)
-      }
-      return agents.filter(
-        (a) =>
-          a.name !== ProductModeAgentPolicy.CHAT_ORCHESTRATOR &&
-          a.name !== ProductModeAgentPolicy.WORK_ORCHESTRATOR &&
-          a.name !== ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR,
-      )
+      // Display-only filtering (S6 §9.2): the server's `/agent` payload carries the
+      // modes each agent may serve as primary, computed by the policy owner, so this
+      // picker no longer carries a second copy of the policy. Zero policy logic
+      // here; a missing list means "unknown", and the picker shows nothing rather
+      // than offering an agent the server would reject.
+      return filterAgentList(sync().data.agent, mode.currentMode, settings.visibility.customAgents())
     })
     const connected = createMemo(() => new Set(providers.connected().map((item) => item.id)))
 

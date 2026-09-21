@@ -1,3 +1,21 @@
+/**
+ * The SDK types these bodies as arrays, but the bytes on the wire are not the type system's
+ * business: a proxy, an error page or an older server can answer with any JSON. Reading such a
+ * body as a list throws inside the picker's resource, and an error raised there reaches the
+ * app-level ErrorBoundary - which replaces the whole app. Narrow the shape instead of trusting
+ * the declared type; an unexpected body then degrades to "no rows", like a failed request does.
+ */
+function isPickerNode(value: unknown): value is { name: string; absolute: string; type: string } {
+  if (typeof value !== "object" || value === null) return false
+  const fields = new Map<string, unknown>()
+  for (const [key, entry] of Object.entries(value)) fields.set(key, entry)
+  return (
+    typeof fields.get("name") === "string" &&
+    typeof fields.get("absolute") === "string" &&
+    typeof fields.get("type") === "string"
+  )
+}
+
 export function treeEntries(parent: string, nodes: ReadonlyArray<{ name: string; type: "file" | "directory" }>) {
   const prefix = parent.replace(/^\/+|\/+$/g, "")
   return nodes.map((node) => {
@@ -249,6 +267,20 @@ import { getFilename } from "@aigcfroge/core/util/path"
 import fuzzysort from "fuzzysort"
 import { ServerSDK } from "@/context/server-sdk"
 
+/**
+ * The two reads `createDirectorySearch` performs, with their response bodies declared
+ * `unknown`. The SDK types those bodies as arrays, but the bytes on the wire are not the
+ * type system's business (see `isPickerNode`), so the search already narrows them; declaring
+ * that here lets a caller supply just these two reads without fabricating an entire SDK.
+ * The input types stay sourced from the SDK so they cannot drift from it.
+ */
+export type DirectorySearchSdk = {
+  client: {
+    file: { list: (input: Parameters<ServerSDK["client"]["file"]["list"]>[0]) => Promise<{ data: unknown }> }
+    find: { files: (input: Parameters<ServerSDK["client"]["find"]["files"]>[0]) => Promise<{ data: unknown }> }
+  }
+}
+
 export function cleanPickerInput(value: string) {
   const first = (value ?? "").split(/\r?\n/)[0] ?? ""
   return first.replace(/[\u0000-\u001F\u007F]/g, "").trim()
@@ -321,7 +353,11 @@ export function displayPickerPath(path: string, input: string, home: string) {
   return pickerTilde(value, home) || value
 }
 
-export function createDirectorySearch(args: { sdk: ServerSDK; base: () => string | undefined; home: () => string }) {
+export function createDirectorySearch(args: {
+  sdk: DirectorySearchSdk
+  base: () => string | undefined
+  home: () => string
+}) {
   const cache = new Map<string, Promise<Array<{ name: string; absolute: string }>>>()
   let current = 0
 
@@ -344,10 +380,11 @@ export function createDirectorySearch(args: { sdk: ServerSDK; base: () => string
     if (existing) return existing
     const request = args.sdk.client.file
       .list({ directory: key, path: "" })
-      .then((result) => result.data ?? [])
-      .catch(() => [])
-      .then((nodes) =>
-        nodes
+      .then((result): unknown => result.data)
+      .catch((): unknown => [])
+      .then((body) =>
+        (Array.isArray(body) ? body : [])
+          .filter(isPickerNode)
           .filter((node) => node.type === "directory")
           .map((node) => ({ name: node.name, absolute: trimPickerPath(normalizePickerDrive(node.absolute)) })),
       )
@@ -373,10 +410,13 @@ export function createDirectorySearch(args: { sdk: ServerSDK; base: () => string
     if (!pathInput) {
       const results = await args.sdk.client.find
         .files({ directory: input.directory, query, type: "directory", limit: 50 })
-        .then((result) => result.data ?? [])
-        .catch(() => [])
+        .then((result): unknown => result.data)
+        .catch((): unknown => [])
       if (!active()) return []
-      return results.map((path) => joinPickerPath(input.directory, path)).slice(0, 50)
+      return (Array.isArray(results) ? results : [])
+        .filter((path): path is string => typeof path === "string")
+        .map((path) => joinPickerPath(input.directory, path))
+        .slice(0, 50)
     }
     const segments = query.replace(/^\/+/, "").split("/")
     const head = segments.slice(0, -1).filter((part) => part && part !== ".")

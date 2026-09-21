@@ -60,3 +60,31 @@ Work 复用 ADR-12/15 的共享 `ModeWorkspace`，主区为 Work typed slot。
 ## 当前状态
 
 M1 – M3.5 已实现（预设 → 澄清 → 只读预览 → 原子落盘 → 步骤账本/Resume → 存为资产 → Mermaid → HTML 沙箱）。会话详情页左右栏归一见 [会话页归一计划](../../plan/work-mode-session-sidebar-plan.md)。
+
+## current / target / verified
+
+| 维度               | current（代码事实）                                                                                                                                    | target                        | verified（证据）                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| 路由与 slot        | `/mode/work` + `ModeWorkspace` typed slot；主区三段式（继续工作 / 官方预设 / 工作流资产）                                                              | 不变                          | `mode-workspace-slots.tsx:683,722-753`                                                   |
+| M1 预设与澄清      | 4 分类预设卡片；`guided` 预设强制 question 问卷（≤5 题）                                                                                               | 不变                          | `a041ca617`；core work-clarify 用例                                                      |
+| M1 只读预览与落盘  | 候选稿 = assistant 消息正文；右栏 Artifact Tab 只读渲染；同名冲突询问；原子落盘 + `work.artifact_applied`                                              | 不变                          | `a041ca617`；ADR-15 §5                                                                   |
+| M1.5 步骤账本      | Progress Ledger + Resume（`work.resume.prompt`）                                                                                                       | 不变                          | `session/timeline/session-todo-progress.tsx`                                             |
+| M2 存为资产        | `work-asset-capture.ts` → Chat propose store                                                                                                           | 不变                          | `e2e/regression/work-asset-save.spec.ts`                                                 |
+| M3 / M3.5 产物渲染 | Mermaid 内联；HTML artifact iframe 三重防线沙箱                                                                                                        | 不变                          | `work-mermaid-artifact.spec.ts`；`work-html-artifact.spec.ts`                            |
+| 版本化耐久身份     | **未实现**：`SessionV2.Info` 只有兼容性 `presetCategoryId`，无 preset/workflow ID、revision、contract schema version 与 output contract 的统一耐久身份 | 需 §6.3 Schema/迁移批准       | 本页下方 E2E 事实边界；coverage manifest `session-product-header-projection` 的 gated 项 |
+| Reviewer 生命周期  | **未实现**：comment → fix request → response → resolved/reopen 未形成耐久合同；候选稿主要从 assistant message 投影                                     | 需 §6.3 合同                  | 同上                                                                                     |
+| 窄屏产物入口       | 390×844 下 Session 与 Composer 可达，但桌面 Artifact panel 无等价 tab/drawer                                                                           | 需 S7/S11 窄屏收口            | 本页下方；`bench-narrow-review-staging` 仍 red-stable                                    |
+| 真实后端 E4        | **未做**：真实 provider output、CAS 冲突、长任务取消恢复、真实文件保存与 rollback 均缺                                                                 | 需 §6.3 合同 + 可复跑 E4 主机 | manifest `modes.work.e4 = planned`                                                       |
+
+**未闭环**：上表四行标红的能力都依赖 §6.3 的版本化合同与真实后端 E4；在合同批准前不得把“代码能力已落地”写成产品闭环。
+
+## E2E 事实边界与下一闭环（2026-09-13）
+
+上面的 “M1–M3.5 已实现” 表示代码能力已落地，不等于产品真实链已经 E4 闭环。最新真实走查确认桌面 Session、Context/Artifact、权限取消、Draft Stay 和刷新可达；但总状态仍为 `PARTIAL`：
+
+- `SessionV2.Info` 当前只有兼容性的 `presetCategoryId`，没有 preset/workflow ID、revision、contract schema version 与 output contract 的统一耐久身份；`presetCategoryId=null` 的 ad-hoc Work Session 不能继续被 Artifact 空态描述成“基于预设”。
+- 候选稿当前主要从 assistant message 投影；产物 revision、Reviewer `comment → fix request → response → resolved/reopen`、导出/重开/rollback 尚未形成一条耐久合同。
+- 390×844 下 Session 与 Composer 可达，但桌面 Artifact panel 没有等价 tab/drawer 入口。
+- 现有 Work E2E 多为 mock contract；真实 provider output、CAS 冲突、长任务取消恢复、真实文件保存与 rollback 仍需 real-backend E4。
+
+后续实现必须先裁决用户预设与现有 Workflow/Asset 的关系。默认方向是复用版本化资产身份，由 Work 提供受限消费/创建视图；不得以 localStorage、临时 JSON 或平行预设存储冒充正式能力。实施计划见 [`global-shell-product-closure-2026-09-13.md`](../../plan/global-shell-product-closure-2026-09-13.md) S1/S6/S9A。

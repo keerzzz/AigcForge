@@ -1,4 +1,5 @@
 import { afterAll, beforeAll } from "bun:test"
+import { Effect } from "effect"
 
 const FLAG = "AIGCFROGE_CUSTOM_MODE"
 
@@ -46,3 +47,26 @@ export async function withCustomModeFlag<A>(value: string | undefined, body: () 
     else process.env[FLAG] = saved
   }
 }
+
+/**
+ * Effect-shaped counterpart of `withCustomModeFlag`: pins the kill switch to
+ * `value` for the duration of `effect` and restores the ambient value on
+ * success, failure or interruption (via `acquireUseRelease`). Use this — not the
+ * file-scoped `withCustomModeEnabled` hook — when one file must exercise both the
+ * enabled and disabled branches per test.
+ */
+export const withCustomMode = <A, E, R>(value: string | undefined, effect: Effect.Effect<A, E, R>) =>
+  Effect.acquireUseRelease(
+    Effect.sync(() => {
+      const saved = process.env[FLAG]
+      if (value === undefined) delete process.env[FLAG]
+      else process.env[FLAG] = value
+      return saved
+    }),
+    () => effect,
+    (saved) =>
+      Effect.sync(() => {
+        if (saved === undefined) delete process.env[FLAG]
+        else process.env[FLAG] = saved
+      }),
+  )

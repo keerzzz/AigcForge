@@ -1,16 +1,16 @@
-import { Show, createEffect, createMemo, createResource, createSignal } from "solid-js"
+import { Show, createEffect, createMemo, createResource } from "solid-js"
 import { useNavigate, useSearchParams } from "@solidjs/router"
 import { useLayout } from "@/context/layout"
 import { PromptInput } from "@/components/prompt-input"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
+import { usePermission } from "@/context/permission"
 import { Icon } from "@aigcfroge/ui/icon"
 import { showToast } from "@/utils/toast"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
-import { PermissionTierSelector } from "@/pages/session/composer/permission-tier-selector"
 import { SessionPermissionOverrideControl } from "@/pages/session/composer/session-permission-override-dialog"
 import { SessionQuestionDock } from "@/pages/session/composer/session-question-dock"
 import { SessionFollowupDock } from "@/pages/session/composer/session-followup-dock"
@@ -127,7 +127,10 @@ export function SessionComposerRegion(props: {
     })
   }
   const controls = createMemo(() => {
-    // local.agent.list() already pins the current mode's orchestrator per ADR-13; no extra filter needed.
+    // local.agent.list() is already narrowed by the server's `primaryModes` and
+    // the shared local owner applies the custom-agent visibility rule using
+    // AgentV2.Info.originRelativePath (ADR-20 §2.6). Keep the composer as a
+    // consumer; it must not reimplement the provenance predicate.
     const agentOptions = local.agent.list().map((agent) => agent.name)
     return {
       agents: {
@@ -135,7 +138,7 @@ export function SessionComposerRegion(props: {
         options: agentOptions,
         current: local.agent.current()?.name ?? "",
         loading: agentsQuery.isLoading,
-        visible: settings.visibility.customAgents(),
+        visible: true,
         select: local.agent.set,
       },
       model: {
@@ -163,57 +166,32 @@ export function SessionComposerRegion(props: {
   const child = createMemo(() => !!parentID())
   const showComposer = createMemo(() => !props.state.blocked() || child())
 
-  // 权限档位 selector：draft（new-session）与已有会话双场景；仅
-  // chat/work/assistant × meta 显示（组件内部判断）。
-  const tierMode = createMemo(() => draft()?.mode ?? info()?.mode)
-  const tierAgent = createMemo(() => draft()?.agent ?? info()?.agent)
-  const tierValue = createMemo<"propose" | "full" | undefined>(() => draft()?.permissionTier ?? info()?.permissionTier)
-  const [overrideEnabled, setOverrideEnabled] = createSignal(false)
-  const overrideStatus = async () => {
+  // S12 共享权限控制面（计划 §6.8）：break-glass 租约与权限档位共用
+  // usePermission owner，composer 只做消费者，不自己拿 SDK 调端点，
+  // 也不复制计时器/状态/权限计算。
+  const permission = usePermission()
+  createEffect(() => {
     const id = route.params.id
     if (!id) return
-    try {
-      const res = await sdk().client.permission.override.get({ sessionID: id })
-      setOverrideEnabled(res.data?.enabled === true)
-    } catch {
-      setOverrideEnabled(false)
-    }
-  }
-  createEffect(() => {
-    if (!route.params.id) return
-    void overrideStatus()
+    void permission.refreshOverride(id)
   })
   const overrideRequest = async (input: { method: "PUT" | "DELETE"; acknowledged?: boolean }) => {
     const id = route.params.id
     if (!id) return
     try {
-      if (input.method === "PUT") {
-        const res = await sdk().client.permission.override.put({
-          sessionID: id,
-          ...(input.acknowledged !== undefined ? { acknowledged: input.acknowledged } : {}),
-        })
-        setOverrideEnabled(res.data?.enabled === true)
-      } else {
-        await sdk().client.permission.override.delete({ sessionID: id })
-        setOverrideEnabled(false)
-      }
+      await permission.updateOverride({ sessionID: id, ...input })
     } catch {
       showToast({ title: language.t("common.requestFailed") })
     }
   }
-
-  const onTierChange = async (tier: "propose" | "full") => {
-    if (search.draftId) {
-      tabs.updateDraft(search.draftId, { permissionTier: tier })
-      return
-    }
+  const tierRequest = async (permissionTier: "propose" | "full") => {
     const id = route.params.id
     if (!id) return
-    await sdk()
-      .client.session.update({ sessionID: id, permissionTier: tier })
-      .catch(() => {
-        showToast({ title: language.t("common.requestFailed") })
-      })
+    try {
+      await permission.setPermissionTier(id, permissionTier)
+    } catch {
+      showToast({ title: language.t("common.requestFailed") })
+    }
   }
 
   const previewPrompt = () =>
@@ -291,18 +269,34 @@ export function SessionComposerRegion(props: {
           )}
         </Show>
 
-        <PermissionTierSelector mode={tierMode()} agent={tierAgent()} value={tierValue()} onChange={onTierChange} />
-
         <Show when={route.params.id}>
-          <SessionPermissionOverrideControl
-            sessionID={route.params.id!}
-            root={!parentID()}
-            attended={info()?.attended}
-            enabled={overrideEnabled}
-            onEnable={() => void overrideRequest({ method: "PUT", acknowledged: true })}
-            onRenew={() => void overrideRequest({ method: "PUT" })}
-            onDisable={() => void overrideRequest({ method: "DELETE" })}
-          />
+          <div data-slot="permission-control-surface">
+            <SessionPermissionOverrideControl
+              sessionID={route.params.id!}
+              root={!parentID()}
+              attended={info()?.attended}
+              enabled={() => permission.overrideEnabled(route.params.id!)}
+              onEnable={() => void overrideRequest({ method: "PUT", acknowledged: true })}
+              onRenew={() => void overrideRequest({ method: "PUT" })}
+              onDisable={() => void overrideRequest({ method: "DELETE" })}
+            />
+            <Show when={!parentID() && info()?.attended !== false}>
+              <div data-slot="permission-tier-control">
+                <span data-slot="permission-tier-current">
+                  {info()?.permissionTier === "full"
+                    ? language.t("permission.tier.full")
+                    : language.t("permission.tier.propose")}
+                </span>
+                <button
+                  type="button"
+                  data-slot="permission-tier-toggle"
+                  onClick={() => void tierRequest(info()?.permissionTier === "full" ? "propose" : "full")}
+                >
+                  {language.t("permission.tier.change")}
+                </button>
+              </div>
+            </Show>
+          </div>
         </Show>
 
         <Show when={showComposer()}>

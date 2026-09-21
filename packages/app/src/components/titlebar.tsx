@@ -39,12 +39,13 @@ import { createMediaQuery } from "@solid-primitives/media"
 import { readSessionTabsRemovedDetail, SESSION_TABS_REMOVED_EVENT } from "@/components/titlebar-session-events"
 import { useGlobal } from "@/context/global"
 import { ServerConnection, useServer } from "@/context/server"
-import { tabHref, useTabs } from "@/context/tabs"
+import { tabHref, tabKey, useTabs } from "@/context/tabs"
 import "./titlebar.css"
 import { Session } from "@aigcfroge/sdk/v2"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTabPromptState } from "@/context/prompt"
 import { modeDraft, useMode, modeDefinition } from "@/context/mode"
+import { modeContentPanelShown, MODE_CONTENT_PANEL_QUERY, secondarySidebarShown } from "@/context/layout-helpers"
 import { debounce } from "@solid-primitives/scheduled"
 import { shouldPrefetchTab } from "./titlebar-prefetch-policy"
 
@@ -91,6 +92,8 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
   const navigate = useNavigate()
   const location = useLocation()
   const params = useParams()
+  const tabRefs = new Map<string, HTMLElement>()
+  let homeRef: HTMLButtonElement | undefined
   const useV2Titlebar = createMemo(() => true)
   const mobile = createMediaQuery("(max-width: 767px)")
   const bottom = createMemo(() => useV2Titlebar() && mobile() && settings.general.mobileTitlebarPosition() === "bottom")
@@ -118,6 +121,9 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
   })
 
   const path = () => `${location.pathname}${location.search}${location.hash}`
+  const setTabRef = (key: string, element: HTMLElement) => {
+    tabRefs.set(key, element)
+  }
   const creating = createMemo(() => {
     if (!params.dir) return false
     if (params.id) return false
@@ -267,13 +273,24 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
             const tabs = useTabs()
             const tabsStore = tabs.store
             const tabsStoreActions = tabs
+            createEffect(() => {
+              const handoff = tabs.focusHandoff()
+              if (!handoff) return
+              queueMicrotask(() => {
+                const target = handoff.target === "home" ? homeRef : tabRefs.get(handoff.target)
+                const focusable = target?.querySelector<HTMLElement>("a, button") ?? target
+                focusable?.focus()
+                tabs.consumeFocusHandoff(handoff.token)
+              })
+            })
+
             const [session] = createResource(
               () => {
                 const route = layout.route()
                 if (route.type !== "session") return undefined
                 const conn = global.servers
                   .list()
-                  .find((item) => ServerConnection.key(item) === (route.server ?? server.key))
+                  .find((item) => ServerConnection.sameKey(route.server ?? server.key, ServerConnection.key(item)))
                 return conn ? { route, sdk: global.ensureServerCtx(conn).sdk } : undefined
               },
               ({ route, sdk }) =>
@@ -350,7 +367,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                   return
                 }
                 const generic = mode.currentMode
-                const conn = server.list.find((item) => ServerConnection.key(item) === serverKey)
+                const conn = server.list.find((item) => ServerConnection.sameKey(serverKey, ServerConnection.key(item)))
                 if (conn) {
                   const ctx = global.ensureServerCtx(conn)
                   launchModeSession({
@@ -508,6 +525,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                     onClick={toggleHome}
                     aria-label={language.t("home.title")}
                     aria-pressed={layout.route().type === "home"}
+                    ref={(element) => (homeRef = element)}
                   />
                 </TooltipV2>
 
@@ -539,7 +557,10 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                               <>
                                 {divider()}
                                 <DraftTabItem
-                                  ref={ref}
+                                  ref={(element) => {
+                                    ref = element
+                                    setTabRef(tabKey(tab), element)
+                                  }}
                                   href={tabHref(tab)}
                                   title={language.t("command.session.new")}
                                   active={currentTab() === tab}
@@ -554,7 +575,10 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                           }
 
                           const serverCtx = createMemo(() => {
-                            const conn = server.list.find((item) => ServerConnection.key(item) === tab.server)
+                            // Persisted tab keys predate canonicalization.
+                            const conn = server.list.find((item) =>
+                              ServerConnection.sameKey(tab.server, ServerConnection.key(item)),
+                            )
                             return conn ? global.ensureServerCtx(conn) : undefined
                           })
                           const sdk = createMemo(() => serverCtx()?.sdk ?? null)
@@ -639,7 +663,10 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                               <Show when={session()}>
                                 {(session) => (
                                   <TabNavItem
-                                    ref={ref}
+                                    ref={(element) => {
+                                      ref = element
+                                      setTabRef(tabKey(tab), element)
+                                    }}
                                     href={tabHref(tab)}
                                     server={tab.server}
                                     sessionId={tab.sessionId}
@@ -895,6 +922,16 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
   const language = useLanguage()
   const settings = useSettings()
   const layout = useLayout()
+  // Whether emitting `aria-controls` has a resolvable target; the panel's lifecycle uses the
+  // same predicate (pages/layout.tsx), so the reference cannot drift from the mount.
+  const secondaryPanelMounted = () => secondarySidebarShown(mode.secondarySidebarOpen, layout.route().type)
+  const contentPanelDocked = createMediaQuery(MODE_CONTENT_PANEL_QUERY)
+  // S7: the narrow entry to a session's mode content panel. It exists only where the panel is
+  // NOT docked, and only in the modes that have a narrow content owner at all — coding's owner is
+  // the review/files surface, which the Session/Changes tabs already reach.
+  const contentPanelOffered = () =>
+    !contentPanelDocked() &&
+    modeContentPanelShown({ routeType: layout.route().type, mode: mode.currentMode, docked: false })
   return (
     <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
       <Show when={props.state.update.visible}>
@@ -910,10 +947,47 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
             variant="ghost-muted"
             size="large"
             class="titlebar-icon mr-1 !w-9 shrink-0"
+            // `id`, not `data-component`: IconButtonV2 spreads caller props first and then
+            // sets its own `data-component`, so a marker passed in is overwritten (measured:
+            // the attribute resolved to "icon-button-v2" and the restore selector matched 0
+            // nodes). `id` also gives the panel relationship a real target.
+            id="secondary-sidebar-toggle"
+            // Only while the panel is mounted: an IDREF pointing at an unmounted node is
+            // invalid at any time (measured review finding — closed, the attribute was emitted
+            // with no target). Same predicate as the panel's lifecycle, not a copy of it.
+            aria-controls={secondaryPanelMounted() ? "secondary-sidebar-panel" : undefined}
             state={mode.secondarySidebarOpen ? "pressed" : undefined}
             icon={<IconV2 name="sidebar-right" />}
             aria-label={language.t(mode.secondarySidebarOpen ? "sidebar.secondary.hide" : "sidebar.secondary.show")}
+            // Matches the primary sidebar toggle above, which already exposes this; the
+            // secondary one announced only its current action, so assistive tech could not
+            // tell whether the panel was open (measured absent, S7).
+            aria-expanded={mode.secondarySidebarOpen}
             onClick={() => mode.toggleSecondarySidebar()}
+          />
+        </TooltipV2>
+      </Show>
+      <Show when={contentPanelOffered()}>
+        <TooltipV2
+          value={language.t(mode.contentPanelOpen ? "session.panel.hide" : "session.panel.show")}
+          placement="bottom"
+          gutter={8}
+        >
+          <IconButtonV2
+            variant="ghost-muted"
+            size="large"
+            class="titlebar-icon mr-1 !w-9 shrink-0"
+            id="session-mode-panel-toggle"
+            // Emitted unconditionally here, unlike the sidebar's: that panel unmounts when it
+            // closes, so its IDREF has to follow the mount. This one is never unmounted for the
+            // narrow case (see `session-side-panel.tsx`), so the target exists whenever this
+            // entry does and the reference stays valid either way.
+            aria-controls={`session-mode-panel-${mode.currentMode}`}
+            state={mode.contentPanelOpen ? "pressed" : undefined}
+            icon={<IconV2 name={modeDefinition(mode.currentMode).icon} />}
+            aria-label={language.t(mode.contentPanelOpen ? "session.panel.hide" : "session.panel.show")}
+            aria-expanded={mode.contentPanelOpen}
+            onClick={() => mode.toggleContentPanel()}
           />
         </TooltipV2>
       </Show>
@@ -972,7 +1046,7 @@ function useTabShortcut(index: () => number, onSelect: () => void) {
 }
 
 function TabNavItem(props: {
-  ref?: HTMLDivElement
+  ref?: (element: HTMLDivElement) => void
   href: string
   server: ServerConnection.Key
   sessionId?: string
@@ -984,6 +1058,7 @@ function TabNavItem(props: {
   forceTruncate?: boolean
   session: Session
 }) {
+  const language = useLanguage()
   const closeTab = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
@@ -1050,6 +1125,7 @@ function TabNavItem(props: {
           class="opacity-0 group-hover:opacity-100 group-data-[active='true']:opacity-100 z-10"
           onClick={closeTab}
           icon={<IconV2 name="xmark-small" />}
+          aria-label={language.t("common.closeTab")}
         />
       </div>
     </div>
@@ -1057,13 +1133,14 @@ function TabNavItem(props: {
 }
 
 function DraftTabItem(props: {
-  ref?: HTMLDivElement
+  ref?: (element: HTMLDivElement) => void
   href: string
   title: string
   active?: boolean
   onNavigate: () => void
   onClose: () => void
 }) {
+  const language = useLanguage()
   const closeTab = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
@@ -1102,7 +1179,7 @@ function DraftTabItem(props: {
           }}
           onClick={closeTab}
           icon={<IconV2 name="xmark-small" />}
-          aria-label="Close tab"
+          aria-label={language.t("common.closeTab")}
         />
       </div>
     </div>
@@ -1144,7 +1221,7 @@ function NewSessionTabItem(props: { ref?: HTMLDivElement; href: string; title: s
           }}
           onClick={closeTab}
           icon={<IconV2 name="xmark-small" />}
-          aria-label="Close tab"
+          aria-label={useLanguage().t("common.closeTab")}
         />
       </div>
     </div>

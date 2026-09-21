@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect } from "bun:test"
+import fs from "node:fs/promises"
+import os from "node:os"
 import path from "path"
 import { Effect, Layer } from "effect"
 import { FSUtil } from "@aigcfroge/core/fs-util"
@@ -100,6 +102,49 @@ describe("grep/glob path containment", () => {
       })
       expect(searched).toEqual([])
     }),
+  )
+
+  it.live("grep and glob refuse a symlink that resolves outside the Location", () =>
+    Effect.acquireUseRelease(
+      Effect.promise(async () => {
+        const outside = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-containment-"))
+        const link = path.join(root, `.aigcfroge-containment-${process.pid}-${Date.now()}`)
+        try {
+          await fs.symlink(outside, link, "dir")
+        } catch (error) {
+          await fs.rm(outside, { recursive: true, force: true })
+          if (typeof error === "object" && error !== null && "code" in error && error.code === "EPERM") return undefined
+          throw error
+        }
+        return { outside, link }
+      }),
+      (fixture) =>
+        Effect.gen(function* () {
+          if (!fixture) return
+          const relative = path.basename(fixture.link)
+          expect(yield* run("grep", { pattern: "secret", path: relative })).toEqual({
+            type: "error",
+            value: `Path escapes the allowed root: ${relative}`,
+          })
+          expect(yield* run("glob", { pattern: "*", path: relative })).toEqual({
+            type: "error",
+            value: `Path escapes the allowed root: ${relative}`,
+          })
+          expect(searched).toEqual([])
+        }),
+      (fixture) =>
+        fixture
+          ? Effect.promise(async () => {
+              // Remove the link itself; recursive rm on a Windows directory
+              // symlink can fail with EFAULT even though the link is valid.
+              await fs.unlink(fixture.link).catch((error) => {
+                if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return
+                throw error
+              })
+              await fs.rm(fixture.outside, { recursive: true, force: true })
+            })
+          : Effect.void,
+    ),
   )
 
   it.effect("grep still searches a path inside the Location", () =>

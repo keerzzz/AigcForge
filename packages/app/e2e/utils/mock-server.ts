@@ -1,5 +1,8 @@
 import type { Page, Route } from "@playwright/test"
 
+const isRecordOf = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
+type MockSession = { id: string } & Record<string, unknown>
+
 const emptyList = new Set([
   "/skill",
   "/command",
@@ -11,14 +14,20 @@ const emptyList = new Set([
   "/vcs/diff",
   "/vcs/log",
   "/file",
+  "/pty/shells",
 ])
 const emptyObject = new Set(["/global/config", "/config", "/provider/auth", "/mcp", "/session/status"])
 
 export interface MockServerConfig {
   provider: unknown
   directory: string
+  /** Server port this registration answers on. Defaults to
+   * PLAYWRIGHT_SERVER_PORT (4096). A second registration with a different port
+   * lets one page mock two physical servers — non-matching ports fall through
+   * via route.fallback(). */
+  port?: string
   project: unknown
-  sessions: ({ id: string } & Record<string, unknown>)[]
+  sessions: MockSession[]
   pageMessages: (sessionId: string, limit: number, before?: string) => { items: unknown[]; cursor?: string }
   vcsDiff?: unknown[]
   messageDelay?: number
@@ -42,31 +51,66 @@ export interface MockServerConfig {
   delegations?: unknown[]
   delegationDelay?: number
   delegationStatus?: number
+  /** Optional override for the `/agent` projection. The default is the single
+   * `build` primary the picker needs to render at all; a caller that needs a
+   * long list (the narrow picker's overflow contract) supplies its own. */
+  agents?: unknown[]
+  /** Optional project list served by GET /project. Defaults to `[config.project]`;
+   * a second server or a multi-project case supplies its own list. */
+  projects?: unknown[]
+  /** Optional response for PATCH /project/:id, the write the colour auto-assign
+   * (`context/layout.tsx`) and the edit dialog (`dialog-edit-project.tsx`) issue.
+   * Absent, the route stays unmatched and falls through to the same 200 `{}` it
+   * always has; `projectUpdateStatus` defaults to 200, so a rejected write is
+   * expressed as a status plus the typed error shape. */
+  projectUpdate?: unknown
+  projectUpdateStatus?: number
+  /** Optional replacement for GET /path's projection. Absent, the default
+   * `{ state, config, worktree, directory, home }` is served byte-for-byte, so
+   * only a caller that needs an inaccessible or invalid directory sets it.
+   * `pathStatus` defaults to 200. */
+  pathResponse?: unknown
+  pathStatus?: number
+  /** Optional listing served by GET /file. Default [] (the `emptyList` set), which
+   * leaves the directory picker's tree empty; a caller that drives a picker-driven
+   * or file-dialog flow supplies a listing here. */
+  files?: unknown[]
+  /** Optional override for GET /vcs. Default `{ branch: "main", default_branch: "main" }`;
+   * the real server answers `{}` (both fields undefined) for a non-git location. */
+  vcs?: unknown
+  /** Optional complete `/session/:id/identity` projection for second-source tests. */
+  identity?: Record<string, unknown> | ((session: MockSession) => unknown)
+  onIdentity?: (sessionID: string) => void
 }
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
   const cursors = new Map<string, string>()
   let nextCursor = 0
   let nextTaskID = 0
+  const pathProjection = {
+    state: config.directory,
+    config: config.directory,
+    worktree: config.directory,
+    directory: config.directory,
+    home: "C:/Aigcfroge",
+  }
   const staticRoutes: Record<string, unknown> = {
     "/provider": config.provider,
-    "/path": {
-      state: config.directory,
-      config: config.directory,
-      worktree: config.directory,
-      directory: config.directory,
-      home: "C:/Aigcfroge",
-    },
-    "/project": [config.project],
+    "/path": pathProjection,
+    "/project": config.projects ?? [config.project],
     "/project/current": config.project,
-    "/agent": [{ name: "build", mode: "primary" }],
-    "/vcs": { branch: "main", default_branch: "main" },
+    // `primaryModes` mirrors the real server projection (S6): the picker filters on
+    // it for display, so a mock without it would render an empty agent control.
+    "/agent": config.agents ?? [
+      { name: "build", mode: "primary", primaryModes: ["chat", "coding", "work", "assistant", "custom"] },
+    ],
+    "/vcs": config.vcs ?? { branch: "main", default_branch: "main" },
     "/session": config.sessions,
   }
 
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url())
-    const targetPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
+    const targetPort = config.port ?? process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
     const appPort = new URL(
       process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? "3000"}`,
     ).port
@@ -82,8 +126,26 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     // Checked before `emptyObject`, which would otherwise pin every session to idle.
     if (path === "/session/status") return json(route, config.sessionStatus ?? {})
     if (emptyObject.has(path)) return json(route, {})
+    // Checked before `emptyList`, which would otherwise answer `[]`. Absent, the
+    // route still falls through to that same `[]`.
+    if (path === "/file" && config.files !== undefined) return json(route, config.files)
     if (emptyList.has(path)) return json(route, [])
+    // Checked before `staticRoutes` only when the knob asks for it; an absent pair
+    // leaves the default projection and status untouched.
+    if (path === "/path" && (config.pathResponse !== undefined || config.pathStatus !== undefined)) {
+      return json(route, config.pathResponse ?? pathProjection, undefined, config.pathStatus ?? 200)
+    }
     if (path in staticRoutes) return json(route, staticRoutes[path])
+    // Project write (`PATCH /project/:id`). Unmatched before this knob existed, so it
+    // fell through to the blanket 200 `{}` and a rejected write was inexpressible.
+    // Only answered when the knob is present; every other method and path is unchanged.
+    if (
+      /^\/project\/[^/]+$/.test(path) &&
+      route.request().method() === "PATCH" &&
+      (config.projectUpdate !== undefined || config.projectUpdateStatus !== undefined)
+    ) {
+      return json(route, config.projectUpdate ?? {}, undefined, config.projectUpdateStatus ?? 200)
+    }
     // M4 Agent Hub cross-session aggregation read (agent-task group).
     if (path === "/agent-task") return json(route, config.tasks ?? [])
     if (path === "/api/delegation" || path === "/delegation") {
@@ -94,7 +156,11 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     const sessionMatch = path.match(/^\/session\/([^/]+)$/)
     if (sessionMatch) {
       const session = config.sessions.find((s) => s.id === sessionMatch[1])
-      return json(route, session ?? {})
+      // Real backend 404 shape (packages/aigcfroge/src/server/routes/instance/httpapi/errors.ts
+      // ApiNotFoundError): `{ name: "NotFoundError", data: { message } }`. The mock
+      // used to answer 200 `{}` here, which made the real error shape untestable.
+      if (!session) return notFound(route, `Session not found: ${sessionMatch[1]}`)
+      return json(route, session)
     }
 
     const todoPath = path.match(/^\/session\/([^/]+)\/todo$/)
@@ -141,6 +207,53 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
       return route.fallback()
     }
 
+    // Missing-file contract (S6 debt closure): a typed 404 with the real
+    // NotFoundError shape. This mock owns no files, so every content read is a
+    // miss — specs that need real content override the route locally.
+    if (path === "/file/content") {
+      return notFound(route, `File not found: ${url.searchParams.get("path") ?? ""}`)
+    }
+
+    // Identity projection (S6): the status bar reads this. It mirrors the real
+    // service's shape — including the typed `model` datum and the mode-detail
+    // availability — so E3 exercises the same contract the server produces.
+    const identityMatch = path.match(/^\/session\/([^/]+)\/identity$/)
+    if (identityMatch) {
+      const session = config.sessions.find((s) => s.id === identityMatch[1])
+      if (!session) return notFound(route, `Session not found: ${identityMatch[1]}`)
+      config.onIdentity?.(session.id)
+      if (config.identity !== undefined) {
+        return json(route, typeof config.identity === "function" ? config.identity(session) : config.identity)
+      }
+      const tier = session.permissionTier === "full" ? "full" : "propose"
+      const mode = typeof session.mode === "string" ? session.mode : "coding"
+      const model = isRecordOf(session.model)
+        ? { status: "ready" as const, value: session.model }
+        : { status: "missing" as const }
+      const codingDetail = {
+        status: "ready" as const,
+        detail: {
+          source: "coding" as const,
+          vcs: { branch: { status: "missing" as const }, worktree: { status: "missing" as const } },
+        },
+      }
+      const missingDetail = { status: "missing" as const, reason: "mode-detail-not-projected" }
+      return json(route, {
+        sessionID: session.id,
+        mode,
+        location: { directory: session.directory },
+        projectID: session.projectID,
+        agent: typeof session.agent === "string" ? session.agent : "meta",
+        model,
+        permission: { declaredTier: tier, effect: "ask" },
+        capability:
+          mode === "coding"
+            ? { health: "ready", reasons: [] }
+            : { health: "degraded", reasons: [{ code: "mode-detail-not-projected", severity: "info" }] },
+        detail: mode === "coding" ? codingDetail : missingDetail,
+      })
+    }
+
     const messagesMatch = path.match(/^\/session\/([^/]+)\/message$/)
     if (messagesMatch) {
       const token = url.searchParams.get("before") ?? undefined
@@ -157,9 +270,26 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
       return json(route, pageData.items, { "x-next-cursor": cursor })
     }
 
+    // Unmatched target-port requests keep answering 200 `{}` by default. A blanket
+    // 404 here was tried and reverted: bootstrap paths the app tolerates
+    // (`/api/permission/request`, …) turned into console-error floods that failed
+    // every spec asserting "no unexpected browser errors" and stretched the suite
+    // past its budget. The mock CAN express the real 404 shape (`notFound`) and
+    // does so for unknown sessions, which is the surface §7.2 needs.
+    //
+    // Strict-mode verdict (S4 #4, plan §7.2 边界裁决): an opt-in "unmatched → 404"
+    // mode is NOT added. The consumer it was reserved for — the mock/real
+    // shape-consistency proof — is satisfied by E4's real backend
+    // (e2e/real/session-not-found.spec.ts) plus the E3 shape assertion in
+    // unknown-route.spec.ts; a second, stricter mock mode would have no caller.
+    // Reopen only if a future spec needs unmatched-path 404s.
     if (url.port === targetPort && targetPort !== appPort) return json(route, {})
     return route.fallback()
   })
+}
+
+function notFound(route: Route, message: string) {
+  return json(route, { name: "NotFoundError", data: { message } }, undefined, 404)
 }
 
 function json(route: Route, body: unknown, headers?: Record<string, string>, status = 200) {

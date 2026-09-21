@@ -22,7 +22,7 @@ import { extractPromptFromParts } from "@/utils/prompt"
 import { UserMessage } from "@aigcfroge/sdk/v2"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { useTabs } from "@/context/tabs"
-import { requireServerKey } from "@/utils/session-route"
+import { parseServerKey } from "@/utils/session-route"
 
 export type SessionCommandContext = {
   navigateMessageByOffset: (offset: number) => void
@@ -389,8 +389,10 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
             navigate(modeDefinition(mode.currentMode).href)
             return
           }
+          const parsed = parseServerKey(params.serverKey)
+          if (!parsed.ok) return
           sessionTabs.newDraft({
-            server: requireServerKey(params.serverKey),
+            server: parsed.key,
             directory: sdk().directory,
             mode: mode.currentMode,
           })
@@ -567,7 +569,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       description: language.t("command.agent.cycle.description"),
       keybind: "mod+.",
       slash: "agent",
-      disabled: !settings.visibility.customAgents(),
+      disabled: false,
       onSelect: () => local.agent.move(1),
     }),
     agentCommand({
@@ -575,7 +577,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       title: language.t("command.agent.cycle.reverse"),
       description: language.t("command.agent.cycle.reverse.description"),
       keybind: "shift+mod+.",
-      disabled: !settings.visibility.customAgents(),
+      disabled: false,
       onSelect: () => local.agent.move(-1),
     }),
   ]

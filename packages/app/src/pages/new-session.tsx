@@ -1,9 +1,12 @@
-import { createEffect, createMemo, onMount, untrack } from "solid-js"
+import { createEffect, createMemo, onCleanup, onMount, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
-import { useSearchParams } from "@solidjs/router"
+import { useLocation, useNavigate, useSearchParams } from "@solidjs/router"
+import { useChatWorkspace } from "@/context/chat-workspace"
 import { NewSessionDesignView } from "@/components/session"
 import { useComments } from "@/context/comments"
 import { usePrompt } from "@/context/prompt"
+import { runInternalNavigation } from "@/context/chat-workspace"
+import { UrlParams } from "@/utils/url-params"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { createSessionComposerState, SessionComposerRegion } from "@/pages/session/composer"
@@ -18,11 +21,36 @@ export default function NewSessionPage() {
   const sdk = useSDK()
   const sync = useSync()
   const comments = useComments()
-  const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string }>()
+  const workspace = useChatWorkspace()
+  const [searchParams] = useSearchParams<{ draftId?: string; prompt?: string }>()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   let inputRef: HTMLDivElement | undefined
 
   const composer = createSessionComposerState()
+  // Identity and dirty are both registered from the route alone: identity so a close during
+  // prompt hydration still resolves this draft as the routed tab, dirty as a live source that
+  // the close/leave decision evaluates later. Owner tokens keep a previous page instance's
+  // cleanup from clearing a newer registration of the same key.
+  const routeIdentityToken = Symbol("draft-route-identity")
+  const dirtyToken = Symbol("draft-dirty")
+  const dirtyKey = createMemo(() => (searchParams.draftId ? `draft:${searchParams.draftId}` : undefined))
+
+  createEffect(() => {
+    const key = dirtyKey()
+    if (!key) return
+    workspace?.route.setActiveTabKey(key, routeIdentityToken)
+    // Registered as a live source: `prompt.dirty()` is evaluated when the close or the
+    // route leave is decided, so a click can never race a pending effect flush.
+    workspace?.dirty.register(key, () => prompt.dirty(), dirtyToken)
+  })
+  onCleanup(() => {
+    const key = dirtyKey()
+    if (!key) return
+    workspace?.dirty.clear(key, dirtyToken)
+    workspace?.route.clearActiveTabKey(key, routeIdentityToken)
+  })
 
   const [store, setStore] = createStore({
     worktree: "main",
@@ -41,7 +69,11 @@ export default function NewSessionPage() {
       const text = searchParams.prompt
       if (!text) return
       prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
-      setSearchParams({ ...searchParams, prompt: undefined })
+      // One-shot cleanup: replace (no history entry) and flagged as internal so
+      // the dirty guard does not treat it as the user leaving (plan §7.1).
+      runInternalNavigation(() =>
+        navigate(UrlParams.withoutParams(location, ["prompt"]), { replace: true, scroll: false, resolve: false }),
+      )
     })
   })
 

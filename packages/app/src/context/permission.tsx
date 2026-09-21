@@ -4,6 +4,8 @@ import { createSimpleContext } from "@aigcfroge/ui/context"
 import type { PermissionRequest } from "@aigcfroge/sdk/v2/client"
 import { Persist, persisted } from "@/utils/persist"
 import { useServerSDK } from "@/context/server-sdk"
+import { useQueryClient } from "@tanstack/solid-query"
+import { SessionIdentityQuery } from "@/components/session/session-identity-query"
 import { useServerSync } from "./server-sync"
 import { useParams } from "@solidjs/router"
 import { decode64 } from "@/utils/base64"
@@ -52,6 +54,7 @@ export const { use: usePermission, provider: PermissionProvider } = createSimple
     const params = useParams()
     const serverSDK = useServerSDK()
     const serverSync = useServerSync()
+    const queryClient = useQueryClient()
 
     const permissionsEnabled = createMemo(() => {
       const directory = props.directory?.() ?? decode64(params.dir)
@@ -241,8 +244,63 @@ export const { use: usePermission, provider: PermissionProvider } = createSimple
       )
     }
 
+    // S12 shared permission control surface (plan 6.8): the break-glass lease
+    // entry and the permission-tier mutation entry share this owner so there is
+    // no second timer, state, or permission computation. `override` is
+    // ephemeral by design (the server lease expires on restart), so it is NOT
+    // folded into the persisted autoAccept store.
+    const [override, setOverride] = createStore<Record<string, boolean>>({})
+
+    function directoryClient() {
+      const directory = props.directory?.() ?? decode64(params.dir)
+      if (!directory) return undefined
+      // Same client `useSDK()` resolves, so directory scoping is preserved.
+      return serverSDK().ensureDirSdkContext(directory).client
+    }
+
+    async function refreshOverride(sessionID: string) {
+      const client = directoryClient()
+      if (!client) return
+      try {
+        const res = await client.permission.override.get({ sessionID })
+        setOverride(sessionID, res.data?.enabled === true)
+      } catch {
+        setOverride(sessionID, false)
+      }
+    }
+
+    async function updateOverride(input: { sessionID: string; method: "PUT" | "DELETE"; acknowledged?: boolean }) {
+      const client = directoryClient()
+      if (!client) return
+      if (input.method === "PUT") {
+        const res = await client.permission.override.put({
+          sessionID: input.sessionID,
+          ...(input.acknowledged !== undefined ? { acknowledged: input.acknowledged } : {}),
+        })
+        setOverride(input.sessionID, res.data?.enabled === true)
+        return
+      }
+      await client.permission.override.delete({ sessionID: input.sessionID })
+      setOverride(input.sessionID, false)
+    }
+
+    async function setPermissionTier(sessionID: string, permissionTier: "propose" | "full") {
+      const scope = serverSDK().scope
+      const client = directoryClient()
+      if (!client) throw new Error("Session directory is unavailable")
+      await client.session.update({ sessionID, permissionTier }, { throwOnError: true })
+      await SessionIdentityQuery.invalidate(queryClient, scope, sessionID)
+    }
+
     return {
       ready,
+      refreshOverride,
+      overrideEnabled(sessionID: string) {
+        return override[sessionID] === true
+      },
+      updateOverride,
+      setPermissionTier,
+
       respond,
       autoResponds(permission: PermissionRequest, directory?: string) {
         return shouldAutoRespond(permission, directory)

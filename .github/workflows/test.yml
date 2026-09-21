@@ -68,9 +68,11 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Run unit tests
-        # Windows is ~2.9x slower (subprocess-heavy aigcfroge:test: 9.3m on Linux -> ~27m);
-        # 20m timed out with aigcfroge:test ~65% done. 40m gives headroom for the slow CLI tests.
-        timeout-minutes: 40
+        # The 2026-09-21 CI run completed core's 2,493 Windows tests (0 failures)
+        # but timed out before aigcfroge's 3,320 tests finished. Linux's same
+        # aigcfroge suite took 20m; Windows is slower for subprocess-heavy tests.
+        # This is a kill switch, not a substitute for the per-test 90s bound.
+        timeout-minutes: ${{ runner.os == 'Windows' && 90 || 40 }}
         run: GITHUB_ACTIONS=false bun turbo test
         env:
           AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || '' }}
@@ -88,6 +90,107 @@ jobs:
         continue-on-error: true
         timeout-minutes: 30
         run: bun run script/httpapi-exercise.ts --mode effect
+
+  e4:
+    name: e4 (${{ matrix.settings.name }})
+    # The real-backend harness builds the production app and boots a real backend,
+    # a real PTY and a real SQLite DB. It is deliberately NOT part of the PR gate:
+    # the E3 job already covers the browser surface there, and this job's value is
+    # the production chain plus the V2 variant, which only runs here.
+    #
+    # Both variants run: the default runtime is the product chain, and the flag-on
+    # variant is the only place `v2-admission-gap.spec.ts` executes — its green
+    # state means the V2 gap is still present (see the spec header).
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - name: linux
+            host: ubuntu-latest
+    runs-on: ${{ matrix.settings.host }}
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          # Same pin as the e2e job: Playwright 1.59 hangs extracting Chromium on 24.16.
+          node-version: "24.15"
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "bot@aigcfroge.dev"
+          git config --global user.name "aigcfroge"
+
+      - name: Read Playwright version
+        id: playwright-version
+        run: |
+          version=$(node -e 'console.log(require("./package.json").workspaces.catalog["@playwright/test"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.playwright-browsers
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
+
+      - name: Install Playwright system dependencies
+        working-directory: packages/app
+        run: bunx playwright install-deps chromium
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: packages/app
+        run: bunx playwright install chromium
+
+      - name: Run E4 — default runtime
+        # The run dir points into the workspace so the orchestrator's evidence
+        # (manifest, teardown gate, orchestrator.log) can be uploaded; otherwise it
+        # would live in the runner's tmpdir and vanish with it.
+        env:
+          CI: true
+          E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/default
+        run: bun --cwd packages/app test:e2e --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
+        # Kill switch, not a wait-for-green budget: the harness polls readiness
+        # rather than sleeping, so this only bounds a hang. Local wall on an idle
+        # machine: 13.4m default, 7.0m flag-on (cold production build included),
+        # and the worst case inside a single run is the 600s backend health poll.
+        timeout-minutes: 45
+
+      - name: Run E4 — V2 variant
+        env:
+          CI: true
+          E4_V2_RUNTIME: "1"
+          E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/v2
+        run: bun --cwd packages/app test:e2e --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
+        timeout-minutes: 45
+
+      - name: Upload E4 evidence
+        # Always: a failed harness is exactly when the teardown report and the
+        # preserved run dir matter most. This is the durable half of the evidence
+        # the S5 archive had to keep by hand.
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e4-evidence-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            packages/app/e2e/real/run-evidence
+            packages/app/e2e/real/test-results
 
   e2e:
     name: e2e (${{ matrix.settings.name }})
@@ -144,13 +247,14 @@ jobs:
         run: bunx playwright install chromium
 
       - name: Run app e2e tests
-        # The presentation matrix (theme/locale/narrow viewport) is a Linux
-        # gate across all five projects; Windows keeps the baseline Chromium
-        # project so the OS split does not multiply the slowest runner. No
-        # continue-on-error: the matrix is a real gate. The Linux budget is
-        # 5x the single-project suite (cold Vite route compiles dominate);
-        # if it overflows, lower PLAYWRIGHT_WORKERS before touching this
-        # timeout (the plan's cost rule), not the other way around.
+        # `chromium` is the business suite. The other four projects are the
+        # presentation matrix and filter on `PRESENTATION_GREP` (e2e/presentation-matrix.ts):
+        # theme/locale/viewport survive, but the suite is no longer multiplied by five
+        # (~1030 instances before, ~218 after, measured with `playwright test --list`).
+        # Windows keeps the baseline Chromium project so the OS split does not multiply
+        # the slowest runner. No continue-on-error: the matrix is a real gate. The Linux
+        # budget was sized for the unfiltered matrix; the first CI run after the filter
+        # is what should resize it, not this comment.
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             bun --cwd packages/app test:e2e:local --project=chromium --project=chromium-dark --project=chromium-zh --project=chromium-zht --project=chromium-narrow
@@ -159,7 +263,11 @@ jobs:
           fi
         env:
           CI: true
-        timeout-minutes: ${{ runner.os == 'Linux' && 90 || 30 }}
+          # At five workers, the 2,000-project fan-out made Linux exceed its
+          # per-case budget and Windows hit ERR_NO_BUFFER_SPACE mid-suite.
+          # Reduce contention before widening any individual test timeout.
+          PLAYWRIGHT_WORKERS: ${{ runner.os == 'Windows' && '2' || '3' }}
+        timeout-minutes: ${{ runner.os == 'Linux' && 90 || 50 }}
 
       - name: Upload Playwright artifacts
         if: always()

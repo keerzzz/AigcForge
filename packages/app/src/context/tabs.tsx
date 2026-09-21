@@ -3,14 +3,17 @@ import { createSimpleContext } from "@aigcfroge/ui/context"
 import { createStore, produce } from "solid-js/store"
 import { Persist, persisted, removePersisted, draftPersistedKeys } from "@/utils/persist"
 import { ServerConnection, useServer } from "./server"
-import { createEffect, getOwner, onCleanup, startTransition } from "solid-js"
+import { createEffect, createSignal, getOwner, onCleanup, startTransition } from "solid-js"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { usePlatform } from "./platform"
 import { uuid } from "@/utils/uuid"
 import { SessionTabsRemovedDetail } from "@/components/titlebar-session-events"
+import { useChatWorkspace } from "./chat-workspace"
 import { sessionHref } from "@/utils/session-route"
+import { planTabClose } from "./tab-close"
 import { createTabMemory } from "./tab-memory"
 import { isMode, type Mode } from "./mode"
+import type { WorkContract } from "@aigcfroge/schema/work-contract"
 import type { WorkPreset } from "@aigcfroge/schema/work-preset"
 
 export type SessionTab = {
@@ -28,6 +31,7 @@ export type DraftTab = {
   mode: Mode
   agent?: string
   presetCategoryId?: WorkPreset.Category
+  workContract?: WorkContract.Snapshot
   permissionTier?: "propose" | "full"
 }
 
@@ -37,15 +41,30 @@ type RecentTab = {
   key?: string
 }
 
+export type TabFocusHandoff = {
+  token: symbol
+  target: string | "home"
+}
+
 export const draftHref = (draftID: string) => `/new-session?draftId=${encodeURIComponent(draftID)}`
 
 export const tabHref = (tab: Tab) =>
   tab.type === "draft" ? draftHref(tab.draftID) : sessionHref(tab.server, tab.sessionId)
 
-export const tabKey = (tab: Tab) => (tab.type === "draft" ? `draft:${tab.draftID}` : `${tab.server}\n${tabHref(tab)}`)
+// Identity is canonical (the href inside the key must be built from the
+// canonical server too, or raw-vs-canonical spellings split one tab in two);
+// the rendered href (tabHref) keeps the persisted spelling.
+export const tabKey = (tab: Tab) => {
+  if (tab.type === "draft") return `draft:${tab.draftID}`
+  const server = ServerConnection.canonicalKey(tab.server)
+  return `${server}\n${sessionHref(server, tab.sessionId)}`
+}
 
 export function sessionHasOpenTab(tabs: Tab[], server: ServerConnection.Key, session: Session) {
-  return tabs.some((tab) => tab.type === "session" && tab.server === server && tab.sessionId === session.id)
+  // Persisted tab keys predate canonicalization — sameKey, not equality.
+  return tabs.some(
+    (tab) => tab.type === "session" && ServerConnection.sameKey(tab.server, server) && tab.sessionId === session.id,
+  )
 }
 
 export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
@@ -80,8 +99,10 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
     const navigate = useNavigate()
     const location = useLocation()
     const memory = createTabMemory(getOwner())
+    const workspace = useChatWorkspace()
 
     const closing = new Set<string>()
+    const [focusHandoff, setFocusHandoff] = createSignal<TabFocusHandoff>()
     let recentWrite = 0
     let recentValue: string | undefined
 
@@ -108,10 +129,13 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
     createEffect(() => {
       if (!ready() || !recentReady()) return
       const servers = new Set(server.list.map(ServerConnection.key))
-      const next = store.filter((tab) => servers.has(tab.server))
+      // Persisted tab.server values predate canonicalization (raw `localhost`
+      // spellings) — compare through the canonical form or this effect wipes
+      // every pre-S4 tab on boot (plan §7.1 附则, lock B).
+      const next = store.filter((tab) => servers.has(ServerConnection.canonicalKey(tab.server)))
       if (next.length !== store.length) {
         for (const tab of store) {
-          if (!servers.has(tab.server)) memory.remove(tabKey(tab))
+          if (!servers.has(ServerConnection.canonicalKey(tab.server))) memory.remove(tabKey(tab))
         }
         setStore(() => next)
       }
@@ -181,21 +205,36 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         const tab = store[index]
         if (!tab) return
         const key = tabKey(tab)
-        const draftID = tab.type === "draft" ? tab.draftID : undefined
-        const nextTab = store[index + 1] ?? store[index - 1]
+        if (closing.has(key)) return
         closing.add(key)
-        void startTransition(() => {
-          setStore(
-            produce((tabs) => {
-              tabs.splice(index, 1)
-            }),
-          )
-          if (recent.key === key) setRecentKey(nextTab && tabKey(nextTab))
-          if (nextTab) navigateTab(nextTab)
-          else navigate("/")
-        }).finally(() => closing.delete(key))
-        memory.remove(key)
-        if (draftID) removeDraftPersisted(draftID)
+        // Snapshot the routed-tab decision before awaiting the confirmation: that dialog is
+        // modal, so the routed tab cannot change while it is open, and re-reading the shell's
+        // mutable route identity after the await can commit a routed close as a background one
+        // — removing the tab without a successor navigation and leaving the surface blank.
+        const routeActive = workspace?.route.activeTabKey() === key
+        void (workspace?.dirty.confirmLeave(key) ?? Promise.resolve(true))
+          .then((leave) => {
+            if (!leave) return
+            // Re-plan from the live store: the confirmation can outlive index changes, so the
+            // close re-locates its tab by key and takes the successor from the current order.
+            const plan = planTabClose({ tabs: store, keyOf: tabKey, closingKey: key, recentKey: recentKey() })
+            if (!plan) return
+            void startTransition(() => {
+              setStore(() => plan.remaining)
+              if (recentKey() !== plan.recent) setRecentKey(plan.recent)
+              if (!routeActive) return
+              setFocusHandoff({
+                token: Symbol("tab-focus-handoff"),
+                target: plan.successor ? tabKey(plan.successor) : "home",
+              })
+              if (plan.successor) navigateTab(plan.successor)
+              else navigate("/")
+            }).then(() => {
+              memory.remove(key)
+              if (tab.type === "draft") removeDraftPersisted(tab.draftID)
+            })
+          })
+          .finally(() => closing.delete(key))
       },
       removeServer(key: ServerConnection.Key) {
         const drafts = store.flatMap((tab) => (tab.type === "draft" && tab.server === key ? [tab.draftID] : []))
@@ -278,6 +317,15 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       },
     }
 
-    return { ...actions, store, ready, recentReady }
+    return {
+      ...actions,
+      store,
+      ready,
+      recentReady,
+      focusHandoff,
+      consumeFocusHandoff(token: symbol) {
+        if (focusHandoff()?.token === token) setFocusHandoff(undefined)
+      },
+    }
   },
 })

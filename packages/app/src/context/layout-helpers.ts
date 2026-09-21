@@ -1,6 +1,6 @@
 import type { Accessor } from "solid-js"
 import { decode64 } from "@/utils/base64"
-import { requireServerKey } from "@/utils/session-route"
+import { parseServerKey } from "@/utils/session-route"
 import type { ServerConnection } from "./server"
 
 export type LayoutRoute =
@@ -33,10 +33,12 @@ export const currentRoute = (pathname: string, search: string): LayoutRoute => {
   }
 
   if (parts[0] === "server" && parts[2] === "session" && parts[3]) {
+    const parsed = parseServerKey(parts[1])
+    if (!parsed.ok) return { type: "other" }
     return {
       type: "session",
       sessionId: parts[3],
-      server: requireServerKey(parts[1]),
+      server: parsed.key,
     }
   }
 
@@ -50,6 +52,38 @@ export const currentRoute = (pathname: string, search: string): LayoutRoute => {
   if (id) return { type: "session", sessionId: id }
   return { type: "dir-new-sesssion", dir, dirBase64 }
 }
+
+/**
+ * Whether the secondary sidebar is mounted. Single source for two consumers that must agree:
+ * `pages/layout.tsx` decides the panel's lifecycle with it, and `titlebar.tsx` decides whether
+ * emitting `aria-controls` has a resolvable target. An IDREF that points at an unmounted node
+ * is invalid at any time, so the attribute follows the mount, not the preference.
+ */
+export const secondarySidebarShown = (open: boolean, routeType: LayoutRoute["type"]) => open && routeType === "session"
+
+/**
+ * The breakpoint at which the mode content panel docks beside the session instead of floating
+ * over it. Exported as one string because three consumers derive a media query from it and a
+ * disagreement about the width would leave `aria-controls` pointing at an unmounted node.
+ */
+export const MODE_CONTENT_PANEL_QUERY = "(min-width: 768px)"
+
+/**
+ * Whether the session's mode content panel is mounted. Single source for the three consumers
+ * that must agree: `session-side-panel.tsx` decides the panel's lifecycle with it,
+ * `titlebar.tsx` decides whether to offer the narrow entry and emit `aria-controls`, and
+ * `session.tsx` decides whether the body it floats over has to become `inert`.
+ *
+ * Docked (desktop) mount is unconditional for a session, which preserves the pre-S7 rule that
+ * the mode panels stay mounted so switching modes does not reset their state. Below the
+ * breakpoint only the modes with a narrow content owner mount:
+ *
+ * Coding is excluded on purpose: its content owner is the review/files surface, which a narrow
+ * mode already reaches through its own Session/Changes tabs, so mounting a floating copy of it
+ * would be a second presentation of the same owner rather than a new entry.
+ */
+export const modeContentPanelShown = (input: { routeType: LayoutRoute["type"]; mode: string; docked: boolean }) =>
+  input.routeType === "session" && (input.docked || input.mode !== "coding")
 
 export function ensureSessionKey(key: string, touch: (key: string) => void, seed: (key: string) => void) {
   touch(key)

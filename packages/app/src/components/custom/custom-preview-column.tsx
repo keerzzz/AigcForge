@@ -19,7 +19,13 @@ import { ServerConnection } from "@/context/server"
 import { openSessionByID } from "@/pages/layout/helpers"
 import type { DirectorySDK } from "@/context/sdk"
 import type { CompositionPlan } from "@aigcfroge/sdk/v2/client"
-import { blockingDiagnostics, classifyPlanFailure, evaluateStartGate, parseErrorDetails } from "./custom-plan-state"
+import {
+  blockerOf,
+  blockingDiagnostics,
+  classifyPlanFailure,
+  evaluateStartGate,
+  parseErrorDetails,
+} from "./custom-plan-state"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 export interface CustomPreviewColumnProps {
@@ -80,6 +86,8 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       draft: { source: draft.state.source, agentCount: draft.state.agents.length },
     }),
   )
+
+  const startBlocker = createMemo(() => blockerOf(startGate()))
 
   async function handleStart() {
     const sdk = props.dirSdk()
@@ -155,6 +163,23 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
           </ButtonV2>
         </div>
 
+        {/*
+          The blocker comes straight from the start gate (custom-plan-state.ts) —
+          one source for "why is Start disabled", rendered next to the control it
+          belongs to (plan §9.2). It is never recomputed here.
+        */}
+        <Show when={startBlocker()}>
+          {(blocker) => (
+            <p
+              data-component="custom-start-blocker"
+              data-blocker={blocker()}
+              class="text-11-regular text-v2-text-text-muted"
+            >
+              {language.t(`custom.builder.startBlocker.${blocker()}`)}
+            </p>
+          )}
+        </Show>
+
         <div class="flex items-center justify-between text-11-regular text-v2-text-text-muted border-t border-v2-border-border-base pt-2">
           <div class="flex items-center gap-2">
             <span>{language.t("custom.builder.planDigest")}:</span>
@@ -188,7 +213,12 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       <Show when={errorMessage()}>
         <div class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center justify-between">
           <span>{errorMessage()}</span>
-          <button type="button" onClick={() => setErrorMessage(undefined)}>
+          <button
+            type="button"
+            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+            aria-label={language.t("common.dismiss")}
+            onClick={() => setErrorMessage(undefined)}
+          >
             <Icon name="close" size="small" />
           </button>
         </div>

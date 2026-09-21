@@ -214,6 +214,16 @@ describe("layout workspace helpers", () => {
     expect(String(pathKey("C:///"))).toBe("C:/")
   })
 
+  // The boundary of the key, pinned because the project registry's membership now depends on it
+  // (`context/server.tsx`): `pathKey` normalizes SPELLING — separators, a trailing slash, a bare
+  // drive — and folds nothing else. It does not lower case, and it compares no filesystem fact,
+  // so it cannot claim two paths are the same directory. That is what keeps it a UI-level key
+  // rather than a backdoor around path identity, which is backend-owned (manifest `path-identity`).
+  test("keeps case, because a case-insensitive filesystem is not the only one", () => {
+    expect(String(pathKey("/Repo"))).toBe("/Repo")
+    expect(pathKey("C:/Repo")).not.toBe(pathKey("c:/Repo"))
+  })
+
   test("keeps local first while preserving known order", () => {
     const result = effectiveWorkspaceOrder("/root", ["/root", "/b", "/c"], ["/root", "/c", "/a", "/b"])
     expect(result).toEqual(["/root", "/c", "/b"])

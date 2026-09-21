@@ -118,6 +118,9 @@ function discover(fs: FSUtil.Interface, directory: string) {
 function decode(file: { directory: string; filepath: string; primary: boolean }, content: string) {
   const markdown = ConfigMarkdown.parseOption(content)
   if (!markdown) return
+  // Agent Assets have their own registry and collision guard. Registering one
+  // through the legacy config scanner first shadows its provenance in AgentV2.
+  if (markdown.data.kind === "agent") return
   const name = path
     .relative(file.directory, file.filepath)
     .replaceAll("\\", "/")

@@ -8,7 +8,7 @@ import type { Session } from "@aigcfroge/sdk/v2/client"
 import { useLanguage } from "@/context/language"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
-import { useServer, ServerConnection } from "@/context/server"
+import { useServer, serverName, ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useLayout, type LocalProject } from "@/context/layout"
 import { MODE_DEFINITIONS, useMode, type Mode } from "@/context/mode"
@@ -56,6 +56,7 @@ export function HomeOverview() {
   const global = useGlobal()
   const navigate = useNavigate()
   const tabs = useTabs()
+  const dialog = useDialog()
 
   const [state, setState] = createStore({
     search: "",
@@ -65,6 +66,17 @@ export function HomeOverview() {
   })
 
   const focusedServer = createMemo(() => server.current)
+  /**
+   * The focused connection, but only once the shared health poll (`context/global.tsx`)
+   * has marked it unreachable. `undefined` also covers "not checked yet", so Home never
+   * claims offline without evidence — and stops claiming "no sessions" while the list it
+   * would show cannot be fetched.
+   */
+  const offlineServer = createMemo(() => {
+    const conn = focusedServer()
+    if (!conn) return undefined
+    return global.servers.health[ServerConnection.key(conn)]?.healthy === false ? conn : undefined
+  })
   const focusedServerCtx = createMemo(() => {
     const conn = focusedServer()
     if (!conn) return undefined
@@ -119,7 +131,12 @@ export function HomeOverview() {
   })
   const pinned = createMemo(() => pinLastActive(filteredRecords(), lastActive()))
   const groups = createMemo(() => groupSessions(pinned().rest, language))
-  const counts = createMemo(() => countByMode(allRecords()))
+  const recordsForSelectedProject = createMemo(() => {
+    const directory = state.projectFilter
+    if (!directory) return allRecords()
+    return allRecords().filter((record) => record.project.worktree === directory)
+  })
+  const counts = createMemo(() => countByMode(recordsForSelectedProject()))
   const projectCounts = createMemo(() => countByProject(allRecords()))
 
   const search = createMemo(() => state.search.trim())
@@ -179,7 +196,7 @@ export function HomeOverview() {
     return { directory, projects: ctx.projects }
   }
 
-  function openNewSession() {
+  function openNewSession(requestedDirectory?: string) {
     const conn = focusedServer()
     const ctx = focusedServerCtx()
     // Two different failures that used to be the same silent return. No connection is not
@@ -188,10 +205,10 @@ export function HomeOverview() {
       showToast({ title: language.t("error.serverSDK.noServerAvailable") })
       return
     }
-    const directory = newSessionDirectory()
+    const directory = requestedDirectory ?? newSessionDirectory()
     if (directory) {
       launchModeSessionOrRoute({
-        mode: mode.currentMode,
+        mode: state.modeFilter === "all" ? mode.currentMode : state.modeFilter,
         navigate,
         projects: ctx.projects,
         server: ServerConnection.key(conn),
@@ -213,7 +230,7 @@ export function HomeOverview() {
         const opened = openPickedProjects(conn, result)
         if (!opened) return
         launchModeSessionOrRoute({
-          mode: mode.currentMode,
+          mode: state.modeFilter === "all" ? mode.currentMode : state.modeFilter,
           navigate,
           projects: opened.projects,
           server: ServerConnection.key(conn),
@@ -227,6 +244,17 @@ export function HomeOverview() {
   function closeSearch() {
     setState("search", "")
     setState("searchFocused", false)
+  }
+
+  /**
+   * Way forward for an unreachable server. Reuses the shell's own server-management dialog
+   * rather than inventing a recovery path: the user can point at another server, edit the
+   * unreachable one, or add a new one, and the 10s health poll clears the notice on its own.
+   */
+  function openServerSettings() {
+    void import("@/components/dialog-select-server").then((x) => {
+      void dialog.show(() => <x.DialogSelectServer />)
+    })
   }
 
   function selectSearchSession(session: Session) {
@@ -251,6 +279,7 @@ export function HomeOverview() {
             modeFilter={state.modeFilter}
             onModeFilter={(modeFilter) => setState("modeFilter", modeFilter)}
             onSelectProject={(directory) => setState("projectFilter", directory)}
+            openNewSession={(directory) => openNewSession(directory)}
           />
         )}
       </Show>
@@ -270,15 +299,27 @@ export function HomeOverview() {
           onClose={closeSearch}
           onSelect={selectSearchSession}
         />
+        <div class="mt-3 flex items-center justify-between gap-3">
+          <h1 class="text-14-medium text-v2-text-text-base">{language.t("home.overview.title")}</h1>
+          {/* Wrapped, not passed by reference: the click event would arrive as `requestedDirectory`. */}
+          <ButtonV2 variant="contrast" icon="plus" onClick={() => openNewSession()}>
+            {language.t("sidebar.secondary.newSession")}
+          </ButtonV2>
+        </div>
         <ScrollView class="mt-3 min-h-0 flex-1">
           <div class="pt-3 flex flex-col gap-6">
             <Show when={!sessionLoad.isLoading} fallback={<HomeSessionSkeleton label={language.t("common.loading")} />}>
+              <Show when={offlineServer()}>
+                {(conn) => <HomeOfflineNotice server={conn()} onManageServers={openServerSettings} />}
+              </Show>
               <Show
                 when={pinned().pinned || groups().length > 0}
                 fallback={
-                  <div class="flex min-w-0 flex-col gap-4">
-                    <HomeSessionGroupHeader title={language.t("home.sessions.empty")} onNewSession={openNewSession} />
-                  </div>
+                  <Show when={!offlineServer()}>
+                    <div class="flex min-w-0 flex-col gap-4">
+                      <HomeSessionGroupHeader title={language.t("home.sessions.empty")} onNewSession={openNewSession} />
+                    </div>
+                  </Show>
                 }
               >
                 <Show when={pinned().pinned}>
@@ -329,6 +370,43 @@ export function HomeOverview() {
   )
 }
 
+/**
+ * Inline truthful state for a focused server the shared health poll has marked unreachable.
+ *
+ * It exists because an unreachable server used to render the ordinary empty state: session
+ * loading failures are swallowed into a transient toast (`context/server-sync.tsx:434-441`),
+ * so "No sessions found" was shown for an account Home never managed to read. The visual
+ * language mirrors the app-level `ConnectionError` (`app.tsx:604-625`) — same `app.server.*`
+ * wording, same auto-retry line — but inline, because Home is a page rather than a gate.
+ */
+function HomeOfflineNotice(props: { server: ServerConnection.Any; onManageServers: () => void }) {
+  const language = useLanguage()
+  // Splitting on a sentinel mirrors `app.tsx:609-610`, so the server name can be emphasised
+  // without a new key or markup baked into the translated string.
+  const serverToken = "\u0000server\u0000"
+  const unreachable = createMemo(() => language.t("app.server.unreachable", { server: serverToken }).split(serverToken))
+  return (
+    <div
+      data-component="home-overview-offline"
+      role="status"
+      class="flex min-w-0 flex-col items-start gap-3 rounded-[8px] border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4"
+    >
+      <div class="flex min-w-0 flex-col gap-1">
+        <p class="text-13-medium text-v2-text-text-base">
+          {unreachable()[0]}
+          <span class="font-medium">{serverName(props.server)}</span>
+          {unreachable()[1]}
+        </p>
+        <p class="text-12-regular text-v2-text-text-muted">{language.t("home.overview.offline.description")}</p>
+        <p class="text-12-regular text-v2-text-text-faint">{language.t("app.server.retrying")}</p>
+      </div>
+      <ButtonV2 variant="neutral" onClick={props.onManageServers}>
+        {language.t("status.popover.action.manageServers")}
+      </ButtonV2>
+    </div>
+  )
+}
+
 /** Home sidebar with mode counts and project filters, reusing HomeProjectRow. */
 export function HomeOverviewSidebar(props: {
   server: ServerConnection.Any
@@ -340,6 +418,7 @@ export function HomeOverviewSidebar(props: {
   modeFilter: "all" | Mode
   onModeFilter: (mode: "all" | Mode) => void
   onSelectProject: (directory: string | undefined) => void
+  openNewSession: (directory?: string) => void
 }) {
   const global = useGlobal()
   const navigate = useNavigate()
@@ -351,17 +430,6 @@ export function HomeOverviewSidebar(props: {
   const notification = useNotification()
   const pickDirectory = useDirectoryPicker()
 
-  function openNewSession(conn: ServerConnection.Any, directory: string) {
-    const ctx = global.ensureServerCtx(conn)
-    launchModeSessionOrRoute({
-      mode: mode.currentMode,
-      navigate,
-      projects: ctx.projects,
-      server: ServerConnection.key(conn),
-      directory,
-      tabs,
-    })
-  }
   function chooseProject(conn: ServerConnection.Any) {
     pickDirectory({
       server: conn,
@@ -416,25 +484,6 @@ export function HomeOverviewSidebar(props: {
       aria-label={language.t("home.overview.title")}
     >
       <div class="flex min-w-0 flex-col gap-1">
-        <div class={`${HOME_SECTION_LABEL} pl-1.5`}>{language.t("home.overview.modeFilter")}</div>
-        <For each={filters()}>
-          {(filter) => (
-            <button
-              type="button"
-              data-component="home-overview-mode-filter"
-              class={MODE_FILTER_ROW}
-              data-selected={props.modeFilter === filter.id ? "" : undefined}
-              aria-current={props.modeFilter === filter.id ? "page" : undefined}
-              onClick={() => props.onModeFilter(filter.id)}
-            >
-              <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{filter.label}</span>
-              <span class={MODE_FILTER_COUNT}>{filter.count}</span>
-            </button>
-          )}
-        </For>
-      </div>
-      <div class="h-px bg-v2-border-border-base" />
-      <div class="flex min-w-0 flex-col gap-1">
         <div class={`${HOME_SECTION_LABEL} pl-1.5`}>{language.t("home.overview.projectFilter")}</div>
         <button
           type="button"
@@ -460,12 +509,31 @@ export function HomeOverviewSidebar(props: {
               selectProject={(_conn, directory) =>
                 props.onSelectProject(props.selectedDirectory === directory ? undefined : directory)
               }
-              openNewSession={openNewSession}
+              openNewSession={(_conn, directory) => props.openNewSession(directory)}
               editProject={editProject}
               closeProject={closeProject}
               clearNotifications={clearNotifications}
               language={language}
             />
+          )}
+        </For>
+      </div>
+      <div class="h-px bg-v2-border-border-base" />
+      <div class="flex min-w-0 flex-col gap-1">
+        <div class={`${HOME_SECTION_LABEL} pl-1.5`}>{language.t("home.overview.modeFilter")}</div>
+        <For each={filters()}>
+          {(filter) => (
+            <button
+              type="button"
+              data-component="home-overview-mode-filter"
+              class={MODE_FILTER_ROW}
+              data-selected={props.modeFilter === filter.id ? "" : undefined}
+              aria-current={props.modeFilter === filter.id ? "page" : undefined}
+              onClick={() => props.onModeFilter(filter.id)}
+            >
+              <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{filter.label}</span>
+              <span class={MODE_FILTER_COUNT}>{filter.count}</span>
+            </button>
           )}
         </For>
       </div>

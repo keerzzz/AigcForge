@@ -204,7 +204,9 @@ export function launchModeSession(input: {
   directory: string
   tabs: Pick<ReturnType<typeof useTabs>, "newDraft">
   initialPrompt?: string
-  draftOverrides?: Partial<Pick<DraftTab, "agent" | "presetCategoryId" | "permissionTier" | "worktree">>
+  draftOverrides?: Partial<
+    Pick<DraftTab, "agent" | "presetCategoryId" | "workContract" | "permissionTier" | "worktree">
+  >
 }) {
   openProjectNewSession(
     input.projects,

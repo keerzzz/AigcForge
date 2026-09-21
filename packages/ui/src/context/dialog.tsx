@@ -23,6 +23,7 @@ type Active = {
   node: JSX.Element
   dispose: () => void
   owner: Owner
+  trigger?: HTMLElement
   onClose?: () => void
   setClosing: (closing: boolean) => void
 }
@@ -58,6 +59,7 @@ function init() {
       timer.current = undefined
       current.dispose()
       setStack((items) => items.filter((item) => item.id !== closed))
+      current.trigger?.focus({ preventScroll: true })
       lock.value = false
     }, 100)
   }
@@ -78,6 +80,10 @@ function init() {
   const mount = (element: DialogElement, owner: Owner, onClose: (() => void) | undefined, layer: number) => {
     const id = Math.random().toString(36).slice(2)
     const zIndex = 50 + layer * 10
+    const trigger =
+      typeof document !== "undefined" && document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : undefined
     let dispose: (() => void) | undefined
     let setClosing: ((closing: boolean) => void) | undefined
 
@@ -123,7 +129,7 @@ function init() {
 
     if (!dispose || !setClosing) return
 
-    const active: Active = { id, node, dispose, owner, onClose, setClosing }
+    const active: Active = { id, node, dispose, owner, trigger, onClose, setClosing }
     setStack((items) => [...items, active])
   }
 
@@ -137,7 +143,10 @@ function init() {
   }
 
   const show = (element: DialogElement, owner: Owner, onClose?: () => void) => {
-    for (const item of stack()) item.dispose()
+    for (const item of stack()) {
+      item.onClose?.()
+      item.dispose()
+    }
     setStack([])
     if (timer.current !== undefined) {
       clearTimeout(timer.current)

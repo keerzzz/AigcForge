@@ -1,4 +1,4 @@
-import { describe, expect } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { Cause, DateTime, Deferred, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
 import { EventV2 } from "@aigcfroge/core/event"
 import { Database } from "@aigcfroge/core/database/database"
@@ -83,6 +83,11 @@ const SyncTimestamp = EventV2.define({
 })
 
 describe("EventV2", () => {
+  test("definition order is independent of module registration order", () => {
+    const types = EventV2.definitions().map((definition) => definition.type)
+    expect(types).toEqual([...types].sort())
+  })
+
   it.effect("publishes events with the current location", () =>
     Effect.gen(function* () {
       const events = yield* EventV2.Service

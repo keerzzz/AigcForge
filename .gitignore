@@ -70,3 +70,6 @@ tsconfig.tsbuildinfo
 
 # dogfood/QA run output (report + text evidence are committed under docs/review/)
 dogfood-output/
+
+# E4 harness evidence: CI uploads it as an artifact, never committed.
+packages/app/e2e/real/run-evidence/

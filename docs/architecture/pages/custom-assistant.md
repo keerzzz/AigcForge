@@ -2,6 +2,7 @@
 
 > 状态：**SUPERSEDED（2026-09-03）** — 本页原写「PLANNED — 当前代码库无实现」，但它描述的能力（动态装配 Tools + Knowledge + Persona Prompt、工具白名单、目录绑定、路径校验）已由 **Custom 模式**实现，且三条「实现前置条件」全部满足。
 > 当前事实源：[ADR-17 Custom Mode Composition Platform](../adr/ADR-17-custom-mode-composition-platform.md) · [Custom PRD](../../prd/custom-mode-composition-platform.md) · [Custom 路线图](../../roadmap/custom-mode-roadmap.md) · [Mode Switcher](mode-switcher.md)
+> 补充（2026-09-20）：本页文件名为历史遗留，内容描述的是 **Custom** 能力。当前事实源已拆为两页独立文档：[Custom Mode](custom.md) 与 [Assistant Mode](assistant.md)。本页只保留历史改写记录，不再是任一模式的 owner 文档。
 > 个人助理（Assistant）模式是**另一个**模式，见 [Assistant PRD](../../prd/assistant-mode-personal-agent.md)。
 
 ---

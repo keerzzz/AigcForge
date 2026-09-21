@@ -44,11 +44,12 @@ import {
 import { useNotification } from "@/context/notification"
 import { useMarked } from "@aigcfroge/ui/context/marked"
 import { preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
 import type { Session, WorkflowAssetSummary } from "@aigcfroge/sdk/v2/client"
 import { assetVersion } from "@/components/chat/prompt-asset-store"
 import { buildWorkPresetCatalog } from "@/pages/work-preset-catalog"
-import { presetLaunch, workflowLaunch } from "@/pages/work-preset-launch"
+import { presetLaunch, workflowDraft, workflowLaunch } from "@/pages/work-preset-launch"
 import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 import { CustomProjectColumnSidebar as CustomSidebar } from "@/components/custom/custom-sidebar"
 import { CustomCompositionConfig } from "@/components/custom/custom-builder-main"
@@ -706,7 +707,9 @@ export function WorkPresetCatalogMain() {
     // If workflow content fails to load, the orchestrator can clarify from its metadata.
     void sdk.client.workflowAsset
       .content({ path: asset.relativePath })
-      .then((res) =>
+      .then((res) => {
+        if (!res.data) throw new Error("Workflow content is missing")
+        const draft = workflowDraft(res.data)
         launchModeSessionOrRoute({
           mode: "work",
           navigate,
@@ -714,16 +717,16 @@ export function WorkPresetCatalogMain() {
           server: ServerConnection.key(c),
           directory: dir,
           tabs,
-          initialPrompt: workflowLaunch({
-            name: asset.name,
-            description: asset.description,
-            steps: res.data?.steps ?? [],
-          }),
-          draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
-        }),
-      )
+          initialPrompt: draft.initialPrompt,
+          draftOverrides: {
+            agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
+            workContract: draft.workContract,
+          },
+        })
+      })
       .catch((error) => {
         console.error("[work-home] workflow content load failed", error)
+        // Unverified content can only start ad-hoc clarification, not a pinned workflow.
         launchModeSessionOrRoute({
           mode: "work",
           navigate,
@@ -732,7 +735,9 @@ export function WorkPresetCatalogMain() {
           directory: dir,
           tabs,
           initialPrompt: workflowLaunch({ name: asset.name, description: asset.description, steps: [] }),
-          draftOverrides: { agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR },
+          draftOverrides: {
+            agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
+          },
         })
       })
   }
@@ -753,6 +758,13 @@ export function WorkPresetCatalogMain() {
       draftOverrides: {
         agent: ProductModeAgentPolicy.WORK_ORCHESTRATOR,
         presetCategoryId: preset.category,
+        workContract: {
+          source: "preset",
+          contractVersion: 1,
+          presetID: preset.id,
+          revision: preset.revision,
+          output: { outputType: preset.outputType, artifact: preset.artifact },
+        } satisfies WorkContract.Preset,
       },
     })
   }

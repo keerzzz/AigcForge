@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
+import { Schema } from "effect"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
 import { WorkPresetRegistry } from "@aigcfroge/core/session/work-preset"
-import { presetLaunch, workflowLaunch } from "./work-preset-launch"
+import { presetLaunch, workflowDraft, workflowLaunch } from "./work-preset-launch"
 
 describe("presetLaunch", () => {
   // mode=work / agent 绑定由 modeDraft + policy 保证，覆盖见 context/mode.test.ts
@@ -34,5 +36,32 @@ describe("workflowLaunch", () => {
     const seed = workflowLaunch({ name: "PRD 审查", description: "", steps: [] })
     expect(seed).toContain("PRD 审查")
     expect(seed).toContain("步骤")
+  })
+})
+
+describe("workflowDraft", () => {
+  test("pins the prompt and contract to the same fetched workflow revision", () => {
+    const draft = workflowDraft({
+      name: "Updated workflow",
+      description: "Current content",
+      relativePath: "updated.md",
+      revision: "b".repeat(64),
+      steps: [{ name: "Current step" }],
+    })
+    expect(draft.initialPrompt).toContain("Updated workflow")
+    expect(draft.initialPrompt).toContain("Current content")
+    expect(draft.initialPrompt).toContain("Current step")
+    expect(Schema.encodeSync(WorkContract.Workflow)(draft.workContract)).toEqual({
+      source: "workflow",
+      contractVersion: 1,
+      workflowID: "updated.md",
+      revision: "b".repeat(64),
+    })
+  })
+
+  test("rejects an invalid revision instead of creating a workflow contract", () => {
+    expect(() =>
+      workflowDraft({ name: "Invalid", description: "", steps: [], relativePath: "invalid.md", revision: "invalid" }),
+    ).toThrow()
   })
 })

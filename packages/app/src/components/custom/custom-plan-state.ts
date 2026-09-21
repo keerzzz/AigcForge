@@ -19,6 +19,13 @@ export interface PlanFailure {
   unsupported?: boolean
 }
 
+interface ErrorDetails {
+  status?: number
+  message?: string
+  tag?: string
+  mode?: string
+}
+
 /**
  * What the `customComposition.plan` resource settles to. Every field is optional
  * because `{}` is a real value here — it is what the resource returns before a
@@ -32,13 +39,42 @@ export type PlanResult = {
   unsupported?: boolean
 }
 
-export function parseErrorDetails(err: unknown): { status?: number; message?: string } {
-  if (typeof err === "object" && err !== null) {
-    const status = "status" in err && typeof err.status === "number" ? err.status : undefined
-    const message = "message" in err && typeof err.message === "string" ? err.message : undefined
-    return { status, message }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function stringField(value: unknown, key: string): string | undefined {
+  return isRecord(value) && typeof value[key] === "string" ? value[key] : undefined
+}
+
+function numberField(value: unknown, key: string): number | undefined {
+  return isRecord(value) && typeof value[key] === "number" ? value[key] : undefined
+}
+
+/**
+ * Reads both the direct result-tuple shape and the `throwOnError` shape used by
+ * the app SDK. The latter is an `Error` whose `cause` carries `{ status, body }`,
+ * so ignoring `cause` made typed server errors look like transport failures and
+ * hid 404 / UnsupportedProductModeError from the Builder.
+ */
+export function parseErrorDetails(err: unknown): ErrorDetails {
+  const cause = err instanceof Error && isRecord(err.cause) ? err.cause : undefined
+  const body = cause?.body ?? err
+  const fallbackMessage =
+    typeof err === "object" && err !== null ? undefined : err === undefined ? undefined : String(err)
+  const message =
+    stringField(body, "message") ??
+    (err instanceof Error && err.message.length > 0 ? err.message : undefined) ??
+    fallbackMessage
+  const status = numberField(cause, "status") ?? numberField(body, "status")
+  const tag = stringField(body, "_tag")
+  const mode = stringField(body, "mode")
+  return {
+    ...(status === undefined ? {} : { status }),
+    ...(message === undefined ? {} : { message }),
+    ...(tag === undefined ? {} : { tag }),
+    ...(mode === undefined ? {} : { mode }),
   }
-  return { message: String(err) }
 }
 
 /**
@@ -46,20 +82,19 @@ export function parseErrorDetails(err: unknown): { status?: number; message?: st
  *
  * `disabled` is what downgrades the surface from a red error to the amber opt-in
  * notice, so misclassifying it re-enables Start against a server that will refuse.
- * It is derived by matching the English text of
- * `ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE`, because the four server-side
- * constructions of this error pass only `message` — `InvalidRequestError.kind`
- * exists and is populated elsewhere (`"permission-override"`, `"Query"`), just not
- * on this branch. The structured signal is available and unadopted, not missing.
- * Until it is adopted this stays sensitive to a server reword or a localization
- * pass, which is why it is a pinned pure function — see technical-debt §4.
+ * The typed `UnsupportedProductModeError` body is the primary source. The message
+ * fallback remains only for older servers that did not expose the tag through the
+ * SDK wrapper.
  */
 export const DISABLED_MESSAGE_MARKER = "Custom mode is disabled"
 
 export function classifyPlanFailure(err: unknown): PlanFailure {
-  const { status, message } = parseErrorDetails(err)
+  const { status, message, tag, mode } = parseErrorDetails(err)
   const msg = message ?? String(err)
   if (status === 404) return { unsupported: true, error: "This server does not support custom compositions" }
+  if (tag === "UnsupportedProductModeError" && mode === "custom") {
+    return { disabled: true, error: msg }
+  }
   if (msg.includes(DISABLED_MESSAGE_MARKER)) return { disabled: true, error: msg }
   return { error: msg }
 }
@@ -79,6 +114,16 @@ export type StartBlocker =
   | "no-agents"
 
 export type StartGate = { canStart: true } | { canStart: false; blocker: StartBlocker }
+
+/**
+ * The reason Start is unavailable, or `undefined` when it is available. Lives
+ * beside the gate (and takes the gate as an argument) so the view cannot derive it
+ * out of order — a memo that referenced a later declaration would throw inside
+ * `createMemo`, which evaluates eagerly.
+ */
+export function blockerOf(gate: StartGate): StartBlocker | undefined {
+  return gate.canStart ? undefined : gate.blocker
+}
 
 /**
  * Decides whether Start may be pressed.

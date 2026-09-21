@@ -38,7 +38,9 @@ import { executeHandoff, handoffAuthorizationKey, planHandoff } from "@aigcfroge
 import { confirmHandoffEscalation } from "@/pages/session/handoff-confirm"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
-import { usePrompt, type ContentPart } from "@/context/prompt"
+import { modeContentPanelShown, MODE_CONTENT_PANEL_QUERY } from "@/context/layout-helpers"
+import { useMode } from "@/context/mode"
+import { usePrompt } from "@/context/prompt"
 import { useSDK } from "@/context/sdk"
 import { useServerSDK } from "@/context/server-sdk"
 import { useSettings } from "@/context/settings"
@@ -59,6 +61,7 @@ import { MessageTimeline } from "@/pages/session/timeline/message-timeline"
 import { createTimelineModel } from "@/pages/session/timeline/model"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import { parseServerKey } from "@/utils/session-route"
 import { syncSessionModel } from "@/pages/session/session-model-helpers"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { TerminalPanel } from "@/pages/session/terminal-panel"
@@ -69,7 +72,11 @@ import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { formatServerError } from "@/utils/server-errors"
-import { useChatWorkspace } from "@/context/chat-workspace"
+import { runInternalNavigation, useChatWorkspace } from "@/context/chat-workspace"
+import { UrlParams } from "@/utils/url-params"
+import { tabKey } from "@/context/tabs"
+import { useRouteContribution } from "@/context/route-contribution"
+import { openSessionContext } from "@/components/open-session-context"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
 import { useTabs } from "@/context/tabs"
@@ -87,9 +94,10 @@ const emptyFollowups: FollowupItem[] = []
 type ChangeMode = "git" | "branch" | "turn"
 type VcsMode = "git" | "branch"
 
-export default function Page() {
+export default function Page(props: { rootID: string }) {
   const serverSync = useServerSync()
   const layout = useLayout()
+  const productMode = useMode()
   const local = useLocal()
   const file = useFile()
   const sync = useSync()
@@ -104,6 +112,7 @@ export default function Page() {
   const appTabs = useTabs()
   const prompt = usePrompt()
   const workspace = useChatWorkspace()
+  const routeContribution = useRouteContribution()
   const comments = useComments()
   const terminal = useTerminal()
   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string; insertKind?: string }>()
@@ -121,7 +130,9 @@ export default function Page() {
       const text = searchParams.prompt
       if (!text) return
       prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
-      setSearchParams({ ...searchParams, prompt: undefined })
+      runInternalNavigation(() =>
+        navigate(UrlParams.withoutParams(location, ["prompt"]), { replace: true, scroll: false, resolve: false }),
+      )
     })
   })
 
@@ -133,7 +144,16 @@ export default function Page() {
     if (!params.id) return
     const path = searchParams.insert
     if (!path) return
-    const clear = () => untrack(() => setSearchParams({ ...searchParams, insert: undefined, insertKind: undefined }))
+    const clear = () =>
+      untrack(() =>
+        runInternalNavigation(() =>
+          navigate(UrlParams.withoutParams(location, ["insert", "insertKind"]), {
+            replace: true,
+            scroll: false,
+            resolve: false,
+          }),
+        ),
+      )
     const kind = parseInsertKind(searchParams.insertKind)
     if (!kind) {
       console.warn("session: ?insert= missing or invalid insertKind, skipping injection", searchParams.insertKind)
@@ -156,12 +176,59 @@ export default function Page() {
       })
   })
 
-  // Dirty Draft: mark dirty when the composer holds unsent content to trigger the route guard (M2 Step 5).
+  // One registration for both facts, taken from the route rather than from prompt hydration:
+  // tab identity so a close or leave while the composer is still loading still resolves this
+  // route as the owner of its top-level tab, and the dirty flag as a live source the close
+  // decision evaluates at click time. Each carries an owner token so a previous page instance
+  // cannot clear a newer registration of the same key.
+  const routeIdentityToken = Symbol("session-route-identity")
+  const dirtyToken = Symbol("session-dirty")
+  // URL-scoped server identity. `useServer()` is the GLOBAL active server, which is a
+  // different server whenever the URL names one that is not active; registering that made
+  // every consumer of this contribution read the wrong server — the session sidebar's
+  // asset owner among them, where it issued the seven asset requests against the current
+  // server while rendering a session from another one. The route's own param is the
+  // authoritative source and is the same value `app.tsx` parses to resolve this route.
+  const routeServerKey = createMemo(() => {
+    const parsed = parseServerKey(params.serverKey ?? "")
+    return parsed.ok ? parsed.key : server.key
+  })
+
+  const topLevelTabKey = createMemo(() => {
+    if (!params.id) return undefined
+    return tabKey({ type: "session", server: server.key, sessionId: props.rootID })
+  })
+
   createEffect(() => {
-    if (!prompt.ready()) return
-    const current = prompt.current()
-    const hasContent = current.some((part: ContentPart) => part.type === "text" && part.content?.length > 0)
-    workspace?.setDirty(hasContent)
+    const key = topLevelTabKey()
+    if (!key) return
+    workspace?.route.setActiveTabKey(key, routeIdentityToken)
+    // Live source, evaluated when a close or leave is decided — never a cached snapshot.
+    workspace?.dirty.register(key, () => prompt.dirty(), dirtyToken)
+  })
+  createEffect(() => {
+    const key = topLevelTabKey()
+    if (!key || !params.id) return
+    const sessionTabs = tabs()
+    const sessionView = view()
+    const dispose = routeContribution?.register({
+      routeIdentity: `${routeServerKey()}\0${params.id}`,
+      activeTopLevelTabKey: key,
+      key: sessionKey(),
+      server: routeServerKey(),
+      scope: serverSDK().scope,
+      directory: sdk().directory,
+      leafID: params.id,
+      openContext: () => openSessionContext({ layout, tabs: sessionTabs, view: sessionView }),
+    })
+    onCleanup(() => dispose?.())
+  })
+
+  onCleanup(() => {
+    const key = topLevelTabKey()
+    if (!key) return
+    workspace?.dirty.clear(key, dirtyToken)
+    workspace?.route.clearActiveTabKey(key, routeIdentityToken)
   })
 
   const [ui, setUi] = createStore({
@@ -216,7 +283,7 @@ export default function Page() {
     ),
   )
 
-  const isDesktop = createMediaQuery("(min-width: 768px)")
+  const isDesktop = createMediaQuery(MODE_CONTENT_PANEL_QUERY)
   const size = createSizing()
   const desktopReviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
   const desktopFileTreeOpen = createMemo(
@@ -234,6 +301,17 @@ export default function Page() {
     return `calc(100% - ${layout.fileTree.width()}px)`
   })
   const centered = createMemo(() => isDesktop() && !desktopReviewOpen())
+
+  // S7: below `md` the mode content panel floats OVER the session body, so the body underneath
+  // has to stop taking focus and clicks — otherwise the panel is an overlay for the eye only and
+  // a keyboard user tabs into the content it covers. The column stays MOUNTED and merely
+  // `inert`, so the overlay cannot reset the timeline's scroll position.
+  const narrowContentPanelOpen = () =>
+    !isDesktop() &&
+    productMode.contentPanelOpen &&
+    // `docked: false` is the situation being asked about: the body only has to step aside when
+    // the panel is actually floating (a docked panel sits beside it, not over it).
+    modeContentPanelShown({ routeType: layout.route().type, mode: productMode.currentMode, docked: false })
 
   function normalizeTab(tab: string) {
     if (!tab.startsWith("file://")) return tab
@@ -969,16 +1047,20 @@ export default function Page() {
 
     return (
       <div class="flex flex-col h-full overflow-hidden bg-background-stronger contain-strict">
-        <Show when={isGit}>
-          <GitStatusBar
-            branch={branch}
-            stagedCount={git.stagedCount()}
-            unstagedCount={git.unstagedCount()}
-            hasChanges={git.stagedCount() + git.unstagedCount() > 0}
-            onStageAll={git.stageAll}
-            onUnstageAll={git.unstageAll}
-          />
-        </Show>
+        {/* A non-Git Location says so explicitly instead of leaving the branch
+            row empty (§11.2). `nogit()` is the same `project.vcs` decision the
+            diff/commit wiring below already uses, so this adds no second truth
+            source; `GitStatusBar` still renders nothing while a Git branch is
+            merely unloaded. */}
+        <GitStatusBar
+          branch={branch}
+          noVcs={nogit()}
+          stagedCount={git.stagedCount()}
+          unstagedCount={git.unstagedCount()}
+          hasChanges={git.stagedCount() + git.unstagedCount() > 0}
+          onStageAll={git.stageAll}
+          onUnstageAll={git.unstageAll}
+        />
         <div class="relative flex-1 min-h-0 overflow-hidden">
           {reviewContent({
             diffStyle: layout.review.diffStyle(),
@@ -1934,6 +2016,9 @@ export default function Page() {
         class="flex-1 min-h-0 flex flex-col md:flex-row"
         classList={{
           "gap-2 p-2": true,
+          // S7: the containing block for the narrow mode content panel's floating wrapper.
+          // Narrow-only so the desktop box model is unchanged.
+          relative: !isDesktop(),
         }}
       >
         <Show when={!isDesktop() && !!params.id && false}>{mobileTabs()}</Show>
@@ -1947,6 +2032,8 @@ export default function Page() {
           style={{
             width: sessionPanelWidth(),
           }}
+          inert={narrowContentPanelOpen()}
+          aria-hidden={narrowContentPanelOpen()}
         >
           <div
             classList={{
@@ -2059,6 +2146,7 @@ export default function Page() {
                 classList={{
                   "-right-1": true,
                 }}
+                label={language.t("resize.sessionReview")}
                 direction="horizontal"
                 size={layout.session.width()}
                 min={450}

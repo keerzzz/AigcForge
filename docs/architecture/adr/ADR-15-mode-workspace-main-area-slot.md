@@ -5,6 +5,7 @@
 > Amends: [ADR-12 §3](ADR-12-product-mode-entry-routing.md)
 > 关联：[ADR-11](ADR-11-product-mode-session-classification.md)、[ADR-13](ADR-13-chat-work-mode-boundary.md)（模式定位表）、[ADR-14](ADR-14-persistence-and-scope-strategy.md) §4（数据真源）、[Chat PRD §9](../../prd/chat-mode-creation-layer.md)
 > Accepted extension under implementation: [ADR-17](ADR-17-custom-mode-composition-platform.md) adds the fifth Custom typed main slot to `ModeWorkspace`. Until M0 Phase B and later App gates land, the 4-mode slot registry defined here remains active and authoritative in production runtime.
+> Amended by [ADR-23](ADR-23-session-product-identity-capability.md) (2026-09-13): Session Header and StatusBar become consumers of the read-only session identity projection (S6/S7); slot semantics are unchanged.
 
 ## 背景
 
@@ -84,13 +85,14 @@ ModeSwitcher / SecondarySidebar / StatusBar / 路由 / 同步 / 通知 / 空 loa
 记录当前真实 owner 边界（main 基线代码事实，非统一状态声称）：
 
 | 模式侧栏  | Location/项目树 owner                                                                                      | 说明                                                                                                                                                              |
-| --------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | Coding    | `CodingProjectColumnSidebar`（构建于 `coding-project-column.tsx` 的 `HomeProjectColumn`/`HomeProjectRow`） | 拥有多 server/多项目选择、sandbox、项目操作、通知、Coding 新建会话；**不替换为 `ModeLocationNewSession`**，`ModeLocationNewSession` 也不读取 `CodingSelectionCtx` |
 | Work      | `WorkProjectColumnSidebar` → `ModeLocationNewSession`（`mode="work"`）                                     | 只负责 active directory、注册地址和新建入口                                                                                                                       |
-| Assistant | `AssistantSidebar`（`assistant-feature-sidebar.tsx`）→ `ModeLocationNewSession`（`mode="assistant"`）      | 同上                                                                                                                                                              |
+| Assistant | `AssistantSidebar`（`assistant-feature-sidebar.tsx`）→ `ModeLocationNewSession`（`mode="assistant"`）      | 同上；`global                                                                                                                                                     | project` 能力范围仍需独立服务端合同 |
 | Chat      | `ChatFeatureSidebar`（`mode-surfaces.tsx`）**内联** Location + 新建/添加项目逻辑                           | 额外承载 7 类 feature tree/counts；**未消费** `ModeLocationNewSession`，不得将 Chat 误报为已统一 Location                                                         |
+| Custom    | `CustomProjectColumnSidebar` / `CustomSidebar` + `CustomDraftProvider`                                     | 复用 ModeWorkspace Location；草稿在 Sidebar/Main 之上共享，Session 通过不可变 Composition Snapshot 创建，不走通用 Draft                                           |
 
-`MODE_SURFACES` 契约不变：`coding/chat/work/assistant` 四 Sidebar 保持 render-all + `display:none` 挂载。Assistant `global|project` 知识库 scope 选择器不在本计划实现。进一步抽取更低层 Location primitive 需要行为等价测试前置，本附录不强制决定。
+`MODE_SURFACES` 契约现为 `coding/chat/work/assistant/custom` 五个 Sidebar/Main typed slot，全部保持 render-all + `display:none` 挂载；网络副作用必须由 active-slot gate 约束。Assistant `global|project` 知识库 scope 的完整服务端合同仍未闭环。进一步抽取更低层 Location primitive 需要行为等价测试前置，本附录不强制决定。
 
 ## 明确不决定
 

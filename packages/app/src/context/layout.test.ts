@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { ServerConnection } from "./server"
-import { createSessionKeyReader, currentRoute, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
+import {
+  createSessionKeyReader,
+  currentRoute,
+  ensureSessionKey,
+  modeContentPanelShown,
+  pruneSessionKeys,
+} from "./layout-helpers"
 
 describe("layout session-key helpers", () => {
   test("couples touch and scroll seed in order", () => {
@@ -115,5 +121,34 @@ describe("currentRoute", () => {
   test("classifies unrecognized paths as other, not home", () => {
     expect(currentRoute(`/${dir}/review`, "")).toEqual({ type: "other" })
     expect(currentRoute("/nope/at/all", "")).toEqual({ type: "other" })
+  })
+})
+
+/**
+ * The S7 mount rule. Three consumers read it — the panel's own lifecycle, the titlebar entry and
+ * its `aria-controls`, and the session body's `inert` — so the cases are pinned here instead of
+ * being discovered by whichever consumer a suite happens to exercise.
+ */
+describe("mode content panel mount rule", () => {
+  test("mounts for a session at every width, so switching modes keeps panel state", () => {
+    for (const mode of ["chat", "coding", "work", "assistant", "custom"]) {
+      expect(modeContentPanelShown({ routeType: "session", mode, docked: true })).toBe(true)
+    }
+  })
+
+  test("below the breakpoint only the modes with a narrow content owner mount", () => {
+    for (const mode of ["chat", "work", "assistant", "custom"]) {
+      expect(modeContentPanelShown({ routeType: "session", mode, docked: false })).toBe(true)
+    }
+    // Coding reaches the same owner through its own Session/Changes tabs, so a floating second
+    // presentation of it would be duplication rather than an entry.
+    expect(modeContentPanelShown({ routeType: "session", mode: "coding", docked: false })).toBe(false)
+  })
+
+  test("never mounts outside a session route", () => {
+    for (const routeType of ["home", "other", "draft", "dir-new-sesssion"] as const) {
+      expect(modeContentPanelShown({ routeType, mode: "work", docked: true })).toBe(false)
+      expect(modeContentPanelShown({ routeType, mode: "work", docked: false })).toBe(false)
+    }
   })
 })

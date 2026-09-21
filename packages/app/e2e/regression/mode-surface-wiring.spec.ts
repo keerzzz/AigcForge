@@ -109,6 +109,66 @@ test.describe("regression: mode surface wiring", () => {
     })
   }
 
+  /**
+   * S11 `hidden-panel-request-and-remount`, the half the count assertion above cannot reach.
+   *
+   * `toHaveCount(1)` is satisfied by a FRESH node as easily as by a surviving one, so the test
+   * above proves "a slot is present" and not "the owner was not rebuilt". This stamps every
+   * slot node and then performs the mode change the way a user does it — the rail button, which
+   * is client-side navigation, not `page.goto` — so a remount shows up as a lost stamp.
+   *
+   * The request half is scoped to chat's own asset lists rather than to all requests: the newly
+   * shown mode legitimately loads its own data, and a bound of "no requests at all" would fail
+   * for the right reason and pass for the wrong ones. What must not happen is the HIDDEN mode
+   * re-issuing its own reads, either on the way out or on the way back.
+   */
+  test("a mode round trip keeps the same slot nodes and re-issues none of the hidden mode's reads", async ({
+    page,
+  }) => {
+    // Chat-owned lists; `/workflow-asset` is deliberately excluded because Work reads it too.
+    const chatOwnedPaths = ["/prompt-asset", "/skill-asset", "/mcp-asset", "/command-asset", "/plugin-asset"]
+    const chatReads: string[] = []
+    page.on("request", (request) => {
+      const path = new URL(request.url()).pathname
+      if (chatOwnedPaths.includes(path)) chatReads.push(path)
+    })
+
+    await openWorkspace(page)
+    await page.goto("/mode/chat")
+    await expectAppVisible(sidebarMarker.chat(page))
+    await expect(mainSlot(page, "chat")).toBeVisible()
+
+    await page.evaluate(() => {
+      for (const node of document.querySelectorAll("[data-mode-main], [data-mode-sidebar]")) {
+        if (node instanceof HTMLElement) node.dataset.nodeProbe = "s11"
+      }
+    })
+    const probeCount = await page.locator('[data-node-probe="s11"]').count()
+    expect(probeCount, "every slot must carry the stamp before the round trip").toBe(10)
+
+    const readsBefore = chatReads.length
+    const rail = page.getByRole("navigation")
+
+    await rail.getByRole("button", { name: "Work", exact: true }).click()
+    await expectAppVisible(sidebarMarker.work(page))
+    await expect(mainSlot(page, "chat")).toBeHidden()
+    await expect(mainSlot(page, "chat"), "hiding a slot must not rebuild it").toHaveAttribute("data-node-probe", "s11")
+
+    await rail.getByRole("button", { name: "Chat", exact: true }).click()
+    await expectAppVisible(sidebarMarker.chat(page))
+    await expect(mainSlot(page, "chat"), "returning to a slot must not rebuild it").toHaveAttribute(
+      "data-node-probe",
+      "s11",
+    )
+    await expect(slot(page, "chat")).toHaveAttribute("data-node-probe", "s11")
+
+    const during = chatReads.slice(readsBefore)
+    expect(
+      during,
+      `a mode round trip re-issued chat's own reads ${during.length} time(s): ${during.join(", ")}`,
+    ).toEqual([])
+  })
+
   test("switching modes moves the visible slot without unmounting the others", async ({ page }) => {
     await openWorkspace(page)
     await page.goto("/mode/chat")

@@ -3,6 +3,7 @@ import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { ToolSummary } from "@aigcfroge/core/session/tool-summary"
 
 import { Session } from "@/session/session"
+import { SessionIdentity } from "@aigcfroge/schema/session-identity"
 import { SessionPrompt } from "@/session/prompt"
 import { SessionRevert } from "@/session/revert"
 import { SessionStatus } from "@/session/status"
@@ -114,6 +115,7 @@ export const SessionPaths = {
   status: `${root}/status`,
   get: `${root}/:sessionID`,
   children: `${root}/:sessionID/children`,
+  identity: `${root}/:sessionID/identity`,
   todo: `${root}/:sessionID/todo`,
   task: `${root}/:sessionID/task`,
   taskItem: `${root}/:sessionID/task/:taskID`,
@@ -197,6 +199,19 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.children",
             summary: "Get session children",
             description: "Retrieve all child sessions that were forked from the specified parent session.",
+          }),
+        ),
+        HttpApiEndpoint.get("identity", SessionPaths.identity, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          success: described(SessionIdentity.Identity, "Session product identity projection"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.identity",
+            summary: "Get session identity",
+            description:
+              "Read-only SessionProductIdentity projection (ADR-23): common identity, permission posture, and the mode detail the owners can supply today.",
           }),
         ),
         HttpApiEndpoint.get("todo", SessionPaths.todo, {

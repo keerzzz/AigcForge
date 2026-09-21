@@ -2,6 +2,7 @@ import { createSimpleContext } from "@aigcfroge/ui/context"
 import { type Accessor, batch, createMemo } from "solid-js"
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
+import { pathKey } from "@/utils/path-key"
 import { ServerScope } from "@/utils/server-scope"
 
 type StoredProject = { worktree: string; expanded: boolean }
@@ -13,6 +14,35 @@ export function normalizeServerUrl(input: string) {
   if (!trimmed) return
   const withProtocol = /^https?:\/\//.test(trimmed) ? trimmed : `http://${trimmed}`
   return withProtocol.replace(/\/+$/, "")
+}
+
+/**
+ * Canonical identity form of a server URL (plan §7.1 附则, S4 ruling): same
+ * scheme + port means `localhost` and `127.0.0.1` are the same server. Hostname
+ * is lowercased, scheme-default ports are dropped, trailing slashes stripped.
+ * `[::1]` deliberately does NOT fold into the IPv4 loopback. Non-URL keys
+ * (`wsl:<distro>`, `ssh:<host>`, `sidecar`) never reach this function:
+ * `ServerConnection.key` dispatches on connection type first; `canonicalKey`
+ * preserves these namespaces before URL parsing, including in `sameKey`.
+ * Display values keep the user's original spelling; every identity comparison
+ * goes through this function or `sameKey`.
+ */
+export function canonicalServerUrl(input: string): string | undefined {
+  const trimmed = input.trim()
+  if (!trimmed) return undefined
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`
+  try {
+    const url = new URL(withProtocol)
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined
+    url.hostname = url.hostname.toLowerCase()
+    if (url.hostname === "localhost") url.hostname = "127.0.0.1"
+    if ((url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443")) {
+      url.port = ""
+    }
+    return url.toString().replace(/\/+$/, "")
+  } catch {
+    return undefined
+  }
 }
 
 export function serverName(conn?: ServerConnection.Any, ignoreDisplayName = false) {
@@ -71,30 +101,36 @@ export function createServerProjects<T extends ServerProjectState>(input: {
 }) {
   const setStore = input.setStore as unknown as SetStoreFunction<ServerProjectState>
   const current = () => input.store.projects[input.scope()] ?? []
+  // One directory is one registration, whichever spelling reached the registry. The key is
+  // `pathKey`, the same normalizer the rest of the app uses for directory keys: separators and a
+  // trailing slash are spelling, so `C:\x` and `C:/x/` are one registration rather than two rows
+  // in two sidebars. It says nothing about physical identity — two spellings of one inode remain
+  // a backend-owned question, registered separately.
+  const sameDirectory = (a: string, b: string) => pathKey(a) === pathKey(b)
   return {
     list: current,
     open(directory: string) {
       const scope = input.scope()
-      if (current().some((project) => project.worktree === directory)) return
+      if (current().some((project) => sameDirectory(project.worktree, directory))) return
       setStore("projects", scope, [{ worktree: directory, expanded: true }, ...current()])
     },
     close(directory: string) {
       setStore(
         "projects",
         input.scope(),
-        current().filter((project) => project.worktree !== directory),
+        current().filter((project) => !sameDirectory(project.worktree, directory)),
       )
     },
     expand(directory: string) {
-      const index = current().findIndex((project) => project.worktree === directory)
+      const index = current().findIndex((project) => sameDirectory(project.worktree, directory))
       if (index !== -1) setStore("projects", input.scope(), index, "expanded", true)
     },
     collapse(directory: string) {
-      const index = current().findIndex((project) => project.worktree === directory)
+      const index = current().findIndex((project) => sameDirectory(project.worktree, directory))
       if (index !== -1) setStore("projects", input.scope(), index, "expanded", false)
     },
     move(directory: string, toIndex: number) {
-      const fromIndex = current().findIndex((project) => project.worktree === directory)
+      const fromIndex = current().findIndex((project) => sameDirectory(project.worktree, directory))
       if (fromIndex === -1 || fromIndex === toIndex) return
       const next = [...current()]
       const [item] = next.splice(fromIndex, 1)
@@ -189,7 +225,7 @@ export namespace ServerConnection {
   export const key = (conn: Any): Key => {
     switch (conn.type) {
       case "http":
-        return Key.make(conn.http.url)
+        return Key.make(canonicalServerUrl(conn.http.url) ?? conn.http.url)
       case "sidecar": {
         if (conn.variant === "wsl") return Key.make(`wsl:${conn.distro}`)
         return Key.make("sidecar")
@@ -201,6 +237,25 @@ export namespace ServerConnection {
 
   export type Key = string & { _brand: "Key" }
   export const Key = { make: (v: string) => v as Key }
+
+  /**
+   * Canonical form of an existing key (plan §7.1 附则, lock A): every identity
+   * pointer derived from a raw server URL flows through here, so `localhost`
+   * spellings collapse onto `127.0.0.1`. Non-URL keys pass through unchanged.
+   */
+  export const canonicalKey = (key: Key): Key => {
+    if (key === "sidecar" || key.startsWith("wsl:") || key.startsWith("ssh:")) return key
+    return Key.make(canonicalServerUrl(key) ?? key)
+  }
+
+  /**
+   * Compare two keys of uncertain provenance (plan §7.1 附则, lock B): persisted
+   * tab/draft/active keys predate canonicalization and may carry the raw
+   * `localhost` spelling. Both sides go through the canonical form; values that
+   * are not server URLs compare literally.
+   */
+  export const sameKey = (a: Key | string, b: Key | string): boolean =>
+    canonicalKey(Key.make(a)) === canonicalKey(Key.make(b))
 
   export const builtin = (conn: Any) => conn.type === "sidecar" && conn.variant === "base"
   export const local = (conn?: Any) =>
@@ -256,9 +311,15 @@ export const { use: useServer, provider: ServerProvider } = createSimpleContext(
       if (!url_) return
       const conn: ServerConnection.Http = { ...input, authToken: undefined, http: { ...input.http, url: url_ } }
       return batch(() => {
-        const existing = store.list.findIndex((x) => url(x) === url_)
+        // Alias-aware merge (plan §7.1 附则): adding `localhost:4096` when
+        // `127.0.0.1:4096` exists updates the existing entry's display fields
+        // and keeps its stored spelling, instead of registering a duplicate.
+        const existing = store.list.findIndex((x) => ServerConnection.sameKey(url(x), url_))
         if (existing !== -1) {
-          setStore("list", existing, conn)
+          setStore("list", existing, {
+            ...conn,
+            http: { ...conn.http, url: url(store.list[existing]) },
+          })
         } else {
           setStore("list", store.list.length, conn)
         }
@@ -269,16 +330,18 @@ export const { use: useServer, provider: ServerProvider } = createSimpleContext(
 
     function remove(key: ServerConnection.Key) {
       const next = nextServerAfterRemoval(allServers(), key, props.defaultServer)
-      const list = store.list.filter((x) => url(x) !== key)
+      const list = store.list.filter((x) => !ServerConnection.sameKey(url(x), key))
       batch(() => {
         setStore("list", list)
-        if (state.active === key) setState("active", next)
+        if (ServerConnection.sameKey(state.active, key)) setState("active", next)
       })
     }
 
     const isReady = createMemo(() => ready() && !!state.active)
 
-    const scope = (key = state.active) => ServerScope.fromServerKey(key, props.canonicalLocalServer)
+    const scope = (key = state.active) =>
+      // Callers pass keys of uncertain provenance (persisted tabs) — canonicalize.
+      ServerScope.fromServerKey(ServerConnection.canonicalKey(key), props.canonicalLocalServer)
     const projects = createServerProjects({ scope, store, setStore })
     const projectStores = new Map<ServerConnection.Key, ReturnType<typeof createServerProjects>>()
     const projectsForServer = (key: ServerConnection.Key) => {
@@ -289,7 +352,9 @@ export const { use: useServer, provider: ServerProvider } = createSimpleContext(
       return next
     }
     const current: Accessor<ServerConnection.Any | undefined> = createMemo(
-      () => allServers().find((s) => ServerConnection.key(s) === state.active) ?? allServers()[0],
+      // Stored active keys predate canonicalization — sameKey, not equality.
+      () =>
+        allServers().find((s) => ServerConnection.sameKey(state.active, ServerConnection.key(s))) ?? allServers()[0],
     )
     const isLocal = createMemo(() => ServerConnection.local(current()))
 
@@ -297,7 +362,8 @@ export const { use: useServer, provider: ServerProvider } = createSimpleContext(
       ready: isReady,
       isLocal,
       get key() {
-        return state.active
+        // Canonical identity pointer (lock A) — storage keeps the raw spelling.
+        return ServerConnection.canonicalKey(state.active)
       },
       get name() {
         return serverName(current())

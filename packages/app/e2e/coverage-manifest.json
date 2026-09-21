@@ -1,0 +1,169 @@
+{
+  "note": "Quarantine and deferred-scope ledger (closure plan §5.2). The draft landed in Slice 0; S2 added the machine-readable validator (e2e/real/manifest.spec.ts), which now enforces the entry contract, forbids silent `test.fixme` quarantine, and requires every deferred scope to carry an owner and an unlock. The `baseline` block below is the frozen Slice 0 reference, not the current tally. Open defects stay in entries; verified records retain the same IDs and scope contract in verified, whose verified-unit status is restricted to unit/bun evidence and never counts as E4. Both sections and deferred use the same slice-owner rule (e2e/real/coverage.ts).",
+  "baseline": {
+    "date": "2026-09-13",
+    "discovery": {
+      "tests": 198,
+      "files": 50,
+      "project": "chromium"
+    },
+    "protocol": "2 rounds same-order + 1 round reversed per-file invocation; workers=1, retries=0, no sleep, no waits",
+    "result": "13 stable failures (identical sets in rounds 1-2) + 1 single-occurrence flake; bench 59/60 green with 1 stable narrow failure. All three quarantined cases were un-quarantined in S3/S7 and pass: composer-submit two (one was a dev-server reload abort, one a test-side ZWSP read), global-shell-presentation one (a non-unique complementary locator plus a closed-by-default sidebar — no product change)."
+  },
+  "modes": {
+    "chat": {
+      "route": "/mode/chat + canonical session detail",
+      "e3": "asset categories, composer submit, session routes",
+      "e4": "landed 2026-09-19: `e2e/real/session-turn.spec.ts` now creates one session with `mode: \"chat\"`, drives the same chain the coding case drives (browser submit → real provider turn → projected parts → reload) and reads the persisted record back with `persistedSession(...)` — `mode` is on the session record, not in the turn's projection, so it is read rather than inferred. The same reader is applied to a session created WITHOUT a mode, which reports `coding`: an A/B on one reader against two create payloads, in one run, is what makes the chat assertion discriminating (2 passed, 7.0m, both cases). Scope of the claim: that is the one happy-path turn §5.2 asks for under chat's agent policy (chat resolves to `meta`), not a chat-mode lifeline — session-side-panel E3s for the chat content panel still run mocked, which is what E3 is for. The earlier text here said this was NOT covered and named deferred `chat-mode-e4-turn`; that entry is removed as delivered.",
+      "status": "landed"
+    },
+    "coding": {
+      "route": "/mode/coding + session detail (files/terminal)",
+      "e3": "terminal route, files route",
+      "e4": "landed: session turn + restart durability, files search/read/traversal, PTY create/stream/exit/delete (e2e/real/session-{turn,files,pty}.spec.ts)",
+      "status": "landed"
+    },
+    "work": {
+      "route": "/mode/work + artifact panel",
+      "e3": "work artifact specs",
+      "e4": "planned S9A (contract→artifact lifeline)",
+      "status": "planned"
+    },
+    "assistant": {
+      "route": "/mode/assistant + session panel",
+      "e3": "assistant dashboard specs",
+      "e4": "planned S9B (reminder delivery lifeline)",
+      "status": "planned"
+    },
+    "custom": {
+      "route": "/mode/custom + builder",
+      "e3": "builder states + typed negative gate (kill switch off)",
+      "e4": "planned S9C (typed negative first, approved-env happy path later)",
+      "status": "negative-only"
+    }
+  },
+  "deferred": {
+    "v2-runtime-execution-gap": {
+      "owner": "S9C",
+      "scope": "V2 durable admission admits but never dispatches provider work, and the V1-shaped projection is empty (flag default off; custom always V2). VERIFIED OBSERVABLE FACTS from the real V2 variant run in /tmp/e4-v2-round: (1) the `session_input` row lands with admitted_seq=3 and promoted_seq=NULL, so the row was never promoted; (2) the deterministic provider recorded zero `/chat/completions` calls (its 3 recorded requests are all harness `/e4/*` endpoints); (3) `message` and `part` tables are empty, so no provider turn ever wrote projected output; (4) the backend emitted no drain-error line and no `booting location services` line. RETRACTED HYPOTHESIS (2026-09-20): an earlier note claimed `SessionPrompt.admitCanonical` resolved `SessionV2.Service` to `SessionV2.defaultLayer`'s noop execution. Reading `LayerNode.buildLayer` (packages/core/src/effect/layer-node.ts:70-105: `Layer.provide(impl, deps)`) plus `SessionPrompt.node`'s dependency list (packages/aigcfroge/src/session/prompt.ts:1931-1958, which has no SessionV2 node and whose type-level Missing-dependencies check compiles) shows no noop provide sits on that path; the handler's `SessionV2.Service` is satisfied by `v2RuntimeWithTaskDriver` -> `v2RuntimeLayer` -> real `SessionExecutionLocal`. The layer-assembly explanation is therefore NOT supported and no layer edit was made. The gap remains a live, reproducible product defect.",
+      "unlock": "Needs one decisive instrumented run on a host where the E4 V2 variant can be executed repeatedly (this FUSE-mounted host cannot): log or observe the wake->drain hop itself — coordinator `start` invocation, `SessionExecutionLocal` drain entry, and `SessionRunner.run`'s early-return branch — rather than inferring it from layer assembly. Do NOT change layer wiring on the retracted hypothesis. The existing pin (e2e/real/v2-admission-gap.spec.ts) stays green-means-gap-present until that instrumentation identifies the real breakpoint."
+    },
+    "session-product-header-projection": {
+      "owner": "S9B",
+      "scope": "CARRIER + BOTH ACTIONABLE DETAILS DELIVERED; only separately-gated mode details remain. Carrier: Owner ruling selected `components/session/session-header.tsx` as the only full Session-level identity carrier (titlebar Portals stay action-only, the component renders a normal-flow `session-product-header`; StatusBar is a compact secondary projection). Header and StatusBar consume one shared TanStack query keyed by server scope + sessionID (`session-identity-query.ts`); the transitional local Session permission/model fallbacks were removed. Discriminating E3 disagrees with the Session record on purpose and requires both consumers to use the endpoint with exactly one identity request. DETAIL (a) Chat asset counts DELIVERED: `session-identity.ts:162-173` projects all seven Location asset owners (prompt/skill/mcp/command/agent/workflow/plugin) with zero-count kinds filtered out; core `session-identity.test.ts` 11 passed / 35 expect, including `counts the seven Location asset owners and never reads presetCategoryId`; schema `session-identity.test.ts` 20 passed / 39 expect. The E3 carrier spec asserts the complete seven-row render with seven distinct counts (`session-product-header.spec.ts:40-51`) — 6 passed (27.9s) at 88d3ffae4; combined with the existing identity consumers, 9 passed (35.2s). DETAIL (b) workspaceID DELIVERED: the projection already emits it through `Location.Ref` (`core/src/session/session-identity.ts:272`; the schema type is `packages/schema/src/location.ts` `Ref = { directory, workspaceID? }`, so nothing was silently dropped), and core `session-identity.test.ts` asserts it end to end (`passes workspaceID through Location when the session owner has it`). Real-backend `session-identity-consumers.spec.ts` reads the HTTP projection, requires Header common fields to match it, reloads, and passed 2/2 (1.5m), teardown clean. i18n parity en/zh/zht passed. No header/identity file changed between 88d3ffae4 and HEAD, so the E3 counts above are still current. Honest boundary: the Header renders typed missing/degraded values and never infers from URL, Session store, messages, Settings, `presetCategoryId` or common `projectID`.",
+      "unlock": "Only the two mode details that need their own upstream contract remain, and neither is actionable without an Owner-approved schema/migration or server-side contract: (1) Work versioned contract/artifact needs its own Schema/migration approval (plan 6.3); (2) Assistant scope/reminder capability needs the server-side Personal/Project scope contract first (plan 6.4). Owner ruling 2026-09-20: model-source/provenance is NOT a required product field — do not add a contract for it. Do NOT reopen the carrier or the shared-query / no-second-truth-source work; those are delivered. Owner ruling 2026-09-20: Assistant M2 scope (Personal/Project scope + Memory/KB) is NOT funded this cycle — deferred post-M1; the projection stays honestly `personal`/M2-degraded, no scope contract is added until an M2 scope/security ADR is opened."
+    },
+    "identity-e4-cross-server-and-historical": {
+      "owner": "S9A",
+      "scope": "plan §9.3 asks E4 for refresh, cross-server and historical Session. Refresh landed (e2e/real/session-identity-consumers.spec.ts reload case). Cross-server isolation and pre-identity-era historical sessions have unit/E3 coverage only: the projection is rebuilt per request from Location-scoped services, so reuse across servers is structurally impossible, but no E4 case exercises two backends or a session created before the fields existed.",
+      "unlock": "land with S9A's E4 expansion (which already adds provider failure/recovery): a second backend plus a historical seed, asserting the projection does not leak across server or Location boundaries"
+    },
+    "fuse-mount-build-and-cleanup-stalls": {
+      "owner": "S3",
+      "scope": "the repo and its A/B build trees live on two different mounts: /media/win_data is fuseblk (ntfs-3g) and /home is ext4. On FUSE the same `vite build` that takes 40-50s on ext4 sat in `transforming` for 15+ minutes at 2-6% CPU with wchan=request_wait_answer, `du` on a e2e artifact dir timed out, deleting node_modules took 13 minutes, vite dev reported ready after 63s and its first request took 30s+. This is what made the S3 browser rounds unusable in the 2026-09-16 session, and it is also why the benchmark numbers drift so much on this host.",
+      "unlock": "run e2e and builds from an ext4 checkout (or move the repo), and keep e2e artifacts off the FUSE mount; the debt ledger row carries the measurements"
+    },
+    "mode-detail-personas-closure-observations": {
+      "owner": "S9A/S9B",
+      "scope": "the three `closed:false` observation bundles in e2e/regression/mode-detail-personas.spec.ts are about Work/Assistant identity and scope (Work presetCategoryId=null and its artifact empty state, Assistant not showing personal/project scope, the identity header missing scope/preset/inherited model source). plan §10 had assigned their conversion to real assertions to S7, but their subject matter belongs with the slices that own it.",
+      "unlock": "S9A/S9B convert them into expect() assertions when the Work and Assistant closures land; the session-product-header-projection entry (S9B) is the Header half of the third bundle"
+    },
+    "project-fanout-on-home": {
+      "owner": "S11",
+      "scope": "Home load fans out per registered project: ~2N+2 requests at N=500 and N=2000 in the measurement above (/path N+1, /lsp N, /session N+1, provider requests at least 2 each), and the time-to-rows slope (~10-20ms per project, same order as run-to-run variance) tracks that fan-out rather than the list rendering. Nothing errors, so this is a scalability cost and not a defect; it is registered because §16.3 owns performance evidence and because 'the list is unbounded' would otherwise be treated as the cause.",
+      "unlock": "S11's performance pass: measure Home with the production benchmark harness rather than the dev server, decide whether the per-project work needs batching, lazy loading or a bound, and report comparable before/after data. Do not set a machine-dependent threshold."
+    },
+    "work-review-lifecycle": {
+      "owner": "S9A",
+      "scope": "Owner approved 2026-09-20 (reuse `open` + `reopenedFrom`, no 5th state; persist in session metadata JSON, no migration). LANDED at unit level: WorkReview.Review schema (packages/schema/src/work-review.ts), pure state machine WorkReviewMachine.transition/isVerdictCurrent (packages/core/src/session/work-review.ts), and packages/core/test/work-review-lifecycle.test.ts 12 pass/0 fail covering all six transitions, I1-I4, and the schema JSON round-trip. schema+core typecheck exit=0.",
+      "unlock": "Still owed (its own unit, needs a producer): (1) a producer that calls transition() and persists the result into session metadata.workReview, plus the Session.Info.workReview read field + info.fromRow decode (held back deliberately to avoid a read with no writer); (2) the single-backend contract->review->artifact E4 lifeline on CI (ubuntu-latest/ext4), with cross-server + failure matrix post-MVP. The state machine is pure and callable; it is not yet wired to a caller."
+    },
+    "e4-isolated-runtime-revalidation": {
+      "owner": "S10",
+      "scope": "Current-head F02/F08/F09/F10/F11 gate repair: environment/config/manifest/protocol assertions are validated without backend, browser or production build. Real E4 results are NOT re-certified on this host: session turn and reload (chat/coding), provider failure/recovery/tool loop, restart durability, files (including large text), PTY stream/exit/delete, identity consumers/not-found, default and opt-in V2 variants, process/port/workspace teardown. Production benchmark, real zoom and Windows/WSL execution are also not run.",
+      "unlock": "Run the repaired existing E4 configurations on an explicitly approved capable isolated host, with no real HOME/XDG/auth/provider credentials, no reuse of user services, retries=0 and no enlarged timeouts; archive actual exit codes and cleanup evidence. Run production benchmarks and platform/zoom scenarios only in their supported isolated environments. Pure tests and --list are not runtime E4 evidence."
+    }
+  },
+  "entries": [
+    {
+      "id": "delegation-persistent-loop-flake",
+      "spec": "e2e/regression/delegation-persistent-loop.spec.ts",
+      "test": "one of the two delegation tests (single occurrence in the reversed round; passes standalone and in rounds 1-2)",
+      "layer": "E3",
+      "route": "session delegation panel",
+      "mode": "cross",
+      "platform": "chromium",
+      "failure": "order-flake",
+      "status": "flake-observed-once",
+      "owner": "S3",
+      "unlock": "reproduce and isolate the ordering dependency; no fixme applied while 2/3 rounds pass"
+    },
+    {
+      "id": "bench-narrow-review-staging",
+      "spec": "e2e/performance/timeline/home-tab-navigation-benchmark.spec.ts",
+      "test": "reports review staging after cold session navigation",
+      "layer": "perf",
+      "route": "home → cold session navigation",
+      "mode": "cross",
+      "platform": "chromium-narrow",
+      "failure": "narrow-review-staging",
+      "status": "red-stable",
+      "owner": "S7",
+      "unlock": "narrow-viewport review staging reachable; session-review locator never visible (contentBeforeReview: true). Owner corrected from `S7/S16` to `S7` during S7: no `S16` exists in the closure plan (its slices stop at S12), in the review report, or in any ADR/PRD, so the second owner named a slice that does not exist and could never have closed it. The S7 work that landed covers the mode CONTENT panels; this entry is about the coding review surface, which the narrow mode reaches through its own Session/Changes tabs, so it stays open."
+    },
+    {
+      "id": "session-todo-writeback-order-flake",
+      "spec": "e2e/regression/session-todo-progress.spec.ts",
+      "test": "shows id-bearing nodes, opens the fold-over, and PATCHes a checkbox writeback",
+      "layer": "E3",
+      "route": "session detail → todo progress fold-over",
+      "mode": "cross",
+      "platform": "chromium",
+      "failure": "order-flake",
+      "status": "flake-observed-once",
+      "owner": "S3",
+      "unlock": "run the baseline protocol (2 same-order rounds + 1 reversed) before treating this as a product failure. Observed ONCE in an 18.0m full `--project=chromium` round at a4f0e6720 on the ext4 worktree `/home/keer/s8w`, private port 3083, workers=1, retries=0: `page.waitForResponse` for `PATCH /session/:id/task` timed out at the 180s test budget after a Kobalte checkbox click, while the same snapshot shows the page itself healthy and rendered. The whole spec file then passed alone in the same environment, same commit, same port, same minute: 17 passed (45.1s), the failing case included. Nothing in that slice touched the todo-progress path — the only production change was a type-only narrowing in `components/directory-picker-domain.ts` — so the leading explanation is the documented long-round dev-server stall (`e2e-readiness-predicate-flake`), not a regression. Not quarantined: no fixme while the file passes standalone."
+    },
+    {
+      "id": "terminal-route-ws-host-mismatch",
+      "spec": "e2e/regression/session-terminal-route.spec.ts",
+      "test": "creates, connects, sends input, resizes, and deletes a PTY from a canonical Session route",
+      "layer": "E3",
+      "route": "canonical Session route + terminal panel",
+      "mode": "work",
+      "platform": "chromium",
+      "failure": "websocket-url-host-mismatch",
+      "status": "red-stable",
+      "owner": "S10",
+      "unlock": "Pre-existing on this host: the terminal socket opened ws://localhost:4096 where the spec asserts ws://127.0.0.1:4096. Reproduced twice, once with this branch's ResizeHandle change and once with it stashed (A/B), so it is not caused by that work. Determine on a healthy host or CI whether the host name is a loopback-alias artifact of this environment or a product bug in the socket URL; then either fix the URL producer or narrow the assertion, and remove this entry."
+    },
+    {
+      "id": "terminal-route-reconnect-cursor",
+      "spec": "e2e/regression/session-terminal-route.spec.ts",
+      "test": "reconnects an interrupted WebSocket at the last acknowledged cursor",
+      "layer": "E3",
+      "route": "canonical Session route + terminal panel",
+      "mode": "work",
+      "platform": "chromium",
+      "failure": "reconnect-cursor-not-resumed",
+      "status": "red-stable",
+      "owner": "S10",
+      "unlock": "Pre-existing on this host: after a forced close the reconnect URL carried cursor=0 instead of the acknowledged offset 17. Reproduced with the ResizeHandle change present and stashed (A/B). Decide on a healthy host or CI whether the fake socket's ack path or the app's reconnect cursor is at fault, fix that producer, and keep the assertion."
+    }
+  ],
+  "verified": [
+    {
+      "id": "picker-funnel-validation-unit-only",
+      "spec": "src/components/directory-picker.test.ts",
+      "test": "the non-native picker path validates the selection before forwarding it",
+      "layer": "unit",
+      "route": "add project -> pick directory",
+      "mode": "cross",
+      "platform": "bun",
+      "failure": "browser-negative-unexpressible",
+      "status": "verified-unit",
+      "owner": "S8",
+      "unlock": "CLOSED at the funnel, with an honest boundary. `useDirectoryPicker` now validates every picked directory through `validateDirectorySelection` before `input.onSelect`, on BOTH branches (native and server dialog), so no unreadable path reaches `projects.open()` from any add-project call site — all of them go through this one funnel. Evidence: `directory-picker.test.ts` 5 passed (2 new funnel contracts, 2 existing native-path contracts, 1 kind contract); app typecheck exit 0; lint-changed 190 files exit 0; prettier clean; `git diff --check` clean. `throwOnError: true` is set on both clients in server-sdk.tsx (:268 server-level, :326 dir-level), so a 404 from `file.list` rejects rather than resolving — the validation is not a false green. BROWSER NEGATIVE IS NOT EXPRESSIBLE BY DESIGN, measured not assumed: the V2 dialog disables its confirm button while the root is unlistable (dialog-select-directory-v2.tsx:142,153,357), and the legacy web picker swallows `file.list` failure into an empty list (directory-picker-domain.ts:384), so an unreadable directory never becomes a selectable row. The funnel validation is therefore defense-in-depth at the trust boundary (including the desktop native OS dialog, which can return any path), not a fix for a UI-reachable path. No browser spec was invented to make this look stronger than it is."
+    }
+  ]
+}

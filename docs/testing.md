@@ -66,7 +66,7 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 - 配置：`packages/app/playwright.config.ts`（性能基准另用 `packages/app/e2e/performance/playwright.config.ts`）
 - 目录：`regression/`（回归规格）、`smoke/`（冒烟）、`performance/`（基准）、`utils/`（辅助）
 - **当前实际执行标准**：每个功能一份 spec，覆盖该功能的主路径与加载/空/错误态。**这是审查时唯一可据以打回的 e2e 标准。**
-- **presentation matrix（2026-09-08 落地为真实门禁）**：`playwright.config.ts` 定义五个 project——`chromium`（Desktop Chrome、light、en）、`chromium-dark`（storageState 写 `aigcfroge-color-scheme=dark`）、`chromium-zh` / `chromium-zht`（storageState 写 `aigcfroge.global.dat:language={"locale":"zh"|"zht"}`）、`chromium-narrow`（390×844）。storage origin 从 `baseURL` 推导，不硬编码端口；全部 project 用 Chromium。CI（`test.yml` e2e job）Linux 跑全部非性能 spec × 五 project，Windows 只跑 `chromium`，无 `continue-on-error`。矩阵契约由 `e2e/regression/presentation-matrix.spec.ts` 按 project 名断言真实 theme（`data-color-scheme`/`data-theme`）、locale（`documentElement.lang`）与 viewport；键盘可达性在 base project 上以 Tab 交互断言，不新建第六个 project。history：2026-08-26 前 dark/i18n/keyboard 覆盖为 0（纸面目标），根治即本项目，登记于 [technical-debt](technical-debt.md) §4。**英文文案断言的 spec 必须 `pinEnglishUI`**（`e2e/utils/locale.ts`，`test.beforeEach` 注入）——zh/zht project 仍以自身 locale 数据启动，断言按英文匹配；locale 无关 spec（纯 `data-*`/数据文本断言）不得 pin，以保留真实本地化渲染覆盖（判别式：改动后在 `--project=chromium-zh` 下跑该 spec）
+- **presentation matrix（2026-09-08 落地为真实门禁；2026-09-16 收窄为标签门禁）**：`playwright.config.ts` 定义五个 project——`chromium`（Desktop Chrome、light、en，跑业务全集）、`chromium-dark`（storageState 写 `aigcfroge-color-scheme=dark`）、`chromium-zh` / `chromium-zht`（storageState 写 `aigcfroge.global.dat:language={"locale":"zh"|"zht"}`）、`chromium-narrow`（390×844）。storage origin 从 `baseURL` 推导，不硬编码端口；全部 project 用 Chromium。**四个矩阵 project 带 `grep: PRESENTATION_GREP`**，只跑带 `@presentation` / `@a11y` 标签的 spec；标签与 grep 的单一真源是 `e2e/presentation-matrix.ts`（config 与契约 spec 共用它，不各自抄一份）。实测收窄效果（`playwright test --list`）：`chromium` 206 例 / 52 文件，四个矩阵 project 各 3 例 / 3 文件；收窄前每个 project 都是 206 例，即五 project ≈1030 个实例 → 现在 ≈218。**标签纪律**：①整份 spec 断言 theme/locale/viewport/a11y 的才打标签（当前：`presentation-matrix.spec.ts` = `@presentation`、`mode-slot-fallback-a11y.spec.ts` = `@a11y`、`global-shell-presentation.spec.ts` = `@presentation`）；②任何 `testInfo.project.name` 分支的 spec **必须**带标签，否则它在矩阵里静默停跑——这条由 `e2e/regression/presentation-tagging.spec.ts` 按源码扫描强制（node 侧，无需浏览器）；③不带标签的 spec 只在 `chromium` 跑，这是收窄而不是丢失：`pinEnglishUI` / `pinDesktopViewport`（当前 40 个 spec）本来就强制语言与桌面几何，跑在 zh/zht/narrow 下只是重复 base project 的同一断言。CI（`test.yml` e2e job）Linux 仍列五个 `--project`（过滤发生在 config 里），Windows 只跑 `chromium`，无 `continue-on-error`。矩阵契约由 `e2e/regression/presentation-matrix.spec.ts` 按 project 名断言真实 theme（`data-color-scheme`/`data-theme`）、locale（`documentElement.lang`）与 viewport；键盘可达性在 base project 上以 Tab 交互断言，不新建第六个 project。history：2026-08-26 前 dark/i18n/keyboard 覆盖为 0（纸面目标），根治即本项目，登记于 [technical-debt](technical-debt.md) §4；"五 project 机械重复全部业务"这条债在 §8 按本次收窄的证据改判。**英文文案断言的 spec 必须 `pinEnglishUI`**（`e2e/utils/locale.ts`，`test.beforeEach` 注入）——即便收窄后它们不再进矩阵 project，pin 仍保留：直接以 `--project=chromium-zh` 单跑某 spec 调试时断言仍按英文匹配；locale 无关 spec（纯 `data-*`/数据文本断言）不得 pin
 - 运行报告：`bun --cwd packages/app test:e2e:report`（playwright-report）
 
 ---
@@ -125,6 +125,15 @@ CI 注记：
 
 - Windows 上 aigcfroge:test 子进程密集约慢 2.9 倍，CI 设 40min；Windows 关 filewatcher（`AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER=true`）。
 - `check-compliance` / `check-standards` / `add-contributor-label` / `check-duplicates` 为 PR 治理 checks（非测试）。
+
+### 8.1 E4（真实后端 harness）与契约门禁（S6 接线）
+
+- **E4 独立 job，不进 PR 必跑集合**：`test.yml` 的 `e4` job 只在非 PR（push / workflow_dispatch）触发，跑两个 variant——默认运行时（产品链）与 `E4_V2_RUNTIME=1`（V2 现状 spec 的唯一执行环境；那里的 green 表示 V2 缺口仍在，见该 spec 头注释）。PR 上的浏览器面由 `e2e` job 的 E3 套件覆盖。
+- **证据必须上传**：job 把 `E4_RUN_DIR` 指到 workspace 内的 `packages/app/e2e/real/run-evidence/`，因此每个 variant 的 `manifest.json`、`teardown-gate.json`、`orchestrator.log` 都作为 artifact 上传（失败时另含 `test-results`）。手工跑时不会上传，所以本地证据要自己归档——S0–S5 的基线在 `/media/win_data/aigcfroge-shell-closure-*`；S6 的四个轮次（E3 全套、E4 双 variant、exerciser 三模式、benchmark）在 `/media/win_data/aigcfroge-shell-closure-s6/`，目录里的 README 记录每个 run dir 对应哪个 variant，不要凭目录名猜（`manifest.json` 的 `v2Runtime` 是唯一权威）。
+- **Node 钉定 24.15**：与 `e2e` job 同因（Playwright 1.59 在 24.16 上提取 Chromium 挂起）。
+- **OpenAPI 契约门禁**：`packages/aigcfroge/test/server/openapi-drift.test.ts` 随 unit job 运行，两条断言——①每个 operation 必须带 `OpenApi.annotations({ identifier })`（缺了会让生成 SDK 的方法在运行时变 `undefined`，其它门禁都不报）；②live spec 与 checked-in 快照必须逐字一致。快照故意变更时用 `UPDATE_OPENAPI_SNAPSHOT=1 bun test ./test/server/openapi-drift.test.ts` 显式重生成，让 diff 进入评审。
+- **测试预算耦合**：`packages/aigcfroge` 的 `bun test --timeout 90000` 与 `httpapi-sdk.test.ts` 内 30s 的就绪轮询窗口是一对——窗口必须低于包预算，两者一起改（该用例注释里有同样的告警）。曾因两者都是 30s 而在饱和 runner 上出现 17/1 超时。
+- **effect 模式仍是 advisory**：exerciser 的 coverage/auth 是门禁，effect 目前 advisory（仓库既有状态）。要升为门禁需先清掉它记录的运行期失败，属独立决策。
 
 ---
 

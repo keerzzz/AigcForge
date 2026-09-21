@@ -10,6 +10,7 @@ import { Project } from "./project"
 import { DateTimeUtcFromMillis, optionalOmitUndefined, RelativePath } from "./schema"
 import { SessionID } from "./session-id"
 import { SessionMessageID } from "./session-message-id"
+import { WorkContract } from "./work-contract"
 import { WorkPreset } from "./work-preset"
 
 export const ID = SessionID.ID
@@ -17,8 +18,8 @@ export type ID = SessionID.ID
 
 export const Revert = Schema.Struct({
   messageID: SessionMessageID.ID,
-  snapshot: Schema.optional(Schema.String),
-  diff: Schema.optional(Schema.String),
+  snapshot: Schema.String.pipe(optionalOmitUndefined),
+  diff: Schema.String.pipe(optionalOmitUndefined),
 }).annotate({ identifier: "SessionV2.Revert" })
 export type Revert = typeof Revert.Type
 
@@ -36,13 +37,14 @@ export const Info = Schema.Struct({
     Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
     Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
   ),
-  presetCategoryId: WorkPreset.Category.pipe(Schema.optional),
+  presetCategoryId: WorkPreset.Category.pipe(optionalOmitUndefined),
+  workContract: WorkContract.Snapshot.pipe(optionalOmitUndefined),
   slug: Schema.String,
   version: Schema.String,
   parentID: ID.pipe(optionalOmitUndefined),
   projectID: Project.ID,
-  agent: Agent.ID.pipe(Schema.optional),
-  model: Model.Ref.pipe(Schema.optional),
+  agent: Agent.ID.pipe(optionalOmitUndefined),
+  model: Model.Ref.pipe(optionalOmitUndefined),
   cost: Schema.Finite,
   tokens: Schema.Struct({
     input: Schema.Finite,
@@ -56,18 +58,18 @@ export const Info = Schema.Struct({
   time: Schema.Struct({
     created: DateTimeUtcFromMillis,
     updated: DateTimeUtcFromMillis,
-    archived: DateTimeUtcFromMillis.pipe(Schema.optional),
+    archived: DateTimeUtcFromMillis.pipe(optionalOmitUndefined),
   }),
   title: Schema.String,
   location: Location.Ref,
-  subpath: RelativePath.pipe(Schema.optional),
-  attended: Schema.Boolean.pipe(Schema.optional),
+  subpath: RelativePath.pipe(optionalOmitUndefined),
+  attended: Schema.Boolean.pipe(optionalOmitUndefined),
   permissionTier: PermissionTier.ID.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(PermissionTier.Default as PermissionTier.ID)),
     Schema.withConstructorDefault(Effect.succeed(PermissionTier.Default as PermissionTier.ID)),
   ),
-  revert: Schema.optional(Revert),
-  summary: Schema.optional(Summary),
+  revert: Revert.pipe(optionalOmitUndefined),
+  summary: Summary.pipe(optionalOmitUndefined),
 }).annotate({ identifier: "SessionV2.Info" })
 
 export const ListAnchor = Schema.Struct({

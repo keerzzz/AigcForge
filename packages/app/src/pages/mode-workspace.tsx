@@ -16,6 +16,7 @@ import { useMode } from "@/context/mode"
 import { useServer } from "@/context/server"
 import { ServerConnection } from "@/context/server"
 import { ModeWorkspaceAssetCtx, CodingSelectionCtx, AssistantSelectionCtx } from "@/pages/mode-workspace-context"
+import { ChatAssetsProvider, useChatAssets } from "@/components/chat/chat-assets"
 import { useModeDirectory } from "@/pages/mode-workspace-context"
 import type { HomeProjectSelection } from "@/pages/layout/helpers"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
@@ -69,11 +70,37 @@ function SlotError(props: { error: unknown; reset: () => void }) {
   )
 }
 
+/**
+ * Chat asset owner (S3-3) is mounted here, gated by the `chatShown` latch: nothing runs
+ * until Chat is shown once, so opening another mode does not issue Chat's seven list
+ * requests (P2-14). The session secondary sidebar mounts the same provider with its own
+ * directory — see `components/chat/chat-assets.tsx`.
+ */
 export function ModeWorkspace() {
   const mode = useMode()
-  const sync = useServerSync()
+  const server = useServer()
+  const { directory: chatDirectory } = useModeDirectory()
+  const [chatShown, setChatShown] = createSignal(false)
+  createEffect(() => {
+    if (mode.currentMode === "chat") setChatShown(true)
+  })
+  const directory = createMemo(() => (chatShown() ? chatDirectory() : undefined))
+
+  return (
+    <ChatAssetsProvider
+      serverKey={() => (server.current ? ServerConnection.key(server.current) : undefined)}
+      directory={directory}
+    >
+      <ModeWorkspaceBody />
+    </ChatAssetsProvider>
+  )
+}
+
+function ModeWorkspaceBody() {
+  const mode = useMode()
   const server = useServer()
   const { ctx: chatCtx, directory: chatDirectory } = useModeDirectory()
+  const assets = useChatAssets()
 
   const [codingSel, setCodingSel] = createStore({
     selection: { server: server.key } as HomeProjectSelection,
@@ -106,157 +133,13 @@ export function ModeWorkspace() {
     return { scope: currentCtx.sdk.scope, directory: dir }
   })
 
-  // `chatAssetList` and `chatSystemData` are Chat-only — `ModeWorkspaceAssetCtx` has one
-  // consumer, `ChatAssetWorkbenchMain` — but they are declared here, above every slot, so no
-  // `ModeSlotActiveProvider` can reach them. Without a gate, opening any mode fetched Chat's
-  // seven asset lists and started its MCP child sync.
-  //
-  // A latch rather than a live gate: clearing them on the way out of Chat would drop exactly
-  // what render-all exists to preserve, and would refetch on every return. So nothing runs
-  // until Chat is shown once, and after that behaviour is unchanged.
-  const [chatShown, setChatShown] = createSignal(false)
-  createEffect(() => {
-    if (mode.currentMode === "chat") setChatShown(true)
-  })
-
-  const [chatDirSdk, setChatDirSdk] = createSignal<DirectorySDK | undefined>()
-  createEffect(() => {
-    if (!chatShown()) return
-    const dir = chatDirectory()
-    const currentCtx = chatCtx()
-    if (!dir || !currentCtx) {
-      setChatDirSdk(undefined)
-      return
-    }
-    setChatDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
-  })
-
-  const [chatAssetList, { refetch: refetchAssets }] = createResource(chatDirSdk, async (sdk) => {
-    // Each list is settled individually, so one failing endpoint contributes nothing
-    // instead of rejecting the whole resource. That matters because `mergedAssetData`
-    // below reads this resource, and reading a rejected resource throws into the
-    // nearest boundary — the fallback-less `<Suspense>` at `pages/layout.tsx:43`. A
-    // single 500 therefore used to blank the entire mode workspace, for every mode.
-    // The failed kinds below feed the workbench's `AssetLoadError`. `ChatFeatureSidebar`
-    // reads the same seven kinds through its own resource and settles them for exactly
-    // the same reason — merging the two reads is recorded as debt, not done here.
-    const settle = <T,>(call: Promise<T>): Promise<T | { data: undefined }> =>
-      call.then(
-        (value) => value,
-        () => ({ data: undefined }),
-      )
-    const [promptsRes, skillsRes, mcpsRes, cmdsRes, agentsRes, workflowsRes, pluginsRes] = await Promise.all([
-      settle(sdk.client.promptAsset.list()),
-      settle(sdk.client.skillAsset.list()),
-      settle(sdk.client.mcpAsset.list()),
-      settle(sdk.client.commandAsset.list()),
-      settle(sdk.client.agentAsset.list()),
-      settle(sdk.client.workflowAsset.list()),
-      settle(sdk.client.pluginAsset.list()),
-    ])
-    // Which kinds did not answer. Without this the workspace no longer blanks but the
-    // failure is invisible — "silently one kind short" instead of an error.
-    const failed = (
-      [
-        ["prompts", promptsRes],
-        ["skills", skillsRes],
-        ["mcp", mcpsRes],
-        ["commands", cmdsRes],
-        ["agents", agentsRes],
-        ["workflows", workflowsRes],
-        ["plugins", pluginsRes],
-      ] as const
-    ).flatMap(([kind, result]) => (result.data === undefined ? [kind] : []))
-    const promptAssets = promptsRes.data?.assets ?? []
-    const skillAssets = skillsRes.data?.assets ?? []
-    const mcpAssets = mcpsRes.data?.assets ?? []
-    const cmdAssets = cmdsRes.data?.assets ?? []
-    const agentAssets = agentsRes.data?.assets ?? []
-    const workflowAssets = workflowsRes.data?.assets ?? []
-    const pluginAssets = pluginsRes.data?.assets ?? []
-    const pluginInvalid = pluginsRes.data?.invalid ?? []
-    const bridgedPlugins = pluginsRes.data?.bridged ?? []
-    const promptInvalid = promptsRes.data?.invalid ?? []
-    const skillInvalid = skillsRes.data?.invalid ?? []
-    const mcpInvalid = mcpsRes.data?.invalid ?? []
-    const cmdInvalid = cmdsRes.data?.invalid ?? []
-    const agentInvalid = agentsRes.data?.invalid ?? []
-    const workflowInvalid = workflowsRes.data?.invalid ?? []
-
-    const bridgedPluginInputs: AssetWorkbench.AssetInput[] = bridgedPlugins.map((plugin) => ({
-      kind: "plugin" as const,
-      name: plugin.name,
-      description: plugin.description,
-      relativePath: plugin.originPath,
-      revision: "",
-      origin: "system" as const,
-    }))
-
-    const allAssets: AssetWorkbench.AssetInput[] = [
-      ...promptAssets,
-      ...skillAssets,
-      ...mcpAssets,
-      ...cmdAssets,
-      ...agentAssets,
-      ...workflowAssets,
-      ...pluginAssets,
-      ...bridgedPluginInputs,
-    ]
-
-    const invalidRows = AssetWorkbench.buildRows(
-      [],
-      [
-        ...promptInvalid.map((item) => ({ ...item, kind: "prompt" as const })),
-        ...skillInvalid.map((item) => ({ ...item, kind: "skill" as const })),
-        ...mcpInvalid.map((item) => ({ ...item, kind: "mcp" as const })),
-        ...cmdInvalid.map((item) => ({ ...item, kind: "command" as const })),
-        ...agentInvalid.map((item) => ({ ...item, kind: "agent" as const })),
-        ...workflowInvalid.map((item) => ({ ...item, kind: "workflow" as const })),
-        ...pluginInvalid.map((item) => ({ ...item, kind: "plugin" as const })),
-      ],
-    )
-
-    return {
-      failed,
-      assets: allAssets,
-      invalid: invalidRows,
-    }
-  })
-
-  const chatSystemData = createMemo(() => {
-    if (!chatShown()) return undefined
-    const dir = chatDirectory()
-    if (!dir) return undefined
-    return sync().child(dir, { mcp: true })[0]
-  })
-
-  const mergedAssetData = createMemo(() => {
-    const project = chatAssetList()
-    const system = chatSystemData()
-    if (!project && !system) {
-      const emptyAssets: AssetWorkbench.AssetInput[] = []
-      const emptyInvalid: AssetWorkbench.AssetRow[] = []
-      return { assets: emptyAssets, invalid: emptyInvalid, failed: [] as readonly string[] }
-    }
-    const merged = AssetWorkbench.mergeAssets(
-      project?.assets ?? [],
-      system
-        ? AssetWorkbench.systemAssets({
-            commands: system.command ?? [],
-            agents: system.agent ?? [],
-            mcp: system.mcp ?? {},
-          })
-        : [],
-    )
-    return { assets: merged, invalid: project?.invalid ?? [], failed: (project?.failed ?? []) as readonly string[] }
-  })
-
   const assetCtx = {
-    chatDirSdk,
-    chatAssetList,
-    chatSystemData,
-    mergedAssetData,
-    refetchAssets,
+    chatDirSdk: assets.dirSdk,
+    chatAssetList: assets.list,
+    chatSystemData: assets.systemData,
+    mergedAssetData: assets.merged,
+    assetCounts: assets.counts,
+    refetchAssets: assets.refetch,
   }
 
   return (

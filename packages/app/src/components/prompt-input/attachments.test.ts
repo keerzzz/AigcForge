@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { attachmentMime, pickAttachmentFiles } from "./files"
+import { attachmentMime, MAX_ATTACHMENT_BYTES, pickAttachmentFiles } from "./files"
 import { pasteMode } from "./paste"
 
 describe("attachmentMime", () => {
@@ -20,6 +20,11 @@ describe("attachmentMime", () => {
 
   test("rejects binary files", async () => {
     const file = new File([Uint8Array.of(0, 255, 1, 2)], "blob.bin", { type: "application/octet-stream" })
+    expect(await attachmentMime(file)).toBeUndefined()
+  })
+
+  test("rejects an oversized image before it can be embedded", async () => {
+    const file = new File([new Uint8Array(MAX_ATTACHMENT_BYTES + 1)], "huge.png", { type: "image/png" })
     expect(await attachmentMime(file)).toBeUndefined()
   })
 })

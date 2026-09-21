@@ -20,7 +20,7 @@ import babelPresetSolid from "babel-preset-solid"
 export const solidJsxPlugin: Bun.Plugin = {
   name: "solid-jsx",
   setup(builder) {
-    builder.onLoad({ filter: /[\\/]pages[\\/]session[\\/]text-diff-view(?:\.test)?\.tsx$/ }, async (args) => {
+    builder.onLoad({ filter: /\.tsx$/ }, async (args) => {
       const source = await Bun.file(args.path).text()
       const result = transformSync(source, {
         filename: args.path,

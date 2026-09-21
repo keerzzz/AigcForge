@@ -21,6 +21,10 @@ import { Persist, persisted } from "@/utils/persist"
 import { StatusPopoverV2 } from "../status-popover"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
+import type { SessionIdentityIdentity } from "@aigcfroge/sdk/v2/client"
+import { useServerSDK } from "@/context/server-sdk"
+import { isMode, modeDefinition } from "@/context/mode"
+import { SessionIdentityQuery } from "./session-identity-query"
 
 const OPEN_APPS = [
   "vscode",
@@ -41,6 +45,12 @@ const OPEN_APPS = [
 
 type OpenApp = (typeof OPEN_APPS)[number]
 type OS = "macos" | "windows" | "linux" | "unknown"
+type Translator = ReturnType<typeof useLanguage>["t"]
+
+type StringDatum =
+  | { status: "ready"; value: string }
+  | { status: "missing" }
+  | { status: "unsupported"; reason: string }
 
 const MAC_APPS = [
   {
@@ -117,10 +127,150 @@ const detectOS = (platform: ReturnType<typeof usePlatform>): OS => {
   return "unknown"
 }
 
+function healthLabel(health: SessionIdentityIdentity["capability"]["health"], t: Translator) {
+  if (health === "ready") return t("session.identity.health.ready")
+  if (health === "degraded") return t("session.identity.health.degraded")
+  return t("session.identity.health.blocked")
+}
+
+function datumLabel(datum: StringDatum, t: Translator) {
+  if (datum.status === "ready") return datum.value
+  if (datum.status === "missing") return t("session.identity.missing")
+  return `${t("session.identity.unsupported")} · ${datum.reason}`
+}
+
+function assetLabel(kind: string, t: Translator) {
+  if (kind === "prompt") return t("chat.feature.prompt")
+  if (kind === "skill") return t("chat.feature.skill")
+  if (kind === "mcp") return t("chat.feature.mcp")
+  if (kind === "command") return t("chat.feature.command")
+  if (kind === "agent") return t("chat.feature.agent")
+  if (kind === "workflow") return t("chat.feature.workflow")
+  if (kind === "plugin") return t("chat.feature.plugin")
+  return kind
+}
+
+function detailLabel(identity: SessionIdentityIdentity, t: Translator) {
+  if (identity.detail.status === "missing") {
+    return `${t("session.identity.detailUnavailable")} · ${identity.detail.reason}`
+  }
+  const detail = identity.detail.detail
+  if (detail.source === "coding") {
+    return `${t("session.identity.vcs")}: ${datumLabel(detail.vcs.branch, t)} · ${datumLabel(detail.vcs.worktree, t)}`
+  }
+  if (detail.source === "chat") {
+    return detail.assetCounts.length > 0
+      ? detail.assetCounts.map((item) => `${assetLabel(item.kind, t)} ${item.count}`).join(" · ")
+      : t("session.identity.none")
+  }
+  if (detail.source === "work") {
+    const contract =
+      detail.contract.source === "workflow"
+        ? `${t("session.identity.contract.workflow")} · ${detail.contract.revision}`
+        : detail.contract.source === "preset"
+          ? `${t("session.identity.contract.preset")} · ${
+              detail.contract.revision.status === "ready"
+                ? detail.contract.revision.revision
+                : `${t("session.identity.unsupported")} · ${detail.contract.revision.reason}`
+            }`
+          : t("session.identity.contract.adHoc")
+    return `${contract} · ${t("session.identity.artifact")}: ${datumLabel(detail.artifact, t)}`
+  }
+  if (detail.source === "assistant") {
+    const scope =
+      detail.scope.kind === "personal"
+        ? t("session.identity.scope.personal")
+        : t("session.identity.scope.project", { project: detail.scope.projectID })
+    return `${scope} · ${t("session.identity.reminders")}: ${healthLabel(detail.reminders.health, t)} · ${t(
+      "session.identity.memory",
+    )}: ${healthLabel(detail.memory.health, t)} · ${t("session.identity.knowledge")}: ${healthLabel(
+      detail.knowledge.health,
+      t,
+    )}`
+  }
+  return `${t("session.identity.snapshot")}: ${detail.snapshot.digest} · ${t(
+    "session.identity.policy",
+  )}: ${healthLabel(detail.policy.health, t)}`
+}
+
+function SessionProductHeader(props: { identity: SessionIdentityIdentity }) {
+  const language = useLanguage()
+  const location = () => getFilename(props.identity.location.directory) || props.identity.location.directory
+  const mode = () =>
+    isMode(props.identity.mode) ? language.t(modeDefinition(props.identity.mode).labelKey) : props.identity.mode
+  const model = () => {
+    if (props.identity.model.status === "ready") {
+      return `${props.identity.model.value.providerID}/${props.identity.model.value.modelID}`
+    }
+    if (props.identity.model.status === "missing") return language.t("session.identity.missing")
+    return `${language.t("session.identity.unsupported")} · ${props.identity.model.reason}`
+  }
+  const permission = () =>
+    `${language.t(`session.identity.permission.${props.identity.permission.declaredTier}`)} · ${language.t(
+      `settings.permissions.action.${props.identity.permission.effect}`,
+    )}`
+
+  return (
+    <div
+      data-component="session-product-header"
+      data-mode={props.identity.mode}
+      data-health={props.identity.capability.health}
+      class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-v2-border-border-base bg-v2-background-bg-base px-3 py-2 text-11-regular text-v2-text-text-muted"
+    >
+      <span data-field="mode" class="font-medium text-v2-text-text-base">
+        {mode()}
+      </span>
+      <span data-field="location" title={props.identity.location.directory}>
+        {location()}
+      </span>
+      <span data-field="agent">{props.identity.agent}</span>
+      <span data-field="model">{model()}</span>
+      <details class="ml-auto min-w-0 max-w-full">
+        <summary class="cursor-default select-none text-v2-text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus">
+          {language.t("session.identity.details")}
+        </summary>
+        <div class="mt-2 flex max-w-[min(720px,calc(100vw-40px))] flex-col gap-1 rounded-[8px] border border-v2-border-border-base bg-v2-background-bg-layer-02 p-2">
+          <span data-field="permission">{permission()}</span>
+          <span data-field="health">{healthLabel(props.identity.capability.health, language.t)}</span>
+          <span data-field="detail">{detailLabel(props.identity, language.t)}</span>
+          <Show when={props.identity.capability.reasons.length > 0}>
+            <span data-field="reasons">
+              {language.t("session.identity.reasons")}:{" "}
+              {props.identity.capability.reasons.map((reason) => reason.code).join(" · ")}
+            </span>
+          </Show>
+        </div>
+      </details>
+    </div>
+  )
+}
+
+export function SessionIdentityHeader(props: { query: ReturnType<typeof SessionIdentityQuery.use> }) {
+  const language = useLanguage()
+  return (
+    <Show
+      when={!props.query.isError}
+      fallback={
+        <div
+          data-component="session-product-header"
+          data-state="unavailable"
+          role="status"
+          class="flex shrink-0 border-b border-v2-border-border-base bg-v2-background-bg-base px-3 py-2 text-11-regular text-v2-text-text-muted"
+        >
+          {language.t("session.identity.details")}: {language.t("common.requestFailed")}
+        </div>
+      }
+    >
+      <Show when={props.query.data}>{(identity) => <SessionProductHeader identity={identity()} />}</Show>
+    </Show>
+  )
+}
+
 export function SessionHeader() {
   const layout = useLayout()
   const command = useCommand()
   const _server = useServer()
+  const serverSDK = useServerSDK()
   const platform = usePlatform()
   const language = useLanguage()
   const settings = useSettings()
@@ -144,6 +294,11 @@ export function SessionHeader() {
   const search = settings.visibility.search
   const status = settings.visibility.status
   const isDesktop = createMediaQuery("(min-width: 768px)")
+  const identityQuery = SessionIdentityQuery.use(() => {
+    const sessionID = params.id
+    if (!sessionID) return undefined
+    return { sdk: serverSDK(), sessionID }
+  })
 
   const [_exists, setExists] = createStore<Partial<Record<OpenApp, boolean>>>({
     finder: true,
@@ -201,6 +356,7 @@ export function SessionHeader() {
 
   return (
     <>
+      <SessionIdentityHeader query={identityQuery} />
       <Show when={search() && centerMount()}>
         {(mount) => (
           <Portal mount={mount()}>

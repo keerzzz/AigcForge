@@ -13,7 +13,7 @@ import {
   mergeAssets,
   sortRows,
   systemAssets,
-  systemCountFor,
+  countAssetsByKind,
   type AssetInput,
 } from "./asset-workbench"
 
@@ -57,6 +57,8 @@ const agent = (over: Partial<Agent> = {}): Agent => ({
   mode: "primary",
   permission: [],
   options: {},
+  // S6: the server projection carries the modes this agent may serve as primary.
+  primaryModes: ["coding"],
   ...over,
 })
 
@@ -154,23 +156,52 @@ describe("mergeAssets", () => {
   })
 })
 
-describe("systemCountFor", () => {
-  const system = [
-    { kind: "skill", name: "fmt" },
-    { kind: "skill", name: "lint" },
-    { kind: "command", name: "run" },
-  ] as const
+// S3-3: the sidebar's old number was `projectCount + systemCountFor(unshadowed system)`,
+// computed from its own duplicated request set. These cases pin the replacement —
+// a per-kind tally of the merged rows — against that formula, including the plugin
+// case the two rules could plausibly have disagreed on (bridged rows ride inside the
+// project array, so `mergeAssets` never shadows them against project plugins).
+describe("countAssetsByKind", () => {
+  const projectPlugin = { kind: "plugin" as const, name: "shared", description: "", relativePath: "p", revision: "" }
+  const bridgedPlugin = {
+    kind: "plugin" as const,
+    name: "shared",
+    description: "",
+    relativePath: "b",
+    revision: "",
+    origin: "system" as const,
+  }
+  const systemRows = [
+    { kind: "skill" as const, name: "fmt", description: "" },
+    { kind: "skill" as const, name: "lint", description: "" },
+    { kind: "command" as const, name: "run", description: "" },
+  ]
 
-  test("counts system items of the given kind", () => {
-    expect(systemCountFor(system, "skill", new Set())).toBe(2)
+  test("counts each merged row by its kind", () => {
+    const merged = mergeAssets(
+      [{ kind: "prompt", name: "p", description: "", relativePath: "p", revision: "" }],
+      systemRows,
+    )
+    expect(countAssetsByKind(merged)).toEqual({ prompt: 1, skill: 2, command: 1 })
   })
 
-  test("excludes names shadowed by project assets", () => {
-    expect(systemCountFor(system, "skill", new Set(["fmt"]))).toBe(1)
+  test("older formula agrees for system-shadowed kinds", () => {
+    const project = [{ kind: "skill" as const, name: "fmt", description: "", relativePath: "fmt", revision: "" }]
+    const merged = mergeAssets(project, systemRows)
+    // `fmt` is project-owned here, so only `lint` comes from the system: the tally
+    // equals project count + unshadowed system count, which is what the sidebar used.
+    expect(countAssetsByKind(merged).skill).toBe(1 + 1)
   })
 
-  test("returns 0 for kinds without system items", () => {
-    expect(systemCountFor(system, "workflow", new Set())).toBe(0)
+  test("counts bridged plugins as plugin, and does not dedup them against a same-named project plugin", () => {
+    const merged = mergeAssets([projectPlugin, bridgedPlugin], [])
+    expect(countAssetsByKind(merged).plugin).toBe(2)
+  })
+
+  test("systemAssets contributes no plugin rows, so plugin counts are project plus bridged only", () => {
+    const system = systemAssets({ commands: [{ name: "c", source: "command" }], agents: [], mcp: {} })
+    expect(system.filter((row) => row.kind === "plugin")).toEqual([])
+    expect(countAssetsByKind(mergeAssets([projectPlugin, bridgedPlugin], system))).toEqual({ plugin: 2, command: 1 })
   })
 })
 

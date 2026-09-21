@@ -1,4 +1,6 @@
+import { fileURLToPath } from "node:url"
 import { defineConfig, devices } from "@playwright/test"
+import { PRESENTATION_GREP } from "./e2e/presentation-matrix"
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3000)
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`
@@ -22,7 +24,21 @@ const storageState = (entries: Array<[string, string]>) => ({
 
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: process.env.AIGCFROGE_PERFORMANCE === "1" ? "performance/**/*.test.ts" : "performance/**",
+  // Warm the cold route graph before the round — see e2e/global-setup.ts and
+  // docs/technical-debt.md §8 (`e2e-readiness-predicate-flake`). The dev server is already
+  // up here: webServer plugins run in the plugin-setup phase, before globalSetup.
+  globalSetup: fileURLToPath(new URL("./e2e/global-setup.ts", import.meta.url)),
+  // `performance/**` belongs to the production-bench config; `real/**` belongs
+  // to the real-backend E4 config (e2e/real/playwright.config.ts); `zoom/**`
+  // belongs to the real-page-zoom config (e2e/zoom/playwright.config.ts), which
+  // needs a seeded persistent profile this config cannot express. None is
+  // collected by this E3/E2 presentation config.
+  testIgnore: [
+    "unit/**",
+    ...(process.env.AIGCFROGE_PERFORMANCE === "1"
+      ? ["performance/**/*.test.ts"]
+      : ["performance/**", "real/**", "zoom/**"]),
+  ],
   outputDir: "./e2e/test-results",
   // Generous per-test budget: the Vite dev server cold-compiles routes on
   // demand, and the branch's assistant dashboard (imported by the app-wide
@@ -55,11 +71,14 @@ export default defineConfig({
   },
   projects: [
     {
+      // Business suite: everything runs here. The other four projects filter on
+      // `PRESENTATION_GREP` — see e2e/presentation-matrix.ts for why.
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "chromium-dark",
+      grep: PRESENTATION_GREP,
       use: {
         ...devices["Desktop Chrome"],
         storageState: storageState([["aigcfroge-color-scheme", "dark"]]),
@@ -67,6 +86,7 @@ export default defineConfig({
     },
     {
       name: "chromium-zh",
+      grep: PRESENTATION_GREP,
       use: {
         ...devices["Desktop Chrome"],
         storageState: storageState([["aigcfroge.global.dat:language", '{"locale":"zh"}']]),
@@ -74,6 +94,7 @@ export default defineConfig({
     },
     {
       name: "chromium-zht",
+      grep: PRESENTATION_GREP,
       use: {
         ...devices["Desktop Chrome"],
         storageState: storageState([["aigcfroge.global.dat:language", '{"locale":"zht"}']]),
@@ -81,6 +102,7 @@ export default defineConfig({
     },
     {
       name: "chromium-narrow",
+      grep: PRESENTATION_GREP,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 390, height: 844 },

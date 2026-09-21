@@ -1,8 +1,9 @@
 export * as WorkPresetRegistry from "./work-preset"
 
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
+import { Hash } from "../util/hash"
 
-const PRESETS: ReadonlyArray<WorkPreset.Preset> = [
+const DEFINITIONS: ReadonlyArray<Omit<WorkPreset.Preset, "revision">> = [
   {
     id: "storyboard-video",
     title: "视频分镜脚本",
@@ -83,6 +84,11 @@ const PRESETS: ReadonlyArray<WorkPreset.Preset> = [
     artifact: { title: "行政公文", filename: "行政公文.md" },
   },
 ]
+
+const PRESETS: ReadonlyArray<WorkPreset.Preset> = DEFINITIONS.map((preset) => ({
+  ...preset,
+  revision: WorkPreset.Revision.make(Hash.sha256(JSON.stringify(preset))),
+}))
 
 export const list = () => PRESETS
 

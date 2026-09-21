@@ -1,3 +1,12 @@
 src/assets/theme.css
 e2e/test-results
 e2e/playwright-report
+e2e/real/test-results
+e2e/real/playwright-report
+e2e/zoom/test-results
+e2e/zoom/playwright-report
+
+# `bun --cwd packages/app test:unit` and ad-hoc playwright configs write the
+# runner's default outputDir at the package root; a bare `git add -A packages/app`
+# swept a 45-byte .last-run.json into a commit before this entry existed.
+test-results

@@ -16,26 +16,32 @@ export type StatusBarCacheInfo = {
   readonly write: number
 }
 
-export type StatusBarSubagentInfo = {
-  readonly active: number
-  readonly completed: number
-  readonly failed: number
-  readonly total: number
+/**
+ * What the bar shows for the session's permission posture (S6 §9.2). Sourced from
+ * the ADR-23 projection; `effect` is the owner's baseline verdict and is absent
+ * when only the transitional tier fallback was available — the bar never invents
+ * one. Break-glass lease state is not part of this projection: the lease owner
+ * lives with the composer control, and duplicating it here would create the
+ * second truth source ADR-23 forbids.
+ */
+export type StatusBarPermissionInfo = {
+  readonly kind: "full" | "degraded" | "blocked"
+  readonly reason?: string
+  readonly effect?: "allow" | "ask" | "deny"
 }
 
 export type StatusBarSource = {
-  readonly label: () => string
+  readonly label: () => string | undefined
   readonly connection: () => {
     readonly state: ConnectionState
     readonly serverName: string
     readonly serverKey: ServerConnection.Key
   }
   readonly model: () => StatusBarModelInfo | undefined
+  readonly permission: () => StatusBarPermissionInfo | undefined
   readonly cache: () => StatusBarCacheInfo | undefined
-  readonly subagent: () => StatusBarSubagentInfo | undefined
   readonly allMetrics: () => StatusBarMetric[]
   readonly pinnedMetrics: () => StatusBarMetric[]
   readonly togglePin: (metricID: string) => void
-  /** Toggle the session Context tab open/closed. No-op when no session is active. */
   readonly openContext: () => void
 }

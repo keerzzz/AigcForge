@@ -25,6 +25,7 @@ import { PtyHandler } from "./handlers/pty"
 import { QuestionHandler } from "./handlers/question"
 import { ReferenceHandler } from "./handlers/reference"
 import { LocationHandler } from "./handlers/location"
+import { PathIdentityHandler } from "./handlers/path-identity"
 import { IntegrationHandler } from "./handlers/integration"
 import { CredentialHandler } from "./handlers/credential"
 import { Credential } from "@aigcfroge/core/credential"
@@ -46,6 +47,7 @@ const fillerLayer = TaskDriverFill.layer.pipe(
 export const handlers = Layer.mergeAll(
   HealthHandler,
   LocationHandler,
+  PathIdentityHandler,
   AgentHandler,
   SessionHandler,
   MessageHandler,

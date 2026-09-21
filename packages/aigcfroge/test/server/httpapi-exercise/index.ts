@@ -616,6 +616,35 @@ const scenarios: Scenario[] = [
       object(body)
       check(body.healthy === true, "server should report healthy")
     }),
+  // ADR-23 projection (S6): declared here so `--fail-on-missing` proves the route
+  // is covered, and the assertions prove the projection answers with a real
+  // session's identity rather than a stub.
+  http.protected
+    .get("/session/{sessionID}/identity", "session.identity")
+    .seeded((ctx) => ctx.session({ title: "session identity projection" }))
+    .at((ctx) => ({
+      path: route("/session/{sessionID}/identity", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.sessionID === undefined || typeof body.sessionID === "string", "identity should carry a session id")
+      check(typeof body.mode === "string", "identity should carry the mode")
+      check(isRecord(body.permission), "identity should carry the permission posture")
+      check(typeof body.permission.declaredTier === "string", "identity should declare the permission tier")
+      check(
+        body.permission.effect === "allow" || body.permission.effect === "ask" || body.permission.effect === "deny",
+        "identity permission effect should come from the effective owner",
+      )
+      check(isRecord(body.capability), "identity should carry a capability block")
+      check(
+        body.capability.health === "ready" ||
+          body.capability.health === "degraded" ||
+          body.capability.health === "blocked",
+        "identity capability health should be one of the contract values",
+      )
+      check(isRecord(body.detail), "identity should carry the mode detail availability")
+    }),
   http.protected
     .get("/global/event", "global.event")
     .global()
@@ -1702,6 +1731,22 @@ const scenarios: Scenario[] = [
     check(body.healthy === true, "v2 server should report healthy")
   }),
   http.protected.get("/api/location", "v2.location.get").json(200, object),
+  http.protected
+    .post("/api/path-identity/compare", "v2.pathIdentity.compare")
+    .at((ctx) => ({
+      path: "/api/path-identity/compare",
+      headers: ctx.headers(),
+      body: {
+        left: { path: ctx.directory ?? process.cwd() },
+        right: { path: ctx.directory ?? process.cwd() },
+      },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.status === "same", "identical local refs should have a same proof")
+      object(body.evidence)
+      check(body.evidence.method === "realpath", "realpath must be the first proof method")
+    }),
   http.protected.get("/api/agent", "v2.agent.list").json(200, locationData(array)),
   http.protected.get("/api/model", "v2.model.list").json(200, locationData(array)),
   http.protected.get("/api/provider", "v2.provider.list").json(200, locationData(array)),

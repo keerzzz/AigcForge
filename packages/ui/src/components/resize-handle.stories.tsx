@@ -55,6 +55,7 @@ export const Basic = {
           }}
         />
         <mod.ResizeHandle
+          label="Resize panel"
           direction="horizontal"
           size={size()}
           min={120}
@@ -81,6 +82,7 @@ export const Vertical = {
           }}
         />
         <mod.ResizeHandle
+          label="Resize panel"
           direction="vertical"
           size={size()}
           min={120}
@@ -115,6 +117,7 @@ export const Collapse = {
           }}
         />
         <mod.ResizeHandle
+          label="Resize panel"
           direction="horizontal"
           size={size()}
           min={80}
@@ -147,6 +150,7 @@ export const EdgeStart = {
           }}
         />
         <mod.ResizeHandle
+          label="Resize panel"
           direction="horizontal"
           edge="start"
           size={size()}

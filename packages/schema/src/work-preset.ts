@@ -1,11 +1,16 @@
 export * as WorkPreset from "./work-preset"
 
 import { Schema } from "effect"
+import { WorkflowAsset } from "./workflow-asset"
 
 export const Category = Schema.Literals(["it-development", "video-creation", "academic", "general-office"]).annotate({
   identifier: "WorkPreset.Category",
 })
 export type Category = typeof Category.Type
+
+/** Stable SHA-256 revision of the catalog-owned preset definition. */
+export const Revision = WorkflowAsset.Revision.annotate({ identifier: "WorkPreset.Revision" })
+export type Revision = typeof Revision.Type
 
 export const OutputType = Schema.Literals(["markdown", "table", "mixed"]).annotate({
   identifier: "WorkPreset.OutputType",
@@ -29,6 +34,7 @@ export type ArtifactSpec = typeof ArtifactSpec.Type
 
 export const Preset = Schema.Struct({
   id: Schema.String,
+  revision: Revision,
   title: Schema.String,
   category: Category,
   description: Schema.String,

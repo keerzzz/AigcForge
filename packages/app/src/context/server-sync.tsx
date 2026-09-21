@@ -64,6 +64,7 @@ import { retry } from "@aigcfroge/core/util/retry"
 import type { ServerScope } from "@/utils/server-scope"
 import { persisted } from "@/utils/persist"
 import { toggleMcp } from "./global-sync/mcp"
+import { SessionIdentityQuery } from "@/components/session/session-identity-query"
 
 type GlobalStore = {
   ready: boolean
@@ -495,6 +496,11 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     const directory = e.name
     const key = directoryKey(directory)
     const event = e.details
+    if (event.type === "session.updated") {
+      void SessionIdentityQuery.invalidate(queryClient, serverSDK.scope, event.properties.info.id).catch(() => {
+        console.error("Failed to invalidate session identity")
+      })
+    }
     const recent = bootingRoot || Date.now() - bootedAt < 1500
 
     if (directory === "global") {

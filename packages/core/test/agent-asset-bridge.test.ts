@@ -73,6 +73,8 @@ describe("AgentAssetBridge - agentAssetToAgentInfo", () => {
     expect(info?.model?.id).toBe(ModelV2.ID.make("claude-3-5-sonnet"))
     expect(info?.model?.providerID).toBe(ProviderV2.ID.make("anthropic"))
     expect(info?.mode).toBe("subagent")
+    expect(info?.originRelativePath).toBe("reviewer.md")
+    expect(info?.originRevision).toBe(asset.revision)
   })
 
   test("rejects overwriting root meta agent", () => {
@@ -120,6 +122,8 @@ describe("AgentAssetBridge - registerAgentAssetTransform", () => {
         expect(writer?.description).toBe("Technical writer")
         expect(writer?.system).toBe("Write good docs.")
         expect(writer?.mode).toBe("subagent")
+        expect(writer?.originRelativePath).toBe("writer.md")
+        expect(writer?.originRevision).toBeString()
 
         yield* Effect.promise(() =>
           fs.writeFile(

@@ -81,6 +81,8 @@ type ModeContext = {
   setCurrentMode: (mode: Mode) => void
   secondarySidebarOpen: boolean
   toggleSecondarySidebar: () => void
+  contentPanelOpen: boolean
+  toggleContentPanel: () => void
 }
 
 const Ctx = createContext<ModeContext>()
@@ -105,6 +107,15 @@ export function ModeProvider(props: ParentProps) {
     createStore({ open: false }),
   )
 
+  // The narrow entry to a session's mode content panel (S7). Deliberately NOT persisted, unlike
+  // the secondary sidebar above: that one is a navigation preference, while this panel is an
+  // overlay that covers the session (the body underneath becomes `inert` and `aria-hidden`), so
+  // remembering it open would present every later session at a narrow width with its own
+  // conversation covered and unreadable to assistive tech. Measured before this: after one open,
+  // a full reload of a different session rendered the session behind an `aria-hidden` body and
+  // its heading disappeared from the accessibility tree entirely.
+  const [contentPanel, setContentPanel] = createStore({ open: false })
+
   const ctx: ModeContext = {
     get currentMode() {
       return state.currentMode
@@ -117,6 +128,12 @@ export function ModeProvider(props: ParentProps) {
     },
     toggleSecondarySidebar() {
       setSecondaryOpen("open", (open) => !open)
+    },
+    get contentPanelOpen() {
+      return contentPanel.open
+    },
+    toggleContentPanel() {
+      setContentPanel("open", (open) => !open)
     },
   }
 

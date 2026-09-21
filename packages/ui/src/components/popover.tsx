@@ -17,6 +17,7 @@ export interface PopoverProps<T extends ValidComponent = "div">
   classList?: ComponentProps<"div">["classList"]
   style?: ComponentProps<"div">["style"]
   portal?: boolean
+  restoreFocusOnOutsideClose?: boolean
 }
 
 export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>) {
@@ -32,6 +33,7 @@ export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>
     "style",
     "children",
     "portal",
+    "restoreFocusOnOutsideClose",
     "open",
     "defaultOpen",
     "onOpenChange",
@@ -111,7 +113,8 @@ export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>
       }}
       style={local.style}
       onCloseAutoFocus={(event: Event) => {
-        if (state.dismiss === "outside") event.preventDefault()
+        if (state.dismiss === "outside" && !local.restoreFocusOnOutsideClose) event.preventDefault()
+        if (local.restoreFocusOnOutsideClose && state.triggerRef?.isConnected) state.triggerRef.focus()
         setState("dismiss", null)
       }}
     >

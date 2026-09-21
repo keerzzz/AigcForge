@@ -24,21 +24,55 @@ function responseJson(response: HttpClientResponse.HttpClientResponse) {
   return response.json
 }
 
-describe("ProductMode Capability & Compatibility", () => {
-  it.instance("/experimental/capabilities exposes custom capability metadata with customMode disabled in M0", () =>
-    Effect.gen(function* () {
-      const test = yield* TestInstance
-      const response = yield* request("/experimental/capabilities", test.directory)
-      expect(response.status).toBe(200)
-      const body = yield* responseJson(response)
-      if (!isRecord(body)) throw new Error("Expected object response")
-      expect(body.customMode).toBe(false)
-      expect(body.customCompositionVersion).toBe(1)
-      expect(Array.isArray(body.productModes)).toBe(true)
-      const modes = Array.isArray(body.productModes) ? body.productModes : []
-      expect(modes).toContain("custom")
-      expect(modes).toContain("coding")
+function withCustomModeFlag<A, E, R>(value: string | undefined, effect: Effect.Effect<A, E, R>) {
+  return Effect.acquireUseRelease(
+    Effect.sync(() => {
+      const saved = process.env["AIGCFROGE_CUSTOM_MODE"]
+      if (value === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+      else process.env["AIGCFROGE_CUSTOM_MODE"] = value
+      return saved
     }),
+    () => effect,
+    (saved) =>
+      Effect.sync(() => {
+        if (saved === undefined) delete process.env["AIGCFROGE_CUSTOM_MODE"]
+        else process.env["AIGCFROGE_CUSTOM_MODE"] = saved
+      }),
+  )
+}
+
+describe("ProductMode Capability & Compatibility", () => {
+  it.instance("/experimental/capabilities reports customMode false when the kill switch is unset", () =>
+    withCustomModeFlag(
+      undefined,
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const response = yield* request("/experimental/capabilities", test.directory)
+        expect(response.status).toBe(200)
+        const body = yield* responseJson(response)
+        if (!isRecord(body)) throw new Error("Expected object response")
+        expect(body.customMode).toBe(false)
+        expect(body.customCompositionVersion).toBe(1)
+        expect(Array.isArray(body.productModes)).toBe(true)
+        const modes = Array.isArray(body.productModes) ? body.productModes : []
+        expect(modes).toContain("custom")
+        expect(modes).toContain("coding")
+      }),
+    ),
+  )
+
+  it.instance("/experimental/capabilities reports customMode true in the approved environment", () =>
+    withCustomModeFlag(
+      "true",
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const response = yield* request("/experimental/capabilities", test.directory)
+        expect(response.status).toBe(200)
+        const body = yield* responseJson(response)
+        if (!isRecord(body)) throw new Error("Expected object response")
+        expect(body.customMode).toBe(true)
+      }),
+    ),
   )
 
   it.instance("Old client without capability header excludes custom sessions from list and fails by ID", () =>

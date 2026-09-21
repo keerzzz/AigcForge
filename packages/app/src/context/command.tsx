@@ -48,13 +48,40 @@ function normalizeKey(key: string) {
   return key.toLowerCase()
 }
 
+/**
+ * Physical punctuation keys, by `KeyboardEvent.code`.
+ *
+ * `event.key` is layout- and modifier-dependent: on a US layout Shift+Period reports
+ * `key === ">"`, not `"."`, so a `shift+mod+.` binding could never match the event it
+ * was written for. `event.code` names the physical key and is stable across Shift, so
+ * it folds the shifted form back to the configured base key. Non-punctuation codes
+ * fall through to `event.key`.
+ */
+const PUNCTUATION_BY_CODE: Record<string, string> = {
+  Backquote: "`",
+  Backslash: "\\",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Comma: ",",
+  Equal: "=",
+  Minus: "-",
+  Period: ".",
+  Quote: "'",
+  Semicolon: ";",
+  Slash: "/",
+}
+
+function baseKey(event: KeyboardEvent) {
+  return normalizeKey(PUNCTUATION_BY_CODE[event.code] ?? event.key)
+}
+
 function signature(key: string, ctrl: boolean, meta: boolean, shift: boolean, alt: boolean) {
   const mask = (ctrl ? 1 : 0) | (meta ? 2 : 0) | (shift ? 4 : 0) | (alt ? 8 : 0)
   return `${key}:${mask}`
 }
 
 function signatureFromEvent(event: KeyboardEvent) {
-  return signature(normalizeKey(event.key), event.ctrlKey, event.metaKey, event.shiftKey, event.altKey)
+  return signature(baseKey(event), event.ctrlKey, event.metaKey, event.shiftKey, event.altKey)
 }
 
 function isAllowedEditableKeybind(id: string | undefined) {
@@ -190,7 +217,7 @@ export function parseKeybind(config: string): Keybind[] {
 }
 
 export function matchKeybind(keybinds: Keybind[], event: KeyboardEvent): boolean {
-  const eventKey = normalizeKey(event.key)
+  const eventKey = baseKey(event)
 
   for (const kb of keybinds) {
     const keyMatch = kb.key === eventKey

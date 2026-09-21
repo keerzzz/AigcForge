@@ -4,22 +4,22 @@ import type { Message, Part } from "@aigcfroge/sdk/v2/client"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection, serverName } from "@/context/server"
 import { useLanguage } from "@/context/language"
-import { useLayout } from "@/context/layout"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
-import { openSessionContext } from "@/components/open-session-context"
-import { ServerScope, SessionRouteKey, SessionStateKey } from "@/utils/server-scope"
-import { base64Encode } from "@aigcfroge/core/util/encode"
-import { requireServerKey } from "@/utils/session-route"
+import { parseServerKey } from "@/utils/session-route"
 import { toolCountFromParts } from "./tool-count"
 import type {
   ConnectionState,
   StatusBarModelInfo,
   StatusBarCacheInfo,
-  StatusBarSubagentInfo,
   StatusBarSource,
+  StatusBarPermissionInfo,
 } from "./types"
+import { permissionDisplay } from "./permission-display"
 import type { StatusBarMetric, MetricGroup } from "./metrics"
 import { createStore } from "solid-js/store"
+import { Persist, persisted } from "@/utils/persist"
+import { useRouteContribution } from "@/context/route-contribution"
+import { SessionIdentityQuery } from "@/components/session/session-identity-query"
 
 const DEFAULT_PINNED = ["tokens.total", "cost.total", "tools.count"]
 
@@ -28,11 +28,14 @@ export function createCurrentSessionSource(): StatusBarSource {
   const server = useServer()
   const global = useGlobal()
   const lang = useLanguage()
-  const layout = useLayout()
+  const routeContribution = useRouteContribution()
 
   const routeKey = createMemo(() => {
     if (!params.serverKey) return undefined
-    return requireServerKey(params.serverKey)
+    // Malformed keys are the route resolver's problem to surface; the status
+    // bar simply has no route-scoped server to show.
+    const parsed = parseServerKey(params.serverKey)
+    return parsed.ok ? parsed.key : undefined
   })
 
   const routeServer = createMemo(() => {
@@ -61,11 +64,30 @@ export function createCurrentSessionSource(): StatusBarSource {
     return global.ensureServerCtx(conn).sync.child(dir, { bootstrap: false })[0]
   })
 
+  const currentContribution = () => {
+    const current = routeContribution?.current()
+    if (!current || current.server !== activeServerKey() || current.leafID !== params.id) return undefined
+    return current
+  }
+
+  const openContext = () => currentContribution()?.openContext()
+
   const sessionInfo = createMemo(() => {
     const id = params.id
     if (!id) return undefined
     return childStore()?.session.find((item) => item.id === id)
   })
+
+  const identityQuery = SessionIdentityQuery.use(() => {
+    const id = params.id
+    const conn = routeServer()
+    if (!id || !conn) return undefined
+    return { sessionID: id, sdk: global.ensureServerCtx(conn).sdk }
+  })
+
+  const permission = createMemo(() =>
+    params.id ? identityPermission(identityQuery, lang.t("common.requestFailed")) : undefined,
+  )
 
   const messages = createMemo((): Message[] => {
     const id = params.id
@@ -81,83 +103,42 @@ export function createCurrentSessionSource(): StatusBarSource {
   const findModel = (providerID: string, modelID: string) => childStore()?.provider.all.get(providerID)?.models[modelID]
 
   const sessModel = createMemo((): StatusBarModelInfo | undefined => {
-    const session = sessionInfo()
-    const model = session?.model
-    if (model) {
-      const found = findModel(model.providerID, model.id)
-      return {
-        providerID: model.providerID,
-        modelID: model.id,
-        variant: model.variant,
-        displayName: found?.name ?? model.id,
-      }
-    }
-    const ctx = context()
-    if (!ctx) return undefined
-    const found = findModel(ctx.message.providerID, ctx.message.modelID)
+    if (!currentContribution()) return undefined
+    const model = identityQuery.data?.model
+    if (model?.status !== "ready") return undefined
+    const found = findModel(model.value.providerID, model.value.modelID)
     return {
-      providerID: ctx.message.providerID,
-      modelID: ctx.message.modelID,
-      variant: ctx.message.variant,
-      displayName: found?.name ?? ctx.message.modelID,
+      providerID: model.value.providerID,
+      modelID: model.value.modelID,
+      displayName: found?.name ?? model.value.modelID,
     }
   })
 
-  const sessTokens = () => sessionInfo()?.tokens
-  const sessCost = () => sessionInfo()?.cost
-  const sessAgent = () => sessionInfo()?.agent
+  const sessTokens = () => (currentContribution() ? sessionInfo()?.tokens : undefined)
+  const sessCost = () => (currentContribution() ? sessionInfo()?.cost : undefined)
   const modelLimit = () => {
     const ctx = context()
     if (!ctx) return undefined
     return findModel(ctx.message.providerID, ctx.message.modelID)?.limit.context
   }
 
-  const PINNED_METRICS_KEY = "aigcfroge:pinned_metrics"
-
-  const loadPinned = (): string[] => {
-    try {
-      const stored = localStorage.getItem(PINNED_METRICS_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed) && parsed.every((v) => typeof v === "string")) return parsed
-      }
-    } catch {}
-    return DEFAULT_PINNED
+  const normalizePinned = (value: unknown) => {
+    if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) return { ids: DEFAULT_PINNED }
+    return { ids: [...new Set(value)].slice(0, 20) }
   }
-
-  const [pinnedStore, setPinnedStore] = createStore({ ids: loadPinned() })
-
-  const subagentInfo = createMemo((): StatusBarSubagentInfo | undefined => {
-    const agent = sessAgent()
-    if (!agent) return undefined
-    const subagentMsgs = messages().filter(
-      (msg): msg is Message & { agent: string } => msg.role === "assistant" && "agent" in msg && msg.agent !== agent,
-    )
-    if (subagentMsgs.length === 0) return undefined
-    let active = 0
-    let completed = 0
-    let failed = 0
-    for (const msg of subagentMsgs) {
-      const m = msg as { error?: unknown; time?: { completed?: number } }
-      if (m.error) failed++
-      else if (m.time?.completed) completed++
-      else active++
-    }
-    return { active, completed, failed, total: subagentMsgs.length }
-  })
+  const [pinnedStore, setPinnedStore, , pinnedReady] = persisted(
+    {
+      ...Persist.global("status-bar.pinned-metrics", ["aigcfroge:pinned_metrics"]),
+      migrate: normalizePinned,
+    },
+    createStore({ ids: DEFAULT_PINNED }),
+  )
 
   const togglePin = (metricID: string) => {
-    setPinnedStore("ids", (prev) => {
-      const next = prev.includes(metricID)
-        ? prev.filter((id) => id !== metricID)
-        : prev.length >= 20
-          ? prev
-          : [...prev, metricID]
-      try {
-        localStorage.setItem(PINNED_METRICS_KEY, JSON.stringify(next))
-      } catch {}
-      return next
-    })
+    if (!pinnedReady()) return
+    setPinnedStore("ids", (prev) =>
+      prev.includes(metricID) ? prev.filter((id) => id !== metricID) : prev.length >= 20 ? prev : [...prev, metricID],
+    )
   }
 
   const mk = (
@@ -169,6 +150,7 @@ export function createCurrentSessionSource(): StatusBarSource {
   ): StatusBarMetric => ({ id, group, labelKey, value, available })
 
   const allMetrics = createMemo((): StatusBarMetric[] => {
+    if (!currentContribution()) return []
     const t = sessTokens()
     const c = sessCost()
     const ctx = context()
@@ -247,36 +229,6 @@ export function createCurrentSessionSource(): StatusBarSource {
         () => c !== undefined,
       ),
       mk(
-        "subagent.active",
-        "subagent",
-        "statusBar.metrics.subagentActive",
-        () => {
-          const s = subagentInfo()
-          return s ? String(s.active) : "—"
-        },
-        () => !!subagentInfo(),
-      ),
-      mk(
-        "subagent.completed",
-        "subagent",
-        "statusBar.metrics.subagentCompleted",
-        () => {
-          const s = subagentInfo()
-          return s ? String(s.completed) : "—"
-        },
-        () => !!subagentInfo(),
-      ),
-      mk(
-        "subagent.failed",
-        "subagent",
-        "statusBar.metrics.subagentFailed",
-        () => {
-          const s = subagentInfo()
-          return s ? String(s.failed) : "—"
-        },
-        () => !!subagentInfo(),
-      ),
-      mk(
         "tools.count",
         "tools",
         "statusBar.metrics.toolCount",
@@ -291,30 +243,8 @@ export function createCurrentSessionSource(): StatusBarSource {
     return allMetrics().filter((m) => ids.includes(m.id))
   })
 
-  // Compute sessionKey for layout tab/view access (same as useSessionKey but
-  // derives directory from global.sessionPlacement instead of useSDK).
-  const sessionKey = createMemo(() => {
-    const id = params.id
-    if (!id) return undefined
-    const scope = ServerScope.fromServerKey(activeServerKey())
-    const dirB64 = base64Encode(directory() ?? "")
-    return SessionStateKey.from(scope, SessionRouteKey.fromRoute(dirB64, id))
-  })
-
-  const openContext = () => {
-    const key = sessionKey()
-    if (!key) return
-    const tabs = layout.tabs(key)
-    const view = layout.view(key)
-    if (tabs.active() === "context") {
-      tabs.close("context")
-      return
-    }
-    openSessionContext({ view, layout, tabs })
-  }
-
   return {
-    label: () => sessionInfo()?.title ?? "—",
+    label: () => (currentContribution() ? sessionInfo()?.title : undefined),
     connection: () => {
       const key = activeServerKey()
       const health = key ? global.servers.health[key] : undefined
@@ -330,7 +260,9 @@ export function createCurrentSessionSource(): StatusBarSource {
       return { state, serverName: serverName(conn), serverKey: key }
     },
     model: sessModel,
+    permission,
     cache: createMemo((): StatusBarCacheInfo | undefined => {
+      if (!currentContribution()) return undefined
       const ctx = context()
       if (!ctx) return undefined
       const d = ctx.input + ctx.cacheRead
@@ -338,10 +270,34 @@ export function createCurrentSessionSource(): StatusBarSource {
         ? { hitRate: Math.round((ctx.cacheRead / d) * 100), read: ctx.cacheRead, write: ctx.cacheWrite }
         : { hitRate: 0, read: ctx.cacheRead, write: ctx.cacheWrite }
     }),
-    subagent: subagentInfo,
     allMetrics,
     pinnedMetrics,
     togglePin,
     openContext,
   }
+}
+
+export function identityPermission(
+  query: Pick<ReturnType<typeof SessionIdentityQuery.use>, "data" | "isError">,
+  unavailableReason: string,
+): StatusBarPermissionInfo | undefined {
+  if (query.isError) return { kind: "degraded", reason: unavailableReason }
+  const projected = query.data
+  // Shape guard, not politeness: a server (or mock) that answers 200 with an
+  // unrelated body must not crash the bar — an unusable payload is the same as
+  // no payload here.
+  if (projected?.permission && projected.capability) {
+    return permissionDisplay({
+      declaredTier: projected.permission.declaredTier,
+      effect: projected.permission.effect,
+      health: projected.capability.health,
+      // Every folded reason, not just the first: a capability can degrade for
+      // several reasons at once (assistant memory + knowledge both pending M2),
+      // and dropping the tail would hide half the story in the tooltip.
+      ...(projected.capability.reasons.length > 0
+        ? { reason: projected.capability.reasons.map((reason) => reason.code).join(" · ") }
+        : {}),
+    })
+  }
+  return undefined
 }

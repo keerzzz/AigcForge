@@ -1,4 +1,5 @@
 import { Agent } from "@/agent/agent"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { Command } from "@/command"
 import * as InstanceState from "@/effect/instance-state"
 import { Format } from "@/format"
@@ -142,7 +143,12 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
     })
 
     const getAgent = Effect.fn("InstanceHttpApi.agent")(function* () {
-      return yield* agent.list()
+      const list = yield* agent.list()
+      // The picker filters on this instead of carrying its own copy of the policy.
+      return list.map((entry) => ({
+        ...entry,
+        primaryModes: ProductModeAgentPolicy.primaryModes(String(entry.name)),
+      }))
     })
 
     const getSkill = Effect.fn("InstanceHttpApi.skill")(function* () {

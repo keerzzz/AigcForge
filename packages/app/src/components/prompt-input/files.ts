@@ -2,6 +2,13 @@ import { ACCEPTED_FILE_TYPES, ACCEPTED_IMAGE_TYPES } from "@/constants/file-pick
 
 export { ACCEPTED_FILE_TYPES }
 
+/**
+ * Per-file attachment ceiling (20 MB). The desktop picker enforces the same
+ * value through its own constant, applied as a total budget rather than
+ * per-file — the number is duplicated, not imported.
+ */
+export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
+
 type AttachmentPicker = (
   options: {
     defaultPath?: string
@@ -83,6 +90,8 @@ function textBytes(bytes: Uint8Array) {
 }
 
 export async function attachmentMime(file: File) {
+  if (file.size > MAX_ATTACHMENT_BYTES) return
+
   const type = kind(file.type)
   if (IMAGE_MIMES.has(type)) return type
   if (type === "application/pdf") return type

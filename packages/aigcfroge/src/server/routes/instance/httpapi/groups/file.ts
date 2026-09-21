@@ -10,6 +10,7 @@ import {
   WorkspaceRoutingQueryFields,
 } from "../middleware/workspace-routing"
 import { described } from "./metadata"
+import { ApiNotFoundError } from "../errors"
 
 export const FileQuery = Schema.Struct({
   ...WorkspaceRoutingQueryFields,
@@ -147,6 +148,8 @@ export const FileApi = HttpApi.make("file")
         HttpApiEndpoint.get("content", FilePaths.content, {
           query: FileQuery,
           success: described(LegacyContent, "File content"),
+          // Missing/unreadable file is a typed 404 (S6 debt closure).
+          error: [ApiNotFoundError],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "file.read",

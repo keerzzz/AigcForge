@@ -250,6 +250,7 @@ import type {
   PartUpdateResponses,
   PathGetErrors,
   PathGetResponses,
+  PathIdentityCompareInput,
   PermissionListErrors,
   PermissionListResponses,
   PermissionOverrideDeleteErrors,
@@ -355,6 +356,8 @@ import type {
   SessionForkResponses,
   SessionGetErrors,
   SessionGetResponses,
+  SessionIdentityErrors,
+  SessionIdentityResponses,
   SessionInitErrors,
   SessionInitResponses,
   SessionInputDelegationOrigin,
@@ -533,6 +536,8 @@ import type {
   V2LocationGetResponses,
   V2ModelListErrors,
   V2ModelListResponses,
+  V2PathIdentityCompareErrors,
+  V2PathIdentityCompareResponses,
   V2PermissionGrantListErrors,
   V2PermissionGrantListResponses,
   V2PermissionGrantRevokeErrors,
@@ -7268,6 +7273,38 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
+   * Get session identity
+   *
+   * Read-only SessionProductIdentity projection (ADR-23): common identity, permission posture, and the mode detail the owners can supply today.
+   */
+  public identity<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionIdentityResponses, SessionIdentityErrors, ThrowOnError>({
+      url: "/session/{sessionID}/identity",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Get session todos
    *
    * Retrieve the todo list associated with a specific session, showing tasks and action items.
@@ -8804,6 +8841,50 @@ export class Location extends HeyApiClient {
       url: "/api/location",
       ...options,
       ...params,
+    })
+  }
+}
+
+export class PathIdentity extends HeyApiClient {
+  /**
+   * Compare local path identities
+   *
+   * Prove that two local path references identify the same filesystem object, or return a typed unknown result.
+   */
+  public compare<ThrowOnError extends boolean = false>(
+    parameters: {
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      pathIdentityCompareInput: PathIdentityCompareInput
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "location" },
+            { key: "pathIdentityCompareInput", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2PathIdentityCompareResponses,
+      V2PathIdentityCompareErrors,
+      ThrowOnError
+    >({
+      url: "/api/path-identity/compare",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 }
@@ -11539,6 +11620,11 @@ export class V2 extends HeyApiClient {
   private _location?: Location
   get location(): Location {
     return (this._location ??= new Location({ client: this.client }))
+  }
+
+  private _pathIdentity?: PathIdentity
+  get pathIdentity(): PathIdentity {
+    return (this._pathIdentity ??= new PathIdentity({ client: this.client }))
   }
 
   private _agent?: Agent

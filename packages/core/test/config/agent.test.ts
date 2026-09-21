@@ -231,6 +231,11 @@ permissions:
 ---
 Use native v2 fields.`,
             )
+            await fs.mkdir(path.join(tmp.path, ".aigcfroge", "agents"), { recursive: true })
+            await fs.writeFile(
+              path.join(tmp.path, ".aigcfroge", "agents", "provenance-agent.md"),
+              "---\nkind: agent\nname: provenance-agent\ndescription: Asset-owned agent\n---\nAsset body.",
+            )
             await fs.writeFile(path.join(tmp.path, "agents", "disabled.md"), "---\ndisabled: true\n---\nDisabled")
             await fs.writeFile(path.join(tmp.path, "modes", "plan.md"), "Make a plan.")
           })
@@ -243,6 +248,7 @@ Use native v2 fields.`,
                   info: decode({ agents: { reviewer: { description: "JSON description" } } }),
                 }),
                 new Config.Directory({ type: "directory", path: AbsolutePath.make(tmp.path) }),
+                new Config.Directory({ type: "directory", path: AbsolutePath.make(path.join(tmp.path, ".aigcfroge")) }),
               ]),
           })
 
@@ -264,6 +270,7 @@ Use native v2 fields.`,
             permissions: [{ action: "edit", resource: "*", effect: "deny" }],
           })
           expect(yield* agents.get(AgentV2.ID.make("disabled"))).toBeUndefined()
+          expect(yield* agents.get(AgentV2.ID.make("provenance-agent"))).toBeUndefined()
           expect(yield* agents.get(AgentV2.ID.make("plan"))).toMatchObject({ system: "Make a plan.", mode: "primary" })
         }),
       ),

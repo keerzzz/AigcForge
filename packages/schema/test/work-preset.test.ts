@@ -4,6 +4,7 @@ import { WorkPreset } from "../src/work-preset"
 
 const validPreset = {
   id: "storyboard-video",
+  revision: "a1".repeat(32),
   title: "视频分镜脚本",
   category: "video-creation",
   description: "把视频创意拆解为可拍摄的分镜脚本",
@@ -21,6 +22,7 @@ describe("WorkPreset.Preset", () => {
   test("validates a valid preset", () => {
     const s = Schema.decodeUnknownSync(WorkPreset.Preset)(validPreset)
     expect(s.id).toBe("storyboard-video")
+    expect(s.revision).toBe(Schema.decodeSync(WorkPreset.Revision)("a1".repeat(32)))
     expect(s.category).toBe("video-creation")
     expect(s.questions.length).toBe(2)
     expect(s.artifact.filename).toBe("storyboard.md")
@@ -32,6 +34,10 @@ describe("WorkPreset.Preset", () => {
 
   test("rejects unknown outputType", () => {
     expect(() => Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, outputType: "exe" })).toThrow()
+  })
+
+  test("rejects a non-digest revision", () => {
+    expect(() => Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, revision: "not-a-revision" })).toThrow()
   })
 
   test("rejects missing required field", () => {
@@ -55,5 +61,23 @@ describe("WorkPreset.Preset", () => {
   test("rejects artifact without filename", () => {
     const { filename: _filename, ...artifact } = validPreset.artifact
     expect(() => Schema.decodeUnknownSync(WorkPreset.Preset)({ ...validPreset, artifact })).toThrow()
+  })
+})
+
+describe("WorkContract.Snapshot", () => {
+  test("accepts a versioned preset snapshot with its output contract", async () => {
+    const { WorkContract } = await import("../src/work-contract")
+    const decoded = Schema.decodeUnknownSync(WorkContract.Snapshot)({
+      source: "preset",
+      contractVersion: 1,
+      presetID: "storyboard-video",
+      revision: "a1".repeat(32),
+      output: {
+        outputType: "mixed",
+        artifact: { title: "分镜脚本", filename: "storyboard.md" },
+      },
+    })
+    expect(decoded.source).toBe("preset")
+    expect(decoded.contractVersion).toBe(1)
   })
 })

@@ -17,6 +17,7 @@ import { Credential } from "./credential"
 import { Npm } from "./npm"
 import { ModelsDev } from "./models-dev"
 import { FSUtil } from "./fs-util"
+import { PathIdentity } from "./path-identity"
 import { Git } from "./git"
 import { Global } from "./global"
 import { Database } from "./database/database"
@@ -72,6 +73,7 @@ import { ApplicationTools } from "./tool/application-tools"
 import { ToolOutputStore } from "./tool-output-store"
 import { AppProcess } from "./process"
 import { CrossSpawnSpawner } from "./cross-spawn-spawner"
+import { SessionIdentityProjection } from "./session/session-identity"
 import { SessionStore } from "./session/store"
 import { SessionTodo } from "./session/todo"
 import { ScheduleService } from "./session/schedule-service"
@@ -145,6 +147,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(base),
       )
       const services = Layer.mergeAll(base, resources, permissionsAndTools)
+      const pathIdentity = PathIdentity.locationLayer.pipe(Layer.provide(services))
       // Canonical MCP credential binding store (ADR-21 §2.2 v1.2): Location-scoped
       // but data partitioned by directory; reads Location.Service internally, never
       // trusts caller-supplied directory.
@@ -201,9 +204,16 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(MetaAgentMemory.layer.pipe(Layer.provide(MetaAgentService.layer))),
         Layer.provide(services),
       )
+      const scheduleService = ScheduleService.layer.pipe(Layer.provide(services))
+      const deliveryService = ScheduleService.deliveryLayer.pipe(Layer.provide(services))
+      // SessionProductIdentity projection (ADR-23): compose its Location-scoped
+      // common and mode-detail owners once, rather than reconstructing any owner.
+      const sessionIdentity = SessionIdentityProjection.layer.pipe(
+        Layer.provide(Layer.mergeAll(services, scheduleService, deliveryService, workflowRun, workArtifact)),
+      )
       const builtInTools = BuiltInTools.locationLayer.pipe(
         Layer.provide(services),
-        Layer.provide(ScheduleService.layer),
+        Layer.provide(scheduleService),
         Layer.provide(PersonalMemory.layer),
         Layer.provide(KBService.layer),
         Layer.provide(mutation),
@@ -272,12 +282,16 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         workArtifact,
         model,
         runner,
+        scheduleService,
+        deliveryService,
         builtInTools,
         referenceGuidance,
         projectCopyRefresh,
         AgentAssetBridge.layer.pipe(Layer.provide(services)),
         mcpBindingStore,
         mcpConnections,
+        sessionIdentity,
+        pathIdentity,
       ).pipe(Layer.fresh, Layer.orDie)
     },
     idleTimeToLive: "60 minutes",

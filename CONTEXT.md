@@ -54,10 +54,10 @@ One request to a model provider and the response projected from that request.
 One process-local execution span that promotes eligible input and runs required **Provider Turns** until no immediate continuation remains. A Session Drain has no durable identity or transcript boundary.
 
 **Product Mode**:
-The durable product-module classification of a Session and the independently persisted App filtering selection, with values Chat, Coding, Work, or Assistant.
+The durable product-module classification of a Session and the independently persisted App filtering selection, with values Chat, Coding, Work, Assistant, or Custom.
 _Avoid_: Agent mode, route mode, execution mode
 
-The four values above remain the current Accepted runtime vocabulary in production. ADR-17 (Accepted for M0/M1 implementation v1.2) adds one fixed value, Custom (`custom`), with an independent immutable `session_composition_snapshot` database table. Until M0 Phase B lands, Custom remains an approved design contract rather than an active production Session value. When implemented, it is a durable immutable Product Mode; a Custom Profile (`.aigcfroge/custom-profiles/*.yaml`) is a separate composition asset and is never Session identity.
+All five values are implemented in Schema, Core, and App. Custom (`custom`) uses an independent immutable `session_composition_snapshot` database table and is runtime-gated by `AIGCFROGE_CUSTOM_MODE`; the default production posture is implemented but disabled, not “design-only.” A client touching Custom must also negotiate `x-aigcfroge-capabilities: product-mode-custom-v1`. A Custom Profile (`.aigcfroge/custom-profiles/*.yaml`) is a versioned composition asset and is never Session identity; the durable Session remains `mode=custom` plus its immutable snapshot.
 
 **Agent Execution Mode**:
 The Agent role classification Primary, Subagent, or All, used for Agent visibility and execution policy. It is orthogonal to **Product Mode**.

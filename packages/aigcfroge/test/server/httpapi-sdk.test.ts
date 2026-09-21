@@ -197,6 +197,7 @@ function httpapiInstance<A, E>(
     git?: boolean
     config?: Partial<ConfigV1.Info>
     setup?: (dir: string) => Effect.Effect<void, E, TestServices>
+    init?: (dir: string) => Effect.Effect<void, E, TestServices>
   },
   run: (input: ProjectFixture) => Effect.Effect<A, E, TestScope>,
 ) {
@@ -207,7 +208,11 @@ function httpapiInstance<A, E>(
       yield* options.setup?.(instance.directory) ?? Effect.void
       return yield* run({ sdk: yield* client(options.serverPath, instance.directory), directory: instance.directory })
     }),
-    { git: options.git ?? true, config: { formatter: false, lsp: false, ...options.config } },
+    {
+      git: options.git ?? true,
+      config: { formatter: false, lsp: false, ...options.config },
+      init: options.init,
+    },
   )
 }
 
@@ -290,6 +295,22 @@ description: A project skill visible to REST API prompts.
   )
 }
 
+function writeProvenanceAgent(dir: string) {
+  return FSUtil.Service.use((fs) =>
+    fs.writeWithDirs(
+      path.join(dir, ".aigcfroge", "agents", "provenance-agent.md"),
+      `---
+kind: agent
+name: provenance-agent
+description: AgentAsset-backed provenance fixture
+---
+
+You exist to prove the /agent projection carries its source path.
+`,
+    ),
+  )
+}
+
 function seedMessage(directory: string, sessionID: string) {
   const id = SessionID.make(sessionID)
   return InstanceStore.Service.use((store) =>
@@ -346,6 +367,104 @@ describe("HttpApi SDK", () => {
     }),
   )
 
+  // S1's deferred hard gate: a projection endpoint without `OpenApi.annotations`
+  // identifier gets flattened onto the parent client and this method is simply
+  // `undefined` at runtime — with no gate anywhere reporting it. Assert existence
+  // and callability, then read the contract through the generated SDK.
+  httpapiInstance(
+    "exposes the session identity projection as a callable generated SDK method",
+    { serverPath: "raw", git: false, setup: writeStandardFiles },
+    ({ sdk }) =>
+      Effect.gen(function* () {
+        expect(typeof sdk.session.identity).toBe("function")
+
+        // The frozen identity contract requires an agent and a model, which a
+        // session created through the ordinary path carries. The model-less case
+        // is pinned separately below rather than papered over.
+        const created = yield* call(() =>
+          sdk.session.create({
+            title: "identity",
+            agent: "build",
+            model: { id: "gpt-test", providerID: "aigcfroge" },
+          }),
+        )
+        expect(created.response.status).toBe(200)
+        const sessionID = record(created.data).id
+        if (typeof sessionID !== "string") throw new Error("session create returned no id")
+
+        const identity = yield* call(() => sdk.session.identity({ sessionID }))
+        expect(identity.response.status).toBe(200)
+        const body = record(identity.data)
+        expect(body.sessionID).toBe(sessionID)
+        expect(typeof body.mode).toBe("string")
+        const permission = record(body.permission)
+        expect(typeof permission.declaredTier).toBe("string")
+        expect(["allow", "ask", "deny"]).toContain(permission.effect)
+        const capability = record(body.capability)
+        expect(["ready", "degraded", "blocked"]).toContain(capability.health)
+        expect(record(body.model).status).toBe("ready")
+        expect(record(body.detail).status).toBe("ready")
+
+        // S6 amendment: a session legitimately has no model until its first prompt.
+        // The projection reports the datum as missing and stays ready — model is an
+        // identity fact, not a contributor, so a fresh session shows no degradation.
+        const bare = yield* call(() => sdk.session.create({ title: "identity without model" }))
+        const bareID = record(bare.data).id
+        if (typeof bareID !== "string") throw new Error("session create returned no id")
+        const missing = yield* call(() => sdk.session.identity({ sessionID: bareID }))
+        expect(missing.response.status).toBe(200)
+        const bareBody = record(missing.data)
+        expect(record(bareBody.model).status).toBe("missing")
+        expect(record(bareBody.capability).health).toBe("ready")
+      }),
+  )
+
+  httpapiInstance(
+    "exposes path identity as a callable same-or-unknown SDK method",
+    { serverPath: "raw", git: true },
+    ({ sdk, directory }) =>
+      Effect.gen(function* () {
+        const fs = yield* FSUtil.Service
+        const target = path.join(directory, "path-identity-target")
+        const alias = path.join(directory, "path-identity-alias")
+        const other = path.join(directory, "path-identity-other")
+        yield* fs.makeDirectory(target)
+        yield* fs.makeDirectory(other)
+        yield* fs.symlink(target, alias)
+
+        expect(typeof sdk.v2.pathIdentity.compare).toBe("function")
+
+        const same = yield* call(() =>
+          sdk.v2.pathIdentity.compare({
+            pathIdentityCompareInput: {
+              left: { path: target },
+              right: { path: alias },
+            },
+          }),
+        )
+        expect(same.response.status).toBe(200)
+        expect(same.data).toEqual({
+          status: "same",
+          refs: {
+            left: { path: target },
+            right: { path: alias },
+          },
+          evidence: { method: "realpath", path: target },
+        })
+
+        const unknown = yield* call(() =>
+          sdk.v2.pathIdentity.compare({
+            pathIdentityCompareInput: {
+              left: { path: target },
+              right: { path: other },
+            },
+          }),
+        )
+        expect(unknown.response.status).toBe(200)
+        expect(unknown.data).toEqual({ status: "unknown", reason: "no-local-proof" })
+      }),
+  )
+
   httpapiInstance(
     "uses the generated SDK for safe instance routes",
     { serverPath: "raw", git: false, setup: writeStandardFiles },
@@ -384,6 +503,12 @@ describe("HttpApi SDK", () => {
         // The file-search index (Fff native scan, or the ripgrep fork that fills
         // state.files) is built asynchronously; on Windows CI the warm-up can
         // exceed pollWithTimeout's 5s default, so give it a generous window.
+        //
+        // This window MUST stay below the package's `bun test --timeout` budget
+        // (currently 90s in package.json): when it equalled the 30s budget, a
+        // cold machine spent the whole budget inside the poll and the runner
+        // killed the test with a timeout — reproduced as 17/1 vs 18/0. Raise both
+        // together, never just this one.
         const found = yield* pollWithTimeout(
           call(() => sdk.v2.fs.find({ query: "hello", type: "file" })).pipe(
             Effect.map((result) => (result.data?.data.length ? result : undefined)),
@@ -560,6 +685,23 @@ describe("HttpApi SDK", () => {
         }
       }),
     ),
+  )
+
+  httpapiInstance(
+    "projects AgentAsset provenance through the generated SDK",
+    { serverPath: "raw", init: writeProvenanceAgent },
+    ({ sdk }) =>
+      Effect.gen(function* () {
+        const response = yield* capture(() => sdk.app.agents())
+        const agents = array(response.data).map(record)
+        const custom = agents.find((entry) => entry.name === "provenance-agent")
+        const builtin = agents.find((entry) => entry.name === "build")
+
+        expect(response.status).toBe(200)
+        expect(custom?.originRelativePath).toBe("provenance-agent.md")
+        expect(builtin).toBeDefined()
+        expect("originRelativePath" in (builtin ?? {})).toBe(false)
+      }),
   )
 
   serverPathParity("matches generated SDK session lifecycle routes", (serverPath) =>

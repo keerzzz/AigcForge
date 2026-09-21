@@ -1,21 +1,32 @@
-import { createContext, createEffect, useContext, type ParentProps } from "solid-js"
+import { createContext, onCleanup, untrack, useContext, type ParentProps } from "solid-js"
 import { createStore } from "solid-js/store"
-import { useLocation, useNavigate } from "@solidjs/router"
+import { useBeforeLeave } from "@solidjs/router"
 import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLanguage } from "@/context/language"
+import { createDirtyConfirmQueue } from "./dirty-confirm"
 import type { AssetKind, AssetOrigin } from "@/components/chat/asset-workbench"
 
-/**
- * Chat 工作区跨路由状态上下文（M2 Step 5）。
- * Provider 挂 Router 外，使 AssetWorkbenchTable 的筛选/搜索/选中状态跨页面导航保持。
- */
 export type ChatWorkspaceState = {
   kindFilter: AssetKind
   search: string
   selectedPath: string | undefined
   originFilter: AssetOrigin | "all"
+}
+
+type DirtyEntry = {
+  /**
+   * Evaluated at decision time, never cached: the close/leave decision must see the
+   * composer as it is when the user acts, not the value an effect had flushed earlier.
+   */
+  isDirty: () => boolean
+  token: symbol
+}
+
+type RouteIdentity = {
+  key: string
+  token: symbol
 }
 
 export type ChatWorkspaceContext = {
@@ -24,21 +35,72 @@ export type ChatWorkspaceContext = {
   setSearch: (value: string) => void
   setOriginFilter: (origin: AssetOrigin | "all") => void
   select: (path: string | undefined) => void
-  /** Composer 是否有未发送内容（Dirty Draft 用） */
-  dirty: boolean
-  setDirty: (value: boolean) => void
+  dirty: {
+    register: (key: string, isDirty: () => boolean, token: symbol) => void
+    has: (key: string) => boolean
+    clear: (key: string, token?: symbol) => void
+    confirmLeave: (key: string) => Promise<boolean>
+  }
+  /**
+   * The top-level tab the mounted route owns, keyed by `tabKey`. Registered from the
+   * route alone (never gated on data hydration) and cleared only by the registering
+   * owner, so closing or leaving the routed tab never degrades to a background close.
+   */
+  route: {
+    activeTabKey: () => string | undefined
+    setActiveTabKey: (key: string, token: symbol) => void
+    clearActiveTabKey: (key: string, token: symbol) => void
+  }
 }
 
 const Ctx = createContext<ChatWorkspaceContext>()
 
 export function ChatWorkspaceProvider(props: ParentProps) {
+  const dialog = useDialog()
+  const language = useLanguage()
   const [state, setState] = createStore<ChatWorkspaceState>({
     kindFilter: "all",
     search: "",
     selectedPath: undefined,
     originFilter: "all",
   })
-  const [dirty, setDirty] = createStore({ value: false })
+  const dirty = new Map<string, DirtyEntry>()
+  let activeTab: RouteIdentity | undefined
+
+  const presentDirtyConfirmation = (key: string) =>
+    new Promise<boolean>((resolve) => {
+      let chosen = false
+      // One settlement per presented dialog: Stay/Leave, Escape, overlay, a replacing
+      // dialog, and provider unmount all funnel through here.
+      const finish = (value: boolean) => {
+        if (chosen) return
+        chosen = true
+        if (value) dirty.delete(key)
+        dialog.close()
+        resolve(value)
+      }
+      void dialog.show(
+        () => (
+          <Dialog
+            title={language.t("chat.dirtyDraft.title")}
+            description={language.t("chat.dirtyDraft.description")}
+            fit
+          >
+            <div class="flex justify-end gap-2 p-2">
+              <ButtonV2 variant="neutral" onClick={() => finish(false)}>
+                {language.t("chat.dirtyDraft.stay")}
+              </ButtonV2>
+              <ButtonV2 variant="contrast" onClick={() => finish(true)}>
+                {language.t("chat.dirtyDraft.leave")}
+              </ButtonV2>
+            </div>
+          </Dialog>
+        ),
+        () => finish(false),
+      )
+    })
+
+  const confirmations = createDirtyConfirmQueue(presentDirtyConfirmation)
 
   const ctx: ChatWorkspaceContext = {
     state,
@@ -46,11 +108,32 @@ export function ChatWorkspaceProvider(props: ParentProps) {
     setSearch: (value) => setState("search", value),
     setOriginFilter: (origin) => setState("originFilter", origin),
     select: (path) => setState("selectedPath", path),
-    get dirty() {
-      return dirty.value
+    dirty: {
+      register: (key, isDirty, token) => dirty.set(key, { isDirty, token }),
+      // Untracked on purpose: callers are event handlers (close, route leave), and a
+      // tracked read here would make unrelated reactive scopes depend on the composer.
+      has: (key) => untrack(() => dirty.get(key)?.isDirty() ?? false),
+      clear: (key, token) => {
+        const current = dirty.get(key)
+        if (!current) return
+        if (token && current.token !== token) return
+        dirty.delete(key)
+      },
+      confirmLeave: (key) => (ctx.dirty.has(key) ? confirmations.confirm(key) : Promise.resolve(true)),
     },
-    setDirty: (v) => setDirty("value", v),
+    route: {
+      activeTabKey: () => activeTab?.key,
+      setActiveTabKey: (key, token) => {
+        activeTab = { key, token }
+      },
+      clearActiveTabKey: (key, token) => {
+        if (activeTab?.key !== key || activeTab.token !== token) return
+        activeTab = undefined
+      },
+    },
   }
+
+  onCleanup(() => confirmations.dispose())
 
   return <Ctx.Provider value={ctx}>{props.children}</Ctx.Provider>
 }
@@ -60,65 +143,41 @@ export function useChatWorkspace(): ChatWorkspaceContext | undefined {
 }
 
 /**
- * Dirty Draft 路由守卫：监听 Composer dirty 状态 + location 变化。
- * 必须在 Router 内部渲染（需 useLocation）。
- * 当 dirty=true 且路由变化时，弹确认对话框：
- *   "Stay" → navigate 回原路由 + 不清 dirty
- *   "Leave" → 清 dirty + 保持新路由
+ * Marks a navigation the app performs on itself — a one-shot URL cleanup, not
+ * the user leaving. The dirty guard must not intercept these: the cleanup runs
+ * *after* hydration has already made the draft dirty, so a guard that cannot
+ * tell them apart blocks the cleanup and parks the param in the URL (plan §7.1).
+ * Nesting is counted so an internal navigation that triggers another stays
+ * internal for the whole synchronous chain.
  */
+let internalNavigationDepth = 0
+
+export function runInternalNavigation<T>(run: () => T): T {
+  internalNavigationDepth += 1
+  try {
+    return run()
+  } finally {
+    internalNavigationDepth -= 1
+  }
+}
+
+export function isInternalNavigation(): boolean {
+  return internalNavigationDepth > 0
+}
+
 export function DirtyDraftGuard() {
-  const language = useLanguage()
-  const dialog = useDialog()
-  const location = useLocation()
-  const navigate = useNavigate()
   const workspace = useChatWorkspace()
 
-  let prevPath = location.pathname
-  let pending: "stay" | "leave" | null = null
-
-  createEffect(() => {
-    const path = location.pathname
-    const isDirty = workspace?.dirty ?? false
-    if (pending) {
-      pending = null
-      prevPath = path
-      return
-    }
-    if (!isDirty) {
-      prevPath = path
-      return
-    }
-    if (path === prevPath) return
-
-    const from = prevPath
-    prevPath = path
-
-    void dialog.show(() => (
-      <Dialog title={language.t("chat.dirtyDraft.title")} description={language.t("chat.dirtyDraft.description")} fit>
-        <div class="flex justify-end gap-2 p-2">
-          <ButtonV2
-            variant="neutral"
-            onClick={() => {
-              pending = "stay"
-              navigate(from, { replace: true })
-              dialog.close()
-            }}
-          >
-            {language.t("chat.dirtyDraft.stay")}
-          </ButtonV2>
-          <ButtonV2
-            variant="contrast"
-            onClick={() => {
-              pending = "leave"
-              workspace?.setDirty(false)
-              dialog.close()
-            }}
-          >
-            {language.t("chat.dirtyDraft.leave")}
-          </ButtonV2>
-        </div>
-      </Dialog>
-    ))
+  useBeforeLeave((event) => {
+    if (event.defaultPrevented) return
+    if (isInternalNavigation()) return
+    if (!workspace) return
+    const key = workspace.route.activeTabKey()
+    if (!key || !workspace.dirty.has(key)) return
+    event.preventDefault()
+    void workspace.dirty.confirmLeave(key).then((leave) => {
+      if (leave) event.retry(true)
+    })
   })
 
   return null

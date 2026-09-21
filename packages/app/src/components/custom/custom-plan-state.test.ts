@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { CompositionDiagnostic, CompositionPlan } from "@aigcfroge/sdk/v2/client"
 import {
+  blockerOf,
   classifyPlanFailure,
   classifySnapshotFailure,
   DISABLED_MESSAGE_MARKER,
@@ -55,6 +56,20 @@ describe("classifyPlanFailure", () => {
     })
   })
 
+  test("recognizes the SDK-wrapped typed kill-switch response without depending on its wording", () => {
+    const reworded = "Custom mode is disabled by this server policy."
+    expect(
+      classifyPlanFailure(
+        new Error(reworded, {
+          cause: {
+            status: 400,
+            body: { _tag: "UnsupportedProductModeError", mode: "custom", message: reworded },
+          },
+        }),
+      ),
+    ).toEqual({ disabled: true, error: reworded })
+  })
+
   test("stays in sync with the server's wording", () => {
     // If the server message is reworded or localized so it no longer contains
     // this marker, `disabled` silently becomes undefined and Start re-enables.
@@ -63,6 +78,13 @@ describe("classifyPlanFailure", () => {
 
   test("treats 404 as an unsupported server, not a disabled flag", () => {
     expect(classifyPlanFailure({ status: 404, message: "Not Found" })).toEqual({
+      unsupported: true,
+      error: "This server does not support custom compositions",
+    })
+
+    expect(
+      classifyPlanFailure(new Error("Not Found", { cause: { status: 404, body: { message: "Not Found" } } })),
+    ).toEqual({
       unsupported: true,
       error: "This server does not support custom compositions",
     })
@@ -93,6 +115,28 @@ describe("classifyPlanFailure", () => {
 describe("parseErrorDetails", () => {
   test("reads status and message off an error-shaped object", () => {
     expect(parseErrorDetails({ status: 409, message: "conflict" })).toEqual({ status: 409, message: "conflict" })
+  })
+
+  test("reads the typed body and status from the SDK throwOnError wrapping", () => {
+    expect(
+      parseErrorDetails(
+        new Error("request failed", {
+          cause: {
+            status: 400,
+            body: {
+              _tag: "UnsupportedProductModeError",
+              mode: "custom",
+              message: SERVER_MESSAGE,
+            },
+          },
+        }),
+      ),
+    ).toEqual({
+      status: 400,
+      message: SERVER_MESSAGE,
+      tag: "UnsupportedProductModeError",
+      mode: "custom",
+    })
   })
 
   test("ignores fields of the wrong type instead of coercing them", () => {
@@ -193,5 +237,25 @@ describe("evaluateStartGate", () => {
     })
     expect(gate({ draft: { source: "temporary", agentCount: 1 } })).toEqual({ canStart: true })
     expect(gate({ draft: { source: "profile", agentCount: 0 } })).toEqual({ canStart: true })
+  })
+})
+
+describe("blockerOf", () => {
+  test("names the blocker for a blocked gate and stays undefined when Start may run", () => {
+    const blocked = evaluateStartGate({
+      starting: false,
+      hasSdk: true,
+      result: undefined,
+      draft: { source: "asset", agentCount: 1 },
+    })
+    expect(blockerOf(blocked)).toBe("plan-pending")
+
+    const open = evaluateStartGate({
+      starting: false,
+      hasSdk: true,
+      result: { plan: plan({ agents: [] }) },
+      draft: { source: "asset", agentCount: 1 },
+    })
+    expect(blockerOf(open)).toBeUndefined()
   })
 })
