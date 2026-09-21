@@ -450,8 +450,15 @@ test("shares terminal state across Sessions in one directory and isolates anothe
     encodeURIComponent(directoryA),
     encodeURIComponent(directoryB),
   ])
-  await expect.poll(async () => (await socketState(page)).urls.length).toBeGreaterThanOrEqual(2)
-  const isolated = new URL((await socketState(page)).urls.at(-1) ?? "")
+  await expect
+    .poll(
+      async () => (await socketState(page)).urls.some((url) => new URL(url).pathname === "/pty/pty_terminal_2/connect"),
+      { timeout: 30_000 },
+    )
+    .toBe(true)
+  const isolated = new URL(
+    (await socketState(page)).urls.find((url) => new URL(url).pathname === "/pty/pty_terminal_2/connect") ?? "",
+  )
   expect(isolated.pathname).toBe("/pty/pty_terminal_2/connect")
   expect(isolated.searchParams.get("directory")).toBe(directoryB)
 

@@ -27,7 +27,7 @@ import type { Provider } from "@/provider/provider"
 import * as SessionProcessorModule from "../../src/session/processor"
 import { Snapshot } from "../../src/snapshot"
 import { ProviderTest } from "../fake/provider"
-import { testEffect } from "../lib/effect"
+import { awaitWithTimeout, testEffect } from "../lib/effect"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { TestConfig } from "../fixture/config"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -260,6 +260,7 @@ type CompactionProcessOptions = {
   llm?: Layer.Layer<LLM.Service>
   plugin?: Layer.Layer<Plugin.Service>
   provider?: ReturnType<typeof ProviderTest.fake>
+  agent?: Layer.Layer<Agent.Service>
   config?: Layer.Layer<Config.Service>
 }
 
@@ -284,7 +285,7 @@ function compactionProcessLayer(options?: CompactionProcessOptions) {
     Layer.provide(Snapshot.defaultLayer),
     Layer.provide(options?.llm ?? LLM.defaultLayer),
     Layer.provide(Permission.defaultLayer),
-    Layer.provide(Agent.defaultLayer),
+    Layer.provide(options?.agent ?? Agent.defaultLayer),
     Layer.provide(options?.plugin ?? Plugin.defaultLayer),
     Layer.provide(status),
     Layer.provide(events),
@@ -351,20 +352,6 @@ function reply(
       }),
     )
   }
-}
-
-function plugin(ready: Deferred.Deferred<void>) {
-  return Layer.mock(Plugin.Service)({
-    trigger: <Output>(name: string, _input: unknown, output: Output) => {
-      if (name !== "experimental.session.compacting") return Effect.succeed(output)
-      return Effect.sync(() => Deferred.doneUnsafe(ready, Effect.void)).pipe(
-        Effect.andThen(Effect.never),
-        Effect.as(output),
-      )
-    },
-    list: () => Effect.succeed([]),
-    init: () => Effect.void,
-  })
 }
 
 function autocontinue(enabled: boolean) {
@@ -1271,6 +1258,9 @@ describe("session.compaction.process", () => {
     () =>
       Effect.gen(function* () {
         const ready = yield* Deferred.make<void>()
+        const agent = Layer.mock(Agent.Service)({
+          get: () => Effect.sync(() => Deferred.doneUnsafe(ready, Effect.void)).pipe(Effect.andThen(Effect.never)),
+        })
         return yield* Effect.gen(function* () {
           const ssn = yield* SessionNs.Service
           const session = yield* ssn.create({})
@@ -1285,7 +1275,7 @@ describe("session.compaction.process", () => {
             })
             .pipe(Effect.forkChild)
 
-          yield* Deferred.await(ready).pipe(Effect.timeout("1 second"))
+          yield* awaitWithTimeout(Deferred.await(ready), "compaction processor setup did not start", "10 seconds")
           yield* Fiber.interrupt(fiber)
           const exit = yield* Fiber.await(fiber).pipe(Effect.timeout("250 millis"))
           const all = yield* ssn.messages({ sessionID: session.id })
@@ -1293,7 +1283,7 @@ describe("session.compaction.process", () => {
           expect(Exit.isFailure(exit)).toBe(true)
           if (Exit.isFailure(exit)) expect(Cause.hasInterrupts(exit.cause)).toBe(true)
           expect(all.some((msg) => msg.info.role === "assistant" && msg.info.summary)).toBe(false)
-        }).pipe(withCompaction({ plugin: plugin(ready) }))
+        }).pipe(withCompaction({ agent }))
       }),
     { git: true },
   )

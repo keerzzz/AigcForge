@@ -17,6 +17,7 @@ import { openapi } from "../../src/server/server"
  */
 const SNAPSHOT_PATH = path.join(import.meta.dir, "openapi.snapshot.json")
 const UPDATE = process.env.UPDATE_OPENAPI_SNAPSHOT === "1"
+const normalizeLineEndings = (input: string) => input.replaceAll("\r\n", "\n")
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
 
@@ -60,6 +61,8 @@ describe("OpenAPI contract", () => {
       return
     }
 
-    expect(readFileSync(SNAPSHOT_PATH, "utf8"), "live OpenAPI vs checked-in snapshot").toBe(serialized)
+    expect(normalizeLineEndings(readFileSync(SNAPSHOT_PATH, "utf8")), "live OpenAPI vs checked-in snapshot").toBe(
+      normalizeLineEndings(serialized),
+    )
   })
 })
