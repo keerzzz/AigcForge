@@ -72,6 +72,10 @@ test.beforeEach(async ({ page }) => {
 
 for (const n of SCALES) {
   test(`N=${n} seeded projects render, stay interactive and throw nothing`, async ({ page }) => {
+    // The largest case is a throughput measurement: it completes 4k+ mock requests
+    // and rendered all 2,000 rows at 183s on Linux CI before hitting the global budget.
+    if (n === 2000) test.slow()
+
     const pageErrors: string[] = []
     const consoleErrors: string[] = []
     const serverPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"

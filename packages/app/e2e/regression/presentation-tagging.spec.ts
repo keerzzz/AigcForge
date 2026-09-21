@@ -28,7 +28,10 @@ function specSources(): Array<{ file: string; source: string }> {
       files.push(path.join(full, name))
     }
   }
-  return files.map((file) => ({ file: path.relative(e2eRoot, file), source: readFileSync(file, "utf8") }))
+  return files.map((file) => ({
+    file: path.relative(e2eRoot, file).split(path.sep).join("/"),
+    source: readFileSync(file, "utf8"),
+  }))
 }
 
 function taggedTitles(source: string): string[] {
@@ -66,6 +69,9 @@ test("the project-name rule matches the Playwright access and not a fixture fiel
   expect(PROJECT_NAME.test("report({ browser: testInfo.project.name, viewports, results })")).toBe(true)
   expect(PROJECT_NAME.test("if (testInfo.project.name !== 'chromium') return")).toBe(true)
   expect(PROJECT_NAME.test("await selectHomeProject(page, fixture.project.name)")).toBe(false)
+  expect(
+    path.win32.relative("C:\\e2e", "C:\\e2e\\regression\\presentation-matrix.spec.ts").split(path.win32.sep).join("/"),
+  ).toBe("regression/presentation-matrix.spec.ts")
 })
 
 test("every spec that branches on the project name carries a presentation tag", () => {

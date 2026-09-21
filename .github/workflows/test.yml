@@ -68,9 +68,11 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Run unit tests
-        # Windows is ~2.9x slower (subprocess-heavy aigcfroge:test: 9.3m on Linux -> ~27m);
-        # 20m timed out with aigcfroge:test ~65% done. 40m gives headroom for the slow CLI tests.
-        timeout-minutes: 40
+        # The 2026-09-21 CI run completed core's 2,493 Windows tests (0 failures)
+        # but timed out before aigcfroge's 3,320 tests finished. Linux's same
+        # aigcfroge suite took 20m; Windows is slower for subprocess-heavy tests.
+        # This is a kill switch, not a substitute for the per-test 90s bound.
+        timeout-minutes: ${{ runner.os == 'Windows' && 90 || 40 }}
         run: GITHUB_ACTIONS=false bun turbo test
         env:
           AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || '' }}
@@ -261,7 +263,11 @@ jobs:
           fi
         env:
           CI: true
-        timeout-minutes: ${{ runner.os == 'Linux' && 90 || 30 }}
+          # At five workers, the 2,000-project fan-out made Linux exceed its
+          # per-case budget and Windows hit ERR_NO_BUFFER_SPACE mid-suite.
+          # Reduce contention before widening any individual test timeout.
+          PLAYWRIGHT_WORKERS: ${{ runner.os == 'Windows' && '2' || '3' }}
+        timeout-minutes: ${{ runner.os == 'Linux' && 90 || 50 }}
 
       - name: Upload Playwright artifacts
         if: always()

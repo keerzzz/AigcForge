@@ -45,6 +45,7 @@ type SocketControl = {
 
 type SocketState = {
   urls: string[]
+  listening: number[]
   sent: string[]
   closes: Array<{ code?: number; reason?: string }>
 }
@@ -89,7 +90,7 @@ async function json(route: Route, body: unknown, status = 200) {
 
 async function installSocketMock(page: Page) {
   await page.addInitScript(() => {
-    const state: SocketState = { urls: [], sent: [], closes: [] }
+    const state: SocketState = { urls: [], listening: [], sent: [], closes: [] }
     Object.defineProperty(window, "__terminalSocketState", { value: state })
     const sockets: Array<{
       dispatchEvent: (event: Event) => boolean
@@ -127,6 +128,11 @@ async function installSocketMock(page: Page) {
         })
       }
 
+      override addEventListener(...args: Parameters<EventTarget["addEventListener"]>) {
+        super.addEventListener(...args)
+        if (args[0] === "message") state.listening.push(sockets.indexOf(this))
+      }
+
       send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
         state.sent.push(typeof data === "string" ? data : `[${Object.prototype.toString.call(data)}]`)
       }
@@ -139,7 +145,18 @@ async function installSocketMock(page: Page) {
       }
     }
 
-    Object.defineProperty(window, "WebSocket", { configurable: true, value: MockWebSocket })
+    // The Vite client opens its own HMR socket before the terminal mounts. Leave
+    // unrelated sockets native so the fixture records only PTY connections.
+    const nativeWebSocket = window.WebSocket
+    Object.defineProperty(window, "WebSocket", {
+      configurable: true,
+      value: new Proxy(nativeWebSocket, {
+        construct(target, args) {
+          if (!new URL(String(args[0])).pathname.startsWith("/pty/")) return Reflect.construct(target, args)
+          return new MockWebSocket(args[0])
+        },
+      }),
+    })
     const control: SocketControl = {
       emitMeta(cursor) {
         const payload = new TextEncoder().encode(JSON.stringify({ cursor }))
@@ -258,8 +275,13 @@ async function socketState(page: Page) {
     // this function into the browser, where Node-scope helpers don't exist.
     const isState = (input: unknown): input is SocketState => {
       if (typeof input !== "object" || input === null) return false
-      if (!("urls" in input) || !("sent" in input) || !("closes" in input)) return false
-      return Array.isArray(input.urls) && Array.isArray(input.sent) && Array.isArray(input.closes)
+      if (!("urls" in input) || !("listening" in input) || !("sent" in input) || !("closes" in input)) return false
+      return (
+        Array.isArray(input.urls) &&
+        Array.isArray(input.listening) &&
+        Array.isArray(input.sent) &&
+        Array.isArray(input.closes)
+      )
     }
     if (!isState(value)) throw new Error("Terminal WebSocket state is unavailable")
     return value
@@ -366,7 +388,9 @@ test("reconnects an interrupted WebSocket at the last acknowledged cursor", asyn
   await gotoSession(page, sessionA, "Terminal session A")
   await openTerminal(page)
 
-  await expect.poll(async () => (await socketState(page)).urls.length).toBe(1)
+  // A constructed socket is not yet ready to receive meta frames: wait for
+  // the actual message listener before injecting the acknowledged cursor.
+  await expect.poll(async () => (await socketState(page)).listening).toContain(0)
   await page.evaluate(() => {
     const value: unknown = Reflect.get(window, "__terminalSocketControl")
     if (typeof value !== "object" || value === null || !("emitMeta" in value) || typeof value.emitMeta !== "function")
@@ -411,7 +435,8 @@ test("shares terminal state across Sessions in one directory and isolates anothe
   const sameDirectoryPanel = await openTerminal(page)
   await expect(sameDirectoryPanel.getByText("Terminal 1", { exact: true })).toBeVisible()
   expect(mock.requests.filter((request) => request.method === "POST" && request.path === "/pty")).toHaveLength(1)
-  await expect.poll(async () => (await socketState(page)).urls.length).toBeGreaterThanOrEqual(2)
+  // The workspace cache keeps the same PTY session and socket alive across Sessions.
+  await expect.poll(async () => (await socketState(page)).urls.length).toBe(1)
   expect(new URL((await socketState(page)).urls.at(-1) ?? "").pathname).toBe("/pty/pty_terminal_1/connect")
 
   await gotoSession(page, sessionB, "Terminal session B")
