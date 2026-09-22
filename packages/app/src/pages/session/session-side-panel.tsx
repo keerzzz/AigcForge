@@ -223,6 +223,7 @@ export function SessionSidePanel(props: {
     <Show when={!!params.id}>
       <Show when={isDesktop() && mode.currentMode === "coding"}>
         <SessionRightPanel
+          id="review-panel"
           size={props.size}
           ariaLabel={language.t("session.panel.reviewAndFiles")}
           snap={props.reviewSnap}

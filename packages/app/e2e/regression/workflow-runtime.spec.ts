@@ -196,6 +196,8 @@ type WorkflowMock = {
   state: WorkflowState
   /** Every mutation request, in order, with its parsed body. */
   readonly posts: Array<{ path: string; body: Record<string, unknown> }>
+  /** Number of workflow status reads issued by this page. */
+  gets: number
   /** Set to 409 to make the next cancel reject the optimistic revision. */
   cancelRunStatus: number
 }
@@ -226,7 +228,7 @@ async function mountWorkflowPanel(
   events: unknown[] = [],
   mode: "custom" | "work" = "custom",
 ) {
-  const mock: WorkflowMock = { state: initial, posts: [], cancelRunStatus: 200 }
+  const mock: WorkflowMock = { state: initial, posts: [], gets: 0, cancelRunStatus: 200 }
   const pageErrors = trackPageErrors(page)
 
   await mockAigcfrogeServer(page, {
@@ -249,6 +251,7 @@ async function mountWorkflowPanel(
     const method = route.request().method()
     if (method === "OPTIONS") return route.fulfill({ status: 204, headers: cors, body: "" })
     if (method === "GET") {
+      mock.gets += 1
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -419,9 +422,14 @@ test.describe("regression: custom workflow runtime panel", () => {
 
 test.describe("regression: work workflow runtime panel", () => {
   test("mounts the same runtime owner under the Work workflow tab", async ({ page }) => {
-    await mountWorkflowPanel(page, RUNNING, [], "work")
+    const mock = await mountWorkflowPanel(page, RUNNING, [], "work")
+    const panel = page.locator('[data-mode="work"] [data-component="workflow-runtime-panel"]')
 
-    await expect(stepsOf(page)).toHaveCount(7)
-    await expect(runBadgeOf(page)).toHaveAttribute("data-status", "running")
+    await expect(panel).toHaveCount(1)
+    await expect(panel.locator('[data-component="workflow-runtime-step"]')).toHaveCount(7)
+    await expect(
+      panel.locator('[data-component="workflow-runtime-content"] span[data-status]').first(),
+    ).toHaveAttribute("data-status", "running")
+    expect(mock.gets).toBe(1)
   })
 })

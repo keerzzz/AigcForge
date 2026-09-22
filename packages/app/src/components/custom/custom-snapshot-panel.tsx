@@ -8,6 +8,7 @@ import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
 import { openSessionByID } from "@/pages/layout/helpers"
 import { useCustomDraft } from "@/context/custom-draft"
+import { useMode } from "@/context/mode"
 import { showToast } from "@/utils/toast"
 import type { Snapshot } from "@aigcfroge/schema/composition"
 import { decodeSnapshotResponse } from "@/utils/snapshot-decode"
@@ -28,6 +29,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   const global = useGlobal()
   const server = useServer()
   const draft = useCustomDraft()
+  const mode = useMode()
   const size = createSizing()
 
   const [upgrading, setUpgrading] = createSignal(false)
@@ -152,7 +154,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   }
 
   return (
-    <SessionRightPanel size={size} ariaLabel={language.t("custom.snapshot.panelTitle")}>
+    <SessionRightPanel modeID="custom" size={size} ariaLabel={language.t("custom.snapshot.panelTitle")}>
       <div class="flex flex-col gap-4 h-full p-4 overflow-y-auto bg-v2-background-bg-layer-01">
       {/* Header */}
       <div class="flex items-center justify-between border-b border-v2-border-border-base pb-3">
@@ -189,7 +191,9 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         )}
       </Show>
 
-      <WorkflowRuntimePanel sessionID={props.sessionID} />
+      <Show when={mode.currentMode === "custom"}>
+        <WorkflowRuntimePanel sessionID={props.sessionID} />
+      </Show>
 
       {/* Snapshot Metadata Cards */}
       <div class="flex flex-col gap-3">

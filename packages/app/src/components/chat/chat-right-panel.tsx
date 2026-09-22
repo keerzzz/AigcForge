@@ -215,6 +215,7 @@ export function ChatRightPanel() {
 
   return (
     <SessionRightPanel
+      modeID="chat"
       size={size}
       fileTree={
         <>

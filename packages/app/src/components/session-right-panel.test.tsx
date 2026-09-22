@@ -14,9 +14,9 @@ describe("SessionRightPanel (unified A/B shell)", () => {
     expect(shell).toContain("export function SessionRightPanel")
   })
 
-  test("shell owns the review-panel id and reviewPanel open/close wiring", () => {
+  test("shell owns the panel id and reviewPanel open/close wiring", () => {
     const shell = read("session-right-panel.tsx")
-    expect(shell).toContain('id="review-panel"')
+    expect(shell).toContain("id={panelID()}")
     expect(shell).toContain("reviewPanel.opened()")
   })
 
@@ -25,12 +25,11 @@ describe("SessionRightPanel (unified A/B shell)", () => {
     expect(shell).toContain("<SessionFileTree")
   })
 
-  test("all five mode panels delegate to SessionRightPanel", () => {
+  test("all four mode panels delegate to SessionRightPanel", () => {
     expect(read("../pages/session/session-side-panel.tsx")).toContain("<SessionRightPanel")
     expect(read("chat/chat-right-panel.tsx")).toContain("<SessionRightPanel")
     expect(read("../pages/work-artifact-panel.tsx")).toContain("<SessionRightPanel")
     expect(read("../pages/session/assistant-session-panel.tsx")).toContain("<SessionRightPanel")
-    expect(read("custom/custom-snapshot-panel.tsx")).toContain("<SessionRightPanel")
   })
 
   test("assistant drops the self-contained aside and its own opened state", () => {

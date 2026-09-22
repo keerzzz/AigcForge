@@ -1,5 +1,6 @@
 import { Show, createMemo, type JSX } from "solid-js"
 import { useLayout } from "@/context/layout"
+import { useMode } from "@/context/mode"
 import { useSettings } from "@/context/settings"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { SessionFileTree } from "@/components/session-file-tree"
@@ -17,6 +18,8 @@ import FileTree from "@/components/file-tree"
  * tree are still passed explicitly.
  */
 export function SessionRightPanel(props: {
+  id?: string
+  modeID?: string
   size: Sizing
   ariaLabel?: string
   /** Extra transition-disable (coding review snap). */
@@ -25,6 +28,7 @@ export function SessionRightPanel(props: {
   fileTree?: JSX.Element
 }) {
   const layout = useLayout()
+  const mode = useMode()
   const settings = useSettings()
   const file = useFile()
   const { view } = useSessionLayout()
@@ -33,6 +37,10 @@ export function SessionRightPanel(props: {
     shouldShowFileTree({ visible: settings.visibility.fileTree(), opened: layout.fileTree.opened() }),
   )
   const open = createMemo(() => reviewOpen() || fileOpen())
+  const panelID = () => {
+    if (!props.modeID) return props.id
+    return mode.currentMode === props.modeID ? "review-panel" : "session-mode-shell-" + props.modeID
+  }
   const panelWidth = createMemo(() => {
     if (!open()) return "0px"
     if (reviewOpen()) return "auto"
@@ -47,7 +55,7 @@ export function SessionRightPanel(props: {
 
   return (
     <aside
-      id="review-panel"
+      id={panelID()}
       aria-label={props.ariaLabel}
       aria-hidden={!open()}
       inert={!open()}
