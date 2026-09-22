@@ -1,13 +1,16 @@
 import {
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   For,
   Index,
+  Match,
   on,
   onCleanup,
   onMount,
   Show,
+  Switch,
   type Accessor,
   type JSX,
 } from "solid-js"
@@ -18,6 +21,7 @@ import { useMutation } from "@tanstack/solid-query"
 import { createVirtualizer, defaultRangeExtractor, elementScroll, type VirtualItem } from "@tanstack/solid-virtual"
 import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { Button } from "@aigcfroge/ui/button"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Card, CardActions, CardDescription, CardTitle } from "@aigcfroge/ui/card"
 import {
   ContextToolGroup,
@@ -86,7 +90,6 @@ import { SessionScheduledChip, SessionScheduledTasksPopover } from "@/pages/sess
 import { AgentTaskHub } from "@/pages/session/timeline/agent-task-hub"
 import { openEntityPanel } from "@/pages/session/assistant-session-panel-open"
 import { citationSummary, kbCitationHref } from "@/pages/session/assistant-citation-model"
-import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
 const emptyMessages: MessageType[] = []
 const emptyParts: PartType[] = []
@@ -353,7 +356,13 @@ export function MessageTimeline(props: {
 
   // Intercept kb:// links only in Assistant mode so shared message rendering
   // remains unchanged for Coding, Chat, and Work.
-  const [citation, setCitation] = createSignal<{ id: string; title: string; excerpt: string } | undefined>()
+  const [citationTarget, setCitationTarget] = createSignal<{ id: string }>()
+  const [citation, { refetch: refetchCitation }] = createResource(citationTarget, async (target) => {
+    const res = await serverSDK().client.kb.get({ id: target.id })
+    const note = res.data
+    if (!note) throw new Error("Knowledge base note not found")
+    return { id: note.id, title: note.title, excerpt: citationSummary(note.content ?? "", 220) }
+  })
   const citationEnabled = () => mode.currentMode === "assistant"
 
   const handleCitationClick = (event: MouseEvent) => {
@@ -363,16 +372,7 @@ export function MessageTimeline(props: {
     event.preventDefault()
     event.stopPropagation()
     openEntityPanel({ view: panelView(), tabs: sessionTabs(), assistant: assistant(), kind: "kb", itemId: id })
-    void serverSDK()
-      .client.kb.get({ id })
-      .then((res) => {
-        const note = res.data as KbNoteNote | undefined
-        if (!note) return
-        setCitation({ id: note.id, title: note.title, excerpt: citationSummary(note.content ?? "", 220) })
-      })
-      .catch(() => {
-        // Missing notes leave the answer usable without a citation preview.
-      })
+    setCitationTarget({ id })
   }
 
   const workingStatus = createMemo<"hidden" | "showing" | "hiding">((prev) => {
@@ -1411,8 +1411,32 @@ export function MessageTimeline(props: {
 
   return (
     <div class="relative w-full h-full min-w-0" onClick={handleCitationClick}>
-      <Show when={citation()} keyed>
-        {(item) => (
+      <Show when={citation.loading || citation.error || citation()}>
+        <Switch>
+          <Match when={citation.loading}>
+            <div
+              data-component="assistant-citation-loading"
+              class="absolute bottom-6 left-1/2 z-[70] w-[min(480px,calc(100%-2rem))] -translate-x-1/2 rounded-xl border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3 shadow-[var(--v2-elevation-floating)]"
+            >
+              <p class="text-v2-text-text-muted text-12-regular">{language.t("assistant.citation.loading")}</p>
+            </div>
+          </Match>
+          <Match when={citation.error}>
+            <div
+              data-component="assistant-citation-error"
+              role="alert"
+              class="absolute bottom-6 left-1/2 z-[70] flex w-[min(480px,calc(100%-2rem))] -translate-x-1/2 items-center gap-2 rounded-xl border border-v2-state-border-danger bg-v2-background-bg-layer-02 p-3 shadow-[var(--v2-elevation-floating)]"
+            >
+              <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
+                {language.t("assistant.citation.error")}
+              </p>
+              <ButtonV2 variant="neutral" size="small" onClick={() => void refetchCitation()}>
+                {language.t("assistant.citation.retry")}
+              </ButtonV2>
+            </div>
+          </Match>
+          <Match when={citation()} keyed>
+            {(item) => (
           <div
             data-component="assistant-citation"
             class="absolute bottom-6 left-1/2 z-[70] w-[min(480px,calc(100%-2rem))] -translate-x-1/2 rounded-xl border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3 shadow-[var(--v2-elevation-floating)]"
@@ -1424,13 +1448,15 @@ export function MessageTimeline(props: {
                 icon="close-small"
                 variant="ghost"
                 class="size-5 shrink-0"
-                onClick={() => setCitation(undefined)}
+                onClick={() => setCitationTarget(undefined)}
                 aria-label={language.t("assistant.citation.dismiss")}
               />
             </div>
             <p class="mt-1 line-clamp-3 text-v2-text-text-muted text-12-regular">{item.excerpt}</p>
           </div>
-        )}
+            )}
+          </Match>
+        </Switch>
       </Show>
       <div
         class="absolute left-1/2 -translate-x-1/2 bottom-6 z-[60] pointer-events-none transition-all duration-200 ease-out"

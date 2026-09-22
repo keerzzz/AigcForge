@@ -112,7 +112,13 @@ describe("MessageTimeline citation wiring (app layer, mode-gated)", () => {
   test("expands an inline summary of the cited note (宽容：无记录不渲染)", () => {
     expect(timeline).toContain("citationSummary")
     expect(timeline).toContain('data-component="assistant-citation"')
-    expect(timeline).toContain("client.kb.get({ id })")
+    expect(timeline).toContain("client.kb.get({ id: target.id })")
+  })
+
+  test("surfaces citation loading, error, and retry instead of swallowing failures", () => {
+    expect(timeline).toContain("citation.loading")
+    expect(timeline).toContain("citation.error")
+    expect(timeline).toContain("assistant.citation.retry")
   })
 
   test("keeps the shared session-ui render path untouched apart from the sanitize allowlist (F2)", () => {
