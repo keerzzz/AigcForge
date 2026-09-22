@@ -71,3 +71,4 @@ bun --cwd packages/app test
 
 - 1px / 3px / 12px / 9999px 的 20 处孤儿值未动，留给 S2b。
 - 未跑完整五模式 e2e；本批只改确定性圆角值和 token ownership，S2a 的视觉验证另行执行。
+- 两份扫描 500+ 文件/source contract 的 RED 测试在证明后已移除：它们是 S2a 的一次性审计契约，不适合留在每轮 app unit suite 中放大慢盘 IO。
