@@ -64,22 +64,31 @@ describe("foldAssetCatalog", () => {
 })
 
 describe("catalogStatus", () => {
-  test("reports loading until something settles, including when there is no SDK", () => {
-    expect(catalogStatus({ loading: true, failed: undefined })).toBe("loading")
-    // No SDK for the directory: nothing is in flight, but nothing has been read
-    // either. Reporting `ready` here would let the starter prompt appear before any
-    // read happened.
-    expect(catalogStatus({ loading: false, failed: undefined })).toBe("loading")
+  test("reports idle without a directory SDK", () => {
+    expect(catalogStatus({ source: undefined, settledSource: undefined, state: "unresolved", failed: undefined })).toBe(
+      "idle",
+    )
   })
 
-  test("keeps showing settled data across a refetch instead of flashing a skeleton", () => {
-    expect(catalogStatus({ loading: true, failed: [] })).toBe("ready")
+  test("reports loading before anything settles", () => {
+    const source = {}
+    expect(catalogStatus({ source, settledSource: undefined, state: "pending", failed: undefined })).toBe("loading")
+  })
+
+  test("keeps showing settled data across a same-source refetch", () => {
+    const source = {}
+    expect(catalogStatus({ source, settledSource: source, state: "refreshing", failed: [] })).toBe("ready")
+  })
+
+  test("hides settled data while a different source is loading", () => {
+    expect(catalogStatus({ source: {}, settledSource: {}, state: "refreshing", failed: [] })).toBe("loading")
   })
 
   test("separates a clean read from a partial one and from a total failure", () => {
-    expect(catalogStatus({ loading: false, failed: [] })).toBe("ready")
-    expect(catalogStatus({ loading: false, failed: ["skills"] })).toBe("partial")
-    expect(catalogStatus({ loading: false, failed: [...ASSET_KINDS] })).toBe("error")
+    const source = {}
+    expect(catalogStatus({ source, settledSource: source, state: "ready", failed: [] })).toBe("ready")
+    expect(catalogStatus({ source, settledSource: source, state: "ready", failed: ["skills"] })).toBe("partial")
+    expect(catalogStatus({ source, settledSource: source, state: "ready", failed: [...ASSET_KINDS] })).toBe("error")
   })
 })
 

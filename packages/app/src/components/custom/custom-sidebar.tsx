@@ -32,9 +32,8 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
 
   // P2-14: hidden mode slots must not issue asset requests.
   const slotActive = useModeSlotActive()
-  const [discovered, { refetch }] = createResource(
-    () => whenActive(slotActive(), props.dirSdk),
-    async (sdk) => {
+  const source = createMemo(() => whenActive(slotActive(), props.dirSdk))
+  const [discovered, { refetch }] = createResource(source, async (sdk) => {
       if (!sdk) return undefined
       // `allSettled`, not `all` with per-call catches: a failing kind has to be
       // reported as a failure instead of arriving as an empty list. See
@@ -46,19 +45,35 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
         sdk.client.skillAsset.list(),
         sdk.client.commandAsset.list(),
       ])
-      return foldAssetCatalog({
-        agents: listOutcome(agents),
-        workflows: listOutcome(workflows),
-        prompts: listOutcome(prompts),
-        skills: listOutcome(skills),
-        commands: listOutcome(commands),
-      })
+      return {
+        source: sdk,
+        ...foldAssetCatalog({
+          agents: listOutcome(agents),
+          workflows: listOutcome(workflows),
+          prompts: listOutcome(prompts),
+          skills: listOutcome(skills),
+          commands: listOutcome(commands),
+        }),
+      }
     },
   )
 
-  const status = createMemo(() => catalogStatus({ loading: discovered.loading, failed: discovered.latest?.failed }))
-  const failedKinds = createMemo(() => discovered.latest?.failed ?? [])
-  const catalog = createMemo(() => discovered.latest)
+  const catalog = createMemo(() => {
+    const data = discovered()
+    return data?.source === source() ? data : undefined
+  })
+  const status = createMemo(() =>
+    catalogStatus({
+      source: source(),
+      settledSource: discovered()?.source,
+      state: discovered.state,
+      failed: discovered()?.failed,
+    }),
+  )
+  const failedKinds = createMemo(() => {
+    const failed = catalog()?.failed ?? []
+    return failed.length > 0 ? failed : status() === "error" ? ASSET_KINDS : []
+  })
 
   const query = createMemo(() => search().toLowerCase().trim())
 
@@ -228,7 +243,10 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
 
       {/* Assets list */}
       <div class="flex flex-col gap-3 px-2 overflow-y-auto max-h-[calc(100vh-280px)]">
-        <Show when={status() !== "loading"} fallback={<SessionSkeleton count={6} />}>
+        <Show
+          when={status() !== "loading" && status() !== "idle"}
+          fallback={status() === "loading" ? <SessionSkeleton count={6} /> : undefined}
+        >
         {/* Agents */}
         <Show when={activeCategory() === "all" || activeCategory() === "agents"}>
           <div class="flex flex-col gap-1">
@@ -516,6 +534,9 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
             </ButtonV2>
           </div>
         </Show>
+        </Show>
+        <Show when={status() === "idle"}>
+          <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">{language.t("chat.feature.noLocation")}</div>
         </Show>
       </div>
     </div>

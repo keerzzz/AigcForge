@@ -191,7 +191,7 @@ export function ChatAssetsProvider(props: {
           ...(pluginsRes.data?.invalid ?? []).map((item) => ({ ...item, kind: "plugin" as const })),
         ],
       )
-      return { failed, assets: allAssets, invalid: invalidRows }
+      return { source: sdk, failed, assets: allAssets, invalid: invalidRows }
     },
   )
 
@@ -223,7 +223,13 @@ export function ChatAssetsProvider(props: {
     merged,
     counts: createMemo(() => AssetWorkbench.countAssetsByKind(merged().assets)),
     status: createMemo(() =>
-      assetListStatus({ loading: list.loading, failed: list()?.failed, total: PROJECT_ASSET_LIST_COUNT }),
+      assetListStatus({
+        source: dirSdk(),
+        settledSource: list()?.source,
+        state: list.state,
+        failed: list()?.failed,
+        total: PROJECT_ASSET_LIST_COUNT,
+      }),
     ),
     refetch,
   }

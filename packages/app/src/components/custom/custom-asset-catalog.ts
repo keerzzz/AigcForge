@@ -12,7 +12,12 @@
 // Keeping the successful lists matters: one failing kind must not blank the other
 // four. So failures are collected per kind and reported alongside the data.
 
-import { assetListIsEmpty, assetListStatus, type AssetListStatus } from "@/components/asset-list-status"
+import {
+  assetListIsEmpty,
+  assetListStatus,
+  type AssetListResourceState,
+  type AssetListStatus,
+} from "@/components/asset-list-status"
 
 export const ASSET_KINDS = ["agents", "workflows", "prompts", "skills", "commands"] as const
 export type AssetKind = (typeof ASSET_KINDS)[number]
@@ -74,8 +79,13 @@ export type CatalogStatus = AssetListStatus
  * read. A refetch over data already on screen keeps showing it rather than
  * flashing a skeleton, which is why `loading` is only consulted in that branch.
  */
-export function catalogStatus(input: { loading: boolean; failed: readonly AssetKind[] | undefined }): CatalogStatus {
-  return assetListStatus({ loading: input.loading, failed: input.failed, total: ASSET_KINDS.length })
+export function catalogStatus(input: {
+  source: unknown | undefined
+  settledSource: unknown | undefined
+  state: AssetListResourceState
+  failed: readonly AssetKind[] | undefined
+}): CatalogStatus {
+  return assetListStatus({ ...input, total: ASSET_KINDS.length })
 }
 
 /**
