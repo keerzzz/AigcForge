@@ -1351,6 +1351,7 @@ export const dict = {
   "assistant.dashboard.markRead": "標記已讀",
   "assistant.dashboard.caughtUp": "已補投",
   "assistant.dashboard.loadError": "載入失敗，請重試",
+  "assistant.dashboard.actionError": "操作失敗，請重試。",
   "assistant.dashboard.pendingCount": "{{count}} 條待辦",
   "assistant.reminder.status.pending": "待執行",
   "assistant.reminder.status.running": "執行中",

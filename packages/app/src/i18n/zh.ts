@@ -760,6 +760,7 @@ export const dict = {
   "assistant.dashboard.markRead": "标记已读",
   "assistant.dashboard.caughtUp": "已补投",
   "assistant.dashboard.loadError": "加载失败，请重试",
+  "assistant.dashboard.actionError": "操作失败，请重试。",
   "assistant.dashboard.pendingCount": "{{count}} 条待办",
   "assistant.reminder.status.pending": "待执行",
   "assistant.reminder.status.running": "执行中",

@@ -880,6 +880,7 @@ export const dict = {
   "assistant.dashboard.markRead": "Mark as read",
   "assistant.dashboard.caughtUp": "Caught up",
   "assistant.dashboard.loadError": "Couldn't load. Try again.",
+  "assistant.dashboard.actionError": "Action failed. Try again.",
   "assistant.dashboard.pendingCount": "{{count}} pending",
   "assistant.reminder.status.pending": "Pending",
   "assistant.reminder.status.running": "Running",
