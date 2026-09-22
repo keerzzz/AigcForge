@@ -559,6 +559,7 @@ export function ChatAssetWorkbenchMain() {
       <AssetWorkbench.AssetWorkbenchTable
         assets={assets?.mergedAssetData().assets ?? []}
         invalid={assets?.mergedAssetData().invalid ?? []}
+        state={assets?.chatAssetStatus() ?? "loading"}
         kindFilter={chatFeature() as AssetWorkbench.AssetKind}
         onNew={onNewAsset}
         onImport={onImportAsset}

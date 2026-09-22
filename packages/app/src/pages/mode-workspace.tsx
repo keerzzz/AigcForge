@@ -137,6 +137,7 @@ function ModeWorkspaceBody() {
     chatDirSdk: assets.dirSdk,
     chatAssetList: assets.list,
     chatSystemData: assets.systemData,
+    chatAssetStatus: assets.status,
     mergedAssetData: assets.merged,
     assetCounts: assets.counts,
     refetchAssets: assets.refetch,

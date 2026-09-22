@@ -1,11 +1,13 @@
 export * as AssetWorkbench from "./asset-workbench"
 
-import { For, Show, Suspense, createEffect, createMemo, lazy } from "solid-js"
+import { For, Match, Show, Suspense, Switch, createEffect, createMemo, lazy } from "solid-js"
 import { createStore } from "solid-js/store"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon as IconV2 } from "@aigcfroge/ui/v2/icon"
 import { useLanguage } from "@/context/language"
 import { useChatWorkspace } from "@/context/chat-workspace"
+import { SessionSkeleton } from "@/pages/layout/sidebar-items"
+import { assetListIsEmpty, type AssetListStatus } from "@/components/asset-list-status"
 
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 
@@ -213,6 +215,8 @@ export function AssetWorkbenchTable(props: {
   onDelete?: (row: AssetRow) => void
   /** 功能树联动：外部控制 kind 筛选（null 或 undefined 时用 store 内部值） */
   kindFilter?: AssetKind | null
+  /** 多端点资产读取状态；缺省按 ready 保持旧调用方的行为。 */
+  state?: AssetListStatus
 }) {
   const language = useLanguage()
   const workspace = useChatWorkspace()
@@ -295,87 +299,99 @@ export function AssetWorkbenchTable(props: {
         </ButtonV2>
       </div>
       <div class="min-h-0 flex-1 overflow-auto no-scrollbar">
-        <Show
-          when={rows().length > 0}
-          fallback={
-            <p class="px-4 py-6 text-v2-text-text-muted [font-weight:440]">
-              {language.t("promptAsset.panel.noAssets")}
-            </p>
-          }
-        >
-          <Suspense>
-            <div class="flex flex-col">
-              <div class="flex items-center gap-2 px-3 py-1.5 lg:px-4 text-v2-text-text-faint text-11-regular">
-                <span class="w-16 lg:w-20 shrink-0">{language.t("promptAsset.list.kind")}</span>
-                <span class="flex-[35] truncate">{language.t("promptAsset.list.name")}</span>
-                <span class="hidden sm:flex sm:flex-[40] truncate">{language.t("promptAsset.list.description")}</span>
-                <span class="hidden sm:flex sm:flex-[20] sm:justify-end" aria-hidden="true" />
-              </div>
-              <For each={rows()}>
-                {(row) => (
-                  <div
-                    role="button"
-                    tabindex="0"
-                    data-component="asset-row"
-                    data-invalid={row.invalid ? "" : undefined}
-                    data-selected={store.state.selectedPath === row.relativePath ? "" : undefined}
-                    class="group flex cursor-default items-center gap-2 px-4 py-2 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-v2-border-border-focus data-[selected]:bg-v2-overlay-simple-overlay-hover"
-                    onClick={() => {
-                      store.select(row.relativePath)
-                      props.onSelect?.(row)
-                    }}
-                    onKeyDown={(event: KeyboardEvent) => {
-                      if (event.key !== "Enter" && event.key !== " ") return
-                      event.preventDefault()
-                      store.select(row.relativePath)
-                      props.onSelect?.(row)
-                    }}
-                  >
-                    <span class="flex w-16 lg:w-20 shrink-0 items-center gap-1">
-                      <span class="rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted">
-                        {row.kind}
+        <Switch>
+          <Match when={(props.state ?? "ready") === "loading"}>
+            <div class="p-3">
+              <SessionSkeleton count={6} />
+            </div>
+          </Match>
+          <Match when={rows().length > 0}>
+            <Suspense>
+              <div class="flex flex-col">
+                <div class="flex items-center gap-2 px-3 py-1.5 lg:px-4 text-v2-text-text-faint text-11-regular">
+                  <span class="w-16 lg:w-20 shrink-0">{language.t("promptAsset.list.kind")}</span>
+                  <span class="flex-[35] truncate">{language.t("promptAsset.list.name")}</span>
+                  <span class="hidden sm:flex sm:flex-[40] truncate">{language.t("promptAsset.list.description")}</span>
+                  <span class="hidden sm:flex sm:flex-[20] sm:justify-end" aria-hidden="true" />
+                </div>
+                <For each={rows()}>
+                  {(row) => (
+                    <div
+                      role="button"
+                      tabindex="0"
+                      data-component="asset-row"
+                      data-invalid={row.invalid ? "" : undefined}
+                      data-selected={store.state.selectedPath === row.relativePath ? "" : undefined}
+                      class="group flex cursor-default items-center gap-2 px-4 py-2 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-v2-border-border-focus data-[selected]:bg-v2-overlay-simple-overlay-hover"
+                      onClick={() => {
+                        store.select(row.relativePath)
+                        props.onSelect?.(row)
+                      }}
+                      onKeyDown={(event: KeyboardEvent) => {
+                        if (event.key !== "Enter" && event.key !== " ") return
+                        event.preventDefault()
+                        store.select(row.relativePath)
+                        props.onSelect?.(row)
+                      }}
+                    >
+                      <span class="flex w-16 lg:w-20 shrink-0 items-center gap-1">
+                        <span class="rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted">
+                          {row.kind}
+                        </span>
+                        <Show when={row.invalid}>
+                          <TooltipV2 value={row.errorTag}>
+                            <span class="text-v2-state-fg-danger" aria-label={language.t("promptAsset.badge.invalid")}>
+                              ●
+                            </span>
+                          </TooltipV2>
+                        </Show>
                       </span>
-                      <Show when={row.invalid}>
-                        <TooltipV2 value={row.errorTag}>
-                          <span class="text-v2-state-fg-danger" aria-label={language.t("promptAsset.badge.invalid")}>
-                            ●
-                          </span>
-                        </TooltipV2>
-                      </Show>
-                    </span>
-                    <span class="min-w-0 flex-1 truncate sm:flex-[35] text-v2-text-text-base [font-weight:530]">
-                      <Show
-                        when={row.origin === "system"}
-                        fallback={
-                          <span
-                            class="mr-1 rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted"
-                            aria-label={language.t("asset.origin.project")}
-                          >
-                            {language.t("asset.origin.project")}
-                          </span>
-                        }
-                      >
-                        <TooltipV2
-                          value={language.t("asset.origin.systemTooltip", {
-                            kind: language.t("chat.feature." + row.kind),
-                          })}
+                      <span class="min-w-0 flex-1 truncate sm:flex-[35] text-v2-text-text-base [font-weight:530]">
+                        <Show
+                          when={row.origin === "system"}
+                          fallback={
+                            <span
+                              class="mr-1 rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted"
+                              aria-label={language.t("asset.origin.project")}
+                            >
+                              {language.t("asset.origin.project")}
+                            </span>
+                          }
                         >
-                          <span
-                            class="mr-1 rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted"
-                            aria-label={language.t("asset.origin.system")}
+                          <TooltipV2
+                            value={language.t("asset.origin.systemTooltip", {
+                              kind: language.t("chat.feature." + row.kind),
+                            })}
                           >
-                            {language.t("asset.origin.system")}
-                          </span>
-                        </TooltipV2>
-                      </Show>
-                      {row.name || row.relativePath}
-                    </span>
-                    <span class="min-w-0 hidden sm:block sm:flex-[40] truncate text-v2-text-text-muted">
-                      {row.description}
-                    </span>
-                    <span class="relative hidden sm:flex shrink-0 sm:flex-[20] items-center justify-end gap-1 self-stretch">
-                      <Show when={row.origin !== "system"}>
-                        <Show when={!row.invalid}>
+                            <span
+                              class="mr-1 rounded-[3px] bg-v2-background-bg-layer-04 px-1.5 py-0.5 text-[10px] text-v2-text-text-muted"
+                              aria-label={language.t("asset.origin.system")}
+                            >
+                              {language.t("asset.origin.system")}
+                            </span>
+                          </TooltipV2>
+                        </Show>
+                        {row.name || row.relativePath}
+                      </span>
+                      <span class="min-w-0 hidden sm:block sm:flex-[40] truncate text-v2-text-text-muted">
+                        {row.description}
+                      </span>
+                      <span class="relative hidden sm:flex shrink-0 sm:flex-[20] items-center justify-end gap-1 self-stretch">
+                        <Show when={row.origin !== "system"}>
+                          <Show when={!row.invalid}>
+                            <ButtonV2
+                              type="button"
+                              variant="ghost-muted"
+                              size="small"
+                              class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                              onClick={(event: MouseEvent) => {
+                                event.stopPropagation()
+                                props.onInsert?.(row)
+                              }}
+                            >
+                              {language.t("promptAsset.workbench.insert")}
+                            </ButtonV2>
+                          </Show>
                           <ButtonV2
                             type="button"
                             variant="ghost-muted"
@@ -383,32 +399,25 @@ export function AssetWorkbenchTable(props: {
                             class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                             onClick={(event: MouseEvent) => {
                               event.stopPropagation()
-                              props.onInsert?.(row)
+                              props.onDelete?.(row)
                             }}
                           >
-                            {language.t("promptAsset.workbench.insert")}
+                            {language.t("promptAsset.workbench.delete")}
                           </ButtonV2>
                         </Show>
-                        <ButtonV2
-                          type="button"
-                          variant="ghost-muted"
-                          size="small"
-                          class="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                          onClick={(event: MouseEvent) => {
-                            event.stopPropagation()
-                            props.onDelete?.(row)
-                          }}
-                        >
-                          {language.t("promptAsset.workbench.delete")}
-                        </ButtonV2>
-                      </Show>
-                    </span>
-                  </div>
-                )}
-              </For>
-            </div>
-          </Suspense>
-        </Show>
+                      </span>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Suspense>
+          </Match>
+          <Match when={assetListIsEmpty({ status: props.state ?? "ready", count: rows().length })}>
+            <p class="px-4 py-6 text-v2-text-text-muted [font-weight:440]">
+              {language.t("promptAsset.panel.noAssets")}
+            </p>
+          </Match>
+        </Switch>
       </div>
     </div>
   )
