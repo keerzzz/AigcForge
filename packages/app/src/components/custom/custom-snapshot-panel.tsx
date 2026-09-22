@@ -12,6 +12,8 @@ import { showToast } from "@/utils/toast"
 import type { Snapshot } from "@aigcfroge/schema/composition"
 import { decodeSnapshotResponse } from "@/utils/snapshot-decode"
 import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
+import { SessionRightPanel } from "@/components/session-right-panel"
+import { createSizing } from "@/pages/session/helpers"
 import { classifySnapshotFailure, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
 
 export interface CustomSessionPanelProps {
@@ -26,6 +28,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   const global = useGlobal()
   const server = useServer()
   const draft = useCustomDraft()
+  const size = createSizing()
 
   const [upgrading, setUpgrading] = createSignal(false)
   const [upgradeError, setUpgradeError] = createSignal<string | undefined>()
@@ -149,7 +152,8 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   }
 
   return (
-    <div class="flex flex-col gap-4 h-full p-4 overflow-y-auto bg-v2-background-bg-layer-01">
+    <SessionRightPanel size={size} ariaLabel={language.t("custom.snapshot.panelTitle")}>
+      <div class="flex flex-col gap-4 h-full p-4 overflow-y-auto bg-v2-background-bg-layer-01">
       {/* Header */}
       <div class="flex items-center justify-between border-b border-v2-border-border-base pb-3">
         <div class="flex items-center gap-2">
@@ -339,6 +343,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           </Show>
         </div>
       </div>
-    </div>
+      </div>
+    </SessionRightPanel>
   )
 }

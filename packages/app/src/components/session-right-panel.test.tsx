@@ -25,11 +25,12 @@ describe("SessionRightPanel (unified A/B shell)", () => {
     expect(shell).toContain("<SessionFileTree")
   })
 
-  test("all four mode panels delegate to SessionRightPanel", () => {
+  test("all five mode panels delegate to SessionRightPanel", () => {
     expect(read("../pages/session/session-side-panel.tsx")).toContain("<SessionRightPanel")
     expect(read("chat/chat-right-panel.tsx")).toContain("<SessionRightPanel")
     expect(read("../pages/work-artifact-panel.tsx")).toContain("<SessionRightPanel")
     expect(read("../pages/session/assistant-session-panel.tsx")).toContain("<SessionRightPanel")
+    expect(read("custom/custom-snapshot-panel.tsx")).toContain("<SessionRightPanel")
   })
 
   test("assistant drops the self-contained aside and its own opened state", () => {
