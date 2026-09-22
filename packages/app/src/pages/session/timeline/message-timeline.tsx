@@ -1416,9 +1416,18 @@ export function MessageTimeline(props: {
           <Match when={citation.loading}>
             <div
               data-component="assistant-citation-loading"
-              class="absolute bottom-6 left-1/2 z-[70] w-[min(480px,calc(100%-2rem))] -translate-x-1/2 rounded-xl border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3 shadow-[var(--v2-elevation-floating)]"
+              class="absolute bottom-6 left-1/2 z-[70] flex w-[min(480px,calc(100%-2rem))] -translate-x-1/2 items-center gap-2 rounded-xl border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3 shadow-[var(--v2-elevation-floating)]"
             >
-              <p class="text-v2-text-text-muted text-12-regular">{language.t("assistant.citation.loading")}</p>
+              <p class="min-w-0 flex-1 text-v2-text-text-muted text-12-regular">
+                {language.t("assistant.citation.loading")}
+              </p>
+              <IconButton
+                icon="close-small"
+                variant="ghost"
+                class="size-5 shrink-0"
+                onClick={() => setCitationTarget(undefined)}
+                aria-label={language.t("assistant.citation.dismiss")}
+              />
             </div>
           </Match>
           <Match when={citation.error}>
@@ -1433,6 +1442,13 @@ export function MessageTimeline(props: {
               <ButtonV2 variant="neutral" size="small" onClick={() => void refetchCitation()}>
                 {language.t("assistant.citation.retry")}
               </ButtonV2>
+              <IconButton
+                icon="close-small"
+                variant="ghost"
+                class="size-5 shrink-0"
+                onClick={() => setCitationTarget(undefined)}
+                aria-label={language.t("assistant.citation.dismiss")}
+              />
             </div>
           </Match>
           <Match when={citation()} keyed>
