@@ -450,6 +450,10 @@ export function ChatAssetWorkbenchMain() {
 
   const conn = createMemo(() => server.current ?? global.servers.list()[0])
   const chatDir = () => chatDirectory() ?? ""
+  const assetStatus = createMemo(() => assets?.chatAssetStatus() ?? "loading")
+  const assetFailures = createMemo(() =>
+    assetStatus() === "loading" || assetStatus() === "idle" ? [] : (assets?.mergedAssetData().failed ?? []),
+  )
 
   function onNewAsset() {
     const c = conn()
@@ -551,14 +555,11 @@ export function ChatAssetWorkbenchMain() {
     <div class="flex min-h-0 flex-1 flex-col gap-2">
       {/* The seven workspace asset lists settle individually, so a failing kind is
           otherwise invisible rather than blanking the page. */}
-      <AssetLoadError
-        failed={assets?.mergedAssetData().failed ?? []}
-        total={7}
-        onRetry={() => assets?.refetchAssets()}
-      />
+      <AssetLoadError failed={assetFailures()} total={7} onRetry={() => assets?.refetchAssets()} />
       <AssetWorkbench.AssetWorkbenchTable
         assets={assets?.mergedAssetData().assets ?? []}
         invalid={assets?.mergedAssetData().invalid ?? []}
+        state={assetStatus()}
         kindFilter={chatFeature() as AssetWorkbench.AssetKind}
         onNew={onNewAsset}
         onImport={onImportAsset}

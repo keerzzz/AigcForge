@@ -12,6 +12,13 @@
 // Keeping the successful lists matters: one failing kind must not blank the other
 // four. So failures are collected per kind and reported alongside the data.
 
+import {
+  assetListIsEmpty,
+  assetListStatus,
+  type AssetListResourceState,
+  type AssetListStatus,
+} from "@/components/asset-list-status"
+
 export const ASSET_KINDS = ["agents", "workflows", "prompts", "skills", "commands"] as const
 export type AssetKind = (typeof ASSET_KINDS)[number]
 
@@ -61,7 +68,7 @@ export function foldAssetCatalog<A, W, P, S, C>(outcomes: {
   }
 }
 
-export type CatalogStatus = "loading" | "ready" | "partial" | "error"
+export type CatalogStatus = AssetListStatus
 
 /**
  * Which of the four states the sidebar is in.
@@ -72,11 +79,13 @@ export type CatalogStatus = "loading" | "ready" | "partial" | "error"
  * read. A refetch over data already on screen keeps showing it rather than
  * flashing a skeleton, which is why `loading` is only consulted in that branch.
  */
-export function catalogStatus(input: { loading: boolean; failed: readonly AssetKind[] | undefined }): CatalogStatus {
-  if (input.failed === undefined) return "loading"
-  if (input.failed.length >= ASSET_KINDS.length) return "error"
-  if (input.failed.length > 0) return "partial"
-  return "ready"
+export function catalogStatus(input: {
+  source: unknown | undefined
+  settledSource: unknown | undefined
+  state: AssetListResourceState
+  failed: readonly AssetKind[] | undefined
+}): CatalogStatus {
+  return assetListStatus({ ...input, total: ASSET_KINDS.length })
 }
 
 /**
@@ -84,4 +93,4 @@ export function catalogStatus(input: { loading: boolean; failed: readonly AssetK
  * offering it after a failed fetch is what turned P2-10 into P2-13.
  */
 export const showsEmptyState = (input: { status: CatalogStatus; agentCount: number }) =>
-  input.status === "ready" && input.agentCount === 0
+  assetListIsEmpty({ status: input.status, count: input.agentCount })

@@ -46,7 +46,7 @@ export function ModeSwitcher() {
                 <IconButtonV2
                   variant={active() ? "neutral" : "ghost-muted"}
                   size="large"
-                  class="size-10 rounded-[8px]"
+                  class="size-10 rounded-lg"
                   icon={<Icon name={item.icon} size="large" />}
                   aria-label={language.t(item.labelKey)}
                   aria-pressed={active()}
@@ -68,7 +68,7 @@ export function ModeSwitcher() {
           <IconButtonV2
             variant="ghost-muted"
             size="large"
-            class="size-10 rounded-[8px]"
+            class="size-10 rounded-lg"
             icon={<Icon name="help" size="large" />}
             aria-label={language.t("sidebar.help")}
             onClick={() => platform.openLink("https://aigcfroge.ai/desktop-feedback")}
@@ -79,7 +79,7 @@ export function ModeSwitcher() {
           <IconButtonV2
             variant="ghost-muted"
             size="large"
-            class="size-10 rounded-[8px]"
+            class="size-10 rounded-lg"
             icon={<Icon name="settings-gear" size="large" />}
             aria-label={language.t("sidebar.settings")}
             onClick={() => dialog.show(() => <DialogSettings />)}

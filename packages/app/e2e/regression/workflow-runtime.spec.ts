@@ -196,6 +196,8 @@ type WorkflowMock = {
   state: WorkflowState
   /** Every mutation request, in order, with its parsed body. */
   readonly posts: Array<{ path: string; body: Record<string, unknown> }>
+  /** Number of workflow status reads issued by this page. */
+  gets: number
   /** Set to 409 to make the next cancel reject the optimistic revision. */
   cancelRunStatus: number
 }
@@ -220,15 +222,20 @@ function bodyOf(request: Request): Record<string, unknown> {
   return isRecord(parsed) ? parsed : {}
 }
 
-async function mountWorkflowPanel(page: Page, initial: WorkflowState, events: unknown[] = []) {
-  const mock: WorkflowMock = { state: initial, posts: [], cancelRunStatus: 200 }
+async function mountWorkflowPanel(
+  page: Page,
+  initial: WorkflowState,
+  events: unknown[] = [],
+  mode: "custom" | "work" = "custom",
+) {
+  const mock: WorkflowMock = { state: initial, posts: [], gets: 0, cancelRunStatus: 200 }
   const pageErrors = trackPageErrors(page)
 
   await mockAigcfrogeServer(page, {
     directory,
     project,
     provider,
-    sessions: [session],
+    sessions: [{ ...session, mode }],
     pageMessages: () => ({ items: [userMessage] }),
     // One queued event per SSE reconnect, matching the shared mock's one-shot stream.
     events: () => events.splice(0, 1),
@@ -244,6 +251,7 @@ async function mountWorkflowPanel(page: Page, initial: WorkflowState, events: un
     const method = route.request().method()
     if (method === "OPTIONS") return route.fulfill({ status: 204, headers: cors, body: "" })
     if (method === "GET") {
+      mock.gets += 1
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -279,6 +287,9 @@ async function mountWorkflowPanel(page: Page, initial: WorkflowState, events: un
     throw new Error(
       `${error instanceof Error ? error.message : String(error)}\npage errors:\n${pageErrors.join("\n") || "(none)"}`,
     )
+  }
+  if (mode === "work") {
+    await page.locator('[data-slot="tabs-v2-trigger"][data-value="workflow"]').click()
   }
   await expect(page.locator('[data-component="workflow-runtime-panel"]')).toBeVisible({ timeout: 30_000 })
   // Collected errors are only useful if something asserts on them: an uncaught
@@ -406,5 +417,19 @@ test.describe("regression: custom workflow runtime panel", () => {
     )
     await panelOf(page).getByRole("button", { name: "Reload" }).click()
     await expect(page.locator('[data-component="workflow-runtime-error"]')).toBeVisible({ timeout: 20_000 })
+  })
+})
+
+test.describe("regression: work workflow runtime panel", () => {
+  test("mounts the same runtime owner under the Work workflow tab", async ({ page }) => {
+    const mock = await mountWorkflowPanel(page, RUNNING, [], "work")
+    const panel = page.locator('[data-mode="work"] [data-component="workflow-runtime-panel"]')
+
+    await expect(panel).toHaveCount(1)
+    await expect(panel.locator('[data-component="workflow-runtime-step"]')).toHaveCount(7)
+    await expect(
+      panel.locator('[data-component="workflow-runtime-content"] span[data-status]').first(),
+    ).toHaveAttribute("data-status", "running")
+    expect(mock.gets).toBe(1)
   })
 })

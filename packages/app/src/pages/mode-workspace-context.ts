@@ -8,6 +8,7 @@ import { useGlobal } from "@/context/global"
 import { useServer } from "@/context/server"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 import type { State } from "@/context/global-sync/types"
+import type { AssetListStatus } from "@/components/asset-list-status"
 
 export type ModeWorkspaceAssetContext = {
   chatDirSdk: Accessor<DirectorySDK | undefined>
@@ -15,6 +16,7 @@ export type ModeWorkspaceAssetContext = {
     { assets: AssetWorkbench.AssetInput[]; invalid: AssetWorkbench.AssetRow[]; failed: readonly string[] } | undefined
   >
   chatSystemData: Accessor<State | undefined>
+  chatAssetStatus: Accessor<AssetListStatus>
   mergedAssetData: Accessor<{
     assets: AssetWorkbench.AssetInput[]
     invalid: AssetWorkbench.AssetRow[]

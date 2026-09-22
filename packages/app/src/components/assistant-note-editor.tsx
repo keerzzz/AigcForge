@@ -244,7 +244,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
                 role="option"
                 aria-selected={index() === completionIndex()}
                 data-selected={index() === completionIndex() ? "" : undefined}
-                class="flex h-7 items-center gap-2 rounded-[4px] px-2 text-left text-v2-text-text-base text-13-regular data-[selected]:bg-v2-background-bg-layer-03 focus-visible:outline-none"
+                class="flex h-7 items-center gap-2 rounded-sm px-2 text-left text-v2-text-text-base text-13-regular data-[selected]:bg-v2-background-bg-layer-03 focus-visible:outline-none"
                 onMouseDown={(event) => {
                   event.preventDefault()
                   acceptCompletion(index())

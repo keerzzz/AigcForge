@@ -229,7 +229,7 @@ function SessionProductHeader(props: { identity: SessionIdentityIdentity }) {
         <summary class="cursor-default select-none text-v2-text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus">
           {language.t("session.identity.details")}
         </summary>
-        <div class="mt-2 flex max-w-[min(720px,calc(100vw-40px))] flex-col gap-1 rounded-[8px] border border-v2-border-border-base bg-v2-background-bg-layer-02 p-2">
+        <div class="mt-2 flex max-w-[min(720px,calc(100vw-40px))] flex-col gap-1 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-2">
           <span data-field="permission">{permission()}</span>
           <span data-field="health">{healthLabel(props.identity.capability.health, language.t)}</span>
           <span data-field="detail">{detailLabel(props.identity, language.t)}</span>

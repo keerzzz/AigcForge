@@ -7,7 +7,7 @@
   width: 280px;
   min-height: 80px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   outline: 1px solid transparent;
   outline-offset: 0;
   background:

@@ -111,7 +111,7 @@ function FileTreeRow(props: { entry: FileEntry; selected: boolean; onSelect: () 
   return (
     <button
       type="button"
-      class="flex w-full items-center gap-2 rounded-[4px] py-1 pr-2 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-v2-border-border-focus"
+      class="flex w-full items-center gap-2 rounded-sm py-1 pr-2 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-v2-border-border-focus"
       classList={{ "bg-v2-background-bg-layer-03": props.selected }}
       style={{ "padding-left": `${8 + depth() * 12}px` }}
       onClick={props.onSelect}
@@ -286,7 +286,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
         </div>
 
         <Show when={pr.warnings.length > 0}>
-          <div class="rounded-[6px] border border-v2-state-border-warning bg-v2-state-bg-warning px-3 py-2">
+          <div class="rounded-md border border-v2-state-border-warning bg-v2-state-bg-warning px-3 py-2">
             <For each={pr.warnings}>{(w) => <div class="text-v2-state-fg-warning text-11-regular">{w}</div>}</For>
           </div>
         </Show>
@@ -295,9 +295,9 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
           <div class="flex flex-col gap-2">
             <For each={pr.candidates}>
               {(c, i) => (
-                <div class="rounded-[6px] border border-v2-border-border-base p-3">
+                <div class="rounded-md border border-v2-border-border-base p-3">
                   <div class="flex items-center gap-2">
-                    <span class="rounded-[4px] bg-v2-background-bg-layer-03 px-1.5 py-0.5 text-v2-text-text-muted text-10-regular">
+                    <span class="rounded-sm bg-v2-background-bg-layer-03 px-1.5 py-0.5 text-v2-text-text-muted text-10-regular">
                       {c.kind}
                     </span>
                     <span class="text-v2-text-text-base text-12-semibold">{c.name || `Candidate ${i() + 1}`}</span>
@@ -305,7 +305,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
                   <Show when={c.description}>
                     <div class="mt-1 text-v2-text-text-muted text-11-regular">{c.description}</div>
                   </Show>
-                  <pre class="mt-2 max-h-[120px] overflow-auto whitespace-pre-wrap break-words rounded-[4px] bg-v2-background-bg-layer-02 p-2 font-mono text-v2-text-text-base text-11-regular">
+                  <pre class="mt-2 max-h-[120px] overflow-auto whitespace-pre-wrap break-words rounded-sm bg-v2-background-bg-layer-02 p-2 font-mono text-v2-text-text-base text-11-regular">
                     {c.template}
                   </pre>
                 </div>
@@ -315,7 +315,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
         </Show>
 
         <Show when={pr.errors.length > 0}>
-          <div class="rounded-[6px] border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2">
+          <div class="rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2">
             <For each={pr.errors}>
               {(e) => (
                 <div class="text-v2-state-fg-danger text-11-regular">
@@ -360,10 +360,10 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
         fit
       >
         <div class="flex min-h-[280px] flex-1 flex-col gap-3 px-4 pb-3">
-          <div class="grid grid-cols-3 gap-1 rounded-[6px] bg-v2-background-bg-layer-02 p-0.5" role="group">
+          <div class="grid grid-cols-3 gap-1 rounded-md bg-v2-background-bg-layer-02 p-0.5" role="group">
             <button
               type="button"
-              class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
+              class="rounded-sm px-2 py-1.5 text-12-regular transition-colors"
               classList={{
                 "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
                   state.mode === "paste",
@@ -376,7 +376,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
             </button>
             <button
               type="button"
-              class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
+              class="rounded-sm px-2 py-1.5 text-12-regular transition-colors"
               classList={{
                 "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
                   state.mode === "file",
@@ -389,7 +389,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
             </button>
             <button
               type="button"
-              class="rounded-[4px] px-2 py-1.5 text-12-regular transition-colors"
+              class="rounded-sm px-2 py-1.5 text-12-regular transition-colors"
               classList={{
                 "bg-v2-background-bg-base text-v2-text-text-base shadow-[var(--v2-elevation-flat)]":
                   state.mode === "folder",
@@ -425,7 +425,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
           <Show when={state.mode === "paste"}>
             <textarea
               autofocus
-              class="min-h-0 flex-1 resize-none rounded-[6px] border border-v2-border-border-base bg-v2-background-bg-layer-03 p-3 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint focus-visible:border-v2-border-border-focus text-13-regular"
+              class="min-h-0 flex-1 resize-none rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-03 p-3 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint focus-visible:border-v2-border-border-focus text-13-regular"
               value={state.text}
               onInput={(event) => setState("text", event.currentTarget.value)}
               placeholder={language.t("chatImport.pastePlaceholder")}
@@ -436,7 +436,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
             <Show
               when={!state.loading}
               fallback={
-                <div class="flex min-h-0 flex-1 items-center justify-center rounded-[6px] border border-v2-border-border-base text-v2-text-text-muted text-12-regular">
+                <div class="flex min-h-0 flex-1 items-center justify-center rounded-md border border-v2-border-border-base text-v2-text-text-muted text-12-regular">
                   {language.t("common.loading")}
                 </div>
               }
@@ -444,7 +444,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
               <Show
                 when={state.entries.length > 0}
                 fallback={
-                  <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-v2-border-border-base px-6 text-center">
+                  <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-v2-border-border-base px-6 text-center">
                     <span class="text-v2-text-text-muted text-12-regular">
                       {state.skippedFiles > 0
                         ? language.t("chatImport.unsupported")
@@ -461,7 +461,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
                 }
               >
                 <div class="flex min-h-0 flex-1 flex-col gap-2">
-                  <div class="flex shrink-0 items-center gap-3 rounded-[6px] border border-v2-border-border-base px-3 py-2">
+                  <div class="flex shrink-0 items-center gap-3 rounded-md border border-v2-border-border-base px-3 py-2">
                     <Icon
                       name={state.mode === "folder" ? "folder-add-left" : fileTypeIcon(state.entries[0].type)}
                       size="large"
@@ -500,7 +500,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
                   <Show
                     when={state.mode === "folder"}
                     fallback={
-                      <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[6px] border border-v2-border-border-base">
+                      <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-v2-border-border-base">
                         <div class="shrink-0 border-b border-v2-border-border-base px-3 py-2 text-v2-text-text-muted text-11-semibold">
                           {language.t("chatImport.preview")}
                         </div>
@@ -510,7 +510,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
                       </div>
                     }
                   >
-                    <div class="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-[6px] border border-v2-border-border-base">
+                    <div class="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] overflow-hidden rounded-md border border-v2-border-border-base">
                       <div class="min-h-0 overflow-y-auto border-r border-v2-border-border-base p-1">
                         <For each={state.entries}>
                           {(entry) => (
@@ -538,7 +538,7 @@ export function ChatImportDialog(props: ChatImportDialogProps) {
           </Show>
 
           <Show when={state.parseError}>
-            <div class="rounded-[6px] border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2 text-v2-state-fg-danger text-11-regular">
+            <div class="rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2 text-v2-state-fg-danger text-11-regular">
               {state.parseError}
             </div>
           </Show>

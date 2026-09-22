@@ -41,7 +41,10 @@ import type { State } from "@/context/global-sync/types"
 import { type DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "./asset-workbench"
 import { assetVersion } from "./prompt-asset-store"
+import { assetListStatus, type AssetListStatus } from "@/components/asset-list-status"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
+
+const PROJECT_ASSET_LIST_COUNT = 7
 
 type ChatAssetsValue = {
   dirSdk: Accessor<DirectorySDK | undefined>
@@ -55,6 +58,7 @@ type ChatAssetsValue = {
     failed: readonly string[]
   }>
   counts: Accessor<Partial<Record<AssetKindId, number>>>
+  status: Accessor<AssetListStatus>
   refetch: () => void
 }
 
@@ -187,7 +191,7 @@ export function ChatAssetsProvider(props: {
           ...(pluginsRes.data?.invalid ?? []).map((item) => ({ ...item, kind: "plugin" as const })),
         ],
       )
-      return { failed, assets: allAssets, invalid: invalidRows }
+      return { source: sdk, failed, assets: allAssets, invalid: invalidRows }
     },
   )
 
@@ -218,6 +222,15 @@ export function ChatAssetsProvider(props: {
     systemData,
     merged,
     counts: createMemo(() => AssetWorkbench.countAssetsByKind(merged().assets)),
+    status: createMemo(() =>
+      assetListStatus({
+        source: dirSdk(),
+        settledSource: list()?.source,
+        state: list.state,
+        failed: list()?.failed,
+        total: PROJECT_ASSET_LIST_COUNT,
+      }),
+    ),
     refetch,
   }
 

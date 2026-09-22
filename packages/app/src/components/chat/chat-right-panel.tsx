@@ -215,6 +215,7 @@ export function ChatRightPanel() {
 
   return (
     <SessionRightPanel
+      modeID="chat"
       size={size}
       fileTree={
         <>
@@ -271,7 +272,7 @@ export function ChatRightPanel() {
                       {language.t("promptAsset.candidate.applied")}
                     </span>
                     <Show when={candidate.appliedWarnings.length > 0}>
-                      <div class="mt-2 rounded-[6px] border border-v2-state-border-warning bg-v2-state-bg-warning p-2 text-v2-state-fg-warning text-12-regular">
+                      <div class="mt-2 rounded-md border border-v2-state-border-warning bg-v2-state-bg-warning p-2 text-v2-state-fg-warning text-12-regular">
                         <div class="mb-1 font-semibold">{language.t("promptAsset.candidate.appliedWarningTitle")}</div>
                         <ul class="list-disc pl-4">
                           <For each={candidate.appliedWarnings}>
@@ -299,12 +300,12 @@ export function ChatRightPanel() {
                   {candidate.candidate?.description}
                 </div>
                 <Show when={applyError()}>
-                  <div class="mb-2 rounded-[4px] border border-v2-state-border-danger bg-v2-state-bg-danger p-2 text-v2-state-fg-danger text-12-regular">
+                  <div class="mb-2 rounded-sm border border-v2-state-border-danger bg-v2-state-bg-danger p-2 text-v2-state-fg-danger text-12-regular">
                     {applyError()}
                   </div>
                 </Show>
                 <Show when={candidate.candidate?.kind === "agent" && (candidate.candidate.warnings?.length ?? 0) > 0}>
-                  <div class="mb-2 rounded-[4px] border border-v2-state-border-warning bg-v2-state-bg-warning p-2 text-v2-state-fg-warning text-12-regular">
+                  <div class="mb-2 rounded-sm border border-v2-state-border-warning bg-v2-state-bg-warning p-2 text-v2-state-fg-warning text-12-regular">
                     <div class="mb-1 font-semibold">{language.t("promptAsset.candidate.warningTitle")}</div>
                     <ul class="list-disc pl-4">
                       <For each={candidate.candidate?.warnings ?? []}>

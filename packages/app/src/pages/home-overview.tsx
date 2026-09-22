@@ -43,7 +43,7 @@ import { useNavigate } from "@solidjs/router"
 
 const OVERVIEW_GRID = "mx-auto grid h-full w-full max-w-[1200px] grid-cols-[220px_minmax(0,1fr)] gap-4 px-6"
 const MODE_FILTER_ROW =
-  "flex h-7 min-w-0 cursor-default items-center gap-2 rounded-[6px] px-1.5 text-left text-[13px] text-v2-text-text-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:bg-v2-overlay-simple-overlay-hover data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base"
+  "flex h-7 min-w-0 cursor-default items-center gap-2 rounded-md px-1.5 text-left text-[13px] text-v2-text-text-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:bg-v2-overlay-simple-overlay-hover data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base"
 const MODE_FILTER_COUNT = "ml-auto shrink-0 text-11-regular text-v2-text-text-faint"
 
 /** Global session overview with mode/project filters and a last-active pin. */
@@ -389,7 +389,7 @@ function HomeOfflineNotice(props: { server: ServerConnection.Any; onManageServer
     <div
       data-component="home-overview-offline"
       role="status"
-      class="flex min-w-0 flex-col items-start gap-3 rounded-[8px] border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4"
+      class="flex min-w-0 flex-col items-start gap-3 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-4"
     >
       <div class="flex min-w-0 flex-col gap-1">
         <p class="text-13-medium text-v2-text-text-base">

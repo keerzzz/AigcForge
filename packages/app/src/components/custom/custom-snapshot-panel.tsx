@@ -8,10 +8,13 @@ import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
 import { openSessionByID } from "@/pages/layout/helpers"
 import { useCustomDraft } from "@/context/custom-draft"
+import { useMode } from "@/context/mode"
 import { showToast } from "@/utils/toast"
 import type { Snapshot } from "@aigcfroge/schema/composition"
 import { decodeSnapshotResponse } from "@/utils/snapshot-decode"
 import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
+import { SessionRightPanel } from "@/components/session-right-panel"
+import { createSizing } from "@/pages/session/helpers"
 import { classifySnapshotFailure, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
 
 export interface CustomSessionPanelProps {
@@ -26,6 +29,8 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   const global = useGlobal()
   const server = useServer()
   const draft = useCustomDraft()
+  const mode = useMode()
+  const size = createSizing()
 
   const [upgrading, setUpgrading] = createSignal(false)
   const [upgradeError, setUpgradeError] = createSignal<string | undefined>()
@@ -149,196 +154,204 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   }
 
   return (
-    <div class="flex flex-col gap-4 h-full p-4 overflow-y-auto bg-v2-background-bg-layer-01">
-      {/* Header */}
-      <div class="flex items-center justify-between border-b border-v2-border-border-base pb-3">
-        <div class="flex items-center gap-2">
-          <Icon name="mode-custom" size="small" class="text-v2-text-text-base" />
-          <span class="text-v2-text-text-base text-14-medium">{language.t("custom.snapshot.panelTitle")}</span>
-        </div>
-        <ButtonV2 variant="neutral" size="small" icon="edit" loading={upgrading()} onClick={handleUpgrade}>
-          {language.t("custom.snapshot.upgradeButton")}
-        </ButtonV2>
-      </div>
-
-      <Show when={upgradeError()}>
-        <div class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center justify-between">
-          <span>{upgradeError()}</span>
-          <button
-            type="button"
-            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
-            aria-label={language.t("common.dismiss")}
-            onClick={() => setUpgradeError(undefined)}
-          >
-            <Icon name="close" size="small" />
-          </button>
-        </div>
-      </Show>
-
-      {/* A failed composition read is reported; only a 404 renders as "no snapshot" */}
-      <Show when={snapshotError()}>
-        {(message) => (
-          <div class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-3 text-12-regular text-v2-state-fg-danger">
-            <Icon name="warning" size="small" class="shrink-0" />
-            <span class="min-w-0 flex-1">{language.t("custom.snapshot.loadFailed", { message: message() })}</span>
+    <SessionRightPanel modeID="custom" size={size} ariaLabel={language.t("custom.snapshot.panelTitle")}>
+      <div class="flex flex-col gap-4 h-full p-4 overflow-y-auto bg-v2-background-bg-layer-01">
+        {/* Header */}
+        <div class="flex items-center justify-between border-b border-v2-border-border-base pb-3">
+          <div class="flex items-center gap-2">
+            <Icon name="mode-custom" size="small" class="text-v2-text-text-base" />
+            <span class="text-v2-text-text-base text-14-medium">{language.t("custom.snapshot.panelTitle")}</span>
           </div>
-        )}
-      </Show>
+          <ButtonV2 variant="neutral" size="small" icon="edit" loading={upgrading()} onClick={handleUpgrade}>
+            {language.t("custom.snapshot.upgradeButton")}
+          </ButtonV2>
+        </div>
 
-      <WorkflowRuntimePanel sessionID={props.sessionID} />
-
-      {/* Snapshot Metadata Cards */}
-      <div class="flex flex-col gap-3">
-        {/* Digest */}
-        <div class="flex flex-col gap-1 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
-          <div class="flex items-center justify-between">
-            <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-              {language.t("custom.snapshot.digest")}
-            </span>
+        <Show when={upgradeError()}>
+          <div class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center justify-between">
+            <span>{upgradeError()}</span>
             <button
               type="button"
-              class="text-11-medium text-v2-text-text-muted hover:text-v2-text-text-base flex items-center gap-1"
-              onClick={handleCopyDigest}
+              class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+              aria-label={language.t("common.dismiss")}
+              onClick={() => setUpgradeError(undefined)}
             >
-              <Icon name={copied() ? "check" : "copy"} size="small" />
-              <span>{copied() ? language.t("common.copied") : language.t("common.copy")}</span>
+              <Icon name="close" size="small" />
             </button>
           </div>
-          <span class="font-mono text-12-regular text-v2-text-text-base break-all select-all">{digest() || "-"}</span>
-        </div>
+        </Show>
 
-        {/* Root agent, as frozen. Custom's root is protocol-fixed (D3), so this
-            reports what the snapshot holds and never falls back to draft state. */}
-        <div class="flex items-center justify-between rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
-          <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-            {language.t("custom.snapshot.rootAgent")}
-          </span>
-          <span class="font-mono text-12-medium text-blue-400">
-            {(() => {
-              const snap = snapshot()
-              if (!snap) return "-"
-              if (snap.version === 1) return snap.data.agentID
-              return snap.data.agents[0]?.name ?? snap.data.agents[0]?.id ?? "-"
-            })()}
-          </span>
-        </div>
+        {/* A failed composition read is reported; only a 404 renders as "no snapshot" */}
+        <Show when={snapshotError()}>
+          {(message) => (
+            <div class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-3 text-12-regular text-v2-state-fg-danger">
+              <Icon name="warning" size="small" class="shrink-0" />
+              <span class="min-w-0 flex-1">{language.t("custom.snapshot.loadFailed", { message: message() })}</span>
+            </div>
+          )}
+        </Show>
 
-        {/* Workflow Info (v2) */}
-        <Show when={snapshotV2()?.data.workflow}>
-          <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+        <Show when={mode.currentMode === "custom"}>
+          <WorkflowRuntimePanel sessionID={props.sessionID} />
+        </Show>
+
+        {/* Snapshot Metadata Cards */}
+        <div class="flex flex-col gap-3">
+          {/* Digest */}
+          <div class="flex flex-col gap-1 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
             <div class="flex items-center justify-between">
               <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-                Workflow ({snapshotV2()?.data.workflow?.name})
+                {language.t("custom.snapshot.digest")}
               </span>
-              <span class="rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 font-mono text-10-regular text-amber-300">
-                {snapshotV2()?.data.workflow?.steps.length} steps
-              </span>
+              <button
+                type="button"
+                class="text-11-medium text-v2-text-text-muted hover:text-v2-text-text-base flex items-center gap-1"
+                onClick={handleCopyDigest}
+              >
+                <Icon name={copied() ? "check" : "copy"} size="small" />
+                <span>{copied() ? language.t("common.copied") : language.t("common.copy")}</span>
+              </button>
             </div>
-            <div class="flex flex-col gap-1.5 mt-1">
-              <For each={snapshotV2()?.data.workflow?.steps ?? []}>
-                {(step) => (
-                  <div class="flex items-center justify-between rounded bg-v2-background-bg-layer-01 px-2 py-1 text-11-regular border border-v2-border-border-faint">
-                    <span class="font-medium text-v2-text-text-base">{step.name || step.id}</span>
-                    <span class="font-mono text-10-regular text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                      {step.agent}
-                    </span>
-                  </div>
-                )}
-              </For>
-            </div>
+            <span class="font-mono text-12-regular text-v2-text-text-base break-all select-all">{digest() || "-"}</span>
           </div>
-        </Show>
 
-        {/* Agent Pool list (v2) */}
-        <Show when={(snapshotV2()?.data.agents ?? []).length > 1}>
+          {/* Root agent, as frozen. Custom's root is protocol-fixed (D3), so this
+            reports what the snapshot holds and never falls back to draft state. */}
+          <div class="flex items-center justify-between rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+            <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+              {language.t("custom.snapshot.rootAgent")}
+            </span>
+            <span class="font-mono text-12-medium text-blue-400">
+              {(() => {
+                const snap = snapshot()
+                if (!snap) return "-"
+                if (snap.version === 1) return snap.data.agentID
+                return snap.data.agents[0]?.name ?? snap.data.agents[0]?.id ?? "-"
+              })()}
+            </span>
+          </div>
+
+          {/* Workflow Info (v2) */}
+          <Show when={snapshotV2()?.data.workflow}>
+            <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+                  Workflow ({snapshotV2()?.data.workflow?.name})
+                </span>
+                <span class="rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 font-mono text-10-regular text-amber-300">
+                  {snapshotV2()?.data.workflow?.steps.length} steps
+                </span>
+              </div>
+              <div class="flex flex-col gap-1.5 mt-1">
+                <For each={snapshotV2()?.data.workflow?.steps ?? []}>
+                  {(step) => (
+                    <div class="flex items-center justify-between rounded bg-v2-background-bg-layer-01 px-2 py-1 text-11-regular border border-v2-border-border-faint">
+                      <span class="font-medium text-v2-text-text-base">{step.name || step.id}</span>
+                      <span class="font-mono text-10-regular text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                        {step.agent}
+                      </span>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+          </Show>
+
+          {/* Agent Pool list (v2) */}
+          <Show when={(snapshotV2()?.data.agents ?? []).length > 1}>
+            <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+              <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+                Agent Pool ({(snapshotV2()?.data.agents ?? []).length})
+              </span>
+              <div class="flex flex-wrap gap-1.5">
+                <For each={snapshotV2()?.data.agents ?? []}>
+                  {(ag) => (
+                    <span class="rounded bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 font-mono text-11-regular text-blue-300">
+                      {ag.name || ag.id}
+                    </span>
+                  )}
+                </For>
+              </div>
+            </div>
+          </Show>
+
+          {/* Prompts list */}
           <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
             <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-              Agent Pool ({(snapshotV2()?.data.agents ?? []).length})
+              {language.t("custom.sidebar.prompts")} ({(snapshot()?.data.prompts ?? []).length})
             </span>
-            <div class="flex flex-wrap gap-1.5">
-              <For each={snapshotV2()?.data.agents ?? []}>
-                {(ag) => (
-                  <span class="rounded bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 font-mono text-11-regular text-blue-300">
-                    {ag.name || ag.id}
-                  </span>
-                )}
-              </For>
-            </div>
-          </div>
-        </Show>
-
-        {/* Prompts list */}
-        <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
-          <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-            {language.t("custom.sidebar.prompts")} ({(snapshot()?.data.prompts ?? []).length})
-          </span>
-          <Show
-            when={(snapshot()?.data.prompts ?? []).length > 0}
-            fallback={
-              <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.builder.noBoundPrompts")}</span>
-            }
-          >
-            <div class="flex flex-wrap gap-1.5">
-              <For each={snapshot()?.data.prompts ?? []}>
-                {(prompt) => (
-                  <span class="rounded bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 font-mono text-11-regular text-purple-300">
-                    {prompt.relativePath}
-                  </span>
-                )}
-              </For>
-            </div>
-          </Show>
-        </div>
-
-        {/* Skills list */}
-        <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
-          <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-            {language.t("custom.sidebar.skills")} ({(snapshot()?.data.skills ?? []).length})
-          </span>
-          <Show
-            when={(snapshot()?.data.skills ?? []).length > 0}
-            fallback={
-              <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.builder.noBoundSkills")}</span>
-            }
-          >
-            <div class="flex flex-wrap gap-1.5">
-              <For each={snapshot()?.data.skills ?? []}>
-                {(skill) => (
-                  <span class="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 font-mono text-11-regular text-emerald-300">
-                    {skill.name}
-                  </span>
-                )}
-              </For>
-            </div>
-          </Show>
-        </div>
-
-        {/* Commands list (per consumer binding) */}
-        <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
-          <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
-            {language.t("custom.sidebar.commands")} ({commandEntries().length})
-          </span>
-          <Show
-            when={commandEntries().length > 0}
-            fallback={
-              <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.sidebar.noCommands")}</span>
-            }
-          >
-            <div class="flex flex-col gap-1.5">
-              <For each={commandEntries()}>
-                {(entry) => (
-                  <div class="flex items-center justify-between rounded bg-v2-background-bg-layer-01 px-2 py-1 text-11-regular border border-v2-border-border-faint">
-                    <span class="font-medium text-v2-text-text-base">{entry.command.name}</span>
-                    <span class="font-mono text-10-regular text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded">
-                      {entry.consumer}
+            <Show
+              when={(snapshot()?.data.prompts ?? []).length > 0}
+              fallback={
+                <span class="text-v2-text-text-faint text-11-regular">
+                  {language.t("custom.builder.noBoundPrompts")}
+                </span>
+              }
+            >
+              <div class="flex flex-wrap gap-1.5">
+                <For each={snapshot()?.data.prompts ?? []}>
+                  {(prompt) => (
+                    <span class="rounded bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 font-mono text-11-regular text-purple-300">
+                      {prompt.relativePath}
                     </span>
-                  </div>
-                )}
-              </For>
-            </div>
-          </Show>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </div>
+
+          {/* Skills list */}
+          <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+            <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+              {language.t("custom.sidebar.skills")} ({(snapshot()?.data.skills ?? []).length})
+            </span>
+            <Show
+              when={(snapshot()?.data.skills ?? []).length > 0}
+              fallback={
+                <span class="text-v2-text-text-faint text-11-regular">
+                  {language.t("custom.builder.noBoundSkills")}
+                </span>
+              }
+            >
+              <div class="flex flex-wrap gap-1.5">
+                <For each={snapshot()?.data.skills ?? []}>
+                  {(skill) => (
+                    <span class="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 font-mono text-11-regular text-emerald-300">
+                      {skill.name}
+                    </span>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </div>
+
+          {/* Commands list (per consumer binding) */}
+          <div class="flex flex-col gap-2 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+            <span class="text-v2-text-text-muted text-11-medium uppercase tracking-wider">
+              {language.t("custom.sidebar.commands")} ({commandEntries().length})
+            </span>
+            <Show
+              when={commandEntries().length > 0}
+              fallback={
+                <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.sidebar.noCommands")}</span>
+              }
+            >
+              <div class="flex flex-col gap-1.5">
+                <For each={commandEntries()}>
+                  {(entry) => (
+                    <div class="flex items-center justify-between rounded bg-v2-background-bg-layer-01 px-2 py-1 text-11-regular border border-v2-border-border-faint">
+                      <span class="font-medium text-v2-text-text-base">{entry.command.name}</span>
+                      <span class="font-mono text-10-regular text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded">
+                        {entry.consumer}
+                      </span>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </div>
         </div>
       </div>
-    </div>
+    </SessionRightPanel>
   )
 }

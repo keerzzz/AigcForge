@@ -11,6 +11,7 @@ import { useCustomDraft } from "@/context/custom-draft"
 import type { DirectorySDK } from "@/context/sdk"
 import { ASSET_KINDS, catalogStatus, foldAssetCatalog, listOutcome, showsEmptyState } from "./custom-asset-catalog"
 import { AssetLoadError } from "@/components/asset-load-error"
+import { SessionSkeleton } from "@/pages/layout/sidebar-items"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 type AssetCategory = "all" | "agents" | "workflows" | "prompts" | "skills" | "commands"
@@ -31,33 +32,47 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
 
   // P2-14: hidden mode slots must not issue asset requests.
   const slotActive = useModeSlotActive()
-  const [discovered, { refetch }] = createResource(
-    () => whenActive(slotActive(), props.dirSdk),
-    async (sdk) => {
-      if (!sdk) return undefined
-      // `allSettled`, not `all` with per-call catches: a failing kind has to be
-      // reported as a failure instead of arriving as an empty list. See
-      // custom-asset-catalog.ts (P2-10 / P2-13).
-      const [agents, workflows, prompts, skills, commands] = await Promise.allSettled([
-        sdk.client.agentAsset.list(),
-        sdk.client.workflowAsset.list(),
-        sdk.client.promptAsset.list(),
-        sdk.client.skillAsset.list(),
-        sdk.client.commandAsset.list(),
-      ])
-      return foldAssetCatalog({
+  const source = createMemo(() => whenActive(slotActive(), props.dirSdk))
+  const [discovered, { refetch }] = createResource(source, async (sdk) => {
+    if (!sdk) return undefined
+    // `allSettled`, not `all` with per-call catches: a failing kind has to be
+    // reported as a failure instead of arriving as an empty list. See
+    // custom-asset-catalog.ts (P2-10 / P2-13).
+    const [agents, workflows, prompts, skills, commands] = await Promise.allSettled([
+      sdk.client.agentAsset.list(),
+      sdk.client.workflowAsset.list(),
+      sdk.client.promptAsset.list(),
+      sdk.client.skillAsset.list(),
+      sdk.client.commandAsset.list(),
+    ])
+    return {
+      source: sdk,
+      ...foldAssetCatalog({
         agents: listOutcome(agents),
         workflows: listOutcome(workflows),
         prompts: listOutcome(prompts),
         skills: listOutcome(skills),
         commands: listOutcome(commands),
-      })
-    },
-  )
+      }),
+    }
+  })
 
-  const status = createMemo(() => catalogStatus({ loading: discovered.loading, failed: discovered.latest?.failed }))
-  const failedKinds = createMemo(() => discovered.latest?.failed ?? [])
-  const catalog = createMemo(() => discovered.latest)
+  const catalog = createMemo(() => {
+    const data = discovered()
+    return data?.source === source() ? data : undefined
+  })
+  const status = createMemo(() =>
+    catalogStatus({
+      source: source(),
+      settledSource: discovered()?.source,
+      state: discovered.state,
+      failed: discovered()?.failed,
+    }),
+  )
+  const failedKinds = createMemo(() => {
+    const failed = catalog()?.failed ?? []
+    return failed.length > 0 ? failed : status() === "error" ? ASSET_KINDS : []
+  })
 
   const query = createMemo(() => search().toLowerCase().trim())
 
@@ -227,282 +242,300 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
 
       {/* Assets list */}
       <div class="flex flex-col gap-3 px-2 overflow-y-auto max-h-[calc(100vh-280px)]">
-        {/* Agents */}
-        <Show when={activeCategory() === "all" || activeCategory() === "agents"}>
-          <div class="flex flex-col gap-1">
-            <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
-              {language.t("custom.sidebar.agents")}
-            </span>
-            <Show
-              when={filteredAgents().length > 0}
-              fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noAgents")}
-                </div>
-              }
-            >
-              <For each={filteredAgents()}>
-                {(agent) => {
-                  const isIncluded = () => draft.state.agents.some((a) => a.relativePath === agent.relativePath)
-
-                  return (
-                    <button
-                      type="button"
-                      class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
-                      onClick={() => {
-                        if (isIncluded()) {
-                          draft.removeAgent(agent.relativePath)
-                          return
-                        }
-                        draft.addAgent({
-                          kind: "agent",
-                          relativePath: agent.relativePath,
-                          revision: agent.revision,
-                          name: agent.name,
-                          description: agent.description,
-                        })
-                      }}
-                    >
-                      <div class="flex items-center gap-1.5 min-w-0">
-                        <Icon name="mode-assistant" size="small" class="text-blue-400 shrink-0" />
-                        <span class="text-12-regular text-v2-text-text-base truncate">{agent.name}</span>
-                      </div>
-                      <div class="flex items-center gap-1 shrink-0">
-                        <Show when={isIncluded()}>
-                          <Icon name="check" size="small" class="text-emerald-400" />
-                        </Show>
-                      </div>
-                    </button>
-                  )
-                }}
-              </For>
-            </Show>
-          </div>
-        </Show>
-
-        <Show when={activeCategory() === "all" || activeCategory() === "workflows"}>
-          <div class="flex flex-col gap-1">
-            <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
-              {language.t("custom.sidebar.workflows")}
-            </span>
-            <Show
-              when={filteredWorkflows().length > 0}
-              fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noWorkflows")}
-                </div>
-              }
-            >
-              <For each={filteredWorkflows()}>
-                {(workflow) => {
-                  const isSelected = () => draft.state.workflow?.relativePath === workflow.relativePath
-                  return (
-                    <button
-                      type="button"
-                      aria-pressed={isSelected()}
-                      class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
-                      onClick={() =>
-                        draft.toggleWorkflow({
-                          kind: "workflow",
-                          relativePath: workflow.relativePath,
-                          revision: workflow.revision,
-                          name: workflow.name,
-                          description: workflow.description,
-                        })
-                      }
-                    >
-                      <div class="flex min-w-0 items-center gap-1.5">
-                        <Icon name="mode-custom" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                        <span class="truncate text-v2-text-text-base text-12-regular">{workflow.name}</span>
-                      </div>
-                      <Show when={isSelected()}>
-                        <Icon name="check" size="small" class="shrink-0 text-v2-state-fg-success" />
-                      </Show>
-                    </button>
-                  )
-                }}
-              </For>
-            </Show>
-          </div>
-        </Show>
-
-        {/* Prompts */}
-        <Show when={activeCategory() === "all" || activeCategory() === "prompts"}>
-          <div class="flex flex-col gap-1">
-            <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
-              {language.t("custom.sidebar.prompts")}
-            </span>
-            <Show
-              when={filteredPrompts().length > 0}
-              fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noPrompts")}
-                </div>
-              }
-            >
-              <For each={filteredPrompts()}>
-                {(prompt) => {
-                  const isBound = () =>
-                    (draft.state.bindings["orchestrator"]?.prompts ?? []).some(
-                      (p) => p.relativePath === prompt.relativePath,
-                    )
-
-                  return (
-                    <button
-                      type="button"
-                      class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
-                      onClick={() =>
-                        draft.togglePrompt("orchestrator", {
-                          kind: "prompt",
-                          relativePath: prompt.relativePath,
-                          revision: prompt.revision,
-                          name: prompt.name,
-                        })
-                      }
-                    >
-                      <div class="flex items-center gap-1.5 min-w-0">
-                        <Icon name="mode-chat" size="small" class="text-purple-400 shrink-0" />
-                        <span class="text-12-regular text-v2-text-text-base truncate">{prompt.name}</span>
-                      </div>
-                      <Show when={isBound()}>
-                        <Icon name="check" size="small" class="text-emerald-400 shrink-0" />
-                      </Show>
-                    </button>
-                  )
-                }}
-              </For>
-            </Show>
-          </div>
-        </Show>
-
-        <Show when={activeCategory() === "all" || activeCategory() === "commands"}>
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center justify-between gap-2 px-2">
-              <span class="text-10-medium uppercase tracking-wider text-v2-text-text-faint">
-                {language.t("custom.sidebar.commands")}
+        <Show
+          when={status() !== "loading" && status() !== "idle"}
+          fallback={status() === "loading" ? <SessionSkeleton count={6} /> : undefined}
+        >
+          {/* Agents */}
+          <Show when={activeCategory() === "all" || activeCategory() === "agents"}>
+            <div class="flex flex-col gap-1">
+              <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
+                {language.t("custom.sidebar.agents")}
               </span>
-              <label class="flex min-w-0 items-center gap-1.5 text-v2-text-text-muted text-10-regular">
-                <span class="shrink-0">{language.t("custom.sidebar.consumer")}</span>
-                <select
-                  aria-label={language.t("custom.sidebar.consumer")}
-                  class="min-w-0 max-w-32 rounded border border-v2-border-border-base bg-v2-background-bg-layer-02 px-1.5 py-0.5 text-v2-text-text-base text-10-regular focus:border-v2-border-border-focus focus:outline-none"
-                  value={commandConsumer()}
-                  onChange={(event) => setCommandConsumer(event.currentTarget.value)}
-                >
-                  <option value="orchestrator">{language.t("custom.sidebar.consumerOrchestrator")}</option>
-                  <For each={draft.state.agents}>
-                    {(agent) => {
-                      const name = agent.name ?? agent.relativePath.replace(/\.md$/, "")
-                      return <option value={`agents/${name}`}>{name}</option>
-                    }}
-                  </For>
-                </select>
-              </label>
+              <Show
+                when={filteredAgents().length > 0}
+                fallback={
+                  status() === "ready" ? (
+                    <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                      {language.t("custom.sidebar.noAgents")}
+                    </div>
+                  ) : undefined
+                }
+              >
+                <For each={filteredAgents()}>
+                  {(agent) => {
+                    const isIncluded = () => draft.state.agents.some((a) => a.relativePath === agent.relativePath)
+
+                    return (
+                      <button
+                        type="button"
+                        class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
+                        onClick={() => {
+                          if (isIncluded()) {
+                            draft.removeAgent(agent.relativePath)
+                            return
+                          }
+                          draft.addAgent({
+                            kind: "agent",
+                            relativePath: agent.relativePath,
+                            revision: agent.revision,
+                            name: agent.name,
+                            description: agent.description,
+                          })
+                        }}
+                      >
+                        <div class="flex items-center gap-1.5 min-w-0">
+                          <Icon name="mode-assistant" size="small" class="text-blue-400 shrink-0" />
+                          <span class="text-12-regular text-v2-text-text-base truncate">{agent.name}</span>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                          <Show when={isIncluded()}>
+                            <Icon name="check" size="small" class="text-emerald-400" />
+                          </Show>
+                        </div>
+                      </button>
+                    )
+                  }}
+                </For>
+              </Show>
             </div>
-            <Show
-              when={filteredCommands().length > 0}
-              fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noCommands")}
-                </div>
-              }
-            >
-              <For each={filteredCommands()}>
-                {(command) => {
-                  const isBound = () =>
-                    (draft.state.bindings[commandConsumer()]?.commands ?? []).some(
-                      (item) => item.relativePath === command.relativePath,
+          </Show>
+
+          <Show when={activeCategory() === "all" || activeCategory() === "workflows"}>
+            <div class="flex flex-col gap-1">
+              <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
+                {language.t("custom.sidebar.workflows")}
+              </span>
+              <Show
+                when={filteredWorkflows().length > 0}
+                fallback={
+                  status() === "ready" ? (
+                    <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                      {language.t("custom.sidebar.noWorkflows")}
+                    </div>
+                  ) : undefined
+                }
+              >
+                <For each={filteredWorkflows()}>
+                  {(workflow) => {
+                    const isSelected = () => draft.state.workflow?.relativePath === workflow.relativePath
+                    return (
+                      <button
+                        type="button"
+                        aria-pressed={isSelected()}
+                        class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
+                        onClick={() =>
+                          draft.toggleWorkflow({
+                            kind: "workflow",
+                            relativePath: workflow.relativePath,
+                            revision: workflow.revision,
+                            name: workflow.name,
+                            description: workflow.description,
+                          })
+                        }
+                      >
+                        <div class="flex min-w-0 items-center gap-1.5">
+                          <Icon name="mode-custom" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                          <span class="truncate text-v2-text-text-base text-12-regular">{workflow.name}</span>
+                        </div>
+                        <Show when={isSelected()}>
+                          <Icon name="check" size="small" class="shrink-0 text-v2-state-fg-success" />
+                        </Show>
+                      </button>
                     )
-                  return (
-                    <button
-                      type="button"
-                      aria-pressed={isBound()}
-                      class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
-                      onClick={() =>
-                        draft.toggleCommand(commandConsumer(), {
-                          kind: "command",
-                          relativePath: command.relativePath,
-                          revision: command.revision,
-                          name: command.name,
-                          description: command.description,
-                        })
-                      }
-                    >
-                      <div class="flex min-w-0 items-center gap-1.5">
-                        <Icon name="settings-gear" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                        <span class="truncate text-v2-text-text-base text-12-regular">{command.name}</span>
-                      </div>
-                      <Show when={isBound()}>
-                        <Icon name="check" size="small" class="shrink-0 text-v2-state-fg-success" />
-                      </Show>
-                    </button>
-                  )
-                }}
-              </For>
-            </Show>
-          </div>
-        </Show>
+                  }}
+                </For>
+              </Show>
+            </div>
+          </Show>
 
-        {/* Skills */}
-        <Show when={activeCategory() === "all" || activeCategory() === "skills"}>
-          <div class="flex flex-col gap-1">
-            <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
-              {language.t("custom.sidebar.skills")}
-            </span>
-            <Show
-              when={filteredSkills().length > 0}
-              fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noSkills")}
-                </div>
-              }
-            >
-              <For each={filteredSkills()}>
-                {(skill) => {
-                  const isBound = () =>
-                    (draft.state.bindings["orchestrator"]?.skills ?? []).some(
-                      (s) => s.relativePath === skill.relativePath,
+          {/* Prompts */}
+          <Show when={activeCategory() === "all" || activeCategory() === "prompts"}>
+            <div class="flex flex-col gap-1">
+              <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
+                {language.t("custom.sidebar.prompts")}
+              </span>
+              <Show
+                when={filteredPrompts().length > 0}
+                fallback={
+                  status() === "ready" ? (
+                    <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                      {language.t("custom.sidebar.noPrompts")}
+                    </div>
+                  ) : undefined
+                }
+              >
+                <For each={filteredPrompts()}>
+                  {(prompt) => {
+                    const isBound = () =>
+                      (draft.state.bindings["orchestrator"]?.prompts ?? []).some(
+                        (p) => p.relativePath === prompt.relativePath,
+                      )
+
+                    return (
+                      <button
+                        type="button"
+                        class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
+                        onClick={() =>
+                          draft.togglePrompt("orchestrator", {
+                            kind: "prompt",
+                            relativePath: prompt.relativePath,
+                            revision: prompt.revision,
+                            name: prompt.name,
+                          })
+                        }
+                      >
+                        <div class="flex items-center gap-1.5 min-w-0">
+                          <Icon name="mode-chat" size="small" class="text-purple-400 shrink-0" />
+                          <span class="text-12-regular text-v2-text-text-base truncate">{prompt.name}</span>
+                        </div>
+                        <Show when={isBound()}>
+                          <Icon name="check" size="small" class="text-emerald-400 shrink-0" />
+                        </Show>
+                      </button>
                     )
+                  }}
+                </For>
+              </Show>
+            </div>
+          </Show>
 
-                  return (
-                    <button
-                      type="button"
-                      class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
-                      onClick={() =>
-                        draft.toggleSkill("orchestrator", {
-                          kind: "skill",
-                          relativePath: skill.relativePath,
-                          revision: skill.revision,
-                          name: skill.name,
-                        })
-                      }
-                    >
-                      <div class="flex items-center gap-1.5 min-w-0">
-                        <Icon name="mode-work" size="small" class="text-emerald-400 shrink-0" />
-                        <span class="text-12-regular text-v2-text-text-base truncate">{skill.name}</span>
-                      </div>
-                      <Show when={isBound()}>
-                        <Icon name="check" size="small" class="text-emerald-400 shrink-0" />
-                      </Show>
-                    </button>
-                  )
-                }}
-              </For>
-            </Show>
-          </div>
+          <Show when={activeCategory() === "all" || activeCategory() === "commands"}>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between gap-2 px-2">
+                <span class="text-10-medium uppercase tracking-wider text-v2-text-text-faint">
+                  {language.t("custom.sidebar.commands")}
+                </span>
+                <label class="flex min-w-0 items-center gap-1.5 text-v2-text-text-muted text-10-regular">
+                  <span class="shrink-0">{language.t("custom.sidebar.consumer")}</span>
+                  <select
+                    aria-label={language.t("custom.sidebar.consumer")}
+                    class="min-w-0 max-w-32 rounded border border-v2-border-border-base bg-v2-background-bg-layer-02 px-1.5 py-0.5 text-v2-text-text-base text-10-regular focus:border-v2-border-border-focus focus:outline-none"
+                    value={commandConsumer()}
+                    onChange={(event) => setCommandConsumer(event.currentTarget.value)}
+                  >
+                    <option value="orchestrator">{language.t("custom.sidebar.consumerOrchestrator")}</option>
+                    <For each={draft.state.agents}>
+                      {(agent) => {
+                        const name = agent.name ?? agent.relativePath.replace(/\.md$/, "")
+                        return <option value={`agents/${name}`}>{name}</option>
+                      }}
+                    </For>
+                  </select>
+                </label>
+              </div>
+              <Show
+                when={filteredCommands().length > 0}
+                fallback={
+                  status() === "ready" ? (
+                    <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                      {language.t("custom.sidebar.noCommands")}
+                    </div>
+                  ) : undefined
+                }
+              >
+                <For each={filteredCommands()}>
+                  {(command) => {
+                    const isBound = () =>
+                      (draft.state.bindings[commandConsumer()]?.commands ?? []).some(
+                        (item) => item.relativePath === command.relativePath,
+                      )
+                    return (
+                      <button
+                        type="button"
+                        aria-pressed={isBound()}
+                        class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
+                        onClick={() =>
+                          draft.toggleCommand(commandConsumer(), {
+                            kind: "command",
+                            relativePath: command.relativePath,
+                            revision: command.revision,
+                            name: command.name,
+                            description: command.description,
+                          })
+                        }
+                      >
+                        <div class="flex min-w-0 items-center gap-1.5">
+                          <Icon name="settings-gear" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                          <span class="truncate text-v2-text-text-base text-12-regular">{command.name}</span>
+                        </div>
+                        <Show when={isBound()}>
+                          <Icon name="check" size="small" class="shrink-0 text-v2-state-fg-success" />
+                        </Show>
+                      </button>
+                    )
+                  }}
+                </For>
+              </Show>
+            </div>
+          </Show>
+
+          {/* Skills */}
+          <Show when={activeCategory() === "all" || activeCategory() === "skills"}>
+            <div class="flex flex-col gap-1">
+              <span class="px-2 text-10-medium uppercase tracking-wider text-v2-text-text-faint">
+                {language.t("custom.sidebar.skills")}
+              </span>
+              <Show
+                when={filteredSkills().length > 0}
+                fallback={
+                  status() === "ready" ? (
+                    <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                      {language.t("custom.sidebar.noSkills")}
+                    </div>
+                  ) : undefined
+                }
+              >
+                <For each={filteredSkills()}>
+                  {(skill) => {
+                    const isBound = () =>
+                      (draft.state.bindings["orchestrator"]?.skills ?? []).some(
+                        (s) => s.relativePath === skill.relativePath,
+                      )
+
+                    return (
+                      <button
+                        type="button"
+                        class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
+                        onClick={() =>
+                          draft.toggleSkill("orchestrator", {
+                            kind: "skill",
+                            relativePath: skill.relativePath,
+                            revision: skill.revision,
+                            name: skill.name,
+                          })
+                        }
+                      >
+                        <div class="flex items-center gap-1.5 min-w-0">
+                          <Icon name="mode-work" size="small" class="text-emerald-400 shrink-0" />
+                          <span class="text-12-regular text-v2-text-text-base truncate">{skill.name}</span>
+                        </div>
+                        <Show when={isBound()}>
+                          <Icon name="check" size="small" class="text-emerald-400 shrink-0" />
+                        </Show>
+                      </button>
+                    )
+                  }}
+                </For>
+              </Show>
+            </div>
+          </Show>
+
+          {/* Zero state: a clean read that found no agents (never a failed one) */}
+          <Show when={showsEmptyState({ status: status(), agentCount: catalog()?.agents.length ?? 0 })}>
+            <div
+              data-slot="custom-asset-empty-starter"
+              class="flex flex-col gap-2 rounded-md border border-dashed border-v2-border-border-base p-3 text-center mt-2"
+            >
+              <span class="text-v2-text-text-muted text-12-regular">{language.t("custom.sidebar.emptyStarter")}</span>
+              <ButtonV2 variant="neutral" size="small" icon="plus" onClick={handleCreateStarterAgent}>
+                {language.t("custom.sidebar.createStarterAgent")}
+              </ButtonV2>
+            </div>
+          </Show>
         </Show>
-
-        {/* Zero state: a clean read that found no agents (never a failed one) */}
-        <Show when={showsEmptyState({ status: status(), agentCount: catalog()?.agents.length ?? 0 })}>
-          <div
-            data-slot="custom-asset-empty-starter"
-            class="flex flex-col gap-2 rounded-md border border-dashed border-v2-border-border-base p-3 text-center mt-2"
-          >
-            <span class="text-v2-text-text-muted text-12-regular">{language.t("custom.sidebar.emptyStarter")}</span>
-            <ButtonV2 variant="neutral" size="small" icon="plus" onClick={handleCreateStarterAgent}>
-              {language.t("custom.sidebar.createStarterAgent")}
-            </ButtonV2>
-          </div>
+        <Show when={status() === "idle"}>
+          <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">{language.t("chat.feature.noLocation")}</div>
         </Show>
       </div>
     </div>

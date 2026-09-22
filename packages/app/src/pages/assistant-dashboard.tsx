@@ -26,6 +26,7 @@ import {
 } from "@/pages/home-shared"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 import { useModeSlotActive } from "@/pages/mode-slot-active"
+import { mutationErrorMessage } from "./assistant-dashboard-model"
 
 /** Assistant dashboard for reminders, deliveries, memory, notes, and Sessions. */
 export function AssistantDashboardMain() {
@@ -38,6 +39,17 @@ export function AssistantDashboardMain() {
   const layout = useLayout()
   const { conn, ctx, directory } = useModeDirectory()
   const { selection } = useAssistantSelection()
+  const [mutationError, setMutationError] = createSignal<string>()
+
+  async function runMutation(action: () => Promise<unknown>, refetch: () => Promise<unknown>) {
+    setMutationError(undefined)
+    try {
+      await action()
+      await refetch()
+    } catch (error) {
+      setMutationError(mutationErrorMessage(error, language.t("assistant.dashboard.actionError")))
+    }
+  }
 
   // All five of these are Assistant-only, and `ModeWorkspace` keeps every mode's slot
   // mounted, so without this gate opening Coding also asked the server for the Assistant's
@@ -80,22 +92,22 @@ export function AssistantDashboardMain() {
   const confirmedMemories = createMemo(() => memories().filter((m) => m.status === "confirmed"))
 
   function confirmMemory(id: string) {
-    void serverSDK()
-      .client.memory.confirm({ id })
-      .then(() => memoryQuery.refetch())
-      .catch(console.error)
+    void runMutation(
+      () => serverSDK().client.memory.confirm({ id }),
+      () => memoryQuery.refetch(),
+    )
   }
   function rejectMemory(id: string) {
-    void serverSDK()
-      .client.memory.reject({ id })
-      .then(() => memoryQuery.refetch())
-      .catch(console.error)
+    void runMutation(
+      () => serverSDK().client.memory.reject({ id }),
+      () => memoryQuery.refetch(),
+    )
   }
   function removeMemory(id: string) {
-    void serverSDK()
-      .client.memory.remove({ id })
-      .then(() => memoryQuery.refetch())
-      .catch(console.error)
+    void runMutation(
+      () => serverSDK().client.memory.remove({ id }),
+      () => memoryQuery.refetch(),
+    )
   }
 
   const kbQuery = useQuery(() => ({
@@ -128,32 +140,32 @@ export function AssistantDashboardMain() {
     const editingNote = editing()
     const sdk = serverSDK()
     if (creating() || !editingNote) {
-      void sdk.client.kb
-        .create({ title: editTitle(), content: editContent(), scope: "global" })
-        .then(() => {
+      void runMutation(
+        async () => {
+          await sdk.client.kb.create({ title: editTitle(), content: editContent(), scope: "global" })
           setCreating(false)
           setEditing(undefined)
-          void kbQuery.refetch()
-        })
-        .catch(console.error)
+        },
+        () => kbQuery.refetch(),
+      )
       return
     }
-    void sdk.client.kb
-      .update({ id: editingNote.id, title: editTitle(), content: editContent() })
-      .then(() => {
+    void runMutation(
+      async () => {
+        await sdk.client.kb.update({ id: editingNote.id, title: editTitle(), content: editContent() })
         setEditing(undefined)
-        void kbQuery.refetch()
-      })
-      .catch(console.error)
+      },
+      () => kbQuery.refetch(),
+    )
   }
   function deleteNote(id: string) {
-    void serverSDK()
-      .client.kb.remove({ id })
-      .then(() => {
+    void runMutation(
+      async () => {
+        await serverSDK().client.kb.remove({ id })
         setEditing(undefined)
-        void kbQuery.refetch()
-      })
-      .catch(console.error)
+      },
+      () => kbQuery.refetch(),
+    )
   }
 
   const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
@@ -214,17 +226,17 @@ export function AssistantDashboardMain() {
   }
 
   function cancelReminder(id: string) {
-    void serverSDK()
-      .client.schedule.cancel({ id })
-      .then(() => pendingQuery.refetch())
-      .catch(console.error)
+    void runMutation(
+      () => serverSDK().client.schedule.cancel({ id }),
+      () => pendingQuery.refetch(),
+    )
   }
 
   function markRead(deliveryKey: string) {
-    void serverSDK()
-      .client.delivery.read({ deliveryKey })
-      .then(() => recentQuery.refetch())
-      .catch(console.error)
+    void runMutation(
+      () => serverSDK().client.delivery.read({ deliveryKey }),
+      () => recentQuery.refetch(),
+    )
   }
 
   return (
@@ -243,6 +255,24 @@ export function AssistantDashboardMain() {
             onClick={newAssistantSession}
           />
         </div>
+
+        <Show when={mutationError()}>
+          <div
+            data-component="assistant-mutation-error"
+            role="alert"
+            class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-3 py-2"
+          >
+            <Icon name="warning" size="small" class="shrink-0 text-v2-state-fg-danger" />
+            <span class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">{mutationError()}</span>
+            <IconButtonV2
+              variant="ghost-muted"
+              size="small"
+              icon={<Icon name="close" />}
+              aria-label={language.t("common.dismiss")}
+              onClick={() => setMutationError(undefined)}
+            />
+          </div>
+        </Show>
 
         <section class="flex min-w-0 flex-col gap-3">
           <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.dashboard.reminders")}</h2>

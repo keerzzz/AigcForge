@@ -36,7 +36,7 @@ export {
 import { homeSessionSearchKey, type HomeSessionRecord } from "@/pages/home-sessions"
 
 const HOME_ROW_LAYOUT =
-  "flex min-w-0 w-full shrink-0 cursor-default items-center rounded-[6px] bg-transparent text-left transition-[background-color,color,box-shadow] duration-[120ms] ease-in-out focus-visible:outline-none"
+  "flex min-w-0 w-full shrink-0 cursor-default items-center rounded-md bg-transparent text-left transition-[background-color,color,box-shadow] duration-[120ms] ease-in-out focus-visible:outline-none"
 const HOME_ROW_BASE = `${HOME_ROW_LAYOUT} border-0`
 export const HOME_ROW = `${HOME_ROW_BASE} [font-weight:530] text-v2-text-text-muted hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover`
 export const HOME_SECTION_LABEL = "text-v2-text-text-muted [font-weight:440]"
@@ -62,7 +62,7 @@ export function HomeSessionLeading(props: {
       <Show when={hasOpenTab()}>
         <span
           aria-hidden="true"
-          class="pointer-events-none absolute top-1/2 h-[7px] w-[3px] -translate-y-1/2 rounded-[2px] bg-v2-background-bg-layer-04"
+          class="pointer-events-none absolute top-1/2 h-[7px] w-[3px] -translate-y-1/2 rounded-xs bg-v2-background-bg-layer-04"
           style={{ right: "calc(100% + 12px)" }}
         />
       </Show>
@@ -215,7 +215,7 @@ export function HomeSessionSearch(props: {
           </div>
         </Show>
         <label
-          class="relative z-20 flex h-9 w-full items-center gap-2 rounded-[6px] py-1 pl-3 pr-2 text-v2-icon-icon-muted transition-[background-color,box-shadow] duration-[120ms] ease-in-out"
+          class="relative z-20 flex h-9 w-full items-center gap-2 rounded-md py-1 pl-3 pr-2 text-v2-icon-icon-muted transition-[background-color,box-shadow] duration-[120ms] ease-in-out"
           classList={{
             "bg-v2-background-bg-layer-03 focus-within:bg-v2-background-bg-layer-03 focus-within:shadow-[0_0_0_0.5px_var(--v2-border-border-focus),var(--v2-elevation-raised)]":
               !props.open,
@@ -409,7 +409,7 @@ export function HomeSessionSkeleton(props: { label: string }) {
         <div class={HOME_SECTION_LABEL}>{props.label}</div>
       </div>
       <div class="flex min-w-0 flex-col gap-px" aria-hidden="true">
-        <For each={[0, 1, 2, 3]}>{() => <div class="h-10 rounded-[6px] bg-v2-background-bg-deep opacity-70" />}</For>
+        <For each={[0, 1, 2, 3]}>{() => <div class="h-10 rounded-md bg-v2-background-bg-deep opacity-70" />}</For>
       </div>
     </div>
   )

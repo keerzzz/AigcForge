@@ -598,7 +598,7 @@ function SecondarySidebar() {
 
       <Show when={mode.currentMode === "coding" && state.searchOpen}>
         <div class="flex flex-col gap-2 px-3 pb-2">
-          <div class="flex items-center gap-2 rounded-[6px] bg-v2-background-bg-layer-03 px-2 py-1.5">
+          <div class="flex items-center gap-2 rounded-md bg-v2-background-bg-layer-03 px-2 py-1.5">
             <Icon name="magnifying-glass" size="small" class="shrink-0 text-v2-icon-icon-muted" />
             <input
               class="min-w-0 flex-1 border-0 bg-transparent text-v2-text-text-base outline-0 [font-weight:440] placeholder:text-v2-text-text-faint"
@@ -636,7 +636,7 @@ function SecondarySidebar() {
                     <button
                       type="button"
                       role="option"
-                      class="flex cursor-default items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-v2-text-text-base hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none"
+                      class="flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-v2-text-text-base hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none"
                       onClick={() => {
                         closeSearch()
                         const c = conn()
@@ -948,7 +948,7 @@ function SecondaryProjectRow(props: {
   return (
     <div class="flex min-w-0 flex-col">
       <div
-        class="group/project relative flex h-7 min-w-0 cursor-default items-center rounded-[6px]"
+        class="group/project relative flex h-7 min-w-0 cursor-default items-center rounded-md"
         classList={{
           "bg-v2-overlay-simple-overlay-hover": isActiveProject(),
         }}
@@ -956,7 +956,7 @@ function SecondaryProjectRow(props: {
         <button
           type="button"
           aria-expanded={!props.collapsed}
-          class="flex h-full min-w-0 flex-1 cursor-default items-center rounded-[6px] border-0 bg-transparent p-0 pr-14 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+          class="flex h-full min-w-0 flex-1 cursor-default items-center rounded-md border-0 bg-transparent p-0 pr-14 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
           onClick={() => {
             if (menu.open) return
             props.onToggleCollapse()

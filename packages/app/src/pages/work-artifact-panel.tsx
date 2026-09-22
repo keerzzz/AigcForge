@@ -1,4 +1,4 @@
-import { Show, createMemo, createSignal } from "solid-js"
+import { Match, Show, Switch, createMemo, createSignal } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -21,14 +21,22 @@ import {
   draftFilename,
   extractHtmlBlock,
   findLatestAssistantMarkdown,
+  workArtifactView,
 } from "@/pages/work-artifact-extract"
 import { captureWorkArtifactAsCandidate } from "@/pages/work-asset-capture"
 import { setProposeCandidate } from "@/components/chat/prompt-asset-store"
 import { showToast } from "@/utils/toast"
 import { TextDiffView } from "@/pages/session/text-diff-view"
 import { createActiveTabWriteback } from "@/pages/session/file-tab-strip"
+import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
 import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
+
+const WORK_TABS = ["context", "artifact", "workflow"] as const
+type WorkTab = (typeof WORK_TABS)[number]
+
+const isWorkTab = (value: string | undefined): value is WorkTab =>
+  typeof value === "string" && (WORK_TABS as readonly string[]).includes(value)
 
 /** Read-only diff shown before confirming an overwrite. */
 function WorkDiffView(props: { oldText: string; newText: string }) {
@@ -54,6 +62,10 @@ export function WorkArtifactContent() {
     return findLatestAssistantMarkdown(messages, data.part)
   })
 
+  const messagesReady = createMemo(() => {
+    const id = sessionID()
+    return !!id && sync().data.message[id] !== undefined
+  })
   // Applied state belongs to the exact Session and candidate content.
   const appliedCurrent = createMemo(() => {
     const a = applied()
@@ -61,6 +73,13 @@ export function WorkArtifactContent() {
     const content = candidate()
     return a !== undefined && id !== undefined && content !== null && a.sessionID === id && a.content === content
   })
+  const view = createMemo(() =>
+    workArtifactView({
+      ready: messagesReady(),
+      hasCandidate: candidate() !== null,
+      applied: appliedCurrent(),
+    }),
+  )
 
   async function apply(overwrite = false) {
     const id = sessionID()
@@ -141,72 +160,76 @@ export function WorkArtifactContent() {
   }
 
   return (
-    <Show
-      when={appliedCurrent()}
-      fallback={
-        <Show
-          when={candidate()}
-          fallback={
-            <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-              <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.empty")}</p>
+    <Switch>
+      <Match when={view() === "loading"}>
+        <div data-component="work-artifact-loading" aria-busy="true" class="flex min-h-0 flex-1 flex-col gap-2 p-3">
+          <span class="sr-only">{language.t("common.loading")}</span>
+          <div class="h-8 w-full animate-pulse rounded-md bg-v2-background-bg-layer-03" />
+          <div class="h-24 w-full animate-pulse rounded-md bg-v2-background-bg-layer-02" />
+          <div class="h-8 w-2/3 animate-pulse rounded-md bg-v2-background-bg-layer-03" />
+        </div>
+      </Match>
+      <Match when={view() === "applied"}>
+        <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.applied")}</p>
+        </div>
+      </Match>
+      <Match when={view() === "candidate"}>
+        <div class="flex min-h-0 flex-1 flex-col">
+          <Show
+            when={detectArtifactFormat(candidate()!) === "html"}
+            fallback={
+              <ScrollView class="min-h-0 flex-1">
+                <div class="p-3">
+                  <Markdown text={candidate()!} />
+                </div>
+              </ScrollView>
+            }
+          >
+            {/* The iframe owns scrolling so the action bar remains visible. */}
+            <div class="min-h-0 flex-1 overflow-hidden p-3">
+              <HtmlArtifact
+                html={extractHtmlBlock(candidate()!) ?? ""}
+                labels={{
+                  preview: language.t("work.artifact.html.preview"),
+                  code: language.t("work.artifact.html.code"),
+                  renderError: language.t("work.artifact.html.renderError"),
+                  viewCode: language.t("work.artifact.html.viewCode"),
+                }}
+              />
             </div>
-          }
-        >
-          <div class="flex min-h-0 flex-1 flex-col">
-            <Show
-              when={detectArtifactFormat(candidate()!) === "html"}
-              fallback={
-                <ScrollView class="min-h-0 flex-1">
-                  <div class="p-3">
-                    <Markdown text={candidate()!} />
-                  </div>
-                </ScrollView>
-              }
+          </Show>
+          <div class="flex shrink-0 gap-2 p-3 pt-0">
+            <ButtonV2
+              variant="contrast"
+              size="normal"
+              icon="folder-add-left"
+              class="flex-1"
+              disabled={applying()}
+              onClick={() => void apply()}
             >
-              {/* The iframe owns scrolling so the action bar remains visible. */}
-              <div class="min-h-0 flex-1 overflow-hidden p-3">
-                <HtmlArtifact
-                  html={extractHtmlBlock(candidate()!) ?? ""}
-                  labels={{
-                    preview: language.t("work.artifact.html.preview"),
-                    code: language.t("work.artifact.html.code"),
-                    renderError: language.t("work.artifact.html.renderError"),
-                    viewCode: language.t("work.artifact.html.viewCode"),
-                  }}
-                />
-              </div>
-            </Show>
-            <div class="flex shrink-0 gap-2 p-3 pt-0">
+              {language.t("work.artifact.apply")}
+            </ButtonV2>
+            <Show when={candidate() !== null && !appliedCurrent()}>
               <ButtonV2
-                variant="contrast"
+                variant="neutral"
                 size="normal"
-                icon="folder-add-left"
                 class="flex-1"
-                disabled={applying()}
-                onClick={() => void apply()}
+                data-component="work-save-asset-button"
+                onClick={onSaveAsset}
               >
-                {language.t("work.artifact.apply")}
+                {language.t("work.asset.save")}
               </ButtonV2>
-              <Show when={candidate() !== null && !appliedCurrent()}>
-                <ButtonV2
-                  variant="neutral"
-                  size="normal"
-                  class="flex-1"
-                  data-component="work-save-asset-button"
-                  onClick={onSaveAsset}
-                >
-                  {language.t("work.asset.save")}
-                </ButtonV2>
-              </Show>
-            </div>
+            </Show>
           </div>
-        </Show>
-      }
-    >
-      <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-        <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.applied")}</p>
-      </div>
-    </Show>
+        </div>
+      </Match>
+      <Match when={view() === "empty"}>
+        <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.empty")}</p>
+        </div>
+      </Match>
+    </Switch>
   )
 }
 
@@ -215,11 +238,11 @@ export function WorkSessionPanel() {
   const language = useLanguage()
   const mode = useMode()
   const size = createSizing()
-  const { tabs } = useSessionLayout()
+  const { tabs, params } = useSessionLayout()
   const activeTab = createMemo(() => {
     if (mode.currentMode !== "work") return "artifact"
     const active = tabs().active()
-    if (active === "context" || active === "artifact") return active
+    if (isWorkTab(active)) return active
     return "artifact"
   })
   // Keep the shared session tab store authoritative so the global context entry
@@ -233,15 +256,16 @@ export function WorkSessionPanel() {
   })
   const selectTab = (value: string | number) => {
     const tab = String(value)
-    if (tab !== "context" && tab !== "artifact") return
+    if (!isWorkTab(tab)) return
     tabs().setActive(tab)
   }
   return (
-    <SessionRightPanel size={size} ariaLabel={language.t("work.artifact.tab")}>
+    <SessionRightPanel modeID="work" size={size} ariaLabel={language.t("work.artifact.tab")}>
       <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
         <TabsV2.List class="shrink-0 border-b border-v2-border-border-base">
           <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>
           <TabsV2.Trigger value="artifact">{language.t("work.artifact.tab")}</TabsV2.Trigger>
+          <TabsV2.Trigger value="workflow">{language.t("workflowRuntime.title")}</TabsV2.Trigger>
         </TabsV2.List>
         <TabsV2.Content value="context" class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Show when={activeTab() === "context"}>
@@ -253,6 +277,13 @@ export function WorkSessionPanel() {
         <TabsV2.Content value="artifact" class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Show when={activeTab() === "artifact"}>
             <WorkArtifactContent />
+          </Show>
+        </TabsV2.Content>
+        <TabsV2.Content value="workflow" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Show when={activeTab() === "workflow"}>
+            <div class="min-h-0 flex-1 overflow-y-auto p-3">
+              <WorkflowRuntimePanel sessionID={params.id} />
+            </div>
           </Show>
         </TabsV2.Content>
       </TabsV2>

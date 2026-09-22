@@ -19,6 +19,7 @@ export function AssetLoadError(props: { failed: readonly string[]; total: number
     <Show when={props.failed.length > 0}>
       <div
         data-slot="asset-load-error"
+        role="alert"
         class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger px-2 py-1.5"
       >
         <Icon name="warning" size="small" class="shrink-0 text-v2-state-fg-danger" />
