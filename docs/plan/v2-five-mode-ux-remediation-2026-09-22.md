@@ -25,7 +25,7 @@
 5. **S9c 延期**：`syncFromDirectory` 只有 core 服务，KB HTTP group 未暴露该能力。新增目录导入端点属于路径 containment、scope 授权与审计的安全边界变更，必须另立 ADR/专项。
 6. **S6 延期待裁决**：七类资产没有独立的空白创建 endpoint；现有写入边界是 per-kind `Candidate` + `*.apply`。直接空白创建需要逐 kind 定义合法候选、权限与 refetch 契约，先做产品/技术设计，不在本批伪装成 UI 接线。
 7. **RED 必须是行为证据**：遵守 `docs/testing.md:150-176`，禁止新增源码字符串/分支计数断言。源码扫描只允许作为一次性审计或构建产物验证；TDD 断言放 e2e、纯函数、类型或请求 payload 层。
-8. **S1 必须先做 spike**：先验证 `@theme` alias 合并后的计算值；若依赖 cascade 才能成立，则不宣称“单次声明”，改为“唯一字面量真源 + 构建产物证明”。S2 的 106 处等价替换与 3px/1px/12px 视觉归并拆开，后者需单独签字。
+8. **S1 必须先做 spike**：先验证 `@theme` alias 合并后的计算值；若依赖 cascade 才能成立，则不宣称“单次声明”，改为“唯一字面量真源 + 构建产物证明”。S2 的 107 处等价替换与 3px/1px/12px 视觉归并拆开，后者需单独签字。
 9. **命令修正**：单文件用 `bun --cwd packages/app test:unit:file <file>`；Playwright 用 `bun --cwd packages/app test:e2e`；协议检查用 `bash .aigcfroge/skills/protocols/scripts/check-refs.sh`。
 
 ### 本批执行范围
@@ -33,7 +33,7 @@
 | 状态 | Slice | 说明 |
 | --- | --- | --- |
 | **执行** | S1 | 先 spike，再最小归并 |
-| **执行** | S2a | 只做 106 处无争议映射 |
+| **执行** | S2a | 只做 107 处无争议映射 |
 | **待决** | S2b | 1px/3px/12px 视觉归并，单独签字 |
 | **执行** | S3 | WorkflowRuntimePanel 独立 Tab |
 | **执行** | S4b/S4c/S4d/S4e | Chat、Work、Assistant 引用、Custom 三态；S4a 仅在行为测试需要共享时提取 |
@@ -67,7 +67,7 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 | 批次 | Slice | 内容 | 依据 |
 | --- | --- | --- | --- |
 | **A · 执行** | S1 | `--radius-*` 字面量真源归并（先 spike） | 审计 §五-2（**归并**） |
-| | S2a | 106 处无争议圆角映射 | 审计 §五-1（**复用 + 删除**） |
+| | S2a | 107 处无争议圆角映射 | 审计 §五-1（**复用 + 删除**） |
 | | S3 | `WorkflowRuntimePanel` 挂进 work 分支 | 审计 §五-3（**复用**） |
 | | S4b/S4c/S4d/S4e | 三态契约：loading ≠ 空 ≠ 错误 | 审计 §五-4（**重构**） |
 | | S5a | Custom 采用 `SessionRightPanel` | 审计 §五-6 前半（**复用**） |
@@ -90,8 +90,8 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 | --- | --- | --- |
 | §五-5 `ResizeHandle` **已修复** | `resize-handle.tsx`：`:94 setPointerCapture`、`:141 role="separator"`、`:144 aria-orientation`、`:145-148 aria-label/valuenow/min/max`、`:149 tabIndex={0}`、`:121-136 handleKeyDown`（含 Home/End）、`:44-53 keyDeltaFor` 纯函数 | **确认已完成，本计划不含此项** |
 | 根因3 `--v2-radius` 零命中 | `grep -rn -- "--v2-radius" packages` → 空 | **确认** |
-| 根因3 圆角硬编码计数 | app `rounded-[Npx]` 实测：`6px`×40、`4px`×15、`3px`×10、`8px`×6、`10px`×6、`1px`×3、`12px`×3、`2px`×1 = **84**；`packages/ui/src/v2` `border-radius: Npx` 实测：`4px`×17、`6px`×14、`2px`×6、`9999px`×3、`8px`×1、`3px`×1 = **42** | **确认，与审计逐值吻合** |
-| 根因3 「约 106/131 可无损映射」 | 按 2/4/6/8/10px → `xs/sm/md/lg/xl` 映射：app 68 + v2 38 = **106 处零决策**；孤儿值 1px×3、3px×11、12px×3、9999px×3 = **20 处需决策**。106 与审计数字独立吻合 | **确认** |
+| 根因3 圆角硬编码计数 | app `rounded-[Npx]` + `rounded-r-[6px]` 实测：`6px`×40、`4px`×15、`3px`×10、`8px`×6、`10px`×6、`1px`×3、`12px`×3、`2px`×1、`rounded-r-[6px]`×1 = **85**；`packages/ui/src/v2` `border-radius: Npx` 实测：`4px`×17、`6px`×14、`2px`×6、`9999px`×3、`8px`×1、`3px`×1 = **42** | **确认，与审计逐值吻合** |
+| 根因3 「约 106/131 可无损映射」 | 按 2/4/6/8/10px → `xs/sm/md/lg/xl` 映射：app 69 + v2 38 = **107 处零决策**；孤儿值 1px×3、3px×11、12px×3、9999px×3 = **20 处需决策**。原审计漏计 `rounded-r-[6px]`×1，按实际口径修正 | **确认并修正为 107** |
 | §四 `--radius-*` 双定义「谁是权威**未查**」 | **本次查清**：`packages/ui/src/styles/theme.css:45-49`（`:root`）**正在被消费**——`packages/app/src/index.css:308`、`packages/ui/src/components/{select,radio-group,text-field,list,image-preview}.css` 共 10+ 处 `border-radius: var(--radius-*)`；而 `packages/ui/src/styles/tailwind/index.css:59-63`（`@theme`）**写入的是重复字面量**，且其生成的 `rounded-xs/sm/md/lg/xl` 工具类在 `packages/app/src` + `packages/ui/src` 源码中**零使用** | **权威 = `theme.css` 的 `:root` 组；`@theme` 组应改为引用而非复制。原「未查」已闭环，见 S1** |
 | §四 `WorkflowRuntimePanel` 仅 1 处生产挂载 | `grep -rn WorkflowRuntimePanel packages/app/src`（排除 stories/test/import/定义）→ 仅 `custom-snapshot-panel.tsx:188` | **确认** |
 | §四 `work-artifact-panel.tsx` 无障碍语义 = 0 | `grep -cE "aria-\|role=" packages/app/src/pages/work-artifact-panel.tsx` → `0` | **确认** |
@@ -129,7 +129,7 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 ### 0.5 与审计的两处口径修正
 
 1. 审计 §三 ① 说「既有 `--radius-*` 值完全对得上且已全局加载」——**「已全局加载」需要精确化**：`theme.css` 经 `packages/ui/src/styles/index.css:4` 与 `packages/ui/src/v2/styles/tailwind.css:2` 进入构建，`app` 侧经 `packages/app/src/index.css:1` → `@aigcfroge/ui/styles/tailwind` → `../index.css` 间接引入。S1 的第一步就是把这个导入链实测钉死，不靠推断。
-2. 审计 §五-1 说「约 106 处零决策」——本次独立复算得 **106 处可无损映射 + 20 处孤儿值**（1px×3、3px×11、12px×3、9999px×3），与审计口径一致。
+2. 审计 §五-1 说「约 106 处零决策」——本次独立复算得 **107 处可无损映射 + 20 处孤儿值**（1px×3、3px×11、12px×3、9999px×3），与审计口径一致。
 
 ---
 
@@ -173,12 +173,12 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 
 - `--v2-radius` 全仓 **0 命中**
 - `packages/ui/src/v2` **42 处**硬编码 `border-radius: Npx`
-- `packages/app` **84 处** Tailwind 任意值 `rounded-[Npx]`
+- `packages/app` **85 处** Tailwind 任意值 `rounded-[Npx]` / `rounded-r-[6px]`
 - 同一个浮层在三处各写一遍 `rounded-[10px]`：`session.tsx:2041`、`session-side-panel.tsx:214`、`session-right-panel.tsx:56`
 - **既有 owner**：`theme.css:45-49` 定义 `--radius-xs/sm/md/lg/xl` = 2/4/6/8/10px，**正在被 10+ 处 `var(--radius-*)` 消费**
 - **重复定义**：`tailwind/index.css:59-63` 的 `@theme` 块把同样 5 个值又写了一遍字面量
 
-**结论：106 处可无损映射（零决策），20 处孤儿值需一次决策，双定义需归并。**
+**结论：107 处可无损映射（零决策），20 处孤儿值需一次决策，双定义需归并。**
 
 ### 2.4 根因 4：能力已在服务端 / 已在别处，UI 没接
 
@@ -205,7 +205,7 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 
 `--radius-*` 有 owner、有消费、有值，但 126 处硬编码绕过它，且它自己被复制成两份。**收敛动作**：先归并双定义（S1），再批量复用（S2）。
 
-**收敛验收**：S2a 的 106 处无争议映射值一致；S2b 的 20 处孤儿值保持原样并进入后续裁决；S1 以构建物一致性而非文本重复作为最终判据。
+**收敛验收**：S2a 的 107 处无争议映射值一致；S2b 的 20 处孤儿值保持原样并进入后续裁决；S1 以构建物一致性而非文本重复作为最终判据。
 
 ### 面 C：能力在别处，接线缺失（S3 + S5a + S9b）
 
@@ -242,7 +242,7 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 
 | 断言 | 层 | 基线判据 |
 | --- | --- | --- |
-| `packages/app/src` + `packages/ui/src/v2` 下 `rounded-[Npx]` + `border-radius: Npx` 计数 = 126，其中可无损映射 106 | 脚本（`script/` 下一次性探针，S0 提交） | 记录计数表 |
+| `packages/app/src` + `packages/ui/src/v2` 下 `rounded-[Npx]` + `border-radius: Npx` 计数 = 127，其中可无损映射 107 | 脚本（`script/` 下一次性探针，S0 提交） | 记录计数表 |
 | `--radius-*` 定义出现次数 = 2（`theme.css`、`tailwind/index.css`） | 脚本 | 记录 |
 | 慢加载 Chat 资产列表时出现「还没有保存的…」空态文案 | app 单测 / e2e | **红** |
 | Work Artifact 在 `sync().status === "loading"` 时显示空态文案 | app 渲染测试 / e2e | **红** |
@@ -289,13 +289,13 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 
 ---
 
-### S2a：圆角复用既有 token（106 处无争议映射）
+### S2a：圆角复用既有 token（107 处无争议映射）
 
 **先决**：S1 spike 与绿证在手。
 
 **RED**：选择至少一个 app 组件和一个 v2 组件，断言其计算圆角在映射前后保持 2/4/6/8/10px；源码计数只作为一次性覆盖审计。
 
-**映射表**（106 处零决策）：
+**映射表**（107 处零决策；含 `rounded-r-[6px]`）：
 
 | 现值 | token | app 写法 | v2 写法 | 处数 |
 | --- | --- | --- | --- | --- |
@@ -304,7 +304,7 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 | 6px | `--radius-md` | `rounded-md` | `var(--radius-md)` | 40 + 14 = 54 |
 | 8px | `--radius-lg` | `rounded-lg` | `var(--radius-lg)` | 6 + 1 = 7 |
 | 10px | `--radius-xl` | `rounded-xl` | `var(--radius-xl)` | 6 + 0 = 6 |
-| **合计** | | | | **106** |
+| **合计** | | | | **107** |
 
 **S2b 孤儿值（20 处，移出本批，单独签字）**：
 
@@ -315,19 +315,19 @@ $ git log -1 --format=%s HEAD   → Merge pull request #77 from keerzzz/global-s
 | `12px` | 3（app 3） | 归并到 `xl`（10px） | 同上 |
 | `9999px` | 3（v2 3） | 保留原值，**改用 Tailwind 内置 `rounded-full` 或直接 `border-radius: 9999px`** | 全圆角语义与 radius 尺度无关；**先实测 `@theme { --*: initial }` 下 `rounded-full` 是否仍可用**，不可用则保留字面量并加注释 |
 
-**GREEN**：只按 106 处表批量替换，`app` 用 Tailwind 工具类、`ui/src/v2` 用既有共享维度变量。3px/1px/12px/9999px 不动。**同一浮层三处重复的 `rounded-[10px]`**（`session.tsx:2041`、`session-side-panel.tsx:214`、`session-right-panel.tsx:56`）统一为 `rounded-xl`。
+**GREEN**：只按 107 处表批量替换，`app` 用 Tailwind 工具类、`ui/src/v2` 用既有共享维度变量。3px/1px/12px/9999px 不动。**同一浮层三处重复的 `rounded-[10px]`**（`session.tsx:2041`、`session-side-panel.tsx:214`、`session-right-panel.tsx:56`）统一为 `rounded-xl`。
 
 **REFACTOR**：`session-right-panel.tsx` 是浮层圆角的 owner，把「浮层用 `radius-xl`」这一决定收敛到该文件一处（若三处调用点都能接收 `class`，则优先由 `SessionRightPanel` 自带，调用点不重复声明）。
 
 **门禁**：
-- RED 断言转绿；106 处映射后的计算值一致，S2b 孤儿值仍保留
+- RED 断言转绿；107 处映射后的计算值一致，S2b 孤儿值仍保留
 - `bun --cwd packages/app typecheck`、`bun --cwd packages/ui typecheck`、`bun --cwd packages/ui test`
 - `bun run script/lint-changed.ts`（带 `LINT_BASE_REF=origin/main`）
 - **视觉验证**：`bun --cwd packages/app test:e2e`（超时 ≥180s）+ 人工截图比对五模式浮层/卡片圆角
 
 **数据流复查**：`theme.css` → `@theme` 命名空间 → `rounded-*` 工具类 → 组件 class；`theme.css` → `var()` → v2 CSS。两条链在 S1 之后指向同一值。
 
-**规模提示**：本批 106 处替换，S2b 的 20 处另批。**按包拆提交**（`refactor(app)` / `refactor(ui)`），按目录分批回滚。
+**规模提示**：本批 107 处替换，S2b 的 20 处另批。**按包拆提交**（`refactor(app)` / `refactor(ui)`），按目录分批回滚。
 
 ---
 
@@ -624,7 +624,7 @@ REFACTOR
 - [ ] S0 行为基线落盘，含完整命令与失败证据
 - [ ] A 批 S1、S2a、S3、S4b–S4e、S5a、S8a、S9b 全部 RED→GREEN→REFACTOR
 - [ ] S1 有 spike 结论：唯一字面量真源 + 构建物等值，或明确降级并登记债
-- [ ] S2a 只替换 106 处无争议映射，S2b 的 20 处未混入
+- [ ] S2a 只替换 107 处无争议映射，S2b 的 20 处未混入
 - [ ] 触及的 Chat、Work、Custom 在 loading 期不出现空态文案
 - [ ] `SessionRightPanel` 生产消费者 = 5；`WorkflowRuntimePanel` 生产挂载 ≥ 2（custom + work）
 - [ ] `asset-load-error.tsx` 有真实 `role="alert"`
@@ -697,7 +697,7 @@ REFACTOR
 
 | 审计 §五 序 | 动作 | 本计划 | 状态 |
 | --- | --- | --- | --- |
-| 1 | 硬编码圆角 → 既有 `--radius-*` | S2a 106 处；S2b 20 处另批 | S2a 执行，S2b 待决 |
+| 1 | 硬编码圆角 → 既有 `--radius-*` | S2a 107 处；S2b 20 处另批 | S2a 执行，S2b 待决 |
 | 2 | 合并 `--radius-*` 双定义 | S1 spike + 构建物等值 | 执行 |
 | 3 | `WorkflowRuntimePanel` 挂进 work | S3 | 执行 |
 | 4 | 三态契约 | S4b/S4c/S4d/S4e | 执行 |
