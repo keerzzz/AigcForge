@@ -11,6 +11,7 @@ import { useCustomDraft } from "@/context/custom-draft"
 import type { DirectorySDK } from "@/context/sdk"
 import { ASSET_KINDS, catalogStatus, foldAssetCatalog, listOutcome, showsEmptyState } from "./custom-asset-catalog"
 import { AssetLoadError } from "@/components/asset-load-error"
+import { SessionSkeleton } from "@/pages/layout/sidebar-items"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 type AssetCategory = "all" | "agents" | "workflows" | "prompts" | "skills" | "commands"
@@ -227,6 +228,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
 
       {/* Assets list */}
       <div class="flex flex-col gap-3 px-2 overflow-y-auto max-h-[calc(100vh-280px)]">
+        <Show when={status() !== "loading"} fallback={<SessionSkeleton count={6} />}>
         {/* Agents */}
         <Show when={activeCategory() === "all" || activeCategory() === "agents"}>
           <div class="flex flex-col gap-1">
@@ -236,9 +238,11 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
             <Show
               when={filteredAgents().length > 0}
               fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noAgents")}
-                </div>
+                status() === "ready" ? (
+                  <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                    {language.t("custom.sidebar.noAgents")}
+                  </div>
+                ) : undefined
               }
             >
               <For each={filteredAgents()}>
@@ -288,9 +292,11 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
             <Show
               when={filteredWorkflows().length > 0}
               fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noWorkflows")}
-                </div>
+                status() === "ready" ? (
+                  <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                    {language.t("custom.sidebar.noWorkflows")}
+                  </div>
+                ) : undefined
               }
             >
               <For each={filteredWorkflows()}>
@@ -335,9 +341,11 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
             <Show
               when={filteredPrompts().length > 0}
               fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noPrompts")}
-                </div>
+                status() === "ready" ? (
+                  <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                    {language.t("custom.sidebar.noPrompts")}
+                  </div>
+                ) : undefined
               }
             >
               <For each={filteredPrompts()}>
@@ -402,9 +410,11 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
             <Show
               when={filteredCommands().length > 0}
               fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noCommands")}
-                </div>
+                status() === "ready" ? (
+                  <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                    {language.t("custom.sidebar.noCommands")}
+                  </div>
+                ) : undefined
               }
             >
               <For each={filteredCommands()}>
@@ -452,9 +462,11 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
             <Show
               when={filteredSkills().length > 0}
               fallback={
-                <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
-                  {language.t("custom.sidebar.noSkills")}
-                </div>
+                status() === "ready" ? (
+                  <div class="px-2 py-1 text-v2-text-text-faint text-11-regular">
+                    {language.t("custom.sidebar.noSkills")}
+                  </div>
+                ) : undefined
               }
             >
               <For each={filteredSkills()}>
@@ -503,6 +515,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
               {language.t("custom.sidebar.createStarterAgent")}
             </ButtonV2>
           </div>
+        </Show>
         </Show>
       </div>
     </div>
