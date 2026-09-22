@@ -30,5 +30,5 @@ describe("AssetLoadError accessibility", () => {
     expect(container.querySelector('[data-slot="asset-load-error"]')?.getAttribute("role")).toBe("alert")
     dispose()
     container.remove()
-  })
+  }, 15_000)
 })

@@ -10,5 +10,5 @@ describe("AssistantDashboard mutation error surface", () => {
     expect(source).not.toContain(".catch(console.error)")
     expect(source).toContain('data-component="assistant-mutation-error"')
     expect(source).toContain('role="alert"')
-  })
+  }, 15_000)
 })

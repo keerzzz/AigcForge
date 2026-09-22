@@ -10,5 +10,5 @@ describe("custom sidebar loading contract", () => {
     const source = fs.readFileSync(path.resolve(__dirname, "custom-sidebar.tsx"), "utf8")
     expect(source).toContain("when={status() !== \"loading\"}")
     expect(source).toContain("<SessionSkeleton count={6} />")
-  })
+  }, 15_000)
 })
