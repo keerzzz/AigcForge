@@ -27,8 +27,15 @@ import { setProposeCandidate } from "@/components/chat/prompt-asset-store"
 import { showToast } from "@/utils/toast"
 import { TextDiffView } from "@/pages/session/text-diff-view"
 import { createActiveTabWriteback } from "@/pages/session/file-tab-strip"
+import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
 import { describeApplyError, isConflictError } from "@/pages/work-artifact-error"
 import type { Message } from "@aigcfroge/sdk/v2/client"
+
+const WORK_TABS = ["context", "artifact", "workflow"] as const
+type WorkTab = (typeof WORK_TABS)[number]
+
+const isWorkTab = (value: string | undefined): value is WorkTab =>
+  typeof value === "string" && (WORK_TABS as readonly string[]).includes(value)
 
 /** Read-only diff shown before confirming an overwrite. */
 function WorkDiffView(props: { oldText: string; newText: string }) {
@@ -215,11 +222,11 @@ export function WorkSessionPanel() {
   const language = useLanguage()
   const mode = useMode()
   const size = createSizing()
-  const { tabs } = useSessionLayout()
+  const { tabs, params } = useSessionLayout()
   const activeTab = createMemo(() => {
     if (mode.currentMode !== "work") return "artifact"
     const active = tabs().active()
-    if (active === "context" || active === "artifact") return active
+    if (isWorkTab(active)) return active
     return "artifact"
   })
   // Keep the shared session tab store authoritative so the global context entry
@@ -233,7 +240,7 @@ export function WorkSessionPanel() {
   })
   const selectTab = (value: string | number) => {
     const tab = String(value)
-    if (tab !== "context" && tab !== "artifact") return
+    if (!isWorkTab(tab)) return
     tabs().setActive(tab)
   }
   return (
@@ -242,6 +249,7 @@ export function WorkSessionPanel() {
         <TabsV2.List class="shrink-0 border-b border-v2-border-border-base">
           <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>
           <TabsV2.Trigger value="artifact">{language.t("work.artifact.tab")}</TabsV2.Trigger>
+          <TabsV2.Trigger value="workflow">{language.t("workflowRuntime.title")}</TabsV2.Trigger>
         </TabsV2.List>
         <TabsV2.Content value="context" class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Show when={activeTab() === "context"}>
@@ -253,6 +261,13 @@ export function WorkSessionPanel() {
         <TabsV2.Content value="artifact" class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Show when={activeTab() === "artifact"}>
             <WorkArtifactContent />
+          </Show>
+        </TabsV2.Content>
+        <TabsV2.Content value="workflow" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Show when={activeTab() === "workflow"}>
+            <div class="min-h-0 flex-1 overflow-y-auto p-3">
+              <WorkflowRuntimePanel sessionID={params.id} />
+            </div>
           </Show>
         </TabsV2.Content>
       </TabsV2>

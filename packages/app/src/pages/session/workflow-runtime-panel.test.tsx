@@ -23,7 +23,8 @@ describe("workflow runtime panel source contract", () => {
     }
   })
 
-  test("is mounted by the custom session snapshot panel", () => {
+  test("is mounted by the custom and work session panels", () => {
     expect(read("../../components/custom/custom-snapshot-panel.tsx")).toContain("<WorkflowRuntimePanel")
+    expect(read("../work-artifact-panel.tsx")).toContain("<WorkflowRuntimePanel")
   })
 })
