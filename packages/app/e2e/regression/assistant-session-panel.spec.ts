@@ -28,7 +28,10 @@ test("assistant session renders the unified review-panel shell", async ({ page }
   const assistantPanel = page.locator('#review-panel[aria-label="Assistant panel"]')
   await expect(assistantPanel).toBeVisible()
   await expect(assistantPanel.locator("[data-slot='tabs-v2-list']")).toBeVisible()
-  await expect(assistantPanel).toHaveClass(/rounded-\[10px\]/)
+  // v2 radius xl is 0.625rem = 10px. Assert the computed value, not the utility
+  // class name, so a token rename (`rounded-[10px]` -> `rounded-xl`) cannot fail
+  // this for the wrong reason.
+  await expect(assistantPanel).toHaveCSS("border-radius", "10px")
 })
 
 /**
