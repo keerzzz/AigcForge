@@ -153,7 +153,7 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
                       type="button"
                       data-selected={note.id === selectedID() ? "" : undefined}
                       aria-current={note.id === selectedID() ? "page" : undefined}
-                      class="flex min-w-0 items-center gap-2 rounded-[6px] px-2 py-1 text-left hover:bg-v2-overlay-simple-overlay-hover data-[selected]:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                      class="flex min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-v2-overlay-simple-overlay-hover data-[selected]:bg-v2-background-bg-layer-03 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
                       onClick={() => setSelectedID(note.id)}
                     >
                       <Icon name="edit" size="small" class="shrink-0 text-v2-icon-icon-muted" />
@@ -204,7 +204,7 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
                       {(note) => (
                         <button
                           type="button"
-                          class="flex min-w-0 items-center gap-2 rounded-[4px] px-1 py-0.5 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+                          class="flex min-w-0 items-center gap-2 rounded-sm px-1 py-0.5 text-left hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
                           onClick={() => setSelectedID(note.id)}
                         >
                           <Icon name="status-active" size="small" class="shrink-0 text-v2-icon-icon-muted" />

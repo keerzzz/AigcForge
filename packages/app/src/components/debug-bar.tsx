@@ -56,7 +56,7 @@ function Cell(props: { bad?: boolean; dim?: boolean; label: string; tip: string;
     <TooltipV2 value={props.tip} placement="top">
       <div
         classList={{
-          "flex min-h-[42px] w-full min-w-0 flex-col items-center justify-center rounded-[8px] px-0.5 py-1 text-center": true,
+          "flex min-h-[42px] w-full min-w-0 flex-col items-center justify-center rounded-lg px-0.5 py-1 text-center": true,
           "col-span-2": !!props.wide,
         }}
       >

@@ -149,7 +149,7 @@ function ModeWorkspaceBody() {
           <CustomDraftProvider location={customLocation}>
             <div
               data-mode-workspace
-              class="rounded-[10px] shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col"
+              class="rounded-xl shadow-[var(--v2-elevation-raised)] m-2 min-h-0 lg:overflow-hidden bg-v2-background-bg-base self-stretch flex-1 flex flex-col"
             >
               <LocationApprovalCenter />
               <div

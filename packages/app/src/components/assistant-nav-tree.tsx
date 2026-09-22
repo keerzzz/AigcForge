@@ -162,7 +162,7 @@ function NavSection(props: {
     <section data-nav-section={props.id}>
       <button
         type="button"
-        class="flex h-8 w-full cursor-default items-center gap-2 rounded-[6px] px-2 text-left text-v2-text-text-muted transition-colors hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-text-text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
+        class="flex h-8 w-full cursor-default items-center gap-2 rounded-md px-2 text-left text-v2-text-text-muted transition-colors hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-text-text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus"
         aria-expanded={!props.collapsed}
         onClick={props.onToggle}
       >
@@ -245,7 +245,7 @@ function NavItem(props: {
       type="button"
       data-selected={props.selected ? "" : undefined}
       aria-current={props.selected ? "page" : undefined}
-      class={`flex h-8 w-full cursor-default items-center gap-2 rounded-[6px] px-2 text-left text-v2-text-text-muted transition-colors hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-text-text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base ${props.class ?? ""}`}
+      class={`flex h-8 w-full cursor-default items-center gap-2 rounded-md px-2 text-left text-v2-text-text-muted transition-colors hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-text-text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-v2-border-border-focus data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base ${props.class ?? ""}`}
       onClick={props.onClick}
     >
       <Icon name={props.icon} size="small" class="shrink-0" />

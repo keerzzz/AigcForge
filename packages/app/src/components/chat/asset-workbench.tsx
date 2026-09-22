@@ -250,7 +250,7 @@ export function AssetWorkbenchTable(props: {
         <label class="relative flex items-center">
           <IconV2 name="magnifying-glass" class="text-v2-icon-icon-muted shrink-0" />
           <input
-            class="ml-1 h-7 w-36 lg:w-48 rounded-[6px] bg-v2-background-bg-layer-03 pr-6 pl-2 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint text-12-regular lg:text-13-regular"
+            class="ml-1 h-7 w-36 lg:w-48 rounded-md bg-v2-background-bg-layer-03 pr-6 pl-2 text-v2-text-text-base outline-0 placeholder:text-v2-text-text-faint text-12-regular lg:text-13-regular"
             placeholder={language.t("asset.list.searchPlaceholder", { kind: kindLabel() })}
             aria-label={language.t("asset.list.searchPlaceholder", { kind: kindLabel() })}
             value={store.state.search}
@@ -271,7 +271,7 @@ export function AssetWorkbenchTable(props: {
           {(["all", "project", "system"] as const).map((origin) => (
             <button
               type="button"
-              class={`h-6 rounded-[4px] px-2 text-11-regular outline-0 transition-colors focus-visible:ring-2 focus-visible:ring-v2-border-border-focus ${
+              class={`h-6 rounded-sm px-2 text-11-regular outline-0 transition-colors focus-visible:ring-2 focus-visible:ring-v2-border-border-focus ${
                 store.state.originFilter === origin
                   ? "bg-v2-background-bg-layer-04 text-v2-text-text-base"
                   : "text-v2-text-text-faint hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-text-text-muted"

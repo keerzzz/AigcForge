@@ -46,7 +46,7 @@ export function ReminderList(props: {
             <For each={props.pending}>
               {(reminder: ScheduleInfo) => (
                 <div
-                  class="flex min-w-0 items-center gap-2 rounded-[4px] py-1"
+                  class="flex min-w-0 items-center gap-2 rounded-sm py-1"
                   data-targeted={reminder.id === props.targetId ? "" : undefined}
                   classList={{ "bg-v2-background-bg-layer-03": reminder.id === props.targetId }}
                 >
@@ -98,7 +98,7 @@ export function MemoryInspector(props: {
             <For each={props.pending}>
               {(memory: PersonalMemoryInfo) => (
                 <div
-                  class="flex min-w-0 items-center gap-2 rounded-[4px] py-1"
+                  class="flex min-w-0 items-center gap-2 rounded-sm py-1"
                   data-targeted={memory.id === props.targetId ? "" : undefined}
                   classList={{ "bg-v2-background-bg-layer-03": memory.id === props.targetId }}
                 >

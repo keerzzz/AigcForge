@@ -211,7 +211,7 @@ export function SessionSidePanel(props: {
       id={`session-mode-panel-${id}`}
       classList={{
         "flex-1 min-w-0": isDesktop(),
-        "absolute inset-0 z-30 overflow-hidden rounded-[10px] bg-v2-background-bg-base": contentPanelFloats(),
+        "absolute inset-0 z-30 overflow-hidden rounded-xl bg-v2-background-bg-base": contentPanelFloats(),
       }}
       style={{ display: mode.currentMode === id && (isDesktop() || mode.contentPanelOpen) ? "" : "none" }}
     >
