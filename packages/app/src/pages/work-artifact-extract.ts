@@ -22,6 +22,19 @@ export function findLatestAssistantMarkdown(
   return null
 }
 
+export type WorkArtifactView = "loading" | "applied" | "candidate" | "empty"
+
+export function workArtifactView(input: {
+  status: "loading" | "partial" | "complete"
+  hasCandidate: boolean
+  applied: boolean
+}): WorkArtifactView {
+  if (input.status === "loading") return "loading"
+  if (input.applied) return "applied"
+  if (input.hasCandidate) return "candidate"
+  return "empty"
+}
+
 /** 从候选稿首行 # 标题提取标题；无标题返回 null。draftFilename 与资产映射共用。 */
 export function extractFirstHeading(markdown: string): string | null {
   const firstLine = markdown

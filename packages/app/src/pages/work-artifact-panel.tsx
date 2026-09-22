@@ -1,4 +1,4 @@
-import { Show, createMemo, createSignal } from "solid-js"
+import { Match, Show, Switch, createMemo, createSignal } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -21,6 +21,7 @@ import {
   draftFilename,
   extractHtmlBlock,
   findLatestAssistantMarkdown,
+  workArtifactView,
 } from "@/pages/work-artifact-extract"
 import { captureWorkArtifactAsCandidate } from "@/pages/work-asset-capture"
 import { setProposeCandidate } from "@/components/chat/prompt-asset-store"
@@ -68,6 +69,13 @@ export function WorkArtifactContent() {
     const content = candidate()
     return a !== undefined && id !== undefined && content !== null && a.sessionID === id && a.content === content
   })
+  const view = createMemo(() =>
+    workArtifactView({
+      status: sync().status,
+      hasCandidate: candidate() !== null,
+      applied: appliedCurrent(),
+    }),
+  )
 
   async function apply(overwrite = false) {
     const id = sessionID()
@@ -148,17 +156,25 @@ export function WorkArtifactContent() {
   }
 
   return (
-    <Show
-      when={appliedCurrent()}
-      fallback={
-        <Show
-          when={candidate()}
-          fallback={
-            <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-              <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.empty")}</p>
-            </div>
-          }
+    <Switch>
+      <Match when={view() === "loading"}>
+        <div
+          data-component="work-artifact-loading"
+          aria-busy="true"
+          class="flex min-h-0 flex-1 flex-col gap-2 p-3"
         >
+          <span class="sr-only">{language.t("common.loading")}</span>
+          <div class="h-8 w-full animate-pulse rounded-md bg-v2-background-bg-layer-03" />
+          <div class="h-24 w-full animate-pulse rounded-md bg-v2-background-bg-layer-02" />
+          <div class="h-8 w-2/3 animate-pulse rounded-md bg-v2-background-bg-layer-03" />
+        </div>
+      </Match>
+      <Match when={view() === "applied"}>
+        <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.applied")}</p>
+        </div>
+      </Match>
+      <Match when={view() === "candidate"}>
           <div class="flex min-h-0 flex-1 flex-col">
             <Show
               when={detectArtifactFormat(candidate()!) === "html"}
@@ -207,13 +223,13 @@ export function WorkArtifactContent() {
               </Show>
             </div>
           </div>
-        </Show>
-      }
-    >
-      <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-        <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.applied")}</p>
-      </div>
-    </Show>
+      </Match>
+      <Match when={view() === "empty"}>
+        <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+          <p class="text-v2-text-text-muted text-12-regular">{language.t("work.artifact.empty")}</p>
+        </div>
+      </Match>
+    </Switch>
   )
 }
 
