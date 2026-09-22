@@ -109,6 +109,27 @@ Playwright 的 webServer 可用性探针走该代理，代理对 127.0.0.1:3000 
 后 6/6 通过。带代理的 CI runner 需在 config 里显式 NO_PROXY，否则会静默地不启动 dev server。
 ```
 
+## CI 轮次修复（2026-09-22）
+
+PR #78 首轮 CI 暴露两处问题，均已修复；修复后整条流水线复跑全绿。
+
+1. **Prettier 格式门失败。** Lint 步的 `script/format.ts --check` 报 11 个文件——本分支早期提交引入了缩进错误的 JSX，另有 5 个文档。`bun run script/format.ts` 归一后单独提交（`chore: format five-mode ux branch files with prettier`）。
+2. **e2e 断言锁死了旧 class。** `assistant-session-panel.spec.ts` 断言 `toHaveClass(/rounded-\[10px\]/)`，而半径合并把该 class 换成了等价 token `rounded-xl`（`--n-xl` = 0.625rem = 10px）。改为断言计算值 `toHaveCSS("border-radius", "10px")`，这样下次改名 token 不会再误报（`test(app): assert the assistant panel radius by computed value`）。
+
+首轮 e2e 另有 2 例 flaky（`mode-slot-fallback-a11y.spec.ts` 的 Escape 断点用例、`session-todo-progress.spec.ts` 的 writeback 用例），均在 retry #1 通过，与本批改动无调用链关系。
+
+CI 最终结果（PR #78，head `9355ba722`）：
+
+```text
+Lint, Test, and Typecheck   pass  22m38s
+unit (linux)                pass  42m7s
+unit (windows)              pass  38m9s
+e2e (linux)                 pass  18m0s
+e2e (windows)               pass  23m19s
+check-standards             pass
+check-compliance            pass
+```
+
 ## 未交付登记
 
 `docs/technical-debt.md` §4.2 已登记：S2b、S5b、S6、S7、S4f、S9a、S9c，均带 owner 与 unlock。S8c 因前提不存在而取消，不是未登记缺口。
