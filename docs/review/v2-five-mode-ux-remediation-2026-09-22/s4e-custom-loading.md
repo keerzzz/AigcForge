@@ -6,6 +6,7 @@
 ## RED
 
 新增 reuse 契约测试 `custom-sidebar.test.ts`，固定：
+
 - `status() !== "loading"` 才渲染列表内容；
 - loading 使用既有 `<SessionSkeleton count={6} />`。
 

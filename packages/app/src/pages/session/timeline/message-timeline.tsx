@@ -1453,23 +1453,23 @@ export function MessageTimeline(props: {
           </Match>
           <Match when={citation()} keyed>
             {(item) => (
-          <div
-            data-component="assistant-citation"
-            class="absolute bottom-6 left-1/2 z-[70] w-[min(480px,calc(100%-2rem))] -translate-x-1/2 rounded-xl border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3 shadow-[var(--v2-elevation-floating)]"
-          >
-            <div class="flex min-w-0 items-center gap-2">
-              <Icon name="edit" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-              <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-medium">{item.title}</span>
-              <IconButton
-                icon="close-small"
-                variant="ghost"
-                class="size-5 shrink-0"
-                onClick={() => setCitationTarget(undefined)}
-                aria-label={language.t("assistant.citation.dismiss")}
-              />
-            </div>
-            <p class="mt-1 line-clamp-3 text-v2-text-text-muted text-12-regular">{item.excerpt}</p>
-          </div>
+              <div
+                data-component="assistant-citation"
+                class="absolute bottom-6 left-1/2 z-[70] w-[min(480px,calc(100%-2rem))] -translate-x-1/2 rounded-xl border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3 shadow-[var(--v2-elevation-floating)]"
+              >
+                <div class="flex min-w-0 items-center gap-2">
+                  <Icon name="edit" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                  <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-medium">{item.title}</span>
+                  <IconButton
+                    icon="close-small"
+                    variant="ghost"
+                    class="size-5 shrink-0"
+                    onClick={() => setCitationTarget(undefined)}
+                    aria-label={language.t("assistant.citation.dismiss")}
+                  />
+                </div>
+                <p class="mt-1 line-clamp-3 text-v2-text-text-muted text-12-regular">{item.excerpt}</p>
+              </div>
             )}
           </Match>
         </Switch>

@@ -11,6 +11,7 @@ Cannot find module './asset-list-status'
 ```
 
 共享 fold 的测试先覆盖：
+
 - `failed === undefined` → loading
 - refetch 时已有数据 → ready，避免闪骨架
 - 部分失败 → partial；全部失败 → error

@@ -306,9 +306,7 @@ export function AssetWorkbenchTable(props: {
             </div>
           </Match>
           <Match when={(props.state ?? "ready") === "idle"}>
-            <p class="px-4 py-6 text-v2-text-text-muted [font-weight:440]">
-              {language.t("chat.feature.noLocation")}
-            </p>
+            <p class="px-4 py-6 text-v2-text-text-muted [font-weight:440]">{language.t("chat.feature.noLocation")}</p>
           </Match>
           <Match when={rows().length > 0}>
             <Suspense>

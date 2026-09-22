@@ -162,11 +162,7 @@ export function WorkArtifactContent() {
   return (
     <Switch>
       <Match when={view() === "loading"}>
-        <div
-          data-component="work-artifact-loading"
-          aria-busy="true"
-          class="flex min-h-0 flex-1 flex-col gap-2 p-3"
-        >
+        <div data-component="work-artifact-loading" aria-busy="true" class="flex min-h-0 flex-1 flex-col gap-2 p-3">
           <span class="sr-only">{language.t("common.loading")}</span>
           <div class="h-8 w-full animate-pulse rounded-md bg-v2-background-bg-layer-03" />
           <div class="h-24 w-full animate-pulse rounded-md bg-v2-background-bg-layer-02" />
@@ -179,54 +175,54 @@ export function WorkArtifactContent() {
         </div>
       </Match>
       <Match when={view() === "candidate"}>
-          <div class="flex min-h-0 flex-1 flex-col">
-            <Show
-              when={detectArtifactFormat(candidate()!) === "html"}
-              fallback={
-                <ScrollView class="min-h-0 flex-1">
-                  <div class="p-3">
-                    <Markdown text={candidate()!} />
-                  </div>
-                </ScrollView>
-              }
-            >
-              {/* The iframe owns scrolling so the action bar remains visible. */}
-              <div class="min-h-0 flex-1 overflow-hidden p-3">
-                <HtmlArtifact
-                  html={extractHtmlBlock(candidate()!) ?? ""}
-                  labels={{
-                    preview: language.t("work.artifact.html.preview"),
-                    code: language.t("work.artifact.html.code"),
-                    renderError: language.t("work.artifact.html.renderError"),
-                    viewCode: language.t("work.artifact.html.viewCode"),
-                  }}
-                />
-              </div>
-            </Show>
-            <div class="flex shrink-0 gap-2 p-3 pt-0">
-              <ButtonV2
-                variant="contrast"
-                size="normal"
-                icon="folder-add-left"
-                class="flex-1"
-                disabled={applying()}
-                onClick={() => void apply()}
-              >
-                {language.t("work.artifact.apply")}
-              </ButtonV2>
-              <Show when={candidate() !== null && !appliedCurrent()}>
-                <ButtonV2
-                  variant="neutral"
-                  size="normal"
-                  class="flex-1"
-                  data-component="work-save-asset-button"
-                  onClick={onSaveAsset}
-                >
-                  {language.t("work.asset.save")}
-                </ButtonV2>
-              </Show>
+        <div class="flex min-h-0 flex-1 flex-col">
+          <Show
+            when={detectArtifactFormat(candidate()!) === "html"}
+            fallback={
+              <ScrollView class="min-h-0 flex-1">
+                <div class="p-3">
+                  <Markdown text={candidate()!} />
+                </div>
+              </ScrollView>
+            }
+          >
+            {/* The iframe owns scrolling so the action bar remains visible. */}
+            <div class="min-h-0 flex-1 overflow-hidden p-3">
+              <HtmlArtifact
+                html={extractHtmlBlock(candidate()!) ?? ""}
+                labels={{
+                  preview: language.t("work.artifact.html.preview"),
+                  code: language.t("work.artifact.html.code"),
+                  renderError: language.t("work.artifact.html.renderError"),
+                  viewCode: language.t("work.artifact.html.viewCode"),
+                }}
+              />
             </div>
+          </Show>
+          <div class="flex shrink-0 gap-2 p-3 pt-0">
+            <ButtonV2
+              variant="contrast"
+              size="normal"
+              icon="folder-add-left"
+              class="flex-1"
+              disabled={applying()}
+              onClick={() => void apply()}
+            >
+              {language.t("work.artifact.apply")}
+            </ButtonV2>
+            <Show when={candidate() !== null && !appliedCurrent()}>
+              <ButtonV2
+                variant="neutral"
+                size="normal"
+                class="flex-1"
+                data-component="work-save-asset-button"
+                onClick={onSaveAsset}
+              >
+                {language.t("work.asset.save")}
+              </ButtonV2>
+            </Show>
           </div>
+        </div>
       </Match>
       <Match when={view() === "empty"}>
         <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">

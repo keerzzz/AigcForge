@@ -92,13 +92,22 @@ export function AssistantDashboardMain() {
   const confirmedMemories = createMemo(() => memories().filter((m) => m.status === "confirmed"))
 
   function confirmMemory(id: string) {
-    void runMutation(() => serverSDK().client.memory.confirm({ id }), () => memoryQuery.refetch())
+    void runMutation(
+      () => serverSDK().client.memory.confirm({ id }),
+      () => memoryQuery.refetch(),
+    )
   }
   function rejectMemory(id: string) {
-    void runMutation(() => serverSDK().client.memory.reject({ id }), () => memoryQuery.refetch())
+    void runMutation(
+      () => serverSDK().client.memory.reject({ id }),
+      () => memoryQuery.refetch(),
+    )
   }
   function removeMemory(id: string) {
-    void runMutation(() => serverSDK().client.memory.remove({ id }), () => memoryQuery.refetch())
+    void runMutation(
+      () => serverSDK().client.memory.remove({ id }),
+      () => memoryQuery.refetch(),
+    )
   }
 
   const kbQuery = useQuery(() => ({
@@ -217,11 +226,17 @@ export function AssistantDashboardMain() {
   }
 
   function cancelReminder(id: string) {
-    void runMutation(() => serverSDK().client.schedule.cancel({ id }), () => pendingQuery.refetch())
+    void runMutation(
+      () => serverSDK().client.schedule.cancel({ id }),
+      () => pendingQuery.refetch(),
+    )
   }
 
   function markRead(deliveryKey: string) {
-    void runMutation(() => serverSDK().client.delivery.read({ deliveryKey }), () => recentQuery.refetch())
+    void runMutation(
+      () => serverSDK().client.delivery.read({ deliveryKey }),
+      () => recentQuery.refetch(),
+    )
   }
 
   return (
