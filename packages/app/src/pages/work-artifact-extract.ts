@@ -24,12 +24,8 @@ export function findLatestAssistantMarkdown(
 
 export type WorkArtifactView = "loading" | "applied" | "candidate" | "empty"
 
-export function workArtifactView(input: {
-  status: "loading" | "partial" | "complete"
-  hasCandidate: boolean
-  applied: boolean
-}): WorkArtifactView {
-  if (input.status === "loading") return "loading"
+export function workArtifactView(input: { ready: boolean; hasCandidate: boolean; applied: boolean }): WorkArtifactView {
+  if (!input.ready) return "loading"
   if (input.applied) return "applied"
   if (input.hasCandidate) return "candidate"
   return "empty"

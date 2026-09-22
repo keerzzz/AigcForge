@@ -151,17 +151,16 @@ describe("wrapHtmlForDisk (M3.5 D6)", () => {
 })
 
 describe("workArtifactView", () => {
-  test("keeps loading ahead of a stale candidate", () => {
-    expect(workArtifactView({ status: "loading", hasCandidate: true, applied: false })).toBe("loading")
+  test("keeps loading ahead of a stale candidate until the session is ready", () => {
+    expect(workArtifactView({ ready: false, hasCandidate: true, applied: false })).toBe("loading")
   })
 
   test("prefers applied over candidate after a successful write", () => {
-    expect(workArtifactView({ status: "complete", hasCandidate: true, applied: true })).toBe("applied")
+    expect(workArtifactView({ ready: true, hasCandidate: true, applied: true })).toBe("applied")
   })
 
-  test("distinguishes candidate from empty only after loading settles", () => {
-    expect(workArtifactView({ status: "complete", hasCandidate: true, applied: false })).toBe("candidate")
-    expect(workArtifactView({ status: "complete", hasCandidate: false, applied: false })).toBe("empty")
-    expect(workArtifactView({ status: "partial", hasCandidate: false, applied: false })).toBe("empty")
+  test("distinguishes candidate from empty only after the session is ready", () => {
+    expect(workArtifactView({ ready: true, hasCandidate: true, applied: false })).toBe("candidate")
+    expect(workArtifactView({ ready: true, hasCandidate: false, applied: false })).toBe("empty")
   })
 })

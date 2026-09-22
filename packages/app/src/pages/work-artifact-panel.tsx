@@ -62,6 +62,10 @@ export function WorkArtifactContent() {
     return findLatestAssistantMarkdown(messages, data.part)
   })
 
+  const messagesReady = createMemo(() => {
+    const id = sessionID()
+    return !!id && sync().data.message[id] !== undefined
+  })
   // Applied state belongs to the exact Session and candidate content.
   const appliedCurrent = createMemo(() => {
     const a = applied()
@@ -71,7 +75,7 @@ export function WorkArtifactContent() {
   })
   const view = createMemo(() =>
     workArtifactView({
-      status: sync().status,
+      ready: messagesReady(),
       hasCandidate: candidate() !== null,
       applied: appliedCurrent(),
     }),
@@ -260,7 +264,7 @@ export function WorkSessionPanel() {
     tabs().setActive(tab)
   }
   return (
-    <SessionRightPanel size={size} ariaLabel={language.t("work.artifact.tab")}>
+    <SessionRightPanel modeID="work" size={size} ariaLabel={language.t("work.artifact.tab")}>
       <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
         <TabsV2.List class="shrink-0 border-b border-v2-border-border-base">
           <TabsV2.Trigger value="context">{language.t("session.tab.context")}</TabsV2.Trigger>
