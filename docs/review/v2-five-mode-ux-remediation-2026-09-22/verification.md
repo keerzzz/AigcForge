@@ -2,12 +2,19 @@
 
 - 分支：`five-mode-ux`
 - 基线：`origin/main` = `53800bb8549443372243e5ba37b8277e225cf4df`
-- 结论：审批修订与 A 批实施完成；未交付的 B 批/视觉项已登记技术债。全 app suite 仍有环境基线超时，不冒充全绿。
+- 结论：审批修订、A 批实施与二次复核修复完成。全 app suite 仍有 2 例慢盘 hook 超时基线，不冒充全绿。
 
 ## 已交付提交
 
 ```text
-$ git log --oneline origin/main..HEAD
+# 本表覆盖修复批次；本报告自身的提交（其后的 docs: record five-mode ux second review）不在其中，
+# 以免自我引用后哈希漂移。
+$ git log --oneline 53800bb8549443372243e5ba37b8277e225cf4df..b7b02a8bd
+b7b02a8bd fix(app): make the citation overlay dismissible
+914959363 fix(app): hold work artifacts until the session syncs
+b1da327ce fix(app): scope panel ids and workflow mount to the active mode
+671ee1414 fix(app): guard asset lists against stale project data
+7f2b0e2b2 docs: record five-mode ux verification
 3b43f090e test(app): keep focused contracts off slow timers
 59ab09a78 docs(ui): note radius scan removal
 4b3d86684 test: drop heavyweight radius source scan
@@ -28,6 +35,20 @@ edf0b37a9 docs: correct radius mapping baseline
 fc2e53e30 docs: approve five-mode UX remediation plan
 ```
 
+## 二次复核修复（2026-09-22）
+
+第二轮审批在已交付的 A 批之上又发现 6 项缺陷，均已修复并各自带回归证据：
+
+1. **跨来源资产数据残留** — `assetListStatus` 原先只按 `failed === undefined` 判断 loading。切换 location/server 后，旧来源的行会冒充当前来源的数据。现由 `source` / `settledSource` / `state` 共同判定：`source === undefined` → `idle`（新增状态，渲染“先选择项目”），来源变化强制 `loading`，同来源 refetch 保留旧行，`settledSource !== source` 时不再消费旧 `failed`。纯 `loading` 布尔量（非资源 `state`）无法区分“首次加载”与“换源重载”，这是根因。
+   - 证据：`asset-list-status.test.ts`（真实 Solid `createResource` 源切换行为）、`custom-asset-catalog.test.ts`。
+2. **同一模式挂载两个 WorkflowRuntimePanel** — Custom 面板无条件挂载 runtime panel，与 Work 面板叠加，一次页面读发起两次 workflow 状态请求。现仅当 `mode.currentMode === "custom"` 时挂载。
+   - 证据：`e2e/regression/workflow-runtime.spec.ts` 断言 `[data-mode="work"]` 下恰有 1 个 panel、1 次 GET、7 个 step。
+3. **Work Artifact 把“同步中”误判为“空”** — `workArtifactView` 原消费 `sync().status`，bootstrap 的 `partial` 会直接落到 empty。现改为入参 `ready`，由当前 Session 的消息是否已同步（`sync().data.message[id] !== undefined`）决定，未就绪一律 loading。
+   - 证据：`work-artifact-extract.test.ts`。
+4. **citation 浮层无法关闭** — loading 与 error 两个分支此前只能等超时或重试。现两个分支各加一个 `IconButton`（`assistant.citation.dismiss`）关闭浮层。
+5. **重复的 `review-panel` id** — 五个模式外壳同时输出 `id="review-panel"`。现 `SessionRightPanel` 接收 `modeID`，只有当前可见模式保留 `review-panel`，隐藏外壳改用 `session-mode-shell-${modeID}`；coding 继续用 `review-panel`，header 的 `aria-controls` 不变。
+6. **删除源码字符串断言测试** — 移除 `custom-sidebar.test.ts`、`assistant-dashboard.test.ts`，以及 `assistant-citation.test.ts` / `workflow-runtime-panel.test.tsx` 中新增的源码字符串断言；这些行为改由真实渲染与 e2e 覆盖。
+
 ## 已验证
 
 ```text
@@ -40,14 +61,24 @@ rc=0
 bun --cwd packages/ui test
 21 pass, 0 fail, 370 expect() calls
 
-bun --cwd packages/app test:unit:file <14 affected test files>
-117 pass, 0 fail, 3207 expect() calls
+bun --cwd packages/app test:unit:file <7 focused files>
+69 pass, 0 fail, 126 expect() calls
 
-LINT_BASE_REF=origin/main bun run script/lint-changed.ts
-Incremental lint passed (52 changed files, 2132 added lines)
+bun --cwd packages/app test:virtualizer
+3 pass, 0 fail, 9 expect() calls
+
+bun --cwd packages/app test:e2e:contracts
+39 pass, 0 fail, 153 expect() calls
+
+LINT_BASE_REF=53800bb8549443372243e5ba37b8277e225cf4df bun run script/lint-changed.ts
+Incremental lint passed: 51 changed files, 2368 added lines
 
 bash .aigcfroge/skills/protocols/scripts/check-refs.sh
 All 32 paths OK
+
+# 需先摘掉 HTTP(S)_PROXY，见下方环境陷阱
+bunx playwright test regression/workflow-runtime.spec.ts --project=chromium
+6 passed (3.9m)
 
 半径替换审计：
 app 69 + v2 38 = 107 处无争议映射；
@@ -58,18 +89,24 @@ app/v2 剩余映射值命中 0；
 ## 未验证 / 基线失败
 
 ```text
-bun --cwd packages/app test
-最后完整运行：1101 pass / 7 fail / 5609 expect() calls。
+bun --cwd packages/app test:unit
+1117 pass / 2 fail / 5642 expect() calls
+Ran 1119 tests across 150 files. [558.12s]
 
-失败集中在慢盘下的 5s hook/source-read 超时：
-comments.test.ts、terminal.test.ts、permission-identity.test.ts、i18n/parity.test.ts、
-custom-sidebar.test.ts、global-sync/child-store.test.ts、agent-task-hub.test.tsx。
-之后的 focused 复跑中，除 comments.test.ts 外全部转为 pass；comments.test.ts 单独复跑仍以
-beforeEach/afterEach 11.4s 超时失败。该文件不在本批调用链内，故不宣称全 app suite green。
+2 例均为慢盘下的 5s beforeEach/afterEach hook 超时：
+src/context/terminal.test.ts、src/context/permission-identity.test.ts。
+两者都不在本批调用链内；此前同形失败集（comments.test.ts 等）已缩小到 2 例，
+但失败文件随机器负载漂移，故不宣称全 app suite green。
 
-Playwright e2e：
-本地 Vite cold start 69s 后端口 ready，但 global setup 的 page.goto 180s 内 modules=0；
-WorkflowTab 的 e2e 用例已落盘，未取得本机绿证。该失败与本次修改的调用链无关，CI runner 仍需复核。
+Playwright e2e 环境陷阱（非本次改动引入，已定位根因）：
+本机 shell 设置了 HTTP_PROXY / HTTPS_PROXY = http://127.0.0.1:10808。
+Playwright 的 webServer 可用性探针走该代理，代理对 127.0.0.1:3000 回 400，
+被判定为 “WebServer is already available”，于是 vite 根本没被拉起，
+随后所有 page.goto 全部 ERR_CONNECTION_REFUSED（6/6 失败）。
+摘掉代理
+  env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
+      NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost
+后 6/6 通过。带代理的 CI runner 需在 config 里显式 NO_PROXY，否则会静默地不启动 dev server。
 ```
 
 ## 未交付登记
