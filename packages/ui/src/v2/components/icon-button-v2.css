@@ -8,7 +8,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--v2-text-text-base);
   user-select: none;
   outline: none;
@@ -28,7 +28,7 @@
 [data-component="icon-button-v2"][data-size="small"] {
   width: 20px;
   height: 20px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 [data-component="icon-button-v2"][data-size="normal"] {

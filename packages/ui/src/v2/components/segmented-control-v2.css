@@ -13,7 +13,7 @@
   height: 28px;
   background: var(--v2-background-bg-layer-01);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   box-shadow: 0 0 0 0.5px var(--v2-border-border-base);
   flex: none;
 }
@@ -30,7 +30,7 @@
   height: 28px;
   margin: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   box-shadow: none;
   cursor: pointer;
