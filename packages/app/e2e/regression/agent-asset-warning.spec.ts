@@ -5,7 +5,7 @@ import { pinEnglishUI } from "../utils/locale"
 import { pinDesktopViewport } from "../utils/viewport"
 
 // English-label, desktop-geometry spec — pin the UI language and viewport so the
-// zh/zht and narrow presentation projects stay green (see utils/locale.ts, utils/viewport.ts).
+// zh and narrow presentation projects stay green (see utils/locale.ts, utils/viewport.ts).
 test.beforeEach(async ({ page }) => {
   await pinEnglishUI(page)
   await pinDesktopViewport(page)

@@ -4,7 +4,7 @@ import { trackPageErrors } from "../utils/errors"
 import { pinEnglishUI } from "../utils/locale"
 import { expectSessionTitle } from "../utils/waits"
 
-// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
+// English-label spec — pin the UI language so the zh projects stay green (see utils/locale.ts).
 test.beforeEach(({ page }) => pinEnglishUI(page))
 
 const directory = "C:/Aigcfroge/AgentHubRegression"

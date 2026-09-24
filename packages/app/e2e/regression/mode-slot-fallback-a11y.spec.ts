@@ -398,7 +398,7 @@ test("the session area stays usable with the mode panel open at 200% zoom", { ta
  * they are never mounted. The manifest entry is `narrow-mode-content-panels`.
  *
  * Locators here are ids and structural markers rather than English accessible names, because
- * this file is tagged `@a11y` and therefore also runs under chromium-dark/zh/zht — where
+ * this file is tagged `@a11y` and therefore also runs under chromium-dark/zh — where
  * `work.artifact.tab` and `assistant.panel.title` are translated. Naming them in English
  * would either fail those rows or force a locale pin that made them dishonest.
  */

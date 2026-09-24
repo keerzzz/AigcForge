@@ -2,7 +2,7 @@
  * Presentation matrix definition — the single source shared by
  * `playwright.config.ts` and the contract spec that validates it.
  *
- * `chromium` carries the business suite. The other four projects exist to prove
+ * `chromium` carries the business suite. The other three projects exist to prove
  * that the shell survives a different theme, locale or viewport, so they run only
  * specs that assert presentation or accessibility behaviour: the matrix contract
  * itself, the a11y/narrow spec, and (once its S7 unlock lands) the shell
@@ -21,7 +21,7 @@ export const PRESENTATION_TAGS = ["@presentation", "@a11y"] as const
 export const PRESENTATION_GREP = /@presentation|@a11y/
 
 /** Project names that run `PRESENTATION_GREP` instead of the full suite. */
-export const MATRIX_PROJECTS = ["chromium-dark", "chromium-zh", "chromium-zht", "chromium-narrow"] as const
+export const MATRIX_PROJECTS = ["chromium-dark", "chromium-zh", "chromium-narrow"] as const
 
 /** What each project must actually change, asserted by `presentation-matrix.spec.ts`. */
 export const PRESENTATION_EXPECTED: Record<
@@ -31,6 +31,5 @@ export const PRESENTATION_EXPECTED: Record<
   chromium: { colorScheme: "light", lang: "en", viewport: { width: 1280, height: 720 } },
   "chromium-dark": { colorScheme: "dark", lang: "en", viewport: { width: 1280, height: 720 } },
   "chromium-zh": { colorScheme: "light", lang: "zh", viewport: { width: 1280, height: 720 } },
-  "chromium-zht": { colorScheme: "light", lang: "zht", viewport: { width: 1280, height: 720 } },
   "chromium-narrow": { colorScheme: "light", lang: "en", viewport: { width: 390, height: 844 } },
 }

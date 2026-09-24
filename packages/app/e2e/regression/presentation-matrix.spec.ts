@@ -13,7 +13,7 @@ const created = 1700000000000
  *
  * The five projects in `playwright.config.ts` must actually change what the
  * user sees: `chromium-dark` forces the dark color scheme, `chromium-zh` /
- * `chromium-zht` force the stored locale, and `chromium-narrow` runs at
+ * `chromium-zh` forces the stored locale, and `chromium-narrow` runs at
  * 390x844. Each assertion below keys on the project name, so a project whose
  * storage/device wiring stops applying turns exactly that case red. Keyboard
  * reachability is asserted here as an interaction (Tab) on the base project
