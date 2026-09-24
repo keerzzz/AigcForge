@@ -1400,7 +1400,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const designPlaceholder = () => {
     if (store.mode === "shell") return placeholder()
-    return "Ask anything, / for commands, @ for context..."
+    return language.t("prompt.placeholder.design")
   }
 
   const modelControlState = createMemo<ComposerModelControlState>(() => ({
@@ -1615,7 +1615,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             </div>
           </div>
           <div class="flex h-11 items-center px-2">
-            <div class="flex min-w-0 flex-1 items-center gap-0">
+            <div class="flex min-w-0 flex-1 items-center gap-0 overflow-hidden">
               {fileAttachmentInput()}
               <TooltipKeybind
                 placement="top"
@@ -1876,7 +1876,7 @@ function ComposerModelControl(props: { state: ComposerModelControlState }) {
               as="div"
               variant="ghost"
               size="normal"
-              class="min-w-0 max-w-[220px] justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group"
+              class="min-w-0 max-w-[min(220px,45vw)] justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group"
               style={props.state.style}
               onClick={props.state.onUnpaidClick}
             >

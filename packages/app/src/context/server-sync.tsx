@@ -501,6 +501,14 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
         console.error("Failed to invalidate session identity")
       })
     }
+    // V2 durable switches write session_message, not the legacy `session.updated`
+    // event. Invalidate the same exact identity query so the Header reflects the
+    // server projection immediately instead of waiting for a full reload.
+    if (event.type === "session.next.agent.switched" || event.type === "session.next.model.switched") {
+      void SessionIdentityQuery.invalidate(queryClient, serverSDK.scope, event.properties.sessionID).catch(() => {
+        console.error("Failed to invalidate session identity")
+      })
+    }
     const recent = bootingRoot || Date.now() - bootedAt < 1500
 
     if (directory === "global") {

@@ -1,12 +1,9 @@
 import { describe, expect, test } from "bun:test"
 
-// en + zh + zht are the only maintained locales (language policy, 2026-07-31).
-// The other locales are frozen snapshots; missing keys fall back to English via
-// the base-spread in packages/app/src/context/language.tsx, so they are not enforced.
-const locales = [
-  ["zh", () => import("./zh")],
-  ["zht", () => import("./zht")],
-] as const
+// en + zh are the only supported locales (language policy, 2026-09-23).
+// The other locale files are frozen snapshots; they are no longer registered by
+// the language provider, so they are not enforced here.
+const locales = [["zh", () => import("./zh")]] as const
 
 const placeholders = (value: string) => Array.from(value.matchAll(/{{\s*([^}]+?)\s*}}/g), (match) => match[1]).sort()
 

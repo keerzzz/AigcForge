@@ -71,7 +71,7 @@ export default defineConfig({
   },
   projects: [
     {
-      // Business suite: everything runs here. The other four projects filter on
+      // Business suite: everything runs here. The other three projects filter on
       // `PRESENTATION_GREP` — see e2e/presentation-matrix.ts for why.
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
@@ -90,14 +90,6 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         storageState: storageState([["aigcfroge.global.dat:language", '{"locale":"zh"}']]),
-      },
-    },
-    {
-      name: "chromium-zht",
-      grep: PRESENTATION_GREP,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: storageState([["aigcfroge.global.dat:language", '{"locale":"zht"}']]),
       },
     },
     {

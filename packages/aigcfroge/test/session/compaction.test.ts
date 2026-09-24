@@ -1239,13 +1239,21 @@ describe("session.compaction.process", () => {
 
         yield* Deferred.await(ready).pipe(Effect.timeout("5 seconds"))
         const start = Date.now()
+        // `Fiber.interrupt` awaits the fiber's completion, so its own round-trip
+        // measures how long the abort actually took. The property under test is
+        // that interrupting during retry backoff aborts promptly instead of
+        // waiting out the 10s `retry-after-ms`; it is not a sub-250ms latency SLA.
+        // The old 250ms budget flaked on slower runners (Windows CI in
+        // particular) even though the abort never approached the 10s backoff, so
+        // assert a generous bound that still proves the backoff was cut short.
         yield* Fiber.interrupt(fiber)
-        const exit = yield* Fiber.await(fiber).pipe(Effect.timeout("250 millis"))
+        const elapsed = Date.now() - start
+        const exit = yield* Fiber.await(fiber).pipe(Effect.timeout("30 seconds"))
 
         expect(Exit.isFailure(exit)).toBe(true)
         if (Exit.isFailure(exit)) {
           expect(Cause.hasInterrupts(exit.cause)).toBe(true)
-          expect(Date.now() - start).toBeLessThan(250)
+          expect(elapsed).toBeLessThan(5000)
         }
       }).pipe(withCompaction({ llm: stub.layer }))
     },

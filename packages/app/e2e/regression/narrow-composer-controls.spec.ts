@@ -16,7 +16,7 @@ import { expectAppVisible, gotoWhenReady } from "../utils/waits"
  * observation-as-evidence mistake the plan calls out for `closed:false`.
  *
  * Locators are structural (`data-action` markers the composer already emits) rather than
- * accessible names, because `@a11y` runs under chromium-zh/zht too and English names would
+ * accessible names, because `@a11y` runs under chromium-zh too and English names would
  * either fail those rows or force a locale pin that made them dishonest.
  */
 const directory = "C:/Aigcfroge/NarrowComposerControls"

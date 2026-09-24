@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
 
-// English-label spec — pin the UI language so the zh/zht projects stay green (see utils/locale.ts).
+// English-label spec — pin the UI language so the zh projects stay green (see utils/locale.ts).
 test.beforeEach(({ page }) => pinEnglishUI(page))
 
 const directory = "C:/Aigcfroge/AssistantDashboardRegression"

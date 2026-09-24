@@ -74,12 +74,10 @@ describe("AgentTaskHub", () => {
     expect(panel).toContain("openParticipant(participant.href)")
   })
 
-  test("hub i18n keys exist in en, zh and zht", async () => {
+  test("hub i18n keys exist in en and zh", async () => {
     const english = (await import("../../../i18n/en")).dict as Readonly<Record<string, string>>
     for (const key of hubKeys) expect(english[key], `en missing ${key}`).toBeDefined()
     const zh = (await import("../../../i18n/zh")).dict as Readonly<Record<string, string>>
     for (const key of hubKeys) expect(zh[key], `zh missing ${key}`).toBeDefined()
-    const zht = (await import("../../../i18n/zht")).dict as Readonly<Record<string, string>>
-    for (const key of hubKeys) expect(zht[key], `zht missing ${key}`).toBeDefined()
   })
 })
