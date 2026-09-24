@@ -101,3 +101,18 @@ test("the specs that define the matrix carry a tag", () => {
     expect(source?.includes(`"${tag}"`), `${file} carries ${tag}`).toBe(true)
   }
 })
+
+/**
+ * The workflow names the Playwright projects to run, so it is a second source of
+ * truth next to `MATRIX_PROJECTS`. It drifted once: the locale collapse dropped
+ * `chromium-zht` from the config while the workflow kept passing it, and
+ * Playwright failed the whole job with `Project(s) "chromium-zht" not found`
+ * before a single test ran. Compared here rather than restated by hand.
+ */
+test("the CI project list matches the matrix definition", () => {
+  const workflow = readFileSync(path.resolve(e2eRoot, "..", "..", "..", ".github/workflows/test.yml"), "utf8")
+  const line = workflow.split("\n").find((entry) => entry.includes("test:e2e:local --project="))
+  if (!line) throw new Error("the workflow no longer runs an explicit e2e project list; update this contract")
+  const projects = [...line.matchAll(/--project=([\w-]+)/g)].map((match) => match[1])
+  expect(projects).toEqual(["chromium", ...MATRIX_PROJECTS])
+})

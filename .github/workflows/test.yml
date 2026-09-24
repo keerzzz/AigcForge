@@ -247,9 +247,9 @@ jobs:
         run: bunx playwright install chromium
 
       - name: Run app e2e tests
-        # `chromium` is the business suite. The other four projects are the
+        # `chromium` is the business suite. The other three projects are the
         # presentation matrix and filter on `PRESENTATION_GREP` (e2e/presentation-matrix.ts):
-        # theme/locale/viewport survive, but the suite is no longer multiplied by five
+        # theme/locale/viewport survive, but the suite is no longer multiplied by four
         # (~1030 instances before, ~218 after, measured with `playwright test --list`).
         # Windows keeps the baseline Chromium project so the OS split does not multiply
         # the slowest runner. No continue-on-error: the matrix is a real gate. The Linux
@@ -257,7 +257,7 @@ jobs:
         # is what should resize it, not this comment.
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            bun --cwd packages/app test:e2e:local --project=chromium --project=chromium-dark --project=chromium-zh --project=chromium-zht --project=chromium-narrow
+            bun --cwd packages/app test:e2e:local --project=chromium --project=chromium-dark --project=chromium-zh --project=chromium-narrow
           else
             bun --cwd packages/app test:e2e:local --project=chromium
           fi
