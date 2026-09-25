@@ -60,7 +60,7 @@ export interface MockServerConfig {
   projects?: unknown[]
   /** Optional response for PATCH /project/:id, the write the colour auto-assign
    * (`context/layout.tsx`) and the edit dialog (`dialog-edit-project.tsx`) issue.
-   * Absent, the route stays unmatched and falls through to the same 200 `{}` it
+   * Absent, the route returns the baseline 200 `{}` it
    * always has; `projectUpdateStatus` defaults to 200, so a rejected write is
    * expressed as a status plus the typed error shape. */
   projectUpdate?: unknown
@@ -138,12 +138,8 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     if (path in staticRoutes) return json(route, staticRoutes[path])
     // Project write (`PATCH /project/:id`). Unmatched before this knob existed, so it
     // fell through to the blanket 200 `{}` and a rejected write was inexpressible.
-    // Only answered when the knob is present; every other method and path is unchanged.
-    if (
-      /^\/project\/[^/]+$/.test(path) &&
-      route.request().method() === "PATCH" &&
-      (config.projectUpdate !== undefined || config.projectUpdateStatus !== undefined)
-    ) {
+    // Preserve the baseline successful no-op without an override, including same-origin previews.
+    if (/^\/project\/[^/]+$/.test(path) && route.request().method() === "PATCH") {
       return json(route, config.projectUpdate ?? {}, undefined, config.projectUpdateStatus ?? 200)
     }
     // M4 Agent Hub cross-session aggregation read (agent-task group).
@@ -283,9 +279,20 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     // (e2e/real/session-not-found.spec.ts) plus the E3 shape assertion in
     // unknown-route.spec.ts; a second, stricter mock mode would have no caller.
     // Reopen only if a future spec needs unmatched-path 404s.
-    if (url.port === targetPort && targetPort !== appPort) return json(route, {})
+    // Same-origin previews still need SDK fallbacks, but navigations and frontend assets must pass through.
+    // Directory-scoped SDK calls carry the directory query; global V2 calls use the /api/ prefix.
+    if (shouldMockApiFallback({ url, targetPort, appPort, resourceType: route.request().resourceType() })) {
+      return json(route, {})
+    }
     return route.fallback()
   })
+}
+
+export function shouldMockApiFallback(input: { url: URL; targetPort: string; appPort: string; resourceType: string }) {
+  if (input.url.port !== input.targetPort) return false
+  if (input.targetPort !== input.appPort) return true
+  if (input.resourceType !== "fetch" && input.resourceType !== "xhr") return false
+  return input.url.searchParams.has("directory") || input.url.pathname.startsWith("/api/")
 }
 
 function notFound(route: Route, message: string) {

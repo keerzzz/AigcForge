@@ -51,16 +51,20 @@ function loadConfig(file: string) {
   return configs[file]
 }
 
-for (const file of [
-  "./playwright.config.ts",
-  "./e2e/performance/playwright.config.ts",
-  "./e2e/performance/playwright.uncapped.config.ts",
-]) {
-  test(`${file} resolves the same module-relative globalSetup`, () => {
+test("development config resolves its module-relative warmup", () => {
+  const config = loadConfig("./playwright.config.ts")
+  const setup = path.resolve(import.meta.dir, "../global-setup.ts")
+  expect(config.globalSetup).toBe(setup)
+  expect(existsSync(setup)).toBe(true)
+})
+
+for (const file of ["./e2e/performance/playwright.config.ts", "./e2e/performance/playwright.uncapped.config.ts"]) {
+  test(`${file} benchmarks compiled assets without dev-network warmup`, () => {
     const config = loadConfig(file)
-    const setup = path.resolve(import.meta.dir, "../global-setup.ts")
-    expect(config.globalSetup).toBe(setup)
-    expect(existsSync(setup)).toBe(true)
+    expect(config.globalSetup).toBeUndefined()
+    if (!isRecord(config.webServer)) throw new Error("missing production benchmark server")
+    expect(config.webServer.command).toContain("bun run build")
+    expect(config.webServer.reuseExistingServer).toBe(false)
   })
 }
 
