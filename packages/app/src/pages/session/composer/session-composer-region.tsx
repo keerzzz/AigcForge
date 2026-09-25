@@ -97,8 +97,11 @@ export function SessionComposerRegion(props: {
   )
 
   const agentsQuery = createQuery(() => queryOptions().agents(pathKey(sdk().directory)))
+  // The model control reads provider data from the shared store (useProviders); it only needs
+  // the app-wide catalog query for a readiness signal. A directory-scoped provider probe here was a
+  // second 6.3MB fetch that gated the whole control, and coupling to agentsQuery made the model
+  // control wait on an unrelated request — both removed so the control is not held hostage.
   const globalProvidersQuery = createQuery(() => queryOptions().providers(null))
-  const providersQuery = createQuery(() => queryOptions().providers(pathKey(sdk().directory)))
   const selectProject = (worktree: string) => {
     const conn = projectServer()
     const target = projectServerCtx()
@@ -144,7 +147,7 @@ export function SessionComposerRegion(props: {
       model: {
         selection: local.model,
         paid: providers.paid().length > 0,
-        loading: agentsQuery.isLoading || providersQuery.isLoading || globalProvidersQuery.isLoading,
+        loading: globalProvidersQuery.isLoading,
       },
       projects: {
         available: projects(),
