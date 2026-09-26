@@ -367,3 +367,11 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 - **`@` reference / MCP resource 分支缺失。Owner：app / composer 产品负责人。** 解锁条件：先核对当前能力范围和批准的裁决，再决定补回入口；不以“上游有、本仓无”直接判为回归。
 - **权限订阅移除 disposed 守卫。Owner：app / permission。** 解锁条件：沿当前订阅清理与异步回调 owner 建立卸载后事件重放测试；未复现前不新增平行生命周期状态。
 - **消息手势边界比较与 overscan 配置。Owner：app / timeline。** 解锁条件：分别用实际手势判定函数、最终 range extractor 验证边界/可见项影响，并依协议记录生产性能基线；未验证前不将代码表面不对称当作用户可见故障。
+
+## 11. 自定义供应商探测的未交付范围（2026-09-26）
+
+来源：自定义供应商多协议 + 模型属性 + 端点探测切片（分支 `provider-discover`）。已交付：协议选择（OpenAI 兼容 / Anthropic）、模型属性（上下文窗口 / 最大输出 / 输入模态）、`POST /provider/discover` 轻量探测，以及表单内「测试连接 / 获取模型」。以下为未交付项，按 Slice Checkpoints 规则登记。
+
+- **探测只覆盖模型列表，不覆盖真实生成 — Owner: aigcfroge / provider。** `discoverModelsFromEndpoint`（`packages/aigcfroge/src/provider/discover.ts`）只发 `GET {base}/models`（Anthropic 为 `/v1/models`），返回 2xx 且可解析即视为可达，因此「有权限列模型但无权生成」或转发站返回伪列表时仍会通过。解锁条件：新增显式的 opt-in 最小生成探测（调用方明确接受 token 成本），并为 200/401/超时/流式异常补集成用例；在此之前 UI 文案只声明端点可达，不声明模型可用。
+- **编辑已有供应商 / 为已有供应商加模型（原 Slice 2b）— Owner: app / providers UI。** `packages/app/src/components/dialog-manage-models.tsx` 仍无「新增模型行」，用户只能手改 `aigcfroge.jsonc`；后端合并逻辑（`packages/aigcfroge/src/provider/provider.ts` 的 `mergeProvider`）已能接收任意模型与属性。解锁条件：复用 `dialog-custom-provider-form.ts` 的行校验与 `updateConfig` 写入路径补 UI，并补一条「新增后 provider 列表出现该模型」的集成用例。
+- **端点探测的浏览器端走查 — Owner: app / QA。** 本轮验证止于组件单测、`bun --cwd packages/app typecheck` 与服务端集成用例；未在真实后端 + 浏览器里点过「测试连接 / 获取模型」。解锁条件：起 dev 后端与 app，用真实 OpenAI 兼容端点走一遍成功与 401 两条路径，记录网络请求与 toast 证据。
