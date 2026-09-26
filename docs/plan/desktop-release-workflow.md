@@ -60,5 +60,6 @@ gh workflow run publish.yml -f release_mode=full -f bump=patch
 - PR 合并后按 label 自动触发 `desktop-draft`。
 - 签名 / 公证和真实安装升级的自动门禁。
 - 从桌面发布链彻底拆分 npm、Docker、AUR。
+- macOS Intel（x64）已暂时移出构建矩阵（macos-13 runner 长时间排队阻塞）；本轮 Draft 只覆盖 Apple Silicon，详见 `docs/technical-debt.md` §12。
 
 这些项不能在本切片中宣称已闭环；每次关闭前按 `AGENTS.md` 的 Slice Checkpoints 记录 owner 与解锁条件。
