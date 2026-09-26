@@ -20,6 +20,7 @@
 | §7 全局壳观察                   | delegation 投影、资产双读、测试隔离与开发态时序                                                                        | 纳入 product closure S3/S6 或后续专项                                                                                                                         |
 | §8 全路由 E2E                   | route、真实 Session/File/PTY、full-suite、Settings/Desktop                                                             | 纳入 product closure S2–S5/S11；E3 不冒充 E4                                                                                                                  |
 | §9 远程 Issue 对账              | #40/#41/#42/#44                                                                                                        | 证据已核对；远程处置待 Owner 授权                                                                                                                             |
+| §12 桌面发布工作流              | 版本回写、PR label、分发拆分、签名/升级验证                                                                            | desktop-draft 首个切片已实现；真实 Actions 发布待验证                                                                                                         |
 
 ---
 
@@ -376,3 +377,12 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 - **编辑已有供应商 / 为已有供应商加模型（原 Slice 2b）— Owner: app / providers UI。** `packages/app/src/components/dialog-manage-models.tsx` 仍无「新增模型行」，用户只能手改 `aigcfroge.jsonc`；后端合并逻辑（`packages/aigcfroge/src/provider/provider.ts` 的 `mergeProvider`）已能接收任意模型与属性。解锁条件：复用 `dialog-custom-provider-form.ts` 的行校验与 `updateConfig` 写入路径补 UI，并补一条「新增后 provider 列表出现该模型」的集成用例。
 - **探测无法解析 `{env:NAME}` 密钥 — Owner: aigcfroge / provider。** 表单支持 `{env:...}`（保存时只写引用，运行时由 provider 解析），但探测端点收的是明文 key；前端现在遇到该形态直接拒绝并提示，而不是发一个必然 401 的假密钥。解锁条件：让探测入参支持 env 引用名，并按 `resolveSDK` 同一套顺序在服务端取值，或只对已保存的供应商开放探测入口。
 - **端点探测的浏览器端走查 — Owner: app / QA。** 本轮验证止于组件单测、`bun --cwd packages/app typecheck` 与服务端集成用例；未在真实后端 + 浏览器里点过「测试连接 / 获取模型」。解锁条件：起 dev 后端与 app，用真实 OpenAI 兼容端点走一遍成功与 401 两条路径，记录网络请求与 toast 证据。
+
+## 12. 桌面发布工作流未交付范围（2026-09-26）
+
+来源：`desktop-release-flow` 切片的 desktop-draft 工作流和 `docs/plan/desktop-release-workflow.md`。已交付的仅是草稿构建、更新清单和严格发布说明门禁；以下项按 Slice Checkpoints 规则登记。
+
+- **版本提交回 `main` / 单一版本源 — Owner: release。** 当前版本仍从最新 GitHub Release 计算，构建产物使用新版本，但没有把版本写回并提交到 `main` 的根 `package.json` 与各 workspace 清单。解锁条件：确定 bot 提交策略、分支保护绕过边界和失败回滚方式，并从同一个版本提交构建和打标签后再删除本项。
+- **PR 合并后按 label 自动触发 — Owner: release。** 当前 `desktop-draft` 只能手动 `workflow_dispatch`；尚未实现 `release:patch` / `release:minor` / `release:major` / `release:none` 的 PR 语义。解锁条件：先完成一次真实 Draft 发布验收，再补 label 路由、并发互斥和未标记 PR 的 no-release 行为。
+- **npm / Docker / AUR 从桌面必经链拆分 — Owner: release / distribution。** `desktop-draft` 已跳过旧 `script/publish.ts`，但完整发布模式仍把桌面构建与其他分发放在同一个工作流中。解锁条件：确认外部兼容责任后，将非桌面分发拆为独立工作流或明确标注 legacy 退出条件。
+- **签名 / 公证 / 真实升级 E2E — Owner: desktop / QA。** 当前只在 Windows 有签名校验步骤，Apple 和 Linux 能力依赖 Secrets 与目标平台，尚未在本轮验证；也没有上一正式桌面版可作为升级基线。解锁条件：在具备真实签名密钥的隔离环境跑通，并记录安装、升级、用户数据保留和数据库迁移证据。
