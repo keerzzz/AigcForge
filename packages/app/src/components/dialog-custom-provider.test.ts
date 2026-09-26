@@ -124,9 +124,7 @@ describe("validateCustomProvider", () => {
         name: "Provider",
         baseURL: "https://api.example.com",
         apiKey: "secret",
-        models: [
-          { row: "m0", id: "model-a", name: "Model A", contextWindow: "200000", maxOutput: "8192", err: {} },
-        ],
+        models: [{ row: "m0", id: "model-a", name: "Model A", contextWindow: "200000", maxOutput: "8192", err: {} }],
         headers: [],
         err: {},
       },

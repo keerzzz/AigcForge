@@ -111,7 +111,10 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       return yield* ProviderDiscover.discoverModelsFromEndpoint(ctx.payload).pipe(
         Effect.mapError((error) => {
           if (error._tag === "ProviderDiscoverAuthError")
-            return new ProviderDiscoverApiError({ name: "Auth", data: { status: error.status, message: error.message } })
+            return new ProviderDiscoverApiError({
+              name: "Auth",
+              data: { status: error.status, message: error.message },
+            })
           if (error._tag === "ProviderDiscoverUnreachableError")
             return new ProviderDiscoverApiError({
               name: "Unreachable",

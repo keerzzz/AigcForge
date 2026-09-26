@@ -327,7 +327,6 @@ describe("provider HttpApi", () => {
     30000,
   )
 
-
   it.instance.skip(
     "returns public v2 provider not found errors",
     Effect.gen(function* () {
