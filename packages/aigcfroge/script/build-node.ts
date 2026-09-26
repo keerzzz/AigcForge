@@ -21,6 +21,7 @@ await Bun.build({
   external: ["jsonc-parser", "@lydell/node-pty"],
   define: {
     AIGCFROGE_MODELS_DEV: generated.modelsData,
+    AIGCFROGE_VERSION: JSON.stringify(Script.version),
     AIGCFROGE_CHANNEL: `'${Script.channel}'`,
   },
   files: {
