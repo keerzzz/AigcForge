@@ -131,20 +131,25 @@ test.describe("smoke: session timeline", () => {
     })
     await configureSmokePage(page, fixture.directory)
     await page.addInitScript(
-      ({ dirBase64, sourceID, targetID }) => {
+      ({ dirBase64, sourceID, targetID, server }) => {
         localStorage.setItem(
           "aigcfroge.global.dat:tabs",
           JSON.stringify(
             [sourceID, targetID].map((sessionId) => ({
               type: "session",
-              server: "http://127.0.0.1:4096",
+              server,
               dirBase64,
               sessionId,
             })),
           ),
         )
       },
-      { dirBase64: base64Encode(fixture.directory), sourceID: fixture.sourceID, targetID: fixture.targetID },
+      {
+        dirBase64: base64Encode(fixture.directory),
+        sourceID: fixture.sourceID,
+        targetID: fixture.targetID,
+        server: fixture.serverKey,
+      },
     )
 
     await page.goto(`/${base64Encode(fixture.directory)}/session/${fixture.targetID}`)
@@ -261,20 +266,25 @@ test.describe("smoke: session timeline", () => {
     })
     await configureSmokePage(page, fixture.directory)
     await page.addInitScript(
-      ({ dirBase64, sourceID, targetID }) => {
+      ({ dirBase64, sourceID, targetID, server }) => {
         localStorage.setItem(
           "aigcfroge.global.dat:tabs",
           JSON.stringify(
             [sourceID, targetID].map((sessionId) => ({
               type: "session",
-              server: "http://127.0.0.1:4096",
+              server,
               dirBase64,
               sessionId,
             })),
           ),
         )
       },
-      { dirBase64: base64Encode(fixture.directory), sourceID: fixture.sourceID, targetID: fixture.targetID },
+      {
+        dirBase64: base64Encode(fixture.directory),
+        sourceID: fixture.sourceID,
+        targetID: fixture.targetID,
+        server: fixture.serverKey,
+      },
     )
     await page.goto(`/${base64Encode(fixture.directory)}/session/${fixture.sourceID}`)
     await expectSessionTitle(page, fixture.expected.sourceTitle)

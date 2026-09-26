@@ -9,7 +9,7 @@ const directory = "C:/Aigcfroge/ComposerSubmit"
 const projectID = "proj_composer_submit"
 const sessionID = "ses_composer_submit"
 const secondSessionID = "ses_composer_submit_second"
-const server = "http://localhost:4096"
+const server = `http://localhost:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
 const model = { providerID: "aigcfroge", modelID: "composer-model" }
 const pathFor = (id: string) => `/server/${base64Encode(server)}/session/${id}`
 const path = pathFor(sessionID)

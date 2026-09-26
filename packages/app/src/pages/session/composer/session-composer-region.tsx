@@ -5,13 +5,10 @@ import { PromptInput } from "@/components/prompt-input"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
-import { usePermission } from "@/context/permission"
 import { Icon } from "@aigcfroge/ui/icon"
-import { showToast } from "@/utils/toast"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
-import { SessionPermissionOverrideControl } from "@/pages/session/composer/session-permission-override-dialog"
 import { SessionQuestionDock } from "@/pages/session/composer/session-question-dock"
 import { SessionFollowupDock } from "@/pages/session/composer/session-followup-dock"
 import { SessionRevertDock } from "@/pages/session/composer/session-revert-dock"
@@ -97,8 +94,11 @@ export function SessionComposerRegion(props: {
   )
 
   const agentsQuery = createQuery(() => queryOptions().agents(pathKey(sdk().directory)))
+  // The model control reads provider data from the shared store (useProviders); it only needs
+  // the app-wide catalog query for a readiness signal. A directory-scoped provider probe here was a
+  // second 6.3MB fetch that gated the whole control, and coupling to agentsQuery made the model
+  // control wait on an unrelated request — both removed so the control is not held hostage.
   const globalProvidersQuery = createQuery(() => queryOptions().providers(null))
-  const providersQuery = createQuery(() => queryOptions().providers(pathKey(sdk().directory)))
   const selectProject = (worktree: string) => {
     const conn = projectServer()
     const target = projectServerCtx()
@@ -144,7 +144,7 @@ export function SessionComposerRegion(props: {
       model: {
         selection: local.model,
         paid: providers.paid().length > 0,
-        loading: agentsQuery.isLoading || providersQuery.isLoading || globalProvidersQuery.isLoading,
+        loading: globalProvidersQuery.isLoading,
       },
       projects: {
         available: projects(),
@@ -165,34 +165,6 @@ export function SessionComposerRegion(props: {
   const parentID = createMemo(() => info()?.parentID)
   const child = createMemo(() => !!parentID())
   const showComposer = createMemo(() => !props.state.blocked() || child())
-
-  // S12 共享权限控制面（计划 §6.8）：break-glass 租约与权限档位共用
-  // usePermission owner，composer 只做消费者，不自己拿 SDK 调端点，
-  // 也不复制计时器/状态/权限计算。
-  const permission = usePermission()
-  createEffect(() => {
-    const id = route.params.id
-    if (!id) return
-    void permission.refreshOverride(id)
-  })
-  const overrideRequest = async (input: { method: "PUT" | "DELETE"; acknowledged?: boolean }) => {
-    const id = route.params.id
-    if (!id) return
-    try {
-      await permission.updateOverride({ sessionID: id, ...input })
-    } catch {
-      showToast({ title: language.t("common.requestFailed") })
-    }
-  }
-  const tierRequest = async (permissionTier: "propose" | "full") => {
-    const id = route.params.id
-    if (!id) return
-    try {
-      await permission.setPermissionTier(id, permissionTier)
-    } catch {
-      showToast({ title: language.t("common.requestFailed") })
-    }
-  }
 
   const previewPrompt = () =>
     prompt
@@ -267,36 +239,6 @@ export function SessionComposerRegion(props: {
               />
             </div>
           )}
-        </Show>
-
-        <Show when={route.params.id}>
-          <div data-slot="permission-control-surface">
-            <SessionPermissionOverrideControl
-              sessionID={route.params.id!}
-              root={!parentID()}
-              attended={info()?.attended}
-              enabled={() => permission.overrideEnabled(route.params.id!)}
-              onEnable={() => void overrideRequest({ method: "PUT", acknowledged: true })}
-              onRenew={() => void overrideRequest({ method: "PUT" })}
-              onDisable={() => void overrideRequest({ method: "DELETE" })}
-            />
-            <Show when={!parentID() && info()?.attended !== false}>
-              <div data-slot="permission-tier-control">
-                <span data-slot="permission-tier-current">
-                  {info()?.permissionTier === "full"
-                    ? language.t("permission.tier.full")
-                    : language.t("permission.tier.propose")}
-                </span>
-                <button
-                  type="button"
-                  data-slot="permission-tier-toggle"
-                  onClick={() => void tierRequest(info()?.permissionTier === "full" ? "propose" : "full")}
-                >
-                  {language.t("permission.tier.change")}
-                </button>
-              </div>
-            </Show>
-          </div>
         </Show>
 
         <Show when={showComposer()}>

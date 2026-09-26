@@ -44,8 +44,7 @@ export function directoryAcceptKey(directory: string) {
 
 function accepted(autoAccept: Record<string, boolean>, sessionID: string, directory?: string) {
   const key = acceptKey(sessionID, directory)
-  const directoryKey = directory ? directoryAcceptKey(directory) : undefined
-  return autoAccept[key] ?? autoAccept[sessionID] ?? (directoryKey ? autoAccept[directoryKey] : undefined)
+  return autoAccept[key] ?? autoAccept[sessionID]
 }
 
 export function isDirectoryAutoAccepting(autoAccept: Record<string, boolean>, directory: string) {
@@ -80,5 +79,7 @@ export function autoRespondsPermission(
   const value = sessionLineage(session, permission.sessionID)
     .map((id) => accepted(autoAccept, id, directory))
     .find((item): item is boolean => item !== undefined)
-  return value ?? false
+  // Directory defaults must never override an explicit decision in the session lineage.
+  if (value !== undefined) return value
+  return directory ? isDirectoryAutoAccepting(autoAccept, directory) : false
 }

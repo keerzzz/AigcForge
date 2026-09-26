@@ -351,3 +351,19 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 | [#42 Dynamic Routing](https://github.com/keerzzz/AigcForge/issues/42) | `triage` run `32046128683` 成功，已覆盖后发的 Gemini dynamic routing 验证。                                                                                        | 后发成功证据取代 #40/#41 的早期失败，但不等于持续集成合同。             | 以成功 run 评论后关闭；如需长期保护，另建 deterministic workflow contract test Issue。 |
 
 当前 4 个开放 Issue 均不适合作为本计划 S0–S5 的总追踪票。若进入实施，建议新建 `test(app): establish real-backend product closure gates`，只覆盖 real-backend harness、基础套件稳定、route fail-closed 与真实 Session/File/PTY；身份投影、模式业务和 Desktop 各自独立立项。
+
+## 10. 权限入口与探索性 QA 续办（2026-09-25）
+
+来源：任务 `01a0d3ac-69f4-72a0-8a9a-64137ff5fa19` 的未完成项复核。用户裁决：删除输入框上方常驻权限文本，但保留权限功能；临时全权访问盾牌固定在「+」右侧，关闭时为低强调态，开启时为红色，首次开启必须二次确认。租约启用和撤销继续复用既有 `packages/app/src/context/permission.tsx:272` 的 `updateOverride`，未新增权限服务。
+
+### 待完成范围（不能由本轮 App 回归代替）
+
+- **归档恢复后的分页估计少计 — 已复现，未修复。Owner：app / global-sync。** `applyDirectoryEvent`（`packages/app/src/context/global-sync/event-reducer.ts:191`）在已加载根会话归档后减计数；收到同 ID、`time.archived: 0` 的更新时插回列表但不恢复计数。`estimateRootSessionTotal`（`packages/app/src/context/global-sync/session-load.ts:39`）给的是分页估计，不是精确数据库总数；`trimSessions`（`packages/app/src/context/global-sync/session-trim.ts:34`）还会裁剪列表，所以不能对所有未命中缓存的更新简单加一。只读子任务调用这三个实际函数复现：6 个超过近期保留窗口的根会话、limit=5，归档/恢复后 total=5、可见=5，`LocalWorkspace.hasMore`（`packages/app/src/pages/layout/sidebar-workspace.tsx:481`）错误变为 false；重新估计则为 total=6。HTTP 的 `ArchivedTimestamp = Schema.Finite` 接受 0，更新 handler 只忽略 undefined，故该路径在 API 契约上可达；**尚未运行 HTTP/浏览器端到端复现，也未找到普通 UI 的取消归档入口**。解锁条件：复用权威列表重载与现有失效机制，或建立可去重的归档状态转移；补 HTTP→事件→分页往返回归，覆盖未加载既有会话、重复事件和裁剪，不能只测 count 加一。
+- **原任务的真实后端与 Desktop 全链路走查 — 未完成。Owner：app / desktop QA。** 本轮使用生产前端资产与既有 Playwright mock-server 验证 UI/提交契约，不把它报告为真实模型执行、后端权限裁决或 Electron 窗口管理通过。解锁条件：分别运行 `e2e/real` 的真实后端会话/权限流程和 Desktop 专用 E2E，并单独记录既有窗口几何断言问题；不通过放宽像素断言替代定位。
+- **开发环境预热的全局 networkidle — 待独立复核。Owner：app / test infra。** 本轮观察到生产 benchmark 继承开发预热后，页面已经 load，仍连续在 networkidle 等待 180s（modules=0）。生产 benchmark 已移除不适用的开发预热；开发入口仍有意保留预热。解锁条件：在真实 Vite dev server 上区分模块请求与后端长连接/重试，采集请求级证据后调整就绪条件，不能把所有等待都归因于磁盘或延长超时。生产构建耗时与服务器监听就绪亦应分开记录；本轮本地验证采用先 build、再 preview 的独立阶段。
+
+### 继承的线索（未确认为产品缺陷）
+
+- **`@` reference / MCP resource 分支缺失。Owner：app / composer 产品负责人。** 解锁条件：先核对当前能力范围和批准的裁决，再决定补回入口；不以“上游有、本仓无”直接判为回归。
+- **权限订阅移除 disposed 守卫。Owner：app / permission。** 解锁条件：沿当前订阅清理与异步回调 owner 建立卸载后事件重放测试；未复现前不新增平行生命周期状态。
+- **消息手势边界比较与 overscan 配置。Owner：app / timeline。** 解锁条件：分别用实际手势判定函数、最终 range extractor 验证边界/可见项影响，并依协议记录生产性能基线；未验证前不将代码表面不对称当作用户可见故障。
