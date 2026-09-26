@@ -39,8 +39,10 @@ export class DiscoverParseError extends Schema.TaggedErrorClass<DiscoverParseErr
 
 export type DiscoverError = DiscoverAuthError | DiscoverUnreachableError | DiscoverParseError
 
-// Both OpenAI-compatible and Anthropic listings answer with a `data` array;
-// Anthropic additionally carries `display_name`. Extra fields are ignored.
+// Both protocols answer with a `data` array; Anthropic additionally carries
+// `display_name` and paginates (its SDK's PageResponse is
+// `{data, has_more, first_id, last_id}`), so the page cursor is read too —
+// otherwise a probe reports a truncated catalog as success.
 const ListResponse = Schema.Struct({
   data: Schema.Array(
     Schema.Struct({
@@ -49,30 +51,18 @@ const ListResponse = Schema.Struct({
       name: Schema.optional(Schema.String),
     }),
   ),
+  has_more: Schema.optional(Schema.Boolean),
+  last_id: Schema.optional(Schema.NullOr(Schema.String)),
 })
 
-// Anthropic uses `GET {root}/v1/models`; the OpenAI-compatible listing is
-// `GET {baseURL}/models`. A base already ending in `/v1` is not doubled.
-function listingUrl(baseURL: string, anthropic: boolean) {
-  const base = baseURL.replace(/\/+$/, "")
-  if (!anthropic) return `${base}/models`
-  return base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`
-}
+// The listing hangs off the configured base URL, the same base the model calls
+// use: @ai-sdk/anthropic posts to `${baseURL}/messages` (default
+// `https://api.anthropic.com/v1`) and never inserts a `/v1` itself. Inserting
+// one here would let a probe pass on a base the real call rejects.
+const listingUrl = (baseURL: string) => `${baseURL.replace(/\/+$/, "")}/models`
 
-export const discoverModelsFromEndpoint = Effect.fn("Provider.discoverModels")(function* (input: {
-  baseURL: string
-  api?: string
-  apiKey?: string
-}) {
+const fetchPage = Effect.fnUntraced(function* (url: string, headers: Record<string, string>) {
   const http = yield* HttpClient.HttpClient
-  const anthropic = (input.api ?? "").includes("anthropic")
-  const url = listingUrl(input.baseURL, anthropic)
-  const headers: Record<string, string> = anthropic
-    ? { ...(input.apiKey ? { "x-api-key": input.apiKey } : {}), "anthropic-version": "2023-06-01" }
-    : input.apiKey
-      ? { authorization: `Bearer ${input.apiKey}` }
-      : {}
-
   const response = yield* HttpClientRequest.get(url).pipe(
     HttpClientRequest.setHeaders(headers),
     http.execute,
@@ -88,14 +78,43 @@ export const discoverModelsFromEndpoint = Effect.fn("Provider.discoverModels")(f
   }
 
   const body = yield* response.json.pipe(Effect.mapError((cause) => new DiscoverParseError({ cause })))
-  const parsed = yield* Schema.decodeUnknownEffect(ListResponse)(body).pipe(
+  return yield* Schema.decodeUnknownEffect(ListResponse)(body).pipe(
     Effect.mapError((cause) => new DiscoverParseError({ cause })),
   )
+})
 
-  return parsed.data.map((m) => {
-    const name = m.display_name ?? m.name
-    return { id: m.id, ...(name ? { name } : {}) }
-  })
+export const discoverModelsFromEndpoint = Effect.fn("Provider.discoverModels")(function* (input: {
+  baseURL: string
+  api?: string
+  apiKey?: string
+}) {
+  const anthropic = (input.api ?? "").includes("anthropic")
+  const headers: Record<string, string> = anthropic
+    ? { ...(input.apiKey ? { "x-api-key": input.apiKey } : {}), "anthropic-version": "2023-06-01" }
+    : input.apiKey
+      ? { authorization: `Bearer ${input.apiKey}` }
+      : {}
+  const url = listingUrl(input.baseURL)
+
+  const models: DiscoveredModel[] = []
+  let afterID: string | undefined
+  // Anthropic pages the listing; OpenAI-compatible listings omit `has_more` and
+  // stop after the first request. The bound keeps a lying cursor from spinning.
+  for (let page = 0; page < 20; page++) {
+    const body = yield* fetchPage(afterID ? `${url}?after_id=${encodeURIComponent(afterID)}` : url, headers)
+    models.push(
+      ...body.data.map((model) => {
+        const name = model.display_name ?? model.name
+        return { id: model.id, ...(name ? { name } : {}) }
+      }),
+    )
+
+    const next = body.has_more ? body.last_id : undefined
+    if (!next || next === afterID) break
+    afterID = next
+  }
+
+  return models
 })
 
 export * as ProviderDiscover from "./discover"
