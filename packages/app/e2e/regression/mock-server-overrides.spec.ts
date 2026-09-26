@@ -108,6 +108,30 @@ test("absent knobs keep the previous answers byte-for-byte", async ({ page }) =>
   expect(result.file).toEqual({ status: 200, body: [] })
   expect(result.projectUpdate).toEqual({ status: 200, body: { fellThrough: true } })
 })
+;(["same-origin", "separate-origin"] as const).forEach((topology) => {
+  test(`an absent project override still answers ${topology} SDK writes`, async ({ page }, testInfo) => {
+    const url = new URL(testInfo.project.use.baseURL ?? "http://127.0.0.1:3000")
+    if (topology === "separate-origin") url.port = url.port === "4096" ? "4097" : "4096"
+    url.pathname = `/project/${projectID}`
+    url.searchParams.set("directory", directory)
+
+    await mockAigcfrogeServer(page, {
+      port: url.port,
+      directory,
+      project,
+      provider: { providers: [], default: {} },
+      sessions: [session],
+      pageMessages: () => ({ items: [] }),
+    })
+    await gotoWhenReady(page, "/")
+
+    const result = await page.evaluate(async (url) => {
+      const response = await fetch(url, { method: "PATCH" })
+      return { status: response.status, body: await response.json() }
+    }, url.toString())
+    expect(result).toEqual({ status: 200, body: {} })
+  })
+})
 
 test("the shape knobs answer /project, /vcs, /path, /file and PATCH /project/:id", async ({ page }) => {
   await mockAigcfrogeServer(page, {

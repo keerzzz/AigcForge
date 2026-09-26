@@ -45,6 +45,7 @@ import { ModelSelectorPopover } from "@/components/dialog-select-model"
 import { useCommand } from "@/context/command"
 import { Persist, persisted } from "@/utils/persist"
 import { usePermission } from "@/context/permission"
+import { SessionPermissionOverrideControl } from "@/pages/session/composer/session-permission-override-dialog"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { createSessionTabs } from "@/pages/session/helpers"
@@ -339,6 +340,20 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return paths
   })
   const info = createMemo(() => (props.controls.session.id ? sync().session.get(props.controls.session.id) : undefined))
+
+  // The composer shield consumes the existing session-scoped permission owner.
+  createEffect(() => {
+    const id = props.controls.session.id
+    if (!id) return
+    void permission.refreshOverride(id)
+  })
+  const overrideRequest = (input: { method: "PUT" | "DELETE"; acknowledged?: boolean }) => {
+    const id = props.controls.session.id
+    if (!id) return
+    void permission.updateOverride({ sessionID: id, ...input }).catch(() => {
+      showToast({ title: language.t("common.requestFailed") })
+    })
+  }
   const working = createMemo(() => sync().data.session_working(props.controls.session.id ?? ""))
   // S5 leg 4: the slash popover reads the current Session Snapshot's consumer
   // command catalog for Custom sessions, never the live command store.
@@ -1635,6 +1650,19 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   aria-label={language.t("prompt.action.attachFile")}
                 />
               </TooltipKeybind>
+              <Show when={info()}>
+                {(session) => (
+                  <SessionPermissionOverrideControl
+                    sessionID={session().id}
+                    root={!session().parentID}
+                    attended={session().attended}
+                    enabled={() => permission.overrideEnabled(session().id)}
+                    onEnable={() => overrideRequest({ method: "PUT", acknowledged: true })}
+                    onRenew={() => overrideRequest({ method: "PUT" })}
+                    onDisable={() => overrideRequest({ method: "DELETE" })}
+                  />
+                )}
+              </Show>
               <Show when={showAgentControl()}>
                 <ComposerAgentControl state={agentControlState()} />
               </Show>
@@ -1870,13 +1898,19 @@ function ComposerModelControl(props: { state: ComposerModelControlState }) {
       <Show
         when={props.state.paid}
         fallback={
-          <TooltipKeybind placement="top" gutter={4} title={props.state.title} keybind={props.state.keybind}>
+          <TooltipKeybind
+            placement="top"
+            gutter={4}
+            title={props.state.title}
+            keybind={props.state.keybind}
+            class="min-w-0 max-w-[min(220px,45vw)]"
+          >
             <Button
               data-action="prompt-model"
               as="div"
               variant="ghost"
               size="normal"
-              class="min-w-0 max-w-[min(220px,45vw)] justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group"
+              class="min-w-0 max-w-full justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group"
               style={props.state.style}
               onClick={props.state.onUnpaidClick}
             >
@@ -1895,7 +1929,13 @@ function ComposerModelControl(props: { state: ComposerModelControlState }) {
           </TooltipKeybind>
         }
       >
-        <TooltipKeybind placement="top" gutter={4} title={props.state.title} keybind={props.state.keybind}>
+        <TooltipKeybind
+          placement="top"
+          gutter={4}
+          title={props.state.title}
+          keybind={props.state.keybind}
+          class="min-w-0 max-w-[220px]"
+        >
           <ModelSelectorPopover
             model={props.state.model}
             triggerAs={Button}
@@ -1903,8 +1943,7 @@ function ComposerModelControl(props: { state: ComposerModelControlState }) {
               variant: "ghost",
               size: "normal",
               style: props.state.style,
-              class:
-                "min-w-0 max-w-[220px] justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group",
+              class: "min-w-0 max-w-full justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group",
               "data-action": "prompt-model",
             }}
             onClose={props.state.onClose}

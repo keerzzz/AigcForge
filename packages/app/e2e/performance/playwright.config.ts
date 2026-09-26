@@ -7,6 +7,8 @@ process.env.AIGCFROGE_PERFORMANCE_RUN_ID ??= `${new Date().toISOString().replace
 
 export default {
   ...config,
+  // Production assets are already compiled; dev-network warmup can wait on live backend traffic.
+  globalSetup: undefined,
   testDir: ".",
   testIgnore: "unit/**",
   outputDir: "../test-results/performance",

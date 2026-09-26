@@ -21,7 +21,7 @@ const words = [
   "vector",
 ]
 
-const serverKey = "http://127.0.0.1:4096"
+const serverKey = `http://127.0.0.1:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
 const sourceID = "ses_smoke_source"
 const targetID = "ses_smoke_target"
 const directory = "C:/Aigcfroge/SmokeProject"

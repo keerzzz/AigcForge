@@ -1,5 +1,6 @@
 import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js"
 import { Button } from "@aigcfroge/ui/button"
+import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useLanguage } from "@/context/language"
@@ -86,14 +87,33 @@ export function SessionPermissionOverrideControl(props: {
         <Show
           when={props.enabled()}
           fallback={
-            <button type="button" data-slot="permission-override-enable" onClick={openConfirm}>
-              {language.t("permission.override.enable")}
-            </button>
+            <IconButton
+              type="button"
+              data-slot="permission-override-enable"
+              icon="shield"
+              variant="ghost"
+              class="size-7 rounded-md p-[6px] opacity-50 hover:opacity-100"
+              style={{ "--icon-base": "var(--v2-icon-icon-muted)" }}
+              aria-pressed={false}
+              onClick={openConfirm}
+              aria-label={language.t("permission.override.enable")}
+              title={language.t("permission.override.enable")}
+            />
           }
         >
-          <button type="button" data-slot="permission-override-disable" onClick={disable}>
-            {language.t("permission.override.disable")}
-          </button>
+          {/* IconButton colors its SVG directly, so override its token rather than the parent text color. */}
+          <IconButton
+            type="button"
+            data-slot="permission-override-disable"
+            icon="shield"
+            variant="ghost"
+            class="size-7 rounded-md p-[6px] [&_[data-slot=icon-svg]]:fill-current"
+            style={{ "--icon-base": "var(--icon-critical-base)" }}
+            aria-pressed={true}
+            onClick={disable}
+            aria-label={language.t("permission.override.disable")}
+            title={language.t("permission.override.disable")}
+          />
         </Show>
       </div>
     </Show>

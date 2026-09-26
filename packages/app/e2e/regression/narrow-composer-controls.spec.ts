@@ -187,10 +187,15 @@ test.describe("S7: composer identity controls at 390px", { tag: "@a11y" }, () =>
     await page.setViewportSize(NARROW)
     await setup(page)
 
+    const shield = page.locator('[data-slot="permission-override-control"] button')
+    await expect(shield).toBeVisible()
     const before = {
       model: await settledBox(page, MODEL_CONTROL),
       submit: await settledBox(page, SUBMIT),
     }
+    expectInsideViewport(before.model, "the model before opening the picker")
+    expectInsideViewport(before.submit, "the submit button before opening the picker")
+    expectInsideViewport(await boxOf(page, '[data-slot="permission-override-control"] button'), "the shield")
 
     await page.locator(AGENT_TRIGGER).click()
     const list = page.locator('[data-slot="select-select-content-list"]')
@@ -222,6 +227,10 @@ test.describe("S7: composer identity controls at 390px", { tag: "@a11y" }, () =>
     // And the whole list is reachable by keyboard, not just scrollable by wheel.
     await page.keyboard.press("ArrowDown")
     await expect(list.getByRole("option").nth(1)).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(list).toBeHidden()
+    await page.locator(MODEL_CONTROL).click()
+    await expect(page.locator(`${MODEL_CONTROL}[aria-expanded="true"]`)).toBeVisible()
   })
 
   /**

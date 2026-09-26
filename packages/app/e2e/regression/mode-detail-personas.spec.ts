@@ -122,7 +122,7 @@ async function mockPersonaServer(page: Page, onOverridePut?: () => void) {
       route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
     )
   }
-  await page.route("**/session/*/permission-override", async (route: Route) => {
+  await page.route("**/session/*/permission-override*", async (route: Route) => {
     if (route.request().method() === "PUT") {
       onOverridePut?.()
       return route.fulfill({ status: 200, contentType: "application/json", body: '{"enabled":true}' })
@@ -337,7 +337,7 @@ test.describe("persona audit: mode and detail closure", () => {
 
   test("restricted user can cancel temporary full access without changing permission", async ({ page }, testInfo) => {
     let overridePuts = 0
-    await page.unroute("**/session/*/permission-override")
+    await page.unroute("**/session/*/permission-override*")
     await mockPersonaServer(page, () => {
       overridePuts += 1
     })
