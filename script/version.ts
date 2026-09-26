@@ -27,7 +27,8 @@ if (!Script.preview) {
         )
       }
     } else {
-      body = (await fallback.text())
+      body = fallback
+        .text()
         .split("\n")
         .filter((line) => !line.startsWith("Last release:") && !line.startsWith("Target ref:"))
         .join("\n")
