@@ -60,7 +60,7 @@ export interface MockServerConfig {
   projects?: unknown[]
   /** Optional response for PATCH /project/:id, the write the colour auto-assign
    * (`context/layout.tsx`) and the edit dialog (`dialog-edit-project.tsx`) issue.
-   * Absent, the route returns the baseline 200 `{}` it
+   * Absent, the route stays unmatched and falls through to the same 200 `{}` it
    * always has; `projectUpdateStatus` defaults to 200, so a rejected write is
    * expressed as a status plus the typed error shape. */
   projectUpdate?: unknown
@@ -138,8 +138,12 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     if (path in staticRoutes) return json(route, staticRoutes[path])
     // Project write (`PATCH /project/:id`). Unmatched before this knob existed, so it
     // fell through to the blanket 200 `{}` and a rejected write was inexpressible.
-    // Preserve the baseline successful no-op without an override, including same-origin previews.
-    if (/^\/project\/[^/]+$/.test(path) && route.request().method() === "PATCH") {
+    // Only answer explicit overrides; SDK requests without one use the API fallback below.
+    if (
+      /^\/project\/[^/]+$/.test(path) &&
+      route.request().method() === "PATCH" &&
+      (config.projectUpdate !== undefined || config.projectUpdateStatus !== undefined)
+    ) {
       return json(route, config.projectUpdate ?? {}, undefined, config.projectUpdateStatus ?? 200)
     }
     // M4 Agent Hub cross-session aggregation read (agent-task group).

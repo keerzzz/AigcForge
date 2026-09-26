@@ -1898,13 +1898,19 @@ function ComposerModelControl(props: { state: ComposerModelControlState }) {
       <Show
         when={props.state.paid}
         fallback={
-          <TooltipKeybind placement="top" gutter={4} title={props.state.title} keybind={props.state.keybind}>
+          <TooltipKeybind
+            placement="top"
+            gutter={4}
+            title={props.state.title}
+            keybind={props.state.keybind}
+            class="min-w-0 max-w-[min(220px,45vw)]"
+          >
             <Button
               data-action="prompt-model"
               as="div"
               variant="ghost"
               size="normal"
-              class="min-w-0 max-w-[min(220px,45vw)] justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group"
+              class="min-w-0 max-w-full justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group"
               style={props.state.style}
               onClick={props.state.onUnpaidClick}
             >
@@ -1923,7 +1929,13 @@ function ComposerModelControl(props: { state: ComposerModelControlState }) {
           </TooltipKeybind>
         }
       >
-        <TooltipKeybind placement="top" gutter={4} title={props.state.title} keybind={props.state.keybind}>
+        <TooltipKeybind
+          placement="top"
+          gutter={4}
+          title={props.state.title}
+          keybind={props.state.keybind}
+          class="min-w-0 max-w-[220px]"
+        >
           <ModelSelectorPopover
             model={props.state.model}
             triggerAs={Button}
@@ -1931,8 +1943,7 @@ function ComposerModelControl(props: { state: ComposerModelControlState }) {
               variant: "ghost",
               size: "normal",
               style: props.state.style,
-              class:
-                "min-w-0 max-w-[220px] justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group",
+              class: "min-w-0 max-w-full justify-start text-[13px] font-[440] leading-5 text-v2-text-text-faint group",
               "data-action": "prompt-model",
             }}
             onClose={props.state.onClose}
