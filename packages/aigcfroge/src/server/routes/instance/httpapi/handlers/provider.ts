@@ -2,13 +2,14 @@ import { ProviderAuth } from "@/provider/auth"
 import { Config } from "@/config/config"
 import { ModelsDev } from "@aigcfroge/core/models-dev"
 import { Provider } from "@/provider/provider"
+import { ProviderDiscover } from "@/provider/discover"
 
 import { mapValues } from "remeda"
 import { Effect, Schema } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { ProviderAuthApiError } from "../groups/provider"
+import { ProviderAuthApiError, ProviderDiscoverApiError } from "../groups/provider"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 
 function mapProviderAuthError<A, R>(self: Effect.Effect<A, ProviderAuth.Error, R>) {
@@ -104,10 +105,28 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       return true
     })
 
+    const discover = Effect.fn("ProviderHttpApi.discover")(function* (ctx: {
+      payload: { baseURL: string; api?: string; apiKey?: string }
+    }) {
+      return yield* ProviderDiscover.discoverModelsFromEndpoint(ctx.payload).pipe(
+        Effect.mapError((error) => {
+          if (error._tag === "ProviderDiscoverAuthError")
+            return new ProviderDiscoverApiError({ name: "Auth", data: { status: error.status, message: error.message } })
+          if (error._tag === "ProviderDiscoverUnreachableError")
+            return new ProviderDiscoverApiError({
+              name: "Unreachable",
+              data: { message: error.message, ...(error.status === undefined ? {} : { status: error.status }) },
+            })
+          return new ProviderDiscoverApiError({ name: "Parse", data: { message: error.message } })
+        }),
+      )
+    })
+
     return handlers
       .handle("list", list)
       .handle("auth", auth)
       .handleRaw("authorize", authorizeRaw)
       .handle("callback", callback)
+      .handle("discover", discover)
   }),
 )
