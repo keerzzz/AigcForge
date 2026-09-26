@@ -200,6 +200,9 @@ export function DialogCustomProvider(props: Props) {
       const baseURL = form.baseURL.trim()
       if (!baseURL) throw new Error(language.t("provider.custom.error.baseURL.required"))
       const apiKey = form.apiKey.trim()
+      // `{env:NAME}` is resolved when the config is read, so the literal field
+      // is not a credential. Probing with it would report a bogus 401.
+      if (/^\{env:[^}]+\}$/.test(apiKey)) throw new Error(language.t("provider.custom.discover.envKey"))
       const result = await serverSDK().client.provider.discover(
         {
           baseURL,

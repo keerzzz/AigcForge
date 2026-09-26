@@ -233,6 +233,7 @@ export const dict = {
   "provider.custom.discover.empty.title": "未发现模型",
   "provider.custom.discover.empty.description": "端点未返回任何模型。",
   "provider.custom.discover.failed.title": "连接失败",
+  "provider.custom.discover.envKey": "环境变量密钥（env:NAME）只在保存时解析；要探测端点请填入明文密钥。",
   "provider.custom.error.number": "必须是正整数",
 
   "provider.disconnect.toast.disconnected.title": "{{provider}} 已断开连接",

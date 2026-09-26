@@ -213,6 +213,8 @@ export const dict = {
   "provider.custom.discover.empty.title": "No models found",
   "provider.custom.discover.empty.description": "The endpoint returned no models.",
   "provider.custom.discover.failed.title": "Connection failed",
+  "provider.custom.discover.envKey":
+    "Environment-variable keys (env:NAME) are resolved only after saving; enter the literal key to probe this endpoint.",
   "provider.custom.error.number": "Must be a positive integer",
 
   "provider.disconnect.toast.disconnected.title": "{{provider}} disconnected",
