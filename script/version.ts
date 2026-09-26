@@ -13,9 +13,11 @@ if (!Script.preview) {
     throw new Error(`changelog generation failed with exit code ${changelog.exitCode}`)
   }
   const file = `${process.cwd()}/UPCOMING_CHANGELOG.md`
-  const body = (await Bun.file(file)
-    .text()
-    .catch(() => "")).trim()
+  const body = (
+    await Bun.file(file)
+      .text()
+      .catch(() => "")
+  ).trim()
   if (strictReleaseNotes && !body) {
     throw new Error(`changelog generation produced no release notes: ${file}`)
   }

@@ -20,7 +20,7 @@
 | §7 全局壳观察                   | delegation 投影、资产双读、测试隔离与开发态时序                                                                        | 纳入 product closure S3/S6 或后续专项                                                                                                                         |
 | §8 全路由 E2E                   | route、真实 Session/File/PTY、full-suite、Settings/Desktop                                                             | 纳入 product closure S2–S5/S11；E3 不冒充 E4                                                                                                                  |
 | §9 远程 Issue 对账              | #40/#41/#42/#44                                                                                                        | 证据已核对；远程处置待 Owner 授权                                                                                                                             |
-| §12 桌面发布工作流              | 版本回写、PR label、分发拆分、签名/升级验证                                                                             | desktop-draft 首个切片已实现；真实 Actions 发布待验证                                                                                                          |
+| §12 桌面发布工作流              | 版本回写、PR label、分发拆分、签名/升级验证                                                                            | desktop-draft 首个切片已实现；真实 Actions 发布待验证                                                                                                         |
 
 ---
 
