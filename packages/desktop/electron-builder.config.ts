@@ -10,6 +10,11 @@ const execFileAsync = promisify(execFile)
 const packageDir = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(packageDir, "../..")
 const signScript = path.join(rootDir, "script", "sign-windows.ps1")
+
+// GitHub Actions exports unset secrets as empty strings. electron-builder treats
+// a present empty CSC_LINK as a relative path and fails while resolving it.
+if (!process.env.CSC_LINK?.trim()) delete process.env.CSC_LINK
+if (!process.env.CSC_KEY_PASSWORD?.trim()) delete process.env.CSC_KEY_PASSWORD
 // The Electron 42 packaging update briefly installed Linux launchers/icons under
 // "aigcfroge-desktop". Keep that hidden desktop entry around so existing GNOME/KDE
 // pins still resolve after the canonical app id changes back to ai.aigcfroge.desktop.
