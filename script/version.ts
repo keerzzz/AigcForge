@@ -9,15 +9,32 @@ const strictReleaseNotes = process.env.AIGCFROGE_RELEASE_NOTES_STRICT === "true"
 
 if (!Script.preview) {
   const changelog = await $`bun script/changelog.ts --to ${sha}`.cwd(process.cwd()).nothrow()
-  if (strictReleaseNotes && changelog.exitCode !== 0) {
-    throw new Error(`changelog generation failed with exit code ${changelog.exitCode}`)
-  }
   const file = `${process.cwd()}/UPCOMING_CHANGELOG.md`
-  const body = (
-    await Bun.file(file)
-      .text()
-      .catch(() => "")
-  ).trim()
+  let body =
+    changelog.exitCode === 0
+      ? (
+          await Bun.file(file)
+            .text()
+            .catch(() => "")
+        ).trim()
+      : ""
+  if (!body) {
+    const fallback = await $`bun script/raw-changelog.ts --to ${sha}`.cwd(process.cwd()).nothrow()
+    if (fallback.exitCode !== 0) {
+      if (strictReleaseNotes) {
+        throw new Error(
+          `changelog generation failed with exit code ${changelog.exitCode}; deterministic fallback failed with exit code ${fallback.exitCode}`,
+        )
+      }
+    } else {
+      body = fallback
+        .text()
+        .split("\n")
+        .filter((line) => !line.startsWith("Last release:") && !line.startsWith("Target ref:"))
+        .join("\n")
+        .trim()
+    }
+  }
   if (strictReleaseNotes && !body) {
     throw new Error(`changelog generation produced no release notes: ${file}`)
   }
