@@ -40,7 +40,7 @@ gh workflow run publish.yml -f release_mode=full -f bump=patch
 
 - 发布标签、Release 标题、桌面 `package.json` 构建版本、sidecar 的 `AIGCFROGE_VERSION` 必须等于本次计算的版本。
 - `latest*.yml` 由 electron-builder 生成后，再由 `packages/desktop/scripts/finalize-latest-yml.ts` 合并；其中的 `version`、文件 URL、`sha512`、文件大小和发布日期必须来自同一批产物。
-- `desktop-draft` 对 changelog 生成启用 strict 模式：生成失败或结果为空时工作流失败，不再静默发布 “No notable changes”。
+- `desktop-draft` 对 changelog 生成启用 strict 模式：优先使用 AI changelog；模型密钥缺失或生成失败时，回退到确定性 `script/raw-changelog.ts`；两者都无法产生非空结果时工作流失败，不再静默发布 “No notable changes”。回退结果是提交驱动的 Draft 初稿，公开前仍需人工筛选用户可见内容。
 - 当前 `desktop-draft` 只保证构建产物和 Release 元数据使用新版本；尚未把版本提交回 `main` 的 `package.json`。这属于下一切片的显式债务，详见 `docs/technical-debt.md` §12。
 
 ## 4. 人工验收
