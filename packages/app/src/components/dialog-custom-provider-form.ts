@@ -11,6 +11,8 @@ const PROTOCOL_NPM: Record<Protocol, string> = {
   anthropic: ANTHROPIC,
 }
 
+export const protocolNpm = (protocol: Protocol | undefined) => PROTOCOL_NPM[protocol ?? "openai"]
+
 // The request modalities a custom model may declare. Matches the literal set
 // accepted by ConfigProviderV1.Model.modalities.input.
 export type Modality = "text" | "audio" | "image" | "video" | "pdf"
@@ -181,7 +183,7 @@ export function validateCustomProvider(input: ValidateArgs) {
       name,
       key,
       config: {
-        npm: PROTOCOL_NPM[input.form.protocol ?? "openai"],
+        npm: protocolNpm(input.form.protocol),
         name,
         ...(env ? { env: [env] } : {}),
         options: {

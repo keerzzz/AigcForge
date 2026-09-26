@@ -18,6 +18,7 @@ import {
   type Modality,
   type Protocol,
   headerRow,
+  protocolNpm,
   modelRow,
   validateCustomProvider,
 } from "./dialog-custom-provider-form"
@@ -25,6 +26,20 @@ import { DialogSelectProvider } from "./dialog-select-provider"
 
 type Props = {
   back?: "providers" | "close"
+}
+
+// The API returns typed errors as `{ name, data: { message } }`; unwrap that so
+// the toast shows the domain message instead of a JSON blob.
+function serverErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  const cause: unknown = error.cause
+  if (typeof cause !== "object" || cause === null || !("body" in cause)) return error.message
+  const body: unknown = cause.body
+  if (typeof body !== "object" || body === null || !("data" in body)) return error.message
+  const data: unknown = body.data
+  if (typeof data !== "object" || data === null || !("message" in data) || typeof data.message !== "string")
+    return error.message
+  return data.message
 }
 
 export function DialogCustomProvider(props: Props) {
@@ -180,6 +195,59 @@ export function DialogCustomProvider(props: Props) {
     },
   }))
 
+  const discover = useMutation(() => ({
+    mutationFn: async (mode: "test" | "models") => {
+      const baseURL = form.baseURL.trim()
+      if (!baseURL) throw new Error(language.t("provider.custom.error.baseURL.required"))
+      const apiKey = form.apiKey.trim()
+      const result = await serverSDK().client.provider.discover(
+        {
+          baseURL,
+          api: protocolNpm(form.protocol),
+          ...(apiKey ? { apiKey } : {}),
+        },
+        { throwOnError: true },
+      )
+      return { mode, models: result.data }
+    },
+    onSuccess: (result) => {
+      if (result.mode === "test") {
+        showToast({
+          icon: "circle-check",
+          title: language.t("provider.custom.discover.reachable.title"),
+          description: language.t("provider.custom.discover.reachable.description", { count: result.models.length }),
+        })
+        return
+      }
+      if (!result.models.length) {
+        showToast({
+          title: language.t("provider.custom.discover.empty.title"),
+          description: language.t("provider.custom.discover.empty.description"),
+        })
+        return
+      }
+      const existing = form.models.filter((row) => row.id.trim())
+      const seen = new Set(existing.map((row) => row.id.trim()))
+      const additions = result.models.flatMap((model) => {
+        if (seen.has(model.id)) return []
+        seen.add(model.id)
+        return [{ ...modelRow(), id: model.id, name: model.name ?? model.id }]
+      })
+      setForm("models", existing.length ? [...existing, ...additions] : additions)
+      showToast({
+        icon: "circle-check",
+        title: language.t("provider.custom.discover.fetched.title"),
+        description: language.t("provider.custom.discover.fetched.description", { count: additions.length }),
+      })
+    },
+    onError: (err) => {
+      showToast({
+        title: language.t("provider.custom.discover.failed.title"),
+        description: serverErrorMessage(err),
+      })
+    },
+  }))
+
   const save = (e: SubmitEvent) => {
     e.preventDefault()
     if (saveMutation.isPending) return
@@ -262,6 +330,28 @@ export function DialogCustomProvider(props: Props) {
               value={form.apiKey}
               onChange={(v) => setField("apiKey", v)}
             />
+            <div class="flex flex-row gap-2">
+              <Button
+                type="button"
+                size="small"
+                variant="secondary"
+                disabled={discover.isPending}
+                onClick={() => discover.mutate("test")}
+              >
+                {discover.isPending
+                  ? language.t("common.loading")
+                  : language.t("provider.custom.discover.testConnection")}
+              </Button>
+              <Button
+                type="button"
+                size="small"
+                variant="secondary"
+                disabled={discover.isPending}
+                onClick={() => discover.mutate("models")}
+              >
+                {language.t("provider.custom.discover.fetchModels")}
+              </Button>
+            </div>
           </div>
 
           <div class="flex flex-col gap-3">
