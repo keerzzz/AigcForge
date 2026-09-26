@@ -11573,6 +11573,103 @@
         }
       }
     },
+    "/provider/discover": {
+      "post": {
+        "tags": [
+          "provider"
+        ],
+        "operationId": "provider.discover",
+        "parameters": [
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Models the endpoint advertises",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Models the endpoint advertises"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ProviderDiscoverError | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProviderDiscoverError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Probe an OpenAI-compatible or Anthropic endpoint for its model listing without persisting anything.",
+        "summary": "Discover models from a provider endpoint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "baseURL": {
+                    "type": "string"
+                  },
+                  "api": {
+                    "type": "string"
+                  },
+                  "apiKey": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "baseURL"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
     "/session": {
       "get": {
         "tags": [
@@ -40633,6 +40730,69 @@
                 "type": "string"
               }
             },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "name",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderDiscoverError": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "Auth",
+              "Unreachable",
+              "Parse"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "NaN"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Infinity"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "-Infinity"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Infinity",
+                      "-Infinity",
+                      "NaN"
+                    ]
+                  }
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ],
             "additionalProperties": false
           }
         },
