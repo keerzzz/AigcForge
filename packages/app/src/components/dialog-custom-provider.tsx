@@ -3,6 +3,7 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { Dialog } from "@aigcfroge/ui/v2/dialog-v2"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
+import { Select } from "@aigcfroge/ui/select"
 import { useMutation } from "@tanstack/solid-query"
 import { TextField } from "@aigcfroge/ui/text-field"
 import { showToast } from "@/utils/toast"
@@ -12,7 +13,14 @@ import { Link } from "@/components/link"
 import { useServerSDK } from "@/context/server-sdk"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
-import { type FormState, headerRow, modelRow, validateCustomProvider } from "./dialog-custom-provider-form"
+import {
+  type FormState,
+  type Modality,
+  type Protocol,
+  headerRow,
+  modelRow,
+  validateCustomProvider,
+} from "./dialog-custom-provider-form"
 import { DialogSelectProvider } from "./dialog-select-provider"
 
 type Props = {
@@ -30,6 +38,7 @@ export function DialogCustomProvider(props: Props) {
     name: "",
     baseURL: "",
     apiKey: "",
+    protocol: "openai",
     models: [modelRow()],
     headers: [headerRow()],
     err: {},
@@ -87,12 +96,32 @@ export function DialogCustomProvider(props: Props) {
     setForm("err", key, undefined)
   }
 
-  const setModel = (index: number, key: "id" | "name", value: string) => {
+  const setModel = (index: number, key: "id" | "name" | "contextWindow" | "maxOutput", value: string) => {
     batch(() => {
       setForm("models", index, key, value)
       setForm("models", index, "err", key, undefined)
     })
   }
+
+  const setProtocol = (value: Protocol) => setForm("protocol", value)
+
+  const setModelInput = (index: number, value: Modality[]) => setForm("models", index, "input", value)
+
+  const protocolOptions = () => [
+    { value: "openai" as Protocol, label: language.t("provider.custom.protocol.openai") },
+    { value: "anthropic" as Protocol, label: language.t("provider.custom.protocol.anthropic") },
+  ]
+
+  const inputOptions = () => [
+    { value: "text", label: language.t("provider.custom.models.input.text"), input: ["text"] as Modality[] },
+    {
+      value: "textImage",
+      label: language.t("provider.custom.models.input.textImage"),
+      input: ["text", "image"] as Modality[],
+    },
+  ]
+
+  const inputValue = (m: FormState["models"][number]) => (m.input?.includes("image") ? "textImage" : "text")
 
   const setHeader = (index: number, key: "key" | "value", value: string) => {
     batch(() => {
@@ -214,6 +243,18 @@ export function DialogCustomProvider(props: Props) {
               validationState={form.err.baseURL ? "invalid" : undefined}
               error={form.err.baseURL}
             />
+            <div class="flex flex-col gap-1.5">
+              <label class="text-12-medium text-text-weak">{language.t("provider.custom.protocol.label")}</label>
+              <Select
+                options={protocolOptions()}
+                current={protocolOptions().find((o) => o.value === (form.protocol ?? "openai"))}
+                value={(o) => o.value}
+                label={(o) => o.label}
+                onSelect={(o) => o && setProtocol(o.value)}
+                variant="secondary"
+                size="small"
+              />
+            </div>
             <TextField
               label={language.t("provider.custom.field.apiKey.label")}
               placeholder={language.t("provider.custom.field.apiKey.placeholder")}
@@ -227,38 +268,76 @@ export function DialogCustomProvider(props: Props) {
             <label class="text-12-medium text-text-weak">{language.t("provider.custom.models.label")}</label>
             <For each={form.models}>
               {(m, i) => (
-                <div class="flex gap-2 items-start" data-row={m.row}>
-                  <div class="flex-1">
-                    <TextField
-                      label={language.t("provider.custom.models.id.label")}
-                      hideLabel
-                      placeholder={language.t("provider.custom.models.id.placeholder")}
-                      value={m.id}
-                      onChange={(v) => setModel(i(), "id", v)}
-                      validationState={m.err.id ? "invalid" : undefined}
-                      error={m.err.id}
+                <div class="flex flex-col gap-2" data-row={m.row}>
+                  <div class="flex gap-2 items-start">
+                    <div class="flex-1">
+                      <TextField
+                        label={language.t("provider.custom.models.id.label")}
+                        hideLabel
+                        placeholder={language.t("provider.custom.models.id.placeholder")}
+                        value={m.id}
+                        onChange={(v) => setModel(i(), "id", v)}
+                        validationState={m.err.id ? "invalid" : undefined}
+                        error={m.err.id}
+                      />
+                    </div>
+                    <div class="flex-1">
+                      <TextField
+                        label={language.t("provider.custom.models.name.label")}
+                        hideLabel
+                        placeholder={language.t("provider.custom.models.name.placeholder")}
+                        value={m.name}
+                        onChange={(v) => setModel(i(), "name", v)}
+                        validationState={m.err.name ? "invalid" : undefined}
+                        error={m.err.name}
+                      />
+                    </div>
+                    <IconButton
+                      type="button"
+                      icon="trash"
+                      variant="ghost"
+                      class="mt-1.5"
+                      onClick={() => removeModel(i())}
+                      disabled={form.models.length <= 1}
+                      aria-label={language.t("provider.custom.models.remove")}
                     />
                   </div>
-                  <div class="flex-1">
-                    <TextField
-                      label={language.t("provider.custom.models.name.label")}
-                      hideLabel
-                      placeholder={language.t("provider.custom.models.name.placeholder")}
-                      value={m.name}
-                      onChange={(v) => setModel(i(), "name", v)}
-                      validationState={m.err.name ? "invalid" : undefined}
-                      error={m.err.name}
-                    />
+                  <div class="flex gap-2 items-start pr-10">
+                    <div class="flex-1">
+                      <TextField
+                        label={language.t("provider.custom.models.contextWindow.label")}
+                        placeholder={language.t("provider.custom.models.contextWindow.placeholder")}
+                        value={m.contextWindow ?? ""}
+                        onChange={(v) => setModel(i(), "contextWindow", v)}
+                        validationState={m.err.contextWindow ? "invalid" : undefined}
+                        error={m.err.contextWindow}
+                      />
+                    </div>
+                    <div class="flex-1">
+                      <TextField
+                        label={language.t("provider.custom.models.maxOutput.label")}
+                        placeholder={language.t("provider.custom.models.maxOutput.placeholder")}
+                        value={m.maxOutput ?? ""}
+                        onChange={(v) => setModel(i(), "maxOutput", v)}
+                        validationState={m.err.maxOutput ? "invalid" : undefined}
+                        error={m.err.maxOutput}
+                      />
+                    </div>
+                    <div class="flex-1 flex flex-col gap-1.5">
+                      <label class="text-12-medium text-text-weak">
+                        {language.t("provider.custom.models.input.label")}
+                      </label>
+                      <Select
+                        options={inputOptions()}
+                        current={inputOptions().find((o) => o.value === inputValue(m))}
+                        value={(o) => o.value}
+                        label={(o) => o.label}
+                        onSelect={(o) => o && setModelInput(i(), o.input)}
+                        variant="secondary"
+                        size="small"
+                      />
+                    </div>
                   </div>
-                  <IconButton
-                    type="button"
-                    icon="trash"
-                    variant="ghost"
-                    class="mt-1.5"
-                    onClick={() => removeModel(i())}
-                    disabled={form.models.length <= 1}
-                    aria-label={language.t("provider.custom.models.remove")}
-                  />
                 </div>
               )}
             </For>
