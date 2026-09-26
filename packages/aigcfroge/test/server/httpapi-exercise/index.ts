@@ -1332,6 +1332,20 @@ const scenarios: Scenario[] = [
   http.protected.get("/provider", "provider.list").json(),
   http.protected.get("/provider/auth", "provider.auth").json(),
   http.protected
+    .post("/provider/discover", "provider.discover.invalid")
+    .at((ctx) => ({ path: "/provider/discover", headers: ctx.headers(), body: { baseURL: 42 } }))
+    .status(400),
+  http.protected
+    .post("/provider/discover", "provider.discover.unreachable")
+    // An invalid URL exercises the declared error without depending on a live provider.
+    .at((ctx) => ({ path: "/provider/discover", headers: ctx.headers(), body: { baseURL: "not-a-url" } }))
+    .json(400, (body) => {
+      object(body)
+      check(body.name === "Unreachable", "invalid endpoint should return the declared discovery error")
+      object(body.data)
+      check(body.data.message === "Endpoint is unreachable", "discovery error should include its public message")
+    }),
+  http.protected
     .post("/provider/{providerID}/oauth/authorize", "provider.oauth.authorize")
     .at((ctx) => ({
       path: route("/provider/{providerID}/oauth/authorize", { providerID: "httpapi" }),

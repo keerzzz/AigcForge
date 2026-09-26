@@ -1,6 +1,9 @@
+import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect } from "bun:test"
 import { FSUtil } from "@aigcfroge/core/fs-util"
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
+import { HttpServer, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import Http from "node:http"
 import path from "path"
 import { resetDatabase } from "../fixture/db"
 import { TestInstance } from "../fixture/fixture"
@@ -68,6 +71,20 @@ function hasProviderMutationMarker(input: unknown, key: "all" | "providers", id:
   if (provider.name === "mutated-provider") return true
   return isRecord(provider.options) && provider.options.mutatedByPlugin === true
 }
+
+// A throwaway upstream standing in for a provider endpoint; it stays alive
+// until the test scope exits so the handler's real HttpClient can reach it.
+const listenListingServer = (respond: (url: URL) => HttpServerResponse.HttpServerResponse) =>
+  Effect.gen(function* () {
+    const context = yield* Layer.build(NodeHttpServer.layer(Http.createServer, { host: "127.0.0.1", port: 0 }))
+    const server = Context.get(context, HttpServer.HttpServer)
+    yield* server.serve(
+      HttpServerRequest.HttpServerRequest.use((request) =>
+        Effect.succeed(respond(new URL(request.url, "http://localhost"))),
+      ),
+    )
+    return HttpServer.formatAddress(server.address)
+  })
 
 function requestAuthorize(input: {
   providerID: string
@@ -260,6 +277,56 @@ function setEnvScoped(key: string, value: string) {
 }
 
 describe("provider HttpApi", () => {
+  it.instance(
+    "discovers models from an OpenAI-compatible endpoint",
+    Effect.gen(function* () {
+      const directory = (yield* TestInstance).directory
+      const baseURL = yield* listenListingServer((url) =>
+        url.pathname === "/v1/models"
+          ? HttpServerResponse.jsonUnsafe({ data: [{ id: "model-a" }, { id: "model-b" }] })
+          : HttpServerResponse.text("not found", { status: 404 }),
+      )
+
+      const response = yield* request("/provider/discover", {
+        method: "POST",
+        headers: { "x-aigcfroge-directory": directory, "content-type": "application/json" },
+        body: JSON.stringify({ baseURL: `${baseURL}/v1`, api: "@ai-sdk/openai-compatible", apiKey: "sk-test" }),
+      })
+
+      expect(response.status).toBe(200)
+      expect(yield* response.json).toEqual([{ id: "model-a" }, { id: "model-b" }])
+    }),
+    projectOptions,
+    30000,
+  )
+
+  it.instance(
+    "maps an upstream 401 to a declared 400 discovery error",
+    Effect.gen(function* () {
+      const directory = (yield* TestInstance).directory
+      const baseURL = yield* listenListingServer(() =>
+        HttpServerResponse.jsonUnsafe({ error: "unauthorized" }, { status: 401 }),
+      )
+
+      const response = yield* request("/provider/discover", {
+        method: "POST",
+        headers: { "x-aigcfroge-directory": directory, "content-type": "application/json" },
+        body: JSON.stringify({ baseURL, api: "@ai-sdk/anthropic", apiKey: "bad" }),
+      })
+
+      expect(response.status).toBe(400)
+      expect(yield* response.json).toEqual({
+        name: "Auth",
+        data: {
+          status: 401,
+          message: "Authentication failed while discovering models (HTTP 401)",
+        },
+      })
+    }),
+    projectOptions,
+    30000,
+  )
+
   it.instance.skip(
     "returns public v2 provider not found errors",
     Effect.gen(function* () {

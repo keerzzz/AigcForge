@@ -1,5 +1,6 @@
 import { ProviderAuth } from "@/provider/auth"
 import { Provider } from "@/provider/provider"
+import { ProviderDiscover } from "@/provider/discover"
 
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
@@ -26,6 +27,28 @@ export class ProviderAuthApiError extends Schema.ErrorClass<ProviderAuthApiError
       field: Schema.optional(Schema.String),
       message: Schema.optional(Schema.String),
       kind: Schema.optional(Schema.String),
+    }),
+  },
+  { httpApiStatus: 400 },
+) {}
+
+export const ProviderDiscoverInput = Schema.Struct({
+  baseURL: Schema.String,
+  api: Schema.optional(Schema.String),
+  apiKey: Schema.optional(Schema.String),
+})
+
+const ProviderDiscoverErrorName = Schema.Union([
+  Schema.Literal("Auth"),
+  Schema.Literal("Unreachable"),
+  Schema.Literal("Parse"),
+])
+export class ProviderDiscoverApiError extends Schema.ErrorClass<ProviderDiscoverApiError>("ProviderDiscoverError")(
+  {
+    name: ProviderDiscoverErrorName,
+    data: Schema.Struct({
+      status: Schema.optional(Schema.Number),
+      message: Schema.String,
     }),
   },
   { httpApiStatus: 400 },
@@ -79,6 +102,19 @@ export const ProviderApi = HttpApi.make("provider")
             identifier: "provider.oauth.callback",
             summary: "Handle OAuth callback",
             description: "Handle the OAuth callback from a provider after user authorization.",
+          }),
+        ),
+        HttpApiEndpoint.post("discover", `${root}/discover`, {
+          query: WorkspaceRoutingQuery,
+          payload: ProviderDiscoverInput,
+          success: described(Schema.Array(ProviderDiscover.DiscoveredModel), "Models the endpoint advertises"),
+          error: ProviderDiscoverApiError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "provider.discover",
+            summary: "Discover models from a provider endpoint",
+            description:
+              "Probe an OpenAI-compatible or Anthropic endpoint for its model listing without persisting anything.",
           }),
         ),
       )

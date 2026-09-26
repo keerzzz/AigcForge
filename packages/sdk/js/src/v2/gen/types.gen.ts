@@ -3407,6 +3407,14 @@ export type ProviderAuthError1 = {
   }
 }
 
+export type ProviderDiscoverError = {
+  name: "Auth" | "Unreachable" | "Parse"
+  data: {
+    status?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    message: string
+  }
+}
+
 export type Session1 = {
   id: string
   mode?: ProductMode
@@ -17470,6 +17478,41 @@ export type ProviderOauthCallbackResponses = {
 }
 
 export type ProviderOauthCallbackResponse = ProviderOauthCallbackResponses[keyof ProviderOauthCallbackResponses]
+
+export type ProviderDiscoverData = {
+  body?: {
+    baseURL: string
+    api?: string
+    apiKey?: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider/discover"
+}
+
+export type ProviderDiscoverErrors = {
+  /**
+   * ProviderDiscoverError | InvalidRequestError
+   */
+  400: ProviderDiscoverError | InvalidRequestError
+}
+
+export type ProviderDiscoverError2 = ProviderDiscoverErrors[keyof ProviderDiscoverErrors]
+
+export type ProviderDiscoverResponses = {
+  /**
+   * Models the endpoint advertises
+   */
+  200: Array<{
+    id: string
+    name?: string
+  }>
+}
+
+export type ProviderDiscoverResponse = ProviderDiscoverResponses[keyof ProviderDiscoverResponses]
 
 export type SessionListData = {
   body?: never
