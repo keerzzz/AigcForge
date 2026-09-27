@@ -49,7 +49,7 @@
 - 根 `package.json` 表示**计划版本**；各 workspace 清单与它对齐（遍历根 `workspaces.packages` 声明，含嵌套 `packages/sdk/js`）。
 - GitHub Release / Tag 记录**已发布版本**。
 - 执行阶段只使用已确定的版本，不在同一次运行里二次推算。
-- 版本 PR **只改清单的 `version` 字段，不改 `bun.lock`**。理由：`bun.lock` 的 workspace 段也内嵌 `version`，但该仓库的 `bun install` 会重解析 git 依赖（如 `ghostty-web`），在 CI 里提交其结果不确定；仓库当前也没有任何 `--frozen-lockfile` 门禁。因此 `bun.lock` 的 workspace 版本行允许滞后，登记于 technical-debt §12，不用不确定的 `bun install` 结果污染发布提交。
+- 版本 PR **只改清单的 `version` 字段，外加 `bun.lock` 中对应的 workspace 版本行**。理由：`bun.lock` 的 workspace 段内嵌每个清单的 `version`，让它滞后会让下一次 `bun install` 改写锁文件、弄脏发布检出并让版本候选准备失败（真实失败：run `36350024868` 的 `prepare-version` 输出 `Candidate workspace must be clean`）。同步只做**版本行的文本替换**（`Release.lockfileVersions`），不重解析依赖，因此不会把 `bun install` 的结果污染发布提交；校验侧用同一函数重放并逐字节比对，锁文件里任何超出该替换的改动都会被拒（`Candidate lockfile is not an exact workspace version sync`）。支撑证据：在 `main` 上 `bun install --lockfile-only` 恰好改写 17 行、全部是 `workspaces.*.version`。
 
 ## 3. 启用契约（默认关闭）
 

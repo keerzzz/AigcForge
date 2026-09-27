@@ -242,6 +242,29 @@ export async function manifests(root: string) {
   return files
 }
 
+// bun.lock embeds every workspace manifest version. Leaving it stale makes the next
+// `bun install` rewrite the file, which dirties the release checkout and fails the
+// version-candidate preparation. Rewriting only those version lines keeps the
+// lockfile byte-identical to bun's own output without re-resolving dependencies.
+export function lockfileVersions(content: string, folders: readonly string[], target: string) {
+  version(target)
+  return folders.reduce((text, folder) => {
+    const marker = `${JSON.stringify(folder)}: {`
+    const start = text.indexOf(marker)
+    if (start === -1) throw new Failure({ reason: `bun.lock is missing the ${folder} workspace entry` })
+    const entry = text.slice(start + marker.length)
+    const match = /^\s*"version"\s*:\s*"[^"\r\n]*"/m.exec(entry)
+    if (!match) throw new Failure({ reason: `bun.lock is missing the ${folder} workspace version` })
+    const at = start + marker.length + match.index
+    const replaced = match[0].replace(/"version"\s*:\s*"[^"\r\n]*"/, `"version": "${target}"`)
+    return `${text.slice(0, at)}${replaced}${text.slice(at + match[0].length)}`
+  }, content)
+}
+
+function manifestFolders(files: readonly string[]) {
+  return files.map((file) => path.dirname(file).replaceAll("\\", "/")).filter((folder) => folder !== ".")
+}
+
 export async function updateVersions(root: string, target: string) {
   version(target)
   const files = await manifests(root)
@@ -258,6 +281,13 @@ export async function updateVersions(root: string, target: string) {
       await Bun.write(path.join(root, file), updated)
     }),
   )
+  const lockfile = path.join(root, "bun.lock")
+  if (await Bun.file(lockfile).exists()) {
+    const original = await Bun.file(lockfile).text()
+    const updated = lockfileVersions(original, manifestFolders(files), target)
+    if (updated !== original) await Bun.write(lockfile, updated)
+    files.push("bun.lock")
+  }
   return files
 }
 
@@ -277,7 +307,7 @@ export async function verifyVersionCommit(root: string, base: string, head: stri
       file === "package.json" ||
       rootBefore.workspaces.packages.some((pattern) => new Bun.Glob(`${pattern}/package.json`).match(file)),
   )
-  if (!names.length || names.some((file) => !allowed.includes(file)))
+  if (!names.length || names.some((file) => !allowed.includes(file) && file !== "bun.lock"))
     throw new Failure({ reason: "Candidate includes changes outside declared version manifests" })
   for (const file of allowed) {
     const before = json(ObjectRecord, await $`git -C ${root} show ${`${base}:${file}`}`.quiet().text(), "base manifest")
@@ -290,6 +320,12 @@ export async function verifyVersionCommit(root: string, base: string, head: stri
       throw new Failure({ reason: `Candidate is not a complete version-only change: ${file}` })
     }
   }
+  if (all.includes("bun.lock")) {
+    const before = await $`git -C ${root} show ${`${base}:bun.lock`}`.quiet().text()
+    const after = await $`git -C ${root} show ${`${head}:bun.lock`}`.quiet().text()
+    if (after !== lockfileVersions(before, manifestFolders(allowed), target))
+      throw new Failure({ reason: "Candidate lockfile is not an exact workspace version sync" })
+  }
   return allowed
 }
 
@@ -298,8 +334,8 @@ export async function commitCandidate(root: string, base: string, target: string
   if (previousHead) sha(previousHead)
   const current = (await $`git -C ${root} rev-parse HEAD`.quiet().text()).trim()
   if (current !== base) throw new Failure({ reason: "Candidate workspace must be checked out at its base SHA" })
-  if ((await $`git -C ${root} status --porcelain`.quiet().text()).trim())
-    throw new Failure({ reason: "Candidate workspace must be clean" })
+  const dirty = (await $`git -C ${root} status --porcelain`.quiet().text()).trim()
+  if (dirty) throw new Failure({ reason: `Candidate workspace must be clean: ${dirty.replaceAll("\n", " | ")}` })
   const files = await updateVersions(root, target)
   await $`git -C ${root} add -- ${files}`.quiet()
   const tree = (await $`git -C ${root} write-tree`.quiet().text()).trim()

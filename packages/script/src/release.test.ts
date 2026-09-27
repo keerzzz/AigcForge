@@ -10,6 +10,26 @@ const directories: string[] = []
 const servers: Array<ReturnType<typeof Bun.serve>> = []
 const source = "a".repeat(40)
 const other = "b".repeat(40)
+// Mirrors the real lockfile shape: bun records each workspace manifest version here.
+const initialLock = [
+  "{",
+  '  "lockfileVersion": 1,',
+  '  "workspaces": {',
+  '    "": {',
+  '      "name": "root",',
+  "    },",
+  '    "packages/app": {',
+  '      "name": "app",',
+  '      "version": "0.0.2",',
+  "    },",
+  '    "packages/sdk/js": {',
+  '      "name": "sdk",',
+  '      "version": "0.0.1",',
+  "    },",
+  "  },",
+  "}",
+  "",
+].join("\n")
 
 afterEach(async () => {
   servers.splice(0).forEach((server) => server.stop(true))
@@ -36,7 +56,7 @@ async function repository() {
     path.join(root, "packages/sdk/js/package.json"),
     JSON.stringify({ name: "sdk", version: "0.0.1" }, null, 2) + "\n",
   )
-  await Bun.write(path.join(root, "bun.lock"), "unchanged lock\n")
+  await Bun.write(path.join(root, "bun.lock"), initialLock)
   await $`git -C ${root} init -b main`.quiet()
   await $`git -C ${root} config user.email release@example.invalid`.quiet()
   await $`git -C ${root} config user.name release-test`.quiet()
@@ -214,7 +234,7 @@ describe("release intent", () => {
 })
 
 describe("version commit integrity", () => {
-  test("includes nested SDK, preserves non-version data and lockfile, and is repeatable", async () => {
+  test("includes nested SDK, syncs lockfile workspace versions, and is repeatable", async () => {
     const repo = await repository()
     expect(await Release.manifests(repo.root)).toEqual([
       "package.json",
@@ -223,11 +243,38 @@ describe("version commit integrity", () => {
     ])
     const commit = await Release.commitCandidate(repo.root, repo.base, "0.0.3")
     expect(await Release.verifyVersionCommit(repo.root, repo.base, commit, "0.0.3")).toHaveLength(3)
-    expect(await $`git -C ${repo.root} show ${`${commit}:bun.lock`}`.quiet().text()).toBe("unchanged lock\n")
+    const lock = await $`git -C ${repo.root} show ${`${commit}:bun.lock`}`.quiet().text()
+    expect(lock).toBe(
+      initialLock
+        .replace('"version": "0.0.2"', '"version": "0.0.3"')
+        .replace('"version": "0.0.1"', '"version": "0.0.3"'),
+    )
     expect(
       JSON.parse(await $`git -C ${repo.root} show ${`${commit}:packages/sdk/js/package.json`}`.quiet().text()).version,
     ).toBe("0.0.3")
-    expect(await $`git -C ${repo.root} diff --cached --name-only`.quiet().text()).not.toContain("bun.lock")
+    expect(await $`git -C ${repo.root} diff --cached --name-only`.quiet().text()).toContain("bun.lock")
+  })
+
+  test("rejects a candidate whose lockfile is stale or drifts past the version sync", async () => {
+    const repo = await repository()
+    await Release.updateVersions(repo.root, "0.0.3")
+    await $`git -C ${repo.root} restore --source=${repo.base} bun.lock`.quiet()
+    await $`git -C ${repo.root} add .`.quiet()
+    await $`git -C ${repo.root} commit -m stale`.quiet()
+    const stale = (await $`git -C ${repo.root} rev-parse HEAD`.quiet().text()).trim()
+    await expect(Release.verifyVersionCommit(repo.root, repo.base, stale, "0.0.3")).rejects.toThrow("lockfile")
+
+    await $`git -C ${repo.root} reset --hard ${repo.base}`.quiet()
+    await Release.updateVersions(repo.root, "0.0.3")
+    const lock = await Bun.file(path.join(repo.root, "bun.lock")).text()
+    await Bun.write(
+      path.join(repo.root, "bun.lock"),
+      lock.replace('"name": "sdk",', '"name": "sdk",\n      "resolved": "git+https://example.invalid",'),
+    )
+    await $`git -C ${repo.root} add .`.quiet()
+    await $`git -C ${repo.root} commit -m drift`.quiet()
+    const drift = (await $`git -C ${repo.root} rev-parse HEAD`.quiet().text()).trim()
+    await expect(Release.verifyVersionCommit(repo.root, repo.base, drift, "0.0.3")).rejects.toThrow("lockfile")
   })
 
   test("updates candidates with a fast-forward parent, without force-push", async () => {
@@ -248,7 +295,7 @@ describe("version commit integrity", () => {
   test("refuses dirty workspaces and manifest traversal", async () => {
     const repo = await repository()
     await Bun.write(path.join(repo.root, "unrelated.txt"), "keep me")
-    await expect(Release.commitCandidate(repo.root, repo.base, "0.0.3")).rejects.toThrow("clean")
+    await expect(Release.commitCandidate(repo.root, repo.base, "0.0.3")).rejects.toThrow("clean: ?? unrelated.txt")
     await Bun.write(
       path.join(repo.root, "package.json"),
       JSON.stringify({ version: "0.0.2", workspaces: { packages: ["../outside"] } }),
