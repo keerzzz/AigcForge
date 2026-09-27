@@ -6,6 +6,10 @@ on:
 
 jobs:
   triage:
+    # The prompt below embeds the issue title and body verbatim, so an untrusted
+    # author could steer the agent. Only run for authors with repo write access.
+    if: >-
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,11 +39,15 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AI_MODEL: ${{ vars.AI_ROBOT_MODEL || vars.AI_MODEL }}
+          # Deny-by-default. Only issue subcommands are allowed, so a steered
+          # agent cannot read the environment, run a shell, or reach the network.
           AIGCFROGE_PERMISSION: |
             {
               "bash": {
-                "*": "allow"
-              }
+                "*": "deny",
+                "gh issue*": "allow"
+              },
+              "webfetch": "deny"
             }
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
