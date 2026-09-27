@@ -20,7 +20,7 @@
 | §7 全局壳观察                   | delegation 投影、资产双读、测试隔离与开发态时序                                                                        | 纳入 product closure S3/S6 或后续专项                                                                                                                         |
 | §8 全路由 E2E                   | route、真实 Session/File/PTY、full-suite、Settings/Desktop                                                             | 纳入 product closure S2–S5/S11；E3 不冒充 E4                                                                                                                  |
 | §9 远程 Issue 对账              | #40/#41/#42/#44                                                                                                        | 证据已核对；远程处置待 Owner 授权                                                                                                                             |
-| §12 桌面发布工作流              | 版本回写、PR label、分发拆分、签名/升级验证                                                                            | desktop-draft 首个切片已实现；真实 Actions 发布待验证                                                                                                         |
+| §12 桌面发布工作流              | 版本回写、PR label、分发拆分、签名/升级验证                                                                            | desktop-draft 已端到端跑通并人工发布 v0.0.2（2026-09-27）；版本回写为人工闭环，自动化按“桌面端+人工”决策延后                                                  |
 
 ---
 
@@ -382,7 +382,14 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 
 来源：`desktop-release-flow` 切片的 desktop-draft 工作流和 `docs/plan/desktop-release-workflow.md`。已交付的仅是草稿构建、更新清单和严格发布说明门禁；以下项按 Slice Checkpoints 规则登记。
 
-- **版本提交回 `main` / 单一版本源 — Owner: release。** 当前版本仍从最新 GitHub Release 计算，构建产物使用新版本，但没有把版本写回并提交到 `main` 的根 `package.json` 与各 workspace 清单。解锁条件：确定 bot 提交策略、分支保护绕过边界和失败回滚方式，并从同一个版本提交构建和打标签后再删除本项。
+**进展与决策（2026-09-27）：**
+
+- desktop-draft 已在真实 Actions 端到端跑通（run `36282895148`，`main@43d9b7349`，5 平台 `build-electron` + `finalize-desktop-draft` 全绿）。
+- 首个正式桌面版 **v0.0.2 已人工转正公开**（target `f6644e758`，19 个附件，`releases/latest` = v0.0.2）。链路修复：桌面构建 OOM（PR #86，`NODE_OPTIONS=--max-old-space-size=4096`）、空签名 env 触发 `packages/desktop not a file`（PR #87）、macOS x64 移出矩阵（PR #88）。
+- **版本回写 `main` 已建立人工闭环**（PR #89，`main` 现为 0.0.2），操作手册见 `docs/plan/desktop-release-workflow.md` §5。
+- **范围决策：只做桌面端、发布保持人工。** 下列自动化项按显式决策延后 / 列为范围外，不在本阶段闭环。
+
+- **版本提交回 `main` / 单一版本源 — Owner: release（部分闭环：人工）。** 已用人工 PR 把根 `package.json` 与各 workspace 清单提到发布版本（PR #89，`main` = 0.0.2），操作手册见 plan §5；版本号目前仍从最新 GitHub Release 反推，未实现 CI 自动 commit 回 `main`，也未把 `package.json` 定为唯一真源。解锁条件（做自动化时）：确定 bot 提交策略、分支保护绕过边界和失败回滚方式，并从同一个版本提交构建和打标签后再删除本项。
 - **PR 合并后按 label 自动触发 — Owner: release。** 当前 `desktop-draft` 只能手动 `workflow_dispatch`；尚未实现 `release:patch` / `release:minor` / `release:major` / `release:none` 的 PR 语义。解锁条件：先完成一次真实 Draft 发布验收，再补 label 路由、并发互斥和未标记 PR 的 no-release 行为。
 - **npm / Docker / AUR 从桌面必经链拆分 — Owner: release / distribution。** `desktop-draft` 已跳过旧 `script/publish.ts`，但完整发布模式仍把桌面构建与其他分发放在同一个工作流中。解锁条件：确认外部兼容责任后，将非桌面分发拆为独立工作流或明确标注 legacy 退出条件。
 - **签名 / 公证 / 真实升级 E2E — Owner: desktop / QA。** 当前只在 Windows 有签名校验步骤，Apple 和 Linux 能力依赖 Secrets 与目标平台，尚未在本轮验证；也没有上一正式桌面版可作为升级基线。解锁条件：在具备真实签名密钥的隔离环境跑通，并记录安装、升级、用户数据保留和数据库迁移证据。
