@@ -7,6 +7,10 @@ inputs:
   aigcfroge-app-secret:
     description: "Aigcfroge GitHub App private key"
     required: false
+  require-app:
+    description: "Fail instead of falling back when an unattended workflow requires an App"
+    required: false
+    default: "false"
 outputs:
   token:
     description: "GitHub App token or GitHub Token"
@@ -17,6 +21,17 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Require configured GitHub App
+      if: inputs.require-app == 'true'
+      shell: bash
+      env:
+        APP_ID: ${{ inputs.aigcfroge-app-id }}
+        APP_PRIVATE_KEY: ${{ inputs.aigcfroge-app-secret }}
+      run: |
+        if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+          echo "::error::AIGCFROGE_APP_ID and AIGCFROGE_APP_SECRET are required for unattended release PRs"
+          exit 1
+        fi
     - name: Create app token
       id: apptoken
       if: inputs.aigcfroge-app-id != '' && inputs.aigcfroge-app-secret != ''

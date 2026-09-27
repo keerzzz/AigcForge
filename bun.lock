@@ -473,6 +473,7 @@
       "name": "@aigcfroge/script",
       "version": "0.0.1",
       "dependencies": {
+        "effect": "catalog:",
         "semver": "^7.6.3",
       },
       "devDependencies": {

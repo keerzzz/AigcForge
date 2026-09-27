@@ -1,5 +1,5 @@
 name: publish
-run-name: "${{ format('{0} {1}', inputs.release_mode == 'desktop-draft' && 'desktop draft' || 'release', inputs.version || inputs.bump || 'patch') }}"
+run-name: "${{ github.event_name == 'workflow_run' && format('desktop auto {0}', github.event.workflow_run.head_sha) || format('{0} {1}', inputs.release_mode == 'desktop-draft' && 'desktop draft' || 'release', inputs.version || inputs.bump || 'patch') }}"
 
 on:
   push:
@@ -9,6 +9,10 @@ on:
       - beta
       - fix/npm-native-binary-install
       - snapshot-*
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       bump:
@@ -33,7 +37,12 @@ on:
           - desktop-draft
           - full
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.version || inputs.bump }}
+# Serialize release work. `cancel-in-progress: false` keeps a running build
+# alive; GitHub's default single-pending slot means only the newest queued main
+# state survives, which is what we want for release candidates.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.repository }}
+  cancel-in-progress: false
 
 permissions:
   id-token: write
@@ -43,22 +52,82 @@ permissions:
 jobs:
   guard:
     runs-on: ubuntu-latest
-    if: github.repository == 'keerzzz/AigcForge'
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    if: >-
+      github.repository == 'keerzzz/AigcForge' &&
+      (github.event_name != 'workflow_run' ||
+       (vars.AIGCFROGE_DESKTOP_AUTOMATION != '' && vars.AIGCFROGE_DESKTOP_AUTOMATION != 'off' &&
+        github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      sha: ${{ steps.plan.outputs.sha }}
+      version: ${{ steps.plan.outputs.version }}
     steps:
-      - name: Require main for manual releases
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
-        shell: bash
-        run: |
-          echo "::error::workflow_dispatch releases must run from main"
-          exit 1
+      # workflow_run starts from trusted default-branch code, never a PR checkout.
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-git-committer
+        id: committer
+        with:
+          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
+          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          require-app: ${{ github.event_name == 'workflow_run' }}
+      - name: Resolve release intent
+        id: plan
+        run: bun script/desktop-release.ts plan
+        env:
+          GH_TOKEN: ${{ steps.committer.outputs.token }}
+          GH_REPO: ${{ (github.ref_name == 'beta' && 'keerzzz/AigcForge-beta') || github.repository }}
+          AIGCFROGE_DESKTOP_AUTOMATION: ${{ vars.AIGCFROGE_DESKTOP_AUTOMATION }}
+          AIGCFROGE_RELEASE_BOT: ${{ steps.committer.outputs.app-slug }}[bot]
+
+  prepare-version:
+    needs: guard
+    if: needs.guard.outputs.mode == 'prepare'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          ref: ${{ needs.guard.outputs.sha }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-git-committer
+        id: committer
+        with:
+          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
+          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          require-app: "true"
+      - name: Prepare a version-only PR and enable checked auto-merge
+        run: bun script/desktop-release.ts prepare
+        env:
+          GH_TOKEN: ${{ steps.committer.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          AIGCFROGE_RELEASE_SHA: ${{ needs.guard.outputs.sha }}
+          AIGCFROGE_VERSION: ${{ needs.guard.outputs.version }}
+          AIGCFROGE_RELEASE_BOT: ${{ steps.committer.outputs.app-slug }}[bot]
 
   version:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'keerzzz/AigcForge'
+    if: needs.guard.outputs.mode == 'desktop-draft' || needs.guard.outputs.mode == 'desktop-release' || needs.guard.outputs.mode == 'full'
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
+          ref: ${{ needs.guard.outputs.sha }}
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-bun
@@ -76,11 +145,13 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           AIGCFROGE_BUMP: ${{ inputs.bump }}
-          AIGCFROGE_VERSION: ${{ inputs.version }}
-          AIGCFROGE_RELEASE_NOTES_STRICT: ${{ inputs.release_mode == 'desktop-draft' }}
+          AIGCFROGE_VERSION: ${{ needs.guard.outputs.version }}
+          AIGCFROGE_RELEASE_NOTES_STRICT: ${{ needs.guard.outputs.mode != 'full' }}
+          AIGCFROGE_DETERMINISTIC_RELEASE_NOTES: ${{ github.event_name == 'workflow_run' }}
           AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
           GH_REPO: ${{ (github.ref_name == 'beta' && 'keerzzz/AigcForge-beta') || github.repository }}
     outputs:
+      published: ${{ steps.version.outputs.published }}
       version: ${{ steps.version.outputs.version }}
       release: ${{ steps.version.outputs.release }}
       tag: ${{ steps.version.outputs.tag }}
@@ -88,8 +159,9 @@ jobs:
 
   build-electron:
     needs:
+      - guard
       - version
-    if: github.repository == 'keerzzz/AigcForge'
+    if: github.repository == 'keerzzz/AigcForge' && needs.version.outputs.published != 'true'
     continue-on-error: false
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -131,21 +203,33 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          ref: ${{ needs.guard.outputs.sha }}
 
       - name: Check signing secrets
         id: signing
         shell: bash
         run: |
+          if [ "${{ needs.guard.outputs.mode }}" = "desktop-release" ]; then
+            if [ "$RUNNER_OS" = "macOS" ] && { [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$APPLE_API_KEY_ID" ] || [ -z "$APPLE_API_ISSUER" ] || [ -z "$APPLE_API_KEY_PATH" ]; }; then
+              echo "::error::Public macOS releases require signing and notarization credentials"
+              exit 1
+            fi
+            if [ "$RUNNER_OS" = "Windows" ] && { [ -z "$AZURE_CLIENT_ID" ] || [ -z "$AZURE_TENANT_ID" ] || [ -z "$AZURE_SUBSCRIPTION_ID" ] || [ -z "$AZURE_TRUSTED_SIGNING_ACCOUNT_NAME" ] || [ -z "$AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE" ] || [ -z "$AZURE_TRUSTED_SIGNING_ENDPOINT" ]; }; then
+              echo "::error::Public Windows releases require Azure signing credentials"
+              exit 1
+            fi
+          fi
           if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_CERTIFICATE_PASSWORD" ]; then
-            echo "macos-available=true"
+            echo "macos-available=true" >> "$GITHUB_OUTPUT"
           else
-            echo "macos-available=false"
+            echo "macos-available=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Apple signing secrets not configured; macOS app ships unsigned."
           fi
           if [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TENANT_ID" ] && [ -n "$AZURE_TRUSTED_SIGNING_ACCOUNT_NAME" ]; then
-            echo "windows-available=true"
+            echo "windows-available=true" >> "$GITHUB_OUTPUT"
           else
-            echo "windows-available=false"
+            echo "windows-available=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Azure signing secrets not configured; Windows app ships unsigned."
           fi
 
@@ -158,7 +242,11 @@ jobs:
 
       - name: Setup Apple API Key
         if: runner.os == 'macOS' && steps.signing.outputs.macos-available == 'true'
-        run: echo "${{ secrets.APPLE_API_KEY_PATH }}" > $RUNNER_TEMP/apple-api-key.p8
+        env:
+          APPLE_PRIVATE_KEY: ${{ secrets.APPLE_API_KEY_PATH }}
+        run: |
+          umask 077
+          printf '%s' "$APPLE_PRIVATE_KEY" > "$RUNNER_TEMP/apple-api-key.p8"
 
       - uses: ./.github/actions/setup-bun
         with:
@@ -236,7 +324,7 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           APPLE_API_KEY: ${{ runner.temp }}/apple-api-key.p8
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
 
       - name: Package (no publish)
@@ -277,12 +365,23 @@ jobs:
           $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*.exe" | Select-Object -ExpandProperty FullName
           $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*unpacked\*.exe" | Select-Object -ExpandProperty FullName
 
+          if ($files.Count -eq 0) { throw "No Windows executables found for signature verification" }
           foreach ($file in $files | Select-Object -Unique) {
             $sig = Get-AuthenticodeSignature $file
             if ($sig.Status -ne "Valid") {
               throw "Invalid signature for ${file}: $($sig.Status)"
             }
           }
+
+      - name: Verify signed and notarized macOS bundle
+        if: runner.os == 'macOS' && needs.guard.outputs.mode == 'desktop-release'
+        shell: bash
+        working-directory: packages/desktop/dist
+        run: |
+          app=$(find mac-arm64 -maxdepth 1 -type d -name '*.app' -print -quit)
+          test -n "$app"
+          codesign --verify --deep --strict "$app"
+          xcrun stapler validate "$app"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -314,12 +413,15 @@ jobs:
 
   finalize-desktop-draft:
     needs:
+      - guard
       - version
       - build-electron
-    if: always() && !failure() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.release_mode == 'desktop-draft'
+    if: always() && !failure() && !cancelled() && needs.version.outputs.published != 'true' && (needs.guard.outputs.mode == 'desktop-draft' || needs.guard.outputs.mode == 'desktop-release')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          ref: ${{ needs.guard.outputs.sha }}
 
       - uses: ./.github/actions/setup-bun
 
@@ -334,6 +436,12 @@ jobs:
         with:
           pattern: latest-yml-*
           path: /tmp/latest-yml
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: aigcfroge-desktop-*
+          path: /tmp/desktop
+          merge-multiple: true
 
       - name: Require all platform update metadata
         shell: bash
@@ -352,25 +460,28 @@ jobs:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           LATEST_YML_DIR: /tmp/latest-yml
 
-      - name: Verify draft release
-        shell: bash
+      - name: Verify same-run assets and optionally publish
+        run: bun script/desktop-release.ts "${{ needs.guard.outputs.mode == 'desktop-release' && 'publish' || 'verify' }}"
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
-        run: |
-          release_json=$(gh release view "v${{ needs.version.outputs.version }}" --repo "${{ needs.version.outputs.repo }}" --json isDraft,assets,tagName)
-          echo "$release_json"
-          test "$(echo "$release_json" | jq -r .isDraft)" = "true"
-          test "$(echo "$release_json" | jq -r .tagName)" = "v${{ needs.version.outputs.version }}"
-          test "$(echo "$release_json" | jq -r '.assets | length')" -gt 0
+          GH_REPO: ${{ needs.version.outputs.repo }}
+          AIGCFROGE_RELEASE_SHA: ${{ needs.guard.outputs.sha }}
+          AIGCFROGE_VERSION: ${{ needs.version.outputs.version }}
+          AIGCFROGE_DESKTOP_AUTOMATION: ${{ vars.AIGCFROGE_DESKTOP_AUTOMATION }}
+          DESKTOP_METADATA_DIR: ${{ runner.temp }}
+          DESKTOP_ARTIFACT_DIR: /tmp/desktop
 
   publish:
     needs:
+      - guard
       - version
       - build-electron
-    if: always() && !failure() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.release_mode != 'desktop-draft')
+    if: always() && !failure() && !cancelled() && needs.guard.outputs.mode == 'full' && needs.version.outputs.published != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          ref: ${{ needs.guard.outputs.sha }}
 
       - uses: ./.github/actions/setup-bun
 
