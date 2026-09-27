@@ -6,8 +6,12 @@ on:
 
 jobs:
   check-duplicates:
-    if: github.event.action == 'opened'
+    # Same trust boundary as triage: the prompt embeds the issue body.
+    if: >-
+      github.event.action == 'opened' &&
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: write
@@ -39,7 +43,8 @@ jobs:
             {
               "bash": {
                 "*": "deny",
-                "gh issue*": "allow"
+                "gh issue*": "allow",
+                "gh api* repos/*/issues/${{ github.event.issue.number }}/comments*": "allow"
               },
               "webfetch": "deny"
             }
@@ -85,7 +90,7 @@ jobs:
           fi
 
           echo "Using model: $MODEL"
-          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "A new issue has been created:
+          bun ./packages/aigcfroge/src/index.ts run --agent build -m "$MODEL" "A new issue has been created:
 
           Issue number: ${{ github.event.issue.number }}
 
@@ -168,8 +173,13 @@ jobs:
           Remember: post at most ONE comment combining all findings. If everything is fine, post nothing."
 
   recheck-compliance:
-    if: github.event.action == 'edited' && contains(github.event.issue.labels.*.name, 'needs:compliance')
+    # Same trust boundary as triage: the prompt embeds the issue body.
+    if: >-
+      github.event.action == 'edited' &&
+      contains(github.event.issue.labels.*.name, 'needs:compliance') &&
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: write
@@ -247,7 +257,7 @@ jobs:
           fi
 
           echo "Using model: $MODEL"
-          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "Issue #${{ github.event.issue.number }} was previously flagged as non-compliant and has been edited.
+          bun ./packages/aigcfroge/src/index.ts run --agent build -m "$MODEL" "Issue #${{ github.event.issue.number }} was previously flagged as non-compliant and has been edited.
 
           Lookup this issue with gh issue view ${{ github.event.issue.number }}.
 

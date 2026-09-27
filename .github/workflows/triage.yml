@@ -6,7 +6,12 @@ on:
 
 jobs:
   triage:
+    # The prompt below embeds the issue title and body verbatim, so an untrusted
+    # author could steer the agent. Only run for authors with repo write access.
+    if: >-
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: write
@@ -35,11 +40,16 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AI_MODEL: ${{ vars.AI_ROBOT_MODEL || vars.AI_MODEL }}
+          # Deny-by-default. Only issue subcommands are allowed, so a steered
+          # agent cannot read the environment, run a shell, or reach the network.
           AIGCFROGE_PERMISSION: |
             {
               "bash": {
-                "*": "allow"
-              }
+                "*": "deny",
+                "gh issue*": "allow",
+                "gh label list*": "allow"
+              },
+              "webfetch": "deny"
             }
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
@@ -86,8 +96,17 @@ jobs:
           fi
 
           echo "Using model: $MODEL"
-          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "The following issue was just opened, triage it:
+          bun ./packages/aigcfroge/src/index.ts run --agent build -m "$MODEL" "Triage issue #$ISSUE_NUMBER:
 
           Title: $ISSUE_TITLE
 
-          $ISSUE_BODY"
+          $ISSUE_BODY
+
+          Inspect the issue with: gh issue view $ISSUE_NUMBER
+
+          List the repository's existing labels with: gh label list
+          Apply only labels that genuinely match the issue and appear in that list. Do not invent labels.
+          Apply each selected label with: gh issue edit $ISSUE_NUMBER --add-label <label>
+
+          Add a concise explanatory comment with: gh issue comment $ISSUE_NUMBER --body <comment>
+          Only comment if the labeling result needs explanation."
