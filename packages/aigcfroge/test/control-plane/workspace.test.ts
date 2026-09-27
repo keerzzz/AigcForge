@@ -19,7 +19,7 @@ import { SessionTable } from "@aigcfroge/core/session/sql"
 import { EventSequenceTable } from "@aigcfroge/core/event/sql"
 import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, provideTmpdirInstance, requireInstance, TestInstance } from "../fixture/fixture"
-import { testEffect } from "../lib/effect"
+import { pollWithTimeout, testEffect } from "../lib/effect"
 import { registerAdapter } from "../../src/control-plane/adapters"
 import { WorkspaceV2 } from "@aigcfroge/core/workspace"
 import { WorkspaceTable } from "@aigcfroge/core/control-plane/workspace.sql"
@@ -108,12 +108,19 @@ function restoreEnv() {
   })
 }
 
+const openEventStreams = new Set<() => void>()
+
+function closeEventStreams() {
+  for (const close of [...openEventStreams]) close()
+}
+
 beforeEach(() => {
   restoreEnv()
   process.env.AIGCFROGE_EXPERIMENTAL_WORKSPACES = "true"
 })
 
 afterEach(async () => {
+  closeEventStreams()
   mock.restore()
   await disposeAllInstances()
   restoreEnv()
@@ -156,17 +163,11 @@ function expectExitContains(exit: Exit.Exit<unknown, unknown>, ...messages: stri
 }
 
 function eventuallyEffect(effect: Effect.Effect<void>, timeout = 1500) {
-  return Effect.gen(function* () {
-    const started = Date.now()
-    let last: unknown
-    while (Date.now() - started < timeout) {
-      const exit = yield* Effect.exit(effect)
-      if (exit._tag === "Success") return
-      last = exit.cause
-      yield* Effect.sleep("10 millis")
-    }
-    throw last ?? new Error("Timed out waiting for condition")
-  })
+  return pollWithTimeout(
+    Effect.exit(effect).pipe(Effect.map((exit) => (exit._tag === "Success" ? true : undefined))),
+    `Timed out after ${timeout}ms waiting for condition`,
+    `${timeout} millis`,
+  ).pipe(Effect.asVoid)
 }
 
 function recordedAdapter(input: {
@@ -254,17 +255,26 @@ function eventStreamResponse(events: unknown[] = [], keepOpen = true, onOpen?: (
     new ReadableStream<Uint8Array>({
       start(controller) {
         let open = true
-        onOpen?.(() => {
+        const close = () => {
           if (!open) return
           open = false
-          controller.close()
-        })
+          openEventStreams.delete(close)
+          try {
+            controller.close()
+          } catch {
+            // The client may already have cancelled the response.
+          }
+        }
+        openEventStreams.add(close)
         if (keepOpen) controller.enqueue(encoder.encode(":\n\n"))
         events.forEach((event) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)))
         if (!keepOpen) {
           open = false
+          openEventStreams.delete(close)
           controller.close()
+          return
         }
+        onOpen?.(close)
       },
     }),
     { status: 200, headers: { "content-type": "text/event-stream" } },
@@ -1218,7 +1228,14 @@ describe("workspace sync state", () => {
 
   it.live("remote start emits disconnected, connecting, and connected then refuses duplicate listeners", () => {
     const calls: FetchCall[] = []
-    let closeStream = () => {}
+    let closeStream: (() => void) | undefined
+    let closeRequested = false
+    // eventStreamResponse installs its closer when the stream starts. Queue the
+    // request so a fast status transition cannot close against a no-op closure.
+    const closeConnection = () => {
+      closeRequested = true
+      closeStream?.()
+    }
     return Effect.gen(function* () {
       yield* HttpServer.serveEffect()(
         Effect.gen(function* () {
@@ -1233,7 +1250,12 @@ describe("workspace sync state", () => {
           }
           calls.push(call)
           if (call.url.pathname === "/sync/global/event")
-            return HttpServerResponse.fromWeb(eventStreamResponse([], true, (close) => (closeStream = close)))
+            return HttpServerResponse.fromWeb(
+              eventStreamResponse([], true, (close) => {
+                closeStream = close
+                if (closeRequested) close()
+              }),
+            )
           if (call.url.pathname === "/sync/sync/history") return HttpServerResponse.fromWeb(Response.json([]))
           return HttpServerResponse.text("unexpected", { status: 500 })
         }),
@@ -1277,7 +1299,7 @@ describe("workspace sync state", () => {
               expect(calls.filter((call) => call.url.pathname === "/sync/sync/history")).toHaveLength(1)
               expect(yield* workspace.isSyncing(info.id)).toBe(true)
 
-              closeStream()
+              closeConnection()
               yield* eventuallyEffect(
                 Effect.gen(function* () {
                   expect((yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status).toBe(
@@ -1288,7 +1310,7 @@ describe("workspace sync state", () => {
               yield* workspace.remove(info.id)
               expect(yield* workspace.isSyncing(info.id)).toBe(false)
             } finally {
-              closeStream()
+              closeConnection()
               captured.dispose()
             }
           }),
@@ -1440,6 +1462,15 @@ describe("workspace sync state", () => {
                     event.payload.properties.status === "connected",
                 ),
               ).toBe(true)
+
+              closeEventStreams()
+              yield* eventuallyEffect(
+                Effect.gen(function* () {
+                  expect((yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status).toBe(
+                    "disconnected",
+                  )
+                }),
+              )
               yield* workspace.remove(info.id)
             } finally {
               captured.dispose()
