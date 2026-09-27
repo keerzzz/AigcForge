@@ -17,5 +17,5 @@
   "scripts": {
     "test": "bun test --timeout 30000"
   },
-  "version": "0.0.1"
+  "version": "0.0.2"
 }
