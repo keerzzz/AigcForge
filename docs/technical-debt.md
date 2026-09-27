@@ -380,10 +380,14 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 
 ## 12. 桌面发布工作流未交付范围（2026-09-26）
 
-来源：`desktop-release-flow` 切片的 desktop-draft 工作流和 `docs/plan/desktop-release-workflow.md`。已交付的仅是草稿构建、更新清单和严格发布说明门禁；以下项按 Slice Checkpoints 规则登记。
+来源：`desktop-release-flow` 切片的 desktop-draft 工作流和 `docs/plan/desktop-release-workflow.md`。已交付草稿构建、更新清单、严格发布说明门禁，以及 ADR-26 的自动发布编排（默认关闭）。
 
-- **版本提交回 `main` / 单一版本源 — Owner: release。** 当前版本仍从最新 GitHub Release 计算，构建产物使用新版本，但没有把版本写回并提交到 `main` 的根 `package.json` 与各 workspace 清单。解锁条件：确定 bot 提交策略、分支保护绕过边界和失败回滚方式，并从同一个版本提交构建和打标签后再删除本项。
-- **PR 合并后按 label 自动触发 — Owner: release。** 当前 `desktop-draft` 只能手动 `workflow_dispatch`；尚未实现 `release:patch` / `release:minor` / `release:major` / `release:none` 的 PR 语义。解锁条件：先完成一次真实 Draft 发布验收，再补 label 路由、并发互斥和未标记 PR 的 no-release 行为。
+**进展（2026-09-27）：** 首个正式版 v0.0.2 已人工发布；`script/desktop-release.ts` + `packages/script/src/release.ts` 实现发布意图归一化、版本 PR、同源构建与摘要校验；`desktop-release` 模式在门禁通过后自动公开。以下项按 Slice Checkpoints 规则继续登记。
+
+- **版本提交回 `main` / 单一版本源（部分闭环：ADR-26）。** 自动链路已实现「机器人版本 PR + 只改 version 字段 + 按根 `workspaces.packages` 展开（含嵌套 SDK）」；人工闭环仍需按 §6 手动回写。**未闭环：** 待启用契约落地后完成一次端到端自动发布。Owner: release。解锁条件：配置 Secret/Variable/分支保护/auto-merge，先以 `draft` 跑通，再切 `publish` 并复核标签来源一致。另注：v0.0.2 之后 `packages/sdk/js/package.json` 仍为 0.0.1，需在下一个正式版本 PR 中随全量清单一起追平。
+- **发布自动化启用契约未落地 — Owner: release / infra。** ADR-26 §3 要求 GitHub App（`AIGCFROGE_APP_ID`/`AIGCFROGE_APP_SECRET`）、Allow auto-merge、`main` 分支保护（含 `Release.REQUIRED_CHECKS` 全部必需检查）、以及 Variable `AIGCFROGE_DESKTOP_AUTOMATION`。当前仓库 API 未显示 App Secret/Variable（`allow_auto_merge=false`、`main` 未受保护），因此 `workflow_run` 触发不启动任何 job——按设计 fail closed，不会误发。解锁条件：逐项配置并记录验证。
+- **`bun.lock` workspace 版本行滞后 — Owner: tooling。** `bun.lock` 的 workspace 段内嵌各包 `version`；v0.0.2 的版本 PR（#89）只改了 `package.json`，锁文件的 17 条 workspace 版本仍为 0.0.1。当前无任何 workflow 使用 `--frozen-lockfile`，故不影响构建；ADR-26 的版本 PR 也刻意只改清单。**未闭环：** 需要一条确定性的锁文件同步方式（或明确接受不记录 workspace 版本）。注意：本机 `bun install` 会重解析 git 依赖（`ghostty-web`）并产生与版本无关的锁变更，不能直接把其结果提交进发布提交。解锁条件：确认 bun 是否支持只重写 workspace 版本段，或在 CI 增加 `--frozen-lockfile` 门禁并同步处理。
+- **PR label 语义已实现，待端到端验证 — Owner: release。** `Release.bump` 支持 `release:patch` / `release:minor` / `release:major` / `release:none`，并有冲突与未知标签的失败用例；单元测试覆盖，但尚未在真实 Actions 上跑过一次。解锁条件：启用后观察一次 `release:none` 与一次默认 patch 的真实行为。
 - **npm / Docker / AUR 从桌面必经链拆分 — Owner: release / distribution。** `desktop-draft` 已跳过旧 `script/publish.ts`，但完整发布模式仍把桌面构建与其他分发放在同一个工作流中。解锁条件：确认外部兼容责任后，将非桌面分发拆为独立工作流或明确标注 legacy 退出条件。
-- **签名 / 公证 / 真实升级 E2E — Owner: desktop / QA。** 当前只在 Windows 有签名校验步骤，Apple 和 Linux 能力依赖 Secrets 与目标平台，尚未在本轮验证；也没有上一正式桌面版可作为升级基线。解锁条件：在具备真实签名密钥的隔离环境跑通，并记录安装、升级、用户数据保留和数据库迁移证据。
+- **签名 / 公证 / 真实安装升级 E2E — Owner: desktop / QA。** `desktop-release`（自动公开）现在**要求** macOS 签名+公证与 Windows Azure 签名凭据齐全，并新增 `codesign --verify` / `xcrun stapler validate` 门禁；同时修正了此前两个真实缺陷：签名探测结果没有写入 `$GITHUB_OUTPUT`（导致 Windows 校验被跳过）、以及 Apple Key ID 误读 `secrets.APPLE_API_KEY` 而非 `APPLE_API_KEY_ID`。**未闭环：** 仍无真实安装、升级、数据保留与迁移的实机证据；也没有签名凭据可在本仓库验证上述路径。解锁条件：在具备真实密钥与目标设备的环境跑通并记录证据；v0.0.2 可作为首个升级基线。
 - **macOS Intel (x64) 桌面构建暂时移出矩阵 — Owner: release / desktop。** GitHub 托管的 `macos-13` runner 连续排队超过 80 分钟拿不到机器，阻塞 desktop-draft 全平台完成；已从 `.github/workflows/publish.yml` 的 `build-electron` 矩阵移除该目标，并同步去掉 `finalize-desktop-draft` 对 `latest-yml-x86_64-apple-darwin/latest-mac.yml` 的强制校验，`finalize-latest-yml.ts` 已能在缺 x64 时只合并 arm64。影响：本轮 Draft 的 `latest-mac.yml` 只覆盖 Apple Silicon，Intel Mac 无自动更新产物。解锁条件：确认 macos-13 runner 可稳定获取（或改用自托管 / 交叉编译）后，恢复矩阵条目与该校验行并重新跑一次 desktop-draft 验证 6 平台齐全。

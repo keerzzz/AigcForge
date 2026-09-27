@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 
+import { Release } from "@aigcfroge/script/release"
+
 import { $ } from "bun"
 import { parseArgs } from "util"
 
@@ -117,8 +119,7 @@ async function commits(from: string, to: string) {
     data.set(item.sha, { login: item.login, message: item.message.split("\n")[0] ?? "" })
   }
 
-  const log =
-    await $`git log ${base}..${head} --format=%H -- packages/aigcfroge packages/sdk packages/plugin packages/desktop packages/app`.text()
+  const log = await $`git log ${base}..${head} --format=%H`.text()
 
   const list: Commit[] = []
   for (const hash of log.split("\n").filter(Boolean)) {
@@ -129,12 +130,24 @@ async function commits(from: string, to: string) {
     const diff = await $`git diff-tree --no-commit-id --name-only -r ${hash}`.text()
     const areas = new Set<string>()
 
-    for (const file of diff.split("\n").filter(Boolean)) {
-      if (file.startsWith("packages/aigcfroge/src/cli/cmd/")) areas.add("tui")
-      else if (file.startsWith("packages/aigcfroge/")) areas.add("core")
-      else if (file.startsWith("packages/desktop/src-tauri/")) areas.add("tauri")
-      else if (file.startsWith("packages/desktop/") || file.startsWith("packages/app/")) areas.add("app")
-      else if (file.startsWith("packages/sdk/") || file.startsWith("packages/plugin/")) areas.add("sdk")
+    for (const file of diff.split("\n").filter(Boolean).filter(Release.affectsDesktop)) {
+      if (file.startsWith("packages/aigcfroge/src/cli/cmd/")) {
+        areas.add("tui")
+        continue
+      }
+      if (file.startsWith("packages/desktop/src-tauri/")) {
+        areas.add("tauri")
+        continue
+      }
+      if (file.startsWith("packages/desktop/") || file.startsWith("packages/app/")) {
+        areas.add("app")
+        continue
+      }
+      if (file.startsWith("packages/sdk/") || file.startsWith("packages/plugin/")) {
+        areas.add("sdk")
+        continue
+      }
+      areas.add("core")
     }
 
     if (areas.size === 0) continue

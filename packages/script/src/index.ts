@@ -41,6 +41,7 @@ const VERSION = await (async () => {
   const repo = process.env.GH_REPO || "keerzzz/AigcForge"
   const version = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
     headers: { "User-Agent": "aigcfroge", "X-GitHub-Api-Version": "2022-11-28" },
+    signal: AbortSignal.timeout(10_000),
   })
     .then((res) => (res.ok ? res.json() : null))
     .then((data: { tag_name?: string } | null) => (data?.tag_name ? data.tag_name.replace(/^v/, "") : rootPkg.version))

@@ -3,7 +3,8 @@
   "name": "@aigcfroge/script",
   "license": "MIT",
   "dependencies": {
-    "semver": "^7.6.3"
+    "semver": "^7.6.3",
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
@@ -12,10 +13,13 @@
   "exports": {
     ".": "./src/index.ts",
     "./openapi": "./src/openapi.ts",
-    "./changed-lines": "./src/changed-lines.ts"
+    "./changed-lines": "./src/changed-lines.ts",
+    "./release": "./src/release.ts",
+    "./release-metadata": "./src/release-metadata.ts"
   },
   "scripts": {
-    "test": "bun test --timeout 30000"
+    "test": "bun test --timeout 30000",
+    "typecheck": "tsgo --noEmit"
   },
   "version": "0.0.2"
 }
