@@ -74,7 +74,7 @@ gh workflow run publish.yml -f release_mode=full -f bump=patch
 2. 仓库开启 **Allow auto-merge**。
 3. `main` 分支保护：Require branches to be up to date + 必需检查 = `Lint, Test, and Typecheck`、`unit (linux)`、`unit (windows)`、`e2e (linux)`、`e2e (windows)`、`check-standards`、`check-compliance`。
 4. 仓库 Variable `AIGCFROGE_DESKTOP_AUTOMATION`：`draft`（只构建 Draft）或 `publish`（自动公开）。留空/`off` = 完全关闭。
-5. `publish` 档位额外需要 macOS 签名+公证、Windows Azure 签名凭据齐全，否则该次自动公开失败（不会降级为未签名发布）。
+5. `publish` 档位默认需要 macOS 签名+公证、Windows Azure 签名凭据齐全，否则该次自动公开 fail closed（不会降级为未签名发布）。Owner 显式设置 Variable `AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true` 时例外：缺凭据只告警，并以明确声明的未签名产物公开。
 
 建议先设 `draft` 跑通一轮，再切 `publish`。
 
@@ -91,7 +91,7 @@ gh workflow run publish.yml --repo keerzzz/AigcForge --ref main -f release_mode=
 ## 7. 尚未交付
 
 - 真实安装 / 升级 / 数据迁移的实机验收证据与自动门禁。
-- 启用契约（§5.1）的仓库配置尚未落地：Secret / Variable / 分支保护 / auto-merge。
+- 启用契约（§5.1）：Variable 已切至 `publish`，v0.0.3 已公开（人工转正，标签与构建同源）；自动 `workflow_run` 全链路尚未完整跑通一次；`publish` 档的无人值守构建会因缺少签名凭据 fail closed。详见 [technical-debt §12](../technical-debt.md)。
 - macOS Intel（x64）仍在构建矩阵外。
 - 历史 v0.0.2 的标签与构建来源差异保留不追溯。
 

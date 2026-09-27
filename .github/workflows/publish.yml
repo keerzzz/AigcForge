@@ -209,15 +209,28 @@ jobs:
       - name: Check signing secrets
         id: signing
         shell: bash
+        env:
+          # Explicit Owner opt-in for publishing unsigned artifacts. Automation is
+          # fail closed without it, so an unsigned public release can never be a silent
+          # downgrade; see ADR-26 §3.
+          AIGCFROGE_ALLOW_UNSIGNED: ${{ vars.AIGCFROGE_ALLOW_UNSIGNED_RELEASE }}
         run: |
           if [ "${{ needs.guard.outputs.mode }}" = "desktop-release" ]; then
             if [ "$RUNNER_OS" = "macOS" ] && { [ -z "$APPLE_CERTIFICATE" ] || [ -z "$APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$APPLE_API_KEY_ID" ] || [ -z "$APPLE_API_ISSUER" ] || [ -z "$APPLE_API_KEY_PATH" ]; }; then
-              echo "::error::Public macOS releases require signing and notarization credentials"
-              exit 1
+              if [ "$AIGCFROGE_ALLOW_UNSIGNED" = "true" ]; then
+                echo "::warning::AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true; publishing an UNSIGNED macOS release"
+              else
+                echo "::error::Public macOS releases require signing and notarization credentials"
+                exit 1
+              fi
             fi
             if [ "$RUNNER_OS" = "Windows" ] && { [ -z "$AZURE_CLIENT_ID" ] || [ -z "$AZURE_TENANT_ID" ] || [ -z "$AZURE_SUBSCRIPTION_ID" ] || [ -z "$AZURE_TRUSTED_SIGNING_ACCOUNT_NAME" ] || [ -z "$AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE" ] || [ -z "$AZURE_TRUSTED_SIGNING_ENDPOINT" ]; }; then
-              echo "::error::Public Windows releases require Azure signing credentials"
-              exit 1
+              if [ "$AIGCFROGE_ALLOW_UNSIGNED" = "true" ]; then
+                echo "::warning::AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true; publishing an UNSIGNED Windows release"
+              else
+                echo "::error::Public Windows releases require Azure signing credentials"
+                exit 1
+              fi
             fi
           fi
           if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_CERTIFICATE_PASSWORD" ]; then
@@ -374,7 +387,7 @@ jobs:
           }
 
       - name: Verify signed and notarized macOS bundle
-        if: runner.os == 'macOS' && needs.guard.outputs.mode == 'desktop-release'
+        if: runner.os == 'macOS' && needs.guard.outputs.mode == 'desktop-release' && steps.signing.outputs.macos-available == 'true'
         shell: bash
         working-directory: packages/desktop/dist
         run: |
