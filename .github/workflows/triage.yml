@@ -11,6 +11,7 @@ jobs:
     if: >-
       contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: write
@@ -45,7 +46,8 @@ jobs:
             {
               "bash": {
                 "*": "deny",
-                "gh issue*": "allow"
+                "gh issue*": "allow",
+                "gh label list*": "allow"
               },
               "webfetch": "deny"
             }
@@ -94,8 +96,17 @@ jobs:
           fi
 
           echo "Using model: $MODEL"
-          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "The following issue was just opened, triage it:
+          bun ./packages/aigcfroge/src/index.ts run --agent build -m "$MODEL" "Triage issue #$ISSUE_NUMBER:
 
           Title: $ISSUE_TITLE
 
-          $ISSUE_BODY"
+          $ISSUE_BODY
+
+          Inspect the issue with: gh issue view $ISSUE_NUMBER
+
+          List the repository's existing labels with: gh label list
+          Apply only labels that genuinely match the issue and appear in that list. Do not invent labels.
+          Apply each selected label with: gh issue edit $ISSUE_NUMBER --add-label <label>
+
+          Add a concise explanatory comment with: gh issue comment $ISSUE_NUMBER --body <comment>
+          Only comment if the labeling result needs explanation."
