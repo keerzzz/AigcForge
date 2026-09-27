@@ -70,7 +70,7 @@ gh workflow run publish.yml -f release_mode=full -f bump=patch
 
 ### 5.1 启用前置条件（缺一即 fail closed）
 
-1. 仓库 Secret `AIGCFROGE_APP_ID` + `AIGCFROGE_APP_SECRET`（受限 GitHub App，需 `contents: write`、`pull_requests: write`、`issues: write`、`administration: read`）。
+1. 受限 GitHub App，并把它拆成**一个 Variable + 一个 Secret**（注意两者类型不同，配置 API 也不同）：Variable `AIGCFROGE_APP_ID`（App ID，非机密）与 Secret `AIGCFROGE_APP_SECRET`（App 私钥）。工作流读的是 `vars.AIGCFROGE_APP_ID` 与 `secrets.AIGCFROGE_APP_SECRET`。App 权限：`contents: write`、`pull_requests: write`、`issues: write`、`administration: read`。
 2. 仓库开启 **Allow auto-merge**。
 3. `main` 分支保护：Require branches to be up to date + 必需检查 = `Lint, Test, and Typecheck`、`unit (linux)`、`unit (windows)`、`e2e (linux)`、`e2e (windows)`、`check-standards`、`check-compliance`。
 4. 仓库 Variable `AIGCFROGE_DESKTOP_AUTOMATION`：`draft`（只构建 Draft）或 `publish`（自动公开）。留空/`off` = 完全关闭。
