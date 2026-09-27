@@ -70,7 +70,6 @@
 
 唯一的例外是 Owner 显式打开 Variable `AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true`：此时缺失凭据降级为 `::warning::`，工作流会**明确宣告**正在发布未签名产物（macOS 的 `codesign` / `stapler` 校验步骤同时按 `macos-available` 跳过），而不是静默通过。该 Variable 未设置或不为 `true` 时，行为与上一条完全一致。
 
-
 ## 4. Consequences
 
 - **收益**：版本提交与产物同源；标签从构建之初即正确；版本/发布记录可追踪；重复劳动消除；失败可恢复。
