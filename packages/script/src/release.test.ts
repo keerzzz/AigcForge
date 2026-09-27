@@ -349,6 +349,15 @@ describe("GitHub release lifecycle", () => {
     expect(state.creates).toBe(1)
   })
 
+  test("creation does not depend on immediate release-list visibility", async () => {
+    const client = github((url, request) => {
+      if (url.pathname.includes("/git/ref/")) return new Response("missing", { status: 404 })
+      if (request.method === "POST") return Response.json(release())
+      return Response.json([])
+    })
+    expect((await client.draft("0.0.3", source, "notes"))?.id).toBe(1)
+  })
+
   test("published releases are a no-op only when the immutable source matches", async () => {
     const methods: string[] = []
     const client = github((url, request) => {
