@@ -57,14 +57,14 @@
 
 启用前必须满足（任一项缺失即 fail closed，不降级）：
 
-| 条件                                                                                                  | 校验点                                      |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `AIGCFROGE_DESKTOP_AUTOMATION` ∈ {`draft`, `publish`}                                                 | `guard` job 的 `if`                         |
-| `AIGCFROGE_APP_ID` + `AIGCFROGE_APP_SECRET`（GitHub App）                                             | `setup-git-committer` 的 `require-app` 步骤 |
-| 仓库开启 auto-merge                                                                                   | `Release.GitHub.policy()`                   |
-| `main` 分支保护：要求最新分支 + 全部发布必需检查                                                      | `Release.GitHub.policy()`                   |
-| 必需检查含 lint/typecheck、unit(linux/windows)、e2e(linux/windows)、check-standards、check-compliance | `Release.REQUIRED_CHECKS`                   |
-| 已存在一个经过人工验收的正式版作为基线                                                                | `Release.automatic`                         |
+| 条件                                                                                                      | 校验点                                      |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `AIGCFROGE_DESKTOP_AUTOMATION` ∈ {`draft`, `publish`}                                                     | `guard` job 的 `if`                         |
+| Variable `AIGCFROGE_APP_ID` + Secret `AIGCFROGE_APP_SECRET`（GitHub App；App ID 不是机密，故为 Variable） | `setup-git-committer` 的 `require-app` 步骤 |
+| 仓库开启 auto-merge                                                                                       | `Release.GitHub.policy()`                   |
+| `main` 分支保护：要求最新分支 + 全部发布必需检查                                                          | `Release.GitHub.policy()`                   |
+| 必需检查含 lint/typecheck、unit(linux/windows)、e2e(linux/windows)、check-standards、check-compliance     | `Release.REQUIRED_CHECKS`                   |
+| 已存在一个经过人工验收的正式版作为基线                                                                    | `Release.automatic`                         |
 
 `draft` 只构建与校验 Draft；`publish` 才自动公开。**发布公开前，`publish` 额外要求 macOS 签名 + 公证、Windows Azure 签名凭据齐全，缺失即失败**——自动公开不得静默降级为未签名产物。
 
