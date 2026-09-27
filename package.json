@@ -153,5 +153,5 @@
     "@modelcontextprotocol/sdk@1.29.0": "patches/@modelcontextprotocol%2Fsdk@1.29.0.patch",
     "@tanstack/virtual-core@3.17.0": "patches/@tanstack%2Fvirtual-core@3.17.0.patch"
   },
-  "version": "0.0.3"
+  "version": "0.0.4"
 }
