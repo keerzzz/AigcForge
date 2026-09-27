@@ -487,8 +487,6 @@ export class GitHub {
     )
     if (!release.draft || release.target_commitish !== source)
       throw new Failure({ reason: "Draft creation returned inconsistent metadata" })
-    if ((await this.tagged(target))?.id !== release.id)
-      throw new Failure({ reason: "Draft identity changed during creation" })
     return release
   }
 
