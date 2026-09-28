@@ -124,7 +124,7 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 CI 注记：
 
 - Windows 上 aigcfroge:test 子进程密集约慢 2.9 倍，CI 设 40min；Windows 关 filewatcher（`AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER=true`）。
-- `check-compliance` / `check-standards` / `add-contributor-label` / `check-duplicates` 为 PR 治理 checks（非测试）。
+- `check-compliance` / `check-standards` / `add-contributor-label` 为 PR 治理 checks（非测试）。
 
 ### 8.1 E4（真实后端 harness）与契约门禁（S6 接线）
 
