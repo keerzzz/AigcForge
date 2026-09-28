@@ -44,7 +44,7 @@
   - [Harness 7 层加固与防幻觉闭环](#harness-7-层加固与防幻觉闭环)
   - [安全分级权限与路径沙箱](#安全分级权限与路径沙箱)
 - [4. Monorepo 18 个全量软件包拓扑](#4-monorepo-18-个全量软件包拓扑)
-- [5. 安装指南与多端支持](#5-安装指南与多端支持)
+- [5. 安装指南](#5-安装指南)
 - [6. 核心场景上手与工作流](#6-核心场景上手与工作流)
 - [7. 产品路线图与演进状态](#7-产品路线图与演进状态)
 - [8. 开源治理与贡献](#8-开源治理与贡献)
@@ -235,42 +235,20 @@ AigcForge 代码库基于 Bun + Turbo 构建，严格遵循分层依赖原则（
 
 ---
 
-## 5. 安装指南与多端支持
+## 5. 安装指南
 
-### 命令行工具（CLI / TUI）安装
+### 安装
 
-通过各大包管理器可一键全局安装：
+> Releases 目前只发布 Electron 桌面端。CLI / TUI 可从源码构建（见 [CONTRIBUTING.md](CONTRIBUTING.md)），不作为 Release 资产发布。
 
-```bash
-# Node.js / Bun / pnpm
-npm install -g aigcfroge@latest
-# 或 bun add -g aigcfroge
+预构建桌面安装包见 [GitHub Releases](https://github.com/keerzzz/AigcForge/releases)：
 
-# macOS & Linux (Homebrew)
-brew install anomalyco/tap/aigcfroge
-
-# Windows (Scoop / Chocolatey)
-scoop install aigcfroge
-# 或 choco install aigcfroge
-
-# Arch Linux (AUR)
-paru -S aigcfroge-bin
-
-# 通用环境管理 (mise / nix)
-mise use -g aigcfroge
-nix run nixpkgs#aigcfroge
-```
-
-### 桌面客户端（Desktop App）下载
-
-支持各主流操作系统，可前往 [GitHub Releases](https://github.com/keerzzz/AigcForge/releases) 获取安装包：
-
-| 平台                      | 安装包格式                    | 安装命令（可选）                         |
-| ------------------------- | ----------------------------- | ---------------------------------------- |
-| **macOS (Apple Silicon)** | `.dmg` (arm64)                | `brew install --cask aigcfroge-desktop`  |
-| **macOS (Intel)**         | `.dmg` (x64)                  | `brew install --cask aigcfroge-desktop`  |
-| **Windows**               | `.exe` / `.msi` (x64)         | `scoop install extras/aigcfroge-desktop` |
-| **Linux**                 | `.AppImage` / `.deb` / `.rpm` | 可直接赋予执行权限运行                   |
+| 平台                      | 安装包格式                                  | 说明                                     |
+| ------------------------- | ------------------------------------------- | ---------------------------------------- |
+| **macOS (Apple Silicon)** | `.dmg` / `.zip` (arm64)                     | 在配置签名/公证凭据前为未签名产物        |
+| **macOS (Intel)**         | `.dmg` / `.zip` (x64)                       | 使用 GitHub 标准 `macos-15-intel` runner |
+| **Windows**               | `.exe` (x64 / arm64)                        | NSIS 安装器；不提供 `.msi`               |
+| **Linux**                 | `.AppImage` / `.deb` / `.rpm` (x64 / arm64) |                                          |
 
 ---
 

@@ -120,10 +120,71 @@ jobs:
           AIGCFROGE_VERSION: ${{ needs.guard.outputs.version }}
           AIGCFROGE_RELEASE_BOT: ${{ steps.committer.outputs.app-slug }}[bot]
 
-  version:
+  changelog:
     needs: guard
-    runs-on: ubuntu-latest
     if: needs.guard.outputs.mode == 'desktop-draft' || needs.guard.outputs.mode == 'desktop-release' || needs.guard.outputs.mode == 'full'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          ref: ${{ needs.guard.outputs.sha }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-bun
+      - name: Generate AI release notes
+        id: generate
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
+          AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
+          AI_MODEL: ${{ vars.AI_ROBOT_MODEL || vars.AI_MODEL }}
+          AIGCFROGE_PERMISSION: |
+            {
+              "bash": {
+                "*": "deny",
+                "git show*": "allow",
+                "git diff*": "allow"
+              },
+              "webfetch": "deny"
+            }
+        run: |
+          if [ -n "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+            if [[ "$AI_MODEL" == google/* ]] || [[ "$AI_MODEL" == gemini/* ]]; then
+              MODEL="$AI_MODEL"
+            else
+              MODEL="google/gemini-3.7-flash"
+            fi
+          elif [ -n "$AIGCFROGE_API_KEY" ]; then
+            MODEL="${AI_MODEL:-aigcfroge/gpt-5.4}"
+          else
+            echo "::notice::No LLM API key configured for release notes; using deterministic changelog."
+            exit 0
+          fi
+          echo "Using model: $MODEL"
+          bun script/changelog.ts --to "${{ needs.guard.outputs.sha }}" --model "$MODEL"
+          test -s UPCOMING_CHANGELOG.md
+          grep -Eq '^## English[[:space:]]*$' UPCOMING_CHANGELOG.md
+          grep -Eq '^## 中文[[:space:]]*$' UPCOMING_CHANGELOG.md
+      - name: Upload generated release notes
+        if: steps.generate.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-notes
+          path: UPCOMING_CHANGELOG.md
+          if-no-files-found: ignore
+          retention-days: 1
+
+  version:
+    needs:
+      - guard
+      - changelog
+    runs-on: ubuntu-latest
+    if: always() && !cancelled() && (needs.guard.outputs.mode == 'desktop-draft' || needs.guard.outputs.mode == 'desktop-release' || needs.guard.outputs.mode == 'full')
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
@@ -131,6 +192,13 @@ jobs:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-bun
+
+      - name: Download generated release notes
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-notes
+          path: /tmp/release-notes
 
       - name: Setup git committer
         id: committer
@@ -147,8 +215,8 @@ jobs:
           AIGCFROGE_BUMP: ${{ inputs.bump }}
           AIGCFROGE_VERSION: ${{ needs.guard.outputs.version }}
           AIGCFROGE_RELEASE_NOTES_STRICT: ${{ needs.guard.outputs.mode != 'full' }}
-          AIGCFROGE_DETERMINISTIC_RELEASE_NOTES: ${{ github.event_name == 'workflow_run' }}
-          AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
+          AIGCFROGE_RELEASE_NOTES_FILE: /tmp/release-notes/UPCOMING_CHANGELOG.md
+          AIGCFROGE_DETERMINISTIC_RELEASE_NOTES: "true"
           GH_REPO: ${{ (github.ref_name == 'beta' && 'keerzzz/AigcForge-beta') || github.repository }}
     outputs:
       published: ${{ steps.version.outputs.published }}
@@ -180,9 +248,12 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          # macOS Intel (x64) temporarily removed: GitHub-hosted macos-13 runners
-          # sat queued >80m and blocked desktop-draft. Restore this entry once a
-          # runner is reliably available. See docs/technical-debt.md §12.
+          # macos-15-intel is GitHub's current standard x64 image for public repos.
+          # macos-13 is retired; see actions/runner-images.
+          - host: macos-15-intel
+            target: x86_64-apple-darwin
+            platform_flag: --mac
+            bun_install_flags: --os=darwin --cpu=x64
           - host: macos-latest
             target: aarch64-apple-darwin
             platform_flag: --mac --arm64
@@ -391,7 +462,12 @@ jobs:
         shell: bash
         working-directory: packages/desktop/dist
         run: |
-          app=$(find mac-arm64 -maxdepth 1 -type d -name '*.app' -print -quit)
+          if [[ "${{ matrix.settings.target }}" == "x86_64-apple-darwin" ]]; then
+            APP_DIR="mac"
+          else
+            APP_DIR="mac-arm64"
+          fi
+          app=$(find "$APP_DIR" -maxdepth 1 -type d -name '*.app' -print -quit)
           test -n "$app"
           codesign --verify --deep --strict "$app"
           xcrun stapler validate "$app"
@@ -461,6 +537,7 @@ jobs:
         run: |
           test -f /tmp/latest-yml/latest-yml-x86_64-pc-windows-msvc/latest.yml
           test -f /tmp/latest-yml/latest-yml-aarch64-pc-windows-msvc/latest.yml
+          test -f /tmp/latest-yml/latest-yml-x86_64-apple-darwin/latest-mac.yml
           test -f /tmp/latest-yml/latest-yml-aarch64-apple-darwin/latest-mac.yml
           test -f /tmp/latest-yml/latest-yml-x86_64-unknown-linux-gnu/latest-linux.yml
           test -f /tmp/latest-yml/latest-yml-aarch64-unknown-linux-gnu/latest-linux-arm64.yml

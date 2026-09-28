@@ -91,8 +91,9 @@ gh workflow run publish.yml --repo keerzzz/AigcForge --ref main -f release_mode=
 ## 7. 尚未交付
 
 - 真实安装 / 升级 / 数据迁移的实机验收证据与自动门禁。
-- 启用契约（§5.1）：Variable 已切至 `publish`，v0.0.3 已公开（人工转正，标签与构建同源）；自动 `workflow_run` 全链路尚未完整跑通一次；`publish` 档的无人值守构建会因缺少签名凭据 fail closed。详见 [technical-debt §12](../technical-debt.md)。
-- macOS Intel（x64）仍在构建矩阵外。
+- 启用契约（§5.1）：Variable 已切至 `publish`，`AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true` 已显式启用。v0.0.4 已由自动 `workflow_run`（run `36362665383`）完成「版本 PR #111 → 5 平台构建 → 同源校验 → 自动公开」，19 个资产，`target_commitish=049eda162`。**未闭环：** 产物未签名（仓库没有 macOS / Windows 签名凭据），真实安装 / 升级 / 数据迁移验收仍未完成。详见 [technical-debt §12](../technical-debt.md)。
+- 自动公开的发布说明由**没有 release 凭据的独立 `changelog` job** 生成，并作为 `release-notes` artifact 传给 `version` job；`version` job 只读取成品，读取失败时回退确定性提交清单。结构由 [`.github/RELEASE_NOTES_TEMPLATE.md`](../../.github/RELEASE_NOTES_TEMPLATE.md) 固定为 `## English` + `## 中文` 双语；生成后必须同时出现两个标题才会上传。**待验证：** 下一次真实 `workflow_run` 需要证明 AI changelog 成功、双语结构完整、权限隔离生效且失败回退可用。
+- macOS Intel（x64）已恢复：矩阵改用 GitHub 标准 `macos-15-intel`（`macos-13` 已退役），`finalize-desktop-draft` 重新要求 x64 `latest-mac.yml`。**待验证：** 下一次 desktop-draft 需要证明 6 平台全部产出。
 - 历史 v0.0.2 的标签与构建来源差异保留不追溯。
 
 这些项不能在本切片中宣称已闭环；每次关闭前按 `AGENTS.md` 的 Slice Checkpoints 记录 owner 与解锁条件。

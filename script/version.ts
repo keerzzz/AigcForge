@@ -25,6 +25,14 @@ output.push(`repo=${process.env.GH_REPO}`)
 if (process.env.GITHUB_OUTPUT) await Bun.write(process.env.GITHUB_OUTPUT, output.join("\n"))
 
 async function releaseNotes(source: string, strict: boolean) {
+  const preparedFile = process.env.AIGCFROGE_RELEASE_NOTES_FILE
+  const prepared = preparedFile
+    ? await Bun.file(preparedFile)
+        .text()
+        .catch(() => "")
+    : ""
+  if (prepared.trim()) return prepared.trim()
+
   // Unattended releases do not send commit text to an agent with release credentials.
   const generated =
     process.env.AIGCFROGE_DETERMINISTIC_RELEASE_NOTES === "true"
@@ -49,8 +57,14 @@ async function releaseNotes(source: string, strict: boolean) {
           .join("\n")
           .trim()
       : ""
-  if (text) return text
+  if (text) {
+    const demoted = text
+      .split("\n")
+      .map((line) => (line.startsWith("## ") || line.startsWith("### ") ? `#${line}` : line))
+      .join("\n")
+    return `## English\n\n${demoted}\n\n## 中文\n\n> AI 双语说明不可用，以下为自动生成的提交清单，保留英文提交标题。\n\n${demoted}`
+  }
   if (strict)
     throw new Release.Failure({ reason: `Release notes generation failed (fallback exit ${fallback.exitCode})` })
-  return "No notable changes"
+  return "## English\n\nNo notable changes.\n\n## 中文\n\n无重要变更。"
 }
