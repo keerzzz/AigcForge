@@ -4,6 +4,10 @@ on:
   issue_comment:
     types: [created]
 
+concurrency:
+  group: review-${{ github.repository }}-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   check-guidelines:
     if: |
@@ -11,6 +15,7 @@ jobs:
       startsWith(github.event.comment.body, '/review') &&
       contains(fromJson('["OWNER","MEMBER"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write
@@ -48,7 +53,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check PR guidelines compliance
+      - name: Review PR semantics
+        timeout-minutes: 10
         env:
           AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -101,7 +107,7 @@ jobs:
             if [[ "$AI_MODEL" == google/* ]] || [[ "$AI_MODEL" == gemini/* ]]; then
               MODEL="$AI_MODEL"
             else
-              MODEL="google/gemini-3.7-flash"
+              MODEL="google/gemini-3.8-flash"
             fi
           elif [ -n "$DEEPSEEK_API_KEY" ]; then
             if [[ "$AI_MODEL" == deepseek/* ]]; then
@@ -133,7 +139,7 @@ jobs:
 
           echo "Using model: $MODEL"
           PR_BODY=$(jq -r .body pr_data.json)
-          bun ./packages/aigcfroge/src/index.ts run -m "$MODEL" "A new pull request has been created: '${PR_TITLE}'
+          bun ./packages/aigcfroge/src/index.ts run --agent build -m "$MODEL" "A new pull request has been created: '${PR_TITLE}'
 
           <pr-number>
           ${{ steps.pr-number.outputs.number }}
@@ -143,12 +149,13 @@ jobs:
           $PR_BODY
           </pr-description>
 
-          The pull request diff is available at pr.diff. Please check all the code changes in this pull request against the style guide, also look for any bugs if they exist. Diffs are important but make sure you read the entire file to get proper context. Make it clear the suggestions are merely suggestions and the human can decide what to do
+          The pull request diff is available at pr.diff. Focus on behavioral bugs, security issues, concurrency hazards, regressions, data loss, and missing tests that could let those defects through. Read the surrounding files when the diff alone is insufficient.
 
-          When critiquing code against the style guide, be sure that the code is ACTUALLY in violation, don't complain about else statements if they already use early returns there. You may complain about excessive nesting though, regardless of else statement usage.
-          When critiquing code style don't be a zealot, we don't like "let" statements but sometimes they are the simplest option, if someone does a bunch of nesting with let, they should consider using iife (see packages/aigcfroge/src/util.iife.ts)
+          Do not spend review comments on formatting, naming preferences, dead code, or style issues already covered by Prettier, typecheck, lint, or pr-standards. State only issues you can support with concrete code evidence. Do not invent a problem to justify the review, and do not claim to have reviewed files or behavior you did not inspect.
 
-          Use the gh cli to create comments on the files for the violations. Try to leave the comment on the exact line number. If you have a suggested fix include it in a suggestion code block.
+          Add at most 5 inline comments, highest severity first. Make clear the findings are suggestions for the human reviewer. If you have a suggested fix, include it as a valid suggestion block; otherwise explain the risk and leave the decision to the author. Do not modify the repository.
+
+          Use the gh cli to create comments on the files for the findings. Try to leave the comment on the exact line number. If you have a suggested fix include it in a suggestion code block.
           If you are writing suggested fixes, BE SURE THAT the change you are recommending is actually valid typescript, often I have seen missing closing "}" or other syntax errors.
           Generally, write a comment instead of writing suggested change if you can help it.
 
@@ -162,5 +169,5 @@ jobs:
             -f 'body=[summary of issue]' -f 'commit_id=${{ steps.pr-details.outputs.sha }}' -f 'path=[path-to-file]' -F \"line=[line]\" -f 'side=RIGHT'
           \`\`\`
 
-          Only create comments for actual violations. If the code follows all guidelines, post an issue comment with exactly this command and NOTHING ELSE:
+          Only create comments for concrete issues. If no concrete issue is found, post an issue comment with exactly this command and NOTHING ELSE:
           \`gh api /repos/${{ github.repository }}/issues/${{ steps.pr-number.outputs.number }}/comments --method POST -f body=lgtm\`."
