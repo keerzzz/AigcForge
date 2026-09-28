@@ -124,7 +124,6 @@ jobs:
     needs: guard
     if: needs.guard.outputs.mode == 'desktop-draft' || needs.guard.outputs.mode == 'desktop-release' || needs.guard.outputs.mode == 'full'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -136,6 +135,7 @@ jobs:
       - name: Generate AI release notes
         id: generate
         continue-on-error: true
+        timeout-minutes: 10
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -149,6 +149,9 @@ jobs:
                 "*": "deny",
                 "git show*": "allow",
                 "git diff*": "allow"
+              },
+              "edit": {
+                "*": "allow"
               },
               "webfetch": "deny"
             }
@@ -229,7 +232,7 @@ jobs:
     needs:
       - guard
       - version
-    if: github.repository == 'keerzzz/AigcForge' && needs.version.outputs.published != 'true'
+    if: always() && !cancelled() && needs.version.result == 'success' && github.repository == 'keerzzz/AigcForge' && needs.version.outputs.published != 'true'
     continue-on-error: false
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -505,7 +508,7 @@ jobs:
       - guard
       - version
       - build-electron
-    if: always() && !failure() && !cancelled() && needs.version.outputs.published != 'true' && (needs.guard.outputs.mode == 'desktop-draft' || needs.guard.outputs.mode == 'desktop-release')
+    if: always() && !cancelled() && needs.version.result == 'success' && needs.build-electron.result == 'success' && needs.version.outputs.published != 'true' && (needs.guard.outputs.mode == 'desktop-draft' || needs.guard.outputs.mode == 'desktop-release')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
