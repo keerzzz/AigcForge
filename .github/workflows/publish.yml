@@ -576,7 +576,7 @@ jobs:
           fi
           gh release upload "v${{ needs.version.outputs.version }}" "${files[@]}" --clobber --repo "${{ needs.version.outputs.repo }}"
 
-      - run: ./script/publish.ts
+      - run: bun script/publish.ts
         env:
           AIGCFROGE_VERSION: ${{ needs.version.outputs.version }}
           AIGCFROGE_RELEASE: ${{ needs.version.outputs.release }}
