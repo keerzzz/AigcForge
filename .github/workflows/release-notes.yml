@@ -1,0 +1,108 @@
+name: release-notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the v prefix, for example 0.0.5"
+        required: true
+        type: string
+      source:
+        description: "Release source commit SHA or ref to check out and summarize"
+        required: true
+        type: string
+      from:
+        description: "Optional starting version; defaults to the latest published release"
+        required: false
+        type: string
+
+concurrency:
+  group: release-notes-${{ github.repository }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ inputs.source }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun
+        with:
+          install-flags: --frozen-lockfile
+      - name: Generate bilingual release notes
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY || secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
+          AI_MODEL: ${{ vars.AI_ROBOT_MODEL || 'google/gemini-3.8-flash' }}
+          SOURCE: ${{ inputs.source }}
+          FROM: ${{ inputs.from }}
+          AIGCFROGE_PERMISSION: |
+            {
+              "bash": {
+                "*": "deny",
+                "git show*": "allow",
+                "git diff*": "allow"
+              },
+              "edit": {
+                "*": "allow"
+              },
+              "webfetch": "deny"
+            }
+        run: |
+          if [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+            echo "::error::No Google API key is configured for release notes."
+            exit 1
+          fi
+
+          ARGS=(--to "$SOURCE" --model "$AI_MODEL")
+          if [ -n "$FROM" ]; then ARGS+=(--from "$FROM"); fi
+          bun script/changelog.ts "${ARGS[@]}"
+          test -s UPCOMING_CHANGELOG.md
+          grep -Eq '^## English[[:space:]]*$' UPCOMING_CHANGELOG.md
+          grep -Eq '^## 中文[[:space:]]*$' UPCOMING_CHANGELOG.md
+      - name: Upload release notes
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-notes
+          path: UPCOMING_CHANGELOG.md
+          retention-days: 7
+
+  apply:
+    needs: generate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download generated release notes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-notes
+          path: /tmp/release-notes
+      - name: Apply release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          tag="v$VERSION"
+          release_id=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq ".[] | select(.tag_name == \"$tag\") | .id")
+          if [ -z "$release_id" ]; then
+            echo "::error::Release $tag was not found."
+            exit 1
+          fi
+          jq -n --rawfile body /tmp/release-notes/UPCOMING_CHANGELOG.md '{body: $body}' > /tmp/release-notes-payload.json
+          gh api --method PATCH "repos/$GH_REPO/releases/$release_id" --input /tmp/release-notes-payload.json > /dev/null
+          body=$(gh api "repos/$GH_REPO/releases/$release_id" --jq .body)
+          printf '%s\n' "$body" | grep -Eq '^## English[[:space:]]*$'
+          printf '%s\n' "$body" | grep -Eq '^## 中文[[:space:]]*$'
