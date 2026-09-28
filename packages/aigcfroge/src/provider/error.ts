@@ -2,7 +2,7 @@ import { APICallError } from "ai"
 import { STATUS_CODES } from "http"
 import { iife } from "@/util/iife"
 import type { ProviderV2 } from "@aigcfroge/core/provider"
-import { isContextOverflow } from "@aigcfroge/llm"
+import { isContextOverflow, isQuotaExceeded } from "@aigcfroge/llm"
 
 export class HeaderTimeoutError extends Error {
   public override readonly name = "ProviderHeaderTimeoutError"
@@ -174,7 +174,11 @@ export function parseAPICallError(input: { providerID: ProviderV2.ID; error: API
     type: "api_error",
     message: m,
     statusCode: input.error.statusCode,
-    isRetryable: input.providerID.startsWith("openai") ? isOpenAiErrorRetryable(input.error) : input.error.isRetryable,
+    isRetryable: isQuotaExceeded(`${m}\n${input.error.responseBody ?? ""}`)
+      ? false
+      : input.providerID.startsWith("openai")
+        ? isOpenAiErrorRetryable(input.error)
+        : input.error.isRetryable,
     responseHeaders: input.error.responseHeaders,
     responseBody: input.error.responseBody,
     metadata,
