@@ -113,6 +113,71 @@ describe("RequestExecutor", () => {
     }).pipe(Effect.provide(responsesLayer([new Response("invalid parameter", { status: 400 })]))),
   )
 
+  it.effect("does not retry monthly spending caps", () =>
+    Effect.gen(function* () {
+      const attempts = yield* Ref.make(0)
+      yield* Effect.gen(function* () {
+        const executor = yield* RequestExecutor.Service
+        const error = yield* executor.execute(request).pipe(Effect.flip)
+
+        expectLLMError(error)
+        expect(error.reason).toMatchObject({ _tag: "QuotaExceeded" })
+        expect(error.retryable).toBe(false)
+        expect(yield* Ref.get(attempts)).toBe(1)
+      }).pipe(
+        Effect.provide(
+          countedResponsesLayer(
+            attempts,
+            Array.from(
+              { length: 3 },
+              () =>
+                new Response(
+                  JSON.stringify({
+                    error: {
+                      code: 429,
+                      status: "RESOURCE_EXHAUSTED",
+                      message: "Your project has exceeded its monthly spending cap.",
+                    },
+                  }),
+                  { status: 429, headers: { "retry-after-ms": "0" } },
+                ),
+            ),
+          ),
+        ),
+      )
+    }),
+  )
+
+  it.effect("keeps requests-per-minute quota errors retryable", () =>
+    Effect.gen(function* () {
+      const executor = yield* RequestExecutor.Service
+      const error = yield* executor.execute(request).pipe(Effect.flip)
+
+      expectLLMError(error)
+      expect(error.reason).toMatchObject({ _tag: "RateLimit" })
+      expect(error.retryable).toBe(true)
+    }).pipe(
+      Effect.provide(
+        responsesLayer(
+          Array.from(
+            { length: 3 },
+            () =>
+              new Response(
+                JSON.stringify({
+                  error: {
+                    code: 429,
+                    status: "RESOURCE_EXHAUSTED",
+                    message: "Quota exceeded for requests per minute. Please retry shortly.",
+                  },
+                }),
+                { status: 429, headers: { "retry-after-ms": "0" } },
+              ),
+          ),
+        ),
+      ),
+    ),
+  )
+
   it.effect("returns redacted diagnostics for retryable rate limits", () =>
     Effect.gen(function* () {
       const executor = yield* RequestExecutor.Service

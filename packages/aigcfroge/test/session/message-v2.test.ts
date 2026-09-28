@@ -1487,6 +1487,45 @@ describe("session.message-v2.fromError", () => {
     expect(SessionV1.ContextOverflowError.isInstance(result)).toBe(true)
   })
 
+  test("marks monthly spending caps non-retryable from the message or response body", () => {
+    const message = "Your project has exceeded its monthly spending cap."
+    ;[
+      { message },
+      {
+        message: "Request failed",
+        responseBody: JSON.stringify({ error: { code: 429, status: "RESOURCE_EXHAUSTED", message } }),
+      },
+    ].forEach((input) => {
+      const result = MessageV2.fromError(
+        new APICallError({
+          ...input,
+          url: "https://provider.test/models/gemini-3.8-flash:streamGenerateContent",
+          requestBodyValues: {},
+          statusCode: 429,
+          isRetryable: true,
+        }),
+        { providerID: ProviderV2.ID.make("google") },
+      )
+
+      expect(result).toMatchObject({ name: "APIError", data: { statusCode: 429, isRetryable: false } })
+    })
+  })
+
+  test("keeps temporary Google request quota errors retryable", () => {
+    const result = MessageV2.fromError(
+      new APICallError({
+        message: "Quota exceeded for requests per minute. Please retry shortly.",
+        url: "https://provider.test/models/gemini-3.8-flash:streamGenerateContent",
+        requestBodyValues: {},
+        statusCode: 429,
+        isRetryable: true,
+      }),
+      { providerID: ProviderV2.ID.make("google") },
+    )
+
+    expect(result).toMatchObject({ name: "APIError", data: { statusCode: 429, isRetryable: true } })
+  })
+
   test("does not classify 429 no body as context overflow", () => {
     const result = MessageV2.fromError(
       new APICallError({
