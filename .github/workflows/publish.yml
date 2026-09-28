@@ -141,7 +141,7 @@ jobs:
 
       - id: version
         run: |
-          ./script/version.ts
+          bun script/version.ts
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           AIGCFROGE_BUMP: ${{ inputs.bump }}
