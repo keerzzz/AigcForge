@@ -23,6 +23,19 @@ const patterns = [
   /model_context_window_exceeded/i,
 ]
 
+const quotaPatterns = [
+  /insufficient[-_\s]?quota/i,
+  /billing[-_\s]?(?:hard[-_\s]?)?limit/i,
+  /(?:monthly|project|account)[-_\s]*(?:spending|spend|budget)[-_\s]*(?:cap|limit)/i,
+  /(?:spending|spend|budget)[-_\s]*(?:cap|limit)[-_\s]*(?:exceeded|reached|hit)/i,
+  /exceeded (?:your|the) (?:current )?quota/i,
+]
+const temporaryQuotaPattern =
+  /(?:per|requests? per|tokens? per)[-_\s]+(?:minute|second|hour)|(?:per-minute|per-second|per-hour)|rate[-_\s]?limit/i
+
+export const isQuotaExceeded = (message: string) =>
+  !temporaryQuotaPattern.test(message) && quotaPatterns.some((pattern) => pattern.test(message))
+
 export const isContextOverflow = (message: string) =>
   patterns.some((pattern) => pattern.test(message)) || /^4(00|13)\s*(status code)?\s*\(no body\)/i.test(message)
 

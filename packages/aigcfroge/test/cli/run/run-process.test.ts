@@ -24,6 +24,46 @@ describe("aigcfroge run (non-interactive subprocess)", () => {
   )
 
   cliIt.live(
+    "exits nonzero without retrying a monthly spending cap",
+    ({ llm, aigcfroge }) =>
+      Effect.gen(function* () {
+        const message = "Your project has exceeded its monthly spending cap."
+        yield* llm.error(429, { error: { code: 429, status: "RESOURCE_EXHAUSTED", message } })
+        yield* llm.text("unexpected retry")
+
+        const result = yield* aigcfroge.run("say hi", { agent: "build" })
+
+        aigcfroge.expectExit(result, 1)
+        expect(result.stdout).toBe("")
+        expect(result.stderr).toContain(message)
+        expect(yield* llm.pending).toBe(1)
+      }),
+    120_000,
+  )
+
+  cliIt.live(
+    "still retries a temporary request quota error",
+    ({ llm, aigcfroge }) =>
+      Effect.gen(function* () {
+        yield* llm.error(429, {
+          error: {
+            code: 429,
+            status: "RESOURCE_EXHAUSTED",
+            message: "Quota exceeded for requests per minute. Please retry shortly.",
+          },
+        })
+        yield* llm.text("recovered after rate limit")
+
+        const result = yield* aigcfroge.run("say hi", { agent: "build" })
+
+        aigcfroge.expectExit(result, 0)
+        expect(result.stdout).toBe("recovered after rate limit\n")
+        expect(yield* llm.pending).toBe(0)
+      }),
+    120_000,
+  )
+
+  cliIt.live(
     "prints each completed text part in order around a tool continuation",
     ({ llm, aigcfroge }) =>
       Effect.gen(function* () {
