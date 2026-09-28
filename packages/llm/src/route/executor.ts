@@ -22,7 +22,7 @@ import {
   TransportReason,
   UnknownProviderReason,
 } from "../schema"
-import { isContextOverflow } from "../provider-error"
+import { isContextOverflow, isQuotaExceeded } from "../provider-error"
 
 export interface Interface {
   readonly execute: (
@@ -240,7 +240,7 @@ const statusReason = (input: {
     return new AuthenticationReason({ message: input.message, kind: "insufficient-permissions", http: input.http })
   }
   if (input.status === 429) {
-    if (/insufficient[-_\s]?quota|quota[-_\s]?exceeded/i.test(body)) {
+    if (isQuotaExceeded(`${input.message}\n${body}`)) {
       return new QuotaExceededReason({ message: input.message, http: input.http })
     }
     return new RateLimitReason({
