@@ -26,7 +26,7 @@
     },
     "packages/aigcfroge": {
       "name": "aigcfroge",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "bin": {
         "aigcfroge": "./bin/aigcfroge",
       },
@@ -154,7 +154,7 @@
     },
     "packages/app": {
       "name": "@aigcfroge/app",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@aigcfroge/core": "workspace:*",
         "@aigcfroge/sdk": "workspace:*",
@@ -215,7 +215,7 @@
     },
     "packages/core": {
       "name": "@aigcfroge/core",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@agentclientprotocol/sdk": "0.21.0",
         "@ai-sdk/alibaba": "1.0.17",
@@ -311,7 +311,7 @@
     },
     "packages/desktop": {
       "name": "@aigcfroge/desktop",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@zip.js/zip.js": "2.7.62",
         "effect": "catalog:",
@@ -366,7 +366,7 @@
     },
     "packages/effect-drizzle-sqlite": {
       "name": "@aigcfroge/effect-drizzle-sqlite",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "drizzle-orm": "catalog:",
         "effect": "catalog:",
@@ -380,7 +380,7 @@
     },
     "packages/effect-sqlite-node": {
       "name": "@aigcfroge/effect-sqlite-node",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "effect": "catalog:",
       },
@@ -392,7 +392,7 @@
     },
     "packages/http-recorder": {
       "name": "@aigcfroge/http-recorder",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@effect/platform-node": "4.0.0-beta.83",
         "@effect/platform-node-shared": "4.0.0-beta.83",
@@ -411,7 +411,7 @@
     },
     "packages/llm": {
       "name": "@aigcfroge/llm",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@aigcfroge/schema": "workspace:*",
         "@smithy/eventstream-codec": "4.2.14",
@@ -430,7 +430,7 @@
     },
     "packages/plugin": {
       "name": "@aigcfroge/plugin",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@ai-sdk/provider": "3.0.8",
         "@aigcfroge/sdk": "workspace:*",
@@ -459,7 +459,7 @@
     },
     "packages/schema": {
       "name": "@aigcfroge/schema",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "effect": "catalog:",
       },
@@ -471,7 +471,7 @@
     },
     "packages/script": {
       "name": "@aigcfroge/script",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "effect": "catalog:",
         "semver": "^7.6.3",
@@ -483,7 +483,7 @@
     },
     "packages/sdk/js": {
       "name": "@aigcfroge/sdk",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "cross-spawn": "catalog:",
       },
@@ -499,7 +499,7 @@
     },
     "packages/server": {
       "name": "@aigcfroge/server",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@aigcfroge/core": "workspace:*",
         "drizzle-orm": "catalog:",
@@ -513,7 +513,7 @@
     },
     "packages/session-ui": {
       "name": "@aigcfroge/session-ui",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@aigcfroge/core": "workspace:*",
         "@aigcfroge/sdk": "workspace:*",
@@ -561,7 +561,7 @@
     },
     "packages/storybook": {
       "name": "@aigcfroge/storybook",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "devDependencies": {
         "@aigcfroge/session-ui": "workspace:*",
         "@aigcfroge/ui": "workspace:*",
@@ -585,7 +585,7 @@
     },
     "packages/tui": {
       "name": "@aigcfroge/tui",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@aigcfroge/core": "workspace:*",
         "@aigcfroge/plugin": "workspace:*",
@@ -612,7 +612,7 @@
     },
     "packages/ui": {
       "name": "@aigcfroge/ui",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@kobalte/core": "catalog:",
         "@pierre/diffs": "catalog:",
