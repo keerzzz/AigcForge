@@ -11,6 +11,7 @@ const { values, positionals } = parseArgs({
   options: {
     from: { type: "string", short: "f" },
     to: { type: "string", short: "t" },
+    model: { type: "string" },
     variant: { type: "string", default: "low" },
     quiet: { type: "boolean", default: false },
     print: { type: "boolean", default: false },
@@ -32,6 +33,7 @@ Generates UPCOMING_CHANGELOG.md by running the aigcfroge changelog command.
 Options:
   -f, --from <version>   Starting version (default: latest non-draft GitHub release)
   -t, --to <ref>         Ending ref (default: HEAD)
+      --model <name>     Model override in provider/model form (e.g. google/gemini-3.7-flash)
       --variant <name>   Thinking variant for aigcfroge run (default: low)
       --quiet            Suppress aigcfroge command output unless it fails
       --print            Print the generated UPCOMING_CHANGELOG.md after success
@@ -54,6 +56,7 @@ const hasBinary = Boolean(Bun.which("aigcfroge"))
 const cmd = hasBinary ? ["aigcfroge", "run"] : [bunBin, "run", "--conditions=browser", entry, "run"]
 
 cmd.push("--variant", values.variant)
+if (values.model) cmd.push("--model", values.model)
 cmd.push("--command", "changelog", "--", ...args)
 
 const proc = Bun.spawn(cmd, {

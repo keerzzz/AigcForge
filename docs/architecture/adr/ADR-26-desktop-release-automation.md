@@ -1,6 +1,6 @@
 # ADR-26: 桌面端自动发布（受控版本 PR + 同源构建 + 门禁后自动公开）
 
-> 状态：**Accepted**（2026-09-28 复核：启用契约已配置，Variable 已切至 `publish`，v0.0.3 已公开；`publish` 档的无人值守构建待签名凭据，见 §3 与 [technical-debt §12](../../technical-debt.md)）
+> 状态：**Accepted**（2026-09-28 复核：启用契约已配置，Variable 已切至 `publish`；v0.0.4 已由自动 `workflow_run` 以未签名产物公开。后续修复已将 AI changelog 移入独立无发布凭据 job，并恢复 `macos-15-intel` x64 矩阵；两者待下一次真实发布验证。签名凭据仍未闭环，见 §3 与 [technical-debt §12](../../technical-debt.md)）
 > 日期：2026-09-27
 > 关联：[desktop-release-workflow 计划](../../plan/desktop-release-workflow.md)、[technical-debt §12](../../technical-debt.md)、[AGENTS.md Slice Checkpoints](../../../AGENTS.md)
 > 实现 owner：`packages/script`（`release.ts` / `release-metadata.ts`）+ `script/desktop-release.ts`；工作流 `.github/workflows/publish.yml`
@@ -69,6 +69,10 @@
 `draft` 只构建与校验 Draft；`publish` 才自动公开。**发布公开前，`publish` 默认要求 macOS 签名 + 公证、Windows Azure 签名凭据齐全，缺失即在 `Check signing secrets` 处 fail closed**——自动公开不得静默降级为未签名产物。
 
 唯一的例外是 Owner 显式打开 Variable `AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true`：此时缺失凭据降级为 `::warning::`，工作流会**明确宣告**正在发布未签名产物（macOS 的 `codesign` / `stapler` 校验步骤同时按 `macos-available` 跳过），而不是静默通过。该 Variable 未设置或不为 `true` 时，行为与上一条完全一致。
+
+2026-09-28 实际启用：`AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true`。v0.0.4 由自动 run `36362665383` 公开（19 资产 / 5 平台，`target_commitish=049eda162`），构建日志明确记录 Apple / Azure 签名凭据未配置；签名凭据仍是未闭环项。
+
+2026-09-28 后续调整：release notes 由独立 `changelog` job 生成（仅 `contents: read`，不持有 release App token），作为 `release-notes` artifact 传给 `version` job；macOS Intel x64 改用标准 `macos-15-intel` runner 恢复。
 
 ## 4. Consequences
 
