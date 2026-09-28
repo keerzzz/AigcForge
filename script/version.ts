@@ -25,28 +25,6 @@ output.push(`repo=${process.env.GH_REPO}`)
 if (process.env.GITHUB_OUTPUT) await Bun.write(process.env.GITHUB_OUTPUT, output.join("\n"))
 
 async function releaseNotes(source: string, strict: boolean) {
-  const preparedFile = process.env.AIGCFROGE_RELEASE_NOTES_FILE
-  const prepared = preparedFile
-    ? await Bun.file(preparedFile)
-        .text()
-        .catch(() => "")
-    : ""
-  if (prepared.trim()) return prepared.trim()
-
-  // Unattended releases do not send commit text to an agent with release credentials.
-  const generated =
-    process.env.AIGCFROGE_DETERMINISTIC_RELEASE_NOTES === "true"
-      ? undefined
-      : await $`bun script/changelog.ts --to ${source}`.quiet().nothrow()
-  const body =
-    generated?.exitCode === 0
-      ? (
-          await Bun.file(`${process.cwd()}/UPCOMING_CHANGELOG.md`)
-            .text()
-            .catch(() => "")
-        ).trim()
-      : ""
-  if (body) return body
   const fallback = await $`bun script/raw-changelog.ts --to ${source}`.quiet().nothrow()
   const text =
     fallback.exitCode === 0
@@ -62,7 +40,7 @@ async function releaseNotes(source: string, strict: boolean) {
       .split("\n")
       .map((line) => (line.startsWith("## ") || line.startsWith("### ") ? `#${line}` : line))
       .join("\n")
-    return `## English\n\n${demoted}\n\n## 中文\n\n> AI 双语说明不可用，以下为自动生成的提交清单，保留英文提交标题。\n\n${demoted}`
+    return `## English\n\n${demoted}\n\n## 中文\n\n> 以下为自动生成的提交清单，保留英文提交标题。\n\n${demoted}`
   }
   if (strict)
     throw new Release.Failure({ reason: `Release notes generation failed (fallback exit ${fallback.exitCode})` })
