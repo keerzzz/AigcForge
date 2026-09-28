@@ -91,7 +91,8 @@ gh workflow run publish.yml --repo keerzzz/AigcForge --ref main -f release_mode=
 ## 7. 尚未交付
 
 - 真实安装 / 升级 / 数据迁移的实机验收证据与自动门禁。
-- 启用契约（§5.1）：Variable 已切至 `publish`，v0.0.3 已公开（人工转正，标签与构建同源）；自动 `workflow_run` 全链路尚未完整跑通一次；`publish` 档的无人值守构建会因缺少签名凭据 fail closed。详见 [technical-debt §12](../technical-debt.md)。
+- 启用契约（§5.1）：Variable 已切至 `publish`，`AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true` 已显式启用。v0.0.4 已由自动 `workflow_run`（run `36362665383`）完成「版本 PR #111 → 5 平台构建 → 同源校验 → 自动公开」，19 个资产，`target_commitish=049eda162`。**未闭环：** 产物未签名（仓库没有 macOS / Windows 签名凭据），真实安装 / 升级 / 数据迁移验收仍未完成。详见 [technical-debt §12](../technical-debt.md)。
+- 自动公开的发布说明仍只有提交清单：`workflow_run` 设置 `AIGCFROGE_DETERMINISTIC_RELEASE_NOTES=true`，v0.0.4 正文 478 字节；v0.0.2 的约 35 KB 文案来自手动 AI changelog。若要自动公开富文本，需要在**没有 release 凭据**的独立 job 生成并传递 changelog，而不是在持有发布 token 的 job 内放开 AI 生成。
 - macOS Intel（x64）仍在构建矩阵外。
 - 历史 v0.0.2 的标签与构建来源差异保留不追溯。
 

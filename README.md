@@ -44,7 +44,7 @@
   - [Harness 7-Layer Hardening & Anti-Hallucination Loop](#harness-7-layer-hardening--anti-hallucination-loop)
   - [Security Tiers & Path Containment](#security-tiers--path-containment)
 - [4. Monorepo 18-Package Topology Matrix](#4-monorepo-18-package-topology-matrix)
-- [5. Installation & Multi-Surface Support](#5-installation--multi-surface-support)
+- [5. Installation](#5-installation)
 - [6. Core Workflow Paradigms](#6-core-workflow-paradigms)
 - [7. Product Roadmap & Status](#7-product-roadmap--status)
 - [8. Contributing & Code Standards](#8-contributing--code-standards)
@@ -233,42 +233,21 @@ AigcForge is built on Bun + Turbo, adhering strictly to downward-layer dependenc
 
 ---
 
-## 5. Installation & Multi-Surface Support
+## 5. Installation
 
-### CLI & TUI Installation
+### Install
 
-Install globally using your favorite package manager:
-
-```bash
-# Node.js / Bun / pnpm
-npm install -g aigcfroge@latest
-# or: bun add -g aigcfroge
-
-# macOS & Linux (Homebrew)
-brew install anomalyco/tap/aigcfroge
-
-# Windows (Scoop / Chocolatey)
-scoop install aigcfroge
-# or: choco install aigcfroge
-
-# Arch Linux (AUR)
-paru -S aigcfroge-bin
-
-# Environment Managers (mise / nix)
-mise use -g aigcfroge
-nix run nixpkgs#aigcfroge
-```
-
-### Desktop Application Download
+> Releases currently ship the Electron desktop app only. The CLI/TUI can be built from source (see [CONTRIBUTING.md](CONTRIBUTING.md)); they are not published as release assets.
 
 Pre-built desktop binaries are available on [GitHub Releases](https://github.com/keerzzz/AigcForge/releases):
 
-| Platform                  | Package Format                | Direct Command (Optional)                |
-| ------------------------- | ----------------------------- | ---------------------------------------- |
-| **macOS (Apple Silicon)** | `.dmg` (arm64)                | `brew install --cask aigcfroge-desktop`  |
-| **macOS (Intel)**         | `.dmg` (x64)                  | `brew install --cask aigcfroge-desktop`  |
-| **Windows**               | `.exe` / `.msi` (x64)         | `scoop install extras/aigcfroge-desktop` |
-| **Linux**                 | `.AppImage` / `.deb` / `.rpm` | Executable directly                      |
+| Platform                  | Package format                              | Notes                                                                |
+| ------------------------- | ------------------------------------------- | -------------------------------------------------------------------- |
+| **macOS (Apple Silicon)** | `.dmg` / `.zip` (arm64)                     | Unsigned until macOS signing/notarization credentials are configured |
+| **Windows**               | `.exe` (x64 / arm64)                        | NSIS installer; no `.msi`                                            |
+| **Linux**                 | `.AppImage` / `.deb` / `.rpm` (x64 / arm64) |                                                                      |
+
+macOS Intel (x64) is temporarily unavailable; see [technical-debt §12](docs/technical-debt.md#12-桌面发布工作流未交付范围2026-09-26).
 
 ---
 
