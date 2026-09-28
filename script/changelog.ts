@@ -55,6 +55,9 @@ const entry = path.join(root, "packages/aigcfroge/src/index.ts")
 const hasBinary = Boolean(Bun.which("aigcfroge"))
 const cmd = hasBinary ? ["aigcfroge", "run"] : [bunBin, "run", "--conditions=browser", entry, "run"]
 
+// Changelog generation inspects diffs and writes a file. Keep it on the build
+// agent instead of the interactive meta default, which can stall without a turn.
+cmd.push("--agent", "build")
 cmd.push("--variant", values.variant)
 if (values.model) cmd.push("--model", values.model)
 cmd.push("--command", "changelog", "--", ...args)
