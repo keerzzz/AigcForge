@@ -26,7 +26,7 @@ jobs:
           aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
 
       - name: Generate
-        run: ./script/generate.ts
+        run: bun script/generate.ts
 
       - name: Commit and push
         run: |
