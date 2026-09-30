@@ -31,20 +31,27 @@ export const ripgrepLayer = Layer.effect(
       directories: [] as string[],
     }
     const directories = new Set<string>()
-    yield* ripgrep
-      .find({
-        cwd: location.directory,
-        pattern: "*",
-        limit: location.vcs ? Number.MAX_SAFE_INTEGER : 100_000,
-        onEntry: (entry) =>
-          Effect.sync(() => {
-            state.files.push(entry.path)
-            const parts = entry.path.split("/")
-            parts.slice(0, -1).forEach((_, index) => directories.add(parts.slice(0, index + 1).join("/") + path.sep))
-            state.directories = Array.from(directories)
-          }),
-      })
-      .pipe(Effect.orDie, Effect.asVoid, Effect.forkIn(scope))
+    // A stale remembered location (directory deleted, renamed, or migrated to
+    // a new machine) must not crash the background indexing fiber: spawning
+    // ripgrep with a nonexistent `cwd` fails, and that failure is `orDie`d.
+    // Skip indexing entirely when there is nothing on disk to index.
+    const directoryExists = yield* fs.existsSafe(location.directory)
+    if (directoryExists) {
+      yield* ripgrep
+        .find({
+          cwd: location.directory,
+          pattern: "*",
+          limit: location.vcs ? Number.MAX_SAFE_INTEGER : 100_000,
+          onEntry: (entry) =>
+            Effect.sync(() => {
+              state.files.push(entry.path)
+              const parts = entry.path.split("/")
+              parts.slice(0, -1).forEach((_, index) => directories.add(parts.slice(0, index + 1).join("/") + path.sep))
+              state.directories = Array.from(directories)
+            }),
+        })
+        .pipe(Effect.orDie, Effect.asVoid, Effect.forkIn(scope))
+    }
     return Service.of({
       glob: (input) =>
         Effect.gen(function* () {
@@ -122,6 +129,20 @@ export const fffLayer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const location = yield* Location.Service
+    const fs = yield* FSUtil.Service
+    // A stale remembered location (directory deleted, renamed, or migrated to
+    // a new machine) must not crash the whole location layer graph: the
+    // native fff picker requires basePath to exist and otherwise returns a
+    // failure result. Degrade to an empty, always-safe search surface instead
+    // of dying — there is nothing to search in a directory that isn't there.
+    const exists = yield* fs.existsSafe(location.directory)
+    if (!exists) {
+      return Service.of({
+        glob: () => Effect.succeed([]),
+        grep: () => Effect.succeed([]),
+        find: () => Effect.succeed([]),
+      })
+    }
     const result = yield* Effect.try({
       try: () =>
         Fff.create({

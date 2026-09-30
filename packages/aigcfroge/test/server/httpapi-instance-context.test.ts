@@ -157,6 +157,28 @@ const serveDisposeProbe = () =>
   )
 
 describe("HttpApi instance context middleware", () => {
+  it.live("returns a typed 404 instead of an untyped failure for a directory that does not exist on disk", () =>
+    Effect.gen(function* () {
+      // Regression: a stale remembered directory (deleted, renamed, or removed
+      // mid-flight by Worktree.remove/reset, which disposes the cached instance
+      // before the directory disappears from disk) used to reach
+      // InstanceStore.load -> Project.fromDirectory -> Git.find directly, with
+      // no boundary layer to translate a missing-directory failure into a typed
+      // response — unlike LocationMiddleware on the V2 surface. This asserts
+      // the same typed 404 contract every other handler on this API uses.
+      yield* serveProbe()
+      const missing = path.join(process.cwd(), "aigcfroge-test-missing-instance-directory-9f3c2a")
+
+      const response = yield* HttpClient.get(`/probe?directory=${encodeURIComponent(missing)}`)
+
+      expect(response.status).toBe(404)
+      expect(yield* response.json).toMatchObject({
+        name: "NotFoundError",
+        data: { message: `Directory not found: ${missing}` },
+      })
+    }),
+  )
+
   it.live("provides instance context from the routed directory", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped({ git: true })
@@ -179,11 +201,15 @@ describe("HttpApi instance context middleware", () => {
     Effect.gen(function* () {
       yield* serveProbe()
 
+      // The malformed percent-encoding fails decodeURIComponent and falls back
+      // to the raw value; that raw value doesn't exist on disk, so the 404
+      // message is the assertion surface proving the fallback path ran.
       const response = yield* HttpClient.get("/probe?directory=%25E0%25A4%25A")
 
-      expect(response.status).toBe(200)
+      expect(response.status).toBe(404)
       expect(yield* response.json).toMatchObject({
-        directory: path.join(process.cwd(), "%E0%A4%A"),
+        name: "NotFoundError",
+        data: { message: `Directory not found: ${path.join(process.cwd(), "%E0%A4%A")}` },
       })
     }),
   )

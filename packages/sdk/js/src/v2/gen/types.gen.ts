@@ -2785,6 +2785,13 @@ export type Config = {
   subagent_attended_default?: boolean
 }
 
+export type NotFoundError = {
+  name: "NotFoundError"
+  data: {
+    message: string
+  }
+}
+
 export type Model = {
   id: string
   providerID: string
@@ -3055,13 +3062,6 @@ export type FileContent = {
   }
   encoding?: "base64"
   mimeType?: string
-}
-
-export type NotFoundError = {
-  name: "NotFoundError"
-  data: {
-    message: string
-  }
 }
 
 export type File = {
@@ -4091,6 +4091,20 @@ export type UnauthorizedError = {
   message: string
 }
 
+export type LocationNotFoundError = {
+  _tag: "LocationNotFoundError"
+  directory: string
+  message: string
+}
+
+export type CliAgentDiscovery = {
+  name: string
+  command: string
+  description: string
+  available: boolean
+  path?: string
+}
+
 export type SessionsResponse = {
   data: Array<SessionV2Info>
   cursor: {
@@ -4301,6 +4315,10 @@ export type DelegationState = {
 
 export type EffectHttpApiErrorForbidden = {
   _tag: "Forbidden"
+}
+
+export type EffectHttpApiErrorNotFound = {
+  _tag: "NotFound"
 }
 
 export type EventTuiCommandExecute2 = {
@@ -12777,6 +12795,15 @@ export type EventSubscribeData = {
   url: "/event"
 }
 
+export type EventSubscribeErrors = {
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type EventSubscribeError = EventSubscribeErrors[keyof EventSubscribeErrors]
+
 export type EventSubscribeResponses = {
   /**
    * Event stream
@@ -12801,6 +12828,10 @@ export type ConfigGetErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ConfigGetError = ConfigGetErrors[keyof ConfigGetErrors]
@@ -12829,6 +12860,10 @@ export type ConfigUpdateErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ConfigUpdateError = ConfigUpdateErrors[keyof ConfigUpdateErrors]
@@ -12857,6 +12892,10 @@ export type ConfigProvidersErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ConfigProvidersError = ConfigProvidersErrors[keyof ConfigProvidersErrors]
@@ -12890,6 +12929,10 @@ export type ExperimentalCapabilitiesGetErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalCapabilitiesGetError =
@@ -12920,6 +12963,10 @@ export type ExperimentalConsoleGetErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * InternalServerError
    */
@@ -12952,6 +12999,10 @@ export type ExperimentalConsoleListOrgsErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * InternalServerError
    */
@@ -12993,6 +13044,16 @@ export type ExperimentalConsoleSwitchOrgData = {
   url: "/experimental/console/switch"
 }
 
+export type ExperimentalConsoleSwitchOrgErrors = {
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type ExperimentalConsoleSwitchOrgError =
+  ExperimentalConsoleSwitchOrgErrors[keyof ExperimentalConsoleSwitchOrgErrors]
+
 export type ExperimentalConsoleSwitchOrgResponses = {
   /**
    * Switch success
@@ -13020,6 +13081,10 @@ export type ToolListErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ToolListError = ToolListErrors[keyof ToolListErrors]
@@ -13048,6 +13113,10 @@ export type ToolIdsErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ToolIdsError = ToolIdsErrors[keyof ToolIdsErrors]
@@ -13076,6 +13145,10 @@ export type WorktreeRemoveErrors = {
    * WorktreeError | InvalidRequestError
    */
   400: WorktreeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type WorktreeRemoveError = WorktreeRemoveErrors[keyof WorktreeRemoveErrors]
@@ -13104,6 +13177,10 @@ export type WorktreeListErrors = {
    * WorktreeError | InvalidRequestError
    */
   400: WorktreeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type WorktreeListError = WorktreeListErrors[keyof WorktreeListErrors]
@@ -13132,6 +13209,10 @@ export type WorktreeCreateErrors = {
    * WorktreeError | InvalidRequestError
    */
   400: WorktreeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type WorktreeCreateError = WorktreeCreateErrors[keyof WorktreeCreateErrors]
@@ -13160,6 +13241,10 @@ export type WorktreeResetErrors = {
    * WorktreeError | InvalidRequestError
    */
   400: WorktreeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type WorktreeResetError = WorktreeResetErrors[keyof WorktreeResetErrors]
@@ -13194,6 +13279,10 @@ export type ExperimentalSessionListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalSessionListError = ExperimentalSessionListErrors[keyof ExperimentalSessionListErrors]
@@ -13224,6 +13313,10 @@ export type ExperimentalSessionBackgroundErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalSessionBackgroundError =
@@ -13254,6 +13347,10 @@ export type ExperimentalResourceListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalResourceListError = ExperimentalResourceListErrors[keyof ExperimentalResourceListErrors]
@@ -13286,6 +13383,10 @@ export type FindTextErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type FindTextError = FindTextErrors[keyof FindTextErrors]
@@ -13334,6 +13435,10 @@ export type FindFilesErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type FindFilesError = FindFilesErrors[keyof FindFilesErrors]
@@ -13363,6 +13468,10 @@ export type FindSymbolsErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type FindSymbolsError = FindSymbolsErrors[keyof FindSymbolsErrors]
@@ -13392,6 +13501,10 @@ export type FileListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type FileListError = FileListErrors[keyof FileListErrors]
@@ -13453,6 +13566,10 @@ export type FileStatusErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type FileStatusError = FileStatusErrors[keyof FileStatusErrors]
@@ -13481,6 +13598,10 @@ export type InstanceDisposeErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type InstanceDisposeError = InstanceDisposeErrors[keyof InstanceDisposeErrors]
@@ -13509,6 +13630,10 @@ export type PathGetErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PathGetError = PathGetErrors[keyof PathGetErrors]
@@ -13537,6 +13662,10 @@ export type VcsGetErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsGetError = VcsGetErrors[keyof VcsGetErrors]
@@ -13565,6 +13694,10 @@ export type VcsStatusErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsStatusError = VcsStatusErrors[keyof VcsStatusErrors]
@@ -13595,6 +13728,10 @@ export type VcsDiffErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsDiffError = VcsDiffErrors[keyof VcsDiffErrors]
@@ -13623,6 +13760,10 @@ export type VcsDiffRawErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsDiffRawError = VcsDiffRawErrors[keyof VcsDiffRawErrors]
@@ -13653,6 +13794,10 @@ export type VcsApplyErrors = {
    * VcsApplyError | InvalidRequestError
    */
   400: VcsApplyError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsApplyError2 = VcsApplyErrors[keyof VcsApplyErrors]
@@ -13685,6 +13830,10 @@ export type VcsStageErrors = {
    * VcsApplyError | InvalidRequestError
    */
   400: VcsApplyError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsStageError = VcsStageErrors[keyof VcsStageErrors]
@@ -13715,6 +13864,10 @@ export type VcsUnstageErrors = {
    * VcsApplyError | InvalidRequestError
    */
   400: VcsApplyError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsUnstageError = VcsUnstageErrors[keyof VcsUnstageErrors]
@@ -13745,6 +13898,10 @@ export type VcsCommitErrors = {
    * VcsApplyError | InvalidRequestError
    */
   400: VcsApplyError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsCommitError = VcsCommitErrors[keyof VcsCommitErrors]
@@ -13774,6 +13931,10 @@ export type VcsLogErrors = {
    * VcsApplyError | InvalidRequestError
    */
   400: VcsApplyError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type VcsLogError = VcsLogErrors[keyof VcsLogErrors]
@@ -13802,6 +13963,10 @@ export type CommandListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type CommandListError = CommandListErrors[keyof CommandListErrors]
@@ -13830,6 +13995,10 @@ export type AppAgentsErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type AppAgentsError = AppAgentsErrors[keyof AppAgentsErrors]
@@ -13858,6 +14027,10 @@ export type AppSkillsErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type AppSkillsError = AppSkillsErrors[keyof AppSkillsErrors]
@@ -13891,6 +14064,10 @@ export type LspStatusErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LspStatusError = LspStatusErrors[keyof LspStatusErrors]
@@ -13919,6 +14096,10 @@ export type FormatterStatusErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type FormatterStatusError = FormatterStatusErrors[keyof FormatterStatusErrors]
@@ -13947,6 +14128,10 @@ export type McpStatusErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type McpStatusError = McpStatusErrors[keyof McpStatusErrors]
@@ -13980,6 +14165,10 @@ export type McpAddErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type McpAddError = McpAddErrors[keyof McpAddErrors]
@@ -14013,9 +14202,9 @@ export type McpAuthRemoveErrors = {
    */
   400: BadRequestError
   /**
-   * McpServerNotFoundError
+   * McpServerNotFoundError | NotFoundError
    */
-  404: McpServerNotFoundError
+  404: McpServerNotFoundError | NotFoundError
 }
 
 export type McpAuthRemoveError = McpAuthRemoveErrors[keyof McpAuthRemoveErrors]
@@ -14049,9 +14238,9 @@ export type McpAuthStartErrors = {
    */
   400: McpUnsupportedOAuthError | InvalidRequestError
   /**
-   * McpServerNotFoundError
+   * McpServerNotFoundError | NotFoundError
    */
-  404: McpServerNotFoundError
+  404: McpServerNotFoundError | NotFoundError
 }
 
 export type McpAuthStartError = McpAuthStartErrors[keyof McpAuthStartErrors]
@@ -14088,9 +14277,9 @@ export type McpAuthCallbackErrors = {
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
   /**
-   * McpServerNotFoundError
+   * McpServerNotFoundError | NotFoundError
    */
-  404: McpServerNotFoundError
+  404: McpServerNotFoundError | NotFoundError
 }
 
 export type McpAuthCallbackError = McpAuthCallbackErrors[keyof McpAuthCallbackErrors]
@@ -14122,9 +14311,9 @@ export type McpAuthAuthenticateErrors = {
    */
   400: McpUnsupportedOAuthError | InvalidRequestError
   /**
-   * McpServerNotFoundError
+   * McpServerNotFoundError | NotFoundError
    */
-  404: McpServerNotFoundError
+  404: McpServerNotFoundError | NotFoundError
 }
 
 export type McpAuthAuthenticateError = McpAuthAuthenticateErrors[keyof McpAuthAuthenticateErrors]
@@ -14156,9 +14345,9 @@ export type McpConnectErrors = {
    */
   400: BadRequestError
   /**
-   * McpServerNotFoundError
+   * McpServerNotFoundError | NotFoundError
    */
-  404: McpServerNotFoundError
+  404: McpServerNotFoundError | NotFoundError
 }
 
 export type McpConnectError = McpConnectErrors[keyof McpConnectErrors]
@@ -14190,9 +14379,9 @@ export type McpDisconnectErrors = {
    */
   400: BadRequestError
   /**
-   * McpServerNotFoundError
+   * McpServerNotFoundError | NotFoundError
    */
-  404: McpServerNotFoundError
+  404: McpServerNotFoundError | NotFoundError
 }
 
 export type McpDisconnectError = McpDisconnectErrors[keyof McpDisconnectErrors]
@@ -14221,6 +14410,10 @@ export type ProjectListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProjectListError = ProjectListErrors[keyof ProjectListErrors]
@@ -14249,6 +14442,10 @@ export type ProjectCurrentErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProjectCurrentError = ProjectCurrentErrors[keyof ProjectCurrentErrors]
@@ -14277,6 +14474,10 @@ export type ProjectInitGitErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProjectInitGitError = ProjectInitGitErrors[keyof ProjectInitGitErrors]
@@ -14321,9 +14522,9 @@ export type ProjectUpdateErrors = {
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
   /**
-   * ProjectNotFoundError
+   * ProjectNotFoundError | NotFoundError
    */
-  404: ProjectNotFoundError
+  404: ProjectNotFoundError | NotFoundError
 }
 
 export type ProjectUpdateError = ProjectUpdateErrors[keyof ProjectUpdateErrors]
@@ -14354,6 +14555,10 @@ export type ProjectDirectoriesErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProjectDirectoriesError = ProjectDirectoriesErrors[keyof ProjectDirectoriesErrors]
@@ -14386,6 +14591,10 @@ export type ExperimentalProjectCopyGenerateNameErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalProjectCopyGenerateNameError =
@@ -14418,6 +14627,10 @@ export type PtyShellsErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PtyShellsError = PtyShellsErrors[keyof PtyShellsErrors]
@@ -14450,6 +14663,10 @@ export type PtyListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PtyListError = PtyListErrors[keyof PtyListErrors]
@@ -14486,6 +14703,10 @@ export type PtyCreateErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PtyCreateError = PtyCreateErrors[keyof PtyCreateErrors]
@@ -14517,9 +14738,9 @@ export type PtyRemoveErrors = {
    */
   400: BadRequestError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | NotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | NotFoundError
 }
 
 export type PtyRemoveError = PtyRemoveErrors[keyof PtyRemoveErrors]
@@ -14551,9 +14772,9 @@ export type PtyGetErrors = {
    */
   400: BadRequestError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | NotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | NotFoundError
 }
 
 export type PtyGetError = PtyGetErrors[keyof PtyGetErrors]
@@ -14591,9 +14812,9 @@ export type PtyUpdateErrors = {
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | NotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | NotFoundError
 }
 
 export type PtyUpdateError = PtyUpdateErrors[keyof PtyUpdateErrors]
@@ -14629,9 +14850,9 @@ export type PtyConnectTokenErrors = {
    */
   403: PtyForbiddenError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | NotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | NotFoundError
 }
 
 export type PtyConnectTokenError = PtyConnectTokenErrors[keyof PtyConnectTokenErrors]
@@ -14663,6 +14884,10 @@ export type QuestionListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type QuestionListError = QuestionListErrors[keyof QuestionListErrors]
@@ -14699,9 +14924,9 @@ export type QuestionReplyErrors = {
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
   /**
-   * QuestionNotFoundError
+   * QuestionNotFoundError | NotFoundError
    */
-  404: QuestionNotFoundError
+  404: QuestionNotFoundError | NotFoundError
 }
 
 export type QuestionReplyError = QuestionReplyErrors[keyof QuestionReplyErrors]
@@ -14733,9 +14958,9 @@ export type QuestionRejectErrors = {
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
   /**
-   * QuestionNotFoundError
+   * QuestionNotFoundError | NotFoundError
    */
-  404: QuestionNotFoundError
+  404: QuestionNotFoundError | NotFoundError
 }
 
 export type QuestionRejectError = QuestionRejectErrors[keyof QuestionRejectErrors]
@@ -14764,6 +14989,10 @@ export type PermissionListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PermissionListError = PermissionListErrors[keyof PermissionListErrors]
@@ -14798,9 +15027,9 @@ export type PermissionReplyErrors = {
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
   /**
-   * PermissionNotFoundError
+   * PermissionNotFoundError | NotFoundError
    */
-  404: PermissionNotFoundError
+  404: PermissionNotFoundError | NotFoundError
 }
 
 export type PermissionReplyError = PermissionReplyErrors[keyof PermissionReplyErrors]
@@ -14830,6 +15059,10 @@ export type PromptAssetListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PromptAssetListError = PromptAssetListErrors[keyof PromptAssetListErrors]
@@ -14862,6 +15095,10 @@ export type PromptAssetContentErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PromptAssetContentError = PromptAssetContentErrors[keyof PromptAssetContentErrors]
@@ -14896,6 +15133,10 @@ export type PromptAssetApplyErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * ConflictError
    */
@@ -14934,6 +15175,10 @@ export type PromptAssetDeleteErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -14971,6 +15216,10 @@ export type WorkArtifactApplyErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -15003,6 +15252,10 @@ export type SkillAssetListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SkillAssetListError = SkillAssetListErrors[keyof SkillAssetListErrors]
@@ -15035,6 +15288,10 @@ export type SkillAssetContentErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SkillAssetContentError = SkillAssetContentErrors[keyof SkillAssetContentErrors]
@@ -15069,6 +15326,10 @@ export type SkillAssetApplyErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * ConflictError
    */
@@ -15107,6 +15368,10 @@ export type SkillAssetDeleteErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -15137,6 +15402,10 @@ export type McpAssetListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type McpAssetListError = McpAssetListErrors[keyof McpAssetListErrors]
@@ -15169,6 +15438,10 @@ export type McpAssetContentErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type McpAssetContentError = McpAssetContentErrors[keyof McpAssetContentErrors]
@@ -15203,6 +15476,10 @@ export type McpAssetApplyErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * ConflictError
    */
@@ -15241,6 +15518,10 @@ export type McpAssetDeleteErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -15271,6 +15552,10 @@ export type CommandAssetListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type CommandAssetListError = CommandAssetListErrors[keyof CommandAssetListErrors]
@@ -15303,6 +15588,10 @@ export type CommandAssetContentErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type CommandAssetContentError = CommandAssetContentErrors[keyof CommandAssetContentErrors]
@@ -15337,6 +15626,10 @@ export type CommandAssetApplyErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * ConflictError
    */
@@ -15375,6 +15668,10 @@ export type CommandAssetDeleteErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -15405,6 +15702,10 @@ export type AgentAssetListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type AgentAssetListError = AgentAssetListErrors[keyof AgentAssetListErrors]
@@ -15437,6 +15738,10 @@ export type AgentAssetContentErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type AgentAssetContentError = AgentAssetContentErrors[keyof AgentAssetContentErrors]
@@ -15471,6 +15776,10 @@ export type AgentAssetApplyErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * ConflictError
    */
@@ -15509,6 +15818,10 @@ export type AgentAssetDeleteErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -15539,6 +15852,10 @@ export type CustomProfileListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type CustomProfileListError = CustomProfileListErrors[keyof CustomProfileListErrors]
@@ -15609,6 +15926,10 @@ export type CustomProfileApplyErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * ConflictError
    */
@@ -15690,6 +16011,10 @@ export type CustomCompositionPlanErrors = {
    * UnsupportedProductModeError | InvalidRequestError
    */
   400: UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type CustomCompositionPlanError = CustomCompositionPlanErrors[keyof CustomCompositionPlanErrors]
@@ -15718,6 +16043,10 @@ export type CustomCompositionStartErrors = {
    * UnsupportedProductModeError | InvalidRequestError
    */
   400: UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * ConflictError
    */
@@ -15755,9 +16084,9 @@ export type CustomCompositionUpgradeErrors = {
    */
   400: UnsupportedProductModeError | InvalidRequestError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | NotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | NotFoundError
   /**
    * SessionBusyError | ConflictError
    */
@@ -15796,6 +16125,10 @@ export type CustomCompositionHealthErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type CustomCompositionHealthError = CustomCompositionHealthErrors[keyof CustomCompositionHealthErrors]
@@ -15826,6 +16159,10 @@ export type CustomCompositionReferencesErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type CustomCompositionReferencesError =
@@ -15855,6 +16192,10 @@ export type SchedulePendingErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SchedulePendingError = SchedulePendingErrors[keyof SchedulePendingErrors]
@@ -15882,6 +16223,10 @@ export type ScheduleListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ScheduleListError = ScheduleListErrors[keyof ScheduleListErrors]
@@ -15909,6 +16254,10 @@ export type ScheduleCancelErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ScheduleCancelError = ScheduleCancelErrors[keyof ScheduleCancelErrors]
@@ -15936,6 +16285,10 @@ export type DeliveryRecentErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type DeliveryRecentError = DeliveryRecentErrors[keyof DeliveryRecentErrors]
@@ -15963,6 +16316,10 @@ export type DeliveryInboxErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type DeliveryInboxError = DeliveryInboxErrors[keyof DeliveryInboxErrors]
@@ -15990,6 +16347,10 @@ export type DeliveryReadErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type DeliveryReadError = DeliveryReadErrors[keyof DeliveryReadErrors]
@@ -16013,6 +16374,10 @@ export type MemoryListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type MemoryListError = MemoryListErrors[keyof MemoryListErrors]
@@ -16038,6 +16403,10 @@ export type MemoryPendingErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type MemoryPendingError = MemoryPendingErrors[keyof MemoryPendingErrors]
@@ -16065,6 +16434,10 @@ export type MemoryConfirmErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type MemoryConfirmError = MemoryConfirmErrors[keyof MemoryConfirmErrors]
@@ -16092,6 +16465,10 @@ export type MemoryRejectErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type MemoryRejectError = MemoryRejectErrors[keyof MemoryRejectErrors]
@@ -16123,6 +16500,10 @@ export type MemoryEditErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type MemoryEditError = MemoryEditErrors[keyof MemoryEditErrors]
@@ -16150,6 +16531,10 @@ export type MemoryRemoveErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type MemoryRemoveError = MemoryRemoveErrors[keyof MemoryRemoveErrors]
@@ -16178,6 +16563,10 @@ export type KbListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type KbListError = KbListErrors[keyof KbListErrors]
@@ -16210,6 +16599,10 @@ export type KbCreateErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type KbCreateError = KbCreateErrors[keyof KbCreateErrors]
@@ -16237,6 +16630,10 @@ export type KbGetErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type KbGetError = KbGetErrors[keyof KbGetErrors]
@@ -16269,6 +16666,10 @@ export type KbUpdateErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type KbUpdateError = KbUpdateErrors[keyof KbUpdateErrors]
@@ -16296,6 +16697,10 @@ export type KbRemoveErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type KbRemoveError = KbRemoveErrors[keyof KbRemoveErrors]
@@ -16321,6 +16726,10 @@ export type KbBacklinksErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type KbBacklinksError = KbBacklinksErrors[keyof KbBacklinksErrors]
@@ -16346,6 +16755,10 @@ export type KbDanglingErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type KbDanglingError = KbDanglingErrors[keyof KbDanglingErrors]
@@ -16375,6 +16788,10 @@ export type KbSearchErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type KbSearchError = KbSearchErrors[keyof KbSearchErrors]
@@ -16403,6 +16820,10 @@ export type AgentTaskListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type AgentTaskListError = AgentTaskListErrors[keyof AgentTaskListErrors]
@@ -16433,6 +16854,10 @@ export type LegacyDelegationListErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationListError = LegacyDelegationListErrors[keyof LegacyDelegationListErrors]
@@ -16469,6 +16894,10 @@ export type LegacyDelegationCreateErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationCreateError = LegacyDelegationCreateErrors[keyof LegacyDelegationCreateErrors]
@@ -16505,6 +16934,10 @@ export type LegacyDelegationDeleteErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationDeleteError = LegacyDelegationDeleteErrors[keyof LegacyDelegationDeleteErrors]
@@ -16533,6 +16966,10 @@ export type LegacyDelegationGetErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationGetError = LegacyDelegationGetErrors[keyof LegacyDelegationGetErrors]
@@ -16573,6 +17010,10 @@ export type LegacyDelegationAddParticipantErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationAddParticipantError =
@@ -16605,6 +17046,10 @@ export type LegacyDelegationListTurnsErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationListTurnsError = LegacyDelegationListTurnsErrors[keyof LegacyDelegationListTurnsErrors]
@@ -16645,6 +17090,10 @@ export type LegacyDelegationAppendTurnErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationAppendTurnError = LegacyDelegationAppendTurnErrors[keyof LegacyDelegationAppendTurnErrors]
@@ -16679,6 +17128,10 @@ export type LegacyDelegationRetryErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationRetryError = LegacyDelegationRetryErrors[keyof LegacyDelegationRetryErrors]
@@ -16718,6 +17171,10 @@ export type LegacyDelegationReconcileErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationReconcileError = LegacyDelegationReconcileErrors[keyof LegacyDelegationReconcileErrors]
@@ -16757,6 +17214,10 @@ export type LegacyDelegationRetractRejectionErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationRetractRejectionError =
@@ -16797,6 +17258,10 @@ export type LegacyDelegationSteerErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationSteerError = LegacyDelegationSteerErrors[keyof LegacyDelegationSteerErrors]
@@ -16834,6 +17299,10 @@ export type LegacyDelegationInterruptErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationInterruptError = LegacyDelegationInterruptErrors[keyof LegacyDelegationInterruptErrors]
@@ -16872,6 +17341,10 @@ export type LegacyDelegationCompleteErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationCompleteError = LegacyDelegationCompleteErrors[keyof LegacyDelegationCompleteErrors]
@@ -16910,6 +17383,10 @@ export type LegacyDelegationCloseErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationCloseError = LegacyDelegationCloseErrors[keyof LegacyDelegationCloseErrors]
@@ -16945,6 +17422,10 @@ export type LegacyDelegationArchiveErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationArchiveError = LegacyDelegationArchiveErrors[keyof LegacyDelegationArchiveErrors]
@@ -16980,6 +17461,10 @@ export type LegacyDelegationUnarchiveErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationUnarchiveError = LegacyDelegationUnarchiveErrors[keyof LegacyDelegationUnarchiveErrors]
@@ -17019,6 +17504,10 @@ export type LegacyDelegationForkErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type LegacyDelegationForkError = LegacyDelegationForkErrors[keyof LegacyDelegationForkErrors]
@@ -17053,6 +17542,10 @@ export type WorkflowAssetListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type WorkflowAssetListError = WorkflowAssetListErrors[keyof WorkflowAssetListErrors]
@@ -17085,6 +17578,10 @@ export type WorkflowAssetContentErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type WorkflowAssetContentError = WorkflowAssetContentErrors[keyof WorkflowAssetContentErrors]
@@ -17124,6 +17621,10 @@ export type WorkflowAssetApplyErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -17161,6 +17662,10 @@ export type WorkflowAssetDeleteErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -17191,6 +17696,10 @@ export type PluginAssetListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PluginAssetListError = PluginAssetListErrors[keyof PluginAssetListErrors]
@@ -17224,6 +17733,10 @@ export type PluginAssetContentErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type PluginAssetContentError = PluginAssetContentErrors[keyof PluginAssetContentErrors]
@@ -17263,6 +17776,10 @@ export type PluginAssetApplyErrors = {
    */
   400: InvalidRequestError
   /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
@@ -17299,6 +17816,10 @@ export type PluginAssetDeleteErrors = {
    * InvalidRequestError
    */
   400: InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
   /**
    * ConflictError
    */
@@ -17356,6 +17877,10 @@ export type ProviderListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProviderListError = ProviderListErrors[keyof ProviderListErrors]
@@ -17390,6 +17915,10 @@ export type ProviderAuthErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProviderAuthError2 = ProviderAuthErrors[keyof ProviderAuthErrors]
@@ -17430,6 +17959,10 @@ export type ProviderOauthAuthorizeErrors = {
    * ProviderAuthError | InvalidRequestError
    */
   400: ProviderAuthError1 | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProviderOauthAuthorizeError = ProviderOauthAuthorizeErrors[keyof ProviderOauthAuthorizeErrors]
@@ -17466,6 +17999,10 @@ export type ProviderOauthCallbackErrors = {
    * ProviderAuthError | InvalidRequestError
    */
   400: ProviderAuthError1 | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProviderOauthCallbackError = ProviderOauthCallbackErrors[keyof ProviderOauthCallbackErrors]
@@ -17498,6 +18035,10 @@ export type ProviderDiscoverErrors = {
    * ProviderDiscoverError | InvalidRequestError
    */
   400: ProviderDiscoverError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ProviderDiscoverError2 = ProviderDiscoverErrors[keyof ProviderDiscoverErrors]
@@ -17536,6 +18077,10 @@ export type SessionListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SessionListError = SessionListErrors[keyof SessionListErrors]
@@ -17582,6 +18127,10 @@ export type SessionCreateErrors = {
    * BadRequest | UnsupportedProductModeError | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SessionCreateError = SessionCreateErrors[keyof SessionCreateErrors]
@@ -17610,6 +18159,10 @@ export type SessionStatusErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SessionStatusError = SessionStatusErrors[keyof SessionStatusErrors]
@@ -18736,7 +19289,7 @@ export type PermissionRespondErrors = {
   /**
    * NotFoundError | PermissionNotFoundError
    */
-  404: NotFoundError | PermissionNotFoundError
+  404: PermissionNotFoundError | NotFoundError
 }
 
 export type PermissionRespondError = PermissionRespondErrors[keyof PermissionRespondErrors]
@@ -19256,6 +19809,10 @@ export type SyncStartErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SyncStartError = SyncStartErrors[keyof SyncStartErrors]
@@ -19295,6 +19852,10 @@ export type SyncReplayErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SyncReplayError = SyncReplayErrors[keyof SyncReplayErrors]
@@ -19327,6 +19888,10 @@ export type SyncStealErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SyncStealError = SyncStealErrors[keyof SyncStealErrors]
@@ -19359,6 +19924,10 @@ export type SyncHistoryListErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type SyncHistoryListError = SyncHistoryListErrors[keyof SyncHistoryListErrors]
@@ -19397,6 +19966,10 @@ export type TuiAppendPromptErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiAppendPromptError = TuiAppendPromptErrors[keyof TuiAppendPromptErrors]
@@ -19425,6 +19998,10 @@ export type TuiOpenHelpErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiOpenHelpError = TuiOpenHelpErrors[keyof TuiOpenHelpErrors]
@@ -19453,6 +20030,10 @@ export type TuiOpenSessionsErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiOpenSessionsError = TuiOpenSessionsErrors[keyof TuiOpenSessionsErrors]
@@ -19481,6 +20062,10 @@ export type TuiOpenThemesErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiOpenThemesError = TuiOpenThemesErrors[keyof TuiOpenThemesErrors]
@@ -19509,6 +20094,10 @@ export type TuiOpenModelsErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiOpenModelsError = TuiOpenModelsErrors[keyof TuiOpenModelsErrors]
@@ -19537,6 +20126,10 @@ export type TuiSubmitPromptErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiSubmitPromptError = TuiSubmitPromptErrors[keyof TuiSubmitPromptErrors]
@@ -19565,6 +20158,10 @@ export type TuiClearPromptErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiClearPromptError = TuiClearPromptErrors[keyof TuiClearPromptErrors]
@@ -19595,6 +20192,10 @@ export type TuiExecuteCommandErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiExecuteCommandError = TuiExecuteCommandErrors[keyof TuiExecuteCommandErrors]
@@ -19628,6 +20229,10 @@ export type TuiShowToastErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiShowToastError = TuiShowToastErrors[keyof TuiShowToastErrors]
@@ -19656,6 +20261,10 @@ export type TuiPublishErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiPublishError = TuiPublishErrors[keyof TuiPublishErrors]
@@ -19721,6 +20330,10 @@ export type TuiControlNextErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiControlNextError = TuiControlNextErrors[keyof TuiControlNextErrors]
@@ -19752,6 +20365,10 @@ export type TuiControlResponseErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type TuiControlResponseError = TuiControlResponseErrors[keyof TuiControlResponseErrors]
@@ -19780,6 +20397,10 @@ export type ExperimentalWorkspaceAdapterListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalWorkspaceAdapterListError =
@@ -19814,6 +20435,10 @@ export type ExperimentalWorkspaceListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalWorkspaceListError = ExperimentalWorkspaceListErrors[keyof ExperimentalWorkspaceListErrors]
@@ -19848,6 +20473,10 @@ export type ExperimentalWorkspaceCreateErrors = {
    * WorkspaceCreateError | BadRequest | InvalidRequestError
    */
   400: WorkspaceCreateError | EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalWorkspaceCreateError =
@@ -19878,6 +20507,10 @@ export type ExperimentalWorkspaceSyncListErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalWorkspaceSyncListError =
@@ -19908,6 +20541,10 @@ export type ExperimentalWorkspaceStatusErrors = {
    * Bad request
    */
   400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalWorkspaceStatusError =
@@ -19943,6 +20580,10 @@ export type ExperimentalWorkspaceRemoveErrors = {
    * BadRequest | InvalidRequestError
    */
   400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
 }
 
 export type ExperimentalWorkspaceRemoveError =
@@ -20047,6 +20688,10 @@ export type V2LocationGetErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2LocationGetError = V2LocationGetErrors[keyof V2LocationGetErrors]
@@ -20081,6 +20726,10 @@ export type V2PathIdentityCompareErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2PathIdentityCompareError = V2PathIdentityCompareErrors[keyof V2PathIdentityCompareErrors]
@@ -20115,6 +20764,10 @@ export type V2AgentListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2AgentListError = V2AgentListErrors[keyof V2AgentListErrors]
@@ -20130,6 +20783,47 @@ export type V2AgentListResponses = {
 }
 
 export type V2AgentListResponse = V2AgentListResponses[keyof V2AgentListResponses]
+
+export type V2AgentCliData = {
+  body?: never
+  path?: never
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/api/agent/cli"
+}
+
+export type V2AgentCliErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
+}
+
+export type V2AgentCliError = V2AgentCliErrors[keyof V2AgentCliErrors]
+
+export type V2AgentCliResponses = {
+  /**
+   * Success
+   */
+  200: {
+    location: LocationInfo
+    data: Array<CliAgentDiscovery>
+  }
+}
+
+export type V2AgentCliResponse = V2AgentCliResponses[keyof V2AgentCliResponses]
 
 export type V2SessionListData = {
   body?: never
@@ -20907,6 +21601,10 @@ export type V2ModelListErrors = {
    */
   401: UnauthorizedError
   /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
+  /**
    * ServiceUnavailableError
    */
   503: ServiceUnavailableError
@@ -20947,6 +21645,10 @@ export type V2ProviderListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
   /**
    * ServiceUnavailableError
    */
@@ -20991,9 +21693,9 @@ export type V2ProviderGetErrors = {
    */
   401: UnauthorizedError
   /**
-   * ProviderNotFoundError
+   * ProviderNotFoundError | LocationNotFoundError
    */
-  404: ProviderNotFoundError
+  404: ProviderNotFoundError | LocationNotFoundError
   /**
    * ServiceUnavailableError
    */
@@ -21035,6 +21737,10 @@ export type V2IntegrationListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2IntegrationListError = V2IntegrationListErrors[keyof V2IntegrationListErrors]
@@ -21074,6 +21780,10 @@ export type V2IntegrationGetErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2IntegrationGetError = V2IntegrationGetErrors[keyof V2IntegrationGetErrors]
@@ -21116,6 +21826,10 @@ export type V2IntegrationConnectKeyErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2IntegrationConnectKeyError = V2IntegrationConnectKeyErrors[keyof V2IntegrationConnectKeyErrors]
@@ -21158,6 +21872,10 @@ export type V2IntegrationConnectOauthErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2IntegrationConnectOauthError = V2IntegrationConnectOauthErrors[keyof V2IntegrationConnectOauthErrors]
@@ -21198,6 +21916,10 @@ export type V2IntegrationAttemptCancelErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2IntegrationAttemptCancelError = V2IntegrationAttemptCancelErrors[keyof V2IntegrationAttemptCancelErrors]
@@ -21235,6 +21957,10 @@ export type V2IntegrationAttemptStatusErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2IntegrationAttemptStatusError = V2IntegrationAttemptStatusErrors[keyof V2IntegrationAttemptStatusErrors]
@@ -21306,6 +22032,10 @@ export type V2IntegrationAttemptCompleteErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2IntegrationAttemptCompleteError =
@@ -21344,6 +22074,10 @@ export type V2CredentialRemoveErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2CredentialRemoveError = V2CredentialRemoveErrors[keyof V2CredentialRemoveErrors]
@@ -21382,6 +22116,10 @@ export type V2CredentialUpdateErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2CredentialUpdateError = V2CredentialUpdateErrors[keyof V2CredentialUpdateErrors]
@@ -21416,6 +22154,10 @@ export type V2PermissionRequestListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2PermissionRequestListError = V2PermissionRequestListErrors[keyof V2PermissionRequestListErrors]
@@ -21450,6 +22192,10 @@ export type V2PermissionSavedListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2PermissionSavedListError = V2PermissionSavedListErrors[keyof V2PermissionSavedListErrors]
@@ -21483,6 +22229,10 @@ export type V2PermissionSavedRemoveErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2PermissionSavedRemoveError = V2PermissionSavedRemoveErrors[keyof V2PermissionSavedRemoveErrors]
@@ -21594,6 +22344,10 @@ export type V2PermissionGrantListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2PermissionGrantListError = V2PermissionGrantListErrors[keyof V2PermissionGrantListErrors]
@@ -21636,9 +22390,9 @@ export type V2PermissionGrantRevokeErrors = {
    */
   401: UnauthorizedError
   /**
-   * GrantNotFoundError
+   * GrantNotFoundError | LocationNotFoundError
    */
-  404: GrantNotFoundError
+  404: GrantNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -21720,6 +22474,10 @@ export type V2FsReadErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2FsReadError = V2FsReadErrors[keyof V2FsReadErrors]
@@ -21755,6 +22513,10 @@ export type V2FsListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2FsListError = V2FsListErrors[keyof V2FsListErrors]
@@ -21795,6 +22557,10 @@ export type V2FsFindErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2FsFindError = V2FsFindErrors[keyof V2FsFindErrors]
@@ -21832,6 +22598,10 @@ export type V2CommandListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2CommandListError = V2CommandListErrors[keyof V2CommandListErrors]
@@ -21869,6 +22639,10 @@ export type V2SkillListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2SkillListError = V2SkillListErrors[keyof V2SkillListErrors]
@@ -21935,6 +22709,10 @@ export type V2PtyListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2PtyListError = V2PtyListErrors[keyof V2PtyListErrors]
@@ -21980,6 +22758,10 @@ export type V2PtyCreateErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2PtyCreateError = V2PtyCreateErrors[keyof V2PtyCreateErrors]
@@ -22020,9 +22802,9 @@ export type V2PtyRemoveErrors = {
    */
   401: UnauthorizedError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | LocationNotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | LocationNotFoundError
 }
 
 export type V2PtyRemoveError = V2PtyRemoveErrors[keyof V2PtyRemoveErrors]
@@ -22060,9 +22842,9 @@ export type V2PtyGetErrors = {
    */
   401: UnauthorizedError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | LocationNotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | LocationNotFoundError
 }
 
 export type V2PtyGetError = V2PtyGetErrors[keyof V2PtyGetErrors]
@@ -22109,9 +22891,9 @@ export type V2PtyUpdateErrors = {
    */
   401: UnauthorizedError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | LocationNotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | LocationNotFoundError
 }
 
 export type V2PtyUpdateError = V2PtyUpdateErrors[keyof V2PtyUpdateErrors]
@@ -22156,9 +22938,9 @@ export type V2PtyConnectTokenErrors = {
    */
   403: ForbiddenError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | LocationNotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | LocationNotFoundError
 }
 
 export type V2PtyConnectTokenError = V2PtyConnectTokenErrors[keyof V2PtyConnectTokenErrors]
@@ -22206,9 +22988,9 @@ export type V2PtyConnectErrors = {
    */
   403: ForbiddenError
   /**
-   * PtyNotFoundError
+   * PtyNotFoundError | LocationNotFoundError
    */
-  404: PtyNotFoundError
+  404: PtyNotFoundError | LocationNotFoundError
 }
 
 export type V2PtyConnectError = V2PtyConnectErrors[keyof V2PtyConnectErrors]
@@ -22243,6 +23025,10 @@ export type V2QuestionRequestListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2QuestionRequestListError = V2QuestionRequestListErrors[keyof V2QuestionRequestListErrors]
@@ -22389,6 +23175,10 @@ export type V2ReferenceListErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2ReferenceListError = V2ReferenceListErrors[keyof V2ReferenceListErrors]
@@ -22427,6 +23217,10 @@ export type V2ProjectCopyRemoveErrors = {
    * ProjectCopyError | InvalidRequestError
    */
   400: ProjectCopyError | InvalidRequestError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2ProjectCopyRemoveError = V2ProjectCopyRemoveErrors[keyof V2ProjectCopyRemoveErrors]
@@ -22463,6 +23257,10 @@ export type V2ProjectCopyCreateErrors = {
    * ProjectCopyError | InvalidRequestError
    */
   400: ProjectCopyError | InvalidRequestError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2ProjectCopyCreateError = V2ProjectCopyCreateErrors[keyof V2ProjectCopyCreateErrors]
@@ -22495,6 +23293,10 @@ export type V2ProjectCopyRefreshErrors = {
    * ProjectCopyError | InvalidRequestError
    */
   400: ProjectCopyError | InvalidRequestError
+  /**
+   * LocationNotFoundError
+   */
+  404: LocationNotFoundError
 }
 
 export type V2ProjectCopyRefreshError = V2ProjectCopyRefreshErrors[keyof V2ProjectCopyRefreshErrors]
@@ -22536,9 +23338,9 @@ export type V2DelegationListErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22585,9 +23387,9 @@ export type V2DelegationCreateErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22634,9 +23436,9 @@ export type V2DelegationDeleteErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22682,9 +23484,9 @@ export type V2DelegationGetErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22735,9 +23537,9 @@ export type V2DelegationAddParticipantErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22784,9 +23586,9 @@ export type V2DelegationListTurnsErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22841,9 +23643,9 @@ export type V2DelegationAppendTurnErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22892,9 +23694,9 @@ export type V2DelegationRetryErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22944,9 +23746,9 @@ export type V2DelegationReconcileErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -22995,9 +23797,9 @@ export type V2DelegationRetractRejectionErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -23048,9 +23850,9 @@ export type V2DelegationSteerErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -23098,9 +23900,9 @@ export type V2DelegationInterruptErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -23148,9 +23950,9 @@ export type V2DelegationCompleteErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -23198,9 +24000,9 @@ export type V2DelegationCloseErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -23246,9 +24048,9 @@ export type V2DelegationArchiveErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -23294,9 +24096,9 @@ export type V2DelegationUnarchiveErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -23345,9 +24147,9 @@ export type V2DelegationForkErrors = {
    */
   403: ForbiddenError
   /**
-   * SessionNotFoundError
+   * SessionNotFoundError | LocationNotFoundError
    */
-  404: SessionNotFoundError
+  404: SessionNotFoundError | LocationNotFoundError
   /**
    * ConflictError
    */
@@ -23385,9 +24187,9 @@ export type PtyConnectErrors = {
    */
   403: EffectHttpApiErrorForbidden
   /**
-   * Not found
+   * NotFound | NotFoundError
    */
-  404: NotFoundError
+  404: EffectHttpApiErrorNotFound | NotFoundError
 }
 
 export type PtyConnectError = PtyConnectErrors[keyof PtyConnectErrors]
