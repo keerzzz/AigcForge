@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs"
 import { Location } from "@aigcfroge/core/location"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -5,6 +6,7 @@ import { WorkspaceV2 } from "@aigcfroge/core/workspace"
 import { Effect, Layer, Schema } from "effect"
 import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, OpenApi } from "effect/unstable/httpapi"
+import { LocationNotFoundError } from "../errors"
 
 export const LocationQuery = Schema.Struct({
   location: Schema.optional(
@@ -51,7 +53,7 @@ export class LocationMiddleware extends HttpApiMiddleware.Service<
   {
     provides: LocationServices
   }
->()("@aigcfroge/HttpApiLocation") {}
+>()("@aigcfroge/HttpApiLocation", { error: LocationNotFoundError }) {}
 
 export const LocationGroup = HttpApiGroup.make("server.location")
   .add(
@@ -97,7 +99,29 @@ export const layer = Layer.effect(
     return LocationMiddleware.of((effect) =>
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest
-        return yield* effect.pipe(Effect.provide(locations.get(ref(request))))
+        const target = ref(request)
+        // The location layer graph (fff native search, config loaders, etc.)
+        // assumes `directory` exists on disk and dies/interrupts on native
+        // failures when it doesn't (e.g. a stale remembered workspace path).
+        // Fail fast here with a typed 404 instead of letting that surface as
+        // an opaque empty 500/503 further down the LayerMap build.
+        //
+        // Deliberately synchronous (node:fs existsSync, not the Effect
+        // FileSystem service's async existsSafe): this middleware also guards
+        // PtyGroup's `/api/pty/:ptyID/connect`, a `handleRaw` WebSocket
+        // upgrade route. The legacy InstanceContextMiddleware equivalent
+        // (packages/aigcfroge/.../middleware/instance-context.ts) reproduced a
+        // hang under repeated upgrade/reject cycles when the check went
+        // through `yield* fs.exists`; a plain existsSync avoids scheduling
+        // this check on the Effect fiber runtime altogether.
+        const exists = existsSync(target.directory)
+        if (!exists) {
+          return yield* new LocationNotFoundError({
+            directory: target.directory,
+            message: `Directory not found: ${target.directory}`,
+          })
+        }
+        return yield* effect.pipe(Effect.provide(locations.get(target)))
       }),
     )
   }),

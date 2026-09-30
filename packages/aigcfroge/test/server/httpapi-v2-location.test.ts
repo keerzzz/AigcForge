@@ -41,6 +41,12 @@ async function readEventType(reader: ReadableStreamDefaultReader<Uint8Array>, ty
   throw new Error(`timed out waiting for ${type}`)
 }
 
+const LocationNotFoundBody = Schema.Struct({
+  _tag: Schema.Literal("LocationNotFoundError"),
+  directory: Schema.String,
+  message: Schema.String,
+})
+
 afterEach(async () => {
   await disposeAllInstances()
   await resetDatabase()
@@ -56,6 +62,18 @@ describe("v2 location HttpApi", () => {
         data: {},
       }),
     ).toMatchObject({ location: { directory: "/tmp/project" } })
+  })
+
+  test("returns a typed 404 for a directory that does not exist on disk", async () => {
+    // Regression: a stale remembered directory (deleted, renamed, or migrated
+    // to a new machine) used to reach the fff native search engine inside
+    // LocationServiceMap, die there, and surface as an opaque empty 500/503.
+    // LocationMiddleware now fails fast with a typed, JSON-bodied 404.
+    const missing = "/tmp/aigcfroge-test-directory-does-not-exist-9f3c2a"
+    const response = await request("/api/command", missing)
+    expect(response.status).toBe(404)
+    const body = Schema.decodeUnknownSync(LocationNotFoundBody)(await response.json())
+    expect(body).toMatchObject({ _tag: "LocationNotFoundError", directory: missing })
   })
 
   test("returns command and skill snapshots with resolved locations", async () => {

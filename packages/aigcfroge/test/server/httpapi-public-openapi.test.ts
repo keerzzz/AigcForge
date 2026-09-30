@@ -195,9 +195,12 @@ describe("PublicApi OpenAPI v2 errors", () => {
     expect(componentName(responseRef(spec.paths["/api/model"]?.get?.responses?.["503"]) ?? "")).toBe(
       "ServiceUnavailableError",
     )
-    expect(componentName(responseRef(spec.paths["/api/provider/{providerID}"]?.get?.responses?.["404"]) ?? "")).toBe(
+    // LocationMiddleware now declares a typed 404 error, which merges into every
+    // endpoint that consumes it as an `anyOf` alongside the endpoint's own error.
+    expect(componentNames(spec.paths["/api/provider/{providerID}"]?.get?.responses?.["404"])).toEqual([
       "ProviderNotFoundError",
-    )
+      "LocationNotFoundError",
+    ])
     expect(componentName(responseRef(spec.paths["/api/provider/{providerID}"]?.get?.responses?.["503"]) ?? "")).toBe(
       "ServiceUnavailableError",
     )
@@ -261,16 +264,20 @@ describe("PublicApi OpenAPI v2 errors", () => {
   test("documents permission and question not-found errors", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
 
-    expect(
-      componentName(responseRef(spec.paths["/permission/{requestID}/reply"]?.post?.responses?.["404"]) ?? ""),
-    ).toBe("PermissionNotFoundError")
+    // InstanceContextMiddleware now declares a typed 404 error, which merges into
+    // every endpoint that consumes it as an `anyOf` alongside the endpoint's own error.
+    expect(componentNames(spec.paths["/permission/{requestID}/reply"]?.post?.responses?.["404"])).toEqual([
+      "PermissionNotFoundError",
+      "NotFoundError",
+    ])
     for (const route of [
       ["post", "/question/{requestID}/reply"],
       ["post", "/question/{requestID}/reject"],
     ] as const) {
-      expect(componentName(responseRef(spec.paths[route[1]]?.[route[0]]?.responses?.["404"]) ?? "")).toBe(
+      expect(componentNames(spec.paths[route[1]]?.[route[0]]?.responses?.["404"])).toEqual([
         "QuestionNotFoundError",
-      )
+        "NotFoundError",
+      ])
     }
     for (const route of [
       ["post", "/api/session/{sessionID}/question/{requestID}/reply"],
@@ -294,9 +301,10 @@ describe("PublicApi OpenAPI v2 errors", () => {
       ["post", "/mcp/{name}/connect"],
       ["post", "/mcp/{name}/disconnect"],
     ] as const) {
-      expect(componentName(responseRef(spec.paths[route[1]]?.[route[0]]?.responses?.["404"]) ?? "")).toBe(
+      expect(componentNames(spec.paths[route[1]]?.[route[0]]?.responses?.["404"])).toEqual([
         "McpServerNotFoundError",
-      )
+        "NotFoundError",
+      ])
     }
   })
 
@@ -309,9 +317,10 @@ describe("PublicApi OpenAPI v2 errors", () => {
       ["delete", "/pty/{ptyID}"],
       ["post", "/pty/{ptyID}/connect-token"],
     ] as const) {
-      expect(componentName(responseRef(spec.paths[route[1]]?.[route[0]]?.responses?.["404"]) ?? "")).toBe(
+      expect(componentNames(spec.paths[route[1]]?.[route[0]]?.responses?.["404"])).toEqual([
         "PtyNotFoundError",
-      )
+        "NotFoundError",
+      ])
     }
     expect(componentName(responseRef(spec.paths["/pty/{ptyID}/connect-token"]?.post?.responses?.["403"]) ?? "")).toBe(
       "PtyForbiddenError",
@@ -326,8 +335,9 @@ describe("PublicApi OpenAPI v2 errors", () => {
   test("documents project not-found errors", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
 
-    expect(componentName(responseRef(spec.paths["/project/{projectID}"]?.patch?.responses?.["404"]) ?? "")).toBe(
+    expect(componentNames(spec.paths["/project/{projectID}"]?.patch?.responses?.["404"])).toEqual([
       "ProjectNotFoundError",
-    )
+      "NotFoundError",
+    ])
   })
 })

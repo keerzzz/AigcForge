@@ -1,7 +1,7 @@
 export * as CodexSdkAdapter from "./codex-sdk"
 
 import { Duration, Effect } from "effect"
-import { Codex as RealCodex } from "@openai/codex-sdk"
+import { CliExecutable } from "./cli-executable"
 import { which } from "../util/which"
 import type { CliAdapter } from "./cli-adapter"
 import { DelegationParser } from "./delegation-parser"
@@ -13,20 +13,23 @@ import { DelegationParser } from "./delegation-parser"
  * agent's final text; resume reopens a thread by id.
  */
 export interface CodexSdk {
-  startThread(options?: { workingDirectory?: string; approvalPolicy?: string }): {
+  startThread(options?: { workingDirectory?: string; approvalPolicy?: "never" }): {
     id?: string | null
     run(input: string, options?: { signal?: AbortSignal }): Promise<{ finalResponse: string }>
   }
   resumeThread(
     id: string,
-    options?: { workingDirectory?: string; approvalPolicy?: string },
+    options?: { workingDirectory?: string; approvalPolicy?: "never" },
   ): {
     id?: string | null
     run(input: string, options?: { signal?: AbortSignal }): Promise<{ finalResponse: string }>
   }
 }
 
-export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter => ({
+export const makeCodexSdkAdapter = (
+  sdk: CodexSdk | (() => Promise<CodexSdk>),
+  name = "codex",
+): CliAdapter & Required<Pick<CliAdapter, "execute">> => ({
   name,
   command: "codex",
   description: "Codex — OpenAI's coding agent (SDK transport)",
@@ -37,12 +40,21 @@ export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter =
   execute: ({ prompt, cwd, resumeId, timeoutMs }) =>
     Effect.scoped(
       Effect.gen(function* () {
+        const client =
+          typeof sdk === "function"
+            ? yield* Effect.tryPromise({
+                try: sdk,
+                catch: (error) => new Error(error instanceof Error ? error.message : String(error)),
+              })
+            : sdk
         // approvalPolicy "never" auto-denies permission prompts — the unattended
         // default for external-CLI delegation; interactive approval wiring is a
         // follow-up (codex surfaces approvals as stream events, not a callback).
         const options = { workingDirectory: cwd, approvalPolicy: "never" as const }
-        const thread = resumeId ? sdk.resumeThread(resumeId, options) : sdk.startThread(options)
-        const threadSessionId = (thread.id ?? resumeId) || undefined
+        const thread = yield* Effect.try({
+          try: () => (resumeId ? client.resumeThread(resumeId, options) : client.startThread(options)),
+          catch: (error) => new Error(error instanceof Error ? error.message : String(error)),
+        })
         const abortController = yield* Effect.acquireRelease(
           Effect.sync(() => new AbortController()),
           (controller) => Effect.sync(() => controller.abort()),
@@ -58,7 +70,6 @@ export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter =
                 timedOut: true as const,
                 status: "failed" as const,
                 summary: `CLI "${name}" SDK execution timed out`,
-                ...(threadSessionId ? { sessionId: threadSessionId } : {}),
                 errorCode: "timeout",
                 recoveryRequired: true,
                 errors: ["Timed out"],
@@ -68,18 +79,18 @@ export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter =
             Effect.succeed({
               status: "failed" as const,
               summary: `CLI "${name}" SDK execution failed: ${error.message}`,
-              ...(threadSessionId ? { sessionId: threadSessionId } : {}),
               errorCode: "provider_error",
               recoveryRequired: true,
               errors: [error.message],
             }),
           ),
         )
+        // The SDK assigns the id after the turn starts, including failed turns.
+        const sessionId = thread.id ?? resumeId ?? undefined
         if (!("finalResponse" in turnResult)) {
-          return turnResult
+          return { ...turnResult, ...(sessionId ? { sessionId } : {}) }
         }
         const summary = turnResult.finalResponse.trim()
-        const sessionId = threadSessionId
         if (!summary) {
           return {
             status: "failed" as const,
@@ -99,12 +110,25 @@ export const makeCodexSdkAdapter = (sdk: CodexSdk, name = "codex"): CliAdapter =
         }
         const parsed = DelegationParser.parseDelegationResult(turnResult.finalResponse)
         return { status: "success" as const, summary, sessionId, review: parsed?.review }
-      }),
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.succeed({
+            status: "failed" as const,
+            summary: `CLI "${name}" SDK initialization failed: ${error.message}`,
+            ...(resumeId ? { sessionId: resumeId } : {}),
+            errorCode: "cli_unavailable",
+            recoveryRequired: true,
+            errors: [error.message],
+          }),
+        ),
+      ),
     ),
 })
 
-// Production adapter backed by the real Codex SDK. The SDK's richer types are
-// cast to the minimal seam — a third-party compatibility escape (we only need
-// startThread/resumeThread/run for one-shot + resume delegation).
-// oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- third-party SDK surface intentionally narrowed to the minimal seam
-export const adapter: CliAdapter = makeCodexSdkAdapter(new RealCodex() as unknown as CodexSdk)
+// Discovery never constructs an SDK client. Resolve the user's local CLI only
+// when executing; the SDK must not search this application's npm dependencies.
+export const adapter: CliAdapter = makeCodexSdkAdapter(async () => {
+  const codexPathOverride = CliExecutable.resolve("codex")
+  const { Codex } = await import("@openai/codex-sdk")
+  return new Codex({ codexPathOverride })
+})

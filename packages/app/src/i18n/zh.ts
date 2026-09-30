@@ -1156,6 +1156,21 @@ export const dict = {
 
   "settings.models.title": "模型",
   "settings.models.description": "模型设置将在此处可配置。",
+  "settings.cliAgents.title": "CLI 智能体",
+  "settings.cliAgents.environment.title": "当前服务器环境",
+  "settings.cliAgents.environment.description":
+    "桌面版检查本机，远程和 WSL 服务器检查各自的环境。检测不会验证登录状态。",
+  "settings.cliAgents.noInstall": "检测过程不会安装或运行 CLI。",
+  "settings.cliAgents.status.detected": "已检测到",
+  "settings.cliAgents.status.notDetected": "未检测到",
+  "settings.cliAgents.command": "命令",
+  "settings.cliAgents.path": "解析路径",
+  "settings.cliAgents.loading": "正在扫描 CLI 智能体...",
+  "settings.cliAgents.empty.title": "没有可检测的 CLI 智能体",
+  "settings.cliAgents.empty.description": "当前服务器未返回任何 CLI 智能体。",
+  "settings.cliAgents.error.title": "无法扫描 CLI 智能体",
+  "settings.cliAgents.error.description": "服务器没有响应。请检查连接后重试。",
+  "settings.cliAgents.retry": "重试扫描",
 
   "settings.agents.title": "智能体",
   "settings.agents.description": "智能体设置将在此处可配置。",

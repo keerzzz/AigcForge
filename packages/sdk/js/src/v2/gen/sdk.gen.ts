@@ -74,6 +74,7 @@ import type {
   DeliveryReadResponses,
   DeliveryRecentErrors,
   DeliveryRecentResponses,
+  EventSubscribeErrors,
   EventSubscribeResponses,
   EventTuiCommandExecute,
   EventTuiPromptAppend,
@@ -85,6 +86,7 @@ import type {
   ExperimentalConsoleGetResponses,
   ExperimentalConsoleListOrgsErrors,
   ExperimentalConsoleListOrgsResponses,
+  ExperimentalConsoleSwitchOrgErrors,
   ExperimentalConsoleSwitchOrgResponses,
   ExperimentalControlPlaneMoveSessionErrors,
   ExperimentalControlPlaneMoveSessionResponses,
@@ -468,6 +470,8 @@ import type {
   TuiSubmitPromptErrors,
   TuiSubmitPromptResponses,
   TurnKind,
+  V2AgentCliErrors,
+  V2AgentCliResponses,
   V2AgentListErrors,
   V2AgentListResponses,
   V2CommandListErrors,
@@ -1051,7 +1055,11 @@ export class Console extends HeyApiClient {
         },
       ],
     )
-    return (options?.client ?? this.client).post<ExperimentalConsoleSwitchOrgResponses, unknown, ThrowOnError>({
+    return (options?.client ?? this.client).post<
+      ExperimentalConsoleSwitchOrgResponses,
+      ExperimentalConsoleSwitchOrgErrors,
+      ThrowOnError
+    >({
       url: "/experimental/console/switch",
       ...options,
       ...params,
@@ -1668,7 +1676,7 @@ export class Event extends HeyApiClient {
         },
       ],
     )
-    return (options?.client ?? this.client).sse.get<EventSubscribeResponses, unknown, ThrowOnError>({
+    return (options?.client ?? this.client).sse.get<EventSubscribeResponses, EventSubscribeErrors, ThrowOnError>({
       url: "/event",
       ...options,
       ...params,
@@ -8950,6 +8958,28 @@ export class Agent extends HeyApiClient {
     const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "location" }] }])
     return (options?.client ?? this.client).get<V2AgentListResponses, V2AgentListErrors, ThrowOnError>({
       url: "/api/agent",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Detect CLI agents
+   *
+   * Find user-installed CLI agents in the current server environment without running or installing them.
+   */
+  public cli<ThrowOnError extends boolean = false>(
+    parameters?: {
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "location" }] }])
+    return (options?.client ?? this.client).get<V2AgentCliResponses, V2AgentCliErrors, ThrowOnError>({
+      url: "/api/agent/cli",
       ...options,
       ...params,
     })

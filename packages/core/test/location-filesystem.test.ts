@@ -30,6 +30,8 @@ const withTmp = <A, E, R>(f: (directory: string) => Effect.Effect<A, E, R>) =>
     (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
   ).pipe(Effect.flatMap((tmp) => f(tmp.path)))
 
+const missingDirectory = "/aigcfroge-test-missing-location-9f3c2a"
+
 describe("FileSystem", () => {
   it.live("reads text and binary files", () =>
     withTmp((directory) =>
@@ -69,5 +71,22 @@ describe("FileSystem", () => {
         expect(Exit.isFailure(result)).toBe(true)
       }).pipe(provide(directory)),
     ),
+  )
+
+  it.live("builds without dying when the location directory does not exist on disk", () =>
+    Effect.gen(function* () {
+      // Regression: a stale remembered location (directory deleted, renamed,
+      // or migrated to a new machine) used to die at layer construction
+      // (fff native search, ripgrep spawn, and an unguarded realPath all
+      // assumed the directory exists), which LocationServiceMap's Layer.orDie
+      // then escalated into an opaque empty 500/503 for every HTTP endpoint
+      // sharing that location — not just filesystem browsing. Construction
+      // must now succeed regardless of what any individual method call does
+      // once invoked (an actual read/list against a missing path is a
+      // separate, pre-existing "path resolution failed" defect, same as an
+      // escaped path or a non-file target — unrelated to this fix).
+      const buildExit = yield* Effect.exit(FileSystem.Service)
+      expect(Exit.isSuccess(buildExit)).toBe(true)
+    }).pipe(provide(missingDirectory)),
   )
 })

@@ -1762,6 +1762,7 @@ const scenarios: Scenario[] = [
       check(body.evidence.method === "realpath", "realpath must be the first proof method")
     }),
   http.protected.get("/api/agent", "v2.agent.list").json(200, locationData(array)),
+  http.protected.get("/api/agent/cli", "v2.agent.cli").json(200, locationData(array)),
   http.protected.get("/api/model", "v2.model.list").json(200, locationData(array)),
   http.protected.get("/api/provider", "v2.provider.list").json(200, locationData(array)),
   http.protected.get("/api/integration", "v2.integration.list").json(200, locationData(array)),

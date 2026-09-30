@@ -73,7 +73,14 @@ const baseLayer = Layer.effect(
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const search = yield* FileSystemSearch.Service
-    const root = yield* fs.realPath(location.directory).pipe(Effect.orDie)
+    // A stale remembered location (directory deleted, renamed, or migrated to
+    // a new machine) must not crash the whole location layer graph just to
+    // resolve symlinks for a directory that isn't there. Fall back to the
+    // nominal directory as its own root; every `resolve()` below will then
+    // fail its containment check with a typed error instead of `orDie`ing on
+    // a `realPath` lookup that can never succeed.
+    const directoryExists = yield* fs.existsSafe(location.directory)
+    const root = directoryExists ? yield* fs.realPath(location.directory).pipe(Effect.orDie) : location.directory
     const resolve = Effect.fnUntraced(function* (input?: RelativePath) {
       const absolute = path.resolve(location.directory, input ?? ".")
       if (!FSUtil.contains(location.directory, absolute))
