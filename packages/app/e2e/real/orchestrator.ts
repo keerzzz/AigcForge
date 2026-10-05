@@ -5,7 +5,8 @@
  *   1. the deterministic provider (in-process loopback server speaking the
  *      OpenAI-compatible /chat/completions SSE protocol),
  *   2. the real backend (`aigcfroge serve` with a temp SQLite DB, temp config
- *      dir carrying the loopback provider, temp workspace),
+ *      dir carrying the loopback provider, temp workspace), plus a second
+ *      isolated backend when E4_DUAL_BACKEND=1,
  *   3. the production app preview (`vite build` then `vite preview`).
  *
  * Playwright starts this process and SIGTERMs it on exit; the signal handler
@@ -38,11 +39,17 @@ const v2Runtime = process.env.E4_V2_RUNTIME === "1"
 const providerPort = Number(process.env.E4_PROVIDER_PORT)
 const backendPort = Number(process.env.E4_BACKEND_PORT)
 const previewPort = Number(process.env.E4_PREVIEW_PORT)
+const peerPort = process.env.E4_DUAL_BACKEND === "1" ? Number(process.env.E4_PEER_BACKEND_PORT) : undefined
 const runDir = process.env.E4_RUN_DIR ?? ""
 if (!Number.isFinite(providerPort)) throw new Error("E4_PROVIDER_PORT is missing or not a number")
 if (!Number.isFinite(backendPort)) throw new Error("E4_BACKEND_PORT is missing or not a number")
 if (!Number.isFinite(previewPort)) throw new Error("E4_PREVIEW_PORT is missing or not a number")
 if (!runDir) throw new Error("E4_RUN_DIR is missing")
+if (peerPort !== undefined && (!Number.isInteger(peerPort) || peerPort <= 0 || peerPort > 65535)) {
+  throw new Error("E4_PEER_BACKEND_PORT is missing or invalid")
+}
+const ports = [providerPort, backendPort, previewPort, ...(peerPort === undefined ? [] : [peerPort])]
+if (new Set(ports).size !== ports.length) throw new Error("E4 ports must be distinct")
 for (const [name, dir] of [
   ["REPO_ROOT", REPO_ROOT],
   ["APP_ROOT", APP_ROOT],
@@ -76,7 +83,7 @@ const log = (line: string) => {
 
 // ── deterministic provider ───────────────────────────────────────────────────
 
-type ProviderFailureMode = "http-500" | "sse-cut" | "slow" | "duplicate" | "tool-call"
+type ProviderFailureMode = "http-500" | "sse-cut" | "slow" | "duplicate" | "tool-call" | "question" | "permission"
 type ProviderScenario = ProviderFailureMode | "healthy"
 type ProviderRequest = {
   method: string
@@ -103,6 +110,8 @@ const providerFailureModes: ReadonlyArray<ProviderFailureMode> = [
   "slow",
   "duplicate",
   "tool-call",
+  "question",
+  "permission",
 ]
 const isProviderFailureMode = (value: string): value is ProviderFailureMode =>
   providerFailureModes.some((mode) => mode === value)
@@ -139,12 +148,27 @@ const providerToolCallID = "call_e4_read_workspace"
 
 /**
  * One real OpenAI-compatible streamed function call. The arguments are split across two deltas so
- * the backend has to assemble the provider protocol before it can dispatch the existing `read`
- * tool. The target is the run's own empty git workspace: local, deterministic, and covered by the
- * default read permission without any external network or user approval.
+ * the backend has to assemble the provider protocol before dispatching the real tool. The
+ * ordinary case reads the run's own workspace. Decision cases invoke the existing question
+ * tool or a harmless shell command guarded by the peer variant's explicit ask rule.
  */
-function writeToolCall(response: ServerResponse) {
-  const input = JSON.stringify({ filePath: workspaceDir })
+function writeToolCall(response: ServerResponse, kind: "tool-call" | "question" | "permission" = "tool-call") {
+  const name = kind === "question" ? "question" : kind === "permission" ? "bash" : "read"
+  const input = JSON.stringify(
+    kind === "question"
+      ? {
+          questions: [
+            {
+              header: "E4 choice",
+              question: "Choose this session's answer",
+              options: [{ label: "Continue", description: "Continue only this session" }],
+            },
+          ],
+        }
+      : kind === "permission"
+        ? { command: "printf e4-scope-approved" }
+        : { filePath: workspaceDir },
+  )
   const split = Math.ceil(input.length / 2)
   response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
   response.write(
@@ -156,7 +180,7 @@ function writeToolCall(response: ServerResponse) {
           index: 0,
           id: providerToolCallID,
           type: "function",
-          function: { name: "read", arguments: "" },
+          function: { name, arguments: "" },
         },
       ],
     }),
@@ -308,9 +332,13 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
         writeCompletion(response, { repeat: 2 })
         return
       }
-      if (providerFailureMode === "tool-call") {
+      if (
+        providerFailureMode === "tool-call" ||
+        providerFailureMode === "question" ||
+        providerFailureMode === "permission"
+      ) {
         record.responseStartedAt = Date.now()
-        writeToolCall(response)
+        writeToolCall(response, providerFailureMode)
         return
       }
       record.responseStartedAt = Date.now()
@@ -476,6 +504,7 @@ async function teardown(reason: string) {
     ["provider", providerPort],
     ["backend", backendPort],
     ["preview", previewPort],
+    ...(peerPort === undefined ? [] : [["peer", peerPort] as const]),
   ] as const) {
     if (await portInUse(port)) leaked.push(`${name}:${port}`)
   }
@@ -509,6 +538,7 @@ async function main() {
       {
         model: "e4-real/e4-deterministic",
         small_model: "e4-real/e4-deterministic",
+        ...(peerPort === undefined ? {} : { permission: { bash: "ask" } }),
         provider: {
           "e4-real": {
             npm: "@ai-sdk/openai-compatible",
@@ -545,6 +575,7 @@ async function main() {
   backendChild = spawnChild("backend", process.execPath, backend.args, backend.cwd, backend.env)
   const health = await waitForHealthy(backendUrl, 600_000)
   log(`[E4] backend healthy at ${backendUrl} (version ${health.version})\n`)
+  const peer = await startPeerBackend()
 
   // 5. production build, then preview. The app resolves the backend through the
   //    seeded localStorage registry, so the build carries no port.
@@ -597,6 +628,7 @@ async function main() {
         v2Runtime,
         pid: process.pid,
         pgid: currentPgid(),
+        ...(peer === undefined ? {} : { peer }),
       },
       null,
       2,
@@ -608,6 +640,38 @@ async function main() {
   // SIGTERM delivery prompt so the teardown report lands inside the grace
   // window.
   setInterval(() => {}, 1_000)
+}
+
+async function startPeerBackend() {
+  if (peerPort === undefined) return undefined
+  const peerDir = path.join(runDir, "peer")
+  Environment.prepare(peerDir)
+  const config = path.join(peerDir, "config")
+  const workspace = path.join(peerDir, "workspace")
+  for (const dir of [config, workspace]) mkdirSync(dir, { recursive: true, mode: 0o700 })
+  cpSync(path.join(configDir, "aigcfroge.json"), path.join(config, "aigcfroge.json"))
+  const git = spawnSync("git", ["init", "-q", workspace], {
+    cwd: workspace,
+    env: Environment.create(peerDir, process.env),
+  })
+  if (git.error) throw git.error
+  if (git.status !== 0) throw new Error("E4 peer workspace git init failed")
+  const peer = Environment.backend(
+    { runDir: peerDir, entrypoint: path.join(BACKEND_ROOT, "src/index.ts"), port: peerPort, v2Runtime },
+    process.env,
+  )
+  spawnChild("peer", process.execPath, peer.args, peer.cwd, peer.env)
+  const url = `http://127.0.0.1:${peerPort}`
+  const health = await waitForHealthy(url, 600_000)
+  log(`[E4] peer healthy at ${url} (version ${health.version})\n`)
+  return {
+    backendVersion: health.version,
+    backendPort: peerPort,
+    backendUrl: url,
+    configDir: config,
+    dbPath: path.join(peerDir, "e4.sqlite"),
+    workspaceDir: workspace,
+  }
 }
 
 function fail(error: unknown) {

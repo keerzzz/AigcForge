@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { Event } from "@aigcfroge/sdk/v2"
+import type { Event, QuestionV2Request } from "@aigcfroge/sdk/v2"
 import { entryBody } from "@/cli/cmd/run/entry.body"
 import {
   bootstrapSubagentCalls,
@@ -135,7 +135,7 @@ function taskMessage(sessionID: string, status: "running" | "completed" | "inter
   }
 }
 
-function question(id: string, sessionID: string) {
+function question(id: string, sessionID: string): QuestionV2Request {
   return {
     id,
     sessionID,
@@ -545,3 +545,27 @@ describe("run subagent data", () => {
     ])
   })
 })
+
+for (const type of ["question.v2.replied", "question.v2.rejected"] as const) {
+  test(`subagent native Question events keep child ownership through ${type}`, () => {
+    const data = createSubagentData()
+    bootstrapSubagentData({
+      data,
+      messages: [taskMessage("child-1")],
+      children: [{ id: "child-1" }],
+      permissions: [],
+      questions: [],
+    })
+    const request = question("question-native", "child-1")
+    reduce(data, { id: "asked", type: "question.v2.asked", properties: request } satisfies Event)
+    expect(snapshotSubagentData(data).questions).toEqual([request])
+    const properties = { sessionID: request.sessionID, requestID: request.id }
+    reduce(
+      data,
+      type === "question.v2.replied"
+        ? ({ id: "settled", type, properties: { ...properties, answers: [] } } satisfies Event)
+        : ({ id: "settled", type, properties } satisfies Event),
+    )
+    expect(snapshotSubagentData(data).questions).toEqual([])
+  })
+}

@@ -1,5 +1,31 @@
-import type { PermissionRequest, QuestionRequest, Session } from "@aigcfroge/sdk/v2/client"
+import type { PermissionRequest, QuestionV2Request, Session } from "@aigcfroge/sdk/v2/client"
 import { PermissionPendingModel } from "@/context/global-sync/permission-pending"
+import { ScopedKey, type ServerScope } from "@/utils/server-scope"
+
+function sessionTreeLevels(session: Session[], sessionID?: string) {
+  if (!sessionID) return []
+
+  const children = session.reduce((acc, item) => {
+    if (!item.parentID) return acc
+    const list = acc.get(item.parentID)
+    if (list) list.push(item.id)
+    if (!list) acc.set(item.parentID, [item.id])
+    return acc
+  }, new Map<string, string[]>())
+  const seen = new Set([sessionID])
+  const levels = [[sessionID]]
+  for (const ids of levels) {
+    const next = ids
+      .flatMap((id) => children.get(id) ?? [])
+      .filter((id) => {
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+    if (next.length) levels.push(next)
+  }
+  return levels
+}
 
 function sessionTreeRequest<T>(
   session: Session[],
@@ -7,31 +33,22 @@ function sessionTreeRequest<T>(
   sessionID?: string,
   include: (item: T) => boolean = () => true,
 ) {
-  if (!sessionID) return undefined
-
-  const map = session.reduce((acc, item) => {
-    if (!item.parentID) return acc
-    const list = acc.get(item.parentID)
-    if (list) list.push(item.id)
-    if (!list) acc.set(item.parentID, [item.id])
-    return acc
-  }, new Map<string, string[]>())
-
-  const seen = new Set([sessionID])
-  const ids = [sessionID]
-  for (const id of ids) {
-    const list = map.get(id)
-    if (!list) continue
-    for (const child of list) {
-      if (seen.has(child)) continue
-      seen.add(child)
-      ids.push(child)
-    }
+  for (const id of sessionTreeLevels(session, sessionID).flat()) {
+    const item = request[id]?.find(include)
+    if (item !== undefined) return item
   }
+  return undefined
+}
 
-  const id = ids.find((id) => request[id]?.some(include))
-  if (!id) return
-  return request[id]?.find(include)
+function pendingPermissions(
+  legacy: PermissionRequest[] = [],
+  v2: PermissionPendingModel.PermissionV2Pending[] = [],
+  includeLegacy: (item: PermissionRequest) => boolean = () => true,
+): PermissionPendingModel.PermissionPending[] {
+  return [
+    ...v2.map((request) => ({ kind: "v2" as const, request })),
+    ...legacy.filter(includeLegacy).map(PermissionPendingModel.permissionPendingFromLegacy),
+  ]
 }
 
 export function sessionPermissionRequest(
@@ -48,43 +65,101 @@ export function sessionPendingPermissionRequest(
   legacy: Record<string, PermissionRequest[] | undefined>,
   v2: Record<string, PermissionPendingModel.PermissionV2Pending[] | undefined>,
   sessionID?: string,
-  includeLegacy: (item: PermissionRequest) => boolean = () => true,
+  includeLegacy?: (item: PermissionRequest) => boolean,
 ): PermissionPendingModel.PermissionPending | undefined {
-  if (!sessionID) return undefined
-
-  const children = session.reduce((acc, item) => {
-    if (!item.parentID) return acc
-    const list = acc.get(item.parentID)
-    if (list) list.push(item.id)
-    if (!list) acc.set(item.parentID, [item.id])
-    return acc
-  }, new Map<string, string[]>())
-  const seen = new Set([sessionID])
-  const ids = [sessionID]
-  for (const id of ids) {
-    const list = children.get(id)
-    if (!list) continue
-    for (const child of list) {
-      if (seen.has(child)) continue
-      seen.add(child)
-      ids.push(child)
-    }
+  for (const id of sessionTreeLevels(session, sessionID).flat()) {
+    const request = pendingPermissions(legacy[id], v2[id], includeLegacy)[0]
+    if (request) return request
   }
-
-  for (const id of ids) {
-    const v2Request = v2[id]?.[0]
-    if (v2Request) return { kind: "v2", request: v2Request }
-    const legacyRequest = legacy[id]?.find(includeLegacy)
-    if (legacyRequest) return PermissionPendingModel.permissionPendingFromLegacy(legacyRequest)
-  }
-  return undefined
 }
 
 export function sessionQuestionRequest(
   session: Session[],
-  request: Record<string, QuestionRequest[] | undefined>,
+  request: Record<string, QuestionV2Request[] | undefined>,
   sessionID?: string,
-  include?: (item: QuestionRequest) => boolean,
+  include?: (item: QuestionV2Request) => boolean,
 ) {
   return sessionTreeRequest(session, request, sessionID, include)
+}
+
+type SessionRequestSource = {
+  session: Session[]
+  sessionID?: string
+  scope: ServerScope
+  directory: string
+  question: Record<string, QuestionV2Request[] | undefined>
+  legacyPermission: Record<string, PermissionRequest[] | undefined>
+  v2Permission: Record<string, PermissionPendingModel.PermissionV2Pending[] | undefined>
+  includeLegacyPermission?: (item: PermissionRequest) => boolean
+}
+
+export type SessionPendingRequest =
+  | {
+      readonly domain: "permission"
+      readonly key: ScopedKey
+      readonly ownerSessionID: string
+      readonly request: PermissionPendingModel.PermissionPending
+    }
+  | {
+      readonly domain: "question"
+      readonly key: ScopedKey
+      readonly ownerSessionID: string
+      readonly request: QuestionV2Request
+    }
+
+export type SessionActiveRequest = SessionPendingRequest
+
+export function sessionPendingRequests(input: SessionRequestSource): SessionPendingRequest[] {
+  // Visit parent levels first, then permissions before questions at each level.
+  // Preserve each store's recorded order. The active selector below consumes
+  // this same ordered list, so discovery and arbitration cannot drift.
+  return sessionTreeLevels(input.session, input.sessionID).flatMap((ids): SessionPendingRequest[] => [
+    ...ids.flatMap((id) =>
+      pendingPermissions(input.legacyPermission[id], input.v2Permission[id], input.includeLegacyPermission).map(
+        (request): SessionPendingRequest => ({
+          domain: "permission",
+          key: ScopedKey.from(
+            input.scope,
+            input.directory,
+            request.request.sessionID,
+            "permission",
+            request.kind,
+            request.request.id,
+          ),
+          ownerSessionID: request.request.sessionID,
+          request,
+        }),
+      ),
+    ),
+    ...ids.flatMap((id) =>
+      (input.question[id] ?? []).map(
+        (request): SessionPendingRequest => ({
+          domain: "question",
+          key: ScopedKey.from(input.scope, input.directory, request.sessionID, "question", request.id),
+          ownerSessionID: request.sessionID,
+          request,
+        }),
+      ),
+    ),
+  ])
+}
+
+export function selectSessionRequest(
+  requests: readonly SessionPendingRequest[],
+  input: { selectedKey?: string; previousActiveKey?: string },
+): SessionPendingRequest | undefined {
+  return (
+    requests.find((request) => request.key === input.selectedKey) ??
+    requests.find((request) => request.key === input.previousActiveKey) ??
+    requests[0]
+  )
+}
+
+export function sessionActiveRequest(
+  input: SessionRequestSource & {
+    selectedKey?: string
+    previousActiveKey?: string
+  },
+): SessionActiveRequest | undefined {
+  return selectSessionRequest(sessionPendingRequests(input), input)
 }

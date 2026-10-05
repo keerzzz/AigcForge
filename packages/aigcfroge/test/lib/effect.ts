@@ -1,12 +1,13 @@
 import { test, type TestOptions } from "bun:test"
 import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
 import { Cause, Duration, Effect, Exit, Layer } from "effect"
-import * as Scope from "effect/Scope"
+import type * as Scope from "effect/Scope"
 import * as TestClock from "effect/testing/TestClock"
 import * as TestConsole from "effect/testing/TestConsole"
 import { memoMap } from "@aigcfroge/core/effect/memo-map"
 import { InstanceStore } from "@/project/instance-store"
 import { TestInstance, withTmpdirInstance } from "../fixture/fixture"
+import { runTest } from "../../../core/test/lib/effect"
 
 type Body<A, E, R> = Effect.Effect<A, E, R> | (() => Effect.Effect<A, E, R>)
 type InstanceOptions<E, R> = {
@@ -32,7 +33,7 @@ function instanceArgs<E, R>(
 
 const body = <A, E, R>(value: Body<A, E, R>) => Effect.suspend(() => (typeof value === "function" ? value() : value))
 
-type Runner = <A, E, R, E2>(value: Body<A, E, R | Scope.Scope>, layer: Layer.Layer<R, E2>) => Promise<A>
+type Runner = <A, E, R, E2>(value: Body<A, E, R | Scope.Scope>, layer: Layer.Layer<R, E2>) => Promise<void>
 
 const isolatedRun: Runner = (value, layer) =>
   Effect.gen(function* () {
@@ -43,7 +44,7 @@ const isolatedRun: Runner = (value, layer) =>
       }
     }
     return yield* exit
-  }).pipe(Effect.runPromise)
+  }).pipe(runTest)
 
 // Builds the test layer through the shared process-wide memoMap so cached
 // services (Bus, Session, …) match Server.Default's instances. Use for tests
@@ -51,17 +52,16 @@ const isolatedRun: Runner = (value, layer) =>
 // the server's handlers.
 const sharedRun: Runner = (value, layer) =>
   Effect.gen(function* () {
-    const scope = yield* Scope.make()
+    const scope = yield* Effect.scope
     const ctx = yield* Layer.buildWithMemoMap(layer, memoMap, scope)
     const exit = yield* body(value).pipe(Effect.scoped, Effect.provide(ctx), Effect.exit)
-    yield* Scope.close(scope, Exit.void)
     if (Exit.isFailure(exit)) {
       for (const err of Cause.prettyErrors(exit.cause)) {
         yield* Effect.logError(err)
       }
     }
     return yield* exit
-  }).pipe(Effect.runPromise)
+  }).pipe(Effect.scoped, runTest)
 
 const make = <R, E>(testLayer: Layer.Layer<R, E>, liveLayer: Layer.Layer<R, E>, run: Runner = isolatedRun) => {
   const effect = <A, E2>(name: string, value: Body<A, E2, R | Scope.Scope>, opts?: number | TestOptions) =>

@@ -27,8 +27,14 @@ const result = Bun.spawnSync(
        retries: module.default.retries,
        webServer: module.default.webServer,
        envDir: module.default.envDir,
+       testMatch: module.default.testMatch,
+       testIgnore: module.default.testIgnore,
      };
    }
+   process.env.E4_DUAL_BACKEND = "1";
+   process.env.E4_PEER_BACKEND_PORT = "41004";
+   const dual = (await import("./e2e/real/playwright.config.ts?dual")).default;
+   configs.dual = { webServer: dual.webServer, testMatch: dual.testMatch, testIgnore: dual.testIgnore };
    console.log(JSON.stringify(configs));`,
   ],
   {
@@ -85,4 +91,15 @@ test("actual E4 config isolates the launcher without inheriting root setup/retry
 
 test("E4 extends the production Vite config with dotenv disabled", () => {
   expect(loadConfig("./e2e/real/vite.config.ts").envDir).toBe(false)
+})
+
+test("dual-backend E4 is opt-in, allocates a peer and only discovers the scope matrix", () => {
+  const single = loadConfig("./e2e/real/playwright.config.ts")
+  expect(single.testIgnore).toContain("**/session-decision-scope.spec.ts")
+  const dual = loadConfig("dual")
+  expect(dual.testMatch).toEqual(["**/session-decision-scope.spec.ts", "**/manifest.spec.ts"])
+  if (!isRecord(dual.webServer) || !isRecord(dual.webServer.env)) throw new Error("missing dual E4 launcher")
+  expect(dual.webServer.env.E4_DUAL_BACKEND).toBe("1")
+  expect(dual.webServer.env.E4_PEER_BACKEND_PORT).toBe("41004")
+  expect(dual.webServer.env.OPENAI_API_KEY).toBe("")
 })

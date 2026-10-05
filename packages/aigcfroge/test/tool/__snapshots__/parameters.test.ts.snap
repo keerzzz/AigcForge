@@ -377,16 +377,33 @@ exports[`tool parameters JSON Schema (wire shape) todo 1`] = `
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
-    "todos": {
-      "description": "The updated todo list",
+    "expectedRevision": {
+      "description": "The max revision the caller observed across all tasks. If any task changed since, the replace is rejected as stale.",
+      "type": "number",
+    },
+    "tasks": {
+      "description": "The full task list. Entries without an id are created with a stable tsk_ id; entries with an id are reconciled in place. Omitted entries are removed.",
       "items": {
         "properties": {
+          "agentID": {
+            "type": "string",
+          },
           "content": {
-            "description": "Brief description of the task",
+            "type": "string",
+          },
+          "dependsOn": {
+            "items": {
+              "type": "string",
+            },
+            "type": "array",
+          },
+          "id": {
+            "type": "string",
+          },
+          "parentID": {
             "type": "string",
           },
           "priority": {
-            "description": "Priority level of the task: high, medium, low",
             "enum": [
               "high",
               "medium",
@@ -394,13 +411,38 @@ exports[`tool parameters JSON Schema (wire shape) todo 1`] = `
             ],
             "type": "string",
           },
+          "recurrence": {
+            "properties": {
+              "cron": {
+                "type": "string",
+              },
+              "enabled": {
+                "type": "boolean",
+              },
+              "timezone": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "cron",
+              "enabled",
+            ],
+            "type": "object",
+          },
+          "scheduledAt": {
+            "type": "number",
+          },
+          "spawnedFrom": {
+            "type": "string",
+          },
           "status": {
-            "description": "Current status of the task: pending, in_progress, completed, cancelled",
             "enum": [
               "pending",
               "in_progress",
               "completed",
               "cancelled",
+              "scheduled",
+              "failed",
             ],
             "type": "string",
           },
@@ -416,7 +458,7 @@ exports[`tool parameters JSON Schema (wire shape) todo 1`] = `
     },
   },
   "required": [
-    "todos",
+    "tasks",
   ],
   "type": "object",
 }

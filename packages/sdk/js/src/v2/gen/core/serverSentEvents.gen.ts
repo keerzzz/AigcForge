@@ -10,7 +10,7 @@ export type ServerSentEventsOptions<TData = unknown> = Omit<RequestInit, "method
      *
      * @default globalThis.fetch
      */
-    fetch?: typeof fetch
+    fetch?: (request: Request) => Response | Promise<Response>
     /**
      * Implementing clients can call request interceptors inside this hook.
      */

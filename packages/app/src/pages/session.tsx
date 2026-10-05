@@ -432,6 +432,15 @@ export default function Page(props: { rootID: string }) {
     return key
   })
 
+  const taskRead = createMemo(() => {
+    const owner = serverSync()
+    const directory = sdk().directory
+    const sessionID = params.id
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+    return { owner, directory, sessionID, signal: controller.signal }
+  })
+
   let reviewFrame: number | undefined
   let todoFrame: number | undefined
   let todoTimer: number | undefined
@@ -649,33 +658,31 @@ export default function Page(props: { rootID: string }) {
   createEffect(
     on(
       () => {
-        const id = params.id
+        const request = taskRead()
         return [
-          sdk().directory,
-          id,
-          id ? (sync().data.session_status[id]?.type ?? "idle") : "idle",
-          id ? composer.blocked() : false,
+          request,
+          request.sessionID ? (sync().data.session_status[request.sessionID]?.type ?? "idle") : "idle",
+          request.sessionID ? composer.blocked() : false,
         ] as const
       },
-      ([dir, id, status, blocked]) => {
+      ([request, status, blocked]) => {
         if (todoFrame !== undefined) cancelAnimationFrame(todoFrame)
         if (todoTimer !== undefined) window.clearTimeout(todoTimer)
         todoFrame = undefined
         todoTimer = undefined
-        if (!id) return
-        if (status === "idle" && !blocked) return
-        const cached = untrack(
-          () => sync().data.todo[id] !== undefined || serverSync().data.session_todo[id] !== undefined,
-        )
+        const sessionID = request.sessionID
+        if (!sessionID || (status === "idle" && !blocked)) return
 
         todoFrame = requestAnimationFrame(() => {
           todoFrame = undefined
           todoTimer = window.setTimeout(() => {
             todoTimer = undefined
-            if (sdk().directory !== dir || params.id !== id) return
-            untrack(() => {
-              void sync().session.todo(id, cached ? { force: true } : undefined)
-            })
+            void request.owner.task
+              .load({ directory: request.directory, sessionID, signal: request.signal })
+              .catch((error: unknown) => {
+                if (request.signal.aborted) return
+                console.warn("Session task recovery failed", error instanceof Error ? error.message : String(error))
+              })
           }, 0)
         })
       },

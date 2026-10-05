@@ -80,6 +80,9 @@ export function SelectV2<T>(props: SelectV2Props<T>) {
     "numeric",
     "disabled",
     "valueClass",
+    "aria-label",
+    "aria-labelledby",
+    "aria-describedby",
     "placement",
     "gutter",
     "sameWidth",
@@ -174,6 +177,9 @@ export function SelectV2<T>(props: SelectV2Props<T>) {
     >
       <Kobalte.Trigger
         as="div"
+        aria-label={local["aria-label"]}
+        aria-labelledby={local["aria-labelledby"]}
+        aria-describedby={local["aria-describedby"]}
         data-component="select-v2"
         data-appearance={local.appearance ?? "base"}
         data-invalid={local.invalid ? "" : undefined}

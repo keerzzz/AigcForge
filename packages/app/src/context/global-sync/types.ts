@@ -8,15 +8,15 @@ import type {
   Part,
   Path,
   PermissionRequest,
-  QuestionRequest,
+  QuestionV2Request,
   Session,
   SessionStatus,
   SnapshotFileDiff,
   ProductMode,
-  Todo,
   VcsInfo,
 } from "@aigcfroge/sdk/v2/client"
 import { PermissionPendingModel } from "./permission-pending"
+import { PendingEvents } from "./pending-events"
 import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 import type { Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
@@ -52,9 +52,6 @@ export type State = {
   session_diff: {
     [sessionID: string]: SnapshotFileDiff[]
   }
-  todo: {
-    [sessionID: string]: Todo[]
-  }
   permission: {
     [sessionID: string]: PermissionRequest[]
   }
@@ -63,9 +60,12 @@ export type State = {
   }
   permission_v2_revision: number
   permission_v2_load_epoch: number
-  permission_v2_events: PermissionPendingModel.PermissionV2Event[]
+  permission_v2_events: PendingEvents.Event<PermissionPendingModel.PermissionV2Pending>[]
+  question_revision: number
+  question_load_epoch: number
+  question_events: PendingEvents.Event<QuestionV2Request>[]
   question: {
-    [sessionID: string]: QuestionRequest[]
+    [sessionID: string]: QuestionV2Request[]
   }
   mcp_ready: boolean
   mcp: {

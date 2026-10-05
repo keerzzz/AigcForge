@@ -50,14 +50,9 @@ function rewrite(request: Request, values: { directory?: string; workspace?: str
 
 export function createAigcfrogeClient(config?: Config & { directory?: string; experimental_workspaceID?: string }) {
   if (!config?.fetch) {
-    const customFetch: any = (req: any) => {
-      // @ts-ignore
-      req.timeout = false
-      return fetch(req)
-    }
     config = {
       ...config,
-      fetch: customFetch,
+      fetch: (request: Request) => fetch(Object.assign(request, { timeout: false })),
     }
   }
 

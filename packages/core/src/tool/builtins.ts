@@ -18,7 +18,6 @@ import { TaskDeleteTool } from "./task-delete"
 import { TaskReorderTool } from "./task-reorder"
 import { TaskScheduleTool } from "./taskschedule"
 import { TaskSpawnTool } from "./taskspawn"
-import { TodoWriteTool } from "./todowrite"
 import { WebFetchTool } from "./webfetch"
 import { WebSearchTool } from "./websearch"
 import { WorkPresetTool } from "./work-preset"
@@ -69,7 +68,6 @@ export const locationLayer = Layer.mergeAll(
   TaskReorderTool.layer,
   TaskScheduleTool.layer,
   TaskSpawnTool.layer,
-  TodoWriteTool.layer,
   WebFetchTool.layer,
   WebSearchTool.layer.pipe(Layer.provide(WebSearchTool.defaultConfigLayer)),
   WriteTool.layer,

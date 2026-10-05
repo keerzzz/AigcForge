@@ -10,8 +10,10 @@ import path from "path"
 import { createClient } from "@hey-api/openapi-ts"
 import { OpenApi } from "@aigcfroge/script/openapi"
 
-// Reuse the shared generation boundary instead of re-invoking `dev generate`.
-await Bun.write(path.join(dir, "openapi.json"), await OpenApi.generateOpenApiSpec())
+// Code generation and the committed reference consume the same canonical spec.
+const spec = await OpenApi.generateOpenApiSpec()
+await Bun.write(path.join(dir, "openapi.json"), spec)
+await Bun.write(path.resolve(dir, "../openapi.json"), spec)
 
 await createClient({
   input: "./openapi.json",
@@ -46,20 +48,35 @@ await createClient({
 // to do with HTTP errors, and any consumer that calls `.return()` or returns
 // from a mock generator gets type-checked against the wrong shape. Drop the
 // arg so TReturn defaults to void.
-const sseTypesPath = "./src/v2/gen/client/types.gen.ts"
-const sseTypesFile = Bun.file(sseTypesPath)
-const sseTypesSource = await sseTypesFile.text()
-const sseTypesPatched = sseTypesSource.replace(
+await patchGeneratedType(
+  "./src/v2/gen/client/types.gen.ts",
   "=> Promise<ServerSentEventsResult<TData, TError>>",
   "=> Promise<ServerSentEventsResult<TData>>",
 )
-if (sseTypesPatched === sseTypesSource) {
-  throw new Error(`SseFn patch did not apply; @hey-api/openapi-ts output may have changed (${sseTypesPath})`)
-}
-await Bun.write(sseTypesPath, sseTypesPatched)
 
-await $`bun prettier --write src/gen`
-await $`bun prettier --write src/v2`
+// Both transports call fetch with one Request and await its result. Do not make
+// local HTTP handlers implement runtime-specific helpers such as fetch.preconnect.
+await patchGeneratedType(
+  "./src/v2/gen/core/serverSentEvents.gen.ts",
+  "fetch?: typeof fetch",
+  "fetch?: (request: Request) => Response | Promise<Response>",
+)
+await patchGeneratedType(
+  "./src/v2/gen/client/types.gen.ts",
+  "fetch?: typeof fetch",
+  'fetch?: ServerSentEventsOptions["fetch"]',
+)
+
+await $`bun prettier --write src/v2/gen`
 await $`rm -rf dist`
-await $`bun tsc`
+// Clearing dist invalidates the outputs even when incremental metadata is unchanged.
+await $`bun tsgo -b --force`
 await $`rm openapi.json`
+
+async function patchGeneratedType(file: string, before: string, after: string) {
+  const source = await Bun.file(file).text()
+  if (source.split(before).length !== 2) {
+    throw new Error(`Expected one generated type patch target in ${file}: ${before}`)
+  }
+  await Bun.write(file, source.replace(before, after))
+}

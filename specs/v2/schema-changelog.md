@@ -1,5 +1,17 @@
 # V2 Schema Changelog
 
+## 2026-10-03: One Current Question Contract (AI-TDD-S03)
+
+> **Status: IMPLEMENTED — package, HTTP, browser, and transport gates are recorded in `docs/technical-debt.md` §15.**
+
+- `QuestionV2` in `packages/core/src/question.ts` is the sole pending-request owner. `LocationServiceMap` materializes it per complete `Location.Ref` (directory plus optional workspace identity). Both registered execution runtimes and the default `plan_exit` producer use this owner; default tools no longer own an independent pending map. The default question tool also reuses the canonical tool input, description, and model-output formatter.
+- The current event family is `question.v2.asked/replied/rejected`. App, TUI, and CLI consume it directly, not through event renaming or a second pending store. Historical tool-part content is unchanged.
+- Wire schemas are shared from the pure `packages/schema/src/question.ts` module; Core retains the service and ID generation. Browser consumers and historical tool rendering use the same decoders without importing Core runtime services or rewriting durable history. This relocation leaves generated v2 SDK types/methods byte-identical; the live OpenAPI drift check remains green.
+- Pending snapshot loading replays Question and Permission events by revision and rejects superseded load epochs. The bounded 500-event window is synchronization metadata, not a second pending owner; if required events have been evicted, the loader fetches a fresh snapshot rather than resurrecting settled requests or dropping newly asked ones.
+- The current listing endpoints are `GET /api/question/request` (Location envelope) and `GET /api/session/:sessionID/question`. Decisions use `POST /api/session/:sessionID/question/:requestID/reply|reject` and return 204. They resolve the Session's persisted Location and verify request ownership; missing, settled, and foreign-owner requests return 404 without settling another request.
+- The independent application Question service, `QuestionID` newtype, and `/question`, `/question/:requestID/reply`, `/question/:requestID/reject` routes are retired. The generated v2 SDK and OpenAPI snapshot follow the current contract. Callers capture the request's actual Session ID and original scoped client before sending; there is no write fallback to the removed routes.
+- No durable schema or data migration, no permission-tier change, and no historical transcript conversion. This is an atomic current-client/server switch, not an old-client compatibility window. Release and rollout remain separately gated by the implementation plan.
+
 ## 2026-08-28: MCP Binding Admission Boundary Correction
 
 > **Status: IMPLEMENTED (JSON-path strict decode + excess-key redaction + widened secret patterns)**

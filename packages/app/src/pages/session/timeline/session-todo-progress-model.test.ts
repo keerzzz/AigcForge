@@ -4,9 +4,7 @@ import {
   computeTodoProgress,
   flipTaskWriteStatus,
   normalizeStatus,
-  pickProgressTodos,
   preserveStatus,
-  type TodoProgressInput,
 } from "./session-todo-progress-model"
 
 describe("computeTodoProgress", () => {
@@ -240,69 +238,6 @@ describe("flipTaskWriteStatus (six-state fold-over transition, HIGH-1)", () => {
   test("cancelled and scheduled pass through unchanged (their own management UI)", () => {
     expect(flipTaskWriteStatus("cancelled")).toBe("cancelled")
     expect(flipTaskWriteStatus("scheduled")).toBe("scheduled")
-  })
-})
-
-describe("pickProgressTodos (⑦ double-source freshness)", () => {
-  const t = (content: string, status: string): TodoProgressInput => ({ content, status })
-  const seed = [t("a", "pending"), t("b", "pending")]
-  const live = [t("a", "pending"), t("b", "completed")]
-
-  test("V1: seeded session_task is not locked when a later todo.updated arrives", () => {
-    expect(pickProgressTodos(seed, 100, live, 200)).toEqual(live)
-  })
-
-  test("V1: the todo.updated stream keeps winning while it continues", () => {
-    const more = [t("a", "completed"), t("b", "completed")]
-    expect(pickProgressTodos(seed, 100, more, 300)).toEqual(more)
-  })
-
-  test("V1: empty task seed defers to the populated todo source", () => {
-    expect(pickProgressTodos([], 100, live, 150)).toEqual(live)
-  })
-
-  test("V2: paired todo.updated echo arriving after task.updated (same content) stays on the id-bearing task source", () => {
-    const list = [t("a", "in_progress"), t("b", "pending")]
-    const echo = list.map((x) => ({ ...x }))
-    // The echo has the newer timestamp, but equal content — writeback must survive.
-    expect(pickProgressTodos(list, 100, echo, 101)).toEqual(list)
-  })
-
-  test("V2: equivalence ignores ids (the todo projection is id-less)", () => {
-    const withIds = [
-      { id: "x1", content: "a", status: "pending" },
-      { id: "x2", content: "b", status: "pending" },
-    ]
-    const echo = [t("a", "pending"), t("b", "pending")]
-    expect(pickProgressTodos(withIds, 100, echo, 101)).toEqual(withIds)
-  })
-
-  test("diverging sources pick the later writer", () => {
-    expect(pickProgressTodos(live, 300, seed, 200)).toEqual(live)
-  })
-
-  test("tie on timestamps with diverging content prefers the id-bearing task source", () => {
-    expect(pickProgressTodos(live, 200, seed, 200)).toEqual(live)
-  })
-
-  test("no task source yet defers to todo once it has written", () => {
-    expect(pickProgressTodos(undefined, undefined, live, 150)).toEqual(live)
-  })
-
-  test("only a task source renders it", () => {
-    expect(pickProgressTodos(seed, 100, undefined, undefined)).toEqual(seed)
-  })
-
-  test("both sources empty yields an empty list", () => {
-    expect(pickProgressTodos(undefined, undefined, undefined, undefined)).toEqual([])
-  })
-
-  test("V1 clears the whole todo list: a newer empty todo beats the stale task seed (BLOCKER-2)", () => {
-    expect(pickProgressTodos(seed, 100, [], 200)).toEqual([])
-  })
-
-  test("an older empty todo does not shadow a fresher task seed", () => {
-    expect(pickProgressTodos(seed, 200, [], 100)).toEqual(seed)
   })
 })
 

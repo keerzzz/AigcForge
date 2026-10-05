@@ -445,8 +445,8 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
                   .then(async (tokens) => {
                     const accountId = extractAccountId(tokens) || authWithAccount.accountId
                     await input.client.auth.set({
-                      path: { id: "openai" },
-                      body: {
+                      providerID: "openai",
+                      auth: {
                         type: "oauth",
                         refresh: tokens.refresh_token,
                         access: tokens.access_token,

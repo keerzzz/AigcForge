@@ -92,7 +92,6 @@ export type ScenarioContext = {
   project: () => Effect.Effect<Project.Info>
   message: (sessionID: SessionID, input?: { text?: string }) => Effect.Effect<MessageSeed>
   messages: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts[]>
-  todos: (sessionID: SessionID, todos: TodoInfo[]) => Effect.Effect<void>
   tasks: (
     sessionID: SessionID,
     tasks: ReadonlyArray<SessionTask.WriteInfo>,
@@ -187,5 +186,4 @@ export type Result =
   | { status: "skip"; scenario: TodoScenario }
 
 export type SessionInfo = { id: SessionID; title: string; parentID?: SessionID }
-export type TodoInfo = { content: string; status: string; priority: string }
 export type MessageSeed = { info: SessionV1.User; part: SessionV1.TextPart }

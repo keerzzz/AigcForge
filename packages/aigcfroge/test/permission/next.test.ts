@@ -9,7 +9,7 @@ import { Permission } from "../../src/permission"
 import { InstanceBootstrap } from "../../src/project/bootstrap-service"
 import { InstanceStore } from "../../src/project/instance-store"
 import { TestInstance, tmpdirScoped } from "../fixture/fixture"
-import { testEffect } from "../lib/effect"
+import { awaitWithTimeout, pollWithTimeout, testEffect } from "../lib/effect"
 import { MessageID, SessionID } from "../../src/session/schema"
 
 const events = EventV2Bridge.defaultLayer
@@ -1227,5 +1227,135 @@ it.instance("always auto-approval keeps chat full finalRules ask-gated (H1)", ()
     const remaining = yield* permission.list()
     expect(remaining.some((item) => item.patterns[0] === "src/b.ts")).toBe(true)
     yield* rejectAll()
+  }),
+)
+
+it.instance("AI-TDD-S03-R06: failed permission admission leaves no orphan pending", () =>
+  Effect.gen(function* () {
+    const service = yield* Permission.Service
+    const events = yield* EventV2Bridge.Service
+    const off = yield* events.listen((event) =>
+      event.type === Permission.Event.Asked.type ? Effect.die("permission admission failed") : Effect.void,
+    )
+    yield* Effect.addFinalizer(() => off)
+    const result = yield* service
+      .ask({
+        sessionID: SessionID.make("ses_admission"),
+        permission: "read",
+        patterns: ["src/index.ts"],
+        metadata: {},
+        always: [],
+        ruleset: [],
+      })
+      .pipe(Effect.exit)
+    expect(Exit.isFailure(result)).toBe(true)
+    expect(yield* service.list()).toEqual([])
+  }),
+)
+
+it.instance("AI-TDD-S03-R06: failed permission notification still settles the waiting tool", () =>
+  Effect.gen(function* () {
+    const service = yield* Permission.Service
+    const scope = yield* Effect.scope
+    const events = yield* EventV2Bridge.Service
+    const asked = yield* Deferred.make<void>()
+    const off = yield* events.listen((event) =>
+      event.type === Permission.Event.Asked.type ? Deferred.succeed(asked, undefined) : Effect.void,
+    )
+    yield* Effect.addFinalizer(() => off)
+    const id = PermissionV1.ID.ascending()
+    const fiber = yield* service
+      .ask({
+        id,
+        sessionID: SessionID.make("ses_notification"),
+        permission: "read",
+        patterns: ["src/index.ts"],
+        metadata: {},
+        always: [],
+        ruleset: [],
+      })
+      .pipe(Effect.forkIn(scope))
+    yield* Deferred.await(asked)
+    const failNotification = yield* events.listen((event) =>
+      event.type === Permission.Event.Replied.type ? Effect.die("permission notification failed") : Effect.void,
+    )
+    yield* Effect.addFinalizer(() => failNotification)
+    const result = yield* service.reply({ requestID: id, reply: "once" }).pipe(Effect.exit)
+    expect(Exit.isFailure(result)).toBe(true)
+    expect(yield* service.list()).toEqual([])
+    const answer = yield* awaitWithTimeout(Fiber.await(fiber), "permission caller was stranded after settlement")
+    expect(Exit.isSuccess(answer)).toBe(true)
+  }),
+)
+
+it.instance("AI-TDD-S03-R06: duplicate admission cannot replace an outstanding permission waiter", () =>
+  Effect.gen(function* () {
+    const service = yield* Permission.Service
+    const events = yield* EventV2Bridge.Service
+    const ready = yield* Deferred.make<void>()
+    const off = yield* events.listen((event) =>
+      event.type === Permission.Event.Asked.type ? Deferred.succeed(ready, undefined) : Effect.void,
+    )
+    yield* Effect.addFinalizer(() => off)
+    const input = {
+      id: PermissionV1.ID.ascending(),
+      sessionID: SessionID.make("ses_duplicate"),
+      permission: "read",
+      patterns: ["src/index.ts"],
+      metadata: {},
+      always: [],
+      ruleset: [],
+    }
+    const scope = yield* Effect.scope
+    const original = yield* service.ask(input).pipe(Effect.forkIn(scope))
+    yield* awaitWithTimeout(Deferred.await(ready), "permission was not admitted")
+    expect(Exit.isFailure(yield* service.ask(input).pipe(Effect.exit))).toBe(true)
+    expect(yield* service.list()).toMatchObject([{ id: input.id }])
+    yield* service.reply({ requestID: input.id, reply: "once" })
+    expect(Exit.isSuccess(yield* awaitWithTimeout(Fiber.await(original), "original waiter was overwritten"))).toBe(true)
+    expect(yield* service.list()).toEqual([])
+  }),
+)
+
+it.instance("R06: withdrawing a permission publishes one closure without rejecting another pending permission", () =>
+  Effect.gen(function* () {
+    const service = yield* Permission.Service
+    const events = yield* EventV2Bridge.Service
+    const ready = yield* Deferred.make<void>()
+    const replies: unknown[] = []
+    const off = yield* events.listen((event) => {
+      if (event.type === Permission.Event.Asked.type) return Deferred.succeed(ready, undefined)
+      return Effect.sync(() => {
+        if (event.type === Permission.Event.Replied.type) replies.push(event.data)
+      })
+    })
+    yield* Effect.addFinalizer(() => off)
+    const input = {
+      id: PermissionV1.ID.ascending(),
+      sessionID: SessionID.make("ses_withdraw"),
+      permission: "read",
+      patterns: ["src/index.ts"],
+      metadata: {},
+      always: [],
+      ruleset: [],
+    }
+    const scope = yield* Effect.scope
+    const fiber = yield* service.ask(input).pipe(Effect.forkIn(scope))
+    yield* awaitWithTimeout(Deferred.await(ready), "permission was not admitted")
+    const other = { ...input, id: PermissionV1.ID.ascending(), patterns: ["src/other.ts"] }
+    const waiting = yield* service.ask(other).pipe(Effect.forkIn(scope))
+    yield* pollWithTimeout(
+      service.list().pipe(Effect.map((items) => (items.length === 2 ? items : undefined))),
+      "second permission was not admitted",
+    )
+    yield* awaitWithTimeout(Fiber.interrupt(fiber), "permission cancellation did not finish")
+    expect(yield* service.list()).toMatchObject([{ id: other.id }])
+    expect(replies).toEqual([{ sessionID: input.sessionID, requestID: input.id, reply: "reject" }])
+    expect(yield* service.reply({ requestID: input.id, reply: "once" }).pipe(Effect.flip)).toEqual(
+      new PermissionV1.NotFoundError({ requestID: input.id }),
+    )
+    yield* service.reply({ requestID: other.id, reply: "once" })
+    expect(Exit.isSuccess(yield* Fiber.await(waiting))).toBe(true)
+    expect(replies).toHaveLength(2)
   }),
 )

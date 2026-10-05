@@ -50,22 +50,6 @@ export type PermissionPending =
   | { kind: "legacy"; request: PermissionRequest }
   | { kind: "v2"; request: PermissionV2Pending }
 
-export type PermissionV2Event =
-  | { revision: number; type: "asked"; request: PermissionV2Pending }
-  | { revision: number; type: "replied"; sessionID: string; requestID: string }
-
-export function applyPermissionV2Events(snapshot: PermissionV2Pending[], events: PermissionV2Event[]) {
-  const pending = new Map(snapshot.map((request) => [`${request.sessionID}\0${request.id}`, request]))
-  for (const event of events) {
-    if (event.type === "asked") {
-      pending.set(`${event.request.sessionID}\0${event.request.id}`, event.request)
-      continue
-    }
-    pending.delete(`${event.sessionID}\0${event.requestID}`)
-  }
-  return [...pending.values()]
-}
-
 export type PermissionReplyRequest =
   | {
       kind: "legacy"

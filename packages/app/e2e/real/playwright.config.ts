@@ -4,7 +4,8 @@
  * `retries: CI ? 2 : 0`, and a dev-server webServer, all wrong for E4).
  *
  * Every E4 run gets three fresh loopback ports (deterministic provider, real
- * backend, production preview) and a temp run dir; the orchestrator started as
+ * backend, production preview), plus a peer backend for E4_DUAL_BACKEND=1,
+ * and a temp run dir; the orchestrator started as
  * the single webServer command owns backend, preview, and provider lifecycle.
  * The app talks to the real backend through the localStorage registry seeded by
  * the fixture — the production build itself carries no port.
@@ -28,12 +29,16 @@ const isolatedEnv = Environment.create(runDir, process.env)
 const providerPort = Number(process.env.E4_PROVIDER_PORT) || freePortSync(isolatedEnv)
 const backendPort = Number(process.env.E4_BACKEND_PORT) || freePortSync(isolatedEnv)
 const previewPort = Number(process.env.E4_PREVIEW_PORT) || freePortSync(isolatedEnv)
+const dualBackend = process.env.E4_DUAL_BACKEND === "1"
+const peerPort = dualBackend ? Number(process.env.E4_PEER_BACKEND_PORT) || freePortSync(isolatedEnv) : undefined
 const env = {
   E4_V2_RUNTIME: process.env.E4_V2_RUNTIME ?? "",
   E4_PROVIDER_PORT: String(providerPort),
   E4_BACKEND_PORT: String(backendPort),
   E4_PREVIEW_PORT: String(previewPort),
   E4_RUN_DIR: runDir,
+  E4_DUAL_BACKEND: dualBackend ? "1" : "",
+  E4_PEER_BACKEND_PORT: peerPort === undefined ? "" : String(peerPort),
 }
 // The specs and global teardown run in this process — env is their channel to
 // the orchestrator's runtime manifest.
@@ -41,6 +46,9 @@ Object.assign(process.env, env)
 
 export default defineConfig({
   testDir: here,
+  ...(dualBackend
+    ? { testMatch: ["**/session-decision-scope.spec.ts", "**/manifest.spec.ts"] }
+    : { testIgnore: ["**/session-decision-scope.spec.ts"] }),
   outputDir: path.join(here, "test-results"),
   timeout: 120_000,
   expect: { timeout: 15_000 },

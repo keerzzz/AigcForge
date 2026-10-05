@@ -4729,236 +4729,6 @@
         "summary": "Create PTY WebSocket token"
       }
     },
-    "/question": {
-      "get": {
-        "tags": [
-          "question"
-        ],
-        "operationId": "question.list",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of pending questions",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/QuestionRequest"
-                  },
-                  "description": "List of pending questions"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Get all pending question requests across all sessions.",
-        "summary": "List pending questions"
-      }
-    },
-    "/question/{requestID}/reply": {
-      "post": {
-        "tags": [
-          "question"
-        ],
-        "operationId": "question.reply",
-        "parameters": [
-          {
-            "name": "requestID",
-            "in": "path",
-            "schema": {
-              "type": "string",
-              "pattern": "^que"
-            },
-            "required": true
-          },
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Question answered successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Question answered successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "BadRequest | InvalidRequestError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InvalidRequestError"
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "QuestionNotFoundError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QuestionNotFoundError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Provide answers to a question request from the AI assistant.",
-        "summary": "Reply to question request",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "answers": {
-                    "type": "array",
-                    "items": {
-                      "$ref": "#/components/schemas/QuestionAnswer"
-                    },
-                    "description": "User answers in order of questions (each answer is an array of selected labels)"
-                  }
-                },
-                "required": [
-                  "answers"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        }
-      }
-    },
-    "/question/{requestID}/reject": {
-      "post": {
-        "tags": [
-          "question"
-        ],
-        "operationId": "question.reject",
-        "parameters": [
-          {
-            "name": "requestID",
-            "in": "path",
-            "schema": {
-              "type": "string",
-              "pattern": "^que"
-            },
-            "required": true
-          },
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Question rejected successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Question rejected successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "BadRequest | InvalidRequestError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InvalidRequestError"
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "QuestionNotFoundError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QuestionNotFoundError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Reject a question request from the AI assistant.",
-        "summary": "Reject question request"
-      }
-    },
     "/permission": {
       "get": {
         "tags": [
@@ -12403,89 +12173,6 @@
         },
         "description": "Read-only SessionProductIdentity projection (ADR-23): common identity, permission posture, and the mode detail the owners can supply today.",
         "summary": "Get session identity"
-      }
-    },
-    "/session/{sessionID}/todo": {
-      "get": {
-        "tags": [
-          "session"
-        ],
-        "operationId": "session.todo",
-        "parameters": [
-          {
-            "name": "sessionID",
-            "in": "path",
-            "schema": {
-              "type": "string",
-              "pattern": "^ses"
-            },
-            "required": true
-          },
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Todo list",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Todo"
-                  },
-                  "description": "Todo list"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "BadRequest | UnsupportedProductModeError | InvalidRequestError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
-                    },
-                    {
-                      "$ref": "#/components/schemas/UnsupportedProductModeError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InvalidRequestError"
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFoundError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Retrieve the todo list associated with a specific session, showing tasks and action items.",
-        "summary": "Get session todos"
       }
     },
     "/session/{sessionID}/task": {
@@ -26674,15 +26361,6 @@
             "$ref": "#/components/schemas/EventPtyUpdated"
           },
           {
-            "$ref": "#/components/schemas/EventQuestionAsked"
-          },
-          {
-            "$ref": "#/components/schemas/EventQuestionRejected"
-          },
-          {
-            "$ref": "#/components/schemas/EventQuestionReplied"
-          },
-          {
             "$ref": "#/components/schemas/EventQuestionV2Asked"
           },
           {
@@ -26854,9 +26532,6 @@
             "$ref": "#/components/schemas/EventTaskUpdated"
           },
           {
-            "$ref": "#/components/schemas/EventTodoUpdated"
-          },
-          {
             "$ref": "#/components/schemas/Event.tui.command.execute"
           },
           {
@@ -26902,49 +26577,6 @@
             "$ref": "#/components/schemas/EventServerInstanceDisposed"
           }
         ]
-      },
-      "QuestionReplied": {
-        "type": "object",
-        "properties": {
-          "sessionID": {
-            "type": "string",
-            "pattern": "^ses"
-          },
-          "requestID": {
-            "type": "string",
-            "pattern": "^que"
-          },
-          "answers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionAnswer"
-            }
-          }
-        },
-        "required": [
-          "sessionID",
-          "requestID",
-          "answers"
-        ],
-        "additionalProperties": false
-      },
-      "QuestionRejected": {
-        "type": "object",
-        "properties": {
-          "sessionID": {
-            "type": "string",
-            "pattern": "^ses"
-          },
-          "requestID": {
-            "type": "string",
-            "pattern": "^que"
-          }
-        },
-        "required": [
-          "sessionID",
-          "requestID"
-        ],
-        "additionalProperties": false
       },
       "OAuth": {
         "type": "object",
@@ -28868,79 +28500,6 @@
           "pid"
         ],
         "additionalProperties": false
-      },
-      "QuestionOption": {
-        "type": "object",
-        "properties": {
-          "label": {
-            "type": "string",
-            "description": "Display text (1-5 words, concise)"
-          },
-          "description": {
-            "type": "string",
-            "description": "Explanation of choice"
-          }
-        },
-        "required": [
-          "label",
-          "description"
-        ],
-        "additionalProperties": false
-      },
-      "QuestionInfo": {
-        "type": "object",
-        "properties": {
-          "question": {
-            "type": "string",
-            "description": "Complete question"
-          },
-          "header": {
-            "type": "string",
-            "description": "Very short label (max 30 chars)"
-          },
-          "options": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionOption"
-            },
-            "description": "Available choices"
-          },
-          "multiple": {
-            "type": "boolean"
-          },
-          "custom": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "question",
-          "header",
-          "options"
-        ],
-        "additionalProperties": false
-      },
-      "QuestionTool": {
-        "type": "object",
-        "properties": {
-          "messageID": {
-            "type": "string",
-            "pattern": "^msg"
-          },
-          "callID": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "messageID",
-          "callID"
-        ],
-        "additionalProperties": false
-      },
-      "QuestionAnswer": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
       },
       "ScheduleKind": {
         "type": "string",
@@ -33223,141 +32782,6 @@
                   "type": {
                     "type": "string",
                     "enum": [
-                      "question.asked"
-                    ]
-                  },
-                  "properties": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "pattern": "^que"
-                      },
-                      "sessionID": {
-                        "type": "string",
-                        "pattern": "^ses"
-                      },
-                      "questions": {
-                        "type": "array",
-                        "items": {
-                          "$ref": "#/components/schemas/QuestionInfo"
-                        },
-                        "description": "Questions to ask"
-                      },
-                      "tool": {
-                        "$ref": "#/components/schemas/QuestionTool"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "sessionID",
-                      "questions"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "id",
-                  "type",
-                  "properties"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^evt_"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "question.rejected"
-                    ]
-                  },
-                  "properties": {
-                    "type": "object",
-                    "properties": {
-                      "sessionID": {
-                        "type": "string",
-                        "pattern": "^ses"
-                      },
-                      "requestID": {
-                        "type": "string",
-                        "pattern": "^que"
-                      }
-                    },
-                    "required": [
-                      "sessionID",
-                      "requestID"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "id",
-                  "type",
-                  "properties"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^evt_"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "question.replied"
-                    ]
-                  },
-                  "properties": {
-                    "type": "object",
-                    "properties": {
-                      "sessionID": {
-                        "type": "string",
-                        "pattern": "^ses"
-                      },
-                      "requestID": {
-                        "type": "string",
-                        "pattern": "^que"
-                      },
-                      "answers": {
-                        "type": "array",
-                        "items": {
-                          "$ref": "#/components/schemas/QuestionAnswer"
-                        }
-                      }
-                    },
-                    "required": [
-                      "sessionID",
-                      "requestID",
-                      "answers"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "id",
-                  "type",
-                  "properties"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^evt_"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": [
                       "question.v2.asked"
                     ]
                   },
@@ -36504,47 +35928,6 @@
                     "required": [
                       "sessionID",
                       "tasks"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "id",
-                  "type",
-                  "properties"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^evt_"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "todo.updated"
-                    ]
-                  },
-                  "properties": {
-                    "type": "object",
-                    "properties": {
-                      "sessionID": {
-                        "type": "string",
-                        "pattern": "^ses"
-                      },
-                      "todos": {
-                        "type": "array",
-                        "items": {
-                          "$ref": "#/components/schemas/SessionTaskTodoProjection"
-                        }
-                      }
-                    },
-                    "required": [
-                      "sessionID",
-                      "todos"
                     ],
                     "additionalProperties": false
                   }
@@ -40182,58 +39565,6 @@
         ],
         "additionalProperties": false
       },
-      "QuestionRequest": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^que"
-          },
-          "sessionID": {
-            "type": "string",
-            "pattern": "^ses"
-          },
-          "questions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QuestionInfo"
-            },
-            "description": "Questions to ask"
-          },
-          "tool": {
-            "$ref": "#/components/schemas/QuestionTool"
-          }
-        },
-        "required": [
-          "id",
-          "sessionID",
-          "questions"
-        ],
-        "additionalProperties": false
-      },
-      "QuestionNotFoundError": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": [
-              "QuestionNotFoundError"
-            ]
-          },
-          "requestID": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "_tag",
-          "requestID",
-          "message"
-        ],
-        "additionalProperties": false
-      },
       "PermissionRequest": {
         "type": "object",
         "properties": {
@@ -41221,29 +40552,6 @@
           "title",
           "version",
           "time"
-        ],
-        "additionalProperties": false
-      },
-      "Todo": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string",
-            "description": "Brief description of the task"
-          },
-          "status": {
-            "type": "string",
-            "description": "Current status of the task: pending, in_progress, completed, cancelled"
-          },
-          "priority": {
-            "type": "string",
-            "description": "Priority level of the task: high, medium, low"
-          }
-        },
-        "required": [
-          "content",
-          "status",
-          "priority"
         ],
         "additionalProperties": false
       },
@@ -43958,15 +43266,6 @@
             "$ref": "#/components/schemas/V2EventPtyUpdated"
           },
           {
-            "$ref": "#/components/schemas/V2EventQuestionAsked"
-          },
-          {
-            "$ref": "#/components/schemas/V2EventQuestionRejected"
-          },
-          {
-            "$ref": "#/components/schemas/V2EventQuestionReplied"
-          },
-          {
             "$ref": "#/components/schemas/V2EventQuestionV2Asked"
           },
           {
@@ -44138,9 +43437,6 @@
             "$ref": "#/components/schemas/V2EventTaskUpdated"
           },
           {
-            "$ref": "#/components/schemas/V2EventTodoUpdated"
-          },
-          {
             "$ref": "#/components/schemas/V2EventTuiCommandExecute"
           },
           {
@@ -44202,6 +43498,29 @@
         },
         "required": [
           "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "QuestionNotFoundError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "QuestionNotFoundError"
+            ]
+          },
+          "requestID": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "requestID",
           "message"
         ],
         "additionalProperties": false
@@ -45399,26 +44718,6 @@
           "revision",
           "createdAt",
           "updatedAt"
-        ],
-        "additionalProperties": false
-      },
-      "SessionTaskTodoProjection": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "priority": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "content",
-          "status",
-          "priority"
         ],
         "additionalProperties": false
       },
@@ -66264,219 +65563,6 @@
         ],
         "additionalProperties": false
       },
-      "V2EventQuestionAsked": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "durable": {
-            "type": "object",
-            "properties": {
-              "aggregateID": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer"
-              },
-              "version": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "aggregateID",
-              "seq",
-              "version"
-            ],
-            "additionalProperties": false
-          },
-          "location": {
-            "$ref": "#/components/schemas/LocationRef"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "question.asked"
-            ]
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^que"
-              },
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses"
-              },
-              "questions": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/QuestionInfo"
-                },
-                "description": "Questions to ask"
-              },
-              "tool": {
-                "$ref": "#/components/schemas/QuestionTool"
-              }
-            },
-            "required": [
-              "id",
-              "sessionID",
-              "questions"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "data"
-        ],
-        "additionalProperties": false
-      },
-      "V2EventQuestionRejected": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "durable": {
-            "type": "object",
-            "properties": {
-              "aggregateID": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer"
-              },
-              "version": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "aggregateID",
-              "seq",
-              "version"
-            ],
-            "additionalProperties": false
-          },
-          "location": {
-            "$ref": "#/components/schemas/LocationRef"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "question.rejected"
-            ]
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses"
-              },
-              "requestID": {
-                "type": "string",
-                "pattern": "^que"
-              }
-            },
-            "required": [
-              "sessionID",
-              "requestID"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "data"
-        ],
-        "additionalProperties": false
-      },
-      "V2EventQuestionReplied": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "durable": {
-            "type": "object",
-            "properties": {
-              "aggregateID": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer"
-              },
-              "version": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "aggregateID",
-              "seq",
-              "version"
-            ],
-            "additionalProperties": false
-          },
-          "location": {
-            "$ref": "#/components/schemas/LocationRef"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "question.replied"
-            ]
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses"
-              },
-              "requestID": {
-                "type": "string",
-                "pattern": "^que"
-              },
-              "answers": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/QuestionAnswer"
-                }
-              }
-            },
-            "required": [
-              "sessionID",
-              "requestID",
-              "answers"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "data"
-        ],
-        "additionalProperties": false
-      },
       "V2EventQuestionV2Asked": {
         "type": "object",
         "properties": {
@@ -71115,73 +70201,6 @@
             "required": [
               "sessionID",
               "tasks"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "data"
-        ],
-        "additionalProperties": false
-      },
-      "V2EventTodoUpdated": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "durable": {
-            "type": "object",
-            "properties": {
-              "aggregateID": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer"
-              },
-              "version": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "aggregateID",
-              "seq",
-              "version"
-            ],
-            "additionalProperties": false
-          },
-          "location": {
-            "$ref": "#/components/schemas/LocationRef"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "todo.updated"
-            ]
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses"
-              },
-              "todos": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/SessionTaskTodoProjection"
-                }
-              }
-            },
-            "required": [
-              "sessionID",
-              "todos"
             ],
             "additionalProperties": false
           }
@@ -75903,141 +74922,6 @@
         ],
         "additionalProperties": false
       },
-      "EventQuestionAsked": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "question.asked"
-            ]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^que"
-              },
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses"
-              },
-              "questions": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/QuestionInfo"
-                },
-                "description": "Questions to ask"
-              },
-              "tool": {
-                "$ref": "#/components/schemas/QuestionTool"
-              }
-            },
-            "required": [
-              "id",
-              "sessionID",
-              "questions"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "properties"
-        ],
-        "additionalProperties": false
-      },
-      "EventQuestionRejected": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "question.rejected"
-            ]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses"
-              },
-              "requestID": {
-                "type": "string",
-                "pattern": "^que"
-              }
-            },
-            "required": [
-              "sessionID",
-              "requestID"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "properties"
-        ],
-        "additionalProperties": false
-      },
-      "EventQuestionReplied": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "question.replied"
-            ]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses"
-              },
-              "requestID": {
-                "type": "string",
-                "pattern": "^que"
-              },
-              "answers": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/QuestionAnswer"
-                }
-              }
-            },
-            "required": [
-              "sessionID",
-              "requestID",
-              "answers"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "properties"
-        ],
-        "additionalProperties": false
-      },
       "EventQuestionV2Asked": {
         "type": "object",
         "properties": {
@@ -79610,47 +78494,6 @@
         ],
         "additionalProperties": false
       },
-      "EventTodoUpdated": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "todo.updated"
-            ]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses"
-              },
-              "todos": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/SessionTaskTodoProjection"
-                }
-              }
-            },
-            "required": [
-              "sessionID",
-              "todos"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "properties"
-        ],
-        "additionalProperties": false
-      },
       "EventVcsBranchUpdated": {
         "type": "object",
         "properties": {
@@ -80247,10 +79090,6 @@
       "description": "Experimental HttpApi PTY routes."
     },
     {
-      "name": "question",
-      "description": "Question routes."
-    },
-    {
       "name": "permission",
       "description": "Experimental HttpApi permission routes."
     },
@@ -80393,7 +79232,7 @@
     },
     {
       "name": "session questions",
-      "description": "Experimental session question routes."
+      "description": "Session-owned question decisions."
     },
     {
       "name": "reference",

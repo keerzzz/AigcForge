@@ -10,6 +10,7 @@ import { RuntimeFlags } from "../../src/effect/runtime-flags"
 import { Global } from "@aigcfroge/core/global"
 import { Permission } from "../../src/permission"
 import { PermissionV1 } from "@aigcfroge/core/v1/permission"
+import { PermissionEffective } from "@aigcfroge/core/permission/effective"
 import { Plugin } from "../../src/plugin"
 import { Provider } from "../../src/provider/provider"
 import { Skill } from "../../src/skill"
@@ -847,5 +848,81 @@ it.instance("Agent.list includes available CLI agents with source=external-cli",
     expect(cliAgents.every((agent) => agent.mode === "subagent")).toBe(true)
     expect(cliAgents.every((agent) => !agent.hidden)).toBe(true)
     expect(cliAgents.some((agent) => agent.name === "claude-code")).toBe(true)
+  }),
+)
+
+it.instance("built-in decision tools remain available after effective permission composition", () =>
+  Effect.gen(function* () {
+    for (const [name, enabled, disabled] of [
+      ["build", ["question", "plan_enter"], "plan_exit"],
+      ["plan", ["question", "plan_exit"], "plan_enter"],
+    ] as const) {
+      const agent = yield* load((svc) => svc.get(name))
+      if (!agent) throw new Error(`Missing built-in agent: ${name}`)
+      const rules = PermissionEffective.effectiveV1(
+        {
+          mode: "coding",
+          agent: name,
+          tier: "propose",
+          masterPermissionEnabled: false,
+          savedApprovals: [],
+        },
+        agent.permission,
+      )
+      for (const action of enabled) {
+        expect(PermissionEffective.evaluateV1(rules, action, "*")).toBe("allow")
+        expect(Permission.disabled([action], rules).has(action)).toBe(false)
+      }
+      expect(PermissionEffective.evaluateV1(rules, disabled, "*")).toBe("deny")
+    }
+  }),
+)
+
+it.instance(
+  "built-in decision tools keep explicit user denies above master and saved approvals",
+  () =>
+    Effect.gen(function* () {
+      for (const name of ["build", "plan"]) {
+        const agent = yield* load((svc) => svc.get(name))
+        if (!agent) throw new Error(`Missing built-in agent: ${name}`)
+        const actions = ["question", "plan_enter", "plan_exit"]
+        const rules = PermissionEffective.effectiveV1(
+          {
+            mode: "coding",
+            agent: name,
+            tier: "full",
+            masterPermissionEnabled: true,
+            savedApprovals: actions.map((action) => ({ action, resource: "*" })),
+          },
+          agent.permission,
+        )
+        for (const action of actions) {
+          expect(PermissionEffective.evaluateV1(rules, action, "*")).toBe("deny")
+          expect(Permission.disabled([action], rules).has(action)).toBe(true)
+        }
+      }
+    }),
+  { config: { permission: { question: "deny", plan_enter: "deny", plan_exit: "deny" } } },
+)
+
+it.instance("built-in decision tools remain denied for non-interactive helper agents", () =>
+  Effect.gen(function* () {
+    for (const name of ["general", "explore", "compaction", "title", "summary"]) {
+      const agent = yield* load((svc) => svc.get(name))
+      if (!agent) throw new Error(`Missing built-in agent: ${name}`)
+      const rules = PermissionEffective.effectiveV1(
+        {
+          mode: "coding",
+          agent: name,
+          tier: "propose",
+          masterPermissionEnabled: false,
+          savedApprovals: [],
+        },
+        agent.permission,
+      )
+      for (const action of ["question", "plan_enter", "plan_exit"]) {
+        expect(PermissionEffective.evaluateV1(rules, action, "*")).toBe("deny")
+      }
+    }
   }),
 )

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
+import type { SessionTaskInfo } from "@aigcfroge/sdk/v2"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
@@ -47,7 +48,8 @@ const taskA = {
   outputDigest: "ses_child",
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
-}
+  revision: 1,
+} satisfies SessionTaskInfo
 const taskB = {
   id: "tsk_mock_b",
   content: "review",
@@ -56,14 +58,11 @@ const taskB = {
   sessionID,
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
-}
-const todoProjection = [
-  { content: "audit", status: "completed", priority: "high" },
-  { content: "review", status: "pending", priority: "medium" },
-]
+  revision: 1,
+} satisfies SessionTaskInfo
 
 async function mockServer(page: Page, events: EventPayload[], config?: Partial<MockServerConfig>) {
-  await mockAigcfrogeServer(page, {
+  const server: MockServerConfig = {
     directory,
     project: project(),
     provider: provider(),
@@ -71,14 +70,37 @@ async function mockServer(page: Page, events: EventPayload[], config?: Partial<M
     pageMessages: () => ({ items: [userMessage] }),
     // Always re-serve a busy session status (idempotent) so the progress
     // container renders again after a reload, then drain the test's queue.
-    events: () => [
-      { directory, payload: { type: "session.status", properties: { sessionID, status: { type: "busy" } } } },
-      ...events.splice(0, 1),
-    ],
+    events: () => {
+      const pending = events.splice(0, 1)
+      pending.forEach((event) => {
+        if (event.payload.type !== "task.updated") return
+        const properties = event.payload.properties
+        if (!properties || typeof properties !== "object" || !("tasks" in properties)) {
+          throw new Error("Task fixture event has no authoritative list")
+        }
+        if (!Array.isArray(properties.tasks)) throw new Error("Task fixture list must be an array")
+        const tasks: unknown[] = properties.tasks
+        if (
+          !tasks.every(
+            (task): task is NonNullable<MockServerConfig["tasks"]>[number] =>
+              typeof task === "object" && task !== null && "id" in task && typeof task.id === "string",
+          )
+        )
+          throw new Error("Task fixture row must have an id")
+        // A normal backend publication follows a committed list. Keep the
+        // existing mock GET authoritative before delivering its invalidation.
+        server.tasks = tasks
+      })
+      return [
+        { directory, payload: { type: "session.status", properties: { sessionID, status: { type: "busy" } } } },
+        ...pending,
+      ]
+    },
     eventRetry: 16,
     tasks: [taskA, taskB],
     ...config,
-  })
+  }
+  await mockAigcfrogeServer(page, server)
 }
 
 test.describe("regression: session todo progress pulse line", () => {
@@ -121,6 +143,7 @@ test.describe("regression: session todo progress pulse line", () => {
     const body = await response.json()
     expect(body.id).toBe("tsk_mock_b")
     expect(body.status).toBe("completed")
+    expect(response.request().postDataJSON()).toMatchObject({ status: "completed", expectedRevision: 1 })
 
     // The republished task.updated reconciles the fold-over to 2/2.
     events.push({
@@ -133,11 +156,14 @@ test.describe("regression: session todo progress pulse line", () => {
     await expect(page.locator('[data-component="session-todo-progress-stats"]')).toHaveText("2/2", {
       timeout: 10_000,
     })
+    await expect(panel).toBeVisible()
+    await page.locator('[data-component="prompt-input"]').click()
+    await expect(panel).toHaveCount(0)
   })
 
   test("restores nodes and stats after a reload via the task pull", async ({ page }) => {
     const events: EventPayload[] = []
-    await mockServer(page, events, { todoList: todoProjection })
+    await mockServer(page, events)
     await configurePage(page)
 
     events.push({ directory, payload: { type: "task.updated", properties: { sessionID, tasks: [taskA, taskB] } } })
@@ -189,27 +215,7 @@ test.describe("regression: session todo progress pulse line", () => {
     const body = await response.json()
     expect(body.id).toBe("tsk_mock_b")
     expect(body.status).toBe("completed")
-  })
-
-  test("renders the id-less V1 todo projection read-only", async ({ page }) => {
-    const events: EventPayload[] = []
-    // No tasks served by GET /session/:id/task and no task.updated event:
-    // the component falls back to the three-field todo projection (V1 runtime).
-    await mockServer(page, events, { tasks: [], todoList: todoProjection })
-    await configurePage(page)
-
-    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
-    await expectSessionTitle(page, title)
-
-    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(2, { timeout: 15_000 })
-    await page.locator('[data-component="session-todo-progress-stats"]').click()
-    const panel = page.locator('[data-component="session-todo-progress-panel"]')
-    await expect(panel).toBeVisible()
-    // Id-less entries are read-only: PATCHing them would re-mint ids and wipe
-    // the persisted outputDigest, so every checkbox is disabled. Kobalte marks
-    // disabled state with the data-disabled attribute on the control element.
-    await expect(panel.locator('[data-slot="checkbox-v2-control"]').first()).toHaveAttribute("data-disabled", "")
-    await expect(panel.locator('[data-slot="checkbox-v2-control"]').nth(1)).toHaveAttribute("data-disabled", "")
+    expect(response.request().postDataJSON()).toMatchObject({ status: "completed", expectedRevision: 1 })
   })
 })
 
@@ -379,7 +385,7 @@ test.describe("regression: session todo progress M7 unified track", () => {
         properties: {
           sessionID,
           tasks: [
-            { ...taskA, status: "scheduled" },
+            { ...taskA, status: "scheduled", scheduledAt: 1900000000000, nextRun: 1900000000000 },
             { ...taskB, status: "failed" },
           ],
         },

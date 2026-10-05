@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { createAigcfrogeClient } from "@aigcfroge/sdk"
+import { Schema } from "effect"
+import { Auth } from "../../src/auth"
 import {
   CodexAuthPlugin,
   parseJwtClaims,
@@ -150,15 +153,13 @@ describe("plugin.codex", () => {
   })
 
   test("deduplicates concurrent Codex token refreshes", async () => {
-    let auth = {
-      type: "oauth" as const,
+    let auth = new Auth.Oauth({
+      type: "oauth",
       refresh: "refresh-old",
       access: "",
       expires: 0,
-    }
-    const authUpdates: Array<{
-      body: { refresh: string; access: string; expires: number; accountId?: string }
-    }> = []
+    })
+    const authUpdates: Auth.Oauth[] = []
     let resolveRefresh: (() => void) | undefined
     const refreshReady = new Promise<void>((resolve) => {
       resolveRefresh = resolve
@@ -170,6 +171,12 @@ describe("plugin.codex", () => {
       port: 0,
       async fetch(request) {
         const url = new URL(request.url)
+        if (request.method === "PUT" && url.pathname === "/auth/openai") {
+          auth = Schema.decodeUnknownSync(Auth.Oauth)(await request.json())
+          authUpdates.push(auth)
+          return Response.json(true)
+        }
+
         if (url.pathname === "/oauth/token") {
           expect(await request.text()).toContain("refresh_token=refresh-old")
           refreshRequests += 1
@@ -196,20 +203,7 @@ describe("plugin.codex", () => {
 
     const hooks = await CodexAuthPlugin(
       {
-        client: {
-          auth: {
-            async set(input: { body: { refresh: string; access: string; expires: number; accountId?: string } }) {
-              authUpdates.push(input)
-              auth = {
-                type: "oauth",
-                refresh: input.body.refresh,
-                access: input.body.access,
-                expires: input.body.expires,
-                ...(input.body.accountId && { accountId: input.body.accountId }),
-              }
-            },
-          },
-        } as never,
+        client: createAigcfrogeClient({ baseUrl: server.url.toString() }),
         project: {} as never,
         directory: "",
         worktree: "",
@@ -237,9 +231,9 @@ describe("plugin.codex", () => {
 
     expect(refreshRequests).toBe(1)
     expect(authUpdates).toHaveLength(1)
-    expect(authUpdates[0]?.body.refresh).toBe("refresh-new")
-    expect(authUpdates[0]?.body.access).toBe("access-new")
-    expect(authUpdates[0]?.body.accountId).toBe("acc-123")
+    expect(authUpdates[0]?.refresh).toBe("refresh-new")
+    expect(authUpdates[0]?.access).toBe("access-new")
+    expect(authUpdates[0]?.accountId).toBe("acc-123")
     expect(apiRequests).toEqual([
       { authorization: "Bearer access-new", accountId: "acc-123" },
       { authorization: "Bearer access-new", accountId: "acc-123" },

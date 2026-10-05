@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { QuestionRequest } from "@aigcfroge/sdk/v2"
+import type { QuestionV2Request } from "@aigcfroge/sdk/v2"
 import {
   createQuestionBodyState,
   questionConfirm,
@@ -12,7 +12,7 @@ import {
   questionSync,
 } from "@/cli/cmd/run/question.shared"
 
-function req(input: Partial<QuestionRequest> = {}): QuestionRequest {
+function req(input: Partial<QuestionV2Request> = {}): QuestionV2Request {
   return {
     id: "question-1",
     sessionID: "session-1",
@@ -29,12 +29,25 @@ function req(input: Partial<QuestionRequest> = {}): QuestionRequest {
 }
 
 describe("run question shared", () => {
+  test("keeps the source child session in immediate and confirmed reply payloads", () => {
+    const request = req({ sessionID: "child-session" })
+    const selected = questionSelect(createQuestionBodyState(request.id), request)
+
+    expect(selected.reply).toEqual({
+      sessionID: "child-session",
+      requestID: request.id,
+      questionV2Reply: { answers: [["chunked"]] },
+    })
+    expect(selected.reply).toEqual(questionSubmit(request, selected.state))
+  })
+
   test("replies immediately for a single-select question", () => {
     const out = questionSelect(createQuestionBodyState("question-1"), req())
 
     expect(out.reply).toEqual({
+      sessionID: "session-1",
       requestID: "question-1",
-      answers: [["chunked"]],
+      questionV2Reply: { answers: [["chunked"]] },
     })
   })
 
@@ -66,8 +79,9 @@ describe("run question shared", () => {
     state = questionSelect(state, ask).state
     expect(questionConfirm(ask, state)).toBe(true)
     expect(questionSubmit(ask, state)).toEqual({
+      sessionID: "session-1",
       requestID: "question-1",
-      answers: [["chunked"], ["no"]],
+      questionV2Reply: { answers: [["chunked"], ["no"]] },
     })
   })
 
@@ -98,8 +112,9 @@ describe("run question shared", () => {
     state = questionStoreCustom(next.state, 0, "  custom mode  ")
     next = questionSave(state, req())
     expect(next.reply).toEqual({
+      sessionID: "session-1",
       requestID: "question-1",
-      answers: [["custom mode"]],
+      questionV2Reply: { answers: [["custom mode"]] },
     })
   })
 
@@ -108,7 +123,8 @@ describe("run question shared", () => {
 
     expect(questionSync(state, "question-1")).toBe(state)
     expect(questionSync(state, "question-2")).toEqual(createQuestionBodyState("question-2"))
-    expect(questionReject(req())).toEqual({
+    expect(questionReject(req({ sessionID: "child-session" }))).toEqual({
+      sessionID: "child-session",
       requestID: "question-1",
     })
   })

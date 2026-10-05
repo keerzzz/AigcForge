@@ -10,6 +10,8 @@ import { describe, expect, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Schema } from "effect"
+import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import {
   CapabilitiesReadResponse,
   ErrorNotification,
@@ -80,7 +82,13 @@ describe.serial("Phase 5: Codex app-server Control Plane & Contracts", () => {
             "30 seconds",
           )
           expect(negotiation.supported).toBe(true)
-          expect(negotiation.userAgent).toContain("/0.150.")
+          const spawner = yield* ChildProcessSpawner
+          const version = (yield* spawner.string(
+            ChildProcess.make(resolveCodexAppServerCommand(), ["--version"]),
+          )).trim()
+          expect(version).toMatch(/^codex-cli \S+$/)
+          expect(negotiation.userAgent).toContain(`/${version.slice("codex-cli ".length)} `)
+          expect(negotiation.fallbackTransport).toBeUndefined()
 
           const adapter = makeCodexAppServerAdapter(makeCodexAppServerProcessConnection)
           const started = yield* adapter.startThread!({ workingDirectory: process.cwd(), approvalPolicy: "never" })
@@ -88,6 +96,107 @@ describe.serial("Phase 5: Codex app-server Control Plane & Contracts", () => {
         }),
       ),
     60_000,
+  )
+
+  const capabilities = { namespaceTools: true, imageGeneration: true, webSearch: true }
+  // Recorded initialize identity from the independently installed 0.156.1 CLI.
+  const installedUserAgent = "aigcfroge/0.156.1 (Ubuntu 24.4.0; x86_64) dumb (aigcfroge; 0.1.0)"
+  const negotiationCases = [
+    {
+      name: "accepts the installed handshake beyond the schema snapshot version",
+      initialize: { result: { userAgent: installedUserAgent } },
+      probe: { result: capabilities },
+      supported: true,
+      methods: ["initialize", "modelProvider/capabilities/read"],
+    },
+    {
+      name: "accepts the snapshot handshake when optional tool capabilities are disabled",
+      initialize: { result: { userAgent: "codex-app-server/0.150.1" } },
+      probe: { result: { namespaceTools: false, imageGeneration: false, webSearch: false } },
+      supported: true,
+      methods: ["initialize", "modelProvider/capabilities/read"],
+    },
+    {
+      name: "falls back on an initialize RPC error without probing",
+      initialize: { error: { code: -32601, message: "Method initialize not supported" } },
+      probe: { result: capabilities },
+      supported: false,
+      methods: ["initialize"],
+    },
+    {
+      name: "falls back on a malformed initialize result without probing",
+      initialize: { result: { userAgent: 156 } },
+      probe: { result: capabilities },
+      supported: false,
+      methods: ["initialize"],
+    },
+    {
+      name: "falls back when the newer server rejects the capability probe",
+      initialize: { result: { userAgent: installedUserAgent } },
+      probe: { error: { code: -32601, message: "Method modelProvider/capabilities/read not supported" } },
+      supported: false,
+      methods: ["initialize", "modelProvider/capabilities/read"],
+    },
+    {
+      name: "falls back when the newer server returns malformed capabilities",
+      initialize: { result: { userAgent: installedUserAgent } },
+      probe: { result: { namespaceTools: true, imageGeneration: true } },
+      supported: false,
+      methods: ["initialize", "modelProvider/capabilities/read"],
+    },
+  ] as const
+  negotiationCases.forEach((scenario) =>
+    liveIt.live(`negotiation contract: ${scenario.name}`, () =>
+      Effect.gen(function* () {
+        const spawner = yield* ChildProcessSpawner
+        const methods: string[] = []
+        const connection = yield* makeCodexAppServerProcessConnection({ cwd: process.cwd() }).pipe(
+          Effect.provide(
+            Layer.mock(ChildProcessSpawner, {
+              spawn: (command) => {
+                if (!ChildProcess.isStandardCommand(command))
+                  return Effect.die(new Error("Expected a standard command"))
+                expect(command.command).toBe(resolveCodexAppServerCommand())
+                expect(command.args).toEqual(["app-server", "--stdio"])
+                // Substitute only the external peer; keep production stdio and Schema decoding.
+                return spawner.spawn(
+                  ChildProcess.make(
+                    process.execPath,
+                    [
+                      "--eval",
+                      `import { createInterface } from "node:readline"
+                      const responses = ${JSON.stringify([scenario.initialize, scenario.probe])}
+                      for await (const line of createInterface({ input: process.stdin })) {
+                        const request = JSON.parse(line)
+                        const response = responses[request.method === "initialize" ? 0 : 1]
+                        process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: request.id, ...response }) + "\\n")
+                      }`,
+                    ],
+                    command.options,
+                  ),
+                )
+              },
+            }),
+          ),
+        )
+        const negotiation = yield* awaitWithTimeout(
+          negotiateCapabilities({
+            ...connection,
+            request: (method, params, decoder) =>
+              Effect.gen(function* () {
+                methods.push(method)
+                return yield* connection.request(method, params, decoder)
+              }),
+          }),
+          "fixture app-server did not negotiate",
+          "5 seconds",
+        )
+        expect(negotiation.supported).toBe(scenario.supported)
+        expect(methods).toEqual([...scenario.methods])
+        expect(negotiation.fallbackTransport).toBe(scenario.supported ? undefined : "sdk")
+        if (scenario.supported) expect(negotiation.userAgent).toBe(scenario.initialize.result.userAgent)
+      }),
+    ),
   )
 
   it.effect("0. generated v2 snapshot rejects incomplete responses and malformed known notifications", () =>

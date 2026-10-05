@@ -15,11 +15,19 @@ Skip when:
 - The request is purely informational or conversational
 - Tracking adds no organizational value
 
+## Input and identity
+- Send the complete list in `tasks`; entries omitted from a replacement are removed.
+- Preserve every existing task's server-assigned `id`. Omitting `id` creates a new task; content or list position is not identity.
+- Use `expectedRevision` with the maximum revision in the last server list to reject a stale replacement. After a conflict, read the current list and merge before retrying. Omit it only for a deliberate unconditional replacement.
+- Keep ownership, schedule and dependency information when editing existing tasks; do not rebuild them as a three-field projection.
+
 ## States
 - `pending` - not started
 - `in_progress` - actively working (exactly ONE at a time)
 - `completed` - finished successfully
 - `cancelled` - no longer needed
+- `scheduled` - waiting for a valid future `scheduledAt` or enabled recurrence; do not flatten it to pending
+- `failed` - execution failed and needs attention; do not mark it completed
 
 ## Rules
 - Update status in real time; don't batch completions

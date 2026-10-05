@@ -13,7 +13,6 @@ import { useServerSync } from "@/context/server-sync"
 import { useSync } from "@/context/sync"
 import { useSDK } from "@/context/sdk"
 import { showToast } from "@/utils/toast"
-import type { SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
 import type { DelegationState } from "@aigcfroge/sdk/v2/types"
 import {
   aggregateAgentTasks,
@@ -80,7 +79,9 @@ export function AgentTaskHub(props: {
 
   createEffect(() => {
     if (!props.open) return
-    void loadCrossSessionTasks()
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+    void loadCrossSessionTasks(controller.signal)
   })
 
   createEffect(() => {
@@ -192,50 +193,26 @@ export function AgentTaskHub(props: {
     return source.role === "assistant" ? source.parentID : source.id
   }
 
-  const loadCrossSessionTasks = async () => {
+  const loadCrossSessionTasks = async (signal: AbortSignal) => {
+    const owner = serverSync()
+    const directory = sdk().directory
     setLoading(true)
     try {
-      const requestStart = Date.now()
-      const result = await sdk().client.agentTask.list({ directory: sdk().directory })
-      const tasks = result.data ?? []
-      const bySession = new Map<string, SessionTaskInfo[]>()
-      for (const task of tasks) {
-        const list = bySession.get(task.sessionID) ?? []
-        list.push(task)
-        bySession.set(task.sessionID, list)
-      }
-      // Snapshot semantics (differential-review MEDIUM-3): /agent-task is the
-      // full cross-session view — sessions absent from it have no tasks
-      // server-side, so clear their buckets instead of leaving stale rows that
-      // a later full-list reconcile could revive or reject.
-      //
-      // The write is guarded by request-start recency: a task.updated SSE that
-      // landed after this GET was issued carries a newer `session_task_updated_at`
-      // and must win over the (older) response, so the snapshot can never
-      // overwrite fresher data. listAll is global (no directory filter), so a
-      // session missing from the response genuinely has no tasks anywhere.
-      for (const sessionID of Object.keys(serverSync().data.session_task)) {
-        if (bySession.has(sessionID)) continue
-        const newer = serverSync().data.session_task_updated_at[sessionID]
-        if (newer === undefined || newer <= requestStart) serverSync().task.set(sessionID, undefined)
-      }
-      for (const [sessionID, list] of bySession) {
-        const newer = serverSync().data.session_task_updated_at[sessionID]
-        if (newer === undefined || newer <= requestStart) serverSync().task.set(sessionID, list)
-      }
+      await owner.task.loadAll({ directory, signal })
     } catch (error) {
+      if (signal.aborted) return
       const description = error instanceof Error ? error.message : String(error)
       showToast({ title: language.t("session.agentHub.loadFailed"), description })
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }
 
-  const store = serverSync().data.session_task
+  const store = () => serverSync().data.session_task
   const agents = createMemo(() => sync().data.agent.filter((agent) => agent.mode !== "subagent" && !agent.hidden))
   const sessions = createMemo(() => sync().data.session)
-  const unassigned = createMemo(() => unassignedTasks(store))
-  const derived = createMemo(() => derivedTasksBySource(store))
+  const unassigned = createMemo(() => unassignedTasks(store()))
+  const derived = createMemo(() => derivedTasksBySource(store()))
   const agentRows = createMemo<readonly HubAgentRow[]>(() => [
     ...agents().map((agent) => ({ key: agent.name, label: agent.name, detail: agent.mode })),
     ...(unassigned().length > 0
@@ -247,8 +224,8 @@ export function AgentTaskHub(props: {
   const isUnassigned = () => selected() === UNASSIGNED
   const agentName = () => (isUnassigned() ? undefined : selected())
 
-  const taskRows = createMemo(() => (isUnassigned() ? unassigned() : aggregateAgentTasks(store, selected())))
-  const scheduled = createMemo(() => (isUnassigned() ? [] : scheduledAgentTasks(store, selected())))
+  const taskRows = createMemo(() => (isUnassigned() ? unassigned() : aggregateAgentTasks(store(), selected())))
+  const scheduled = createMemo(() => (isUnassigned() ? [] : scheduledAgentTasks(store(), selected())))
   const sessionCount = createMemo(() => {
     const agent = agentName()
     if (!agent) return 0

@@ -25,21 +25,37 @@ export function stringField(record: Record<string, unknown>, key: string, source
   return value
 }
 
-export interface E4Manifest {
-  runDir: string
+export interface E4Backend {
   backendVersion: string
-  providerBaseURL: string
-  providerPort: number
   backendPort: number
-  previewPort: number
   backendUrl: string
-  previewUrl: string
   configDir: string
   dbPath: string
   workspaceDir: string
+}
+
+export interface E4Manifest extends E4Backend {
+  runDir: string
+  providerBaseURL: string
+  providerPort: number
+  previewPort: number
+  previewUrl: string
   v2Runtime: boolean
   pid: number
   pgid?: number
+  peer?: E4Backend
+}
+
+function readBackend(raw: unknown, source: string): E4Backend {
+  if (!isRecord(raw)) throw new Error(`${source} is not an object`)
+  return {
+    backendVersion: stringField(raw, "backendVersion", source),
+    backendPort: numberField(raw, "backendPort", source),
+    backendUrl: stringField(raw, "backendUrl", source),
+    configDir: stringField(raw, "configDir", source),
+    dbPath: stringField(raw, "dbPath", source),
+    workspaceDir: stringField(raw, "workspaceDir", source),
+  }
 }
 
 /**
@@ -54,17 +70,13 @@ export function readManifest(runDir: string): E4Manifest {
   const source = `E4 manifest at ${manifestPath}`
   const pgid = raw.pgid === undefined ? undefined : numberField(raw, "pgid", source)
   return {
+    ...readBackend(raw, source),
+    ...(raw.peer === undefined ? {} : { peer: readBackend(raw.peer, `${source} peer`) }),
     runDir: stringField(raw, "runDir", source),
-    backendVersion: stringField(raw, "backendVersion", source),
     providerBaseURL: stringField(raw, "providerBaseURL", source),
     providerPort: numberField(raw, "providerPort", source),
-    backendPort: numberField(raw, "backendPort", source),
     previewPort: numberField(raw, "previewPort", source),
-    backendUrl: stringField(raw, "backendUrl", source),
     previewUrl: stringField(raw, "previewUrl", source),
-    configDir: stringField(raw, "configDir", source),
-    dbPath: stringField(raw, "dbPath", source),
-    workspaceDir: stringField(raw, "workspaceDir", source),
     v2Runtime: raw.v2Runtime === true,
     pid: numberField(raw, "pid", source),
     pgid,

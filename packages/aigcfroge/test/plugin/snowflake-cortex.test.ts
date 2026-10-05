@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import type { PluginInput } from "@aigcfroge/plugin"
 import { OAUTH_DUMMY_KEY } from "../../src/auth"
 import { oauthScope, SnowflakeCortexAuthPlugin } from "../../src/plugin/snowflake-cortex"
 
@@ -10,7 +11,7 @@ function makeInput() {
     expires: Date.now() + 3600_000,
     accountId: "myorg-myaccount",
   }
-  const setCalls: Array<Record<string, unknown>> = []
+  const setCalls: Array<Parameters<PluginInput["client"]["auth"]["set"]>[0]> = []
 
   return {
     getAuth: async () => auth,
@@ -20,9 +21,9 @@ function makeInput() {
     input: {
       client: {
         auth: {
-          set: async (request: any) => {
+          set: async (request: (typeof setCalls)[number]) => {
             setCalls.push(request)
-            auth = request.body
+            auth = request.auth
           },
         },
       },
@@ -127,11 +128,14 @@ describe("plugin.snowflake-cortex", () => {
     expect(refreshCalls).toBe(1)
     expect(apiAuthHeaders).toEqual(["Bearer access-new", "Bearer access-new"])
     expect(setCalls).toHaveLength(1)
-    expect((setCalls[0] as any).body).toMatchObject({
-      type: "oauth",
-      access: "access-new",
-      refresh: "refresh-new",
-      accountId: "myorg-myaccount",
+    expect(setCalls[0]).toMatchObject({
+      providerID: "snowflake-cortex",
+      auth: {
+        type: "oauth",
+        access: "access-new",
+        refresh: "refresh-new",
+        accountId: "myorg-myaccount",
+      },
     })
   })
 
@@ -176,11 +180,14 @@ describe("plugin.snowflake-cortex", () => {
     expect(apiCalls).toBe(2)
     expect(seenAuth).toEqual(["Bearer access-stale", "Bearer access-fresh"])
     expect(setCalls).toHaveLength(1)
-    expect((setCalls[0] as any).body).toMatchObject({
-      type: "oauth",
-      access: "access-fresh",
-      refresh: "refresh-fresh",
-      accountId: "myorg-myaccount",
+    expect(setCalls[0]).toMatchObject({
+      providerID: "snowflake-cortex",
+      auth: {
+        type: "oauth",
+        access: "access-fresh",
+        refresh: "refresh-fresh",
+        accountId: "myorg-myaccount",
+      },
     })
   })
 

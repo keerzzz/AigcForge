@@ -4,7 +4,7 @@ import { BoxRenderable, RGBA, type RootRenderable } from "@opentui/core"
 import { testRender, useRenderer } from "@opentui/solid"
 import { createSignal } from "solid-js"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
-import type { QuestionRequest } from "@aigcfroge/sdk/v2"
+import type { QuestionV2Request } from "@aigcfroge/sdk/v2"
 import { AigcfrogeKeymapProvider, registerAigcfrogeKeymap } from "@aigcfroge/tui/keymap"
 import {
   RUN_COMMAND_PANEL_ROWS,
@@ -1141,7 +1141,7 @@ test("direct question body separates single-select checkmark from label", async 
         ],
       },
     ],
-  } satisfies QuestionRequest
+  } satisfies QuestionV2Request
   const replies: unknown[] = []
 
   const app = await testRender(
@@ -1167,7 +1167,9 @@ test("direct question body separates single-select checkmark from label", async 
     app.mockInput.pressEnter()
     await app.renderOnce()
 
-    expect(replies).toHaveLength(1)
+    expect(replies).toEqual([
+      { sessionID: request.sessionID, requestID: request.id, questionV2Reply: { answers: [["Product"]] } },
+    ])
     expect(app.captureCharFrame()).toContain("Product ✓")
   } finally {
     app.renderer.destroy()
@@ -1188,7 +1190,7 @@ test.skip("direct custom answer submits through keymap return binding", async ()
         custom: true,
       },
     ],
-  } satisfies QuestionRequest
+  } satisfies QuestionV2Request
   const questions: unknown[] = []
   let off: (() => void) | undefined
 
@@ -1228,7 +1230,9 @@ test.skip("direct custom answer submits through keymap return binding", async ()
     await app.renderOnce()
     app.mockInput.pressEnter()
     await app.renderOnce()
-    expect(questions).toEqual([{ requestID: "question-1", answers: [["typed"]] }])
+    expect(questions).toEqual([
+      { sessionID: "session-1", requestID: "question-1", questionV2Reply: { answers: [["typed"]] } },
+    ])
   } finally {
     app.renderer.currentFocusedRenderable?.blur()
     app.renderer.currentFocusedEditor?.blur()
@@ -1372,3 +1376,54 @@ test("direct variant panel renders current variant selector", async () => {
     app.renderer.destroy()
   }
 })
+
+for (const action of ["reply", "reject"] as const) {
+  test(`direct Question ${action} failure restores interaction without an unhandled rejection`, async () => {
+    const calls: unknown[] = []
+    const failure = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    const retried = Promise.withResolvers<void>()
+    const question: QuestionV2Request = {
+      id: "child-question",
+      sessionID: "child-session",
+      questions: [
+        { header: "Mode", question: "Mode?", custom: false, options: [{ label: "Fast", description: "Quick pass" }] },
+      ],
+    }
+    const submit = (input: unknown) => {
+      calls.push(input)
+      if (calls.length === 1) {
+        started.resolve()
+        return failure.promise
+      }
+      retried.resolve()
+      return retried.promise
+    }
+    const app = await testRender(
+      () => <RunQuestionBody request={question} theme={RUN_THEME_FALLBACK.footer} onReply={submit} onReject={submit} />,
+      { width: 80, height: 12 },
+    )
+
+    try {
+      app.mockInput.pressKey(action === "reply" ? "1" : "ESCAPE")
+      await started.promise
+      await app.renderOnce()
+      expect(app.captureCharFrame()).toContain("Waiting for question event...")
+      failure.reject(new Error("Question is no longer pending"))
+      await app.renderOnce()
+      expect(app.captureCharFrame()).not.toContain("Waiting for question event...")
+      app.mockInput.pressKey(action === "reply" ? "1" : "ESCAPE")
+      await retried.promise
+      await app.renderOnce()
+      expect(calls).toEqual(
+        Array.from({ length: 2 }, () => ({
+          sessionID: question.sessionID,
+          requestID: question.id,
+          ...(action === "reply" ? { questionV2Reply: { answers: [["Fast"]] } } : {}),
+        })),
+      )
+    } finally {
+      app.renderer.destroy()
+    }
+  })
+}

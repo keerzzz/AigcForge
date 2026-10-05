@@ -85,7 +85,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           ruleset: input.ruleset,
           ...(input.finalRules?.length ? { finalRules: input.finalRules } : {}),
         })
-        .pipe(Effect.orDie),
+        .pipe(Effect.orDie, EffectBridge.interruptOnSignal(options.abortSignal)),
   })
 
   for (const item of yield* registry.tools({

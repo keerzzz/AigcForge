@@ -32,17 +32,17 @@ const tui: TuiPlugin = async (api) => {
   const questions = new Set<string>()
   const permissions = new Set<string>()
 
-  api.event.on("question.asked", (event) => {
+  api.event.on("question.v2.asked", (event) => {
     if (questions.has(event.properties.id)) return
     questions.add(event.properties.id)
     notify(api, event.properties.sessionID, "Question needs input", "question")
   })
 
-  api.event.on("question.replied", (event) => {
+  api.event.on("question.v2.replied", (event) => {
     questions.delete(event.properties.requestID)
   })
 
-  api.event.on("question.rejected", (event) => {
+  api.event.on("question.v2.rejected", (event) => {
     questions.delete(event.properties.requestID)
   })
 

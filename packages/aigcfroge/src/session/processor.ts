@@ -19,7 +19,7 @@ import { SessionRetry } from "./retry"
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
 import type { Provider } from "@/provider/provider"
-import { Question } from "@/question"
+import { QuestionV2 } from "@aigcfroge/core/question"
 import { errorMessage } from "@/util/error"
 import { isRecord } from "@/util/record"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -238,7 +238,7 @@ export const layer = Layer.effect(
             time: { start: match.part.state.time.start, end: Date.now() },
           },
         })
-        if (error instanceof PermissionV1.RejectedError || error instanceof Question.RejectedError) {
+        if (error instanceof PermissionV1.RejectedError || error instanceof QuestionV2.RejectedError) {
           ctx.blocked = ctx.shouldBreak
         }
         yield* settleToolCall(toolCallID)

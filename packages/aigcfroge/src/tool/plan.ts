@@ -1,11 +1,15 @@
 import path from "path"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Effect, Schema } from "effect"
-import * as Tool from "./tool"
-import { Question } from "../question"
+import { Tool } from "./tool"
+import { QuestionV2 } from "@aigcfroge/core/question"
+import { Location } from "@aigcfroge/core/location"
+import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { Session } from "@/session/session"
 import { Provider } from "@/provider/provider"
 import { InstanceState } from "@/effect/instance-state"
+import { EffectBridge } from "@/effect/bridge"
 import { MessageID, PartID } from "../session/schema"
 import EXIT_DESCRIPTION from "./plan-exit.txt"
 
@@ -15,7 +19,7 @@ export const PlanExitTool = Tool.define(
   "plan_exit",
   Effect.gen(function* () {
     const session = yield* Session.Service
-    const question = yield* Question.Service
+    const locations = yield* LocationServiceMap
     const provider = yield* Provider.Service
 
     return {
@@ -26,23 +30,36 @@ export const PlanExitTool = Tool.define(
           const instance = yield* InstanceState.context
           const info = yield* session.get(ctx.sessionID)
           const plan = path.relative(instance.worktree, Session.plan(info, instance))
-          const answers = yield* question.ask({
-            sessionID: ctx.sessionID,
-            questions: [
-              {
-                question: `Plan at ${plan} is complete. Would you like to switch to the build agent and start implementing?`,
-                header: "Build Agent",
-                custom: false,
-                options: [
-                  { label: "Yes", description: "Switch to build agent and start implementing the plan" },
-                  { label: "No", description: "Stay with plan agent to continue refining the plan" },
+          const answers = yield* QuestionV2.Service.pipe(
+            Effect.flatMap((question) =>
+              question.ask({
+                sessionID: ctx.sessionID,
+                questions: [
+                  {
+                    question: `Plan at ${plan} is complete. Would you like to switch to the build agent and start implementing?`,
+                    header: "Build Agent",
+                    custom: false,
+                    options: [
+                      { label: "Yes", description: "Switch to build agent and start implementing the plan" },
+                      { label: "No", description: "Stay with plan agent to continue refining the plan" },
+                    ],
+                  },
                 ],
-              },
-            ],
-            tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
-          })
+                tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+              }),
+            ),
+            Effect.provide(
+              locations.get(
+                Location.Ref.make({
+                  directory: AbsolutePath.make(instance.directory),
+                  workspaceID: yield* InstanceState.workspaceID,
+                }),
+              ),
+            ),
+            EffectBridge.interruptOnSignal(ctx.abort),
+          )
 
-          if (answers[0]?.[0] === "No") yield* new Question.RejectedError()
+          if (answers[0]?.[0] === "No") yield* new QuestionV2.RejectedError()
 
           const messages = yield* session.messages({ sessionID: ctx.sessionID }).pipe(Effect.orDie)
           const lastUser = messages.findLast((item) => item.info.role === "user" && item.info.model)

@@ -381,8 +381,7 @@ Mode pushes are automatically tracked by the plugin runtime. If a plugin is disa
   - `vcs?.branch`
   - `session.count()`
   - `session.diff(sessionID)`
-  - `session.task?(sessionID)`
-  - `session.todo(sessionID)` (deprecated — legacy projection of the task store, removed in Phase 5)
+  - `session.task(sessionID)` returns canonical `SessionTaskInfo` rows from the live, session-scoped Task store, preserving all six states, IDs, revisions, ownership, and schedule metadata.
   - `session.messages(sessionID)`
   - `session.status(sessionID)`
   - `session.permission(sessionID)`

@@ -24,7 +24,7 @@
 //   `data.questions`. The footer shows whichever is first. When a reply
 //   event arrives, the queue entry is removed and the footer falls back
 //   to the next pending request or to the prompt view.
-import type { Event, Part, PermissionRequest, QuestionRequest, ToolPart } from "@aigcfroge/sdk/v2"
+import type { Event, Part, PermissionRequest, QuestionV2Request, ToolPart } from "@aigcfroge/sdk/v2"
 import * as Locale from "@/util/locale"
 import { toolView } from "./tool"
 import type { FooterOutput, FooterPatch, FooterView, StreamCommit } from "./types"
@@ -77,7 +77,7 @@ export type SessionData = {
   call: Map<string, Dict>
   shell: Map<string, ShellCall>
   permissions: PermissionRequest[]
-  questions: QuestionRequest[]
+  questions: QuestionV2Request[]
   role: Map<string, MessageRole>
   msg: Map<string, string>
   part: Map<string, PartKind>
@@ -216,7 +216,7 @@ function out(data: SessionData, commits: SessionCommit[], footer?: FooterOutput)
   }
 }
 
-export function pickBlockerView(input: { permission?: PermissionRequest; question?: QuestionRequest }): FooterView {
+export function pickBlockerView(input: { permission?: PermissionRequest; question?: QuestionV2Request }): FooterView {
   if (input.permission) {
     return { type: "permission", request: input.permission }
   }
@@ -286,7 +286,7 @@ export function bootstrapSessionData(input: {
     parts: Part[]
   }>
   permissions: PermissionRequest[]
-  questions: QuestionRequest[]
+  questions: QuestionV2Request[]
 }) {
   for (const message of input.messages) {
     for (const part of message.parts) {
@@ -371,7 +371,7 @@ function syncPermission(data: SessionData, part: ToolPart): FooterOutput | undef
   }
 }
 
-// Question tool replies can complete without a matching question.replied event.
+// Question tool replies can complete without a matching question.v2.replied event.
 // When that happens, drop the recovered pending request tied to this tool call so
 // the footer can return to the next blocker or to the prompt.
 function syncQuestion(data: SessionData, part: ToolPart): FooterOutput | undefined {
@@ -1074,7 +1074,7 @@ export function reduceSessionData(input: SessionDataInput): SessionDataOutput {
     return queueOut(data, commits)
   }
 
-  if (event.type === "question.asked") {
+  if (event.type === "question.v2.asked") {
     if (event.properties.sessionID !== input.sessionID) {
       return out(data, commits)
     }
@@ -1083,7 +1083,7 @@ export function reduceSessionData(input: SessionDataInput): SessionDataOutput {
     return queueOut(data, commits)
   }
 
-  if (event.type === "question.replied" || event.type === "question.rejected") {
+  if (event.type === "question.v2.replied" || event.type === "question.v2.rejected") {
     if (event.properties.sessionID !== input.sessionID) {
       return out(data, commits)
     }

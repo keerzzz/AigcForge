@@ -1,3 +1,5 @@
+import { Option, Schema } from "effect"
+import { Question } from "@aigcfroge/schema/question"
 import {
   Component,
   createEffect,
@@ -26,9 +28,7 @@ import {
   TextPart,
   ToolPart,
   UserMessage,
-  Todo,
-  QuestionAnswer,
-  QuestionInfo,
+  SessionTaskInfo,
 } from "@aigcfroge/sdk/v2"
 import { useData } from "../context"
 import { useFileComponent } from "@aigcfroge/ui/context/file"
@@ -2469,10 +2469,10 @@ ToolRegistry.register({
   render(props) {
     const i18n = useI18n()
     const todos = createMemo(() => {
-      const meta = props.metadata?.todos
+      const meta = props.metadata?.tasks
       if (Array.isArray(meta)) return meta
 
-      const input = props.input.todos
+      const input = props.input.tasks
       if (Array.isArray(input)) return input
 
       return []
@@ -2481,7 +2481,7 @@ ToolRegistry.register({
     const subtitle = createMemo(() => {
       const list = todos()
       if (list.length === 0) return ""
-      return `${list.filter((t: Todo) => t.status === "completed").length}/${list.length}`
+      return `${list.filter((t: SessionTaskInfo) => t.status === "completed").length}/${list.length}`
     })
 
     return (
@@ -2497,7 +2497,7 @@ ToolRegistry.register({
         <Show when={todos().length}>
           <div data-component="todos">
             <For each={todos()}>
-              {(todo: Todo) => (
+              {(todo: SessionTaskInfo) => (
                 <CheckboxV2
                   label={
                     <span
@@ -2519,12 +2519,15 @@ ToolRegistry.register({
   },
 })
 
+const readQuestionInfos = Schema.decodeUnknownOption(Schema.Array(Question.Info))
+const readQuestionAnswers = Schema.decodeUnknownOption(Schema.Array(Question.Answer))
+
 ToolRegistry.register({
   name: "question",
   render(props) {
     const i18n = useI18n()
-    const questions = createMemo(() => (props.input.questions ?? []) as QuestionInfo[])
-    const answers = createMemo(() => (props.metadata.answers ?? []) as QuestionAnswer[])
+    const questions = createMemo(() => Option.getOrElse(readQuestionInfos(props.input.questions), () => []))
+    const answers = createMemo(() => Option.getOrElse(readQuestionAnswers(props.metadata.answers), () => []))
     const completed = createMemo(() => answers().length > 0)
 
     const subtitle = createMemo(() => {

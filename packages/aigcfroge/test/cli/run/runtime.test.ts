@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
-import { AigcfrogeClient } from "@aigcfroge/sdk/v2"
-import { runInteractiveMode } from "@/cli/cmd/run/runtime"
-import type { FooterApi, RunProvider } from "@/cli/cmd/run/types"
+import { AigcfrogeClient, createAigcfrogeClient } from "@aigcfroge/sdk/v2"
+import { runInteractiveMode, type RunRuntimeDeps } from "@/cli/cmd/run/runtime"
+import { createRunDemo } from "@/cli/cmd/run/demo"
+import { createQuestionBodyState, questionSelect, questionReject } from "@/cli/cmd/run/question.shared"
+import type { FooterApi, FooterEvent, RunProvider } from "@/cli/cmd/run/types"
 
 type SessionMessage = NonNullable<Awaited<ReturnType<AigcfrogeClient["session"]["messages"]>>["data"]>[number]
 
@@ -81,7 +83,7 @@ function ok<T>(data: T) {
   })
 }
 
-function footer(): FooterApi {
+function footer(onReady?: () => void): FooterApi {
   let closed = false
   const closes = new Set<() => void>()
 
@@ -93,7 +95,10 @@ function footer(): FooterApi {
     get isClosed() {
       return closed
     },
-    onPrompt: () => () => {},
+    onPrompt: () => {
+      onReady?.()
+      return () => {}
+    },
     onQueuedRemove: () => () => {},
     onClose(fn) {
       if (closed) {
@@ -236,3 +241,114 @@ describe("run interactive runtime", () => {
     expect(transportProviders).toEqual([[provider]])
   })
 })
+
+test("runtime Question callbacks preserve child ownership, accept 204 and reject native errors", async () => {
+  const ready = defer<Parameters<NonNullable<RunRuntimeDeps["createRuntimeLifecycle"]>>[0]>()
+  const interactive = defer<void>()
+  const ui = footer(() => interactive.resolve())
+  const requests: Request[] = []
+  let status = 204
+  const sdk = createAigcfrogeClient({
+    baseUrl: "https://aigcfroge.test",
+    fetch: Object.assign(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push(input instanceof Request ? input : new Request(input, init))
+        if (status === 204) return new Response(null, { status })
+        return Response.json({ message: "Question is no longer pending" }, { status })
+      },
+      { preconnect() {} },
+    ),
+  })
+  spyOn(sdk.config, "providers").mockImplementation(() => ok({ providers: [], default: {} }))
+  spyOn(sdk.app, "agents").mockImplementation(() => ok([]))
+  spyOn(sdk.experimental.resource, "list").mockImplementation(() => ok({}))
+  spyOn(sdk.command, "list").mockImplementation(() => ok([]))
+  spyOn(sdk.session, "get").mockRejectedValue(new Error("not needed"))
+  const running = runInteractiveMode(
+    {
+      sdk,
+      directory: "/selected-directory",
+      sessionID: "selected-session",
+      agent: "build",
+      model: undefined,
+      variant: undefined,
+      files: [],
+      thinking: false,
+      backgroundSubagents: true,
+    },
+    {
+      createRuntimeLifecycle: async (input) => {
+        ready.resolve(input)
+        return {
+          footer: ui,
+          onResize: () => () => {},
+          refreshTheme: () => {},
+          resetForReplay: async () => {},
+          close: async () => {},
+        }
+      },
+      streamTransport: Promise.resolve({
+        createSessionTransport: async () => ({
+          runPromptTurn: async () => {},
+          selectSubagent: () => {},
+          replayOnResize: async () => false,
+          close: async () => {},
+        }),
+        formatUnknownError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
+      }),
+    },
+  )
+
+  try {
+    const lifecycle = await ready.promise
+    await interactive.promise
+    const reply = { sessionID: "child-session", requestID: "child-question", questionV2Reply: { answers: [["Fast"]] } }
+    const reject = { sessionID: "child-session", requestID: "child-question" }
+    await expect(Promise.resolve(lifecycle.onQuestionReply(reply))).resolves.toBeUndefined()
+    await expect(Promise.resolve(lifecycle.onQuestionReject(reject))).resolves.toBeUndefined()
+    expect(requests).toHaveLength(2)
+    expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+      "/api/session/child-session/question/child-question/reply",
+      "/api/session/child-session/question/child-question/reject",
+    ])
+    expect(await requests[0].json()).toEqual({ answers: [["Fast"]] })
+    expect(await requests[1].text()).toBe("")
+
+    status = 404
+    await expect(Promise.resolve(lifecycle.onQuestionReply(reply))).rejects.toThrow("Question is no longer pending")
+    await expect(Promise.resolve(lifecycle.onQuestionReject(reject))).rejects.toThrow("Question is no longer pending")
+  } finally {
+    ui.close()
+    await running
+  }
+})
+
+for (const action of ["reply", "reject"] as const) {
+  test(`demo Question ${action} uses native events and refuses a different session owner`, async () => {
+    const events: FooterEvent[] = []
+    const ui = footer()
+    spyOn(ui, "event").mockImplementation((event) => events.push(event))
+    const demo = createRunDemo({ sessionID: "demo-session", thinking: false, limits: () => ({}), footer: ui })
+    expect(await demo.prompt({ text: "/question single", parts: [] })).toBe(true)
+    const event = events.findLast((event) => event.type === "stream.view")
+    if (event?.type !== "stream.view" || event.view.type !== "question") throw new Error("Question was not displayed")
+    const request = event.view.request
+    expect(request.sessionID).toBe("demo-session")
+
+    if (action === "reply") {
+      const reply = questionSelect(createQuestionBodyState(request.id), request).reply
+      if (!reply) throw new Error("Single selection did not produce a reply")
+      expect(demo.questionReply({ ...reply, sessionID: "other-session" })).toBe(false)
+      expect(demo.questionReply(reply)).toBe(true)
+    }
+    if (action === "reject") {
+      const reject = questionReject(request)
+      expect(demo.questionReject({ ...reject, sessionID: "other-session" })).toBe(false)
+      expect(demo.questionReject(reject)).toBe(true)
+    }
+    expect(events.findLast((event) => event.type === "stream.view")).toEqual({
+      type: "stream.view",
+      view: { type: "prompt" },
+    })
+  })
+}

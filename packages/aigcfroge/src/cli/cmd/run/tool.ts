@@ -793,7 +793,7 @@ function scrollTodoStart(_: ToolProps<typeof TodoWriteTool>): string {
 }
 
 function scrollTodoFinal(p: ToolProps<typeof TodoWriteTool>): string {
-  const items = list<{ status?: string }>(p.input.todos)
+  const items = list<{ status?: string }>(p.input.tasks)
   const time = span(p.frame.state)
   if (items.length === 0) {
     if (!time) {

@@ -9,7 +9,6 @@ const emptyList = new Set([
   "/lsp",
   "/formatter",
   "/permission",
-  "/question",
   "/vcs/status",
   "/vcs/diff",
   "/vcs/log",
@@ -38,9 +37,6 @@ export interface MockServerConfig {
    * replaces it and returns the payload so the fold-over writeback round-trips.
    * Structured (not `unknown[]`) so the mock's own find/filter typechecks. */
   tasks?: Array<{ id: string } & Record<string, unknown>>
-  /** Optional three-field todo projection served by GET /session/:id/todo
-   * (reload-recovery source when task.updated is not re-delivered). */
-  todoList?: unknown[]
   /** Optional response for the Agent Asset apply route used by browser regression tests. */
   agentAssetApply?: unknown
   agentAssetApplyStatus?: number
@@ -130,6 +126,7 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     // route still falls through to that same `[]`.
     if (path === "/file" && config.files !== undefined) return json(route, config.files)
     if (emptyList.has(path)) return json(route, [])
+    if (path === "/api/question/request") return json(route, { location: { directory: config.directory }, data: [] })
     // Checked before `staticRoutes` only when the knob asks for it; an absent pair
     // leaves the default projection and status untouched.
     if (path === "/path" && (config.pathResponse !== undefined || config.pathStatus !== undefined)) {
@@ -163,8 +160,6 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
       return json(route, session)
     }
 
-    const todoPath = path.match(/^\/session\/([^/]+)\/todo$/)
-    if (todoPath) return json(route, config.todoList ?? [])
     if (/^\/session\/[^/]+\/(children|diff)$/.test(path)) return json(route, [])
 
     const taskMatch = path.match(/^\/session\/([^/]+)\/task$/)

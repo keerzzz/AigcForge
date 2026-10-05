@@ -21,6 +21,7 @@ const assertions: PermissionV2.AssertInput[] = []
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    grant: () => Effect.die("unused grant operation"),
     effectiveRules: () => Effect.succeed([]),
     assert: (input) => Effect.sync(() => assertions.push(input)),
     ask: () => Effect.die("unused"),

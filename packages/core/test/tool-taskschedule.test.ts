@@ -19,6 +19,7 @@ const sessionID = SessionV2.ID.make("ses_taskschedule_tool_test")
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    grant: () => Effect.die("unused grant operation"),
     effectiveRules: () => Effect.succeed([]),
     assert: () => Effect.void,
     ask: () => Effect.die("unused"),

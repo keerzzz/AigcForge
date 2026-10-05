@@ -1018,6 +1018,7 @@ export const dict = {
   "session.agentHub.delegations.empty": "No active delegations",
   "session.agentHub.delegations.loadFailed": "Failed to load delegations",
   "session.question.progress": "{{current}} of {{total}} questions",
+  "session.requests.pending": "Pending requests: {{count}}",
   "session.followupDock.summary.one": "{{count}} queued message",
   "session.followupDock.summary.other": "{{count}} queued messages",
   "session.followupDock.sendNow": "Send now",

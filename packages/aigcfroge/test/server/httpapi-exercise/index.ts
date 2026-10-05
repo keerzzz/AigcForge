@@ -1378,30 +1378,6 @@ const scenarios: Scenario[] = [
       body: { reply: "once" },
     }))
     .json(404, object, "status"),
-  http.protected.get("/question", "question.list").json(200, array),
-  http.protected
-    .post("/question/{requestID}/reply", "question.reply.invalid")
-    .at((ctx) => ({
-      path: route("/question/{requestID}/reply", { requestID: "que_httpapi_reply" }),
-      headers: ctx.headers(),
-      body: { answers: "Yes" },
-    }))
-    .status(400),
-  http.protected
-    .post("/question/{requestID}/reply", "question.reply")
-    .at((ctx) => ({
-      path: route("/question/{requestID}/reply", { requestID: "que_httpapi_reply" }),
-      headers: ctx.headers(),
-      body: { answers: [["Yes"]] },
-    }))
-    .json(404, object, "status"),
-  http.protected
-    .post("/question/{requestID}/reject", "question.reject")
-    .at((ctx) => ({
-      path: route("/question/{requestID}/reject", { requestID: "que_httpapi_reject" }),
-      headers: ctx.headers(),
-    }))
-    .json(404, object, "status"),
   http.protected
     .get("/file", "file.list")
     .seeded((ctx) => ctx.file("hello.txt", "hello\n"))
@@ -2987,23 +2963,6 @@ const scenarios: Scenario[] = [
       headers: ctx.headers(),
     }))
     .json(200, array),
-  http.protected
-    .get("/session/{sessionID}/todo", "session.todo")
-    .seeded((ctx) =>
-      Effect.gen(function* () {
-        const session = yield* ctx.session({ title: "Todo session" })
-        const todos = [{ content: "cover session todo", status: "pending", priority: "high" }]
-        yield* ctx.todos(session.id, todos)
-        return { session, todos }
-      }),
-    )
-    .at((ctx) => ({
-      path: route("/session/{sessionID}/todo", { sessionID: ctx.state.session.id }),
-      headers: ctx.headers(),
-    }))
-    .json(200, (body, ctx) => {
-      check(stable(body) === stable(ctx.state.todos), "todos should match seeded state")
-    }),
   http.protected
     .get("/session/{sessionID}/task", "session.task.get")
     .seeded((ctx) =>

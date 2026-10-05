@@ -218,12 +218,14 @@ export function createChildStoreManager(input: {
               return (type ?? "idle") !== "idle"
             },
             session_diff: {},
-            todo: {},
             permission: {},
             permission_v2: {},
             permission_v2_revision: 0,
             permission_v2_load_epoch: 0,
             permission_v2_events: [],
+            question_revision: 0,
+            question_load_epoch: 0,
+            question_events: [],
             question: {},
             get mcp_ready() {
               return !mcpQuery.isLoading

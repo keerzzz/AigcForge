@@ -71,9 +71,6 @@ export type Event =
   | EventPtyDeleted
   | EventPtyExited
   | EventPtyUpdated
-  | EventQuestionAsked
-  | EventQuestionRejected
-  | EventQuestionReplied
   | EventQuestionV2Asked
   | EventQuestionV2Rejected
   | EventQuestionV2Replied
@@ -131,7 +128,6 @@ export type Event =
   | EventSessionUpdated
   | EventTaskProgress
   | EventTaskUpdated
-  | EventTodoUpdated
   | EventTuiCommandExecute2
   | EventTuiPromptAppend2
   | EventTuiSessionSelect2
@@ -147,17 +143,6 @@ export type Event =
   | EventWorktreeFailed
   | EventWorktreeReady
   | EventServerInstanceDisposed
-
-export type QuestionReplied = {
-  sessionID: string
-  requestID: string
-  answers: Array<QuestionAnswer>
-}
-
-export type QuestionRejected = {
-  sessionID: string
-  requestID: string
-}
 
 export type OAuth = {
   type: "oauth"
@@ -676,41 +661,6 @@ export type Pty = {
   pid: number
   exitCode?: number
 }
-
-export type QuestionOption = {
-  /**
-   * Display text (1-5 words, concise)
-   */
-  label: string
-  /**
-   * Explanation of choice
-   */
-  description: string
-}
-
-export type QuestionInfo = {
-  /**
-   * Complete question
-   */
-  question: string
-  /**
-   * Very short label (max 30 chars)
-   */
-  header: string
-  /**
-   * Available choices
-   */
-  options: Array<QuestionOption>
-  multiple?: boolean
-  custom?: boolean
-}
-
-export type QuestionTool = {
-  messageID: string
-  callID: string
-}
-
-export type QuestionAnswer = Array<string>
 
 export type ScheduleKind = "reminder"
 
@@ -1487,36 +1437,6 @@ export type GlobalEvent = {
       }
     | {
         id: string
-        type: "question.asked"
-        properties: {
-          id: string
-          sessionID: string
-          /**
-           * Questions to ask
-           */
-          questions: Array<QuestionInfo>
-          tool?: QuestionTool
-        }
-      }
-    | {
-        id: string
-        type: "question.rejected"
-        properties: {
-          sessionID: string
-          requestID: string
-        }
-      }
-    | {
-        id: string
-        type: "question.replied"
-        properties: {
-          sessionID: string
-          requestID: string
-          answers: Array<QuestionAnswer>
-        }
-      }
-    | {
-        id: string
         type: "question.v2.asked"
         properties: {
           id: string
@@ -2167,14 +2087,6 @@ export type GlobalEvent = {
         properties: {
           sessionID: string
           tasks: Array<SessionTaskInfo>
-        }
-      }
-    | {
-        id: string
-        type: "todo.updated"
-        properties: {
-          sessionID: string
-          todos: Array<SessionTaskTodoProjection>
         }
       }
     | {
@@ -3253,22 +3165,6 @@ export type PtyForbiddenError = {
   message: string
 }
 
-export type QuestionRequest = {
-  id: string
-  sessionID: string
-  /**
-   * Questions to ask
-   */
-  questions: Array<QuestionInfo>
-  tool?: QuestionTool
-}
-
-export type QuestionNotFoundError = {
-  _tag: "QuestionNotFoundError"
-  requestID: string
-  message: string
-}
-
 export type PermissionRequest = {
   id: string
   sessionID: string
@@ -3527,21 +3423,6 @@ export type Session2 = {
     snapshot?: string
     diff?: string
   }
-}
-
-export type Todo = {
-  /**
-   * Brief description of the task
-   */
-  content: string
-  /**
-   * Current status of the task: pending, in_progress, completed, cancelled
-   */
-  status: string
-  /**
-   * Priority level of the task: high, medium, low
-   */
-  priority: string
 }
 
 export type Session3 = {
@@ -4203,9 +4084,6 @@ export type V2Event =
   | V2EventPtyDeleted
   | V2EventPtyExited
   | V2EventPtyUpdated
-  | V2EventQuestionAsked
-  | V2EventQuestionRejected
-  | V2EventQuestionReplied
   | V2EventQuestionV2Asked
   | V2EventQuestionV2Rejected
   | V2EventQuestionV2Replied
@@ -4263,7 +4141,6 @@ export type V2Event =
   | V2EventSessionUpdated
   | V2EventTaskProgress
   | V2EventTaskUpdated
-  | V2EventTodoUpdated
   | V2EventTuiCommandExecute
   | V2EventTuiPromptAppend
   | V2EventTuiSessionSelect
@@ -4281,6 +4158,12 @@ export type V2Event =
 
 export type ForbiddenError = {
   _tag: "ForbiddenError"
+  message: string
+}
+
+export type QuestionNotFoundError = {
+  _tag: "QuestionNotFoundError"
+  requestID: string
   message: string
 }
 
@@ -4558,12 +4441,6 @@ export type SessionTaskInfo = {
   revision: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
-}
-
-export type SessionTaskTodoProjection = {
-  content: string
-  status: string
-  priority: string
 }
 
 export type EventServerInstanceDisposed = {
@@ -9129,66 +9006,6 @@ export type V2EventPtyUpdated = {
   }
 }
 
-export type V2EventQuestionAsked = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "question.asked"
-  data: {
-    id: string
-    sessionID: string
-    /**
-     * Questions to ask
-     */
-    questions: Array<QuestionInfo>
-    tool?: QuestionTool
-  }
-}
-
-export type V2EventQuestionRejected = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "question.rejected"
-  data: {
-    sessionID: string
-    requestID: string
-  }
-}
-
-export type V2EventQuestionReplied = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "question.replied"
-  data: {
-    sessionID: string
-    requestID: string
-    answers: Array<QuestionAnswer>
-  }
-}
-
 export type V2EventQuestionV2Asked = {
   id: string
   metadata?: {
@@ -10413,24 +10230,6 @@ export type V2EventTaskUpdated = {
   }
 }
 
-export type V2EventTodoUpdated = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  type: "todo.updated"
-  data: {
-    sessionID: string
-    todos: Array<SessionTaskTodoProjection>
-  }
-}
-
 export type V2EventTuiCommandExecute = {
   id: string
   metadata?: {
@@ -11486,39 +11285,6 @@ export type EventPtyUpdated = {
   }
 }
 
-export type EventQuestionAsked = {
-  id: string
-  type: "question.asked"
-  properties: {
-    id: string
-    sessionID: string
-    /**
-     * Questions to ask
-     */
-    questions: Array<QuestionInfo>
-    tool?: QuestionTool
-  }
-}
-
-export type EventQuestionRejected = {
-  id: string
-  type: "question.rejected"
-  properties: {
-    sessionID: string
-    requestID: string
-  }
-}
-
-export type EventQuestionReplied = {
-  id: string
-  type: "question.replied"
-  properties: {
-    sessionID: string
-    requestID: string
-    answers: Array<QuestionAnswer>
-  }
-}
-
 export type EventQuestionV2Asked = {
   id: string
   type: "question.v2.asked"
@@ -12313,15 +12079,6 @@ export type EventTaskUpdated = {
   properties: {
     sessionID: string
     tasks: Array<SessionTaskInfo4>
-  }
-}
-
-export type EventTodoUpdated = {
-  id: string
-  type: "todo.updated"
-  properties: {
-    sessionID: string
-    todos: Array<SessionTaskTodoProjection>
   }
 }
 
@@ -14647,107 +14404,6 @@ export type PtyConnectTokenResponses = {
 }
 
 export type PtyConnectTokenResponse = PtyConnectTokenResponses[keyof PtyConnectTokenResponses]
-
-export type QuestionListData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/question"
-}
-
-export type QuestionListErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type QuestionListError = QuestionListErrors[keyof QuestionListErrors]
-
-export type QuestionListResponses = {
-  /**
-   * List of pending questions
-   */
-  200: Array<QuestionRequest>
-}
-
-export type QuestionListResponse = QuestionListResponses[keyof QuestionListResponses]
-
-export type QuestionReplyData = {
-  body?: {
-    /**
-     * User answers in order of questions (each answer is an array of selected labels)
-     */
-    answers: Array<QuestionAnswer>
-  }
-  path: {
-    requestID: string
-  }
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/question/{requestID}/reply"
-}
-
-export type QuestionReplyErrors = {
-  /**
-   * BadRequest | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
-  /**
-   * QuestionNotFoundError
-   */
-  404: QuestionNotFoundError
-}
-
-export type QuestionReplyError = QuestionReplyErrors[keyof QuestionReplyErrors]
-
-export type QuestionReplyResponses = {
-  /**
-   * Question answered successfully
-   */
-  200: boolean
-}
-
-export type QuestionReplyResponse = QuestionReplyResponses[keyof QuestionReplyResponses]
-
-export type QuestionRejectData = {
-  body?: never
-  path: {
-    requestID: string
-  }
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/question/{requestID}/reject"
-}
-
-export type QuestionRejectErrors = {
-  /**
-   * BadRequest | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
-  /**
-   * QuestionNotFoundError
-   */
-  404: QuestionNotFoundError
-}
-
-export type QuestionRejectError = QuestionRejectErrors[keyof QuestionRejectErrors]
-
-export type QuestionRejectResponses = {
-  /**
-   * Question rejected successfully
-   */
-  200: boolean
-}
-
-export type QuestionRejectResponse = QuestionRejectResponses[keyof QuestionRejectResponses]
 
 export type PermissionListData = {
   body?: never
@@ -17804,40 +17460,6 @@ export type SessionIdentityResponses = {
 }
 
 export type SessionIdentityResponse = SessionIdentityResponses[keyof SessionIdentityResponses]
-
-export type SessionTodoData = {
-  body?: never
-  path: {
-    sessionID: string
-  }
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/session/{sessionID}/todo"
-}
-
-export type SessionTodoErrors = {
-  /**
-   * BadRequest | UnsupportedProductModeError | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | UnsupportedProductModeError | InvalidRequestError
-  /**
-   * NotFoundError
-   */
-  404: NotFoundError
-}
-
-export type SessionTodoError = SessionTodoErrors[keyof SessionTodoErrors]
-
-export type SessionTodoResponses = {
-  /**
-   * Todo list
-   */
-  200: Array<Todo>
-}
-
-export type SessionTodoResponse = SessionTodoResponses[keyof SessionTodoResponses]
 
 export type SessionTaskGetData = {
   body?: never

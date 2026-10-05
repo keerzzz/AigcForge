@@ -318,14 +318,13 @@ export function MessageTimeline(props: {
   })
   const sessionMessages = createMemo(() => (sessionID() ? (sync().data.message[sessionID()!] ?? []) : []))
   const serverSync = useServerSync()
-  // M7: "has a task strip" = either source holds data (the freshness pick that
-  // decides which source displays lives in SessionTodoProgress). Drives the
+  // M7: "has a task strip" = the canonical Task source holds data. Drives the
   // track show-condition + aria; the strip and the env pulse are exclusive.
   const hasTaskData = createMemo(() => {
     const id = sessionID()
     if (!id) return false
     const data = serverSync().data
-    return (data.session_todo[id]?.length ?? 0) + (data.session_task[id]?.length ?? 0) > 0
+    return (data.session_task[id]?.length ?? 0) > 0
   })
   const tint = createMemo(() => messageAgentColor(sessionMessages(), sync().data.agent))
 
@@ -1410,7 +1409,7 @@ export function MessageTimeline(props: {
   }
 
   return (
-    <div class="relative w-full h-full min-w-0" onClick={handleCitationClick}>
+    <div class="relative isolate w-full h-full min-w-0" onClick={handleCitationClick}>
       <Show when={citation.loading || citation.error || citation()}>
         <Switch>
           <Match when={citation.loading}>
@@ -1475,6 +1474,7 @@ export function MessageTimeline(props: {
         </Switch>
       </Show>
       <div
+        inert={!props.scroll.overflow || !props.scroll.jump}
         class="absolute left-1/2 -translate-x-1/2 bottom-6 z-[60] pointer-events-none transition-all duration-200 ease-out"
         classList={{
           "opacity-100 translate-y-0 scale-100": props.scroll.overflow && props.scroll.jump,

@@ -1,4 +1,5 @@
 import { ServerAuth } from "@/server/auth"
+import { ProxyUtil } from "@/server/proxy-util"
 import { Effect, Encoding, Layer, Redacted } from "effect"
 import { HttpEffect, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiError, HttpApiMiddleware } from "effect/unstable/httpapi"
@@ -71,7 +72,7 @@ function decodeCredential(input: string) {
 }
 
 function credentialFromRequest(request: HttpServerRequest.HttpServerRequest) {
-  return credentialFromURL(new URL(request.url, "http://localhost"), request)
+  return credentialFromURL(ProxyUtil.requestURL(request.url), request)
 }
 
 function credentialFromURL(url: URL, request: HttpServerRequest.HttpServerRequest) {
@@ -106,7 +107,7 @@ export const authorizationRouterMiddleware = HttpRouter.middleware()(
     return (effect) =>
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest
-        const url = new URL(request.url, "http://localhost")
+        const url = ProxyUtil.requestURL(request.url)
         if (isPublicUIPath(request.method, url.pathname)) return yield* effect
         return yield* credentialFromURL(url, request).pipe(
           Effect.flatMap((credential) => validateRawCredential(effect, credential, config)),
@@ -139,7 +140,7 @@ export const ptyConnectAuthorizationLayer = Layer.effect(
     return PtyConnectAuthorization.of((effect) =>
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest
-        const url = new URL(request.url, "http://localhost")
+        const url = ProxyUtil.requestURL(request.url)
         if (hasPtyConnectTicketURL(url)) return yield* effect
         return yield* credentialFromURL(url, request).pipe(
           Effect.flatMap((credential) => validateCredential(effect, credential, config)),

@@ -1,4 +1,4 @@
-import { test, type TestOptions } from "bun:test"
+import { onTestFinished, test, type TestOptions } from "bun:test"
 import { Cause, Duration, Effect, Exit, Layer } from "effect"
 import type * as Scope from "effect/Scope"
 import * as TestClock from "effect/testing/TestClock"
@@ -17,7 +17,29 @@ const run = <A, E, R, E2>(value: Body<A, E, R | Scope.Scope>, layer: Layer.Layer
       }
     }
     return yield* exit
-  }).pipe(Effect.runPromise)
+  }).pipe(runTest)
+
+// Bun rejects a timed-out test Promise without cancelling its underlying Effect.
+// Keep the Exit observable until the per-test hook has joined scope finalizers;
+// otherwise they can restore flags or release resources owned by the next test.
+export function runTest<A, E>(effect: Effect.Effect<A, E>): Promise<void> {
+  const controller = new AbortController()
+  const result = Effect.runPromiseExit(effect, { signal: controller.signal })
+  let settled = false
+  onTestFinished(async () => {
+    if (settled) return
+    controller.abort()
+    const exit = await result
+    // The timeout is already a Bun failure. Only its cancellation is expected;
+    // cleanup defects must still fail the originating test's completion hook.
+    if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) throw Cause.squash(exit.cause)
+  })
+  return result.then((exit) => {
+    settled = true
+    if (controller.signal.aborted) return
+    if (Exit.isFailure(exit)) throw Cause.squash(exit.cause)
+  })
+}
 
 const make = <R, E>(testLayer: Layer.Layer<R, E>, liveLayer: Layer.Layer<R, E>) => {
   const effect = <A, E2>(name: string, value: Body<A, E2, R | Scope.Scope>, opts?: number | TestOptions) =>

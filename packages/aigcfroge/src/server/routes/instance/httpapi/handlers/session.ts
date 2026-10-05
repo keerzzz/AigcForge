@@ -4,7 +4,6 @@ import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionIdentityProjection } from "@aigcfroge/core/session/session-identity"
 import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task" // Schema namespace; the core SessionTask import above uses the unaliased name.
 import { PermissionV2 } from "@aigcfroge/core/permission"
@@ -222,14 +221,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       const capabilitiesHeader = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
       const rawChildren = yield* SessionError.mapStorageNotFound(session.children(ctx.params.sessionID))
       return ProductModePolicy.filterSupportedSessions(rawChildren, capabilitiesHeader)
-    })
-
-    const todo = Effect.fn("SessionHttpApi.todo")(function* (ctx: { params: { sessionID: SessionID } }) {
-      yield* requireRuntimeSession(ctx.params.sessionID)
-      // TaskTable is the single source in both runtimes; SessionTodo projects
-      // the legacy three-field shape from it.
-      const v2todo = yield* SessionTodo.Service
-      return yield* v2todo.get(ctx.params.sessionID)
     })
 
     const task = Effect.fn("SessionHttpApi.task")(function* (ctx: {
@@ -623,8 +614,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     // Copy the parent's task list into a forked session as a three-field
     // projection: ids, spawned_from, depends_on, parent_id, schedules and
     // digests are dropped so the copy holds no dangling references and cannot
-    // re-fire the parent's schedules. The update publishes task.updated /
-    // todo.updated for the child, so clients refresh on their own.
+    // re-fire the parent's schedules. The update publishes task.updated for
+    // the child, so clients refresh on their own.
     const copyForkTasks = Effect.fn("SessionHttpApi.copyForkTasks")(function* (
       sourceID: SessionID,
       childID: SessionID,
@@ -1032,34 +1023,59 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     }) {
       const info = yield* requireRuntimeSession(ctx.params.sessionID)
       if (ProductModePolicy.shouldUseV2Runtime(info.mode, AIGCFROGE_V2_RUNTIME)) {
-        const v2perm = yield* PermissionV2.Service
-        yield* v2perm
-          .reply({
-            requestID: PermissionV2.ID.make(ctx.params.permissionID),
-            reply: ctx.payload.response,
-          })
-          .pipe(
-            Effect.catchTag("PermissionV2.NotFoundError", (error) =>
-              Effect.fail(
-                new PermissionNotFoundError({
-                  requestID: String(error.requestID),
-                  message: `Permission request not found: ${error.requestID}`,
-                }),
+        // Keep the whole decision in the Session's Location context:
+        // EventV2.publish reads Location.Service when the reply executes.
+        return yield* Effect.gen(function* () {
+          const v2perm = yield* PermissionV2.Service
+          const pending = yield* v2perm.get(PermissionV2.ID.make(ctx.params.permissionID))
+          if (!pending || pending.sessionID !== ctx.params.sessionID)
+            return yield* new PermissionNotFoundError({
+              requestID: ctx.params.permissionID,
+              message: `Permission request not found: ${ctx.params.permissionID}`,
+            })
+          yield* v2perm
+            .reply({
+              requestID: PermissionV2.ID.make(ctx.params.permissionID),
+              reply: ctx.payload.response,
+            })
+            .pipe(
+              Effect.catchTag("PermissionV2.NotFoundError", (error) =>
+                Effect.fail(
+                  new PermissionNotFoundError({
+                    requestID: String(error.requestID),
+                    message: `Permission request not found: ${error.requestID}`,
+                  }),
+                ),
               ),
-            ),
-          )
-      } else {
-        yield* permissionSvc.reply({ requestID: ctx.params.permissionID, reply: ctx.payload.response }).pipe(
-          Effect.catchTag("Permission.NotFoundError", (error) =>
-            Effect.fail(
-              new PermissionNotFoundError({
-                requestID: String(error.requestID),
-                message: `Permission request not found: ${error.requestID}`,
+            )
+          return true
+        }).pipe(
+          Effect.provide(
+            locations.get(
+              Location.Ref.make({
+                directory: AbsolutePath.make(info.directory),
+                ...(info.workspaceID ? { workspaceID: info.workspaceID } : {}),
               }),
             ),
           ),
         )
       }
+      const pending = (yield* permissionSvc.list()).find((request) => request.id === ctx.params.permissionID)
+      if (!pending || pending.sessionID !== ctx.params.sessionID)
+        return yield* new PermissionNotFoundError({
+          requestID: ctx.params.permissionID,
+          message: `Permission request not found: ${ctx.params.permissionID}`,
+        })
+      yield* permissionSvc.reply({ requestID: ctx.params.permissionID, reply: ctx.payload.response }).pipe(
+        Effect.catchTag("Permission.NotFoundError", (error) =>
+          Effect.fail(
+            new PermissionNotFoundError({
+              requestID: String(error.requestID),
+              message: `Permission request not found: ${error.requestID}`,
+            }),
+          ),
+        ),
+      )
       return true
     })
 
@@ -1368,7 +1384,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("get", get)
       .handle("children", children)
       .handle("identity", identity)
-      .handle("todo", todo)
       .handle("task", task)
       .handle("getTask", getTask)
       .handle("patchTask", patchTask)

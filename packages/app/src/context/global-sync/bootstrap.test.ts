@@ -1,3 +1,4 @@
+import { createComputed, createRoot } from "solid-js"
 import { describe, expect, test } from "bun:test"
 import { createStore } from "solid-js/store"
 import { QueryClient } from "@tanstack/solid-query"
@@ -20,6 +21,7 @@ describe("bootstrapDirectory", () => {
   test("marks a loading directory partial during bootstrap and complete after success", async () => {
     const mcpReads: string[] = []
     const v2PermissionReads: string[] = []
+    const questionReads: unknown[] = []
     const [store, setStore] = createStore<State>({
       status: "loading",
       agent: [],
@@ -38,12 +40,14 @@ describe("bootstrapDirectory", () => {
         return this.session_status[id]?.type !== "idle"
       },
       session_diff: {},
-      todo: {},
       permission: {},
       permission_v2: {},
       permission_v2_revision: 0,
       permission_v2_load_epoch: 0,
       permission_v2_events: [],
+      question_revision: 0,
+      question_load_epoch: 0,
+      question_events: [],
       question: {},
       mcp_ready: true,
       mcp: {},
@@ -84,6 +88,25 @@ describe("bootstrapDirectory", () => {
         },
         permission: { list: async () => ({ data: [] }) },
         v2: {
+          question: {
+            request: {
+              list: async (input: unknown) => {
+                questionReads.push(input)
+                return {
+                  data: {
+                    location: { directory: "/project" },
+                    data: [
+                      {
+                        id: "que_canonical",
+                        sessionID: "ses_custom",
+                        questions: [{ question: "Choose", header: "Choice", options: [] }],
+                      },
+                    ],
+                  },
+                }
+              },
+            },
+          },
           permission: {
             request: {
               list: async () => {
@@ -106,7 +129,6 @@ describe("bootstrapDirectory", () => {
             },
           },
         },
-        question: { list: async () => ({ data: [] }) },
         mcp: {
           status: async () => {
             mcpReads.push("status")
@@ -125,11 +147,21 @@ describe("bootstrapDirectory", () => {
 
     expect(store.status).toBe("partial")
 
-    await new Promise((resolve) => setTimeout(resolve, 80))
+    await new Promise<void>((resolve) =>
+      createRoot((dispose) =>
+        createComputed(() => {
+          if (store.status !== "complete") return
+          dispose()
+          resolve()
+        }),
+      ),
+    )
 
     expect(store.status).toBe("complete")
     expect(mcpReads).toEqual([])
     expect(v2PermissionReads).toEqual(["list"])
+    expect(questionReads).toEqual([{ location: { directory: "/project" } }])
+    expect(store.question.ses_custom?.map((question) => question.id)).toEqual(["que_canonical"])
     expect(store.permission_v2.ses_custom).toEqual([
       {
         id: "per_custom",
@@ -160,12 +192,14 @@ describe("bootstrapDirectory", () => {
         return false
       },
       session_diff: {},
-      todo: {},
       permission: {},
       permission_v2: {},
       permission_v2_revision: 0,
       permission_v2_load_epoch: 0,
       permission_v2_events: [],
+      question_revision: 0,
+      question_load_epoch: 0,
+      question_events: [],
       question: {},
       mcp_ready: true,
       mcp: {},
@@ -230,12 +264,14 @@ describe("bootstrapDirectory", () => {
         return false
       },
       session_diff: {},
-      todo: {},
       permission: {},
       permission_v2: {},
       permission_v2_revision: 0,
       permission_v2_load_epoch: 0,
       permission_v2_events: [],
+      question_revision: 0,
+      question_load_epoch: 0,
+      question_events: [],
       question: {},
       mcp_ready: true,
       mcp: {},
@@ -302,7 +338,6 @@ describe("bootstrapDirectory", () => {
         return false
       },
       session_diff: {},
-      todo: {},
       permission: {},
       permission_v2: {
         ses_custom: [{ id: "per_pending", sessionID: "ses_custom", action: "bash", resources: ["/pending"] }],
@@ -310,6 +345,9 @@ describe("bootstrapDirectory", () => {
       permission_v2_revision: 0,
       permission_v2_load_epoch: 0,
       permission_v2_events: [],
+      question_revision: 0,
+      question_load_epoch: 0,
+      question_events: [],
       question: {},
       mcp_ready: true,
       mcp: {},

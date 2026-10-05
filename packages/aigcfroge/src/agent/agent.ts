@@ -160,7 +160,7 @@ export const layer = Layer.effect(
           ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
         } satisfies Record<string, "allow" | "ask" | "deny">
 
-        const defaults = Permission.fromConfig({
+        const defaultConfig = {
           "*": "allow",
           doom_loop: "ask",
           external_directory: {
@@ -177,17 +177,18 @@ export const layer = Layer.effect(
             "*.env.*": "ask",
             "*.env.example": "allow",
           },
-        })
+        } satisfies Parameters<typeof Permission.fromConfig>[0]
+        const defaults = Permission.fromConfig(defaultConfig)
 
         const user = Permission.fromConfig(cfg.permission ?? {})
 
-        const buildDefaults = Permission.merge(
-          defaults,
-          Permission.fromConfig({
-            question: "allow",
-            plan_enter: "allow",
-          }),
-        )
+        // Resolve built-in overrides before emitting rules. A superseded default deny
+        // would otherwise be restored by the effective policy's explicit-deny ceiling.
+        const buildDefaults = Permission.fromConfig({
+          ...defaultConfig,
+          question: "allow",
+          plan_enter: "allow",
+        })
 
         // meta 专属 deny-first 基线（V1/V2 同构，见 core plugin/agent.ts metaDefaults）：
         // 未知 action 默认 deny，不产生 wildcard allow；read/propose/领域工具显式白名单。
@@ -312,14 +313,15 @@ export const layer = Layer.effect(
             description: "Plan mode. Disallows all edit tools.",
             options: {},
             permission: Permission.merge(
-              defaults,
               Permission.fromConfig({
+                ...defaultConfig,
                 question: "allow",
                 plan_exit: "allow",
                 task: {
                   general: "deny",
                 },
                 external_directory: {
+                  ...defaultConfig.external_directory,
                   [path.join(Global.Path.data, "plans", "*")]: "allow",
                 },
                 edit: {

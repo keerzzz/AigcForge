@@ -957,6 +957,7 @@ export const dict = {
   "session.todo.progress": "已完成 {{done}} 個待辦事項（共 {{total}} 個）",
   "session.todo.list": "任務列表",
   "session.question.progress": "{{current}}/{{total}} 個問題",
+  "session.requests.pending": "待處理請求：{{count}}",
   "session.header.open.finder": "Finder",
   "session.header.open.fileExplorer": "檔案總管",
   "session.header.open.fileManager": "檔案管理員",

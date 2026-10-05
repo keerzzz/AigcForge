@@ -811,6 +811,7 @@ export const dict = {
   "session.review.noVcs.createGit.action": "Git-Repository erstellen",
   "session.todo.progress": "{{done}} von {{total}} Aufgaben erledigt",
   "session.question.progress": "{{current}} von {{total}} Fragen",
+  "session.requests.pending": "Ausstehende Anfragen: {{count}}",
   "session.header.open.finder": "Finder",
   "session.header.open.fileExplorer": "Datei-Explorer",
   "session.header.open.fileManager": "Dateimanager",

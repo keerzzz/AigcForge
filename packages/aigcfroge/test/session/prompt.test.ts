@@ -25,8 +25,6 @@ import { Env } from "../../src/env"
 import { Git } from "../../src/git"
 import { Image } from "../../src/image/image"
 
-import { Question } from "../../src/question"
-import { Todo } from "../../src/session/todo"
 import { Session } from "@/session/session"
 import { SessionMessageTable } from "@aigcfroge/core/session/sql"
 import { LLM } from "../../src/session/llm"
@@ -189,8 +187,6 @@ function makePrompt(input?: { processor?: "blocking" }) {
     Database.defaultLayer,
     EventV2Bridge.defaultLayer,
   ).pipe(Layer.provideMerge(infra))
-  const question = Question.layer.pipe(Layer.provideMerge(deps))
-  const todo = Todo.defaultLayer.pipe(Layer.provideMerge(deps))
   const registry = ToolRegistry.layer.pipe(
     Layer.provide(Skill.defaultLayer),
     Layer.provide(LocationServiceMap.layer),
@@ -202,8 +198,6 @@ function makePrompt(input?: { processor?: "blocking" }) {
     Layer.provide(RuntimeFlags.layer({ experimentalEventSystem: true })),
     Layer.provide(DelegationService.defaultLayer),
     Layer.provide(SessionTask.defaultLayer),
-    Layer.provideMerge(todo),
-    Layer.provideMerge(question),
     Layer.provideMerge(deps),
   )
   const trunc = Truncate.layer.pipe(Layer.provideMerge(deps))

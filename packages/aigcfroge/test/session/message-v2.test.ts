@@ -6,7 +6,7 @@ import { ProviderTransform } from "@/provider/transform"
 import type { Provider } from "@/provider/provider"
 
 import { SessionID, MessageID, PartID } from "../../src/session/schema"
-import { Question } from "../../src/question"
+import { QuestionV2 } from "@aigcfroge/core/question"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 
@@ -1553,8 +1553,8 @@ describe("session.message-v2.fromError", () => {
     })
   })
 
-  test("serializes tagged errors with their message", () => {
-    const result = MessageV2.fromError(new Question.RejectedError(), { providerID })
+  test("serializes the canonical question rejection with its message", () => {
+    const result = MessageV2.fromError(new QuestionV2.RejectedError(), { providerID })
 
     expect(result).toStrictEqual({
       name: "UnknownError",

@@ -8,7 +8,6 @@ import { SessionPrompt } from "@/session/prompt"
 import { SessionRevert } from "@/session/revert"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
-import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { Snapshot } from "@/snapshot"
 import { CacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
@@ -116,7 +115,6 @@ export const SessionPaths = {
   get: `${root}/:sessionID`,
   children: `${root}/:sessionID/children`,
   identity: `${root}/:sessionID/identity`,
-  todo: `${root}/:sessionID/todo`,
   task: `${root}/:sessionID/task`,
   taskItem: `${root}/:sessionID/task/:taskID`,
   taskReorder: `${root}/:sessionID/task/reorder`,
@@ -212,18 +210,6 @@ export const SessionApi = HttpApi.make("session")
             summary: "Get session identity",
             description:
               "Read-only SessionProductIdentity projection (ADR-23): common identity, permission posture, and the mode detail the owners can supply today.",
-          }),
-        ),
-        HttpApiEndpoint.get("todo", SessionPaths.todo, {
-          params: { sessionID: SessionID },
-          query: WorkspaceRoutingQuery,
-          success: described(Schema.Array(Todo.Info), "Todo list"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "session.todo",
-            summary: "Get session todos",
-            description: "Retrieve the todo list associated with a specific session, showing tasks and action items.",
           }),
         ),
         HttpApiEndpoint.patch("task", SessionPaths.task, {

@@ -14,9 +14,9 @@ export function e4(): E4Manifest {
  * Seed the localStorage server registry and default server URL with the real
  * backend. Sealed via addInitScript so it applies before any app code runs.
  */
-export function seedRealBackend(page: import("@playwright/test").Page, backendUrl: string) {
+export function seedRealBackend(page: import("@playwright/test").Page, backendUrl: string, peers: string[] = []) {
   const registry = JSON.stringify({
-    list: [{ type: "http", http: { url: backendUrl } }],
+    list: [backendUrl, ...peers].map((url) => ({ type: "http", http: { url } })),
     projects: {},
     lastProject: {},
   })

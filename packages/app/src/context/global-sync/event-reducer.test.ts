@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { Message, Part, PermissionRequest, Project, QuestionRequest, Session } from "@aigcfroge/sdk/v2/client"
+import type { Message, Part, PermissionRequest, Project, QuestionV2Request, Session } from "@aigcfroge/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import type { State } from "./types"
 import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } from "./event-reducer"
@@ -55,7 +55,7 @@ const questionRequest = (id: string, sessionID: string, title = id) =>
         options: [{ label: title, description: title }],
       },
     ],
-  }) as QuestionRequest
+  }) as QuestionV2Request
 
 const permissionV2Request = (id: string, sessionID: string, action = "bash") => ({
   id,
@@ -79,12 +79,14 @@ const baseState = (input: Partial<State> = {}) =>
     sessionTotal: 0,
     session_status: {},
     session_diff: {},
-    todo: {},
     permission: {},
     permission_v2: {},
     permission_v2_revision: 0,
     permission_v2_load_epoch: 0,
     permission_v2_events: [],
+    question_revision: 0,
+    question_load_epoch: 0,
+    question_events: [],
     question: {},
     mcp: {},
     lsp: [],
@@ -227,7 +229,6 @@ describe("applyDirectoryEvent", () => {
         message: { ses_1: [message] },
         part: { [message.id]: [textPart("prt_1", "ses_1", message.id)] },
         session_diff: { ses_1: [] },
-        todo: { ses_1: [] },
         permission: { ses_1: [] },
         permission_v2: {},
         question: { ses_1: [] },
@@ -249,7 +250,6 @@ describe("applyDirectoryEvent", () => {
     expect(store.message.ses_1).toBeUndefined()
     expect(store.part[message.id]).toBeUndefined()
     expect(store.session_diff.ses_1).toBeUndefined()
-    expect(store.todo.ses_1).toBeUndefined()
     expect(store.permission.ses_1).toBeUndefined()
     expect(store.question.ses_1).toBeUndefined()
     expect(store.session_status.ses_1).toBeUndefined()
@@ -358,7 +358,6 @@ describe("applyDirectoryEvent", () => {
           message: { [item.info.id]: [message] },
           part: { [message.id]: [textPart("prt_1", item.info.id, message.id)] },
           session_diff: { [item.info.id]: [] },
-          todo: { [item.info.id]: [] },
           permission: { [item.info.id]: [] },
           permission_v2: {},
           question: { [item.info.id]: [] },
@@ -380,7 +379,6 @@ describe("applyDirectoryEvent", () => {
       expect(store.message[item.info.id]).toBeUndefined()
       expect(store.part[message.id]).toBeUndefined()
       expect(store.session_diff[item.info.id]).toBeUndefined()
-      expect(store.todo[item.info.id]).toBeUndefined()
       expect(store.permission[item.info.id]).toBeUndefined()
       expect(store.question[item.info.id]).toBeUndefined()
       expect(store.session_status[item.info.id]).toBeUndefined()
@@ -391,7 +389,7 @@ describe("applyDirectoryEvent", () => {
     const dropped = rootSession({ id: "ses_b" })
     const kept = rootSession({ id: "ses_a" })
     const message = userMessage("msg_1", dropped.id)
-    const todos: string[] = []
+    const droppedTaskCleanups: string[] = []
     const [store, setStore] = createStore(
       baseState({
         limit: 1,
@@ -399,7 +397,6 @@ describe("applyDirectoryEvent", () => {
         message: { [dropped.id]: [message] },
         part: { [message.id]: [textPart("prt_1", dropped.id, message.id)] },
         session_diff: { [dropped.id]: [] },
-        todo: { [dropped.id]: [] },
         permission: { [dropped.id]: [] },
         question: { [dropped.id]: [] },
         session_status: { [dropped.id]: { type: "busy" } },
@@ -413,9 +410,9 @@ describe("applyDirectoryEvent", () => {
       push() {},
       directory: "/tmp",
       loadLsp() {},
-      setSessionTodo(sessionID, value) {
+      setSessionTask(sessionID, value) {
         if (value !== undefined) return
-        todos.push(sessionID)
+        droppedTaskCleanups.push(sessionID)
       },
     })
 
@@ -423,11 +420,10 @@ describe("applyDirectoryEvent", () => {
     expect(store.message[dropped.id]).toBeUndefined()
     expect(store.part[message.id]).toBeUndefined()
     expect(store.session_diff[dropped.id]).toBeUndefined()
-    expect(store.todo[dropped.id]).toBeUndefined()
     expect(store.permission[dropped.id]).toBeUndefined()
     expect(store.question[dropped.id]).toBeUndefined()
     expect(store.session_status[dropped.id]).toBeUndefined()
-    expect(todos).toEqual([dropped.id])
+    expect(droppedTaskCleanups).toEqual([dropped.id])
   })
 
   test("cleanupDroppedSessionCaches clears part-only orphan state", () => {
@@ -567,7 +563,7 @@ describe("applyDirectoryEvent", () => {
     const [store, setStore] = createStore(
       baseState({
         permission: { [sessionID]: [permissionRequest("perm_1", sessionID), permissionRequest("perm_3", sessionID)] },
-        question: { [sessionID]: [questionRequest("q_1", sessionID), questionRequest("q_3", sessionID)] },
+        question: { [sessionID]: [questionRequest("que_q_1", sessionID), questionRequest("que_q_3", sessionID)] },
       }),
     )
 
@@ -602,34 +598,34 @@ describe("applyDirectoryEvent", () => {
     expect(store.permission[sessionID]?.map((x) => x.id)).toEqual(["perm_1", "perm_3"])
 
     applyDirectoryEvent({
-      event: { type: "question.asked", properties: questionRequest("q_2", sessionID) },
+      event: { type: "question.v2.asked", properties: questionRequest("que_q_2", sessionID) },
       store,
       setStore,
       push() {},
       directory: "/tmp",
       loadLsp() {},
     })
-    expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["q_1", "q_2", "q_3"])
+    expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["que_q_1", "que_q_2", "que_q_3"])
 
     applyDirectoryEvent({
-      event: { type: "question.asked", properties: questionRequest("q_2", sessionID, "updated") },
+      event: { type: "question.v2.asked", properties: questionRequest("que_q_2", sessionID, "updated") },
       store,
       setStore,
       push() {},
       directory: "/tmp",
       loadLsp() {},
     })
-    expect(store.question[sessionID]?.find((x) => x.id === "q_2")?.questions[0]?.header).toBe("updated")
+    expect(store.question[sessionID]?.find((x) => x.id === "que_q_2")?.questions[0]?.header).toBe("updated")
 
     applyDirectoryEvent({
-      event: { type: "question.rejected", properties: { sessionID, requestID: "q_2" } },
+      event: { type: "question.v2.rejected", properties: { sessionID, requestID: "que_q_2" } },
       store,
       setStore,
       push() {},
       directory: "/tmp",
       loadLsp() {},
     })
-    expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["q_1", "q_3"])
+    expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["que_q_1", "que_q_3"])
   })
 
   test("tracks V2 permission requests separately from legacy permission requests", () => {
@@ -766,5 +762,82 @@ describe("applyDirectoryEvent", () => {
 
     expect(pushes).toEqual(["/tmp"])
     expect(lspLoads).toBe(1)
+  })
+})
+
+describe("AI-TDD-S03 canonical Question contract", () => {
+  test("receives native questions without a second pending store", () => {
+    const [store, setStore] = createStore(baseState())
+    const request = questionRequest("que_native", "ses_native")
+    applyDirectoryEvent({
+      event: { type: "question.v2.asked", properties: request },
+      store,
+      setStore,
+      directory: "/tmp",
+      push() {},
+      loadLsp() {},
+    })
+    expect(store.question[request.sessionID]).toEqual([request])
+  })
+
+  for (const type of ["question.v2.replied", "question.v2.rejected"]) {
+    test(`${type} only removes the matching Session's question`, () => {
+      const owner = questionRequest("que_shared", "ses_owner")
+      const sibling = questionRequest("que_shared", "ses_sibling")
+      const [store, setStore] = createStore(
+        baseState({
+          question: { ses_owner: [owner], ses_sibling: [sibling] },
+        }),
+      )
+      applyDirectoryEvent({
+        event: { type, properties: { sessionID: owner.sessionID, requestID: owner.id, answers: [["Yes"]] } },
+        store,
+        setStore,
+        directory: "/tmp",
+        push() {},
+        loadLsp() {},
+      })
+      expect(store.question.ses_owner).toEqual([])
+      expect(store.question.ses_sibling).toEqual([sibling])
+    })
+  }
+
+  test("does not revive the retired Question event family", () => {
+    const [store, setStore] = createStore(baseState())
+    applyDirectoryEvent({
+      event: { type: "question.asked", properties: questionRequest("que_retired", "ses_retired") },
+      store,
+      setStore,
+      directory: "/tmp",
+      push() {},
+      loadLsp() {},
+    })
+    expect(store.question.ses_retired).toBeUndefined()
+  })
+})
+
+describe("Task events are full-list invalidations", () => {
+  test("data, clear, and a delayed older payload all invalidate without writing event snapshots", () => {
+    const [store, setStore] = createStore(baseState())
+    const invalidated: string[] = []
+    const written: string[] = []
+    for (const tasks of [[{ id: "tsk_a", revision: 90 }], [], [{ id: "tsk_a", revision: 1 }]]) {
+      applyDirectoryEvent({
+        event: { type: "task.updated", properties: { sessionID: "ses_a", tasks } },
+        store,
+        setStore,
+        directory: "/a",
+        push() {},
+        loadLsp() {},
+        setSessionTask: (sessionID) => {
+          written.push(sessionID)
+        },
+        invalidateSessionTask: (sessionID) => {
+          invalidated.push(sessionID)
+        },
+      })
+    }
+    expect(invalidated).toEqual(["ses_a", "ses_a", "ses_a"])
+    expect(written).toEqual([])
   })
 })

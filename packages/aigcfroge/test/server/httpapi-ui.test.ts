@@ -17,7 +17,7 @@ import { RuntimeFlags } from "../../src/effect/runtime-flags"
 import { ServerAuth } from "../../src/server/auth"
 import { authorizationRouterMiddleware } from "../../src/server/routes/instance/httpapi/middleware/authorization"
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
-import { serveEmbeddedUIEffect, serveUIEffect } from "../../src/server/shared/ui"
+import { serveEmbeddedUIEffect, serveUIEffect, UI_UPSTREAM } from "../../src/server/shared/ui"
 import { testEffect } from "../lib/effect"
 
 const testStateLayer = Layer.effectDiscard(
@@ -94,7 +94,7 @@ function uiApp(input?: {
   client?: Layer.Layer<HttpClient.HttpClient>
   disableEmbeddedWebUi?: boolean
 }) {
-  const handler = HttpRouter.toWebHandler(
+  const web = HttpRouter.toWebHandler(
     HttpRouter.use((router) =>
       Effect.gen(function* () {
         const fs = yield* FSUtil.Service
@@ -120,12 +120,13 @@ function uiApp(input?: {
       ]),
     ),
     { disableLogger: true },
-  ).handler
+  )
+  pendingDisposals.push(web.dispose)
   return {
     request(input: string | URL | Request, init?: RequestInit) {
       return Effect.promise(() =>
         Promise.resolve(
-          handler(
+          web.handler(
             input instanceof Request ? input : new Request(new URL(input, "http://localhost"), init),
             HttpApiApp.context,
           ),
@@ -137,7 +138,7 @@ function uiApp(input?: {
 
 function routeOrderingApp() {
   let proxiedUrl: string | undefined
-  const handler = HttpRouter.toWebHandler(
+  const web = HttpRouter.toWebHandler(
     HttpRouter.use((router) =>
       Effect.gen(function* () {
         const fs = yield* FSUtil.Service
@@ -161,13 +162,14 @@ function routeOrderingApp() {
       ]),
     ),
     { disableLogger: true },
-  ).handler
+  )
+  pendingDisposals.push(web.dispose)
   return {
     proxiedUrl: () => proxiedUrl,
     request(input: string | URL | Request, init?: RequestInit) {
       return Effect.promise(() =>
         Promise.resolve(
-          handler(
+          web.handler(
             input instanceof Request ? input : new Request(new URL(input, "http://localhost"), init),
             HttpApiApp.context,
           ),
@@ -512,6 +514,225 @@ describe("HttpApi UI fallback", () => {
           "access-control-request-method": "GET",
         },
       })
+
+      expect(response.status).toBe(204)
+      expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:3000")
+    }),
+  )
+})
+
+describe("UI transport boundary", () => {
+  for (const input of [
+    { method: "GET", path: "/question" },
+    { method: "GET", path: "/%71uestion" },
+    { method: "GET", path: "/QUESTION" },
+    { method: "GET", path: "/%51uestion" },
+    { method: "GET", path: "/question;probe=fixture" },
+    { method: "GET", path: "//question/qst_fixture/reply" },
+    { method: "GET", path: "//session/ses_fixture/todo" },
+    { method: "GET", path: "//api/not-a-route" },
+    { method: "HEAD", path: "/question" },
+    { method: "POST", path: "/question/qst_fixture/reply" },
+    { method: "POST", path: "/question/qst_fixture/reject" },
+    { method: "GET", path: "/session/ses_fixture/todo" },
+    { method: "GET", path: "/api/not-a-route" },
+    { method: "GET", path: "/%E0%A4%A" },
+  ]) {
+    it.live(`refuses API fallback ${input.method} ${input.path} without contacting UI`, () =>
+      Effect.gen(function* () {
+        const calls: string[] = []
+        const response = yield* uiApp({
+          password: "local-test-password",
+          username: "aigcfroge",
+          disableEmbeddedWebUi: true,
+          client: httpClient(
+            new Response("<html>ui</html>", { headers: { "content-type": "text/html" } }),
+            (request) => {
+              calls.push(request.url)
+            },
+          ),
+        }).request(
+          new Request(`http://localhost${input.path}`, {
+            method: input.method,
+            headers: {
+              authorization: `Basic ${btoa("aigcfroge:local-test-password")}`,
+              accept: "text/html",
+              "content-type": "application/json",
+            },
+            ...(input.method === "POST" ? { body: JSON.stringify({ answers: [["private-test-answer"]] }) } : {}),
+          }),
+        )
+
+        expect(calls).toHaveLength(0)
+        expect(response.status).toBe(404)
+      }),
+    )
+  }
+
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    it.live(`refuses unknown ${method} writes instead of forwarding their body`, () =>
+      Effect.gen(function* () {
+        const calls: string[] = []
+        const response = yield* uiApp({
+          disableEmbeddedWebUi: true,
+          client: httpClient(new Response("ui"), (request) => {
+            calls.push(request.url)
+          }),
+        }).request("/unmatched-ui-path", {
+          method,
+          body: JSON.stringify({ private: "fixture-payload" }),
+          headers: { "content-type": "application/json" },
+        })
+
+        expect(calls).toHaveLength(0)
+        expect(response.status).toBe(404)
+      }),
+    )
+  }
+
+  for (const path of ["/site.webmanifest", "/web-app-manifest-192x192.png", "/web-app-manifest-512x512.png"]) {
+    it.live(`does not grant public asset authentication to //probe${path}`, () =>
+      Effect.gen(function* () {
+        const calls: string[] = []
+        const response = yield* uiApp({
+          password: "local-test-password",
+          username: "aigcfroge",
+          disableEmbeddedWebUi: true,
+          client: httpClient(new Response("asset"), (request) => {
+            calls.push(request.url)
+          }),
+        }).request(new Request(`http://localhost//probe${path}`))
+
+        expect(response.status).toBe(401)
+        expect(calls).toHaveLength(0)
+      }),
+    )
+  }
+
+  it.live("keeps local credentials and private headers out of the hosted UI request", () =>
+    Effect.gen(function* () {
+      const calls: HttpClientRequest.HttpClientRequest[] = []
+      const response = yield* uiApp({
+        password: "local-test-password",
+        username: "aigcfroge",
+        disableEmbeddedWebUi: true,
+        client: httpClient(new Response("asset"), (request) => {
+          calls.push(request)
+        }),
+      }).request("/assets/client.js", {
+        headers: {
+          authorization: `Basic ${btoa("aigcfroge:local-test-password")}`,
+          cookie: "private=fixture-cookie",
+          "x-api-key": "fixture-api-key",
+          "x-aigcfroge-directory": "/private-fixture",
+          "x-aigcfroge-workspace": "workspace-fixture",
+          referer: "http://localhost/private-fixture",
+          accept: "application/javascript",
+          "accept-language": "zh-CN",
+          "if-none-match": '"fixture-etag"',
+          range: "bytes=0-10",
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expect(calls).toHaveLength(1)
+      const forwarded = calls[0]
+      if (!forwarded) throw new Error("expected one hosted UI request")
+      expect(forwarded.headers["authorization"]).toBeUndefined()
+      expect(forwarded.headers["cookie"]).toBeUndefined()
+      expect(forwarded.headers["x-api-key"]).toBeUndefined()
+      expect(forwarded.headers["x-aigcfroge-directory"]).toBeUndefined()
+      expect(forwarded.headers["x-aigcfroge-workspace"]).toBeUndefined()
+      expect(forwarded.headers["referer"]).toBeUndefined()
+      expect(forwarded.headers["accept"]).toBe("application/javascript")
+      expect(forwarded.headers["accept-language"]).toBe("zh-CN")
+      expect(forwarded.headers["if-none-match"]).toBe('"fixture-etag"')
+      expect(forwarded.headers["range"]).toBe("bytes=0-10")
+      expect(forwarded.body._tag).toBe("Empty")
+    }),
+  )
+
+  it.live("cannot replace the hosted UI origin with a network-path request", () =>
+    Effect.gen(function* () {
+      const calls: string[] = []
+      const fs = yield* FSUtil.Service
+      const response = yield* serveUIEffect(
+        HttpServerRequest.fromWeb(new Request("http://localhost//different-origin.invalid/client.js")),
+        {
+          fs,
+          disableEmbeddedWebUi: true,
+          client: HttpClient.make((request) => {
+            calls.push(request.url)
+            return Effect.succeed(HttpClientResponse.fromWeb(request, new Response("asset")))
+          }),
+        },
+      )
+
+      expect(response.status).toBe(200)
+      expect(calls).toHaveLength(1)
+      const forwarded = calls[0]
+      if (!forwarded) throw new Error("expected one hosted UI request")
+      expect(new URL(forwarded).origin).toBe(UI_UPSTREAM.origin)
+      expect(new URL(forwarded).pathname).toBe("//different-origin.invalid/client.js")
+    }),
+  )
+
+  for (const method of ["GET", "HEAD"]) {
+    it.live(`preserves SPA deep-link ${method}`, () =>
+      Effect.gen(function* () {
+        const calls: string[] = []
+        const response = yield* uiApp({
+          disableEmbeddedWebUi: true,
+          client: httpClient(
+            new Response("<html>ui</html>", { headers: { "content-type": "text/html" } }),
+            (request) => {
+              calls.push(request.method)
+            },
+          ),
+        }).request("/server/server-fixture/session/ses_fixture", { method })
+
+        expect(response.status).toBe(200)
+        expect(calls).toEqual([method])
+      }),
+    )
+  }
+
+  for (const path of ["/question", "/question/qst_fixture/reply", "/session/ses_fixture/todo", "/api/not-a-route"]) {
+    it.live(`embedded UI does not turn API path ${path} into index.html`, () =>
+      Effect.gen(function* () {
+        const fs = yield* FSUtil.Service
+        const reads: string[] = []
+        const response = yield* serveEmbeddedUIEffect(
+          path,
+          {
+            ...fs,
+            readFile: (file) => {
+              reads.push(file)
+              return Effect.succeed(new TextEncoder().encode("<html>ui</html>"))
+            },
+          },
+          { "index.html": "/$bunfs/root/index.html" },
+        )
+
+        expect(reads).toHaveLength(0)
+        expect(response.status).toBe(404)
+      }),
+    )
+  }
+
+  it.live("preserves local CORS preflight for a retired API path", () =>
+    Effect.gen(function* () {
+      const response = yield* app({ password: "local-test-password", username: "aigcfroge" }).request(
+        "/question/qst_fixture/reply",
+        {
+          method: "OPTIONS",
+          headers: {
+            origin: "http://localhost:3000",
+            "access-control-request-method": "POST",
+            "access-control-request-headers": "authorization,content-type",
+          },
+        },
+      )
 
       expect(response.status).toBe(204)
       expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:3000")
