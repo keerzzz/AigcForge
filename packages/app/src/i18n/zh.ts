@@ -3,6 +3,7 @@ import { dict as en } from "./en"
 type Keys = keyof typeof en
 
 export const dict = {
+  "prompt.agent.source.native": "内置",
   "command.category.suggested": "建议",
   "command.category.view": "视图",
   "command.category.project": "项目",

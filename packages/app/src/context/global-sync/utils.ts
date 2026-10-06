@@ -21,10 +21,14 @@ export function normalizeAgentList(input: unknown): Agent[] {
 }
 
 export function filterAgentList(input: Agent[], mode: ProductMode, includeAssetBacked: boolean): Agent[] {
-  return input
-    .filter((item) => item.mode !== "subagent" && !item.hidden)
-    .filter((item) => (item.primaryModes ?? []).includes(mode))
-    .filter((item) => includeAssetBacked || item.originRelativePath === undefined)
+  return input.filter(
+    (item) =>
+      item.mode !== "subagent" && isAgentVisible(item, includeAssetBacked) && (item.primaryModes ?? []).includes(mode),
+  )
+}
+
+export function isAgentVisible(item: Pick<Agent, "hidden" | "originRelativePath">, includeAssetBacked: boolean) {
+  return !item.hidden && (includeAssetBacked || item.originRelativePath === undefined)
 }
 
 export function normalizeProviderList(input: ProviderListResponse): NormalizedProviderListResponse {

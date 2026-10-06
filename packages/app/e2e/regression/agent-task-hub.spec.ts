@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
+import type { DelegationParticipantInfo, DelegationState, SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { trackPageErrors } from "../utils/errors"
 import { pinEnglishUI } from "../utils/locale"
@@ -402,4 +403,212 @@ function provider() {
 
 function base64Encode(value: string) {
   return Buffer.from(value, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "")
+}
+
+test("AI-TDD-S04-R03 and AI-TDD-S04-R04 same-named participants keep independent child routes after summary changes", async ({
+  page,
+}) => {
+  const childA = "ses_s04_child_a"
+  const childB = "ses_s04_child_b"
+  const delegation: DelegationState = {
+    delegation: {
+      id: "dlg_s04_instances",
+      parentSessionID: sessionID,
+      title: "same agent instances",
+      status: "running",
+      rejectionBlocked: false,
+      lastActivityAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    participants: [
+      s04Participant({ id: "par_s04_a", delegationID: "dlg_s04_instances", childSessionID: childA }),
+      s04Participant({ id: "par_s04_b", delegationID: "dlg_s04_instances", childSessionID: childB }),
+    ],
+    turns: [],
+    softExpired: false,
+  }
+  await mockServer(page, [], {
+    sessions: [
+      { ...session(), mode: "coding" },
+      { ...session(), id: childA, slug: childA, parentID: sessionID, title: "First build instance", mode: "coding" },
+      { ...session(), id: childB, slug: childB, parentID: sessionID, title: "Second build instance", mode: "coding" },
+    ],
+    pageMessages: (id) => ({ items: id === sessionID ? [userMessage, assistantMessage] : [] }),
+    delegations: [delegation],
+  })
+  await configurePage(page)
+  await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+  await expectSessionTitle(page, title)
+  const hub = await openS04Hub(page)
+  const card = hub.locator('[data-component="delegation-card"]')
+  const participants = card.getByRole("button", { name: "implementer: build", exact: true })
+
+  await expect(card).toHaveCount(1)
+  await expect(card).toHaveAttribute("data-status", "running")
+  await expect(participants).toHaveCount(2)
+  await participants.nth(0).click()
+  await expect(page).toHaveURL(new RegExp(`/session/${childA}$`))
+  await expectSessionTitle(page, "First build instance")
+
+  delegation.delegation.title = "completed summary points to ses_not_the_child"
+  await page.goBack()
+  await expectSessionTitle(page, title)
+  await openS04Hub(page)
+  await expect(card).toContainText("completed summary points to ses_not_the_child")
+  await expect(card).toHaveAttribute("data-status", "running")
+  await expect(participants).toHaveCount(2)
+  await participants.nth(1).click()
+  await expect(page).toHaveURL(new RegExp(`/session/${childB}$`))
+  await expectSessionTitle(page, "Second build instance")
+})
+
+test("AI-TDD-S04-R03 cross-session tasks stay independent and the unassigned bucket retains all six states", async ({
+  page,
+}) => {
+  const childA = "ses_s04_tasks_a"
+  const childB = "ses_s04_tasks_b"
+  const statuses = ["pending", "in_progress", "completed", "cancelled", "scheduled", "failed"] as const
+  const tasks: SessionTaskInfo[] = [
+    {
+      id: "tsk_s04_a",
+      sessionID: childA,
+      agentID: "build",
+      content: "same summary",
+      status: "in_progress",
+      priority: "medium",
+      revision: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    {
+      id: "tsk_s04_b",
+      sessionID: childB,
+      agentID: "build",
+      content: "same summary",
+      status: "failed",
+      priority: "medium",
+      revision: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    ...statuses.map(
+      (status, index): SessionTaskInfo => ({
+        id: `tsk_s04_unassigned_${index}`,
+        sessionID,
+        content: `unassigned ${status}`,
+        status,
+        priority: "medium",
+        revision: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    ),
+  ]
+  await mockServer(page, [], {
+    sessions: [
+      { ...session(), mode: "coding" },
+      { ...session(), id: childA, slug: childA, parentID: sessionID, title: "First task instance", mode: "coding" },
+      { ...session(), id: childB, slug: childB, parentID: sessionID, title: "Second task instance", mode: "coding" },
+    ],
+    pageMessages: (id) => ({ items: id === sessionID ? [userMessage, assistantMessage] : [] }),
+    tasks,
+  })
+  await configurePage(page)
+  await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+  await expectSessionTitle(page, title)
+  const hub = await openS04Hub(page)
+  await hub.locator('[data-component="agent-task-hub-agent"]').filter({ hasText: "build" }).click()
+  const rows = hub.locator('[data-component="agent-task-hub-task"]')
+  await expect(rows).toHaveCount(2)
+  await expect(rows.filter({ hasText: "same summary" })).toHaveCount(2)
+  await expect(hub.locator('[data-component="agent-task-hub-task"][data-status="in_progress"]')).toHaveCount(1)
+  await expect(hub.locator('[data-component="agent-task-hub-task"][data-status="failed"]')).toHaveCount(1)
+
+  await hub.locator('[data-component="agent-task-hub-agent"]').filter({ hasText: "Unassigned" }).click()
+  await expect(rows).toHaveCount(6)
+  await Promise.all(
+    statuses.map((status) =>
+      expect(hub.locator(`[data-component="agent-task-hub-task"][data-status="${status}"]`)).toContainText(
+        `unassigned ${status}`,
+      ),
+    ),
+  )
+})
+
+test("AI-TDD-S04-R05 active or running participants without advertised capabilities expose no delegation controls", async ({
+  page,
+}) => {
+  const child = "ses_s04_navigable"
+  const delegation: DelegationState = {
+    delegation: {
+      id: "dlg_s04_no_capabilities",
+      parentSessionID: sessionID,
+      title: "steer resume interrupt are not capabilities",
+      status: "running",
+      rejectionBlocked: false,
+      lastActivityAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    participants: [
+      s04Participant({ id: "par_s04_internal", delegationID: "dlg_s04_no_capabilities", childSessionID: child }),
+      s04Participant({
+        id: "par_s04_external",
+        delegationID: "dlg_s04_no_capabilities",
+        provider: "codex",
+        target: "codex",
+        role: "reviewer",
+        phase: "active",
+        runtimeStatus: "running",
+        externalThreadID: "thread_s04_external",
+      }),
+    ],
+    turns: [],
+    softExpired: false,
+  }
+  await mockServer(page, [], {
+    sessions: [
+      { ...session(), mode: "coding" },
+      { ...session(), id: child, slug: child, parentID: sessionID, title: "Navigable child", mode: "coding" },
+    ],
+    pageMessages: (id) => ({ items: id === sessionID ? [userMessage, assistantMessage] : [] }),
+    delegations: [delegation],
+  })
+  await configurePage(page)
+  await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+  await expectSessionTitle(page, title)
+  const hub = await openS04Hub(page)
+  const panel = hub.locator('[data-component="delegation-panel"]')
+
+  await expect(panel.locator('[data-component="delegation-card"]')).toHaveCount(1)
+  await expect(panel.getByRole("button")).toHaveCount(2)
+  await expect(panel.getByRole("button", { name: "implementer: build", exact: true })).toBeEnabled()
+  await expect(panel.getByRole("button", { name: "reviewer: codex", exact: true })).toBeDisabled()
+  await expect(panel.getByRole("button", { name: /steer|resume|interrupt/i })).toHaveCount(0)
+})
+
+function s04Participant(
+  input: Pick<DelegationParticipantInfo, "id" | "delegationID"> & Partial<DelegationParticipantInfo>,
+): DelegationParticipantInfo {
+  return {
+    provider: "internal",
+    target: "build",
+    role: "implementer",
+    context: "fresh",
+    phase: "active",
+    runtimeStatus: "running",
+    lastActivityAt: 1,
+    createdAt: 1,
+    updatedAt: 1,
+    ...input,
+  }
+}
+
+async function openS04Hub(page: Page) {
+  await page.locator('[data-session-title] [aria-label="More options"]').click()
+  await page.getByText("My agents", { exact: true }).click()
+  const hub = page.locator('[data-component="agent-task-hub"]')
+  await expect(hub).toBeVisible()
+  return hub
 }

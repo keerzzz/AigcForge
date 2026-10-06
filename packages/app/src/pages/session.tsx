@@ -27,6 +27,7 @@ import { Select } from "@aigcfroge/ui/select"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { createAutoScroll } from "@aigcfroge/ui/hooks"
 import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
+import { DataProvider, useData } from "@aigcfroge/session-ui/context/data"
 import { Button } from "@aigcfroge/ui/button"
 import { showToast } from "@/utils/toast"
 import { base64Encode, checksum } from "@aigcfroge/core/util/encode"
@@ -243,6 +244,7 @@ export default function Page(props: { rootID: string }) {
   })
 
   const composer = createSessionComposerState()
+  const sessionData = useData()
 
   const workspaceTabs = createMemo(() => layout.tabs(workspaceKey))
 
@@ -2069,54 +2071,62 @@ export default function Page(props: { rootID: string }) {
                 <Match when={params.id}>
                   <Show when={messagesReady() ? params.id : undefined} keyed>
                     {(_id) => (
-                      <MessageTimeline
-                        actions={actions}
-                        capturePulse={capturePulse()}
-                        scroll={ui.scroll}
-                        onResumeScroll={resumeScroll}
-                        setScrollRef={setScrollRef}
-                        onScheduleScrollState={scheduleScrollState}
-                        onAutoScrollHandleScroll={autoScroll.handleScroll}
-                        onMarkScrollGesture={markScrollGesture}
-                        hasScrollGesture={hasScrollGesture}
-                        onUserScroll={markUserScroll}
-                        onHistoryScroll={onHistoryScroll}
-                        onAutoScrollInteraction={autoScroll.handleInteraction}
-                        shouldAnchorBottom={() =>
-                          !location.hash && !store.messageId && !ui.pendingMessage && !autoScroll.userScrolled()
-                        }
-                        centered={centered()}
-                        setContentRef={(el) => {
-                          content = el
-                          autoScroll.contentRef(el)
-
-                          const root = scroller
-                          if (root) scheduleScrollState(root)
-                        }}
-                        userMessages={visibleUserMessages()}
-                        setHistoryAnchor={(handlers, owner) => {
-                          if (!handlers) {
-                            if (historyAnchorOwner !== owner) return
-                            historyAnchorOwner = undefined
-                            historyAnchorReady = false
-                            captureHistoryAnchor = () => {}
-                            restoreHistoryAnchor = () => {}
-                            return
+                      <DataProvider
+                        data={sessionData.store}
+                        directory={sessionData.directory}
+                        onNavigateToSession={sessionData.navigateToSession}
+                        onSessionHref={sessionData.sessionHref}
+                        onQuestionAction={composer.questionAction}
+                      >
+                        <MessageTimeline
+                          actions={actions}
+                          capturePulse={capturePulse()}
+                          scroll={ui.scroll}
+                          onResumeScroll={resumeScroll}
+                          setScrollRef={setScrollRef}
+                          onScheduleScrollState={scheduleScrollState}
+                          onAutoScrollHandleScroll={autoScroll.handleScroll}
+                          onMarkScrollGesture={markScrollGesture}
+                          hasScrollGesture={hasScrollGesture}
+                          onUserScroll={markUserScroll}
+                          onHistoryScroll={onHistoryScroll}
+                          onAutoScrollInteraction={autoScroll.handleInteraction}
+                          shouldAnchorBottom={() =>
+                            !location.hash && !store.messageId && !ui.pendingMessage && !autoScroll.userScrolled()
                           }
-                          historyAnchorOwner = owner
-                          captureHistoryAnchor = handlers.capture
-                          restoreHistoryAnchor = handlers.restore
-                          historyAnchorReady = true
-                          fill()
-                        }}
-                        anchor={anchor}
-                        setRevealMessage={(fn) => {
-                          revealMessage = fn
-                        }}
-                        setScrollToEnd={(fn) => {
-                          scrollToEnd = fn
-                        }}
-                      />
+                          centered={centered()}
+                          setContentRef={(el) => {
+                            content = el
+                            autoScroll.contentRef(el)
+
+                            const root = scroller
+                            if (root) scheduleScrollState(root)
+                          }}
+                          userMessages={visibleUserMessages()}
+                          setHistoryAnchor={(handlers, owner) => {
+                            if (!handlers) {
+                              if (historyAnchorOwner !== owner) return
+                              historyAnchorOwner = undefined
+                              historyAnchorReady = false
+                              captureHistoryAnchor = () => {}
+                              restoreHistoryAnchor = () => {}
+                              return
+                            }
+                            historyAnchorOwner = owner
+                            captureHistoryAnchor = handlers.capture
+                            restoreHistoryAnchor = handlers.restore
+                            historyAnchorReady = true
+                            fill()
+                          }}
+                          anchor={anchor}
+                          setRevealMessage={(fn) => {
+                            revealMessage = fn
+                          }}
+                          setScrollToEnd={(fn) => {
+                            scrollToEnd = fn
+                          }}
+                        />
+                      </DataProvider>
                     )}
                   </Show>
                 </Match>

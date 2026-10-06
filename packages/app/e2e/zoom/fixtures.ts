@@ -52,6 +52,8 @@ export const test = base.extend<ZoomFixtures>({
       // No `Emulation.setDeviceMetricsOverride`: the page must stay tied to the real
       // window so a page zoom can shrink the layout viewport.
       viewport: null,
+      // Normal E3 projects set a DPR; native page zoom must own it with a null viewport.
+      deviceScaleFactor: undefined,
       baseURL: testInfo.project.use.baseURL,
       args: [`--window-size=${WINDOW_SIZE.width},${WINDOW_SIZE.height}`],
     })

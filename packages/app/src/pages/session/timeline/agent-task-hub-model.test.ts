@@ -156,3 +156,41 @@ describe("scheduled-task writeback helpers (Step 4)", () => {
     expect(oneshot.recurrence).toBeUndefined()
   })
 })
+
+describe("AI-TDD-S04-R03 same-agent task identity", () => {
+  test("keeps two child sessions independent even when task summaries and agent names match", () => {
+    const rows = aggregateAgentTasks(
+      {
+        ses_child_a: [task({ id: "tsk_child_a", sessionID: "ses_child_a", content: "same", status: "in_progress" })],
+        ses_child_b: [task({ id: "tsk_child_b", sessionID: "ses_child_b", content: "same", status: "failed" })],
+      },
+      "build",
+    )
+
+    expect(rows.map((row) => ({ id: row.id, sessionID: row.sessionID, status: row.status }))).toEqual([
+      { id: "tsk_child_a", sessionID: "ses_child_a", status: "in_progress" },
+      { id: "tsk_child_b", sessionID: "ses_child_b", status: "failed" },
+    ])
+  })
+
+  test("keeps all six states in the unassigned bucket without borrowing a session agent", () => {
+    const statuses = ["pending", "in_progress", "completed", "cancelled", "scheduled", "failed"] as const
+    const tasks = statuses.map((status, index) => task({ id: `tsk_unassigned_${index}`, status, agentID: undefined }))
+    const store = { ses_a: tasks }
+
+    expect(aggregateAgentTasks(store, "build")).toEqual([])
+    expect(unassignedTasks(store)).toEqual(tasks)
+    expect(unassignedTasks(store).map((row) => row.status)).toEqual([...statuses])
+  })
+})
+
+describe("AI-TDD-S04-R04 task relations survive summary edits", () => {
+  test("keeps task IDs, session IDs, and statuses while presentation text changes", () => {
+    const current = task({ id: "tsk_stable", content: "ses_not_a_relation", status: "failed" })
+    const before = aggregateAgentTasks({ ses_a: [current] }, "build")
+    const after = aggregateAgentTasks({ ses_a: [{ ...current, content: "completed by another agent" }] }, "build")
+
+    expect(after).toEqual([{ ...before[0], content: "completed by another agent" }])
+    expect(after[0]).toMatchObject({ id: "tsk_stable", sessionID: "ses_a", agentID: "build", status: "failed" })
+  })
+})

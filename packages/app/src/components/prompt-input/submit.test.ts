@@ -1,9 +1,11 @@
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test"
 import { Schema } from "effect"
 import { WorkContract } from "@aigcfroge/schema/work-contract"
-import type { SessionCreateData } from "@aigcfroge/sdk/v2/client"
+import type { SessionCreateData, SessionPromptAsyncData } from "@aigcfroge/sdk/v2/client"
 import type { Prompt } from "@/context/prompt"
 import type { DraftTab } from "@/context/tabs"
+
+type SentPrompt = NonNullable<SessionPromptAsyncData["body"]> & SessionPromptAsyncData["path"]
 
 let createPromptSubmit: typeof import("./submit").createPromptSubmit
 
@@ -31,7 +33,7 @@ const syncedDirectories: string[] = []
 
 let params: { id?: string } = {}
 let search: { draftId?: string } = {}
-let sentPrompt = Promise.withResolvers<{ sessionID: string }>()
+let sentPrompt = Promise.withResolvers<SentPrompt>()
 let selected = "/repo/worktree-a"
 let variant: string | undefined
 
@@ -75,7 +77,7 @@ const clientFor = (directory: string) => {
         return { data: undefined }
       },
       prompt: async () => ({ data: undefined }),
-      promptAsync: async (input: { sessionID: string }) => {
+      promptAsync: async (input: SentPrompt) => {
         sentPrompt.resolve(input)
         return { data: undefined }
       },
@@ -261,6 +263,7 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
+  promptValue.splice(0, promptValue.length, { type: "text", content: "ls", start: 0, end: 2 })
   createdClients.length = 0
   createdSessions.length = 0
   createdSessionRequests.length = 0
@@ -272,7 +275,7 @@ beforeEach(() => {
   placements.length = 0
   params = {}
   search = {}
-  sentPrompt = Promise.withResolvers<{ sessionID: string }>()
+  sentPrompt = Promise.withResolvers<SentPrompt>()
   sentShell.length = 0
   syncedDirectories.length = 0
   selected = "/repo/worktree-a"
@@ -565,4 +568,54 @@ describe("prompt submit Work contracts", () => {
     // not a timer, so this submission cannot leak into the next test's fixtures.
     return sentPrompt.promise
   }
+})
+
+describe("AI-TDD-S04-R02 existing prompt submission channel", () => {
+  test("sends the structured mention only after explicit submit and preserves the current primary agent", async () => {
+    params = { id: "session-existing" }
+    promptValue.splice(
+      0,
+      promptValue.length,
+      { type: "text", content: "Review ", start: 0, end: 7 },
+      { type: "agent", name: "reviewer", content: "@reviewer", start: 7, end: 16 },
+      { type: "text", content: " now", start: 16, end: 20 },
+    )
+    const submit = createPromptSubmit({
+      prompt,
+      info: () => ({ id: "session-existing" }),
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "normal",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+    })
+
+    expect(createdSessions).toEqual([])
+    expect(optimistic).toEqual([])
+    expect(sentShell).toEqual([])
+    const event = new Event("submit", { cancelable: true })
+    await submit.handleSubmit(event)
+    const sent = await sentPrompt.promise
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(sent).toMatchObject({ sessionID: "session-existing", agent: "agent" })
+    expect(sent.parts.map((part) => part.type)).toEqual(["text", "agent"])
+    expect(sent.parts[1]).toMatchObject({
+      type: "agent",
+      name: "reviewer",
+      source: { value: "@reviewer", start: 7, end: 16 },
+    })
+    expect(optimistic).toHaveLength(1)
+    expect(optimistic[0]).toMatchObject({ sessionID: "session-existing", message: { agent: "agent" } })
+    expect(createdSessionRequests).toEqual([])
+    expect(createdSessions).toEqual([])
+    expect(sentShell).toEqual([])
+  })
 })

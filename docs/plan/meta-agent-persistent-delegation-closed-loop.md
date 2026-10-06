@@ -986,6 +986,12 @@ POST /delegation/:delegationID/review/retract-rejection
 - 生成 JS SDK 使用 `./packages/sdk/js/script/build.ts`；
 - TUI 只消费 projection，不在 TUI 维护第二套委派状态。
 
+**B3/S04 增量 UI 接线（2026-10-06；动态验收待主线证据）**
+
+- **目录不等于实例/派工**：primary 与 @ 入口复用 [`isAgentVisible`](../../packages/app/src/context/global-sync/utils.ts#L30)；@ 还排除 primary-only，Custom 与当前 Session 的冻结池求交，缺失快照时不借全局候选。选择只插入已有 agent part、保留编辑焦点，实际发送仍走既有 prompt 通道，不新增 dispatch API。
+- **关系不从摘要推断**：[`delegationPanelModel`](../../packages/app/src/pages/session/timeline/delegation-panel-model.ts#L28) 以 parent/Participant/child Session ID 投影状态与跳转；[`aggregateAgentTasks` / `unassignedTasks`](../../packages/app/src/pages/session/timeline/agent-task-hub-model.ts#L19) 保留跨 Session 任务及未归属项。同名 Agent 的两个 child/Participant 不合并，改摘要不改关系。Hub 只提供已知 child 的导航，不把 target/external thread 名称推成可用的 steer/resume/interrupt；服务端仍拥有执行授权。
+- **范围与证据**：这是既有 AgentTaskHub/DelegationPanel 的消费接线，不宣布本 Phase 的 HTTP、完整 turn/review 展示、归宿策略、真实 CLI/provider 或恢复矩阵已验收。B2 已提交、B3 待本轮验收；逐 R 断言、覆盖边界和实际动态结果统一见[技术债账本 §15.6](../technical-debt.md)。下方归宿策略、Phase 7 与 ADR-22 的 runtime/恢复决定原样保留。
+
 **委派归宿策略（本 Phase 必须定完，不得留到灰度期）**：
 
 用户提出需求后离开是常态，委派又是长命的（ADR-22 §2.1），所以必须回答"没人来收尾时委派去哪"：

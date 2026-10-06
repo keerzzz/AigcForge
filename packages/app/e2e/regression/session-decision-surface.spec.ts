@@ -451,7 +451,7 @@ for (const viewport of [
       }
       const scrollTop = await scroller.evaluate((element) => element.scrollTop)
       await editor(page).fill("Keep this draft @reviewer")
-      await expect(page.getByRole("button", { name: "@reviewer", exact: true })).toBeVisible()
+      await expect(page.getByRole("button", { name: /^@reviewer(?:\s|$)/ })).toBeVisible()
       await editor(page).press("Enter")
       await editor(page).pressSequentially(" @example")
       const option = page.getByRole("button", { name: /example\.ts/ })
@@ -545,7 +545,7 @@ for (const outcome of ["reply", "reject", "failure"] as const) {
     await install(page, wire)
     await open(page, wire, "ses_draft")
     await editor(page).fill("Keep this draft @reviewer")
-    await expect(page.getByRole("button", { name: "@reviewer", exact: true })).toBeVisible()
+    await expect(page.getByRole("button", { name: /^@reviewer(?:\s|$)/ })).toBeVisible()
     await editor(page).press("Enter")
     await editor(page).pressSequentially(" @example")
     await expect(page.getByRole("button", { name: /example\.ts/ })).toBeVisible()

@@ -667,6 +667,10 @@ export function MessageTimeline(props: {
 
   const bindListRoot = (root: HTMLDivElement) => {
     boundListRoot = root
+    // Native focus scrolling must respect the same sticky header as virtual rows.
+    createEffect(() => {
+      root.style.scrollPaddingTop = `${virtualizer.options.scrollMargin}px`
+    })
     let active = false
     const update = () => {
       const next = root.clientWidth > 0 && root.clientHeight > 0

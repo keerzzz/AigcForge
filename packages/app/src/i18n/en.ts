@@ -1,4 +1,5 @@
 export const dict = {
+  "prompt.agent.source.native": "native",
   "command.category.suggested": "Suggested",
   "command.category.view": "View",
   "command.category.project": "Project",

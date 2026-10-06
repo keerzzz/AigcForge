@@ -1,4 +1,4 @@
-import { For, Show, createMemo, onCleanup, onMount, type Component } from "solid-js"
+import { For, Show, createEffect, createMemo, onCleanup, onMount, untrack, type Component } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/solid-query"
 import { Button } from "@aigcfroge/ui/button"
@@ -79,6 +79,7 @@ function Option(props: {
 export const SessionQuestionDock: Component<{
   request: QuestionV2Request
   requestKey?: ScopedKey
+  focusRequest?: number
   sessionID?: string
   onSubmit: () => void
 }> = (props) => {
@@ -455,6 +456,15 @@ export const SessionQuestionDock: Component<{
       resizeInput(el)
     })
   }
+
+  createEffect(() => {
+    if (!props.focusRequest) return
+    untrack(() => {
+      const input = root?.querySelector<HTMLTextAreaElement>('[data-slot="question-custom-input"]')
+      if (store.editing && input) return focusCustom(input)
+      focus(pickFocus())
+    })
+  })
 
   const toggleCustomMark = (event: MouseEvent) => {
     event.preventDefault()

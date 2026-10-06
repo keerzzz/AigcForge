@@ -2,6 +2,7 @@ import { createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/solid-query"
 import type { QuestionV2Request } from "@aigcfroge/sdk/v2"
+import type { QuestionActionFn } from "@aigcfroge/session-ui/context/data"
 import { useParams } from "@solidjs/router"
 import { showToast } from "@/utils/toast"
 import { useLanguage } from "@/context/language"
@@ -9,7 +10,12 @@ import { usePermission } from "@/context/permission"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { PermissionPendingModel } from "@/context/global-sync/permission-pending"
-import { selectSessionRequest, sessionPendingRequests, type SessionActiveRequest } from "./session-request-tree"
+import {
+  selectSessionRequest,
+  sessionPendingRequests,
+  sessionQuestionToolRequest,
+  type SessionActiveRequest,
+} from "./session-request-tree"
 
 export function createSessionComposerState() {
   const params = useParams()
@@ -31,7 +37,7 @@ export function createSessionComposerState() {
     }),
   )
 
-  const [selection, setSelection] = createStore<{ key?: string }>({ key: undefined })
+  const [selection, setSelection] = createStore<{ key?: string; focus: number }>({ key: undefined, focus: 0 })
   const activeRequest = createMemo<SessionActiveRequest | undefined>((previous) =>
     selectSessionRequest(pendingRequests(), {
       selectedKey: selection.key,
@@ -46,7 +52,17 @@ export function createSessionComposerState() {
 
   const selectRequest = (key: SessionActiveRequest["key"]) => {
     if (!pendingRequests().some((request) => request.key === key)) return
-    setSelection("key", key)
+    setSelection({ key, focus: selection.focus + 1 })
+  }
+
+  const questionAction: QuestionActionFn = (part) => {
+    const request = sessionQuestionToolRequest(pendingRequests(), part)
+    if (!request) return undefined
+    return () => {
+      // Re-check after a reply or scope switch instead of acting on a captured request.
+      if (sessionQuestionToolRequest(pendingRequests(), part)?.key !== request.key) return
+      selectRequest(request.key)
+    }
   }
 
   const questionRequest = createMemo((): QuestionV2Request | undefined => {
@@ -118,6 +134,8 @@ export function createSessionComposerState() {
     pendingRequests,
     questionRequest,
     questionRequestKey,
+    questionAction,
+    focusRequest: () => selection.focus,
     permissionRequest,
     permissionResponding,
     decide,

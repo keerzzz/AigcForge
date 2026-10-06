@@ -1,4 +1,4 @@
-import type { PermissionRequest, QuestionV2Request, Session } from "@aigcfroge/sdk/v2/client"
+import type { PermissionRequest, QuestionV2Request, Session, ToolPart } from "@aigcfroge/sdk/v2/client"
 import { PermissionPendingModel } from "@/context/global-sync/permission-pending"
 import { ScopedKey, type ServerScope } from "@/utils/server-scope"
 
@@ -142,6 +142,21 @@ export function sessionPendingRequests(input: SessionRequestSource): SessionPend
       ),
     ),
   ])
+}
+
+export function sessionQuestionToolRequest(
+  requests: readonly SessionPendingRequest[],
+  part: Pick<ToolPart, "sessionID" | "messageID" | "callID">,
+) {
+  const matches = requests.filter(
+    (item) =>
+      item.domain === "question" &&
+      item.ownerSessionID === part.sessionID &&
+      item.request.tool?.messageID === part.messageID &&
+      item.request.tool.callID === part.callID,
+  )
+  // A tool call without one exact pending owner cannot safely select a decision surface.
+  return matches.length === 1 ? matches[0] : undefined
 }
 
 export function selectSessionRequest(

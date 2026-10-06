@@ -1,9 +1,21 @@
-import { createEffect, For, Match, on, onCleanup, onMount, Show, Switch, type Accessor, type JSX } from "solid-js"
+import {
+  children,
+  createEffect,
+  For,
+  Match,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  Switch,
+  type Accessor,
+  type JSX,
+} from "solid-js"
 import { animate, type AnimationPlaybackControls } from "motion"
 import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { createStore } from "solid-js/store"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
-import type { IconProps } from "@aigcfroge/ui/icon"
+import { Icon, type IconProps } from "@aigcfroge/ui/icon"
 import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 
 export type TriggerTitle = {
@@ -39,6 +51,17 @@ export interface BasicToolProps {
   onTriggerClick?: JSX.EventHandlerUnion<HTMLElement, MouseEvent>
   triggerHref?: string
   clickable?: boolean
+}
+
+// Status text is announced to assistive tech; the shimmer only conveys state visually.
+const statusKey: Record<
+  string,
+  "ui.tool.status.pending" | "ui.tool.status.running" | "ui.tool.status.completed" | "ui.tool.status.failed"
+> = {
+  pending: "ui.tool.status.pending",
+  running: "ui.tool.status.running",
+  completed: "ui.tool.status.completed",
+  error: "ui.tool.status.failed",
 }
 
 const SPRING = { type: "spring" as const, visualDuration: 0.35, bounce: 0 }
@@ -81,6 +104,7 @@ function scheduleFrameMount(fn: () => void) {
 }
 
 export function BasicTool(props: BasicToolProps) {
+  const i18n = useI18n()
   const [state, setState] = createStore({
     open: props.defaultOpen ?? false,
     ready: !props.defer && (props.defaultOpen ?? false),
@@ -88,8 +112,23 @@ export function BasicTool(props: BasicToolProps) {
   const open = () => props.open ?? state.open
   const ready = () => state.ready
   const pending = () => props.status === "pending" || props.status === "running"
-  const hasChildren = () => (props.defer ? "children" in props : props.children)
+  const hasChildren = () => "children" in props
+  // Discover visible content without constructing a hidden or deferred body early.
+  const resolved = children(() => (props.hideDetails || (props.defer && !ready()) ? undefined : props.children))
+  const expandable = () =>
+    !props.hideDetails &&
+    (props.defer
+      ? hasChildren()
+      : resolved
+          .toArray()
+          .some((child) =>
+            typeof child === "string" ? child.trim().length > 0 : child != null && typeof child !== "boolean",
+          ))
   const dynamicTrigger = typeof props.trigger === "function" ? props.trigger(open) : undefined
+  const statusLabel = () => {
+    const key = props.status ? statusKey[props.status] : undefined
+    return key ? i18n.t(key) : undefined
+  }
 
   let cancelReady: (() => void) | undefined
 
@@ -124,11 +163,12 @@ export function BasicTool(props: BasicToolProps) {
     setOpen(true)
   })
 
+  // Output can enable deferred rendering without changing a controlled open value.
   createEffect(
     on(
-      open,
-      (value) => {
-        if (!props.defer) return
+      [open, () => props.defer],
+      ([value, deferred]) => {
+        if (!deferred) return
         if (!value) {
           cancel()
           setState("ready", false)
@@ -186,6 +226,9 @@ export function BasicTool(props: BasicToolProps) {
       data-hide-details={props.hideDetails ? "true" : undefined}
     >
       <div data-slot="basic-tool-tool-trigger-content">
+        <span data-slot="basic-tool-tool-indicator">
+          <Icon name={props.icon} size="small" />
+        </span>
         <div data-slot="basic-tool-tool-info">
           <Switch>
             <Match when={dynamicTrigger !== undefined}>{dynamicTrigger}</Match>
@@ -244,8 +287,15 @@ export function BasicTool(props: BasicToolProps) {
             <Match when={true}>{props.trigger as JSX.Element}</Match>
           </Switch>
         </div>
+        <Show when={statusLabel()}>
+          <span data-slot="basic-tool-tool-status" class="sr-only">
+            {/* Pad the label so it stays a discrete token for assistive tech, not glued
+                to the tool title or to the revealed body text. */}{" "}
+            {statusLabel()}{" "}
+          </span>
+        </Show>
       </div>
-      <Show when={hasChildren() && !props.hideDetails && !props.locked && !pending()}>
+      <Show when={expandable() && !props.locked && !pending()}>
         <Collapsible.Arrow />
       </Show>
     </div>
@@ -254,44 +304,81 @@ export function BasicTool(props: BasicToolProps) {
   return (
     <Collapsible open={open()} onOpenChange={handleOpenChange} class="tool-collapsible">
       <Show
-        when={props.triggerHref}
+        when={expandable()}
         fallback={
-          <Collapsible.Trigger
-            data-hide-details={props.hideDetails ? "true" : undefined}
-            onClick={props.onTriggerClick}
-          >
-            {trigger()}
-          </Collapsible.Trigger>
+          // Not a disclosure: a real link/action stays a native control, so nothing
+          // claims aria-expanded/aria-controls for a body that does not exist.
+          <Switch>
+            <Match when={props.triggerHref}>
+              <a
+                data-component="tool-trigger-link"
+                data-slot="collapsible-action"
+                data-hide-details={props.hideDetails ? "true" : undefined}
+                href={props.triggerHref}
+                onClick={props.onTriggerClick}
+              >
+                {trigger()}
+              </a>
+            </Match>
+            <Match when={props.onTriggerClick}>
+              <button
+                type="button"
+                data-component="tool-trigger-button"
+                data-slot="collapsible-action"
+                data-hide-details={props.hideDetails ? "true" : undefined}
+                onClick={props.onTriggerClick}
+              >
+                {trigger()}
+              </button>
+            </Match>
+            <Match when={true}>{trigger()}</Match>
+          </Switch>
         }
       >
-        {(href) => (
-          <Collapsible.Trigger
-            as="a"
-            href={href()}
-            data-hide-details={props.hideDetails ? "true" : undefined}
-            onClick={props.onTriggerClick}
-          >
-            {trigger()}
-          </Collapsible.Trigger>
-        )}
-      </Show>
-      <Show when={props.animated && hasChildren() && !props.hideDetails}>
-        <div
-          ref={contentRef}
-          data-slot="collapsible-content"
-          data-animated
-          style={{
-            height: initialOpen ? "auto" : "0px",
-            overflow: initialOpen ? "visible" : "hidden",
-          }}
+        <Show
+          when={props.triggerHref}
+          fallback={
+            <Collapsible.Trigger
+              data-hide-details={props.hideDetails ? "true" : undefined}
+              onClick={props.onTriggerClick}
+            >
+              {trigger()}
+            </Collapsible.Trigger>
+          }
         >
-          <Show when={!props.defer || ready()}>{props.children}</Show>
-        </div>
+          {(href) => (
+            <Collapsible.Trigger
+              as="a"
+              href={href()}
+              data-hide-details={props.hideDetails ? "true" : undefined}
+              onClick={props.onTriggerClick}
+            >
+              {trigger()}
+            </Collapsible.Trigger>
+          )}
+        </Show>
       </Show>
-      <Show when={!props.animated && hasChildren() && !props.hideDetails}>
-        <Collapsible.Content>
-          <Show when={!props.defer || ready()}>{props.children}</Show>
-        </Collapsible.Content>
+      <Show when={hasChildren() && !props.hideDetails}>
+        <Switch>
+          <Match when={props.animated}>
+            <div
+              ref={contentRef}
+              data-slot="collapsible-content"
+              data-animated
+              style={{
+                height: initialOpen ? "auto" : "0px",
+                overflow: initialOpen ? "visible" : "hidden",
+              }}
+            >
+              <Show when={!props.defer || ready()}>{resolved()}</Show>
+            </div>
+          </Match>
+          <Match when={true}>
+            <Collapsible.Content>
+              <Show when={!props.defer || ready()}>{resolved()}</Show>
+            </Collapsible.Content>
+          </Match>
+        </Switch>
       </Show>
     </Collapsible>
   )
@@ -316,24 +403,36 @@ function args(input: Record<string, unknown> | undefined) {
     .slice(0, 3)
 }
 
-export function GenericTool(props: {
-  tool: string
-  status?: string
-  hideDetails?: boolean
-  input?: Record<string, unknown>
-}) {
+export function GenericTool(
+  props: Omit<BasicToolProps, "icon" | "trigger" | "children" | "defer"> & {
+    tool: string
+    input?: Record<string, unknown>
+    output?: string
+    deferContent?: boolean
+  },
+) {
   const i18n = useI18n()
 
   return (
     <BasicTool
+      {...props}
       icon="mcp"
-      status={props.status}
+      defer={props.deferContent && !!props.output}
       trigger={{
         title: i18n.t("ui.basicTool.called", { tool: props.tool }),
         subtitle: label(props.input),
         args: args(props.input),
       }}
-      hideDetails={props.hideDetails}
-    />
+    >
+      <Show when={props.output}>
+        {(output) => (
+          <div data-component="tool-output" data-scrollable>
+            <pre>
+              <code>{output()}</code>
+            </pre>
+          </div>
+        )}
+      </Show>
+    </BasicTool>
   )
 }

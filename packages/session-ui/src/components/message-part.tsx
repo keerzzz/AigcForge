@@ -36,6 +36,7 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { type UiI18n, useI18n } from "@aigcfroge/ui/context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
 import { taskCardModel } from "./task-tool-card-model"
+import { TaskWriteToolModel } from "./task-write-tool-model"
 import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
@@ -57,7 +58,8 @@ import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
 import { AnimatedCountList } from "./tool-count-summary"
 import { ToolStatusTitle } from "./tool-status-title"
 import { patchFiles } from "./apply-patch-file"
-import { animate } from "motion"
+import { animate, type AnimationPlaybackControls } from "motion"
+import { createMediaQuery } from "@solid-primitives/media"
 import { useLocation } from "@solidjs/router"
 import { attached, inline, kind } from "./message-file"
 import { readPartText } from "./message-part-text"
@@ -91,26 +93,42 @@ function ShellSubmessage(props: { text: string; animate?: boolean }) {
   let widthRef: HTMLSpanElement | undefined
   let valueRef: HTMLSpanElement | undefined
 
-  onMount(() => {
-    if (!props.animate) return
-    requestAnimationFrame(() => {
-      if (widthRef) {
-        animate(widthRef, { width: "auto" }, { type: "spring", visualDuration: 0.25, bounce: 0 })
+  const reducedMotion = createMediaQuery("(prefers-reduced-motion: reduce)")
+  const shouldAnimate = () => props.animate && !reducedMotion()
+  const controls: AnimationPlaybackControls[] = []
+
+  createEffect(() => {
+    if (!shouldAnimate()) {
+      // Finish through Motion so queued renders also commit the visible final values.
+      controls.forEach((control) => control.complete())
+      return
+    }
+    controls.splice(0).forEach((control) => control.stop())
+    const frame = requestAnimationFrame(() => {
+      if (widthRef?.isConnected) {
+        controls.push(animate(widthRef, { width: "auto" }, { type: "spring", visualDuration: 0.25, bounce: 0 }))
       }
-      if (valueRef) {
-        animate(valueRef, { opacity: 1, filter: "blur(0px)" }, { duration: 0.32, ease: [0.16, 1, 0.3, 1] })
+      if (valueRef?.isConnected) {
+        controls.push(
+          animate(valueRef, { opacity: 1, filter: "blur(0px)" }, { duration: 0.32, ease: [0.16, 1, 0.3, 1] }),
+        )
       }
     })
+    onCleanup(() => cancelAnimationFrame(frame))
+  })
+
+  onCleanup(() => {
+    controls.forEach((control) => control.stop())
   })
 
   return (
     <span data-component="shell-submessage">
-      <span ref={widthRef} data-slot="shell-submessage-width" style={{ width: props.animate ? "0px" : undefined }}>
+      <span ref={widthRef} data-slot="shell-submessage-width" style={{ width: shouldAnimate() ? "0px" : undefined }}>
         <span data-slot="basic-tool-tool-subtitle">
           <span
             ref={valueRef}
             data-slot="shell-submessage-value"
-            style={props.animate ? { opacity: 0, filter: "blur(2px)" } : undefined}
+            style={shouldAnimate() ? { opacity: 0, filter: "blur(2px)" } : undefined}
           >
             {props.text}
           </span>
@@ -399,6 +417,17 @@ function taskAgent(
   }
 }
 
+// Interrupted calls arrive as an ordinary `error` state. Only the real publishers count:
+// metadata.interrupted=true (packages/aigcfroge/src/session/processor.ts:911) or the exact
+// terminal strings those publishers write ("Tool execution interrupted" -
+// packages/core/src/session/runner/llm.ts:841; "Tool execution aborted" -
+// packages/aigcfroge/src/session/processor.ts:911, matched exactly by
+// packages/aigcfroge/src/cli/cmd/run/subagent-data.ts:301). No other pattern is inferred.
+function isInterruptedError(error: unknown, metadata: Record<string, unknown> | undefined): boolean {
+  if (metadata?.interrupted === true) return true
+  return error === "Tool execution interrupted" || error === "Tool execution aborted"
+}
+
 function webSearchProviderLabel(provider: unknown) {
   if (provider === "parallel") return "Parallel Web Search"
   if (provider === "exa") return "Exa Web Search"
@@ -660,7 +689,6 @@ function index<T extends { id: string }>(items: readonly T[]) {
 export function renderable(part: PartType, showReasoningSummaries = true) {
   if (part.type === "tool") {
     if (HIDDEN_TOOLS.has(part.tool)) return false
-    if (part.tool === "question") return part.state.status !== "pending" && part.state.status !== "running"
     return true
   }
   if (part.type === "text") return !!part.text?.trim()
@@ -1004,6 +1032,7 @@ export function ContextToolGroup(props: { parts: ToolPart[]; busy?: boolean; onS
       !!props.busy || props.parts.some((part) => part.state.status === "pending" || part.state.status === "running"),
   )
   const summary = createMemo(() => contextToolSummary(props.parts))
+  const errors = createMemo(() => props.parts.flatMap((part) => (part.state.status === "error" ? [part.state] : [])))
   const handleOpenChange = (value: boolean) => {
     setOpen(value)
     props.onSizeChange?.()
@@ -1027,7 +1056,13 @@ export function ContextToolGroup(props: { parts: ToolPart[]; busy?: boolean; onS
               <ToolStatusTitle
                 active={pending()}
                 activeText={i18n.t("ui.sessionTurn.status.gatheringContext")}
-                doneText={i18n.t("ui.sessionTurn.status.gatheredContext")}
+                doneText={
+                  errors().length === 0
+                    ? i18n.t("ui.sessionTurn.status.gatheredContext")
+                    : errors().every((state) => isInterruptedError(state.error, state.metadata))
+                      ? i18n.t("ui.message.interrupted")
+                      : i18n.t("ui.toolErrorCard.failed")
+                }
                 split={false}
               />
             </span>
@@ -1059,6 +1094,16 @@ export function ContextToolGroup(props: { parts: ToolPart[]; busy?: boolean; onS
                 fallback=""
               />
             </span>
+            <Show when={errors().length > 0}>
+              <span
+                data-slot="context-tool-group-errors"
+                class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-normal text-text-base"
+              >
+                {errors()
+                  .map((state) => state.error)
+                  .join(" · ")}
+              </span>
+            </Show>
           </span>
           <Collapsible.Arrow />
         </div>
@@ -1073,27 +1118,34 @@ export function ContextToolGroup(props: { parts: ToolPart[]; busy?: boolean; onS
               )
               return (
                 <div data-slot="context-tool-group-item">
-                  <div data-component="tool-trigger">
-                    <div data-slot="basic-tool-tool-trigger-content">
-                      <div data-slot="basic-tool-tool-info">
-                        <div data-slot="basic-tool-tool-info-structured">
-                          <div data-slot="basic-tool-tool-info-main">
-                            <span data-slot="basic-tool-tool-title">
-                              <TextShimmerV2 text={trigger().title} active={running()} />
-                            </span>
-                            <Show when={!running() && trigger().subtitle}>
-                              <span data-slot="basic-tool-tool-subtitle">{trigger().subtitle}</span>
-                            </Show>
-                            <Show when={!running() && trigger().args?.length}>
-                              <For each={trigger().args}>
-                                {(arg) => <span data-slot="basic-tool-tool-arg">{arg}</span>}
-                              </For>
-                            </Show>
+                  <Show
+                    when={partAccessor().state.status === "error"}
+                    fallback={
+                      <div data-component="tool-trigger">
+                        <div data-slot="basic-tool-tool-trigger-content">
+                          <div data-slot="basic-tool-tool-info">
+                            <div data-slot="basic-tool-tool-info-structured">
+                              <div data-slot="basic-tool-tool-info-main">
+                                <span data-slot="basic-tool-tool-title">
+                                  <TextShimmerV2 text={trigger().title} active={running()} />
+                                </span>
+                                <Show when={!running() && trigger().subtitle}>
+                                  <span data-slot="basic-tool-tool-subtitle">{trigger().subtitle}</span>
+                                </Show>
+                                <Show when={!running() && trigger().args?.length}>
+                                  <For each={trigger().args}>
+                                    {(arg) => <span data-slot="basic-tool-tool-arg">{arg}</span>}
+                                  </For>
+                                </Show>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    }
+                  >
+                    <ToolPartDisplay part={partAccessor()} onToolOpenChange={props.onSizeChange} />
+                  </Show>
                 </div>
               )
             }}
@@ -1410,6 +1462,7 @@ export interface ToolProps {
   onContentRendered?: () => void
   forceOpen?: boolean
   locked?: boolean
+  questionAction?: () => void
 }
 
 export type ToolComponent = Component<ToolProps>
@@ -1472,22 +1525,38 @@ function ToolFileAccordion(props: { path: string; actions?: JSX.Element; childre
   )
 }
 
-PART_MAPPING["tool"] = function ToolPartDisplay(props) {
+PART_MAPPING["tool"] = ToolPartDisplay
+
+// Grouped tools need the same error owner, but no synthetic parent Message.
+function ToolPartDisplay(props: Omit<MessagePartProps, "message">) {
   const data = useData()
   const i18n = useI18n()
   const part = () => props.part as ToolPart
   if (part().tool === "todowrite") return null
 
-  const hideQuestion = createMemo(
-    () => part().tool === "question" && (part().state.status === "pending" || part().state.status === "running"),
-  )
+  const questionAction = createMemo(() => {
+    const current = part()
+    if (current.tool !== "question" || (current.state.status !== "pending" && current.state.status !== "running"))
+      return undefined
+    return data.questionAction?.({ sessionID: current.sessionID, messageID: current.messageID, callID: current.callID })
+  })
 
-  const emptyInput: Record<string, any> = {}
-  const emptyMetadata: Record<string, any> = {}
+  const emptyInput: Record<string, unknown> = {}
+  const emptyMetadata: Record<string, unknown> = {}
 
   const input = () => part().state?.input ?? emptyInput
-  // @ts-expect-error
-  const partMetadata = () => part().state?.metadata ?? emptyMetadata
+  const partMetadata = () => {
+    const state = part().state
+    return state.status === "pending" ? emptyMetadata : (state.metadata ?? emptyMetadata)
+  }
+  const partError = () => {
+    const state = part().state
+    return state.status === "error" ? state.error : undefined
+  }
+  const output = () => {
+    const state = part().state
+    return state.status === "completed" ? state.output : undefined
+  }
   const taskId = createMemo(() => {
     if (part().tool !== "task") return
     const value = partMetadata().sessionId
@@ -1509,57 +1578,61 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
   const handleToolOpenChange = (open: boolean) => props.onToolOpenChange?.(open)
 
   return (
-    <Show when={!hideQuestion()}>
-      <div data-component="tool-part-wrapper" data-timeline-part-id={part().id}>
-        <Switch>
-          <Match when={part().state.status === "error" && (part().state as any).error}>
-            {(error) => {
-              const cleaned = error().replace("Error: ", "")
-              if (part().tool === "question" && cleaned.includes("dismissed this question")) {
-                return (
-                  <div style="width: 100%; display: flex; justify-content: flex-end;">
-                    <span class="text-13-regular text-text-weak cursor-default">
-                      {i18n.t("ui.messagePart.questions.dismissed")}
-                    </span>
-                  </div>
-                )
-              }
+    <div data-component="tool-part-wrapper" data-timeline-part-id={part().id}>
+      <Switch>
+        <Match when={partError()}>
+          {(error) => {
+            const cleaned = error().replace("Error: ", "")
+            if (part().tool === "question" && cleaned.includes("dismissed this question")) {
               return (
-                <ToolErrorCard
-                  tool={part().tool}
-                  error={error()}
-                  title={part().tool === "websearch" ? webSearchProviderLabel(partMetadata().provider) : undefined}
-                  defaultOpen={props.defaultOpen}
-                  open={controlledOpen()}
-                  onOpenChange={props.onToolOpenChange ? handleToolOpenChange : undefined}
-                  subtitle={taskSubtitle()}
-                  href={taskHref()}
-                />
+                <div style="width: 100%; display: flex; justify-content: flex-end;">
+                  <span class="text-13-regular text-text-weak cursor-default">
+                    {i18n.t("ui.messagePart.questions.dismissed")}
+                  </span>
+                </div>
               )
-            }}
-          </Match>
-          <Match when={true}>
-            <Dynamic
-              component={render()}
-              input={input()}
-              tool={part().tool}
-              sessionID={part().sessionID}
-              metadata={partMetadata()}
-              // @ts-expect-error
-              output={part().state.output}
-              status={part().state.status}
-              hideDetails={props.hideDetails}
-              defaultOpen={props.defaultOpen}
-              open={controlledOpen()}
-              onOpenChange={props.onToolOpenChange ? handleToolOpenChange : undefined}
-              deferContent={props.deferToolContent}
-              virtualizeDiff={props.virtualizeDiff}
-              onContentRendered={props.onContentRendered}
-            />
-          </Match>
-        </Switch>
-      </div>
-    </Show>
+            }
+            return (
+              <ToolErrorCard
+                tool={part().tool}
+                error={error()}
+                title={
+                  isInterruptedError(error(), partMetadata())
+                    ? i18n.t("ui.message.interrupted")
+                    : part().tool === "websearch"
+                      ? webSearchProviderLabel(partMetadata().provider)
+                      : undefined
+                }
+                defaultOpen={props.defaultOpen}
+                open={controlledOpen()}
+                onOpenChange={props.onToolOpenChange ? handleToolOpenChange : undefined}
+                subtitle={taskSubtitle()}
+                href={taskHref()}
+              />
+            )
+          }}
+        </Match>
+        <Match when={true}>
+          <Dynamic
+            component={render()}
+            input={input()}
+            tool={part().tool}
+            sessionID={part().sessionID}
+            questionAction={questionAction()}
+            metadata={partMetadata()}
+            output={output()}
+            status={part().state.status}
+            hideDetails={props.hideDetails}
+            defaultOpen={props.defaultOpen}
+            open={controlledOpen()}
+            onOpenChange={props.onToolOpenChange ? handleToolOpenChange : undefined}
+            deferContent={props.deferToolContent}
+            virtualizeDiff={props.virtualizeDiff}
+            onContentRendered={props.onContentRendered}
+          />
+        </Match>
+      </Switch>
+    </div>
   )
 }
 
@@ -2519,6 +2592,48 @@ ToolRegistry.register({
   },
 })
 
+// Canonical task-write calls render their own snapshot: compact by default, read-only, and
+// taken from this ToolPart so a later authoritative edit cannot rewrite the history row.
+const TASK_WRITE_TOOLS = ["taskwrite", "task_create", "task_update", "task_delete", "task_reorder"]
+
+function TaskWriteTool(props: ToolProps) {
+  const i18n = useI18n()
+  const tasks = createMemo(() => TaskWriteToolModel.taskWriteSnapshot(props.input, props.metadata))
+  const subtitle = createMemo(() => {
+    const list = tasks()
+    if (list.length === 0) return undefined
+    return `${list.filter((task) => task.status === "completed").length}/${list.length}`
+  })
+
+  return (
+    <BasicTool
+      {...props}
+      icon="checklist"
+      trigger={{
+        title: i18n.t("ui.tool.todos"),
+        subtitle: subtitle(),
+      }}
+    >
+      <Show when={tasks().length}>
+        <div data-component="todos">
+          <For each={tasks()}>
+            {(task) => (
+              <div
+                data-slot="message-part-todo-content"
+                data-completed={task.status === "completed" ? "completed" : undefined}
+              >
+                {task.content}
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+    </BasicTool>
+  )
+}
+
+TASK_WRITE_TOOLS.forEach((name) => ToolRegistry.register({ name, render: TaskWriteTool }))
+
 const readQuestionInfos = Schema.decodeUnknownOption(Schema.Array(Question.Info))
 const readQuestionAnswers = Schema.decodeUnknownOption(Schema.Array(Question.Answer))
 
@@ -2528,7 +2643,8 @@ ToolRegistry.register({
     const i18n = useI18n()
     const questions = createMemo(() => Option.getOrElse(readQuestionInfos(props.input.questions), () => []))
     const answers = createMemo(() => Option.getOrElse(readQuestionAnswers(props.metadata.answers), () => []))
-    const completed = createMemo(() => answers().length > 0)
+    const pending = createMemo(() => props.status === "pending" || props.status === "running")
+    const completed = createMemo(() => !pending() && answers().length > 0)
 
     const subtitle = createMemo(() => {
       const count = questions().length
@@ -2538,31 +2654,48 @@ ToolRegistry.register({
     })
 
     return (
-      <BasicTool
-        {...props}
-        defaultOpen={completed()}
-        icon="bubble-5"
-        trigger={{
-          title: i18n.t("ui.tool.questions"),
-          subtitle: subtitle(),
-        }}
-      >
-        <Show when={completed()}>
-          <div data-component="question-answers">
-            <For each={questions()}>
-              {(q, i) => {
-                const answer = () => answers()[i()] ?? []
-                return (
-                  <div data-slot="question-answer-item">
-                    <div data-slot="question-text">{q.question}</div>
-                    <div data-slot="answer-text">{answer().join(", ") || i18n.t("ui.question.answer.none")}</div>
-                  </div>
-                )
-              }}
-            </For>
+      <div data-component="question-tool">
+        <BasicTool
+          {...props}
+          defaultOpen={completed()}
+          icon="bubble-5"
+          trigger={{
+            title: i18n.t("ui.tool.questions"),
+            subtitle: subtitle(),
+          }}
+        >
+          <Show when={completed()}>
+            <div data-component="question-answers">
+              <For each={questions()}>
+                {(q, i) => {
+                  const answer = () => answers()[i()] ?? []
+                  return (
+                    <div data-slot="question-answer-item">
+                      <div data-slot="question-text">{q.question}</div>
+                      <div data-slot="answer-text">{answer().join(", ") || i18n.t("ui.question.answer.none")}</div>
+                    </div>
+                  )
+                }}
+              </For>
+            </div>
+          </Show>
+        </BasicTool>
+        <Show when={pending()}>
+          <div
+            data-slot="question-waiting"
+            class="flex items-center justify-between gap-2 text-12-regular text-text-weak"
+          >
+            <span>{i18n.t("ui.question.waiting")}</span>
+            <Show when={props.questionAction}>
+              {(locate) => (
+                <ButtonV2 type="button" variant="ghost" data-slot="question-locate" onClick={() => locate()()}>
+                  {i18n.t("ui.question.locate")}
+                </ButtonV2>
+              )}
+            </Show>
           </div>
         </Show>
-      </BasicTool>
+      </div>
     )
   },
 })

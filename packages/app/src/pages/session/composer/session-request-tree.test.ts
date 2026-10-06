@@ -3,7 +3,12 @@ import type { PermissionRequest, QuestionV2Request, Session } from "@aigcfroge/s
 import type { PermissionV2Pending } from "@/context/global-sync/permission-pending"
 import { ServerConnection } from "@/context/server"
 import { ScopedKey, ServerScope } from "@/utils/server-scope"
-import { selectSessionRequest, sessionActiveRequest, sessionPendingRequests } from "./session-request-tree"
+import {
+  selectSessionRequest,
+  sessionActiveRequest,
+  sessionPendingRequests,
+  sessionQuestionToolRequest,
+} from "./session-request-tree"
 
 const scope = ServerScope.local
 const directory = "/projects/first"
@@ -576,5 +581,53 @@ describe("sessionActiveRequest edge cases", () => {
     })
 
     expect(active?.request).toBe(second)
+  })
+})
+
+describe("sessionQuestionToolRequest (AI-TDD-S05-R05)", () => {
+  const part = { sessionID: "root", messageID: "message", callID: "call" }
+  const pending = { ...question("question", "root"), tool: { messageID: "message", callID: "call" } }
+  const requests = (items: QuestionV2Request[]) =>
+    sessionPendingRequests({
+      scope,
+      directory,
+      session: [session({ id: "root" }), session({ id: "child", parentID: "root" })],
+      sessionID: "root",
+      question: {
+        root: items.filter((item) => item.sessionID === "root"),
+        child: items.filter((item) => item.sessionID === "child"),
+      },
+      legacyPermission: {},
+      v2Permission: { root: [permissionV2("question", "root")] },
+    })
+
+  test("selects the one exact tool owner and ignores a same-ID permission", () => {
+    expect(sessionQuestionToolRequest(requests([pending]), part)?.key).toBe(
+      ScopedKey.from(scope, directory, "root", "question", "question"),
+    )
+  })
+
+  test.each([
+    { name: "another session", request: { ...pending, sessionID: "child" } },
+    { name: "another message", request: { ...pending, tool: { messageID: "other", callID: "call" } } },
+    { name: "another call", request: { ...pending, tool: { messageID: "message", callID: "other" } } },
+    { name: "no tool identity", request: { ...pending, tool: undefined } },
+  ])("does not select $name", ({ request }) => {
+    expect(sessionQuestionToolRequest(requests([request]), part)).toBeUndefined()
+  })
+
+  test("does not guess when two pending requests claim one tool call", () => {
+    expect(sessionQuestionToolRequest(requests([pending, { ...pending, id: "other" }]), part)).toBeUndefined()
+  })
+
+  test("a resolved request immediately loses its locate action", () => {
+    expect(sessionQuestionToolRequest(requests([]), part)).toBeUndefined()
+  })
+
+  test("a child tool can locate its own request from the existing parent tree", () => {
+    const child = { ...pending, sessionID: "child" }
+    expect(sessionQuestionToolRequest(requests([child]), { ...part, sessionID: "child" })?.key).toBe(
+      ScopedKey.from(scope, directory, "child", "question", "question"),
+    )
   })
 })

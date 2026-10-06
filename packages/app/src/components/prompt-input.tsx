@@ -33,6 +33,8 @@ import {
 import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
+import { isAgentVisible } from "@/context/global-sync/utils"
+import { useSettings } from "@/context/settings"
 import { useComments } from "@/context/comments"
 import { Button } from "@aigcfroge/ui/button"
 import { DockShellForm } from "@aigcfroge/ui/dock-surface"
@@ -99,7 +101,7 @@ export type PromptInputSubmission = {
 
 export type PromptInputControls = {
   agents: {
-    available: { name: string; hidden?: boolean; mode: string; source?: string }[]
+    available: { name: string; hidden?: boolean; mode: string; source?: string; originRelativePath?: string }[]
     options: string[]
     current: string
     loading: boolean
@@ -255,6 +257,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const sdk = useSDK()
 
   const sync = useSync()
+  const settings = useSettings()
   const files = useFile()
   const prompt = props.state ?? usePrompt()
   const layout = useLayout()
@@ -847,22 +850,45 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     })
   }
 
-  const agentList = createMemo(() =>
-    props.controls.agents.available
-      .filter((agent) => !agent.hidden && agent.mode !== "primary")
-      .map((agent): AtOption => {
-        const source = agent.source === "external-cli" ? ("external-cli" as const) : undefined
-        return { type: "agent", name: agent.name, display: agent.name, source }
-      }),
-  )
+  const agentList = createMemo(() => {
+    const session = info()
+    const custom = session?.mode === "custom"
+    if (props.controls.session.id && !session) return []
+    if (custom && sessionCommands.snapshot.loading) return []
+    const snapshot = custom ? sessionCommands.snapshot() : undefined
+    // A Custom session must not borrow the live catalog or a previous session's snapshot.
+    if (custom && (!snapshot || (snapshot.sessionID !== undefined && snapshot.sessionID !== session?.id))) return []
+
+    return props.controls.agents.available
+      .filter((agent) => agent.mode !== "primary" && isAgentVisible(agent, settings.visibility.customAgents()))
+      .filter(
+        (agent) =>
+          !snapshot ||
+          (snapshot.version === 1
+            ? snapshot.data.agentID === agent.name
+            : snapshot.data.agents.some((entry) => entry.id === agent.name || entry.name === agent.name)),
+      )
+      .map((agent) => {
+        const source = agent.source === "native" || agent.source === "external-cli" ? agent.source : undefined
+        return {
+          type: "agent",
+          name: agent.name,
+          display: agent.name,
+          source,
+          originRelativePath: agent.originRelativePath,
+        } satisfies AtOption
+      })
+  })
 
   const handleAtSelect = (option: AtOption | undefined) => {
     if (!option) return
     if (option.type === "agent") {
+      // The async search can still hold a candidate whose visibility or frozen scope changed.
+      if (!agentList().some((agent) => agent.name === option.name)) return
       addPart({ type: "agent", name: option.name, content: "@" + option.name, start: 0, end: 0 })
-    } else {
-      addPart({ type: "file", path: option.path, content: "@" + option.path, start: 0, end: 0 })
+      return
     }
+    addPart({ type: "file", path: option.path, content: "@" + option.path, start: 0, end: 0 })
   }
 
   const atKey = (x: AtOption | undefined) => {

@@ -4,7 +4,13 @@ import { Icon } from "@aigcfroge/ui/icon"
 import { getDirectory, getFilename } from "@aigcfroge/core/util/path"
 
 export type AtOption =
-  | { type: "agent"; name: string; display: string; source?: "native" | "external-cli" }
+  | {
+      type: "agent"
+      name: string
+      display: string
+      source?: "native" | "external-cli"
+      originRelativePath?: string
+    }
   | { type: "file"; path: string; display: string; recent?: boolean }
 
 export interface SlashCommand {
@@ -56,9 +62,18 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                   const key = props.atKey(item)
 
                   if (item.type === "agent") {
+                    const source = () => {
+                      if (item.originRelativePath !== undefined) {
+                        return item.originRelativePath || props.t("common.unknown")
+                      }
+                      if (item.source === "external-cli") return props.t("ui.tool.cli")
+                      if (item.source === "native") return props.t("prompt.agent.source.native")
+                      return props.t("common.unknown")
+                    }
                     return (
                       <button
-                        class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
+                        type="button"
+                        class="w-full min-w-0 flex items-center gap-x-2 rounded-md px-2 py-0.5"
                         classList={{ "bg-surface-raised-base-hover": props.atActive === key }}
                         onClick={() => props.onAtSelect(item)}
                         onMouseEnter={() => props.setAtActive(key)}
@@ -72,12 +87,15 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                               : "text-icon-info-active shrink-0"
                           }
                         />
-                        <span class="text-14-regular text-text-strong whitespace-nowrap">@{item.name}</span>
-                        <Show when={item.source === "external-cli"}>
-                          <span class="text-11-regular text-text-subtle px-1.5 py-0.5 bg-surface-base rounded">
-                            {props.t("ui.tool.cli")}
-                          </span>
-                        </Show>
+                        <span class="text-14-regular text-text-strong whitespace-nowrap truncate" title={item.name}>
+                          @{item.name}
+                        </span>
+                        <span
+                          class="min-w-0 truncate text-11-regular text-text-subtle px-1.5 py-0.5 bg-surface-base rounded"
+                          title={source()}
+                        >
+                          {source()}
+                        </span>
                       </button>
                     )
                   }

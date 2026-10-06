@@ -278,6 +278,7 @@ export function SessionComposerRegion(props: {
               <SessionQuestionDock
                 request={request}
                 requestKey={props.state.questionRequestKey()}
+                focusRequest={props.state.focusRequest()}
                 sessionID={route.params.id}
                 onSubmit={props.onResponseSubmit}
               />
