@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import type { Message, Part, PermissionRequest, Project, QuestionV2Request, Session } from "@aigcfroge/sdk/v2/client"
 import { createStore } from "solid-js/store"
+import { WorkReview } from "@aigcfroge/schema/work-review"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import type { State } from "./types"
 import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } from "./event-reducer"
 
@@ -839,5 +841,187 @@ describe("Task events are full-list invalidations", () => {
     }
     expect(invalidated).toEqual(["ses_a", "ses_a", "ses_a"])
     expect(written).toEqual([])
+  })
+})
+
+const review = (revision: number, state: WorkReview.State = "open", artifactID = "artifact-a") =>
+  new WorkReview.Review({
+    contractVersion: 1,
+    artifactID,
+    artifactRevision: WorkflowAsset.Revision.make("a".repeat(64)),
+    state,
+    revision,
+    updatedAt: 10,
+  })
+
+const reviewSession = (id: string, workReview?: WorkReview.Review): Session => ({
+  id,
+  slug: id,
+  projectID: "project",
+  directory: "/project",
+  title: id,
+  version: "1",
+  mode: "work",
+  time: { created: 1, updated: 1 },
+  ...(workReview ? { workReview } : {}),
+})
+
+function reviewStore(sessions: Session[] = []) {
+  const [store, setStore] = createStore<State>({ ...baseState({ sessionTotal: sessions.length }), session: sessions })
+  return {
+    store,
+    apply(event: Parameters<typeof applyDirectoryEvent>[0]["event"]) {
+      applyDirectoryEvent({ event, store, setStore, directory: "/project", push() {}, loadLsp() {} })
+    },
+  }
+}
+
+describe("AI-TDD-S06-R11/R12 WorkReview Session readback", () => {
+  test("R11: current Session snapshots expose the direct canonical workReview", () => {
+    const context = reviewStore()
+    const session = reviewSession("ses_a", review(1))
+    context.apply({ type: "session.created", properties: { info: session } })
+    expect(context.store.session[0]?.workReview).toEqual(session.workReview)
+  })
+
+  test("R11: metadata-only snapshots do not manufacture a compatibility workReview", () => {
+    const context = reviewStore()
+    context.apply({
+      type: "session.created",
+      properties: { info: { ...reviewSession("ses_a"), metadata: { workReview: review(7) } } },
+    })
+    expect(context.store.session[0]?.workReview).toBeUndefined()
+  })
+
+  test("R12: work.review.updated changes only the addressed session and accepts wire objects", () => {
+    const context = reviewStore([reviewSession("ses_a", review(1)), reviewSession("ses_b", review(2))])
+    const sibling = context.store.session[1]?.workReview
+    const current = review(4, "resolved")
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID: "ses_a", revision: current.revision, review: { ...current } },
+    })
+    expect(context.store.session[0]?.workReview).toEqual(current)
+    expect(context.store.session[0]?.title).toBe("ses_a")
+    expect(context.store.session[1]?.workReview).toBe(sibling)
+    expect(context.store.sessionTotal).toBe(2)
+  })
+
+  test("R12: a newer event is retained across duplicate and out-of-order delivery", () => {
+    const context = reviewStore([reviewSession("ses_a", review(1))])
+    const newest = review(4, "resolved")
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID: "ses_a", revision: 4, review: { ...newest } },
+    })
+    expect(context.store.session[0]?.workReview).toEqual(newest)
+    const accepted = context.store.session[0]?.workReview
+    ;[review(4, "open", "artifact-b"), review(3, "responded"), review(2, "fix_requested")].forEach((older) => {
+      context.apply({
+        type: "work.review.updated",
+        properties: { sessionID: "ses_a", revision: older.revision, review: { ...older, updatedAt: 999 } },
+      })
+      expect(context.store.session[0]?.workReview).toBe(accepted)
+    })
+  })
+
+  test("R12: revision, not timestamp, decides which event is newer", () => {
+    const context = reviewStore([reviewSession("ses_a", review(1))])
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID: "ses_a", revision: 2, review: { ...review(2), updatedAt: 1 } },
+    })
+    expect(context.store.session[0]?.workReview).toMatchObject({ revision: 2, updatedAt: 1 })
+  })
+
+  test.each([0, -1, 1.5, NaN, Infinity, "2", null, undefined, 3])(
+    "R12: invalid or body-mismatched envelope revision %p is rejected",
+    (revision) => {
+      const context = reviewStore([reviewSession("ses_a", review(1))])
+      const before = context.store.session[0]?.workReview
+      context.apply({
+        type: "work.review.updated",
+        properties: { sessionID: "ses_a", revision, review: { ...review(2) } },
+      })
+      expect(context.store.session[0]?.workReview).toBe(before)
+    },
+  )
+
+  test.each([undefined, null, [], {}, { sessionID: "ses_a", revision: 2 }].map((properties) => [properties]))(
+    "R12: malformed event properties %p are rejected without throwing",
+    (properties) => {
+      const context = reviewStore([reviewSession("ses_a", review(1))])
+      const before = context.store.session[0]?.workReview
+      expect(() => context.apply({ type: "work.review.updated", properties })).not.toThrow()
+      expect(context.store.session[0]?.workReview).toBe(before)
+    },
+  )
+
+  test.each(["", null, 1, undefined, "ses_missing"])("R12: invalid or unknown session %p is isolated", (sessionID) => {
+    const context = reviewStore([reviewSession("ses_a", review(1))])
+    const before = context.store.session[0]?.workReview
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID, revision: 2, review: { ...review(2) } },
+    })
+    expect(context.store.session.map((session) => session.id)).toEqual(["ses_a"])
+    expect(context.store.session[0]?.workReview).toBe(before)
+    expect(context.store.sessionTotal).toBe(1)
+  })
+
+  test.each([
+    undefined,
+    null,
+    {},
+    { ...review(2), artifactID: "" },
+    { ...review(2), revision: 0 },
+    { ...review(2), revision: undefined },
+    { ...review(2), state: "approved" },
+    { ...review(2), artifactRevision: "invalid" },
+  ])("R12: malformed canonical Review %p is rejected", (body) => {
+    const context = reviewStore([reviewSession("ses_a", review(1))])
+    const before = context.store.session[0]?.workReview
+    context.apply({ type: "work.review.updated", properties: { sessionID: "ses_a", revision: 2, review: body } })
+    expect(context.store.session[0]?.workReview).toBe(before)
+  })
+  ;["session.created", "session.updated"].forEach((type) => {
+    test.each(["older", "equal", "missing", "invalid"] as const)(
+      `R12: late ${type} with %s review cannot roll back accepted review`,
+      (kind) => {
+        const latest = review(5, "resolved")
+        const context = reviewStore([reviewSession("ses_a", latest)])
+        const body =
+          kind === "missing"
+            ? undefined
+            : kind === "invalid"
+              ? { ...review(8), artifactID: "" }
+              : review(kind === "equal" ? 5 : 2, "open", "artifact-b")
+        context.apply({
+          type,
+          properties: {
+            info: {
+              ...reviewSession("ses_a"),
+              workReview: body,
+              title: "server title",
+              time: { created: 1, updated: 90 },
+            },
+          },
+        })
+        expect(context.store.session[0]?.workReview).toEqual(latest)
+        expect(context.store.session[0]?.title).toBe("server title")
+        expect(context.store.session[0]?.time.updated).toBe(90)
+        expect(context.store.sessionTotal).toBe(1)
+      },
+    )
+
+    test(`R11: ${type} strips an invalid direct review without losing a new session`, () => {
+      const context = reviewStore()
+      context.apply({
+        type,
+        properties: { info: { ...reviewSession("ses_a"), workReview: { ...review(2), artifactID: "" } } },
+      })
+      expect(context.store.session.map((session) => session.id)).toEqual(["ses_a"])
+      expect(context.store.session[0]?.workReview).toBeUndefined()
+    })
   })
 })

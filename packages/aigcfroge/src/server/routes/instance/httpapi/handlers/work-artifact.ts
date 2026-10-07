@@ -1,51 +1,49 @@
 export * as WorkArtifactHandlers from "./work-artifact"
 
-import { InstanceState } from "@/effect/instance-state"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { WorkArtifact } from "@aigcfroge/core/session/artifact"
-import { SessionV2 } from "@aigcfroge/core/session"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Effect, Layer, Schema } from "effect"
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidRequestError,
+  ServiceUnavailableError,
+  SessionNotFoundError,
+} from "@aigcfroge/server/errors"
+import { sessionLocationLayer } from "@aigcfroge/server/middleware/session-location"
+import { Effect, Layer } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { ConflictError, InvalidRequestError } from "../errors"
-
-function toApplyError(err: unknown): Effect.Effect<never, ConflictError | InvalidRequestError> {
-  let error: ConflictError | InvalidRequestError
-  if (err instanceof WorkArtifact.ConflictError) {
-    error = new ConflictError({ message: `Overwrite required: ${err.relativePath}`, resource: err.relativePath })
-  } else if (err instanceof WorkArtifact.PathValidationError) {
-    error = new InvalidRequestError({ message: err.reason })
-  } else {
-    error = new InvalidRequestError({ message: String(err) })
-  }
-  return Effect.fail(error)
-}
 
 export const workArtifactHandlers = HttpApiBuilder.group(InstanceHttpApi, "work-artifact", (handlers) =>
-  Effect.gen(function* () {
-    const locations = yield* LocationServiceMap
+  handlers.handle(
+    "apply",
+    Effect.fn("WorkArtifactHttpApi.apply")(function* (ctx) {
+      // Placement comes from the persisted Session, never a caller's directory hint.
+      const artifacts = yield* WorkArtifact.Service
+      const result = yield* artifacts
+        .apply({ ...ctx.payload, sessionID: ctx.params.sessionID })
+        .pipe(Effect.mapError((error) => toApplyError(error, ctx.params.sessionID)))
+      return result.artifact
+    }),
+  ),
+).pipe(Layer.provide(sessionLocationLayer), Layer.provide(LocationServiceMap.layer))
 
-    const apply = Effect.fn("WorkArtifactHttpApi.apply")(function* (ctx: {
-      params: { sessionID: string }
-      payload: { title: string; relativePath: string; content: string; overwrite: boolean }
-    }) {
-      const ctx2 = yield* InstanceState.context
-      const layer = locations.get(Location.Ref.make({ directory: AbsolutePath.make(ctx2.directory) }))
-      const service = yield* WorkArtifact.Service.pipe(Effect.provide(layer), Effect.orDie)
-      const result = yield* service
-        .apply({
-          sessionID: SessionV2.ID.make(ctx.params.sessionID),
-          title: ctx.payload.title,
-          relativePath: ctx.payload.relativePath,
-          content: ctx.payload.content,
-          overwrite: ctx.payload.overwrite,
-        })
-        .pipe(Effect.catch(toApplyError))
-      return Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)(result.artifact)
-    })
-
-    return handlers.handle("apply", apply)
-  }),
-).pipe(Layer.provide(LocationServiceMap.layer))
+function toApplyError(error: { readonly _tag: string }, sessionID: string) {
+  switch (error._tag) {
+    case "WorkArtifact.NotFound":
+      return new SessionNotFoundError({ sessionID, message: "Session not found" })
+    case "WorkArtifact.Scope":
+      return new ForbiddenError({ message: "Work artifact requires its owning Work Session and Location" })
+    case "WorkArtifact.PathValidation":
+      return new InvalidRequestError({ message: "Invalid work artifact path", field: "relativePath" })
+    case "WorkArtifact.Conflict":
+      return new ConflictError({
+        message: "Work artifact conflicts with the current file or binding",
+        resource: "work-artifact",
+      })
+    case "WorkArtifact.Unavailable":
+      return new ConflictError({ message: "Work artifact is unavailable", resource: "work-artifact" })
+    default:
+      return new ServiceUnavailableError({ message: "Work artifact storage is unavailable", service: "work-artifact" })
+  }
+}

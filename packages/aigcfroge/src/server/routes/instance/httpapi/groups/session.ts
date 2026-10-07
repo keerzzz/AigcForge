@@ -63,7 +63,7 @@ export const MessagesQuery = Schema.Struct({
 export const StatusMap = Schema.Record(Schema.String, SessionStatus.Info)
 export const UpdatePayload = Schema.Struct({
   title: Schema.optional(Schema.String),
-  metadata: Schema.optional(Session.Metadata),
+  metadata: Schema.optional(Session.UpdateMetadata),
   permission: Schema.optional(PermissionV1.Ruleset),
   permissionTier: Schema.optional(PermissionTier.ID),
   time: Schema.optional(

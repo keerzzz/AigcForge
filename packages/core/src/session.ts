@@ -21,6 +21,7 @@ import { SessionSchema } from "./session/schema"
 import { AbsolutePath, PositiveInt, RelativePath } from "./schema"
 import { AgentV2 } from "./agent"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
 import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
 import { Slug } from "./util/slug"
@@ -477,7 +478,15 @@ export const layer = Layer.effect(
           time: { created: now, updated: now },
           attended: input.attended,
           permissionTier: input.permissionTier ?? PermissionTier.Default,
-          metadata: input.presetCategoryId ? { presetCategoryId: input.presetCategoryId } : undefined,
+          metadata:
+            mode === "work" || input.presetCategoryId
+              ? {
+                  ...(input.presetCategoryId ? { presetCategoryId: input.presetCategoryId } : {}),
+                  ...(mode === "work"
+                    ? { workContract: WorkContract.AdHoc.make({ source: "ad-hoc", contractVersion: 1 }) }
+                    : {}),
+                }
+              : undefined,
         })
         const projected = yield* events
           .publish(SessionV1.Event.Created, { sessionID, info }, { location: input.location })

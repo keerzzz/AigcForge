@@ -50,7 +50,7 @@ import { SESSION_RECENT_LIMIT } from "./global-sync/types"
 import { formatServerError } from "@/utils/server-errors"
 import { queryOptions, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/solid-query"
 import { createRefreshQueue } from "./global-sync/queue"
-import { directoryKey } from "./global-sync/utils"
+import { directoryKey, mergeSessionReview } from "./global-sync/utils"
 import { PathKey } from "@/utils/path-key"
 import { createDirSyncContext, createTaskReadback } from "./directory-sync"
 import { createSimpleContext } from "@aigcfroge/ui/context"
@@ -358,10 +358,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
             list: (query) => serverSDK.client.session.list(query),
           })
             .then((x) => {
+              const current = new Map(store.session.map((session) => [session.id, session]))
               const nonArchived = (x.data ?? [])
                 .filter((s) => !!s?.id)
                 .filter((s) => !s.time?.archived)
                 .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+                .map((session) => mergeSessionReview(current.get(session.id), session))
               const retained = Math.max(store.limit, options?.limit ?? 0, sessionMeta.get(bucket)?.limit ?? 0)
               if (options?.mode) {
                 const retainedSessions = store.session.filter(

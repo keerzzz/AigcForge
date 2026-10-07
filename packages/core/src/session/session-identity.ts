@@ -41,7 +41,7 @@ import { WorkflowRun } from "../workflow/workflow-run"
  *    metadata or catalog digest participates.
  *  - `work`: the contract comes from the durable Work contract snapshot when present,
  *    with the WorkflowRun owner retained as a legacy fallback. Artifact identity/revision
- *    comes from WorkArtifact's in-memory owner. `presetCategoryId` is never used as identity.
+ *    comes from WorkArtifact's persistent, content-verified owner. `presetCategoryId` is never used as identity.
  *  - `assistant`: the current owner contract is personal schedules/reminders;
  *    Memory and Knowledge remain typed M2-degraded. Project scope is not emitted
  *    because no owner currently persists it.
@@ -176,7 +176,16 @@ export const layer = Layer.effect(
 
       if (session.mode === "work") {
         const run = Option.isSome(runs) ? yield* runs.value.getBySession(session.id) : undefined
-        const artifact = Option.isSome(artifacts) ? yield* artifacts.value.get(session.id) : undefined
+        const artifact = Option.isSome(artifacts)
+          ? yield* artifacts.value
+              .get(session.id)
+              .pipe(
+                Effect.mapError(
+                  () =>
+                    new SnapshotUnavailable({ sessionID: session.id, reason: "Work artifact could not be verified" }),
+                ),
+              )
+          : undefined
         const contract = session.workContract
           ? session.workContract.source === "preset"
             ? {

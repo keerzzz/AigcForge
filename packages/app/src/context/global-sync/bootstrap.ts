@@ -19,7 +19,7 @@ import { retry } from "@aigcfroge/core/util/retry"
 import { batch } from "solid-js"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"
-import { cmp, normalizeAgentList, normalizeProviderList } from "./utils"
+import { cmp, mergeSessionReview, normalizeAgentList, normalizeProviderList } from "./utils"
 import { formatServerError } from "@/utils/server-errors"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import { QueryClient, queryOptions } from "@tanstack/solid-query"
@@ -149,12 +149,12 @@ function mergeSession(setStore: SetStoreFunction<State>, session: Session) {
   setStore("session", (list) => {
     const next = list.slice()
     const idx = next.findIndex((item) => item.id >= session.id)
-    if (idx === -1) return [...next, session]
+    if (idx === -1) return [...next, mergeSessionReview(undefined, session)]
     if (next[idx]?.id === session.id) {
-      next[idx] = session
+      next[idx] = mergeSessionReview(next[idx], session)
       return next
     }
-    next.splice(idx, 0, session)
+    next.splice(idx, 0, mergeSessionReview(undefined, session))
     return next
   })
 }
@@ -178,7 +178,7 @@ function warmSessions(input: {
     ids.map((sessionID) =>
       retry(() => input.sdk.session.get({ sessionID })).then((x) => {
         const session = x.data
-        if (!session?.id) return
+        if (session?.id !== sessionID) return
         mergeSession(input.setStore, session)
       }),
     ),

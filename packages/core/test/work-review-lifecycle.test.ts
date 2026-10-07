@@ -4,107 +4,234 @@ import { WorkReview } from "@aigcfroge/schema/work-review"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { WorkReviewMachine } from "@aigcfroge/core/session/work-review"
 
-/**
- * S9A Work review-lifecycle — implemented against the approved contract
- * (docs/plan/s9a-work-review-lifecycle-contract.md). Owner approved 2026-09-20:
- * reuse `open` + `reopenedFrom` (no 5th state), persist in session metadata JSON
- * (no migration). Assistant M2 scope deferred post-M1.
- *
- * These assert the pure state machine + the schema decode path that info.fromRow
- * uses. The single-backend E4 contract->review->artifact lifeline stays owed on
- * CI (ubuntu-latest/ext4); cross-server + failure matrix are post-MVP.
- */
 const REV_A = WorkflowAsset.Revision.make("a".repeat(64))
 const REV_B = WorkflowAsset.Revision.make("b".repeat(64))
+const A = { artifactID: "artifact-a", artifactRevision: REV_A }
+const B = { artifactID: "artifact-b", artifactRevision: REV_B }
 
-const submit = () => {
-  const r = WorkReviewMachine.transition(undefined, { kind: "submit", artifactRevision: REV_A, at: 1 })
-  if (!r.ok) throw new Error("submit should succeed")
-  return r.review
+function apply(current: WorkReview.Review | undefined, event: WorkReviewMachine.Event) {
+  const result = WorkReviewMachine.transition(current, event)
+  expect(result.ok).toBe(true)
+  if (!result.ok) throw new Error(`Unexpected rejection for ${event.kind}`)
+  return result.review
 }
 
-describe("S9A Work review lifecycle", () => {
-  // ── Transitions (§3) ─────────────────────────────────────────────────────
-  test("submit for review moves a Work session's artifact from none to open", () => {
-    const r = WorkReviewMachine.transition(undefined, { kind: "submit", artifactRevision: REV_A, at: 1 })
-    expect(r.ok && r.review.state).toBe("open")
+function submit() {
+  return apply(undefined, { kind: "submit", ...A, at: 1 })
+}
+
+describe("S9A Work review lifecycle — canonical B4 fixtures", () => {
+  test("submit moves none to open", () => {
+    expect(submit().state).toBe("open")
   })
 
-  test("reviewer requesting changes moves open → fix_requested with the reviewed artifact revision", () => {
-    const r = WorkReviewMachine.transition(submit(), { kind: "request_changes", artifactRevision: REV_A, at: 2 })
-    expect(r.ok && r.review.state).toBe("fix_requested")
-    expect(r.ok && r.review.artifactRevision).toBe(REV_A)
+  test("request_changes moves open to fix_requested with the reviewed binding", () => {
+    expect(apply(submit(), { kind: "request_changes", ...A, at: 2 })).toMatchObject({
+      state: "fix_requested",
+      ...A,
+    })
   })
 
-  test("author responding moves fix_requested → responded", () => {
-    const fix = WorkReviewMachine.transition(submit(), { kind: "request_changes", artifactRevision: REV_A, at: 2 })
-    const r = WorkReviewMachine.transition(fix.ok ? fix.review : undefined, { kind: "respond", at: 3 })
-    expect(r.ok && r.review.state).toBe("responded")
+  test("respond moves fix_requested to responded", () => {
+    const fix = apply(submit(), { kind: "request_changes", ...A, at: 2 })
+    expect(apply(fix, { kind: "respond", at: 3 }).state).toBe("responded")
   })
 
-  test("re-review moves responded → open", () => {
-    const fix = WorkReviewMachine.transition(submit(), { kind: "request_changes", artifactRevision: REV_A, at: 2 })
-    const responded = WorkReviewMachine.transition(fix.ok ? fix.review : undefined, { kind: "respond", at: 3 })
-    const r = WorkReviewMachine.transition(responded.ok ? responded.review : undefined, { kind: "re_review", at: 4 })
-    expect(r.ok && r.review.state).toBe("open")
+  test("re_review moves responded to open", () => {
+    const fix = apply(submit(), { kind: "request_changes", ...A, at: 2 })
+    const responded = apply(fix, { kind: "respond", at: 3 })
+    expect(apply(responded, { kind: "re_review", ...B, at: 4 }).state).toBe("open")
   })
 
-  test("reviewer approval moves open → resolved", () => {
-    const r = WorkReviewMachine.transition(submit(), { kind: "approve", artifactRevision: REV_A, at: 2 })
-    expect(r.ok && r.review.state).toBe("resolved")
+  test("approve moves open to resolved", () => {
+    expect(apply(submit(), { kind: "approve", ...A, at: 2 }).state).toBe("resolved")
   })
 
-  test("reopen moves resolved → open, recording reopenedFrom = resolved", () => {
-    const resolved = WorkReviewMachine.transition(submit(), { kind: "approve", artifactRevision: REV_A, at: 2 })
-    const r = WorkReviewMachine.transition(resolved.ok ? resolved.review : undefined, { kind: "reopen", at: 3 })
-    expect(r.ok && r.review.state).toBe("open")
-    expect(r.ok && r.review.reopenedFrom).toBe("resolved")
+  test("reopen moves resolved to open and records reopenedFrom", () => {
+    const resolved = apply(submit(), { kind: "approve", ...A, at: 2 })
+    expect(apply(resolved, { kind: "reopen", ...B, at: 3 })).toMatchObject({
+      state: "open",
+      reopenedFrom: "resolved",
+    })
   })
 
-  // ── Invariants (§3) ──────────────────────────────────────────────────────
-  test("I1: an illegal transition (e.g. resolved → responded) is rejected, not silently applied", () => {
-    const resolved = WorkReviewMachine.transition(submit(), { kind: "approve", artifactRevision: REV_A, at: 2 })
-    const r = WorkReviewMachine.transition(resolved.ok ? resolved.review : undefined, { kind: "respond", at: 3 })
-    expect(r.ok).toBe(false)
-    expect(!r.ok && r.error._tag).toBe("IllegalTransition")
+  test("I1: resolved to responded is rejected", () => {
+    const resolved = apply(submit(), { kind: "approve", ...A, at: 2 })
+    const result = WorkReviewMachine.transition(resolved, { kind: "respond", at: 3 })
+    expect(result.ok).toBe(false)
+    expect(!result.ok && result.error._tag).toBe("IllegalTransition")
   })
 
-  test("I2: every fix_requested / resolved carries the artifact revision it reviewed", () => {
-    const fix = WorkReviewMachine.transition(submit(), { kind: "request_changes", artifactRevision: REV_B, at: 2 })
-    expect(fix.ok && fix.review.artifactRevision).toBe(REV_B)
-    const resolved = WorkReviewMachine.transition(submit(), { kind: "approve", artifactRevision: REV_B, at: 2 })
-    expect(resolved.ok && resolved.review.artifactRevision).toBe(REV_B)
+  test("I2: fix_requested and resolved retain the artifact they reviewed", () => {
+    expect(apply(submit(), { kind: "request_changes", ...A, at: 2 })).toMatchObject(A)
+    expect(apply(submit(), { kind: "approve", ...A, at: 2 })).toMatchObject(A)
   })
 
-  test("I3: updating artifact content does not auto-carry a prior review verdict to the new revision", () => {
-    const resolved = WorkReviewMachine.transition(submit(), { kind: "approve", artifactRevision: REV_A, at: 2 })
-    if (!resolved.ok) throw new Error("approve should succeed")
-    // Verdict was formed against REV_A; once the artifact moves to REV_B it is no longer current.
-    expect(WorkReviewMachine.isVerdictCurrent(resolved.review, REV_A)).toBe(true)
-    expect(WorkReviewMachine.isVerdictCurrent(resolved.review, REV_B)).toBe(false)
+  test("I3: changed artifact content does not inherit a verdict", () => {
+    const resolved = apply(submit(), { kind: "approve", ...A, at: 2 })
+    expect(WorkReviewMachine.isVerdictCurrent(resolved, A)).toBe(true)
+    expect(WorkReviewMachine.isVerdictCurrent(resolved, { ...A, artifactRevision: REV_B })).toBe(false)
   })
 
-  test("I4: a Work session with no review record is a valid ad-hoc session (review is not forced)", () => {
-    // No record = undefined; only `submit` is legal from none, and any review action
-    // other than starting one is rejected rather than fabricating a state.
-    const r = WorkReviewMachine.transition(undefined, { kind: "approve", artifactRevision: REV_A, at: 1 })
-    expect(r.ok).toBe(false)
-    // The absence itself is representable and valid on the session (optional field).
+  test("I4: absence does not fabricate a review", () => {
+    expect(WorkReviewMachine.transition(undefined, { kind: "approve", ...A, at: 1 }).ok).toBe(false)
     expect(Schema.decodeUnknownOption(WorkReview.Review)(undefined)._tag).toBe("None")
   })
 
-  // ── Persistence (§5) ─────────────────────────────────────────────────────
-  test("the review state round-trips through the session metadata JSON with no migration", () => {
+  test("canonical review round-trips through metadata JSON", () => {
     const review = submit()
-    const encoded = Schema.encodeUnknownSync(Schema.toCodecJson(WorkReview.Review))(review)
-    const decoded = Schema.decodeUnknownSync(Schema.toCodecJson(WorkReview.Review))(encoded)
-    expect(decoded).toEqual(review)
+    const codec = Schema.toCodecJson(WorkReview.Review)
+    expect(Schema.decodeUnknownSync(codec)(Schema.encodeUnknownSync(codec)(review))).toEqual(review)
   })
 
-  test("an absent or undecodable review record degrades to undefined, never throws", () => {
+  test("optional decoding rejects missing and malformed records without inventing defaults", () => {
     const decode = Schema.decodeUnknownOption(WorkReview.Review)
     expect(decode(undefined)._tag).toBe("None")
     expect(decode({ state: "not-a-state" })._tag).toBe("None")
     expect(decode("garbage")._tag).toBe("None")
   })
+})
+
+describe("AI-TDD-S06 machine invariants", () => {
+  test("R13: submit creates revision 1 and the explicit artifact identity", () => {
+    expect(submit()).toMatchObject({
+      contractVersion: 1,
+      state: "open",
+      ...A,
+      revision: 1,
+      updatedAt: 1,
+    })
+  })
+
+  test("R13: every successful action increments revision even when timestamps are equal", () => {
+    const open = apply(undefined, { kind: "submit", ...A, at: 1 })
+    const fix = apply(open, { kind: "request_changes", ...A, at: 1 })
+    const responded = apply(fix, { kind: "respond", at: 1 })
+    const reviewed = apply(responded, { kind: "re_review", ...B, at: 1 })
+    const resolved = apply(reviewed, { kind: "approve", ...B, at: 1 })
+    const reopened = apply(resolved, { kind: "reopen", ...A, at: 1 })
+    expect([open, fix, responded, reviewed, resolved, reopened].map((review) => review.revision)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ])
+    expect(responded).toMatchObject(A)
+    expect(reviewed).toMatchObject(B)
+    expect(reopened).toMatchObject({ ...A, reopenedFrom: "resolved" })
+    expect(apply(reopened, { kind: "request_changes", ...A, at: 2 }).reopenedFrom).toBeUndefined()
+  })
+
+  const transitions = [
+    { state: "open", allowed: { request_changes: "fix_requested", approve: "resolved" } },
+    { state: "fix_requested", allowed: { respond: "responded" } },
+    { state: "responded", allowed: { re_review: "open" } },
+    { state: "resolved", allowed: { reopen: "open" } },
+  ] as const
+  const actions = ["submit", "request_changes", "respond", "re_review", "approve", "reopen"] as const
+
+  transitions.forEach((row) => {
+    test.each([...actions])(`R02: ${row.state} + %s follows the four-state contract`, (kind) => {
+      const current = Object.freeze(
+        Schema.decodeUnknownSync(WorkReview.Review)({
+          contractVersion: 1,
+          state: row.state,
+          ...A,
+          revision: 7,
+          updatedAt: 1,
+        }),
+      )
+      const snapshot = { ...current }
+      const event = kind === "respond" ? { kind, at: 2 } : { kind, ...A, at: 2 }
+      const result = WorkReviewMachine.transition(current, Object.freeze(event))
+      const next = Object.entries(row.allowed).find((entry) => entry[0] === kind)?.[1]
+      expect({ ...current }).toEqual(snapshot)
+      if (next) {
+        expect(result).toMatchObject({ ok: true, review: { state: next, ...A, revision: 8, updatedAt: 2 } })
+        return
+      }
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          _tag: "IllegalTransition",
+          from: row.state,
+          event: kind,
+          reason: row.state === "open" && kind === "re_review" ? "review_not_stale" : "invalid_state",
+        },
+      })
+    })
+  })
+
+  test.each(["request_changes", "respond", "re_review", "approve", "reopen"] as const)(
+    "R02: none + %s cannot fabricate a review",
+    (kind) => {
+      const event = kind === "respond" ? { kind, at: 1 } : { kind, ...A, at: 1 }
+      expect(WorkReviewMachine.transition(undefined, event)).toEqual({
+        ok: false,
+        error: { _tag: "IllegalTransition", from: "none", event: kind, reason: "invalid_state" },
+      })
+    },
+  )
+
+  const stale = [
+    { name: "content changed", binding: { ...A, artifactRevision: REV_B } },
+    { name: "same hash on a different artifact", binding: { ...B, artifactRevision: REV_A } },
+    { name: "identity and content changed", binding: B },
+  ]
+
+  stale.forEach((row) => {
+    test.each(["approve", "request_changes"] as const)(`R14: %s rejects ${row.name}`, (kind) => {
+      const current = Object.freeze(submit())
+      const snapshot = { ...current }
+      expect(WorkReviewMachine.transition(current, { kind, ...row.binding, at: 2 })).toEqual({
+        ok: false,
+        error: { _tag: "IllegalTransition", from: "open", event: kind, reason: "artifact_mismatch" },
+      })
+      expect({ ...current }).toEqual(snapshot)
+    })
+
+    test(`R17: stale open can explicitly re_review when ${row.name}`, () => {
+      const current = Object.freeze(submit())
+      const reviewed = apply(current, { kind: "re_review", ...row.binding, at: 2 })
+      expect(reviewed).toMatchObject({ state: "open", ...row.binding, revision: 2, updatedAt: 2 })
+      expect(reviewed.reopenedFrom).toBeUndefined()
+      expect(WorkReviewMachine.isVerdictCurrent(current, row.binding)).toBe(false)
+      expect(WorkReviewMachine.isVerdictCurrent(reviewed, row.binding)).toBe(true)
+      expect(WorkReviewMachine.transition(reviewed, { kind: "approve", ...A, at: 3 }).ok).toBe(false)
+      expect(apply(reviewed, { kind: "approve", ...row.binding, at: 3 })).toMatchObject({
+        state: "resolved",
+        ...row.binding,
+        revision: 3,
+      })
+      expect(current).toMatchObject({ state: "open", ...A, revision: 1 })
+    })
+  })
+
+  test("R14: reopening rebinds identity even when the new artifact has the same hash", () => {
+    const resolved = apply(submit(), { kind: "approve", ...A, at: 2 })
+    const sameHash = { ...B, artifactRevision: REV_A }
+    expect(WorkReviewMachine.isVerdictCurrent(resolved, sameHash)).toBe(false)
+    const reopened = apply(resolved, { kind: "reopen", ...sameHash, at: 3 })
+    expect(reopened).toMatchObject({ state: "open", ...sameHash, revision: 3, reopenedFrom: "resolved" })
+    expect(WorkReviewMachine.transition(reopened, { kind: "approve", ...A, at: 4 }).ok).toBe(false)
+    expect(apply(reopened, { kind: "approve", ...sameHash, at: 4 })).toMatchObject({
+      state: "resolved",
+      ...sameHash,
+      revision: 4,
+    })
+  })
+
+  test.each(["open", "fix_requested", "responded", "resolved"] as const)(
+    "R14: the sole binding predicate compares identity and revision for %s",
+    (state) => {
+      const review = Schema.decodeUnknownSync(WorkReview.Review)({
+        contractVersion: 1,
+        state,
+        ...A,
+        revision: 4,
+        updatedAt: 1,
+      })
+      expect(WorkReviewMachine.isVerdictCurrent(review, A)).toBe(true)
+      expect(WorkReviewMachine.isVerdictCurrent(review, { ...A, artifactRevision: REV_B })).toBe(false)
+      expect(WorkReviewMachine.isVerdictCurrent(review, { ...B, artifactRevision: REV_A })).toBe(false)
+      expect(WorkReviewMachine.isVerdictCurrent(review, B)).toBe(false)
+    },
+  )
 })

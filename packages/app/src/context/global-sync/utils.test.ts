@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
-import type { Agent, ProductMode } from "@aigcfroge/sdk/v2/client"
-import { directoryKey, filterAgentList, normalizeAgentList } from "./utils"
+import type { Agent, ProductMode, Session } from "@aigcfroge/sdk/v2/client"
+import { WorkReview } from "@aigcfroge/schema/work-review"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+import { directoryKey, filterAgentList, mergeSessionReview, normalizeAgentList } from "./utils"
 
 const agent = (name = "build"): Agent => ({
   name,
@@ -128,4 +130,98 @@ describe("AI-TDD-S04-R06 visibility preference is not primary-mode authorization
       expect(filterAgentList(candidates, mode, true).map((item) => item.name)).toEqual(["meta"])
     },
   )
+})
+
+const review = (revision: number, state: WorkReview.State = "open") =>
+  new WorkReview.Review({
+    contractVersion: 1,
+    artifactID: "artifact-a",
+    artifactRevision: WorkflowAsset.Revision.make("a".repeat(64)),
+    state,
+    revision,
+    updatedAt: 10,
+  })
+
+const reviewSession = (id: string, workReview?: WorkReview.Review) =>
+  ({
+    id,
+    slug: id,
+    projectID: "project",
+    directory: "/project",
+    title: id,
+    version: "1",
+    mode: "work",
+    time: { created: 1, updated: 1 },
+    workReview,
+  }) satisfies Session
+
+describe("AI-TDD-S06-R11/R12 shared WorkReview merge", () => {
+  test("R11: decodes canonical plain JSON, not only a Schema.Class instance", () => {
+    const wire = { ...review(2) }
+    expect(Object.getPrototypeOf(wire)).toBe(Object.prototype)
+    expect(mergeSessionReview(undefined, reviewSession("ses_a", wire)).workReview).toEqual(wire)
+  })
+
+  test("R12: a higher revision wins even when its timestamp is lower", () => {
+    const current = reviewSession("ses_a", { ...review(2), updatedAt: 999 })
+    const incoming = reviewSession("ses_a", { ...review(3), updatedAt: 1 })
+    expect(mergeSessionReview(current, incoming).workReview).toEqual(incoming.workReview)
+    expect(current.workReview).toEqual({ ...review(2), updatedAt: 999 })
+  })
+
+  test.each(["older", "equal", "missing", "invalid"] as const)(
+    "R12: %s snapshot preserves the accepted review but updates unrelated Session fields",
+    (kind) => {
+      const accepted = { ...review(5, "resolved") }
+      // Corrupt only the wire input to the merge boundary, not the typed Session fixture.
+      const incoming = {
+        ...reviewSession("ses_a"),
+        workReview:
+          kind === "missing"
+            ? undefined
+            : {
+                ...review(kind === "equal" ? 5 : kind === "invalid" ? 9 : 2),
+                artifactID: kind === "invalid" ? "" : "artifact-b",
+              },
+        title: "server title",
+        time: { created: 1, updated: 90 },
+      }
+      expect(mergeSessionReview(reviewSession("ses_a", accepted), incoming)).toMatchObject({
+        workReview: accepted,
+        title: "server title",
+        time: { updated: 90 },
+      })
+    },
+  )
+
+  test("R12: a review from another Session cannot leak into a new Session snapshot", () => {
+    expect(mergeSessionReview(reviewSession("ses_a", review(9)), reviewSession("ses_b")).workReview).toBeUndefined()
+    const incoming = reviewSession("ses_b", review(1))
+    expect(mergeSessionReview(reviewSession("ses_a", review(9)), incoming).workReview).toEqual(incoming.workReview)
+  })
+
+  test("R12: an invalid cached review cannot suppress a lower valid revision", () => {
+    const incoming = reviewSession("ses_a", review(2))
+    // An invalid cached payload belongs at the untrusted merge input, never in Store<State>.
+    expect(
+      mergeSessionReview({ ...reviewSession("ses_a"), workReview: { ...review(99), artifactID: "" } }, incoming)
+        .workReview,
+    ).toEqual(incoming.workReview)
+  })
+
+  test.each(["artifactID", "revision"] as const)("R11: missing %s is not repaired as an old format", (field) => {
+    // Strip required wire fields after Schema construction so the negative case reaches the decoder.
+    const incoming = { ...reviewSession("ses_a"), workReview: { ...review(2), [field]: undefined } }
+    expect(mergeSessionReview(undefined, incoming)).toMatchObject({ id: "ses_a", workReview: undefined })
+  })
+
+  test("R11: metadata-only and ad-hoc snapshots do not manufacture a Review", () => {
+    const incoming = { ...reviewSession("ses_a"), mode: "coding" as const, metadata: { workReview: review(7) } }
+    expect(mergeSessionReview(undefined, incoming)).toMatchObject({
+      id: "ses_a",
+      mode: "coding",
+      metadata: incoming.metadata,
+      workReview: undefined,
+    })
+  })
 })

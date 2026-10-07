@@ -617,6 +617,10 @@ import type {
   V2SessionSwitchModelResponses,
   V2SessionWaitErrors,
   V2SessionWaitResponses,
+  V2SessionWorkReviewGetErrors,
+  V2SessionWorkReviewGetResponses,
+  V2SessionWorkReviewTransitionErrors,
+  V2SessionWorkReviewTransitionResponses,
   V2SkillListErrors,
   V2SkillListResponses,
   VcsApplyErrors,
@@ -648,6 +652,7 @@ import type {
   WorkflowAssetListErrors,
   WorkflowAssetListResponses,
   WorkPresetCategory,
+  WorkReviewCommand,
   WorktreeCreateErrors,
   WorktreeCreateInput,
   WorktreeCreateResponses,
@@ -3776,7 +3781,7 @@ export class WorkArtifact extends HeyApiClient {
   /**
    * Apply work artifact
    *
-   * Persist a drafted work artifact (candidate message) to the current Location atomically.
+   * Persist a drafted work artifact at the Session's stored Location and save its recoverable binding.
    */
   public apply<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8812,6 +8817,70 @@ export class Agent extends HeyApiClient {
   }
 }
 
+export class WorkReview extends HeyApiClient {
+  /**
+   * Get work review
+   *
+   * Read the persisted review and verify its binding against the current Session artifact.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<
+      V2SessionWorkReviewGetResponses,
+      V2SessionWorkReviewGetErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/work-review",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Transition work review
+   *
+   * Apply a revision-checked review action and return the authoritative result. This neither grants permissions nor resumes model execution.
+   */
+  public transition<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      workReviewCommand: WorkReviewCommand
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { key: "workReviewCommand", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionWorkReviewTransitionResponses,
+      V2SessionWorkReviewTransitionErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/work-review",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Permission2 extends HeyApiClient {
   /**
    * List session permission requests
@@ -9628,6 +9697,11 @@ export class Session3 extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+
+  private _workReview?: WorkReview
+  get workReview(): WorkReview {
+    return (this._workReview ??= new WorkReview({ client: this.client }))
   }
 
   private _permission?: Permission2

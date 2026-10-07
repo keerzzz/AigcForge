@@ -49,6 +49,8 @@ import { ModelV2 } from "@aigcfroge/core/model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
+import { WorkReview } from "@aigcfroge/schema/work-review"
 
 const runtime = makeRuntime(Database.Service, Database.defaultLayer)
 
@@ -79,6 +81,8 @@ export function fromRow(row: SessionRow): Info {
     id: row.id,
     mode: Schema.decodeUnknownSync(ProductMode.ID)(row.mode ?? ProductMode.Default),
     presetCategoryId: Option.getOrUndefined(decodePresetCategory(row.metadata?.presetCategoryId)),
+    workContract: Option.getOrUndefined(decodeWorkContract(row.metadata?.workContract)),
+    workReview: Option.getOrUndefined(decodeWorkReview(row.metadata?.workReview)),
     slug: row.slug,
     projectID: row.project_id,
     workspaceID: row.workspace_id ?? undefined,
@@ -222,6 +226,20 @@ const Model = Schema.Struct({
 export const Metadata = Schema.Record(Schema.String, Schema.Any)
 
 const decodePresetCategory = Schema.decodeUnknownOption(WorkPreset.Category)
+const decodeWorkContract = Schema.decodeUnknownOption(WorkContract.Snapshot)
+const decodeWorkReview = Schema.decodeUnknownOption(WorkReview.Review)
+
+export const CreateMetadata = Metadata.check(
+  Schema.makeFilter(
+    (metadata) =>
+      !Object.hasOwn(metadata, "workReview") &&
+      !Object.hasOwn(metadata, "workArtifact") &&
+      (!Object.hasOwn(metadata, "workContract") || Schema.is(WorkContract.Snapshot)(metadata.workContract)),
+  ),
+)
+export const UpdateMetadata = Metadata.check(
+  Schema.makeFilter((metadata) => WorkReview.OwnedMetadataKeys.every((key) => !Object.hasOwn(metadata, key))),
+)
 
 export const Info = Schema.Struct({
   id: SessionID,
@@ -230,6 +248,8 @@ export const Info = Schema.Struct({
     Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
   ),
   presetCategoryId: Schema.optional(WorkPreset.Category),
+  workContract: Schema.optional(WorkContract.Snapshot),
+  workReview: Schema.optional(WorkReview.Review),
   slug: Schema.String,
   projectID: ProjectV2.ID,
   workspaceID: optionalOmitUndefined(WorkspaceV2.ID),
@@ -274,7 +294,7 @@ export const CreateInput = Schema.optional(
     title: Schema.optional(Schema.String),
     agent: Schema.optional(Schema.String),
     model: Schema.optional(Model),
-    metadata: Schema.optional(Metadata),
+    metadata: Schema.optional(CreateMetadata),
     permission: Schema.optional(PermissionV1.Ruleset),
     permissionTier: Schema.optional(PermissionTier.ID),
     attended: Schema.optional(Schema.Boolean),
@@ -297,7 +317,7 @@ export const SetArchivedInput = Schema.Struct({
 })
 export const SetMetadataInput = Schema.Struct({
   sessionID: SessionID,
-  metadata: Metadata,
+  metadata: UpdateMetadata,
 })
 export const SetPermissionInput = Schema.Struct({
   sessionID: SessionID,
@@ -567,9 +587,16 @@ export const layer: Layer.Layer<
         title: input.title ?? (input.parentID ? childTitlePrefix : parentTitlePrefix) + new Date().toISOString(),
         agent: input.agent,
         model: input.model,
-        metadata: input.presetCategoryId
-          ? { ...input.metadata, presetCategoryId: input.presetCategoryId }
-          : input.metadata,
+        metadata:
+          input.mode === "work" || input.presetCategoryId
+            ? {
+                ...input.metadata,
+                ...(input.presetCategoryId ? { presetCategoryId: input.presetCategoryId } : {}),
+                ...(input.mode === "work" && !Object.hasOwn(input.metadata ?? {}, "workContract")
+                  ? { workContract: WorkContract.AdHoc.make({ source: "ad-hoc", contractVersion: 1 }) }
+                  : {}),
+              }
+            : input.metadata,
         permission: input.permission ? [...input.permission] : undefined,
         permissionTier: input.permissionTier ?? PermissionTier.Default,
         attended: input.attended,
@@ -765,7 +792,13 @@ export const layer: Layer.Layer<
         title,
         agent: original.agent,
         model: original.model,
-        metadata: structuredClone(original.metadata),
+        metadata: original.metadata
+          ? Object.fromEntries(
+              Object.entries(structuredClone(original.metadata)).filter(
+                ([key]) => key !== "workReview" && key !== "workArtifact",
+              ),
+            )
+          : undefined,
       })
       const msgs = yield* messages({ sessionID: input.sessionID })
       const idMap = new Map<string, MessageID>()

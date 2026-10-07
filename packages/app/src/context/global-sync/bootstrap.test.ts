@@ -14,6 +14,9 @@ import {
 import type { State, VcsCache } from "./types"
 import { ServerScope } from "@/utils/server-scope"
 import { applyDirectoryEvent } from "./event-reducer"
+import { WorkReview } from "@aigcfroge/schema/work-review"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+import type { Session } from "@aigcfroge/sdk/v2/client"
 
 const provider = { all: new Map(), connected: [], default: {} } satisfies NormalizedProviderListResponse
 
@@ -406,5 +409,162 @@ describe("query keys", () => {
       null,
       "providers",
     ])
+  })
+})
+
+const review = (revision: number, state: WorkReview.State = "open") =>
+  new WorkReview.Review({
+    contractVersion: 1,
+    artifactID: "artifact-a",
+    artifactRevision: WorkflowAsset.Revision.make("a".repeat(64)),
+    state,
+    revision,
+    updatedAt: 1,
+  })
+
+const reviewSession = (id: string, workReview?: WorkReview.Review): Session => ({
+  id,
+  slug: id,
+  projectID: "project",
+  directory: "/project",
+  title: id,
+  version: "1",
+  mode: "work",
+  time: { created: 1, updated: 1 },
+  ...(workReview ? { workReview } : {}),
+})
+
+function reviewReadback() {
+  const [store, setStore] = createStore<State>({
+    status: "complete" as const,
+    agent: [],
+    command: [],
+    project: "project",
+    projectMeta: undefined,
+    icon: undefined,
+    provider_ready: true,
+    provider,
+    config: {},
+    path: { state: "", config: "", worktree: "/project", directory: "/project", home: "/home" },
+    session: [],
+    sessionTotal: 0,
+    session_status: {},
+    session_working() {
+      return false
+    },
+    session_diff: {},
+    permission: {},
+    permission_v2: {},
+    permission_v2_revision: 0,
+    permission_v2_load_epoch: 0,
+    permission_v2_events: [],
+    question_revision: 0,
+    question_load_epoch: 0,
+    question_events: [],
+    question: {},
+    mcp_ready: true,
+    mcp: {},
+    lsp_ready: true,
+    lsp: [],
+    vcs: undefined,
+    limit: 5,
+    message: {},
+    part: {},
+    part_text_accum_delta: {},
+  })
+  const started = Promise.withResolvers<string>()
+  const response = Promise.withResolvers<{ data?: Session }>()
+  const sdk = {
+    session: {
+      get({ sessionID }) {
+        started.resolve(sessionID)
+        return response.promise
+      },
+    },
+    v2: {
+      permission: {
+        request: {
+          list: async () => ({
+            data: { data: [{ id: "per_a", sessionID: "ses_a", action: "bash", resources: ["/project/script"] }] },
+          }),
+        },
+      },
+    },
+  } satisfies PermissionPendingClient
+  return {
+    store,
+    response,
+    started,
+    load: () => loadV2PermissionPending({ sdk, store, setStore }),
+    apply(event: Parameters<typeof applyDirectoryEvent>[0]["event"]) {
+      applyDirectoryEvent({ event, store, setStore, directory: "/project", push() {}, loadLsp() {} })
+    },
+  }
+}
+
+describe("AI-TDD-S06-R11/R12 bootstrap WorkReview readback", () => {
+  test("R11: warming a Session reads the canonical direct workReview", async () => {
+    const context = reviewReadback()
+    const pending = context.load()
+    expect(await context.started.promise).toBe("ses_a")
+    const session = reviewSession("ses_a", { ...review(2) })
+    context.response.resolve({ data: session })
+    await pending
+    expect(context.store.session[0]?.workReview).toEqual(session.workReview)
+  })
+
+  test.each(["older", "equal", "missing", "invalid"] as const)(
+    "R12: late bootstrap session.get with %s review cannot replace newer received review",
+    async (kind) => {
+      const context = reviewReadback()
+      const pending = context.load()
+      expect(await context.started.promise).toBe("ses_a")
+      const newest = review(7, "resolved")
+      context.apply({ type: "session.created", properties: { info: reviewSession("ses_a", newest) } })
+      expect(context.store.session[0]?.workReview).toEqual(newest)
+      const older = kind === "missing" ? undefined : review(kind === "equal" ? 7 : 1)
+      context.response.resolve({
+        data: {
+          ...reviewSession("ses_a", kind === "invalid" ? { ...review(9), artifactID: "" } : older),
+          title: "network title",
+        },
+      })
+      await pending
+      expect(context.store.session[0]?.workReview).toEqual(newest)
+      expect(context.store.session[0]?.title).toBe("network title")
+    },
+  )
+
+  test("R12: work.review.updated received during bootstrap survives its older Session response", async () => {
+    const context = reviewReadback()
+    const pending = context.load()
+    await context.started.promise
+    context.apply({ type: "session.created", properties: { info: reviewSession("ses_a", review(1)) } })
+    const newest = review(4, "resolved")
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID: "ses_a", revision: 4, review: { ...newest } },
+    })
+    context.response.resolve({ data: reviewSession("ses_a", review(2)) })
+    await pending
+    expect(context.store.session[0]?.workReview).toEqual(newest)
+  })
+
+  test("R12: a Session response for a different ID cannot populate the requested Session", async () => {
+    const context = reviewReadback()
+    const pending = context.load()
+    expect(await context.started.promise).toBe("ses_a")
+    context.response.resolve({ data: reviewSession("ses_b", review(8)) })
+    await pending
+    expect(context.store.session).toEqual([])
+  })
+
+  test("R11: warming metadata-only Sessions does not create an old-format compatibility view", async () => {
+    const context = reviewReadback()
+    const pending = context.load()
+    await context.started.promise
+    context.response.resolve({ data: { ...reviewSession("ses_a"), metadata: { workReview: review(9) } } })
+    await pending
+    expect(context.store.session[0]?.workReview).toBeUndefined()
   })
 })

@@ -1,19 +1,24 @@
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
-import { DateTime, Effect, Option, Schema } from "effect"
+import { WorkReviewService } from "@aigcfroge/core/session/work-review-service"
+import { absurd, Cause, DateTime, Effect, Option, Schema } from "effect"
 import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
+import { SqlError } from "effect/unstable/sql/SqlError"
+import { EffectDrizzleQueryError } from "drizzle-orm/effect-core/errors"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { Api } from "../api"
 import { SessionsCursor } from "../groups/session"
 import {
   ConflictError,
+  ForbiddenError,
   InvalidCursorError,
   InvalidRequestError,
   ServiceUnavailableError,
   SessionNotFoundError,
   UnsupportedProductModeError,
   UnknownError,
+  WorkReviewUnavailableError,
   CompositionResolveError,
 } from "../errors"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -73,6 +78,18 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
 
     const requireReadableSession = (sessionID: string, capabilitiesHeader?: string | null) =>
       requireSessionAndCapability(sessionID, capabilitiesHeader)
+
+    // The generic reader can defect while decoding stored JSON, before the Review owner runs.
+    // Translate only storage/decoding faults; programming defects keep their original cause.
+    const requireReviewSession = (sessionID: string, capabilitiesHeader?: string | null) =>
+      requireReadableSession(sessionID, capabilitiesHeader).pipe(
+        Effect.catchDefect((error) => {
+          if (isReviewReadFailure(error)) {
+            return new WorkReviewUnavailableError({ message: "Work review storage is unavailable", code: "storage" })
+          }
+          return Effect.die(error)
+        }),
+      )
 
     return handlers
       .handle(
@@ -252,6 +269,33 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           const info = yield* requireSessionAndCapability(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: info,
+          }
+        }),
+      )
+      .handle(
+        "session.workReview.get",
+        Effect.fn("SessionHttpApi.workReview.get")(function* (ctx) {
+          const request = yield* HttpServerRequest.HttpServerRequest
+          yield* requireReviewSession(ctx.params.sessionID, request.headers[ProductModePolicy.CAPABILITIES_HEADER])
+          // SessionLocationMiddleware supplies this Session's owner, not a reviewer role.
+          const reviews = yield* WorkReviewService.Service
+          return {
+            data: yield* reviews
+              .get(ctx.params.sessionID)
+              .pipe(Effect.mapError((error) => workReviewError(error, ctx.params.sessionID))),
+          }
+        }),
+      )
+      .handle(
+        "session.workReview.transition",
+        Effect.fn("SessionHttpApi.workReview.transition")(function* (ctx) {
+          const request = yield* HttpServerRequest.HttpServerRequest
+          yield* requireReviewSession(ctx.params.sessionID, request.headers[ProductModePolicy.CAPABILITIES_HEADER])
+          const reviews = yield* WorkReviewService.Service
+          return {
+            data: yield* reviews
+              .transition(ctx.params.sessionID, ctx.payload)
+              .pipe(Effect.mapError((error) => workReviewError(error, ctx.params.sessionID))),
           }
         }),
       )
@@ -772,3 +816,61 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       })
   }),
 )
+
+function workReviewError(error: WorkReviewService.ReviewError, sessionID: SessionV2.ID) {
+  // Public errors must never include storage paths, file contents, or raw causes.
+  switch (error.code) {
+    case "not_found":
+      return new SessionNotFoundError({ sessionID, message: "Session not found" })
+    case "wrong_scope":
+      return new ForbiddenError({ message: "Work review artifact belongs to a different Session or Location" })
+    case "wrong_mode":
+      return new ForbiddenError({ message: "Work review requires a Work Session" })
+    case "invalid_action":
+      return new InvalidRequestError({ message: "Invalid work review action", kind: error.code })
+    case "illegal_transition":
+      return new InvalidRequestError({
+        message: "Work review action is not allowed in its current state",
+        kind: error.code,
+      })
+    case "corrupt_review":
+      return new InvalidRequestError({ message: "Work review record is corrupt", kind: error.code })
+    case "conflict":
+      return new ConflictError({
+        message: "Work review revision changed; reload before retrying",
+        resource: "work-review",
+      })
+    case "stale_artifact":
+      return new ConflictError({
+        message: "Work artifact binding changed; reload before retrying",
+        resource: "work-artifact",
+      })
+    case "artifact_unavailable":
+      return new ConflictError({ message: "Work artifact is unavailable", resource: "work-artifact" })
+    case "storage":
+      return new WorkReviewUnavailableError({
+        message:
+          error.committedRevision === undefined
+            ? "Work review storage is unavailable"
+            : "Work review was saved but its artifact could not be revalidated; reload before retrying",
+        code: "storage",
+        committedRevision: error.committedRevision,
+      })
+    case "notification":
+      return new WorkReviewUnavailableError({
+        message: "Work review notification failed; reload before retrying",
+        code: "notification",
+        committedRevision: error.committedRevision,
+      })
+  }
+  return absurd<never>(error.code)
+}
+
+function isReviewReadFailure(error: unknown): boolean {
+  if (error instanceof SyntaxError || Schema.isSchemaError(error) || error instanceof SqlError) return true
+  if (!(error instanceof EffectDrizzleQueryError) || !Cause.isCause(error.cause)) return false
+  return (
+    error.cause.reasons.length > 0 &&
+    error.cause.reasons.every((reason) => Cause.isFailReason(reason) && isReviewReadFailure(reason.error))
+  )
+}

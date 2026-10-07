@@ -11,6 +11,7 @@ import { DateTimeUtcFromMillis, optionalOmitUndefined, RelativePath } from "./sc
 import { SessionID } from "./session-id"
 import { SessionMessageID } from "./session-message-id"
 import { WorkContract } from "./work-contract"
+import { WorkReview } from "./work-review"
 import { WorkPreset } from "./work-preset"
 
 export const ID = SessionID.ID
@@ -39,6 +40,7 @@ export const Info = Schema.Struct({
   ),
   presetCategoryId: WorkPreset.Category.pipe(optionalOmitUndefined),
   workContract: WorkContract.Snapshot.pipe(optionalOmitUndefined),
+  workReview: WorkReview.Review.pipe(optionalOmitUndefined),
   slug: Schema.String,
   version: Schema.String,
   parentID: ID.pipe(optionalOmitUndefined),

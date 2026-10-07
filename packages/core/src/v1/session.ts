@@ -15,6 +15,8 @@ import { WorkspaceV2 } from "../workspace"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionInput } from "@aigcfroge/schema/session-input"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
+import { WorkReview } from "@aigcfroge/schema/work-review"
 
 const Timestamp = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 
@@ -548,6 +550,8 @@ const SessionModel = Schema.Struct({
 
 export const SessionInfo = Schema.Struct({
   id: SessionSchema.ID,
+  workContract: optionalOmitUndefined(WorkContract.Snapshot),
+  workReview: optionalOmitUndefined(WorkReview.Review),
   mode: ProductMode.ID.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
     Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),

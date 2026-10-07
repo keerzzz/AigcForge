@@ -5452,6 +5452,36 @@
                     },
                     {
                       "$ref": "#/components/schemas/InvalidRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
                     }
                   ]
                 }
@@ -5467,9 +5497,19 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "ServiceUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableError"
+                }
+              }
+            }
           }
         },
-        "description": "Persist a drafted work artifact (candidate message) to the current Location atomically.",
+        "description": "Persist a drafted work artifact at the Session's stored Location and save its recoverable binding.",
         "summary": "Apply work artifact",
         "requestBody": {
           "content": {
@@ -18910,6 +18950,258 @@
         ]
       }
     },
+    "/api/session/{sessionID}/work-review": {
+      "get": {
+        "tags": ["sessions"],
+        "operationId": "v2.session.workReview.get",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkReviewReadResult"
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError | UnsupportedProductModeError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/UnsupportedProductModeError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WorkReviewUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkReviewUnavailableError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Read the persisted review and verify its binding against the current Session artifact.",
+        "summary": "Get work review",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.session.workReview.get({\n  ...\n})"
+          }
+        ]
+      },
+      "post": {
+        "tags": ["sessions"],
+        "operationId": "v2.session.workReview.transition",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "pattern": "^ses"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkReviewReady"
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError | UnsupportedProductModeError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/UnsupportedProductModeError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "WorkReviewUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkReviewUnavailableError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Apply a revision-checked review action and return the authoritative result. This neither grants permissions nor resumes model execution.",
+        "summary": "Transition work review",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkReviewCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.session.workReview.transition({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/api/session/{sessionID}/agent": {
       "post": {
         "tags": ["sessions"],
@@ -26982,6 +27274,9 @@
             "$ref": "#/components/schemas/EventWorkAsset_saved"
           },
           {
+            "$ref": "#/components/schemas/EventWorkReviewUpdated"
+          },
+          {
             "$ref": "#/components/schemas/EventWorkStep_resumed"
           },
           {
@@ -28596,6 +28891,62 @@
           "id": {
             "type": "string",
             "pattern": "^ses"
+          },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "mode": {
             "$ref": "#/components/schemas/ProductMode"
@@ -34562,6 +34913,39 @@
                   },
                   "type": {
                     "type": "string",
+                    "enum": ["work.review.updated"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "revision": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "review": {
+                        "$ref": "#/components/schemas/WorkReviewReview"
+                      }
+                    },
+                    "required": ["sessionID", "revision", "review"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
                     "enum": ["work.step_resumed"]
                   },
                   "properties": {
@@ -36509,6 +36893,12 @@
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
           },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
+          },
           "slug": {
             "type": "string"
           },
@@ -37482,6 +37872,54 @@
         "required": ["_tag", "message"],
         "additionalProperties": false
       },
+      "ForbiddenError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["ForbiddenError"]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "SessionNotFoundError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["SessionNotFoundError"]
+          },
+          "sessionID": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "sessionID", "message"],
+        "additionalProperties": false
+      },
+      "ServiceUnavailableError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["ServiceUnavailableError"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
       "UnknownError1": {
         "type": "object",
         "properties": {
@@ -37537,23 +37975,6 @@
           }
         },
         "required": ["_tag", "code", "message"],
-        "additionalProperties": false
-      },
-      "SessionNotFoundError": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": ["SessionNotFoundError"]
-          },
-          "sessionID": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": ["_tag", "sessionID", "message"],
         "additionalProperties": false
       },
       "SessionBusyError": {
@@ -37837,6 +38258,12 @@
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
           },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
+          },
           "slug": {
             "type": "string"
           },
@@ -38017,6 +38444,12 @@
           },
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
+          },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
           },
           "slug": {
             "type": "string"
@@ -38199,6 +38632,12 @@
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
           },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
+          },
           "slug": {
             "type": "string"
           },
@@ -38379,6 +38818,12 @@
           },
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
+          },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
           },
           "slug": {
             "type": "string"
@@ -38561,6 +39006,12 @@
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
           },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
+          },
           "slug": {
             "type": "string"
           },
@@ -38742,6 +39193,12 @@
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
           },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
+          },
           "slug": {
             "type": "string"
           },
@@ -38922,6 +39379,12 @@
           },
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
+          },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
           },
           "slug": {
             "type": "string"
@@ -39249,6 +39712,12 @@
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
           },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
+          },
           "slug": {
             "type": "string"
           },
@@ -39429,6 +39898,12 @@
           },
           "presetCategoryId": {
             "$ref": "#/components/schemas/WorkPresetCategory"
+          },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "$ref": "#/components/schemas/WorkReviewReview"
           },
           "slug": {
             "type": "string"
@@ -40150,21 +40625,26 @@
         "required": ["_tag", "message"],
         "additionalProperties": false
       },
-      "ServiceUnavailableError": {
+      "WorkReviewUnavailableError": {
         "type": "object",
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": ["ServiceUnavailableError"]
+            "enum": ["WorkReviewUnavailableError"]
           },
           "message": {
             "type": "string"
           },
-          "service": {
-            "type": "string"
+          "code": {
+            "type": "string",
+            "enum": ["storage", "notification"]
+          },
+          "committedRevision": {
+            "type": "integer",
+            "minimum": 1
           }
         },
-        "required": ["_tag", "message"],
+        "required": ["_tag", "message", "code"],
         "additionalProperties": false
       },
       "UnknownError2": {
@@ -40636,6 +41116,9 @@
             "$ref": "#/components/schemas/V2EventWorkAsset_saved"
           },
           {
+            "$ref": "#/components/schemas/V2EventWorkReviewUpdated"
+          },
+          {
             "$ref": "#/components/schemas/V2EventWorkStep_resumed"
           },
           {
@@ -40660,20 +41143,6 @@
             "$ref": "#/components/schemas/V2EventServerConnected"
           }
         ]
-      },
-      "ForbiddenError": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": ["ForbiddenError"]
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": ["_tag", "message"],
-        "additionalProperties": false
       },
       "QuestionNotFoundError": {
         "type": "object",
@@ -40750,6 +41219,236 @@
           }
         },
         "required": ["_tag"],
+        "additionalProperties": false
+      },
+      "Session10": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^ses"
+          },
+          "workContract": {
+            "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ProductMode"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "projectID": {
+            "type": "string"
+          },
+          "workspaceID": {
+            "type": "string",
+            "pattern": "^wrk"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "parentID": {
+            "type": "string",
+            "pattern": "^ses"
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "additions": {
+                "type": "number"
+              },
+              "deletions": {
+                "type": "number"
+              },
+              "files": {
+                "type": "number"
+              },
+              "diffs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SnapshotFileDiff"
+                }
+              }
+            },
+            "required": ["additions", "deletions", "files"],
+            "additionalProperties": false
+          },
+          "cost": {
+            "type": "number"
+          },
+          "tokens": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "number"
+              },
+              "output": {
+                "type": "number"
+              },
+              "reasoning": {
+                "type": "number"
+              },
+              "cache": {
+                "type": "object",
+                "properties": {
+                  "read": {
+                    "type": "number"
+                  },
+                  "write": {
+                    "type": "number"
+                  }
+                },
+                "required": ["read", "write"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["input", "output", "reasoning", "cache"],
+            "additionalProperties": false
+          },
+          "share": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": ["url"],
+            "additionalProperties": false
+          },
+          "title": {
+            "type": "string"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "model": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "providerID": {
+                "type": "string"
+              },
+              "variant": {
+                "type": "string"
+              }
+            },
+            "required": ["id", "providerID"],
+            "additionalProperties": false
+          },
+          "version": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "updated": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "compacting": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "archived": {
+                "type": "number"
+              }
+            },
+            "required": ["created", "updated"],
+            "additionalProperties": false
+          },
+          "permission": {
+            "$ref": "#/components/schemas/PermissionRuleset"
+          },
+          "attended": {
+            "type": "boolean"
+          },
+          "permissionTier": {
+            "$ref": "#/components/schemas/PermissionTier"
+          },
+          "revert": {
+            "type": "object",
+            "properties": {
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg"
+              },
+              "partID": {
+                "type": "string",
+                "pattern": "^prt"
+              },
+              "snapshot": {
+                "type": "string"
+              },
+              "diff": {
+                "type": "string"
+              }
+            },
+            "required": ["messageID"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "slug", "projectID", "directory", "title", "version", "time"],
         "additionalProperties": false
       },
       "Event.tui.command.execute": {
@@ -41329,6 +42028,132 @@
         ],
         "additionalProperties": false
       },
+      "WorkContractVersion": {
+        "type": "number",
+        "enum": [1]
+      },
+      "WorkPresetRevision": {
+        "type": "string",
+        "minLength": 64,
+        "maxLength": 64,
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "WorkPresetOutputType": {
+        "type": "string",
+        "enum": ["markdown", "table", "mixed"]
+      },
+      "WorkPresetArtifactSpec": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "relativeDir": {
+            "type": "string"
+          }
+        },
+        "required": ["title", "filename"],
+        "additionalProperties": false
+      },
+      "WorkContractOutput": {
+        "type": "object",
+        "properties": {
+          "outputType": {
+            "$ref": "#/components/schemas/WorkPresetOutputType"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/WorkPresetArtifactSpec"
+          }
+        },
+        "required": ["outputType", "artifact"],
+        "additionalProperties": false
+      },
+      "WorkContractPreset": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": ["preset"]
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/WorkContractVersion"
+          },
+          "presetID": {
+            "type": "string"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/WorkPresetRevision"
+          },
+          "output": {
+            "$ref": "#/components/schemas/WorkContractOutput"
+          }
+        },
+        "required": ["source", "contractVersion", "presetID", "revision", "output"],
+        "additionalProperties": false
+      },
+      "WorkContractWorkflow": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": ["workflow"]
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/WorkContractVersion"
+          },
+          "workflowID": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "output": {
+            "$ref": "#/components/schemas/WorkContractOutput"
+          }
+        },
+        "required": ["source", "contractVersion", "workflowID", "revision"],
+        "additionalProperties": false
+      },
+      "WorkContractAdHoc": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": ["ad-hoc"]
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/WorkContractVersion"
+          },
+          "output": {
+            "$ref": "#/components/schemas/WorkContractOutput"
+          }
+        },
+        "required": ["source", "contractVersion"],
+        "additionalProperties": false
+      },
+      "WorkContractSnapshot": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/WorkContractPreset"
+          },
+          {
+            "$ref": "#/components/schemas/WorkContractWorkflow"
+          },
+          {
+            "$ref": "#/components/schemas/WorkContractAdHoc"
+          }
+        ]
+      },
+      "WorkReviewState": {
+        "type": "string",
+        "enum": ["open", "fix_requested", "responded", "resolved"]
+      },
       "PromptSource": {
         "type": "object",
         "properties": {
@@ -41634,6 +42459,59 @@
           }
         },
         "required": ["id", "content", "status", "priority", "sessionID", "revision", "createdAt", "updatedAt"],
+        "additionalProperties": false
+      },
+      "WorkReviewReview": {
+        "type": "object",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/WorkContractVersion"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkReviewState"
+          },
+          "artifactID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactRevision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "reopenedFrom": {
+            "$ref": "#/components/schemas/WorkReviewState"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity", "-Infinity", "NaN"]
+              }
+            ]
+          }
+        },
+        "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
         "additionalProperties": false
       },
       "EventServerInstanceDisposed": {
@@ -48250,128 +49128,6 @@
         "required": ["composition"],
         "additionalProperties": false
       },
-      "WorkContractVersion": {
-        "type": "number",
-        "enum": [1]
-      },
-      "WorkPresetRevision": {
-        "type": "string",
-        "minLength": 64,
-        "maxLength": 64,
-        "pattern": "^[0-9a-f]{64}$"
-      },
-      "WorkPresetOutputType": {
-        "type": "string",
-        "enum": ["markdown", "table", "mixed"]
-      },
-      "WorkPresetArtifactSpec": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "filename": {
-            "type": "string"
-          },
-          "relativeDir": {
-            "type": "string"
-          }
-        },
-        "required": ["title", "filename"],
-        "additionalProperties": false
-      },
-      "WorkContractOutput": {
-        "type": "object",
-        "properties": {
-          "outputType": {
-            "$ref": "#/components/schemas/WorkPresetOutputType"
-          },
-          "artifact": {
-            "$ref": "#/components/schemas/WorkPresetArtifactSpec"
-          }
-        },
-        "required": ["outputType", "artifact"],
-        "additionalProperties": false
-      },
-      "WorkContractPreset": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string",
-            "enum": ["preset"]
-          },
-          "contractVersion": {
-            "$ref": "#/components/schemas/WorkContractVersion"
-          },
-          "presetID": {
-            "type": "string"
-          },
-          "revision": {
-            "$ref": "#/components/schemas/WorkPresetRevision"
-          },
-          "output": {
-            "$ref": "#/components/schemas/WorkContractOutput"
-          }
-        },
-        "required": ["source", "contractVersion", "presetID", "revision", "output"],
-        "additionalProperties": false
-      },
-      "WorkContractWorkflow": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string",
-            "enum": ["workflow"]
-          },
-          "contractVersion": {
-            "$ref": "#/components/schemas/WorkContractVersion"
-          },
-          "workflowID": {
-            "type": "string"
-          },
-          "revision": {
-            "type": "string",
-            "minLength": 64,
-            "maxLength": 64,
-            "pattern": "^[0-9a-f]{64}$"
-          },
-          "output": {
-            "$ref": "#/components/schemas/WorkContractOutput"
-          }
-        },
-        "required": ["source", "contractVersion", "workflowID", "revision"],
-        "additionalProperties": false
-      },
-      "WorkContractAdHoc": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string",
-            "enum": ["ad-hoc"]
-          },
-          "contractVersion": {
-            "$ref": "#/components/schemas/WorkContractVersion"
-          },
-          "output": {
-            "$ref": "#/components/schemas/WorkContractOutput"
-          }
-        },
-        "required": ["source", "contractVersion"],
-        "additionalProperties": false
-      },
-      "WorkContractSnapshot": {
-        "anyOf": [
-          {
-            "$ref": "#/components/schemas/WorkContractPreset"
-          },
-          {
-            "$ref": "#/components/schemas/WorkContractWorkflow"
-          },
-          {
-            "$ref": "#/components/schemas/WorkContractAdHoc"
-          }
-        ]
-      },
       "SessionV2Revert": {
         "type": "object",
         "properties": {
@@ -48420,6 +49176,59 @@
           },
           "workContract": {
             "$ref": "#/components/schemas/WorkContractSnapshot"
+          },
+          "workReview": {
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -51387,6 +52196,135 @@
         },
         "required": ["id", "request", "mode", "hidden", "permissions", "handoffs"],
         "additionalProperties": false
+      },
+      "WorkReviewNone": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["none"]
+          }
+        },
+        "required": ["status"],
+        "additionalProperties": false
+      },
+      "WorkReviewBinding": {
+        "type": "object",
+        "properties": {
+          "artifactID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactRevision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": ["artifactID", "artifactRevision"],
+        "additionalProperties": false
+      },
+      "WorkReviewReady": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ready"]
+          },
+          "review": {
+            "$ref": "#/components/schemas/WorkReviewReview"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/WorkReviewBinding"
+          },
+          "current": {
+            "type": "boolean"
+          }
+        },
+        "required": ["status", "review", "artifact", "current"],
+        "additionalProperties": false
+      },
+      "WorkReviewUnavailable": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["unavailable"]
+          },
+          "reason": {
+            "type": "string",
+            "enum": ["corrupt_review", "artifact_missing", "artifact_unavailable"]
+          },
+          "review": {
+            "$ref": "#/components/schemas/WorkReviewReview"
+          }
+        },
+        "required": ["status", "reason"],
+        "additionalProperties": false
+      },
+      "WorkReviewReadResult": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/WorkReviewNone"
+          },
+          {
+            "$ref": "#/components/schemas/WorkReviewReady"
+          },
+          {
+            "$ref": "#/components/schemas/WorkReviewUnavailable"
+          }
+        ]
+      },
+      "WorkReviewArtifactCommand": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["submit", "request_changes", "approve", "re_review", "reopen"]
+          },
+          "expectedReviewRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "artifactID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expectedArtifactRevision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": ["action", "expectedReviewRevision", "artifactID", "expectedArtifactRevision"],
+        "additionalProperties": false
+      },
+      "WorkReviewRespondCommand": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["respond"]
+          },
+          "expectedReviewRevision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["action", "expectedReviewRevision"],
+        "additionalProperties": false
+      },
+      "WorkReviewCommand": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/WorkReviewArtifactCommand"
+          },
+          {
+            "$ref": "#/components/schemas/WorkReviewRespondCommand"
+          }
+        ]
       },
       "SessionInputAdmittedPrompt": {
         "type": "object",
@@ -62075,6 +63013,61 @@
         "required": ["id", "type", "data"],
         "additionalProperties": false
       },
+      "V2EventWorkReviewUpdated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["work.review.updated"]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "review": {
+                "$ref": "#/components/schemas/WorkReviewReview"
+              }
+            },
+            "required": ["sessionID", "revision", "review"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
       "V2EventWorkStep_resumed": {
         "type": "object",
         "properties": {
@@ -65941,7 +66934,7 @@
                 "pattern": "^ses"
               },
               "info": {
-                "$ref": "#/components/schemas/Session"
+                "$ref": "#/components/schemas/Session10"
               }
             },
             "required": ["sessionID", "info"],
@@ -65970,7 +66963,7 @@
                 "pattern": "^ses"
               },
               "info": {
-                "$ref": "#/components/schemas/Session"
+                "$ref": "#/components/schemas/Session10"
               }
             },
             "required": ["sessionID", "info"],
@@ -67942,7 +68935,7 @@
                 "pattern": "^ses"
               },
               "info": {
-                "$ref": "#/components/schemas/Session"
+                "$ref": "#/components/schemas/Session10"
               }
             },
             "required": ["sessionID", "info"],
@@ -68309,6 +69302,88 @@
               }
             },
             "required": ["relativePath"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "WorkReviewReview1": {
+        "type": "object",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/WorkContractVersion"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkReviewState"
+          },
+          "artifactID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactRevision": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "reopenedFrom": {
+            "$ref": "#/components/schemas/WorkReviewState"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": ["NaN"]
+              },
+              {
+                "type": "string",
+                "enum": ["Infinity"]
+              },
+              {
+                "type": "string",
+                "enum": ["-Infinity"]
+              }
+            ]
+          }
+        },
+        "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+        "additionalProperties": false
+      },
+      "EventWorkReviewUpdated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["work.review.updated"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "review": {
+                "$ref": "#/components/schemas/WorkReviewReview1"
+              }
+            },
+            "required": ["sessionID", "revision", "review"],
             "additionalProperties": false
           }
         },

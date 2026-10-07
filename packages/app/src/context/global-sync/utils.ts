@@ -1,4 +1,6 @@
-import type { Agent, ProductMode, Project, ProviderListResponse } from "@aigcfroge/sdk/v2/client"
+import type { Agent, ProductMode, Project, ProviderListResponse, Session } from "@aigcfroge/sdk/v2/client"
+import { Schema } from "effect"
+import { WorkReview } from "@aigcfroge/schema/work-review"
 import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 export { pathKey as directoryKey, type PathKey as DirectoryKey } from "@/utils/path-key"
 
@@ -61,4 +63,19 @@ export function sanitizeProject(project: Project) {
       override: undefined,
     },
   }
+}
+
+const decodeReview = Schema.decodeUnknownOption(Schema.toCodecJson(WorkReview.Review))
+
+/** Preserve accepted review revisions without treating a summary as a current verdict. */
+export function mergeSessionReview(
+  current: (Omit<Session, "workReview"> & { workReview?: unknown }) | undefined,
+  incoming: Omit<Session, "workReview"> & { workReview?: unknown },
+) {
+  const previous = decodeReview(current?.id === incoming.id ? current.workReview : undefined)
+  const next = decodeReview(incoming.workReview)
+  if (previous._tag === "Some" && (next._tag === "None" || previous.value.revision >= next.value.revision)) {
+    return { ...incoming, workReview: previous.value }
+  }
+  return { ...incoming, workReview: next._tag === "Some" ? next.value : undefined }
 }

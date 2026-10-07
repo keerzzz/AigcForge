@@ -68,6 +68,7 @@ function fullLayer(dir: string, inject: Injection = {}) {
     Effect.gen(function* () {
       const real = yield* FileMutation.Service
       return FileMutation.Service.of({
+        withTarget: (target, use) => real.withTarget(target, use),
         create: (input) => real.create(input),
         write: (input) => real.write(input),
         writeTextPreservingBom: (input) => real.writeTextPreservingBom(input),

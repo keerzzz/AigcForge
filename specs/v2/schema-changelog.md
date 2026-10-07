@@ -1,5 +1,17 @@
 # V2 Schema Changelog
 
+## 2026-10-06: Durable WorkReview Binding and Producer (AI-TDD-S06)
+
+> **Status: IMPLEMENTED / LOCAL S06 EVIDENCE COMPLETE (2026-10-07), AWAITING REVIEW — the original lint failure and performance observations remain historical in `docs/technical-debt.md` §15.7; the format repair, passing full lint, and counterbalanced descriptive recheck are recorded in §15.8. No statistical performance or release approval is implied.**
+
+- `WorkReview.Review` is a schema class with required `artifactID` and positive `revision`; the four lifecycle states remain unchanged. The only new transition is explicit stale-open `re_review`, validated against the real current artifact. Approval validity compares both artifact identity and content revision.
+- `WorkReview.Command` rejects unknown fields at its shared class/JSON codec boundary. `None`, `Ready`, and `Unavailable` distinguish read availability from lifecycle state; corrupt/missing required metadata is never treated as initial revision zero.
+- The Location-scoped producer uses SQLite conditional updates of the sole `metadata.workReview` key, preserving unrelated metadata. `WorkArtifact` persists its current reference to `metadata.workArtifact` after its file mutation and revalidates paths/content on subsequent reads; no table migration or old-format fallback is introduced.
+- Both current Session read schemas expose the same optional `workReview`. Generic Session writes and stale projection events cannot overwrite Work-owned keys; forks do not transfer a review's artifact identity.
+- Existing `server.session` gains `/api/session/:sessionID/work-review` GET and POST with `v2.session.workReview.get` and `v2.session.workReview.transition`. EventV2 gains `work.review.updated`; generated SDK/OpenAPI follow the generator, not hand-written client methods.
+- `optionalOmitUndefined` now targets the type-only schema after decoding. This fixes applying a class codec twice when an optional class value is serialized; a real encode failure and schema regression tests cover the boundary.
+- S07 user-facing review controls, broad E4/provider matrices, and release authorization are not part of this API slice.
+
 ## 2026-10-03: One Current Question Contract (AI-TDD-S03)
 
 > **Status: IMPLEMENTED — package, HTTP, browser, and transport gates are recorded in `docs/technical-debt.md` §15.**

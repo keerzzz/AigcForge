@@ -35,6 +35,16 @@ export class ServiceUnavailableError extends Schema.TaggedErrorClass<ServiceUnav
   { httpApiStatus: 503 },
 ) {}
 
+export class WorkReviewUnavailableError extends Schema.TaggedErrorClass<WorkReviewUnavailableError>()(
+  "WorkReviewUnavailableError",
+  {
+    message: Schema.String,
+    code: Schema.Literals(["storage", "notification"]),
+    committedRevision: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
+  },
+  { httpApiStatus: 503 },
+) {}
+
 export class UnknownError extends Schema.TaggedErrorClass<UnknownError>()(
   "UnknownError",
   {

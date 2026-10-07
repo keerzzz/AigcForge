@@ -9,6 +9,7 @@ import { AbsolutePath } from "@aigcfroge/core/schema"
 import "@aigcfroge/core/account"
 import "@aigcfroge/core/catalog"
 import "@aigcfroge/core/session/event"
+import "@aigcfroge/core/session/work-review-service"
 import { Context, Effect, Layer } from "effect"
 
 export class Service extends Context.Service<Service, EventV2.Interface>()("@aigcfroge/EventV2Bridge") {}

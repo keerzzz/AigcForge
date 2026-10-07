@@ -80,6 +80,7 @@ import { PersonalMemory } from "./session/personal-memory"
 import { KBService } from "./session/kb-service"
 import { SessionTask } from "./session/task"
 import { WorkArtifact } from "./session/artifact"
+import { WorkReviewService } from "./session/work-review-service"
 import { QuestionV2 } from "./question"
 import { LLMClient } from "@aigcfroge/llm"
 import { RequestExecutor } from "@aigcfroge/llm/route"
@@ -195,6 +196,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
       )
       const questions = QuestionV2.locationLayer.pipe(Layer.provide(services))
       const workArtifact = WorkArtifact.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
+      const workReview = WorkReviewService.layer.pipe(Layer.provide(workArtifact), Layer.provide(services))
       // The `task` built-in reaches child Sessions through the TaskDriver module
       // bridge (a plain Deferred filled by the composition root), not a Layer, so
       // BuiltInTools carries no extra requirement here. See tool/task-driver.ts.
@@ -276,6 +278,7 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         workflowRunner,
         questions,
         workArtifact,
+        workReview,
         model,
         runner,
         scheduleService,

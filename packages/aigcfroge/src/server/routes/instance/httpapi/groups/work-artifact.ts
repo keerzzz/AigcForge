@@ -2,13 +2,19 @@ export * as WorkArtifactApiGroup from "./work-artifact"
 
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
-import { WorkspaceRoutingMiddleware, WorkspaceRoutingQueryFields } from "../middleware/workspace-routing"
+import { WorkspaceRoutingQueryFields } from "../middleware/workspace-routing"
 import { described } from "./metadata"
 import { SessionID } from "@/session/schema"
 import { WorkArtifact } from "@aigcfroge/core/session/artifact"
-import { ConflictError, InvalidRequestError } from "../errors"
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidRequestError,
+  ServiceUnavailableError,
+  SessionNotFoundError,
+} from "@aigcfroge/server/errors"
 import { Authorization } from "../middleware/authorization"
-import { InstanceContextMiddleware } from "../middleware/instance-context"
+import { SessionLocationMiddleware } from "@aigcfroge/server/middleware/session-location"
 
 const sessionRoot = "/session/:sessionID/work-artifact"
 
@@ -31,16 +37,16 @@ export const WorkArtifactApi = HttpApi.make("work-artifact").add(
         query: Schema.Struct(WorkspaceRoutingQueryFields),
         payload: ApplyPayload,
         success: described(WorkArtifact.ArtifactRecord, "Applied work artifact"),
-        error: [InvalidRequestError, ConflictError],
+        error: [InvalidRequestError, ConflictError, ForbiddenError, SessionNotFoundError, ServiceUnavailableError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "work-artifact.apply",
           summary: "Apply work artifact",
-          description: "Persist a drafted work artifact (candidate message) to the current Location atomically.",
+          description:
+            "Persist a drafted work artifact at the Session's stored Location and save its recoverable binding.",
         }),
       ),
     )
-    .middleware(InstanceContextMiddleware)
-    .middleware(WorkspaceRoutingMiddleware)
+    .middleware(SessionLocationMiddleware)
     .middleware(Authorization),
 )

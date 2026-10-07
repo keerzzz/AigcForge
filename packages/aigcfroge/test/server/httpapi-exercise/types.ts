@@ -1,4 +1,5 @@
 import type { Duration, Effect } from "effect"
+import type { ProductMode } from "@aigcfroge/schema/product-mode"
 import type { PermissionV2 } from "@aigcfroge/core/permission"
 import type { ScopedGrantStore } from "@aigcfroge/core/grant/store"
 import type { SessionComposition } from "@aigcfroge/core/session/composition"
@@ -61,7 +62,11 @@ export type ScenarioContext = {
   directory: string | undefined
   headers: (extra?: Record<string, string>) => Record<string, string>
   file: (name: string, content: string) => Effect.Effect<void>
-  session: (input?: { title?: string; parentID?: SessionID }) => Effect.Effect<SessionInfo>
+  session: (input?: {
+    title?: string
+    parentID?: SessionID
+    mode?: ProductMode.GenericSessionMode
+  }) => Effect.Effect<SessionInfo>
   sessionGet: (sessionID: SessionID) => Effect.Effect<SessionInfo | undefined>
   customSession: (input?: {
     title?: string

@@ -13,7 +13,7 @@ import { SESSION_CACHE_LIMIT, dropSessionCaches, pickSessionCacheEvictions } fro
 import { diffs as list, message as clean } from "@/utils/diffs"
 import { type createServerSdkContext } from "./server-sdk"
 import { type createServerSyncContextInner } from "./server-sync"
-import { directoryKey } from "./global-sync/utils"
+import { directoryKey, mergeSessionReview } from "./global-sync/utils"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
 
@@ -606,7 +606,7 @@ export const createDirSyncContext = (
                   .then((session) => {
                     if (!tracked(directory, sessionID)) return
                     const data = session.data
-                    if (!data) return
+                    if (data?.id !== sessionID) return
                     // Archived sessions stay out of the session list (aligned
                     // with upstream: the list is driven only by the list API).
                     // Messages still load below so archived history stays
@@ -618,10 +618,10 @@ export const createDirSyncContext = (
                       produce((draft) => {
                         const match = Binary.search(draft, sessionID, (s) => s.id)
                         if (match.found) {
-                          draft[match.index] = data
+                          draft[match.index] = mergeSessionReview(draft[match.index], data)
                           return
                         }
-                        draft.splice(match.index, 0, data)
+                        draft.splice(match.index, 0, mergeSessionReview(undefined, data))
                       }),
                     )
                   })
@@ -700,10 +700,12 @@ export const createDirSyncContext = (
         const [store, setStore] = serverSync.child(directory)
         setStore("limit", (x) => x + count)
         await client.session.list().then((x) => {
+          const current = new Map(store.session.map((session) => [session.id, session]))
           const sessions = (x.data ?? [])
             .filter((s) => !!s?.id)
             .sort((a, b) => cmp(a.id, b.id))
             .slice(0, store.limit)
+            .map((session) => mergeSessionReview(current.get(session.id), session))
           setStore("session", reconcile(sessions, { key: "id" }))
         })
       },

@@ -161,7 +161,7 @@ function withContext<A, E>(
           session: (input) =>
             run(
               modules.Session.Service.use((svc) =>
-                svc.create({ title: input?.title, parentID: input?.parentID }).pipe(Effect.orDie),
+                svc.create({ title: input?.title, parentID: input?.parentID, mode: input?.mode }).pipe(Effect.orDie),
               ),
             ),
           sessionGet: (sessionID) =>

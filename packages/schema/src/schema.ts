@@ -9,9 +9,10 @@ export type RelativePath = typeof RelativePath.Type
 export const AbsolutePath = Schema.String.pipe(Schema.brand("AbsolutePath"))
 export type AbsolutePath = typeof AbsolutePath.Type
 
+// The target is a type-only schema: retaining its codec here would encode transformations twice.
 export const optionalOmitUndefined = <S extends Schema.Top>(schema: S) =>
   Schema.optionalKey(schema).pipe(
-    Schema.decodeTo(Schema.optional(schema), {
+    Schema.decodeTo(Schema.optional(Schema.toType(schema)), {
       decode: SchemaGetter.passthrough({ strict: false }),
       encode: SchemaGetter.transformOptional(Option.filter((value) => value !== undefined)),
     }),

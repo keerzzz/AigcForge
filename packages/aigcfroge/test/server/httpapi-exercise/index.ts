@@ -2327,6 +2327,35 @@ const scenarios: Scenario[] = [
     }))
     .json(200, data(object)),
   http.protected
+    .get("/api/session/{sessionID}/work-review", "v2.session.workReview.get")
+    .seeded((ctx) => ctx.session({ title: "Unreviewed Work session", mode: "work" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/work-review", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(isRecord(body.data) && body.data.status === "none", "a new Work session has no review")
+    }),
+  http.protected
+    .post("/api/session/{sessionID}/work-review", "v2.session.workReview.transition.unavailable")
+    .mutating()
+    .seeded((ctx) => ctx.session({ title: "Work session without an artifact", mode: "work" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/work-review", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: {
+        action: "submit",
+        expectedReviewRevision: 0,
+        artifactID: "art_unavailable",
+        expectedArtifactRevision: "a".repeat(64),
+      },
+    }))
+    .json(409, (body) => {
+      object(body)
+      check(body._tag === "ConflictError", "a review command without an artifact must fail closed")
+    }),
+  http.protected
     .post("/api/session/{sessionID}/agent", "v2.session.switchAgent")
     .seeded((ctx) => ctx.session({ title: "Switch agent" }))
     .at((ctx) => ({
@@ -3272,7 +3301,7 @@ const scenarios: Scenario[] = [
   http.protected
     .post("/session/{sessionID}/work-artifact/apply", "work-artifact.apply")
     .mutating()
-    .seeded((ctx) => ctx.session({ title: "Work artifact session" }))
+    .seeded((ctx) => ctx.session({ title: "Work artifact session", mode: "work" }))
     .at((ctx) => ({
       path: route("/session/{sessionID}/work-artifact/apply", { sessionID: ctx.state.id }),
       headers: ctx.headers(),

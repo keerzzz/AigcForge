@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Equal, Schema } from "effect"
 import { Question } from "@aigcfroge/schema/question"
 import { Binary } from "@aigcfroge/core/util/binary"
 import { produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
@@ -18,6 +18,7 @@ import type { State, VcsCache } from "./types"
 import type { TaskProgressSnapshot } from "../server-sync"
 import { trimSessions } from "./session-trim"
 import { dropSessionCaches } from "./session-cache"
+import { mergeSessionReview } from "./utils"
 import { diffs as list, message as clean } from "@/utils/diffs"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
@@ -138,11 +139,11 @@ export function applyDirectoryEvent(input: {
       const info = (event.properties as { info: Session }).info
       const result = Binary.search(input.store.session, info.id, (s) => s.id)
       if (result.found) {
-        input.setStore("session", result.index, reconcile(info))
+        input.setStore("session", result.index, reconcile(mergeSessionReview(input.store.session[result.index], info)))
         break
       }
       const next = input.store.session.slice()
-      next.splice(result.index, 0, info)
+      next.splice(result.index, 0, mergeSessionReview(undefined, info))
       const trimmed = trimSessions(next, {
         limit,
         permission: input.store.permission,
@@ -179,11 +180,11 @@ export function applyDirectoryEvent(input: {
         break
       }
       if (result.found) {
-        input.setStore("session", result.index, reconcile(info))
+        input.setStore("session", result.index, reconcile(mergeSessionReview(input.store.session[result.index], info)))
         break
       }
       const next = input.store.session.slice()
-      next.splice(result.index, 0, info)
+      next.splice(result.index, 0, mergeSessionReview(undefined, info))
       const trimmed = trimSessions(next, {
         limit,
         permission: input.store.permission,
@@ -213,6 +214,19 @@ export function applyDirectoryEvent(input: {
       cleanupSessionCaches(input.setStore, info.id, input.setSessionTask, input.setSessionTaskProgress)
       if (info.parentID) break
       if (result.found) input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
+      break
+    }
+    case "work.review.updated": {
+      const props = event.properties
+      if (!isRecord(props) || typeof props.sessionID !== "string" || !props.sessionID) break
+      if (!isRecord(props.review) || props.revision !== props.review.revision) break
+      const result = Binary.search(input.store.session, props.sessionID, (session) => session.id)
+      if (!result.found) break
+      const current: Parameters<typeof mergeSessionReview>[1] = input.store.session[result.index]
+      const next = mergeSessionReview(current, { ...current, workReview: props.review })
+      // Class decoding creates new instances; duplicates must not republish an unchanged review.
+      if (!next.workReview || Equal.equals(current.workReview, next.workReview)) break
+      input.setStore("session", result.index, reconcile(next))
       break
     }
     case "session.diff": {

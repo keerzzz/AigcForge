@@ -135,6 +135,7 @@ export type Event =
   | EventVcsBranchUpdated
   | EventWorkArtifactApplied
   | EventWorkAssetSaved
+  | EventWorkReviewUpdated
   | EventWorkStepResumed
   | EventWorkflowRunUpdated
   | EventWorkspaceFailed
@@ -682,6 +683,16 @@ export type PermissionTier = "propose" | "full"
 
 export type Session = {
   id: string
+  workContract?: WorkContractSnapshot
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   mode?: ProductMode
   slug: string
   projectID: string
@@ -2164,6 +2175,15 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "work.review.updated"
+        properties: {
+          sessionID: string
+          revision: number
+          review: WorkReviewReview
+        }
+      }
+    | {
+        id: string
         type: "work.step_resumed"
         properties: {
           sessionID: string
@@ -2868,6 +2888,8 @@ export type GlobalSession = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3192,6 +3214,23 @@ export type ConflictError = {
   resource?: string
 }
 
+export type ForbiddenError = {
+  _tag: "ForbiddenError"
+  message: string
+}
+
+export type SessionNotFoundError = {
+  _tag: "SessionNotFoundError"
+  sessionID: string
+  message: string
+}
+
+export type ServiceUnavailableError = {
+  _tag: "ServiceUnavailableError"
+  message: string
+  service?: string
+}
+
 export type UnknownError1 = {
   _tag: "UnknownError"
   message: string
@@ -3209,12 +3248,6 @@ export type CompositionResolveError = {
   code: string
   message: string
   diagnostics?: Array<CompositionDiagnostic>
-}
-
-export type SessionNotFoundError = {
-  _tag: "SessionNotFoundError"
-  sessionID: string
-  message: string
 }
 
 export type SessionBusyError = {
@@ -3315,6 +3348,8 @@ export type Session1 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3372,6 +3407,8 @@ export type Session2 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3429,6 +3466,8 @@ export type Session3 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3486,6 +3525,8 @@ export type Session4 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3543,6 +3584,8 @@ export type Session5 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3600,6 +3643,8 @@ export type Session6 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3657,6 +3702,8 @@ export type Session7 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3762,6 +3809,8 @@ export type Session8 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3819,6 +3868,8 @@ export type Session9 = {
   id: string
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
+  workContract?: WorkContractSnapshot
+  workReview?: WorkReviewReview
   slug: string
   projectID: string
   workspaceID?: string
@@ -3985,10 +4036,11 @@ export type InvalidCursorError = {
   message: string
 }
 
-export type ServiceUnavailableError = {
-  _tag: "ServiceUnavailableError"
+export type WorkReviewUnavailableError = {
+  _tag: "WorkReviewUnavailableError"
   message: string
-  service?: string
+  code: "storage" | "notification"
+  committedRevision?: number
 }
 
 export type UnknownError2 = {
@@ -4148,6 +4200,7 @@ export type V2Event =
   | V2EventVcsBranchUpdated
   | V2EventWorkArtifactApplied
   | V2EventWorkAssetSaved
+  | V2EventWorkReviewUpdated
   | V2EventWorkStepResumed
   | V2EventWorkflowRunUpdated
   | V2EventWorkspaceFailed
@@ -4155,11 +4208,6 @@ export type V2Event =
   | V2EventWorkspaceStatus
   | V2EventWorktreeFailed
   | V2EventWorktreeReady
-
-export type ForbiddenError = {
-  _tag: "ForbiddenError"
-  message: string
-}
 
 export type QuestionNotFoundError = {
   _tag: "QuestionNotFoundError"
@@ -4184,6 +4232,72 @@ export type DelegationState = {
 
 export type EffectHttpApiErrorForbidden = {
   _tag: "Forbidden"
+}
+
+export type Session10 = {
+  id: string
+  workContract?: WorkContractSnapshot
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity"
+  }
+  mode?: ProductMode
+  slug: string
+  projectID: string
+  workspaceID?: string
+  directory: string
+  path?: string
+  parentID?: string
+  summary?: {
+    additions: number
+    deletions: number
+    files: number
+    diffs?: Array<SnapshotFileDiff>
+  }
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  share?: {
+    url: string
+  }
+  title: string
+  agent?: string
+  model?: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  version: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    updated: number
+    compacting?: number
+    archived?: number
+  }
+  permission?: PermissionRuleset
+  attended?: boolean
+  permissionTier?: PermissionTier
+  revert?: {
+    messageID: string
+    partID?: string
+    snapshot?: string
+    diff?: string
+  }
 }
 
 export type EventTuiCommandExecute2 = {
@@ -4355,6 +4469,49 @@ export type ScheduleInfo = {
   updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
 
+export type WorkContractVersion = 1
+
+export type WorkPresetRevision = string
+
+export type WorkPresetOutputType = "markdown" | "table" | "mixed"
+
+export type WorkPresetArtifactSpec = {
+  title: string
+  filename: string
+  relativeDir?: string
+}
+
+export type WorkContractOutput = {
+  outputType: WorkPresetOutputType
+  artifact: WorkPresetArtifactSpec
+}
+
+export type WorkContractPreset = {
+  source: "preset"
+  contractVersion: WorkContractVersion
+  presetID: string
+  revision: WorkPresetRevision
+  output: WorkContractOutput
+}
+
+export type WorkContractWorkflow = {
+  source: "workflow"
+  contractVersion: WorkContractVersion
+  workflowID: string
+  revision: string
+  output?: WorkContractOutput
+}
+
+export type WorkContractAdHoc = {
+  source: "ad-hoc"
+  contractVersion: WorkContractVersion
+  output?: WorkContractOutput
+}
+
+export type WorkContractSnapshot = WorkContractPreset | WorkContractWorkflow | WorkContractAdHoc
+
+export type WorkReviewState = "open" | "fix_requested" | "responded" | "resolved"
+
 export type PromptSource = {
   start: number
   end: number
@@ -4440,6 +4597,16 @@ export type SessionTaskInfo = {
   dependsOn?: Array<string>
   revision: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type WorkReviewReview = {
+  contractVersion: WorkContractVersion
+  state: WorkReviewState
+  artifactID: string
+  artifactRevision: string
+  revision: number
+  reopenedFrom?: WorkReviewState
   updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
 
@@ -6247,47 +6414,6 @@ export type CompositionStartInput = {
   title?: string
 }
 
-export type WorkContractVersion = 1
-
-export type WorkPresetRevision = string
-
-export type WorkPresetOutputType = "markdown" | "table" | "mixed"
-
-export type WorkPresetArtifactSpec = {
-  title: string
-  filename: string
-  relativeDir?: string
-}
-
-export type WorkContractOutput = {
-  outputType: WorkPresetOutputType
-  artifact: WorkPresetArtifactSpec
-}
-
-export type WorkContractPreset = {
-  source: "preset"
-  contractVersion: WorkContractVersion
-  presetID: string
-  revision: WorkPresetRevision
-  output: WorkContractOutput
-}
-
-export type WorkContractWorkflow = {
-  source: "workflow"
-  contractVersion: WorkContractVersion
-  workflowID: string
-  revision: string
-  output?: WorkContractOutput
-}
-
-export type WorkContractAdHoc = {
-  source: "ad-hoc"
-  contractVersion: WorkContractVersion
-  output?: WorkContractOutput
-}
-
-export type WorkContractSnapshot = WorkContractPreset | WorkContractWorkflow | WorkContractAdHoc
-
 export type SessionV2Revert = {
   messageID: string
   snapshot?: string
@@ -6305,6 +6431,15 @@ export type SessionV2Info = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   version: string
   parentID?: string
@@ -7102,6 +7237,44 @@ export type AgentV2Info = {
   originRelativePath?: string
   originRevision?: string
 }
+
+export type WorkReviewNone = {
+  status: "none"
+}
+
+export type WorkReviewBinding = {
+  artifactID: string
+  artifactRevision: string
+}
+
+export type WorkReviewReady = {
+  status: "ready"
+  review: WorkReviewReview
+  artifact: WorkReviewBinding
+  current: boolean
+}
+
+export type WorkReviewUnavailable = {
+  status: "unavailable"
+  reason: "corrupt_review" | "artifact_missing" | "artifact_unavailable"
+  review?: WorkReviewReview
+}
+
+export type WorkReviewReadResult = WorkReviewNone | WorkReviewReady | WorkReviewUnavailable
+
+export type WorkReviewArtifactCommand = {
+  action: "submit" | "request_changes" | "approve" | "re_review" | "reopen"
+  expectedReviewRevision: number
+  artifactID: string
+  expectedArtifactRevision: string
+}
+
+export type WorkReviewRespondCommand = {
+  action: "respond"
+  expectedReviewRevision: number
+}
+
+export type WorkReviewCommand = WorkReviewArtifactCommand | WorkReviewRespondCommand
 
 export type SessionInputAdmittedPrompt = {
   kind: "prompt"
@@ -10373,6 +10546,25 @@ export type V2EventWorkAssetSaved = {
   }
 }
 
+export type V2EventWorkReviewUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "work.review.updated"
+  data: {
+    sessionID: string
+    revision: number
+    review: WorkReviewReview
+  }
+}
+
 export type V2EventWorkStepResumed = {
   id: string
   metadata?: {
@@ -11414,7 +11606,7 @@ export type EventSessionCreated = {
   type: "session.created"
   properties: {
     sessionID: string
-    info: Session
+    info: Session10
   }
 }
 
@@ -11423,7 +11615,7 @@ export type EventSessionDeleted = {
   type: "session.deleted"
   properties: {
     sessionID: string
-    info: Session
+    info: Session10
   }
 }
 
@@ -12018,7 +12210,7 @@ export type EventSessionUpdated = {
   type: "session.updated"
   properties: {
     sessionID: string
-    info: Session
+    info: Session10
   }
 }
 
@@ -12104,6 +12296,26 @@ export type EventWorkAssetSaved = {
   type: "work.asset_saved"
   properties: {
     relativePath: string
+  }
+}
+
+export type WorkReviewReview1 = {
+  contractVersion: WorkContractVersion
+  state: WorkReviewState
+  artifactID: string
+  artifactRevision: string
+  revision: number
+  reopenedFrom?: WorkReviewState
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity"
+}
+
+export type EventWorkReviewUpdated = {
+  id: string
+  type: "work.review.updated"
+  properties: {
+    sessionID: string
+    revision: number
+    review: WorkReviewReview1
   }
 }
 
@@ -14627,9 +14839,21 @@ export type WorkArtifactApplyErrors = {
    */
   400: InvalidRequestError
   /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
    * ConflictError
    */
   409: ConflictError
+  /**
+   * ServiceUnavailableError
+   */
+  503: ServiceUnavailableError
 }
 
 export type WorkArtifactApplyError = WorkArtifactApplyErrors[keyof WorkArtifactApplyErrors]
@@ -19923,6 +20147,106 @@ export type V2SessionGetResponses = {
 }
 
 export type V2SessionGetResponse = V2SessionGetResponses[keyof V2SessionGetResponses]
+
+export type V2SessionWorkReviewGetData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/work-review"
+}
+
+export type V2SessionWorkReviewGetErrors = {
+  /**
+   * InvalidRequestError | UnsupportedProductModeError
+   */
+  400: InvalidRequestError | UnsupportedProductModeError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * WorkReviewUnavailableError
+   */
+  503: WorkReviewUnavailableError
+}
+
+export type V2SessionWorkReviewGetError = V2SessionWorkReviewGetErrors[keyof V2SessionWorkReviewGetErrors]
+
+export type V2SessionWorkReviewGetResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: WorkReviewReadResult
+  }
+}
+
+export type V2SessionWorkReviewGetResponse = V2SessionWorkReviewGetResponses[keyof V2SessionWorkReviewGetResponses]
+
+export type V2SessionWorkReviewTransitionData = {
+  body: WorkReviewCommand
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/work-review"
+}
+
+export type V2SessionWorkReviewTransitionErrors = {
+  /**
+   * InvalidRequestError | UnsupportedProductModeError
+   */
+  400: InvalidRequestError | UnsupportedProductModeError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * WorkReviewUnavailableError
+   */
+  503: WorkReviewUnavailableError
+}
+
+export type V2SessionWorkReviewTransitionError =
+  V2SessionWorkReviewTransitionErrors[keyof V2SessionWorkReviewTransitionErrors]
+
+export type V2SessionWorkReviewTransitionResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: WorkReviewReady
+  }
+}
+
+export type V2SessionWorkReviewTransitionResponse =
+  V2SessionWorkReviewTransitionResponses[keyof V2SessionWorkReviewTransitionResponses]
 
 export type V2SessionSwitchAgentData = {
   body: {
