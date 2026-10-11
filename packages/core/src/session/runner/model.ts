@@ -5,11 +5,12 @@ import * as AnthropicMessages from "@aigcfroge/llm/protocols/anthropic-messages"
 import * as OpenAICompatibleChat from "@aigcfroge/llm/protocols/openai-compatible-chat"
 import * as OpenAIResponses from "@aigcfroge/llm/protocols/openai-responses"
 import { Auth, type AnyRoute } from "@aigcfroge/llm/route"
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Schema, Stream } from "effect"
+import { FetchHttpClient } from "effect/unstable/http"
 import { produce } from "immer"
 import { Catalog } from "../../catalog"
 import { Credential } from "../../credential"
-import { getCredential } from "./auth-seam"
+import { SessionRunnerAuth } from "./auth-seam"
 import { Integration } from "../../integration"
 import { ModelV2 } from "../../model"
 import { ModelRequest } from "../../model-request"
@@ -196,9 +197,26 @@ export const locationLayer = Layer.effect(
       resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session, intent?) {
         // Location plugins populate and filter the catalog asynchronously during layer startup.
         const allModels = yield* catalog.model.available()
+        const requested = session.model
+          ? yield* catalog.model.get(session.model.providerID, session.model.id)
+          : undefined
+        const requestedProvider = requested ? yield* catalog.provider.get(requested.providerID) : undefined
+        const requestedConnection = requestedProvider
+          ? yield* integrations.connection.active(
+              requestedProvider.integrationID ?? Integration.ID.make(requestedProvider.id),
+            )
+          : undefined
+        // The application owns auth.json and OAuth refresh. Its authenticated
+        // selection can supplement Core credentials, never catalog policy.
+        const application =
+          requested?.enabled && requestedProvider && !requestedProvider.disabled && !requestedConnection
+            ? yield* SessionRunnerAuth.resolve(requested.providerID, session.location)
+            : undefined
         const defaultModel = session.model ? undefined : yield* catalog.model.default()
         let selected = session.model
-          ? allModels.find((model) => model.providerID === session.model?.providerID && model.id === session.model.id)
+          ? (allModels.find(
+              (model) => model.providerID === session.model?.providerID && model.id === session.model.id,
+            ) ?? (application ? requested : undefined))
           : defaultModel && supported(defaultModel)
             ? defaultModel
             : allModels.find(supported)
@@ -229,15 +247,27 @@ export const locationLayer = Layer.effect(
         const provider = yield* catalog.provider.get(selected.providerID)
         const integrationID = provider?.integrationID ?? Integration.ID.make(selected.providerID)
         const connection = yield* integrations.connection.active(integrationID)
-        // Fall back to the application-layer auth seam (auth.json via aigcfroge
-        // Auth.Service) when core Integration.Service has no connection. Without
-        // this, provider API keys stored in auth.json are invisible to V2 and the
-        // LLM request goes out with Auth.none -> 401.
-        const credential = connection
-          ? yield* integrations.connection.resolve(connection)
-          : // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- the seam resolver's requirements are open (unknown); it runs in the caller's context
-            yield* getCredential(selected.providerID) as unknown as Effect.Effect<Credential.Value | undefined>
-        return yield* resolve(session, selected, credential)
+        const fallback = connection
+          ? undefined
+          : requested
+            ? application
+            : yield* SessionRunnerAuth.resolve(selected.providerID, session.location)
+        const credential = connection ? yield* integrations.connection.resolve(connection) : fallback?.credential
+        const model = yield* resolve(session, selected, credential)
+        const transport = fallback?.fetch
+        if (!transport) return model
+        return model.route
+          .with({
+            transport: {
+              ...model.route.transport,
+              frames: (prepared, request, runtime) =>
+                model.route.transport.frames(prepared, request, runtime).pipe(
+                  // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Effect calls the web Fetch signature only; Bun's extra preconnect property is never used.
+                  Stream.provideService(FetchHttpClient.Fetch, transport as typeof globalThis.fetch),
+                ),
+            },
+          })
+          .model({ id: model.id })
       }),
     })
   }),

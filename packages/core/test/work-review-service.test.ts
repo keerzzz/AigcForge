@@ -65,7 +65,10 @@ describe("AI-TDD-S06 WorkReview producer", () => {
           .set({ metadata: sql`json_set(coalesce(${SessionTable.metadata}, '{}'), '$.note', 'keep')` })
           .where(eq(SessionTable.id, value.session.id))
           .run()
-        expect(yield* value.review.get(value.session.id)).toEqual({ status: "none" })
+        expect(yield* value.review.get(value.session.id)).toEqual({
+          status: "none",
+          artifact: { artifactID: value.applied.artifact.id, artifactRevision: value.snapshot.revision },
+        })
         const result = yield* submit(value)
         expect(result.status).toBe("ready")
         expect(result.review).toMatchObject({ state: "open", revision: 1, artifactID: value.applied.artifact.id })
@@ -483,3 +486,49 @@ it.live("AI-TDD-S06-R06/R16: a content change after DB commit is explicit recove
     }),
   ),
 )
+
+describe("AI-TDD-S07 review availability before first submit", () => {
+  it.live("R01: reads the current saved artifact binding without initializing a review", () =>
+    fixture(
+      Effect.gen(function* () {
+        const value = yield* setup
+        const location = yield* Location.Service
+        yield* (yield* FSUtil.Service).writeFileString(`${location.directory}/result.md`, "current file revision")
+        const snapshot = yield* value.artifacts.get(value.session.id)
+        if (!snapshot) throw new Error("The existing artifact must remain readable")
+        expect(snapshot.revision).not.toBe(value.snapshot.revision)
+        expect(yield* value.review.get(value.session.id)).toEqual({
+          status: "none",
+          artifact: { artifactID: value.applied.artifact.id, artifactRevision: snapshot.revision },
+        })
+        const stored = yield* (yield* SessionV2.Service).get(value.session.id)
+        expect(stored.workReview).toBeUndefined()
+      }),
+    ),
+  )
+
+  it.live("R01: an unavailable saved artifact cannot masquerade as an actionable first review", () =>
+    fixture(
+      Effect.gen(function* () {
+        const value = yield* setup
+        const location = yield* Location.Service
+        yield* (yield* FSUtil.Service).remove(`${location.directory}/result.md`)
+        expect(yield* value.review.get(value.session.id)).toEqual({
+          status: "unavailable",
+          reason: "artifact_unavailable",
+        })
+        expect((yield* (yield* SessionV2.Service).get(value.session.id)).workReview).toBeUndefined()
+      }),
+    ),
+  )
+
+  it.live("R01/R07: an empty Work session remains none without fabricated binding or review", () =>
+    fixture(
+      Effect.gen(function* () {
+        const session = yield* (yield* SessionV2.Service).create({ location: yield* Location.Service, mode: "work" })
+        expect(yield* (yield* WorkReviewService.Service).get(session.id)).toEqual({ status: "none" })
+        expect((yield* (yield* SessionV2.Service).get(session.id)).workReview).toBeUndefined()
+      }),
+    ),
+  )
+})

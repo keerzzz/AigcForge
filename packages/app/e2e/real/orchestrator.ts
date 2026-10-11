@@ -16,7 +16,8 @@
  *
  * No sleep-based readiness: the backend is polled through its real
  * `GET /global/health` endpoint, the preview through any HTTP response. The
- * provider records request method+path only — never prompt bodies.
+ * provider records request metadata (method/path, model, tool names and
+ * authenticated boolean) only — never prompt bodies or credentials.
  */
 import { Database } from "bun:sqlite"
 import { spawn, spawnSync, type ChildProcess } from "node:child_process"
@@ -31,10 +32,8 @@ const REPO_ROOT = path.resolve(import.meta.dir, "../../../..")
 const APP_ROOT = path.join(REPO_ROOT, "packages/app")
 const BACKEND_ROOT = path.join(REPO_ROOT, "packages/aigcfroge")
 
-// Explicit V2-variant switch (default OFF). The default backend must never carry
-// AIGCFROGE_V2_RUNTIME: the durable-admission path is opt-in, incomplete, and not
-// the product default — a harness that silently enabled it would be asserting a
-// non-product chain. Only this switch injects the flag, and only into the backend.
+// Explicit V2-variant switch (default OFF). Only this switch injects the flag,
+// and only into the backend; the default Assistant path uses canonical admission.
 const v2Runtime = process.env.E4_V2_RUNTIME === "1"
 const providerPort = Number(process.env.E4_PROVIDER_PORT)
 const backendPort = Number(process.env.E4_BACKEND_PORT)
@@ -83,7 +82,16 @@ const log = (line: string) => {
 
 // ── deterministic provider ───────────────────────────────────────────────────
 
-type ProviderFailureMode = "http-500" | "sse-cut" | "slow" | "duplicate" | "tool-call" | "question" | "permission"
+type ProviderFailureMode =
+  | "http-500"
+  | "sse-cut"
+  | "slow"
+  | "duplicate"
+  | "tool-call"
+  | "question"
+  | "permission"
+  | "reminder-confirm"
+  | "reminder-create"
 type ProviderScenario = ProviderFailureMode | "healthy"
 type ProviderRequest = {
   method: string
@@ -91,6 +99,10 @@ type ProviderRequest = {
   receivedAt: number
   scenario?: ProviderScenario
   responseStartedAt?: number
+  model?: string
+  toolNames?: string[]
+  toolResultIDs?: string[]
+  authenticated?: boolean
 }
 
 const providerRequests: ProviderRequest[] = []
@@ -102,6 +114,7 @@ const providerRequests: ProviderRequest[] = []
  * over HTTP rather than faking behavior in the browser, and reads attempt counts plus non-prompt
  * metadata back from `/e4/provider-requests`.
  */
+let reminder: { content: string; dueAt: number; timezone: string } | undefined
 let providerFailures = 0
 let providerFailureMode: ProviderFailureMode = "http-500"
 const providerFailureModes: ReadonlyArray<ProviderFailureMode> = [
@@ -112,6 +125,8 @@ const providerFailureModes: ReadonlyArray<ProviderFailureMode> = [
   "tool-call",
   "question",
   "permission",
+  "reminder-confirm",
+  "reminder-create",
 ]
 const isProviderFailureMode = (value: string): value is ProviderFailureMode =>
   providerFailureModes.some((mode) => mode === value)
@@ -133,11 +148,13 @@ function sseChunk(delta: Record<string, unknown>, finish?: string) {
  * duplicated-delta case sends byte-identical chunks from one source rather than a hand-copied
  * line that could drift from the healthy one.
  */
-function writeCompletion(response: ServerResponse, options: { repeat?: number } = {}) {
+function writeCompletion(response: ServerResponse, options: { repeat?: number; text?: string } = {}) {
   response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
   response.write(sseChunk({ role: "assistant", content: "" }))
   response.write(
-    Array.from({ length: options.repeat ?? 1 }, () => sseChunk({ content: "E4 deterministic response" })).join(""),
+    Array.from({ length: options.repeat ?? 1 }, () =>
+      sseChunk({ content: options.text ?? "E4 deterministic response" }),
+    ).join(""),
   )
   response.write(sseChunk({}, "stop"))
   response.write("data: [DONE]\n\n")
@@ -152,22 +169,34 @@ const providerToolCallID = "call_e4_read_workspace"
  * ordinary case reads the run's own workspace. Decision cases invoke the existing question
  * tool or a harmless shell command guarded by the peer variant's explicit ask rule.
  */
-function writeToolCall(response: ServerResponse, kind: "tool-call" | "question" | "permission" = "tool-call") {
-  const name = kind === "question" ? "question" : kind === "permission" ? "bash" : "read"
+function writeToolCall(
+  response: ServerResponse,
+  kind: "tool-call" | "question" | "permission" | "reminder-create" = "tool-call",
+) {
+  const name =
+    kind === "reminder-create"
+      ? "reminder_create"
+      : kind === "question"
+        ? "question"
+        : kind === "permission"
+          ? "bash"
+          : "read"
   const input = JSON.stringify(
-    kind === "question"
-      ? {
-          questions: [
-            {
-              header: "E4 choice",
-              question: "Choose this session's answer",
-              options: [{ label: "Continue", description: "Continue only this session" }],
-            },
-          ],
-        }
-      : kind === "permission"
-        ? { command: "printf e4-scope-approved" }
-        : { filePath: workspaceDir },
+    kind === "reminder-create"
+      ? reminder
+      : kind === "question"
+        ? {
+            questions: [
+              {
+                header: "E4 choice",
+                question: "Choose this session's answer",
+                options: [{ label: "Continue", description: "Continue only this session" }],
+              },
+            ],
+          }
+        : kind === "permission"
+          ? { command: "printf e4-scope-approved" }
+          : { filePath: workspaceDir },
   )
   const split = Math.ceil(input.length / 2)
   response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
@@ -215,6 +244,13 @@ function readAdmission(sessionID: string) {
 }
 
 const provider: Server = createServer((request: IncomingMessage, response: ServerResponse) => {
+  void handleProvider(request, response).catch(() => {
+    if (!response.headersSent) response.writeHead(500, { "content-type": "application/json" })
+    response.end(JSON.stringify({ error: "E4 provider request failed" }))
+  })
+})
+
+async function handleProvider(request: IncomingMessage, response: ServerResponse) {
   const record: ProviderRequest = { method: request.method ?? "?", path: request.url ?? "?", receivedAt: Date.now() }
   providerRequests.push(record)
   // Restart the real backend (S5 restart window). Answers 202 immediately and
@@ -299,6 +335,21 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
       response.end(JSON.stringify({ error: `unknown provider failure mode: ${mode}` }))
       return
     }
+    if (mode === "reminder-confirm") {
+      const content = query.get("content")
+      const dueAt = Number(query.get("dueAt"))
+      if (!content || !Number.isFinite(dueAt) || dueAt <= Date.now()) {
+        response.writeHead(400)
+        response.end("Reminder content and future absolute dueAt are required")
+        return
+      }
+      reminder = { content, dueAt, timezone: "UTC" }
+    }
+    if (mode === "reminder-create" && !reminder) {
+      response.writeHead(400)
+      response.end("Reminder confirmation must be configured first")
+      return
+    }
     const parsed = Number.parseInt(query.get("count") ?? "0", 10)
     providerFailures = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
     providerFailureMode = mode
@@ -307,9 +358,41 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
     return
   }
   if (request.method === "POST" && record.path.endsWith("/chat/completions")) {
+    const chunks: Buffer[] = []
+    for await (const chunk of request) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    const body: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"))
+    if (!isRecord(body)) throw new Error("Invalid provider request")
+    record.model = typeof body.model === "string" ? body.model : undefined
+    record.toolNames = Array.isArray(body.tools)
+      ? body.tools.flatMap((tool: unknown) =>
+          isRecord(tool) && isRecord(tool.function) && typeof tool.function.name === "string"
+            ? [tool.function.name]
+            : [],
+        )
+      : []
+    record.toolResultIDs = Array.isArray(body.messages)
+      ? body.messages.flatMap((message: unknown) =>
+          isRecord(message) && message.role === "tool" && typeof message.tool_call_id === "string"
+            ? [message.tool_call_id]
+            : [],
+        )
+      : []
+    record.authenticated = request.headers.authorization === "Bearer e4-loopback-only"
+    if (!record.authenticated) {
+      response.writeHead(401, { "content-type": "application/json" })
+      response.end(JSON.stringify({ error: { type: "authentication_error", message: "E4 credential missing" } }))
+      return
+    }
     if (providerFailures > 0) {
       providerFailures -= 1
       record.scenario = providerFailureMode
+      if (providerFailureMode === "reminder-confirm" && reminder) {
+        record.responseStartedAt = Date.now()
+        writeCompletion(response, {
+          text: `Please confirm: ${reminder.content}; ${new Date(reminder.dueAt).toISOString()}; timezone UTC. If offline, delivery will catch up when the app is next online.`,
+        })
+        return
+      }
       if (providerFailureMode === "sse-cut") {
         record.responseStartedAt = Date.now()
         response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" })
@@ -335,7 +418,8 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
       if (
         providerFailureMode === "tool-call" ||
         providerFailureMode === "question" ||
-        providerFailureMode === "permission"
+        providerFailureMode === "permission" ||
+        providerFailureMode === "reminder-create"
       ) {
         record.responseStartedAt = Date.now()
         writeToolCall(response, providerFailureMode)
@@ -353,7 +437,7 @@ const provider: Server = createServer((request: IncomingMessage, response: Serve
   }
   response.writeHead(404, { "content-type": "application/json" })
   response.end(JSON.stringify({ error: `E4 provider has no handler for ${record.method} ${record.path}` }))
-})
+}
 
 function startProvider(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -543,7 +627,7 @@ async function main() {
           "e4-real": {
             npm: "@ai-sdk/openai-compatible",
             name: "E4 Deterministic Provider",
-            options: { baseURL: providerBaseURL, apiKey: "e4-loopback-only" },
+            options: { baseURL: providerBaseURL },
             models: {
               "e4-deterministic": {
                 name: "E4 Deterministic",
@@ -557,6 +641,14 @@ async function main() {
       null,
       2,
     ),
+  )
+
+  const authDir = path.join(runDir, "xdg", "data", "aigcfroge")
+  mkdirSync(authDir, { recursive: true, mode: 0o700 })
+  writeFileSync(
+    path.join(authDir, "auth.json"),
+    JSON.stringify({ "e4-real": { type: "api", key: "e4-loopback-only" } }),
+    { mode: 0o600 },
   )
 
   // 2. git-init the temp workspace so the backend sees a real project directory.
@@ -650,6 +742,9 @@ async function startPeerBackend() {
   const workspace = path.join(peerDir, "workspace")
   for (const dir of [config, workspace]) mkdirSync(dir, { recursive: true, mode: 0o700 })
   cpSync(path.join(configDir, "aigcfroge.json"), path.join(config, "aigcfroge.json"))
+  const peerAuthDir = path.join(peerDir, "xdg", "data", "aigcfroge")
+  mkdirSync(peerAuthDir, { recursive: true, mode: 0o700 })
+  cpSync(path.join(runDir, "xdg", "data", "aigcfroge", "auth.json"), path.join(peerAuthDir, "auth.json"))
   const git = spawnSync("git", ["init", "-q", workspace], {
     cwd: workspace,
     env: Environment.create(peerDir, process.env),

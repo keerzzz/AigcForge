@@ -224,3 +224,29 @@ describe("WorkReview.ReadResult", () => {
     expect(decode({ status: "ready", review, artifact: binding })._tag).toBe("None")
   })
 })
+
+describe("WorkReview wire omission", () => {
+  const encode = Schema.encodeUnknownSync(Schema.toCodecJson(WorkReview.ReadResult))
+
+  test("omits an explicitly undefined artifact from the JSON read result", () => {
+    expect(encode(new WorkReview.None({ status: "none", artifact: undefined }))).toEqual({ status: "none" })
+  })
+
+  test("omits an explicitly undefined review from unavailable JSON", () => {
+    expect(
+      encode(new WorkReview.Unavailable({ status: "unavailable", reason: "artifact_unavailable", review: undefined })),
+    ).toEqual({ status: "unavailable", reason: "artifact_unavailable" })
+  })
+
+  test("omits explicitly undefined reopen history from a nested JSON review", () => {
+    const value = encode(
+      new WorkReview.Ready({
+        status: "ready",
+        review: new WorkReview.Review({ ...review, contractVersion: 1, state: "open", reopenedFrom: undefined }),
+        artifact: new WorkReview.Binding(binding),
+        current: true,
+      }),
+    )
+    expect(value).toEqual({ status: "ready", review, artifact: binding, current: true })
+  })
+})

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { UserMessage } from "@aigcfroge/sdk/v2"
-import { resetSessionModel, syncSessionModel } from "./session-model-helpers"
+import { resetSessionModel, syncSessionModel, syncSessionSelection } from "./session-model-helpers"
 
 const message = (input?: { agent?: string; model?: UserMessage["model"] }) =>
   ({
@@ -48,5 +48,51 @@ describe("resetSessionModel", () => {
     })
 
     expect(calls).toEqual(["reset"])
+  })
+})
+
+describe("syncSessionSelection", () => {
+  test("restores the server-owned agent and model before the first prompt", () => {
+    const calls: unknown[] = []
+
+    syncSessionSelection(
+      {
+        session: {
+          restore(value) {
+            calls.push(value)
+          },
+          reset() {},
+        },
+      },
+      {
+        id: "session",
+        agent: "work-orchestrator",
+        model: { providerID: "e4-real", id: "e4-deterministic", variant: "max" },
+      },
+    )
+
+    expect(calls).toEqual([
+      {
+        sessionID: "session",
+        agent: "work-orchestrator",
+        model: { providerID: "e4-real", modelID: "e4-deterministic", variant: "max" },
+      },
+    ])
+  })
+
+  test("does not overwrite local selection when the server has no complete selection", () => {
+    const calls: unknown[] = []
+    syncSessionSelection(
+      {
+        session: {
+          restore(value) {
+            calls.push(value)
+          },
+          reset() {},
+        },
+      },
+      { id: "session", agent: "meta" },
+    )
+    expect(calls).toEqual([])
   })
 })

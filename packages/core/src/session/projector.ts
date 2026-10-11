@@ -449,6 +449,7 @@ export const layer = Layer.effectDiscard(
       }),
     )
     yield* events.project(SessionEvent.ContextUpdated, (event, tx) => run(tx, event))
+    yield* events.project(SessionEvent.HistoryImported, (event, tx) => run(tx, event))
     yield* events.project(SessionEvent.Synthetic, (event, tx) =>
       Effect.gen(function* () {
         if (event.durable !== undefined) {

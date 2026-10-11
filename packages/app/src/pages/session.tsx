@@ -63,7 +63,7 @@ import { createTimelineModel } from "@/pages/session/timeline/model"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { parseServerKey } from "@/utils/session-route"
-import { syncSessionModel } from "@/pages/session/session-model-helpers"
+import { syncSessionModel, syncSessionSelection } from "@/pages/session/session-model-helpers"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { TerminalPanel } from "@/pages/session/terminal-panel"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
@@ -359,6 +359,18 @@ export default function Page(props: { rootID: string }) {
   const sessionSync = timeline.resource
   const userMessages = timeline.userMessages
   const visibleUserMessages = timeline.visibleUserMessages
+
+  createEffect(
+    on(
+      () => {
+        const session = info()
+        return session ? { id: session.id, agent: session.agent, model: session.model } : undefined
+      },
+      (session) => {
+        if (session) syncSessionSelection(local, session)
+      },
+    ),
+  )
 
   createEffect(() => {
     const tab = activeFileTab()

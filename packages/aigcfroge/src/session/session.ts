@@ -249,7 +249,7 @@ export const Info = Schema.Struct({
   ),
   presetCategoryId: Schema.optional(WorkPreset.Category),
   workContract: Schema.optional(WorkContract.Snapshot),
-  workReview: Schema.optional(WorkReview.Review),
+  workReview: optionalOmitUndefined(WorkReview.Review),
   slug: Schema.String,
   projectID: ProjectV2.ID,
   workspaceID: optionalOmitUndefined(WorkspaceV2.ID),

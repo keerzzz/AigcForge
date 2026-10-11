@@ -1,3 +1,4 @@
+import { installSessionRunnerAuthBridge } from "@/session/runner-auth-bridge"
 import { Effect, Layer, ManagedRuntime } from "effect"
 import { attach } from "./run-service"
 import * as Observability from "@aigcfroge/core/observability"
@@ -119,6 +120,8 @@ const V1_ONLY_LAYERS = AIGCFROGE_V2_RUNTIME
       SessionShare.defaultLayer,
       RuntimeFlags.defaultLayer,
     ]
+
+installSessionRunnerAuthBridge()
 
 const v2SessionStoreLayer = SessionStore.layer.pipe(Layer.provide(Database.defaultLayer))
 const v2TaskDriverRuntimeLayer = TaskDriver.runtimeLayer

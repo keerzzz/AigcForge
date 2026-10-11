@@ -1,5 +1,6 @@
 import { Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
+import { optionalOmitUndefined } from "@aigcfroge/schema/schema"
 
 export class InvalidRequestError extends Schema.TaggedErrorClass<InvalidRequestError>()(
   "InvalidRequestError",
@@ -40,7 +41,7 @@ export class WorkReviewUnavailableError extends Schema.TaggedErrorClass<WorkRevi
   {
     message: Schema.String,
     code: Schema.Literals(["storage", "notification"]),
-    committedRevision: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
+    committedRevision: optionalOmitUndefined(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
   },
   { httpApiStatus: 503 },
 ) {}

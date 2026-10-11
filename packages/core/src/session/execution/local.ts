@@ -1,3 +1,5 @@
+import { EventV2 } from "../../event"
+import { SessionStatus } from "../status"
 import { Cause, Effect, Layer } from "effect"
 import { LocationServiceMap } from "../../location-layer"
 import { ProductModePolicy } from "../../product-mode-policy"
@@ -11,9 +13,22 @@ import { SessionExecution } from "../execution"
 export const layer = Layer.effect(
   SessionExecution.Service,
   Effect.gen(function* () {
+    const events = yield* EventV2.Service
     const store = yield* SessionStore.Service
     const locations = yield* LocationServiceMap
     const coordinator = yield* SessionRunCoordinator.make<SessionSchema.ID, SessionRunner.RunError>({
+      onStatus: Effect.fnUntraced(function* (sessionID, active) {
+        const session = yield* store.get(sessionID)
+        if (!session) return
+        yield* events.publish(
+          SessionStatus.Event.Status,
+          {
+            sessionID,
+            status: { type: active ? "busy" : "idle" },
+          },
+          { location: session.location },
+        )
+      }),
       drain: Effect.fnUntraced(function* (sessionID: SessionSchema.ID, force) {
         const session = yield* store.get(sessionID)
         if (!session) return yield* Effect.die(`Session not found: ${sessionID}`)
@@ -45,6 +60,6 @@ export const layer = Layer.effect(
       },
     })
   }),
-)
+).pipe(Layer.provide(EventV2.defaultLayer))
 
 export const defaultLayer = layer.pipe(Layer.provide(SessionStore.defaultLayer))

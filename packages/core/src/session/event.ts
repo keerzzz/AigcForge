@@ -97,6 +97,17 @@ export const Prompted = EventV2.define({
 })
 export type Prompted = typeof Prompted.Type
 
+/** An immutable legacy transcript snapshot, without replaying execution or usage. */
+export const HistoryImported = EventV2.define({
+  type: "session.next.history.imported",
+  ...options,
+  schema: {
+    ...Base,
+    message: SessionMessage.Message,
+  },
+})
+export type HistoryImported = typeof HistoryImported.Type
+
 export const PromptAdmitted = EventV2.define({
   type: "session.next.prompt.admitted",
   ...options,
@@ -574,6 +585,7 @@ const DurableDefinitions = [
   ModelSwitched,
   Moved,
   Prompted,
+  HistoryImported,
   PromptAdmitted,
   ShellAdmitted,
   SkillAdmitted,

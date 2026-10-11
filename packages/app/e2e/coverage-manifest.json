@@ -26,14 +26,14 @@
     "work": {
       "route": "/mode/work + artifact panel",
       "e3": "work artifact specs",
-      "e4": "planned S9A (contract→artifact lifeline)",
-      "status": "planned"
+      "e4": "Local single-backend contract/artifact/review lifeline landed 2026-10-08: e2e/real/work-review-lifeline.spec.ts drives a real provider turn, UI apply, all six review actions, reload and a harness-owned backend restart. Both cases preserve successful traces, GET/SQLite/artifact/manifest evidence and a passing teardown gate. This is not a cross-server, all-platform or release/CI approval claim; see deferred work-review-lifecycle.",
+      "status": "landed"
     },
     "assistant": {
       "route": "/mode/assistant + session panel",
       "e3": "assistant dashboard specs",
-      "e4": "planned S9B (reminder delivery lifeline)",
-      "status": "planned"
+      "e4": "Default-runtime E4 passed 2026-10-11: the real dashboard selects a directory and opens a draft without creating a Session; first send creates exactly one Assistant Session and canonical admission. The persisted assistant-orchestrator/model selection, authenticated provider confirmation, reminder_create/tool continuation, production daemon, inbox, UI mark-read and repeated reloads pass with one backend/Location, workers=1 and retries=0. Trace, provider/admission attachments and clean teardown are preserved in aigcfroge-assistant-resume-20261011/draft-e4-read-fixed. Broader historical/provider/failure/platform/release coverage remains deferred.",
+      "status": "landed"
     },
     "custom": {
       "route": "/mode/custom + builder",
@@ -45,8 +45,8 @@
   "deferred": {
     "v2-runtime-execution-gap": {
       "owner": "S9C",
-      "scope": "V2 durable admission admits but never dispatches provider work, and the V1-shaped projection is empty (flag default off; custom always V2). INSTRUMENTED FINDING (2026-09-24, this host, real E4 V2 variant): temporary boundary probes were added to the wake->drain hop and then reverted. The run emitted `V2TRACE admitted` followed by `V2TRACE noop wake`, and NO `V2TRACE coordinator drain`, NO `V2TRACE local drain`, and NO `V2TRACE runner entry`; `promoted_seq` stayed NULL past a 30s poll. That locates the breakpoint at the SessionExecution binding the admission path resolves: wake reaches `SessionExecution.noopLayer`, so the real coordinator/runner is never entered. This supersedes the 2026-09-20 retraction, which was based on reading LayerNode.buildLayer plus SessionPrompt.node's dependency list. Those readings are consistent with this result only if the SessionV2.Service that `SessionPrompt.admitCanonical` yields is NOT the one `v2RuntimeWithTaskDriver` provides; identifying which graph supplies that binding is the remaining step and needs a layer-binding trace, not more log lines. Prior observable facts from /tmp/e4-v2-round still hold: session_input row lands with promoted_seq=NULL, provider records zero /chat/completions calls, message and part tables stay empty. The gap remains a live, reproducible product defect.",
-      "unlock": "Instrumentation has run (2026-09-24) and pinned the breakpoint to the SessionExecution binding used by the admission path (`noop wake` fires, coordinator/local drain/runner never do). Remaining work: trace WHICH layer provides SessionV2.Service to SessionPrompt in the server graph and make it the real SessionExecutionLocal, then re-run this spec and turn it red. This touches durable-admission layer wiring, so it needs explicit owner authorization before any edit. Do NOT change layer wiring on the old retracted hypothesis. The pin (e2e/real/v2-admission-gap.spec.ts) stays green-means-gap-present until that fix lands."
+      "scope": "Historical evidence, 2026-09-24: the isolated opt-in V2 E4 admitted a durable input but instrumentation observed noop wake, no drain/runner/provider call and no promotion. The authorized 2026-10-11 Assistant work subsequently changed shared admission/runtime wiring; its default-runtime E4 now promotes inputs and executes the native provider. Dedicated positive Custom/opt-in V2 execution and the old negative pin have not been rerun against these changes. The current Custom outcome remains unverified; the historical noop binding is not a current-head diagnosis.",
+      "unlock": "Run dedicated positive Custom/opt-in V2 E4 against the current layer graph under its accepted runtime scope; re-evaluate the old negative pin from actual admission/promotion/provider evidence. Do not infer either success or a current noop binding from the historical run or the Assistant result."
     },
     "session-product-header-projection": {
       "owner": "S9B",
@@ -75,13 +75,63 @@
     },
     "work-review-lifecycle": {
       "owner": "S9A",
-      "scope": "Owner approved 2026-09-20 (reuse `open` + `reopenedFrom`, no 5th state; persist in session metadata JSON, no migration). LANDED at unit level: WorkReview.Review schema (packages/schema/src/work-review.ts), pure state machine WorkReviewMachine.transition/isVerdictCurrent (packages/core/src/session/work-review.ts), and packages/core/test/work-review-lifecycle.test.ts 12 pass/0 fail covering all six transitions, I1-I4, and the schema JSON round-trip. schema+core typecheck exit=0.",
-      "unlock": "Still owed (its own unit, needs a producer): (1) a producer that calls transition() and persists the result into session metadata.workReview, plus the Session.Info.workReview read field + info.fromRow decode (held back deliberately to avoid a read with no writer); (2) the single-backend contract->review->artifact E4 lifeline on CI (ubuntu-latest/ext4), with cross-server + failure matrix post-MVP. The state machine is pure and callable; it is not yet wired to a caller."
+      "scope": "The formerly deferred producer, Session.Info read field, HTTP/generated SDK, UI actions and local single-backend provider/apply/review/reload/backend-restart lifelines are implemented and verified. Remaining scope is CI/release execution and broader cross-server/historical/failure E4 coverage; the local WorkReview result is not approval to reduce full S08. See docs/technical-debt.md §15.10 and docs/plan/s9a-work-review-lifecycle-contract.md §7–8.",
+      "unlock": "Approve the intended release/MVP scope explicitly, then execute its remaining CI/ext4 and cross-server/historical/failure cases with same-run trace, database, artifact, version and teardown evidence. No implicit scope-cut or production restart."
     },
     "e4-isolated-runtime-revalidation": {
       "owner": "S10",
       "scope": "Current-head F02/F08/F09/F10/F11 gate repair: environment/config/manifest/protocol assertions are validated without backend, browser or production build. Real E4 results are NOT re-certified on this host: session turn and reload (chat/coding), provider failure/recovery/tool loop, restart durability, files (including large text), PTY stream/exit/delete, identity consumers/not-found, default and opt-in V2 variants, process/port/workspace teardown. Production benchmark, real zoom and Windows/WSL execution are also not run.",
       "unlock": "Run the repaired existing E4 configurations on an explicitly approved capable isolated host, with no real HOME/XDG/auth/provider credentials, no reuse of user services, retries=0 and no enlarged timeouts; archive actual exit codes and cleanup evidence. Run production benchmarks and platform/zoom scenarios only in their supported isolated environments. Pure tests and --list are not runtime E4 evidence."
+    },
+    "assistant-reminder-provider-lifeline": {
+      "owner": "S9B",
+      "scope": "The 2026-10-11 isolated default-runtime E4 verifies dashboard -> directory -> draft -> first creation/admission -> authenticated canonical provider/tool -> production daemon -> inbox/read/reloads. Session-service integration in packages/aigcfroge/test/session/legacy-history-http.test.ts additionally verifies supported imported text/tool history over actual native loopback HTTP, non-retryable HTTP 400 durable failure followed by explicit resume, and exact-prompt retry without another provider call or old-tool replay. A separate case in that file uses one production AppLayer, two Locations and two loopback endpoints with identical provider/model IDs: B completes while A is held, and A continuation retains its endpoint and history. Remaining scope is retryable/stream/partial-output/tool-side-effect failure recovery, cross-backend and historical product-HTTP/UI/restart scenarios, broader native providers/OAuth and release/CI. See docs/technical-debt.md §15.12–15.14.",
+      "unlock": "Complete the remaining Assistant matrix on an approved isolated host: product inbound HTTP/UI/restart, retryable and partial-work failure cases, cross-backend/Location lifecycle and release/CI teardown. Keep the default E4 confirmation/provider/tool assertions and the three Session-service/native HTTP cases as regression gates. The same-process two-Location case is not two-product-backend, distinct-model, System Context/Context Source, credential/authentication-header or browser coverage; explicit resume evidence is not automatic post-crash recovery."
+    },
+    "agent-interaction-s08-full-matrix": {
+      "owner": "S8",
+      "scope": "2026-10-08 focused evidence: production WorkReview 23 cases; four-project shared mode/tool-row presentation and reduced-motion 12 executions; parent/child/multiple-participant isolation 6 cases; real two-backend/two-Location decisions 5 cases (12 directed switches); targeted TUI/SDK checks. On 2026-10-10 one WorkReview C acceptance scenario passed in the four existing presentation projects, plus two affected S07 regressions: six executions, zero retry/skip. It checks actual theme/language/viewport, keyboard focus and hit-testing, empty/pending/error/recovery, binding overflow and the real sidebar reduced-motion transition. This is a representative matrix, not every presentation permutation or full accessibility certification. Full related S01–S07/package suites, all-platform/terminal and remaining historical/failure breadth were not rerun under the human-requested minimal-test scope. The separately registered Custom/V2 execution gap remains outside this implementation authorization. The 2026-10-11 Session-service/native HTTP continuation adds non-retryable Assistant failure/explicit resume and same-process two-Location endpoint/history/concurrency isolation; it does not replace product HTTP/UI/restart or cross-backend E4. See docs/technical-debt.md §15.11 and §15.14.",
+      "unlock": "QA and runtime owners must complete the accepted full matrix and positive Custom/V2 execution after separate runtime authorization, or obtain an explicit scope-cut. Neither a green gap pin nor focused/mock E3 replaces positive E4."
+    },
+    "agent-interaction-s09-release-gates": {
+      "owner": "S9",
+      "scope": "Local targeted tests/types, regenerated SDK stability, timeline scenarios and recoverable snapshot checks are tracked separately in docs/technical-debt.md §15.10. Tab/flash before stopped at the explicit 600-second resource limit; no completed tab/flash before/after gate exists. Actual packaged Electron rendering is unverified (binary, desktop output and sidecar build absent at preflight). Full-repo CI and remote rollout were not run or authorized.",
+      "unlock": "Confirm release targets and resource budget, complete a controlled serial tab/flash pair and packaged Electron/remaining platform gates, then obtain final diff/commit/remote/rollout approval. Do not extend the timeout or weaken assertions merely to label the prior run green."
+    },
+    "assistant-legacy-history-mixed": {
+      "owner": "S9B",
+      "scope": "Core history adoption rejects sessions containing actual V1 and canonical conversation messages; no implicit interleaving rule is implemented.",
+      "unlock": "Define the cross-source cutover and same-ID reconciliation rule before relaxing the atomic rejection. Pure V1 ordering is already (time_created,id) in packages/aigcfroge/src/session/message-v2.ts:453; canonical history uses event seq in packages/core/src/session/history.ts:24. No shared reconciliation function currently decides their combined order. Preserve both source records, tool identity and billing; do not implicitly timestamp-merge or append older history."
+    },
+    "assistant-legacy-history-prompt-system": {
+      "owner": "S9B",
+      "scope": "Legacy per-prompt system instructions are rejected during lazy Assistant history adoption.",
+      "unlock": "Resolve the admission/durable replay design explicitly deferred in specs/v2/session.md:163: operator authority, lifetime, revocation when the next input has no system field, and precedence against the current Context Epoch. V1 request.prepare (packages/aigcfroge/src/session/llm/request.ts:55) uses latest-user system text as privileged baseline; do not replace it with a permanent chronological ContextUpdated event without that contract."
+    },
+    "assistant-legacy-history-compaction-tail": {
+      "owner": "S9B",
+      "scope": "Legacy compaction with retained/reordered tail_start_id is rejected; ordinary compacted history is covered separately.",
+      "unlock": "Preserve the existing V1 provider order defined by MessageV2.filterCompacted (packages/aigcfroge/src/session/message-v2.ts:535, reordered branch:578): compaction user, summary, retained tail, later messages. Design a lossless canonical projection preserving roles and message/tool-call IDs despite Core event-seq compaction filtering, then verify a real nonempty retained tail over HTTP. Serializing it into token-truncated Compaction.recent is not equivalent. Current rejection test only proves that tail_start_id triggers rejection."
+    },
+    "assistant-legacy-history-remote-media": {
+      "owner": "S9B",
+      "scope": "Unmaterialized legacy remote/tool media is rejected. User data URIs are materialized; user file URIs are resolved at provider time through AttachmentResolver.confine (packages/core/src/session/runner/attachment-resolver.ts:33), so they are current local bytes, not a historical byte snapshot. Tool attachments currently require data URIs via requireMaterialized (packages/core/src/session/legacy-history.ts:329).",
+      "unlock": "Define retrieval credentials/permissions, historical-snapshot versus current-content semantics, retention and expiry for remote/MCP references before adding a resolver. Preserve the existing realPath Location confinement for user files. Add non-data tool-attachment rejection coverage; the current Core media negative fixture covers only a user HTTPS image."
+    },
+    "assistant-native-provider-coverage": {
+      "owner": "S9B",
+      "scope": "Native routes currently cover OpenAI, Anthropic and OpenAI-compatible providers. The isolated E4 uses one authenticated compatible loopback provider; real-service OAuth refresh, broader native providers and production credential matrices are not verified.",
+      "unlock": "Validate each supported provider transport/auth path in an approved isolated environment; extend unsupported native routes only with a defined provider contract."
+    },
+    "filesystem-fff-process-isolation": {
+      "owner": "S9B",
+      "scope": "Core Filesystem / QA: FFF 0.9.4 reads files for binary detection even when both indexing flags are false. Scanning this process's SQLite DB releases POSIX locks and a later connection close can unlink the live WAL. locationLayer now reuses subprocess ripgrep for realpath-resolved directories containing the configured DB, and for unresolved paths. This preserves storage at the cost of FFF search performance there. General FFF process isolation and hard-link/bind-mount aliases or additional custom Database.layerFromPath databases remain unverified.",
+      "unlock": "Move FFF behind a supervised subprocess or obtain a verified upstream no-open exclusion contract, then exercise native scan plus independent DB writes/reopens. Validate hard-link/bind-mount aliases and additional custom databases before broadening the safety claim."
+    },
+    "assistant-legacy-history-error-surface": {
+      "owner": "S9B",
+      "scope": "Unsupported legacy-history shapes are tested at the Core Effect boundary for failure, no partial canonical import and deletion. ImportError currently propagates through Effect.die or synchronous throw in packages/core/src/session/legacy-history.ts; these tests do not establish a typed HTTP 4xx classification or public-API failure contract.",
+      "unlock": "Define the public unsupported-history error contract, then verify it through production read/prompt HTTP routes with source retention, no partial import and stable generated-client decoding. Do not infer a particular status code from the Core TaggedErrorClass alone."
     }
   },
   "entries": [

@@ -41,6 +41,7 @@ import { MessageDecodeError } from "./session/error"
 import { SessionEvent } from "./session/event"
 import { SessionInput } from "./session/input"
 import { ToolSummary } from "./session/tool-summary"
+import { SessionLegacyHistory } from "./session/legacy-history"
 import { TaskDriver } from "./tool/task-driver"
 
 // get project -> project.locations
@@ -645,6 +646,8 @@ export const layer = Layer.effect(
       get: Effect.fn("V2Session.get")(function* (sessionID) {
         const session = yield* store.get(sessionID)
         if (!session) return yield* new NotFoundError({ sessionID })
+        // Assistant adopts legacy transcripts before any canonical read or admission.
+        if (session.mode === "assistant") yield* SessionLegacyHistory.adopt(db, events, sessionID)
         return session
       }),
       children: Effect.fn("V2Session.children")(function* (sessionID) {
@@ -1097,7 +1100,9 @@ export const layer = Layer.effect(
         })
       }),
       remove: Effect.fn("V2Session.remove")(function* (sessionID: SessionSchema.ID) {
-        yield* result.get(sessionID)
+        // Deletion must remain available when legacy history cannot be adopted.
+        if (!(yield* store.get(sessionID))) return yield* new NotFoundError({ sessionID })
+        yield* execution.interrupt(sessionID)
         // Delete events, messages, and session row. Foreign key cascade
         // handles session_input, session_message, etc. when the session row
         // is deleted. Event table is separate, so delete events explicitly.
@@ -1177,7 +1182,9 @@ export const layer = Layer.effect(
   }),
 ).pipe(Layer.provide(SessionComposition.layer))
 
-export const defaultLayer = layer.pipe(
+// The record-only service must not memoize the live layer with a noop owner.
+// Keep its shared database/event dependencies outside the fresh service boundary.
+export const defaultLayer = Layer.fresh(layer).pipe(
   Layer.provide(SessionExecution.noopLayer),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(SessionProjector.defaultLayer),

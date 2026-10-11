@@ -27151,6 +27151,9 @@
             "$ref": "#/components/schemas/EventSessionNextForked"
           },
           {
+            "$ref": "#/components/schemas/EventSessionNextHistoryImported"
+          },
+          {
             "$ref": "#/components/schemas/EventSessionNextModelSwitched"
           },
           {
@@ -33165,6 +33168,38 @@
                   },
                   "type": {
                     "type": "string",
+                    "enum": ["session.next.history.imported"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "message": {
+                        "$ref": "#/components/schemas/SessionMessage"
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "message"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
                     "enum": ["session.next.model.switched"]
                   },
                   "properties": {
@@ -35278,6 +35313,9 @@
                 "$ref": "#/components/schemas/SyncEventSessionNextForked"
               },
               {
+                "$ref": "#/components/schemas/SyncEventSessionNextHistoryImported"
+              },
+              {
                 "$ref": "#/components/schemas/SyncEventSessionNextModelSwitched"
               },
               {
@@ -36897,7 +36935,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -38262,7 +38350,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -38449,7 +38587,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -38636,7 +38824,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -38823,7 +39061,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -39010,7 +39298,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -39197,7 +39535,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -39384,7 +39772,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -39716,7 +40154,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -39903,7 +40391,57 @@
             "$ref": "#/components/schemas/WorkContractSnapshot"
           },
           "workReview": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           },
           "slug": {
             "type": "string"
@@ -40991,6 +41529,9 @@
           },
           {
             "$ref": "#/components/schemas/V2EventSessionNextForked"
+          },
+          {
+            "$ref": "#/components/schemas/V2EventSessionNextHistoryImported"
           },
           {
             "$ref": "#/components/schemas/V2EventSessionNextModelSwitched"
@@ -42205,6 +42746,698 @@
         "required": ["name"],
         "additionalProperties": false
       },
+      "SessionMessageAgentSwitched": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          },
+          "type": {
+            "type": "string",
+            "enum": ["agent-switched"]
+          },
+          "agent": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "time", "type", "agent"],
+        "additionalProperties": false
+      },
+      "SessionMessageModelSwitched": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          },
+          "type": {
+            "type": "string",
+            "enum": ["model-switched"]
+          },
+          "model": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "providerID": {
+                "type": "string"
+              },
+              "variant": {
+                "type": "string"
+              }
+            },
+            "required": ["id", "providerID"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "time", "type", "model"],
+        "additionalProperties": false
+      },
+      "SessionMessageUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          },
+          "text": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PromptFileAttachment"
+            }
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PromptAgentAttachment"
+            }
+          },
+          "delegationOrigin": {
+            "$ref": "#/components/schemas/SessionInputDelegationOrigin"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["user"]
+          }
+        },
+        "required": ["id", "time", "text", "type"],
+        "additionalProperties": false
+      },
+      "SessionMessageSynthetic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          },
+          "sessionID": {
+            "type": "string",
+            "pattern": "^ses"
+          },
+          "text": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["synthetic"]
+          }
+        },
+        "required": ["id", "time", "sessionID", "text", "type"],
+        "additionalProperties": false
+      },
+      "SessionMessageSystem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          },
+          "type": {
+            "type": "string",
+            "enum": ["system"]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "time", "type", "text"],
+        "additionalProperties": false
+      },
+      "SessionMessageShell": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              },
+              "completed": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          },
+          "type": {
+            "type": "string",
+            "enum": ["shell"]
+          },
+          "callID": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "time", "type", "callID", "command", "output"],
+        "additionalProperties": false
+      },
+      "SessionMessageAssistantText": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["text"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "id", "text"],
+        "additionalProperties": false
+      },
+      "SessionMessageAssistantReasoning": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["reasoning"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "providerMetadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          }
+        },
+        "required": ["type", "id", "text"],
+        "additionalProperties": false
+      },
+      "SessionMessageToolStatePending": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["pending"]
+          },
+          "input": {
+            "type": "string"
+          }
+        },
+        "required": ["status", "input"],
+        "additionalProperties": false
+      },
+      "ToolTextContent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["text"]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "text"],
+        "additionalProperties": false
+      },
+      "ToolFileContent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["file"]
+          },
+          "uri": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "uri", "mime"],
+        "additionalProperties": false
+      },
+      "SessionMessageToolStateRunning": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["running"]
+          },
+          "input": {
+            "type": "object"
+          },
+          "structured": {
+            "type": "object"
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ToolTextContent"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolFileContent"
+                }
+              ]
+            }
+          }
+        },
+        "required": ["status", "input", "structured", "content"],
+        "additionalProperties": false
+      },
+      "SessionMessageToolStateCompleted": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["completed"]
+          },
+          "input": {
+            "type": "object"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PromptFileAttachment"
+            }
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ToolTextContent"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolFileContent"
+                }
+              ]
+            }
+          },
+          "outputPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "structured": {
+            "type": "object"
+          },
+          "result": {}
+        },
+        "required": ["status", "input", "content", "structured"],
+        "additionalProperties": false
+      },
+      "SessionErrorUnknown": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["unknown"]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "message"],
+        "additionalProperties": false
+      },
+      "SessionMessageToolStateError": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["error"]
+          },
+          "input": {
+            "type": "object"
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ToolTextContent"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolFileContent"
+                }
+              ]
+            }
+          },
+          "structured": {
+            "type": "object"
+          },
+          "error": {
+            "$ref": "#/components/schemas/SessionErrorUnknown"
+          },
+          "result": {}
+        },
+        "required": ["status", "input", "content", "structured", "error"],
+        "additionalProperties": false
+      },
+      "SessionMessageAssistantTool": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["tool"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "object",
+            "properties": {
+              "executed": {
+                "type": "boolean"
+              },
+              "metadata": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object"
+                }
+              },
+              "resultMetadata": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object"
+                }
+              }
+            },
+            "required": ["executed"],
+            "additionalProperties": false
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionMessageToolStatePending"
+              },
+              {
+                "$ref": "#/components/schemas/SessionMessageToolStateRunning"
+              },
+              {
+                "$ref": "#/components/schemas/SessionMessageToolStateCompleted"
+              },
+              {
+                "$ref": "#/components/schemas/SessionMessageToolStateError"
+              }
+            ]
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              },
+              "ran": {
+                "type": "number"
+              },
+              "completed": {
+                "type": "number"
+              },
+              "pruned": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "id", "name", "state", "time"],
+        "additionalProperties": false
+      },
+      "SessionMessageAssistant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              },
+              "completed": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          },
+          "type": {
+            "type": "string",
+            "enum": ["assistant"]
+          },
+          "agent": {
+            "type": "string"
+          },
+          "model": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "providerID": {
+                "type": "string"
+              },
+              "variant": {
+                "type": "string"
+              }
+            },
+            "required": ["id", "providerID"],
+            "additionalProperties": false
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SessionMessageAssistantText"
+                },
+                {
+                  "$ref": "#/components/schemas/SessionMessageAssistantReasoning"
+                },
+                {
+                  "$ref": "#/components/schemas/SessionMessageAssistantTool"
+                }
+              ]
+            }
+          },
+          "snapshot": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "finish": {
+            "type": "string"
+          },
+          "cost": {
+            "type": "number"
+          },
+          "tokens": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "number"
+              },
+              "output": {
+                "type": "number"
+              },
+              "reasoning": {
+                "type": "number"
+              },
+              "cache": {
+                "type": "object",
+                "properties": {
+                  "read": {
+                    "type": "number"
+                  },
+                  "write": {
+                    "type": "number"
+                  }
+                },
+                "required": ["read", "write"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["input", "output", "reasoning", "cache"],
+            "additionalProperties": false
+          },
+          "error": {
+            "$ref": "#/components/schemas/SessionErrorUnknown"
+          }
+        },
+        "required": ["id", "time", "type", "agent", "model", "content"],
+        "additionalProperties": false
+      },
+      "SessionMessageCompaction": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["compaction"]
+          },
+          "reason": {
+            "type": "string",
+            "enum": ["auto", "manual"]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "recent": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^msg_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              }
+            },
+            "required": ["created"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "reason", "summary", "recent", "id", "time"],
+        "additionalProperties": false
+      },
+      "SessionMessage": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SessionMessageAgentSwitched"
+          },
+          {
+            "$ref": "#/components/schemas/SessionMessageModelSwitched"
+          },
+          {
+            "$ref": "#/components/schemas/SessionMessageUser"
+          },
+          {
+            "$ref": "#/components/schemas/SessionMessageSynthetic"
+          },
+          {
+            "$ref": "#/components/schemas/SessionMessageSystem"
+          },
+          {
+            "$ref": "#/components/schemas/SessionMessageShell"
+          },
+          {
+            "$ref": "#/components/schemas/SessionMessageAssistant"
+          },
+          {
+            "$ref": "#/components/schemas/SessionMessageCompaction"
+          }
+        ]
+      },
       "LocationRef": {
         "type": "object",
         "properties": {
@@ -42248,54 +43481,6 @@
           }
         },
         "required": ["message", "isRetryable"],
-        "additionalProperties": false
-      },
-      "SessionErrorUnknown": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["unknown"]
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": ["type", "message"],
-        "additionalProperties": false
-      },
-      "ToolTextContent": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["text"]
-          },
-          "text": {
-            "type": "string"
-          }
-        },
-        "required": ["type", "text"],
-        "additionalProperties": false
-      },
-      "ToolFileContent": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["file"]
-          },
-          "uri": {
-            "type": "string"
-          },
-          "mime": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": ["type", "uri", "mime"],
         "additionalProperties": false
       },
       "SessionTaskInfo": {
@@ -45499,6 +46684,59 @@
                   }
                 },
                 "required": ["timestamp", "sessionID", "childSessionID"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "id", "seq", "aggregateID", "data"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "id", "syncEvent"],
+        "additionalProperties": false
+      },
+      "SyncEventSessionNextHistoryImported": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["sync"]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "syncEvent": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["session.next.history.imported.1"]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^evt_"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "aggregateID": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "number"
+                  },
+                  "sessionID": {
+                    "type": "string",
+                    "pattern": "^ses"
+                  },
+                  "message": {
+                    "$ref": "#/components/schemas/SessionMessage"
+                  }
+                },
+                "required": ["timestamp", "sessionID", "message"],
                 "additionalProperties": false
               }
             },
@@ -52203,6 +53441,23 @@
           "status": {
             "type": "string",
             "enum": ["none"]
+          },
+          "artifact": {
+            "type": "object",
+            "properties": {
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "required": ["artifactID", "artifactRevision"],
+            "additionalProperties": false
           }
         },
         "required": ["status"],
@@ -52257,7 +53512,57 @@
             "enum": ["corrupt_review", "artifact_missing", "artifact_unavailable"]
           },
           "review": {
-            "$ref": "#/components/schemas/WorkReviewReview"
+            "type": "object",
+            "properties": {
+              "contractVersion": {
+                "$ref": "#/components/schemas/WorkContractVersion"
+              },
+              "state": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "artifactID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artifactRevision": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "reopenedFrom": {
+                "$ref": "#/components/schemas/WorkReviewState"
+              },
+              "updatedAt": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["NaN"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["-Infinity"]
+                  },
+                  {
+                    "type": "string",
+                    "enum": ["Infinity", "-Infinity", "NaN"]
+                  }
+                ]
+              }
+            },
+            "required": ["contractVersion", "state", "artifactID", "artifactRevision", "revision", "updatedAt"],
+            "additionalProperties": false
           }
         },
         "required": ["status", "reason"],
@@ -52562,650 +53867,6 @@
           },
           {
             "$ref": "#/components/schemas/SessionInputAdmittedCommand"
-          }
-        ]
-      },
-      "SessionMessageAgentSwitched": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^msg_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          },
-          "type": {
-            "type": "string",
-            "enum": ["agent-switched"]
-          },
-          "agent": {
-            "type": "string"
-          }
-        },
-        "required": ["id", "time", "type", "agent"],
-        "additionalProperties": false
-      },
-      "SessionMessageModelSwitched": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^msg_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          },
-          "type": {
-            "type": "string",
-            "enum": ["model-switched"]
-          },
-          "model": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "providerID": {
-                "type": "string"
-              },
-              "variant": {
-                "type": "string"
-              }
-            },
-            "required": ["id", "providerID"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "time", "type", "model"],
-        "additionalProperties": false
-      },
-      "SessionMessageUser": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^msg_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          },
-          "text": {
-            "type": "string"
-          },
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PromptFileAttachment"
-            }
-          },
-          "agents": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PromptAgentAttachment"
-            }
-          },
-          "delegationOrigin": {
-            "$ref": "#/components/schemas/SessionInputDelegationOrigin"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["user"]
-          }
-        },
-        "required": ["id", "time", "text", "type"],
-        "additionalProperties": false
-      },
-      "SessionMessageSynthetic": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^msg_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          },
-          "sessionID": {
-            "type": "string",
-            "pattern": "^ses"
-          },
-          "text": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["synthetic"]
-          }
-        },
-        "required": ["id", "time", "sessionID", "text", "type"],
-        "additionalProperties": false
-      },
-      "SessionMessageSystem": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^msg_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          },
-          "type": {
-            "type": "string",
-            "enum": ["system"]
-          },
-          "text": {
-            "type": "string"
-          }
-        },
-        "required": ["id", "time", "type", "text"],
-        "additionalProperties": false
-      },
-      "SessionMessageShell": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^msg_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              },
-              "completed": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          },
-          "type": {
-            "type": "string",
-            "enum": ["shell"]
-          },
-          "callID": {
-            "type": "string"
-          },
-          "command": {
-            "type": "string"
-          },
-          "output": {
-            "type": "string"
-          }
-        },
-        "required": ["id", "time", "type", "callID", "command", "output"],
-        "additionalProperties": false
-      },
-      "SessionMessageAssistantText": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["text"]
-          },
-          "id": {
-            "type": "string"
-          },
-          "text": {
-            "type": "string"
-          }
-        },
-        "required": ["type", "id", "text"],
-        "additionalProperties": false
-      },
-      "SessionMessageAssistantReasoning": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["reasoning"]
-          },
-          "id": {
-            "type": "string"
-          },
-          "text": {
-            "type": "string"
-          },
-          "providerMetadata": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "object"
-            }
-          }
-        },
-        "required": ["type", "id", "text"],
-        "additionalProperties": false
-      },
-      "SessionMessageToolStatePending": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["pending"]
-          },
-          "input": {
-            "type": "string"
-          }
-        },
-        "required": ["status", "input"],
-        "additionalProperties": false
-      },
-      "SessionMessageToolStateRunning": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["running"]
-          },
-          "input": {
-            "type": "object"
-          },
-          "structured": {
-            "type": "object"
-          },
-          "content": {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ToolTextContent"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolFileContent"
-                }
-              ]
-            }
-          }
-        },
-        "required": ["status", "input", "structured", "content"],
-        "additionalProperties": false
-      },
-      "SessionMessageToolStateCompleted": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["completed"]
-          },
-          "input": {
-            "type": "object"
-          },
-          "attachments": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PromptFileAttachment"
-            }
-          },
-          "content": {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ToolTextContent"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolFileContent"
-                }
-              ]
-            }
-          },
-          "outputPaths": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "structured": {
-            "type": "object"
-          },
-          "result": {}
-        },
-        "required": ["status", "input", "content", "structured"],
-        "additionalProperties": false
-      },
-      "SessionMessageToolStateError": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": ["error"]
-          },
-          "input": {
-            "type": "object"
-          },
-          "content": {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ToolTextContent"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolFileContent"
-                }
-              ]
-            }
-          },
-          "structured": {
-            "type": "object"
-          },
-          "error": {
-            "$ref": "#/components/schemas/SessionErrorUnknown"
-          },
-          "result": {}
-        },
-        "required": ["status", "input", "content", "structured", "error"],
-        "additionalProperties": false
-      },
-      "SessionMessageAssistantTool": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["tool"]
-          },
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "provider": {
-            "type": "object",
-            "properties": {
-              "executed": {
-                "type": "boolean"
-              },
-              "metadata": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "object"
-                }
-              },
-              "resultMetadata": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "object"
-                }
-              }
-            },
-            "required": ["executed"],
-            "additionalProperties": false
-          },
-          "state": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SessionMessageToolStatePending"
-              },
-              {
-                "$ref": "#/components/schemas/SessionMessageToolStateRunning"
-              },
-              {
-                "$ref": "#/components/schemas/SessionMessageToolStateCompleted"
-              },
-              {
-                "$ref": "#/components/schemas/SessionMessageToolStateError"
-              }
-            ]
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              },
-              "ran": {
-                "type": "number"
-              },
-              "completed": {
-                "type": "number"
-              },
-              "pruned": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["type", "id", "name", "state", "time"],
-        "additionalProperties": false
-      },
-      "SessionMessageAssistant": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^msg_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              },
-              "completed": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          },
-          "type": {
-            "type": "string",
-            "enum": ["assistant"]
-          },
-          "agent": {
-            "type": "string"
-          },
-          "model": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "providerID": {
-                "type": "string"
-              },
-              "variant": {
-                "type": "string"
-              }
-            },
-            "required": ["id", "providerID"],
-            "additionalProperties": false
-          },
-          "content": {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/SessionMessageAssistantText"
-                },
-                {
-                  "$ref": "#/components/schemas/SessionMessageAssistantReasoning"
-                },
-                {
-                  "$ref": "#/components/schemas/SessionMessageAssistantTool"
-                }
-              ]
-            }
-          },
-          "snapshot": {
-            "type": "object",
-            "properties": {
-              "start": {
-                "type": "string"
-              },
-              "end": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          },
-          "finish": {
-            "type": "string"
-          },
-          "cost": {
-            "type": "number"
-          },
-          "tokens": {
-            "type": "object",
-            "properties": {
-              "input": {
-                "type": "number"
-              },
-              "output": {
-                "type": "number"
-              },
-              "reasoning": {
-                "type": "number"
-              },
-              "cache": {
-                "type": "object",
-                "properties": {
-                  "read": {
-                    "type": "number"
-                  },
-                  "write": {
-                    "type": "number"
-                  }
-                },
-                "required": ["read", "write"],
-                "additionalProperties": false
-              }
-            },
-            "required": ["input", "output", "reasoning", "cache"],
-            "additionalProperties": false
-          },
-          "error": {
-            "$ref": "#/components/schemas/SessionErrorUnknown"
-          }
-        },
-        "required": ["id", "time", "type", "agent", "model", "content"],
-        "additionalProperties": false
-      },
-      "SessionMessageCompaction": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["compaction"]
-          },
-          "reason": {
-            "type": "string",
-            "enum": ["auto", "manual"]
-          },
-          "summary": {
-            "type": "string"
-          },
-          "recent": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string",
-            "pattern": "^msg_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "time": {
-            "type": "object",
-            "properties": {
-              "created": {
-                "type": "number"
-              }
-            },
-            "required": ["created"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["type", "reason", "summary", "recent", "id", "time"],
-        "additionalProperties": false
-      },
-      "SessionMessage": {
-        "anyOf": [
-          {
-            "$ref": "#/components/schemas/SessionMessageAgentSwitched"
-          },
-          {
-            "$ref": "#/components/schemas/SessionMessageModelSwitched"
-          },
-          {
-            "$ref": "#/components/schemas/SessionMessageUser"
-          },
-          {
-            "$ref": "#/components/schemas/SessionMessageSynthetic"
-          },
-          {
-            "$ref": "#/components/schemas/SessionMessageSystem"
-          },
-          {
-            "$ref": "#/components/schemas/SessionMessageShell"
-          },
-          {
-            "$ref": "#/components/schemas/SessionMessageAssistant"
-          },
-          {
-            "$ref": "#/components/schemas/SessionMessageCompaction"
           }
         ]
       },
@@ -60365,6 +61026,60 @@
               }
             },
             "required": ["timestamp", "sessionID", "childSessionID"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "V2EventSessionNextHistoryImported": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.history.imported"]
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "message": {
+                "$ref": "#/components/schemas/SessionMessage"
+              }
+            },
+            "required": ["timestamp", "sessionID", "message"],
             "additionalProperties": false
           }
         },
@@ -67572,6 +68287,38 @@
               }
             },
             "required": ["timestamp", "sessionID", "childSessionID"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextHistoryImported": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.history.imported"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "message": {
+                "$ref": "#/components/schemas/SessionMessage"
+              }
+            },
+            "required": ["timestamp", "sessionID", "message"],
             "additionalProperties": false
           }
         },

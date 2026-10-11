@@ -1,7 +1,7 @@
 export * as FileSystemSearch from "./search"
 
 import path from "path"
-import { Context, Effect, Layer, Scope } from "effect"
+import { Context, Effect, Layer, Option, Scope } from "effect"
 import { Fff } from "#fff"
 import fuzzysort from "fuzzysort"
 import { FileSystem } from "../filesystem"
@@ -10,6 +10,7 @@ import { Location } from "../location"
 import { Ripgrep } from "../ripgrep"
 import { RelativePath } from "../schema"
 import { Flag } from "../flag/flag"
+import { Database } from "../database/database"
 
 export interface Interface {
   readonly find: (input: FileSystem.FindInput) => Effect.Effect<FileSystem.Entry[]>
@@ -225,5 +226,18 @@ export const fffLayer = Layer.effect(
 )
 
 export const locationLayer = Layer.unwrap(
-  Effect.sync(() => (Flag.AIGCFROGE_DISABLE_FFF || !Fff.available() ? ripgrepLayer : fffLayer)),
+  Effect.gen(function* () {
+    if (Flag.AIGCFROGE_DISABLE_FFF || !Fff.available()) return ripgrepLayer
+    if (Database.path() === ":memory:") return fffLayer
+    const fs = yield* FSUtil.Service
+    const location = yield* Location.Service
+    const directory = yield* fs.realPath(location.directory).pipe(Effect.option)
+    const database = yield* fs.realPath(Database.path()).pipe(Effect.option)
+    // FFF still opens files for binary detection with content indexing disabled.
+    // Closing a separate descriptor for our SQLite file releases this process's
+    // POSIX locks, allowing another connection to unlink its live WAL. Keep these
+    // scans in the existing ripgrep subprocess; unresolved paths also use it.
+    if (Option.isNone(directory) || Option.isNone(database)) return ripgrepLayer
+    return FSUtil.contains(directory.value, database.value) ? ripgrepLayer : fffLayer
+  }),
 )

@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
 import { ProjectV2 } from "@aigcfroge/core/project"
+import { WorkReview } from "@aigcfroge/schema/work-review"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+import { WorkReviewUnavailableError } from "@aigcfroge/server/errors"
+import { createAigcfrogeClient } from "@aigcfroge/sdk/v2/client"
 import { MessageID, SessionID } from "../../src/session/schema"
 import { Session } from "../../src/session/session"
 
@@ -29,6 +33,54 @@ const info = {
 } satisfies Session.Info
 
 describe("Session schema", () => {
+  test("preserves the workReview omission contract through the HTTP JSON codec and generated SDK", async () => {
+    // HttpApi's JSON response normalization uses this public schema codec.
+    const encode = Schema.encodeUnknownSync(Schema.toCodecJson(Session.Info))
+    const review = new WorkReview.Review({
+      contractVersion: 1,
+      state: "open",
+      artifactID: "artifact-wire-review",
+      artifactRevision: WorkflowAsset.Revision.make("a".repeat(64)),
+      revision: 2,
+      reopenedFrom: "resolved",
+      updatedAt: 1_700_000_000_000,
+    })
+    const read = async (body: string) => {
+      // Exercise the real generated parser without opening a socket or replacing global fetch.
+      const sdk = createAigcfrogeClient({
+        baseUrl: "http://work-review.invalid",
+        throwOnError: true,
+        fetch: async (request) => {
+          expect(request.method).toBe("GET")
+          expect(new URL(request.url).pathname).toBe(`/session/${info.id}`)
+          return new Response(body, { headers: { "content-type": "application/json" } })
+        },
+      })
+      const session = await sdk.session.get({ sessionID: info.id })
+      expect(session.response.status).toBe(200)
+      // The SDK maps an empty JSON response to {}; never let that pass as an absent review.
+      if (!session.data || session.data.id !== info.id) throw new Error("GET session returned no matching body")
+      return session.data
+    }
+
+    await expect(read("")).rejects.toThrow("GET session returned no matching body")
+    await expect(read("{}")).rejects.toThrow("GET session returned no matching body")
+    await Promise.all(
+      [
+        { session: info, expected: undefined },
+        { session: { ...info, workReview: undefined }, expected: undefined },
+        { session: { ...info, workReview: review }, expected: review },
+      ].map(async (input) => {
+        const body = JSON.stringify(encode(input.session))
+        const session = await read(body)
+        expect(session.workReview).toEqual(input.expected)
+        expect(Object.hasOwn(session, "workReview")).toBe(input.expected !== undefined)
+        expect(body.includes('"workReview"')).toBe(input.expected !== undefined)
+      }),
+    )
+    expect(() => encode({ ...info, workReview: null })).toThrow()
+  })
+
   test("encodes undefined optional session fields as omitted keys", () => {
     const encoded = Schema.encodeUnknownSync(Session.Info)(info) as Record<string, unknown>
 
@@ -76,4 +128,18 @@ describe("Session schema", () => {
       expect(Object.hasOwn(encoded.revert as Record<string, unknown>, key)).toBe(false)
     }
   })
+})
+
+test("WorkReview error JSON omits an unknown committed revision instead of reporting null", () => {
+  const encode = Schema.encodeUnknownSync(Schema.toCodecJson(WorkReviewUnavailableError))
+  expect(
+    encode(
+      new WorkReviewUnavailableError({ message: "Storage unavailable", code: "storage", committedRevision: undefined }),
+    ),
+  ).toEqual({ _tag: "WorkReviewUnavailableError", message: "Storage unavailable", code: "storage" })
+  expect(
+    encode(
+      new WorkReviewUnavailableError({ message: "Notification failed", code: "notification", committedRevision: 2 }),
+    ),
+  ).toHaveProperty("committedRevision", 2)
 })

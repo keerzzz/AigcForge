@@ -1,3 +1,6 @@
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { InstanceState } from "@/effect/instance-state"
 import { PermissionV1 } from "@aigcfroge/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
@@ -84,13 +87,11 @@ const v2OperationUnavailable = () => new HttpApiError.BadRequest({})
 const unsupportedProductMode = (error: ProductModePolicy.UnsupportedProductModeError) =>
   new UnsupportedProductModeError({ mode: error.mode, message: error.message })
 
-// Custom sessions are V2-native. The V1 sync prompt/command/shell
-// endpoints run the legacy V1 prompt loop, which has no custom gating — reject
-// typed and point clients at the V2 async admission surface.
-const v1SyncUnsupportedForCustom = (mode: string) =>
+// Canonical sessions must not start a second execution owner through a sync endpoint.
+const v1SyncUnsupported = (mode: string) =>
   new UnsupportedProductModeError({
     mode,
-    message: `Mode "${mode}" does not support the V1 sync prompt/command/shell endpoints. Custom sessions are V2-native: use the async admission endpoints instead (POST /api/session/:sessionID/prompt, /api/session/:sessionID/shell, /api/session/:sessionID/skill, or session.prompt_async).`,
+    message: `Mode "${mode}" does not support the V1 sync prompt/command/shell endpoints. Use canonical admission: use the async admission endpoints instead (POST /api/session/:sessionID/prompt, /api/session/:sessionID/shell, /api/session/:sessionID/skill, or session.prompt_async).`,
   })
 
 export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", (handlers) =>
@@ -129,7 +130,16 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     })
 
     const status = Effect.fn("SessionHttpApi.status")(function* () {
-      return Object.fromEntries(yield* statusSvc.list())
+      const execution = yield* SessionExecution.Service
+      const statuses = yield* statusSvc.list()
+      const context = yield* InstanceState.context
+      for (const [id, mode] of yield* SessionStore.sessionModes({ projectID: context.project.id })) {
+        if (!ProductModePolicy.shouldUseV2Runtime(mode, AIGCFROGE_V2_RUNTIME)) continue
+        const sessionID = SessionID.make(id)
+        statuses.delete(sessionID)
+        if (yield* execution.isActive(sessionID)) statuses.set(sessionID, { type: "busy" })
+      }
+      return Object.fromEntries(statuses)
     })
 
     const requireSession = Effect.fn("SessionHttpApi.requireSession")(function* (sessionID: SessionID) {
@@ -414,14 +424,8 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         })
       }
       yield* requireRuntimeSession(ctx.params.sessionID)
-      // messages/message endpoints stay on the V1 path (MessageV2.page / session.messages)
-      // even when AIGCFROGE_V2_RUNTIME=true. The V2 session_message table only stores
-      // metadata events (agent-switched/model-switched); the actual conversation
-      // (user/assistant + parts) is written to the V1 message+part tables by both V1
-      // and V2 runtimes. v2s.messages reads session_message and returns flat V2
-      // SessionMessage.Message[] - incomplete data AND wrong shape (API schema expects
-      // SessionV1.WithParts[] = { info, parts }). Stay V1 until V2 message storage is
-      // complete and a V2->WithParts adapter exists.
+      // This endpoint retains the legacy WithParts contract. Canonical consumers
+      // read /api/session/:sessionID/message, whose owner is SessionV2.messages.
       if (ctx.query.limit === undefined || ctx.query.limit === 0) {
         return yield* SessionError.mapStorageNotFound(session.messages({ sessionID: ctx.params.sessionID }))
       }
@@ -656,6 +660,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       if (original.mode !== "custom") {
         yield* ProductModePolicy.assertCreationSupported(original.mode).pipe(Effect.mapError(unsupportedProductMode))
       }
+      if (original.mode === "assistant" && ctx.payload?.messageID) {
+        return yield* new UnsupportedProductModeError({
+          mode: original.mode,
+          message: "Forking an Assistant session at a message is not supported by canonical history sharing.",
+        })
+      }
       if (ProductModePolicy.shouldUseV2Runtime(original.mode, AIGCFROGE_V2_RUNTIME)) {
         const v2s = yield* SessionV2.Service
         const parent = yield* SessionError.mapStorageNotFound(session.get(ctx.params.sessionID))
@@ -825,7 +835,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PromptPayload.Type
     }) {
       const info = yield* requireSession(ctx.params.sessionID)
-      if (info.mode === "custom") return yield* v1SyncUnsupportedForCustom(info.mode)
+      if (info.mode === "custom" || info.mode === "assistant") return yield* v1SyncUnsupported(info.mode)
       // prompt/command/shell stay on the V1 path even when AIGCFROGE_V2_RUNTIME=true.
       // V2 v2s.prompt/v2s.skill/v2session.shell return SessionInput.Admitted (a flat
       // durable-inbox admission record) but the API success schema is SessionV1.WithParts
@@ -974,7 +984,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof CommandPayload.Type
     }) {
       const info = yield* requireSession(ctx.params.sessionID)
-      if (info.mode === "custom") return yield* v1SyncUnsupportedForCustom(info.mode)
+      if (info.mode === "custom" || info.mode === "assistant") return yield* v1SyncUnsupported(info.mode)
       // command stays V1 - see prompt handler comment (V2 v2s.skill returns Admitted, API expects WithParts)
       return yield* promptSvc
         .command({ ...ctx.payload, sessionID: ctx.params.sessionID })
@@ -986,7 +996,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof ShellPayload.Type
     }) {
       const info = yield* requireSession(ctx.params.sessionID)
-      if (info.mode === "custom") return yield* v1SyncUnsupportedForCustom(info.mode)
+      if (info.mode === "custom" || info.mode === "assistant") return yield* v1SyncUnsupported(info.mode)
       // shell stays V1 - see prompt handler comment (V2 v2session.shell returns Admitted, API expects WithParts)
       return yield* SessionError.mapBusy(promptSvc.shell({ ...ctx.payload, sessionID: ctx.params.sessionID }))
     })

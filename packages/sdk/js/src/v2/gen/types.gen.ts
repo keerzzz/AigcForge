@@ -94,6 +94,7 @@ export type Event =
   | EventSessionNextCompactionStuck
   | EventSessionNextContextUpdated
   | EventSessionNextForked
+  | EventSessionNextHistoryImported
   | EventSessionNextModelSwitched
   | EventSessionNextMoved
   | EventSessionNextPromptAdmitted
@@ -1676,6 +1677,15 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.history.imported"
+        properties: {
+          timestamp: number
+          sessionID: string
+          message: SessionMessage
+        }
+      }
+    | {
+        id: string
         type: "session.next.model.switched"
         properties: {
           timestamp: number
@@ -2296,6 +2306,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextCompactionStarted
     | SyncEventSessionNextContextUpdated
     | SyncEventSessionNextForked
+    | SyncEventSessionNextHistoryImported
     | SyncEventSessionNextModelSwitched
     | SyncEventSessionNextMoved
     | SyncEventSessionNextPromptAdmitted
@@ -2889,7 +2900,15 @@ export type GlobalSession = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3349,7 +3368,15 @@ export type Session1 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3408,7 +3435,15 @@ export type Session2 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3467,7 +3502,15 @@ export type Session3 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3526,7 +3569,15 @@ export type Session4 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3585,7 +3636,15 @@ export type Session5 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3644,7 +3703,15 @@ export type Session6 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3703,7 +3770,15 @@ export type Session7 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3810,7 +3885,15 @@ export type Session8 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -3869,7 +3952,15 @@ export type Session9 = {
   mode?: ProductMode
   presetCategoryId?: WorkPresetCategory
   workContract?: WorkContractSnapshot
-  workReview?: WorkReviewReview
+  workReview?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
   slug: string
   projectID: string
   workspaceID?: string
@@ -4159,6 +4250,7 @@ export type V2Event =
   | V2EventSessionNextCompactionStuck
   | V2EventSessionNextContextUpdated
   | V2EventSessionNextForked
+  | V2EventSessionNextHistoryImported
   | V2EventSessionNextModelSwitched
   | V2EventSessionNextMoved
   | V2EventSessionNextPromptAdmitted
@@ -4531,6 +4623,255 @@ export type PromptAgentAttachment = {
   source?: PromptSource
 }
 
+export type SessionMessageAgentSwitched = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+  }
+  type: "agent-switched"
+  agent: string
+}
+
+export type SessionMessageModelSwitched = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+  }
+  type: "model-switched"
+  model: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+}
+
+export type SessionMessageUser = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+  }
+  text: string
+  files?: Array<PromptFileAttachment>
+  agents?: Array<PromptAgentAttachment>
+  delegationOrigin?: SessionInputDelegationOrigin
+  type: "user"
+}
+
+export type SessionMessageSynthetic = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+  }
+  sessionID: string
+  text: string
+  type: "synthetic"
+}
+
+export type SessionMessageSystem = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+  }
+  type: "system"
+  text: string
+}
+
+export type SessionMessageShell = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    completed?: number
+  }
+  type: "shell"
+  callID: string
+  command: string
+  output: string
+}
+
+export type SessionMessageAssistantText = {
+  type: "text"
+  id: string
+  text: string
+}
+
+export type SessionMessageAssistantReasoning = {
+  type: "reasoning"
+  id: string
+  text: string
+  providerMetadata?: {
+    [key: string]: {
+      [key: string]: unknown
+    }
+  }
+}
+
+export type SessionMessageToolStatePending = {
+  status: "pending"
+  input: string
+}
+
+export type ToolTextContent = {
+  type: "text"
+  text: string
+}
+
+export type ToolFileContent = {
+  type: "file"
+  uri: string
+  mime: string
+  name?: string
+}
+
+export type SessionMessageToolStateRunning = {
+  status: "running"
+  input: {
+    [key: string]: unknown
+  }
+  structured: {
+    [key: string]: unknown
+  }
+  content: Array<ToolTextContent | ToolFileContent>
+}
+
+export type SessionMessageToolStateCompleted = {
+  status: "completed"
+  input: {
+    [key: string]: unknown
+  }
+  attachments?: Array<PromptFileAttachment>
+  content: Array<ToolTextContent | ToolFileContent>
+  outputPaths?: Array<string>
+  structured: {
+    [key: string]: unknown
+  }
+  result?: unknown
+}
+
+export type SessionErrorUnknown = {
+  type: "unknown"
+  message: string
+}
+
+export type SessionMessageToolStateError = {
+  status: "error"
+  input: {
+    [key: string]: unknown
+  }
+  content: Array<ToolTextContent | ToolFileContent>
+  structured: {
+    [key: string]: unknown
+  }
+  error: SessionErrorUnknown
+  result?: unknown
+}
+
+export type SessionMessageAssistantTool = {
+  type: "tool"
+  id: string
+  name: string
+  provider?: {
+    executed: boolean
+    metadata?: {
+      [key: string]: {
+        [key: string]: unknown
+      }
+    }
+    resultMetadata?: {
+      [key: string]: {
+        [key: string]: unknown
+      }
+    }
+  }
+  state:
+    | SessionMessageToolStatePending
+    | SessionMessageToolStateRunning
+    | SessionMessageToolStateCompleted
+    | SessionMessageToolStateError
+  time: {
+    created: number
+    ran?: number
+    completed?: number
+    pruned?: number
+  }
+}
+
+export type SessionMessageAssistant = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+    completed?: number
+  }
+  type: "assistant"
+  agent: string
+  model: {
+    id: string
+    providerID: string
+    variant?: string
+  }
+  content: Array<SessionMessageAssistantText | SessionMessageAssistantReasoning | SessionMessageAssistantTool>
+  snapshot?: {
+    start?: string
+    end?: string
+  }
+  finish?: string
+  cost?: number
+  tokens?: {
+    input: number
+    output: number
+    reasoning: number
+    cache: {
+      read: number
+      write: number
+    }
+  }
+  error?: SessionErrorUnknown
+}
+
+export type SessionMessageCompaction = {
+  type: "compaction"
+  reason: "auto" | "manual"
+  summary: string
+  recent: string
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    created: number
+  }
+}
+
+export type SessionMessage =
+  | SessionMessageAgentSwitched
+  | SessionMessageModelSwitched
+  | SessionMessageUser
+  | SessionMessageSynthetic
+  | SessionMessageSystem
+  | SessionMessageShell
+  | SessionMessageAssistant
+  | SessionMessageCompaction
+
 export type LocationRef = {
   directory: string
   workspaceID?: string
@@ -4547,23 +4888,6 @@ export type SessionNextRetryError = {
   metadata?: {
     [key: string]: string
   }
-}
-
-export type SessionErrorUnknown = {
-  type: "unknown"
-  message: string
-}
-
-export type ToolTextContent = {
-  type: "text"
-  text: string
-}
-
-export type ToolFileContent = {
-  type: "file"
-  uri: string
-  mime: string
-  name?: string
 }
 
 export type SessionTaskInfo = {
@@ -5297,6 +5621,22 @@ export type SyncEventSessionNextForked = {
       sessionID: string
       childSessionID: string
       forkedMessageID?: string
+    }
+  }
+}
+
+export type SyncEventSessionNextHistoryImported = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.history.imported.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      message: SessionMessage
     }
   }
 }
@@ -7240,6 +7580,10 @@ export type AgentV2Info = {
 
 export type WorkReviewNone = {
   status: "none"
+  artifact?: {
+    artifactID: string
+    artifactRevision: string
+  }
 }
 
 export type WorkReviewBinding = {
@@ -7257,7 +7601,15 @@ export type WorkReviewReady = {
 export type WorkReviewUnavailable = {
   status: "unavailable"
   reason: "corrupt_review" | "artifact_missing" | "artifact_unavailable"
-  review?: WorkReviewReview
+  review?: {
+    contractVersion: WorkContractVersion
+    state: WorkReviewState
+    artifactID: string
+    artifactRevision: string
+    revision: number
+    reopenedFrom?: WorkReviewState
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
 }
 
 export type WorkReviewReadResult = WorkReviewNone | WorkReviewReady | WorkReviewUnavailable
@@ -7344,238 +7696,6 @@ export type SessionInputAdmitted =
   | SessionInputAdmittedSkill
   | SessionInputAdmittedSynthetic
   | SessionInputAdmittedCommand
-
-export type SessionMessageAgentSwitched = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    created: number
-  }
-  type: "agent-switched"
-  agent: string
-}
-
-export type SessionMessageModelSwitched = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    created: number
-  }
-  type: "model-switched"
-  model: {
-    id: string
-    providerID: string
-    variant?: string
-  }
-}
-
-export type SessionMessageUser = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    created: number
-  }
-  text: string
-  files?: Array<PromptFileAttachment>
-  agents?: Array<PromptAgentAttachment>
-  delegationOrigin?: SessionInputDelegationOrigin
-  type: "user"
-}
-
-export type SessionMessageSynthetic = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    created: number
-  }
-  sessionID: string
-  text: string
-  type: "synthetic"
-}
-
-export type SessionMessageSystem = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    created: number
-  }
-  type: "system"
-  text: string
-}
-
-export type SessionMessageShell = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    created: number
-    completed?: number
-  }
-  type: "shell"
-  callID: string
-  command: string
-  output: string
-}
-
-export type SessionMessageAssistantText = {
-  type: "text"
-  id: string
-  text: string
-}
-
-export type SessionMessageAssistantReasoning = {
-  type: "reasoning"
-  id: string
-  text: string
-  providerMetadata?: {
-    [key: string]: {
-      [key: string]: unknown
-    }
-  }
-}
-
-export type SessionMessageToolStatePending = {
-  status: "pending"
-  input: string
-}
-
-export type SessionMessageToolStateRunning = {
-  status: "running"
-  input: {
-    [key: string]: unknown
-  }
-  structured: {
-    [key: string]: unknown
-  }
-  content: Array<ToolTextContent | ToolFileContent>
-}
-
-export type SessionMessageToolStateCompleted = {
-  status: "completed"
-  input: {
-    [key: string]: unknown
-  }
-  attachments?: Array<PromptFileAttachment>
-  content: Array<ToolTextContent | ToolFileContent>
-  outputPaths?: Array<string>
-  structured: {
-    [key: string]: unknown
-  }
-  result?: unknown
-}
-
-export type SessionMessageToolStateError = {
-  status: "error"
-  input: {
-    [key: string]: unknown
-  }
-  content: Array<ToolTextContent | ToolFileContent>
-  structured: {
-    [key: string]: unknown
-  }
-  error: SessionErrorUnknown
-  result?: unknown
-}
-
-export type SessionMessageAssistantTool = {
-  type: "tool"
-  id: string
-  name: string
-  provider?: {
-    executed: boolean
-    metadata?: {
-      [key: string]: {
-        [key: string]: unknown
-      }
-    }
-    resultMetadata?: {
-      [key: string]: {
-        [key: string]: unknown
-      }
-    }
-  }
-  state:
-    | SessionMessageToolStatePending
-    | SessionMessageToolStateRunning
-    | SessionMessageToolStateCompleted
-    | SessionMessageToolStateError
-  time: {
-    created: number
-    ran?: number
-    completed?: number
-    pruned?: number
-  }
-}
-
-export type SessionMessageAssistant = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    created: number
-    completed?: number
-  }
-  type: "assistant"
-  agent: string
-  model: {
-    id: string
-    providerID: string
-    variant?: string
-  }
-  content: Array<SessionMessageAssistantText | SessionMessageAssistantReasoning | SessionMessageAssistantTool>
-  snapshot?: {
-    start?: string
-    end?: string
-  }
-  finish?: string
-  cost?: number
-  tokens?: {
-    input: number
-    output: number
-    reasoning: number
-    cache: {
-      read: number
-      write: number
-    }
-  }
-  error?: SessionErrorUnknown
-}
-
-export type SessionMessageCompaction = {
-  type: "compaction"
-  reason: "auto" | "manual"
-  summary: string
-  recent: string
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    created: number
-  }
-}
-
-export type SessionMessage =
-  | SessionMessageAgentSwitched
-  | SessionMessageModelSwitched
-  | SessionMessageUser
-  | SessionMessageSynthetic
-  | SessionMessageSystem
-  | SessionMessageShell
-  | SessionMessageAssistant
-  | SessionMessageCompaction
 
 export type ModelV2Info = {
   id: string
@@ -9634,6 +9754,25 @@ export type V2EventSessionNextForked = {
     sessionID: string
     childSessionID: string
     forkedMessageID?: string
+  }
+}
+
+export type V2EventSessionNextHistoryImported = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  type: "session.next.history.imported"
+  data: {
+    timestamp: number
+    sessionID: string
+    message: SessionMessage
   }
 }
 
@@ -11774,6 +11913,16 @@ export type EventSessionNextForked = {
     sessionID: string
     childSessionID: string
     forkedMessageID?: string
+  }
+}
+
+export type EventSessionNextHistoryImported = {
+  id: string
+  type: "session.next.history.imported"
+  properties: {
+    timestamp: number
+    sessionID: string
+    message: SessionMessage
   }
 }
 

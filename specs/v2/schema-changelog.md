@@ -1,5 +1,20 @@
 # V2 Schema Changelog
 
+## 2026-10-11: Lazy Assistant Legacy History Adoption
+
+- Add the durable `session.next.history.imported.1` event carrying an immutable legacy transcript snapshot. No new table or destructive migration is introduced.
+- Assistant `SessionV2.get` adopts V1 history before canonical reads/admission. Atomic `EventV2.publishBatch` preserves message IDs and ordering; exact retries do not duplicate adoption.
+- Canonical projection and provider lowering consume the imported user/assistant/tool history without executing historical tools or replaying billing. V1 source rows remain available.
+- Mixed V1/canonical conversation history, legacy per-prompt system instructions, reordered compaction tails and unmaterialized remote/tool media fail explicitly pending defined reconciliation rules. Deletion remains available for rejected sessions.
+- Real provider lowering is tested; an actual HTTP provider request containing imported history is still deferred. See `docs/technical-debt.md` §15.12 and the Assistant history entries in `packages/app/e2e/coverage-manifest.json`.
+
+## 2026-10-08: WorkReview optional JSON fields (AI-TDD-S07/S09)
+
+- `WorkReview.None.artifact` exposes the current saved binding before a first review, including reload; `WorkArtifact` remains the owner of that binding. No artifact body or second review store is added.
+- Public optional fields are omittable, not nullable. V1 `Session.Info.workReview`, `Review.reopenedFrom`, `None.artifact`, `Unavailable.review`, and the public failure's `committedRevision` now reuse `optionalOmitUndefined`. An explicit domain `undefined` is omitted from JSON instead of becoming an undocumented `null`; defined values retain their existing meaning.
+- The regression covers the actual HTTP JSON codec plus generated SDK parser, read-result codecs and the typed error codec. Empty or mismatched Session bodies cannot pass the no-review assertion. Real E4 asserts the value **and** property presence, without null normalization.
+- This restores the already-published contract; it adds no API, lifecycle state, migration, automatic approval or old-format fallback. The official generator may inline transformed class structures instead of retaining `$ref` names; generated files are not hand-edited. Execution and remaining gates are tracked in `docs/technical-debt.md` §15.10.
+
 ## 2026-10-06: Durable WorkReview Binding and Producer (AI-TDD-S06)
 
 > **Status: IMPLEMENTED / LOCAL S06 EVIDENCE COMPLETE (2026-10-07), AWAITING REVIEW — the original lint failure and performance observations remain historical in `docs/technical-debt.md` §15.7; the format repair, passing full lint, and counterbalanced descriptive recheck are recorded in §15.8. No statistical performance or release approval is implied.**

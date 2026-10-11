@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { NonNegativeInt, PositiveInt } from "./schema"
+import { NonNegativeInt, PositiveInt, optionalOmitUndefined } from "./schema"
 import { WorkContract } from "./work-contract"
 import { WorkflowAsset } from "./workflow-asset"
 
@@ -28,7 +28,7 @@ export class Review extends Schema.Class<Review>("WorkReview.Review")({
   /** The sole concurrency revision; only an absent review has expected revision 0. */
   revision: PositiveInt,
   /** Set only when this open state was reached by reopening a resolved review. */
-  reopenedFrom: Schema.optional(State),
+  reopenedFrom: optionalOmitUndefined(State),
   updatedAt: Schema.Number,
 }) {}
 
@@ -56,6 +56,8 @@ export type Command = typeof Command.Type
 
 export class None extends Schema.Class<None>("WorkReview.None")({
   status: Schema.Literal("none"),
+  /** A saved artifact remains actionable before its first review, including after reload. */
+  artifact: optionalOmitUndefined(Binding),
 }) {}
 
 export class Ready extends Schema.Class<Ready>("WorkReview.Ready")({
@@ -68,7 +70,7 @@ export class Ready extends Schema.Class<Ready>("WorkReview.Ready")({
 export class Unavailable extends Schema.Class<Unavailable>("WorkReview.Unavailable")({
   status: Schema.Literal("unavailable"),
   reason: Schema.Literals(["corrupt_review", "artifact_missing", "artifact_unavailable"]),
-  review: Schema.optional(Review),
+  review: optionalOmitUndefined(Review),
 }) {}
 
 export const ReadResult = Schema.Union([None, Ready, Unavailable]).annotate({ identifier: "WorkReview.ReadResult" })

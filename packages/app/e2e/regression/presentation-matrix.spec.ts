@@ -6,7 +6,9 @@ import { PRESENTATION_EXPECTED as EXPECTED } from "../presentation-matrix"
 
 const directory = "C:/Aigcfroge/PresentationMatrix"
 const projectID = "proj_presentation_matrix"
+const sessionID = "ses_presentation_modes"
 const created = 1700000000000
+const modes = ["chat", "coding", "work", "assistant", "custom"] as const
 
 /**
  * Presentation matrix contract.
@@ -54,6 +56,46 @@ async function mountApp(page: Page) {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "oc-2", { timeout: APP_READY_TIMEOUT })
 }
 
+async function mountModeWorkspace(page: Page) {
+  await mockAigcfrogeServer(page, {
+    directory,
+    project: {
+      id: projectID,
+      worktree: directory,
+      vcs: "git",
+      name: "presentation-matrix",
+      time: { created, updated: created },
+      sandboxes: [],
+    },
+    provider: { providers: [], default: {} },
+    sessions: [
+      {
+        id: sessionID,
+        slug: "presentation-modes",
+        projectID,
+        directory,
+        title: "Presentation modes",
+        mode: "chat",
+        agent: "meta",
+        version: "dev",
+        time: { created, updated: created },
+      },
+    ],
+    pageMessages: () => ({ items: [] }),
+    events: () => [],
+    eventRetry: 16,
+  })
+  await page.addInitScript((worktree: string) => {
+    localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true } }))
+    localStorage.setItem(
+      "aigcfroge.global.dat:server",
+      JSON.stringify({ list: [], projects: { local: [{ worktree, expanded: true }] }, lastProject: {} }),
+    )
+  }, directory)
+  await gotoWhenReady(page, `/${base64Encode(directory)}/session/${sessionID}`)
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "oc-2", { timeout: APP_READY_TIMEOUT })
+}
+
 test.describe("regression: presentation matrix contract", { tag: "@presentation" }, () => {
   test("applies theme, locale, viewport and base keyboard focus", async ({ page }, testInfo) => {
     const want = EXPECTED[testInfo.project.name]
@@ -79,5 +121,21 @@ test.describe("regression: presentation matrix contract", { tag: "@presentation"
     })
     expect(outline.style).not.toBe("none")
     expect(Number.parseFloat(outline.width)).toBeGreaterThan(0)
+  })
+
+  test("keeps the selected chat/coding/work/assistant/custom surfaces visible in every presentation project", async ({
+    page,
+  }) => {
+    await mountModeWorkspace(page)
+
+    for (const mode of modes) {
+      await page.goto(`/mode/${mode}`)
+      await expect(page.locator(`[data-mode-sidebar="${mode}"]`)).toBeVisible()
+      await expect(page.locator(`[data-mode-main="${mode}"]`)).toBeVisible()
+      for (const other of modes.filter((candidate) => candidate !== mode)) {
+        await expect(page.locator(`[data-mode-sidebar="${other}"]`)).toBeHidden()
+        await expect(page.locator(`[data-mode-main="${other}"]`)).toBeHidden()
+      }
+    }
   })
 })

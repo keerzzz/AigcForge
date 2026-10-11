@@ -91,16 +91,18 @@ export const layer = Layer.effect(
     const get = Effect.fn("WorkReviewService.get")(function* (sessionID: SessionSchema.ID) {
       const row = yield* requireSession(sessionID)
       const review = storedReview(row.metadata)
-      if (review === undefined) return new WorkReview.None({ status: "none" })
       if (review === null) return new WorkReview.Unavailable({ status: "unavailable", reason: "corrupt_review" })
       return yield* artifacts.get(sessionID).pipe(
         Effect.map((snapshot): WorkReview.ReadResult => {
-          if (!snapshot)
+          if (!snapshot) {
+            if (review === undefined) return new WorkReview.None({ status: "none" })
             return new WorkReview.Unavailable({ status: "unavailable", reason: "artifact_missing", review })
+          }
           const artifact = new WorkReview.Binding({
             artifactID: snapshot.artifact.id,
             artifactRevision: snapshot.revision,
           })
+          if (review === undefined) return new WorkReview.None({ status: "none", artifact })
           return new WorkReview.Ready({
             status: "ready",
             review,

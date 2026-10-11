@@ -1,4 +1,5 @@
-import { batch, createMemo } from "solid-js"
+import { CanonicalMessages } from "./global-sync/canonical-messages"
+import { batch, createMemo, onCleanup } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { Binary } from "@aigcfroge/core/util/binary"
 import { retry } from "@aigcfroge/core/util/retry"
@@ -193,6 +194,7 @@ type OptimisticItem = {
 }
 
 type MessagePage = {
+  canonical?: boolean
   session: Message[]
   part: { id: string; part: Part[] }[]
   cursor?: string
@@ -231,7 +233,7 @@ export function mergeOptimisticPage(page: MessagePage, items: OptimisticItem[]) 
     if (!found) session.splice(result.index, 0, item.message)
 
     const current = part.get(item.message.id)
-    if (found && hasParts(current, item.parts)) {
+    if (found && (page.canonical || hasParts(current, item.parts))) {
       confirmed.push(item.message.id)
       continue
     }
@@ -321,6 +323,8 @@ export const createDirSyncContext = (
   const initialMessagePageSize = 2
   const historyMessagePageSize = 200
   const inflight = new Map<string, Promise<void>>()
+  const dirty = new Set<string>()
+  const stream = CanonicalMessages.createStream()
   const inflightDiff = new Map<string, Promise<void>>()
   const optimistic = new Map<string, Map<string, OptimisticItem>>()
   const maxDirs = 30
@@ -390,6 +394,8 @@ export const createDirSyncContext = (
     if (sessionIDs.length === 0) return
     for (const sessionID of sessionIDs) {
       clearOptimistic(directory, sessionID)
+      stream.clear(sessionID)
+      dirty.delete(keyFor(directory, sessionID))
     }
     setMeta(
       produce((draft) => {
@@ -427,7 +433,18 @@ export const createDirSyncContext = (
     evict(directory, setStore, stale)
   }
 
-  const fetchMessages = async (input: { client: typeof client; sessionID: string; limit: number; before?: string }) => {
+  const fetchMessages = async (input: {
+    client: typeof client
+    sessionID: string
+    limit: number
+    before?: string
+    through?: string
+  }) => {
+    const info =
+      current()[0].session.find((item) => item.id === input.sessionID) ??
+      (await input.client.session.get({ sessionID: input.sessionID })).data
+    if (info?.mode === "assistant" || info?.mode === "custom")
+      return CanonicalMessages.page(input.client, info, input.limit, input.before, input.through)
     const messages = await retry(() =>
       input.client.session.messages({ sessionID: input.sessionID, limit: input.limit, before: input.before }),
     )
@@ -458,7 +475,11 @@ export const createDirSyncContext = (
     if (meta.loading[key]) return
 
     setMeta("loading", key, true)
-    await fetchMessages(input)
+    const [cachedStore] = serverSync.child(input.directory, { bootstrap: false })
+    await fetchMessages({
+      ...input,
+      through: input.mode !== "prepend" ? cachedStore.message[input.sessionID]?.[0]?.id : undefined,
+    })
       .then((page) => {
         if (!tracked(input.directory, input.sessionID)) return
         const next = mergeOptimisticPage(page, getOptimistic(input.directory, input.sessionID))
@@ -472,7 +493,7 @@ export const createDirSyncContext = (
           input.setStore("message", input.sessionID, reconcile(message, { key: "id" }))
           for (const p of next.part) {
             const filtered = p.part.filter((x) => !SKIP_PARTS.has(x.type))
-            if (filtered.length) input.setStore("part", p.id, filtered)
+            input.setStore("part", p.id, "canonical" in page && page.canonical ? stream.snapshot(filtered) : filtered)
           }
           setMeta("limit", key, message.length)
           setMeta("cursor", key, next.cursor)
@@ -504,7 +525,7 @@ export const createDirSyncContext = (
       })
   }
 
-  return {
+  const result = {
     get data() {
       return current()[0]
     },
@@ -579,70 +600,77 @@ export const createDirSyncContext = (
           })
         }
 
-        return runInflight(inflight, key, async () => {
-          const pending = getSessionPrefetchPromise(serverSDK.scope, directory, sessionID)
-          if (pending) {
-            await pending
-            const seeded = getSessionPrefetch(serverSDK.scope, directory, sessionID)
-            if (seeded && store.message[sessionID] !== undefined && meta.limit[key] === undefined) {
-              batch(() => {
-                setMeta("limit", key, seeded.limit)
-                setMeta("cursor", key, seeded.cursor)
-                setMeta("complete", key, seeded.complete)
-                setMeta("loading", key, false)
-              })
-            }
-          }
-
-          const hasSession = Binary.search(store.session, sessionID, (s) => s.id).found
-          const cached = store.message[sessionID] !== undefined && meta.limit[key] !== undefined
-          if (cached && hasSession && !opts?.force) return
-
-          const limit = meta.limit[key] ?? initialMessagePageSize
-          const sessionReq =
-            hasSession && !opts?.force
-              ? Promise.resolve()
-              : retry(() => client.session.get({ sessionID }))
-                  .then((session) => {
-                    if (!tracked(directory, sessionID)) return
-                    const data = session.data
-                    if (data?.id !== sessionID) return
-                    // Archived sessions stay out of the session list (aligned
-                    // with upstream: the list is driven only by the list API).
-                    // Messages still load below so archived history stays
-                    // readable, but the session must not resurrect into the
-                    // sidebar or drift sessionTotal.
-                    if (data.time?.archived) return
-                    setStore(
-                      "session",
-                      produce((draft) => {
-                        const match = Binary.search(draft, sessionID, (s) => s.id)
-                        if (match.found) {
-                          draft[match.index] = mergeSessionReview(draft[match.index], data)
-                          return
-                        }
-                        draft.splice(match.index, 0, mergeSessionReview(undefined, data))
-                      }),
-                    )
-                  })
-                  .catch((error) => {
-                    if (isNotFound(error) && !tracked(directory, sessionID)) return
-                    throw error
-                  })
-
-          const messagesReq =
-            cached && !opts?.force
-              ? Promise.resolve()
-              : loadMessages({
-                  directory,
-                  client,
-                  setStore,
-                  sessionID,
-                  limit,
+        if (opts?.force) dirty.add(key)
+        do {
+          await runInflight(inflight, key, async () => {
+            const pending = getSessionPrefetchPromise(serverSDK.scope, directory, sessionID)
+            if (pending) {
+              await pending
+              const seeded = getSessionPrefetch(serverSDK.scope, directory, sessionID)
+              if (seeded && store.message[sessionID] !== undefined && meta.limit[key] === undefined) {
+                batch(() => {
+                  setMeta("limit", key, seeded.limit)
+                  setMeta("cursor", key, seeded.cursor)
+                  setMeta("complete", key, seeded.complete)
+                  setMeta("loading", key, false)
                 })
+              }
+            }
 
-          await Promise.all([sessionReq, messagesReq])
-        })
+            const hasSession = Binary.search(store.session, sessionID, (s) => s.id).found
+            const cached = store.message[sessionID] !== undefined && meta.limit[key] !== undefined
+            const force = dirty.delete(key)
+            if (cached && hasSession && !force) return
+
+            const limit = meta.limit[key] ?? initialMessagePageSize
+            const sessionReq =
+              hasSession && !force
+                ? Promise.resolve()
+                : retry(() => client.session.get({ sessionID }))
+                    .then((session) => {
+                      if (!tracked(directory, sessionID)) return
+                      const data = session.data
+                      if (data?.id !== sessionID) return
+                      // Archived sessions stay out of the session list (aligned
+                      // with upstream: the list is driven only by the list API).
+                      // Messages still load below so archived history stays
+                      // readable, but the session must not resurrect into the
+                      // sidebar or drift sessionTotal.
+                      if (data.time?.archived) return
+                      setStore(
+                        "session",
+                        produce((draft) => {
+                          const match = Binary.search(draft, sessionID, (s) => s.id)
+                          if (match.found) {
+                            draft[match.index] = mergeSessionReview(draft[match.index], data)
+                            return
+                          }
+                          draft.splice(match.index, 0, mergeSessionReview(undefined, data))
+                        }),
+                      )
+                    })
+                    .catch((error) => {
+                      if (isNotFound(error) && !tracked(directory, sessionID)) return
+                      throw error
+                    })
+
+            const messagesReq =
+              cached && !force
+                ? Promise.resolve()
+                : loadMessages({
+                    directory,
+                    client,
+                    setStore,
+                    sessionID,
+                    limit,
+                  })
+
+            await Promise.all([sessionReq, messagesReq])
+          }).catch((error: unknown) => {
+            // An event received during a failed read still owes a fresh snapshot.
+            if (!tracked(directory, sessionID) || !dirty.has(key)) throw error
+          })
+        } while (tracked(directory, sessionID) && (dirty.has(key) || inflight.has(key)))
       },
       async diff(sessionID: string, opts?: { force?: boolean }) {
         const [store, setStore] = serverSync.child(directory)
@@ -680,15 +708,17 @@ export const createDirSyncContext = (
           const before = meta.cursor[key]
           if (!before) return
 
-          await loadMessages({
-            directory,
-            client,
-            setStore,
-            sessionID,
-            limit: step,
-            before,
-            mode: "prepend",
-          })
+          await runInflight(inflight, key, () =>
+            loadMessages({
+              directory,
+              client,
+              setStore,
+              sessionID,
+              limit: step,
+              before,
+              mode: "prepend",
+            }),
+          )
         },
       },
       evict(sessionID: string, _directory = directory) {
@@ -729,4 +759,27 @@ export const createDirSyncContext = (
       return current()[0].path.directory
     },
   }
+  onCleanup(() => {
+    seen.forEach((sessions) => sessions.forEach((sessionID) => stream.clear(sessionID)))
+    seen.clear()
+    dirty.clear()
+  })
+  onCleanup(
+    serverSDK.event.listen((event) => {
+      if (directoryKey(event.name) !== directoryKey(directory)) return
+      const details = event.details
+      if (!details.type.startsWith("session.next.") || !details.properties || !("sessionID" in details.properties))
+        return
+      const sessionID = details.properties.sessionID
+      if (typeof sessionID !== "string" || !tracked(directory, sessionID)) return
+      const [store, setStore] = current()
+      const live = stream.update(details, store.part)
+      if (live?.parts) setStore("part", live.messageID, live.parts)
+      if (details.type.endsWith(".delta") && (!live || live.present)) return
+      void result.session
+        .sync(sessionID, { force: true })
+        .catch(() => console.error("Failed to refresh canonical session messages"))
+    }),
+  )
+  return result
 }

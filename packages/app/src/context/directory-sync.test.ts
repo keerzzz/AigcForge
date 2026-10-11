@@ -2,6 +2,17 @@ import { describe, expect, test } from "bun:test"
 import { createStore, produce, reconcile } from "solid-js/store"
 import type { SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
 import { createTaskReadback, pickTarget } from "./directory-sync"
+import { createAigcfrogeClient, type Event, type Session, type SessionMessage } from "@aigcfroge/sdk/v2/client"
+import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
+import { createGlobalEmitter } from "@solid-primitives/event-bus"
+import { createComponent, untrack } from "solid-js"
+import { render } from "solid-js/web"
+import { ServerScope } from "@/utils/server-scope"
+import { LanguageProvider } from "./language"
+import { PlatformProvider } from "./platform"
+import type { ServerSDK } from "./server-sdk"
+import { createServerSyncContextInner } from "./server-sync"
+import { createDirSyncContext } from "./directory-sync"
 
 describe("pickTarget", () => {
   test("returns requested directory when it differs from own", () => {
@@ -285,6 +296,248 @@ function taskReadbackFixture() {
       const request = queued.shift()
       if (request) return Promise.resolve(request)
       return new Promise<Read>((resolve) => waiters.push(resolve))
+    },
+  }
+}
+
+describe("canonical message readback", () => {
+  for (const type of ["text", "reasoning"] as const) {
+    test(`${type} deltas before the initial snapshot remain visible across refresh and end at the full value`, async () => {
+      const fixture = canonicalReadbackFixture(type)
+      try {
+        const held = fixture.hold()
+        const initial = fixture.directory.session.sync("ses_canonical")
+        await held.started.promise
+        fixture.emit("delta", "A")
+        fixture.emit("delta", "B")
+        held.release.resolve()
+        await initial
+        expect(fixture.text()).toBe("AB")
+        await fixture.directory.session.sync("ses_canonical", { force: true })
+        expect(fixture.text()).toBe("AB")
+
+        const stale = fixture.hold()
+        const refresh = fixture.directory.session.sync("ses_canonical", { force: true })
+        await stale.started.promise
+        fixture.setText("ABC")
+        fixture.emit("ended", "ABC")
+        expect(fixture.text()).toBe("ABC")
+        stale.release.resolve()
+        await refresh
+        expect(fixture.text()).toBe("ABC")
+      } finally {
+        fixture.dispose()
+      }
+    })
+
+    test(`${type} deltas queued behind an already completed snapshot are not counted twice`, async () => {
+      const fixture = canonicalReadbackFixture(type)
+      try {
+        fixture.setText("AB")
+        await fixture.directory.session.sync("ses_canonical")
+        fixture.emit("delta", "B")
+        expect(fixture.text()).toBe("AB")
+      } finally {
+        fixture.dispose()
+      }
+    })
+  }
+
+  test("events during history pagination are read afterward without discarding the loaded history", async () => {
+    const fixture = canonicalReadbackFixture("text", 600)
+    try {
+      await fixture.directory.session.sync("ses_canonical")
+      const held = fixture.hold()
+      const history = fixture.directory.session.history.loadMore("ses_canonical", 150)
+      await held.started.promise
+      fixture.setText("finished during pagination")
+      fixture.emit("ended", "finished during pagination")
+      held.release.resolve()
+      await history
+      await fixture.directory.session.sync("ses_canonical")
+      expect(fixture.text()).toBe("finished during pagination")
+      expect(fixture.directory.data.message.ses_canonical?.length).toBeGreaterThanOrEqual(200)
+      const oldest = fixture.directory.data.message.ses_canonical?.[0]?.id
+      fixture.append(50)
+      await fixture.directory.session.sync("ses_canonical", { force: true })
+      expect(fixture.directory.data.message.ses_canonical?.some((message) => message.id === oldest)).toBe(true)
+    } finally {
+      fixture.dispose()
+    }
+  })
+})
+
+function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
+  const session: Session = {
+    id: "ses_canonical",
+    slug: "canonical",
+    title: "Canonical",
+    projectID: "project",
+    directory: "/canonical",
+    version: "test",
+    mode: "assistant",
+    agent: "assistant-orchestrator",
+    model: { providerID: "test", id: "model" },
+    time: { created: 1, updated: 1 },
+  }
+  const rows: SessionMessage[] = []
+  const append = (count: number) => {
+    const offset = rows.length
+    rows.push(
+      ...Array.from({ length: count }, (_, index): SessionMessage => {
+        const position = offset + index
+        const id = `msg_${String(position).padStart(4, "0")}`
+        if (position % 2 === 0) return { id, type: "user", text: id, time: { created: position } }
+        return {
+          id,
+          type: "assistant",
+          agent: "assistant-orchestrator",
+          model: { providerID: "test", id: "model" },
+          time: { created: position },
+          content: [{ id: "content", type, text: "" }],
+        }
+      }),
+    )
+  }
+  append(count)
+  const messageID = rows.at(-1)?.id
+  if (!messageID) throw new Error("Assistant fixture is empty")
+  const held: Array<{
+    started: ReturnType<typeof Promise.withResolvers<void>>
+    release: ReturnType<typeof Promise.withResolvers<void>>
+  }> = []
+  const fetch = Object.assign(
+    async (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      if (url.pathname === `/session/${session.id}`) return Response.json(session)
+      if (url.pathname === "/session") return Response.json([session])
+      if (url.pathname === `/api/session/${session.id}/message`) {
+        const start = Number(url.searchParams.get("cursor") ?? 0)
+        const end = Math.min(rows.length, start + Number(url.searchParams.get("limit")))
+        const response = Response.json({
+          data: rows.toReversed().slice(start, end),
+          cursor: { next: end < rows.length ? String(end) : undefined },
+        })
+        const pending = held.shift()
+        pending?.started.resolve()
+        if (pending) await pending.release.promise
+        return response
+      }
+      if (url.pathname === "/global/config" || url.pathname === "/mcp") return Response.json({})
+      if (url.pathname === "/path")
+        return Response.json({ state: "", config: "", worktree: "/canonical", directory: "/canonical", home: "/home" })
+      if (url.pathname === "/provider") return Response.json({ all: [], connected: [], default: {} })
+      if (["/project", "/lsp", "/command", "/agent", "/permission", "/question", "/api/task"].includes(url.pathname))
+        return Response.json([])
+      throw new Error(`Unexpected request: ${url.pathname}`)
+    },
+    { preconnect() {} },
+  )
+  const emitter = createGlobalEmitter<Record<string, Event>>()
+  const createClient: ServerSDK["createClient"] = (options) =>
+    createAigcfrogeClient({ baseUrl: "http://canonical-sync.test", fetch, ...options })
+  const sdk: ServerSDK = {
+    scope: ServerScope.local,
+    url: "http://canonical-sync.test",
+    client: createClient({ throwOnError: true }),
+    createClient,
+    event: { on: emitter.on.bind(emitter), listen: emitter.listen.bind(emitter), start: async () => {} },
+    ensureDirSdkContext: (directory) => ({
+      scope: ServerScope.local,
+      directory,
+      url: "http://canonical-sync.test",
+      createClient,
+      client: createClient({ directory, throwOnError: true }),
+      event: createGlobalEmitter<{ [Kind in Event["type"]]: Extract<Event, { type: Kind }> }>(),
+    }),
+  }
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  let directory: ReturnType<typeof createDirSyncContext> | undefined
+  const container = document.createElement("div")
+  const dispose = render(
+    () =>
+      createComponent(QueryClientProvider, {
+        client: queryClient,
+        get children() {
+          return createComponent(PlatformProvider, {
+            value: {
+              platform: "web",
+              openLink() {},
+              restart: async () => {},
+              back() {},
+              forward() {},
+              notify: async () => {},
+            },
+            get children() {
+              return createComponent(LanguageProvider, {
+                locale: "en",
+                get children() {
+                  return untrack(() => {
+                    const server = createServerSyncContextInner(sdk)
+                    const [, setStore] = server.child(session.directory, { bootstrap: false })
+                    setStore("status", "complete")
+                    setStore("session", [session])
+                    directory = createDirSyncContext(session.directory, server, sdk)
+                    return null
+                  })
+                },
+              })
+            },
+          })
+        },
+      }),
+    container,
+  )
+  if (!directory) throw new Error("Directory context did not mount")
+  const owner = directory
+  return {
+    directory: owner,
+    append,
+    hold() {
+      const pending = { started: Promise.withResolvers<void>(), release: Promise.withResolvers<void>() }
+      held.push(pending)
+      return pending
+    },
+    text: () => {
+      const part = owner.data.part[messageID]?.find((part) => part.type === type)
+      return part && (part.type === "text" || part.type === "reasoning") ? part.text : undefined
+    },
+    setText(text: string) {
+      const row = rows.find((row) => row.id === messageID)
+      if (row?.type !== "assistant") throw new Error("Assistant row missing")
+      row.content = [{ type, id: "content", text }]
+    },
+    emit(phase: "delta" | "ended", text: string) {
+      const properties = { sessionID: session.id, assistantMessageID: messageID, timestamp: 1 }
+      if (type === "text" && phase === "delta")
+        emitter.emit(session.directory, {
+          id: "evt_text.delta",
+          type: "session.next.text.delta",
+          properties: { ...properties, textID: "content", delta: text },
+        })
+      if (type === "text" && phase === "ended")
+        emitter.emit(session.directory, {
+          id: "evt_text.ended",
+          type: "session.next.text.ended",
+          properties: { ...properties, textID: "content", text },
+        })
+      if (type === "reasoning" && phase === "delta")
+        emitter.emit(session.directory, {
+          id: "evt_reasoning.delta",
+          type: "session.next.reasoning.delta",
+          properties: { ...properties, reasoningID: "content", delta: text },
+        })
+      if (type === "reasoning" && phase === "ended")
+        emitter.emit(session.directory, {
+          id: "evt_reasoning.ended",
+          type: "session.next.reasoning.ended",
+          properties: { ...properties, reasoningID: "content", text },
+        })
+    },
+    dispose() {
+      dispose()
+      queryClient.clear()
+      container.remove()
     },
   }
 }

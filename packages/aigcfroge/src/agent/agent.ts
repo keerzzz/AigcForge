@@ -94,7 +94,7 @@ function fromAgentV2(info: AgentV2.Info): Info {
     options: info.request.body,
     steps: info.steps,
     handoffs: info.handoffs,
-    originRelativePath: info.originRelativePath,
+    ...(info.originRelativePath === undefined ? {} : { originRelativePath: info.originRelativePath }),
   }
 }
 
@@ -482,7 +482,7 @@ export const layer = Layer.effect(
           ),
         )
         const canonicalAssets = canonicalAgents
-          .filter((entry) => entry.originRelativePath !== undefined)
+          .filter((entry) => entry.originRelativePath !== undefined || entry.id === "assistant-orchestrator")
           .map(fromAgentV2)
 
         const get = Effect.fnUntraced(function* (agent: string) {

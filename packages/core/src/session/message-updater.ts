@@ -138,6 +138,7 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
         )
       },
       "session.next.prompt.admitted": () => Effect.void,
+      "session.next.history.imported": (event) => adapter.appendMessage(event.data.message),
       "session.next.shell.admitted": () => Effect.void,
       "session.next.skill.admitted": () => Effect.void,
       "session.next.command.admitted": () => Effect.void,
