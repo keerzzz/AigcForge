@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import type { Agent, CompositionSnapshotV2, Session } from "@aigcfroge/sdk/v2/client"
+import type { Agent, CompositionSnapshotV2, Session, SessionMessagesResponse } from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
 import { pinDesktopViewport } from "../utils/viewport"
@@ -74,6 +74,14 @@ async function installMock(
     pageMessages: () => ({ items: [] }),
     events: () => [],
   })
+  await page.route(`**/api/session/${sessionID}/message**`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ data: [], cursor: {} } satisfies SessionMessagesResponse),
+    }),
+  )
   await page.route(`**/session/${sessionID}/composition**`, (route) =>
     route.fulfill({
       status: 200,
