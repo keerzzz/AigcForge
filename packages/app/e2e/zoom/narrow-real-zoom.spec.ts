@@ -12,14 +12,12 @@
  * 2. 200% — a seeded profile must measure the zoomed window, and only then is the product
  *    contract asserted: at real 200% page zoom the mode-specific panels stay reachable.
  *
- * The product half is EXPECTED RED today. The panels live behind
- * `packages/app/src/pages/session/session-side-panel.tsx:170`'s
- * `<Show when={isDesktop() && !!params.id}>`, where `isDesktop` is
- * `createMediaQuery("(min-width: 768px)")`. A real 200% zoom on a 1440x900 window leaves a
- * 720px layout viewport, so the media query flips false and every mode panel unmounts —
- * exactly for the user who needs the room most. The failure is the deliverable.
+ * A real 200% zoom on a 1440x900 window leaves a 720px layout viewport.
+ * The mode-panel entry must keep Work and Assistant panels reachable after
+ * the desktop media query switches to the narrow presentation.
  */
 import { writeFileSync } from "node:fs"
+import type { SessionMessagesResponse } from "@aigcfroge/sdk/v2/client"
 import { expect, test, type Page, type TestInfo } from "./fixtures"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer } from "../utils/mock-server"
@@ -189,6 +187,15 @@ test.describe("200% page zoom", () => {
         events: () => [],
         eventRetry: 16,
       })
+
+      await page.route(`**/api/session/${assistantSessionID}/message**`, (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          headers: { "access-control-allow-origin": "*" },
+          body: JSON.stringify({ data: [], cursor: {} } satisfies SessionMessagesResponse),
+        }),
+      )
 
       // The app page must genuinely be the zoomed one, or the measurement below would
       // be about a different browser state than the certificate above.

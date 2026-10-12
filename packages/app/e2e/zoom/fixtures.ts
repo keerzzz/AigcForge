@@ -41,28 +41,33 @@ export const test = base.extend<ZoomFixtures>({
   context: async ({ seedZoom }, use, testInfo) => {
     // A fresh profile per test: the zoom entry is per-host, so a shared profile
     // would leak zoom into the control test.
-    const profile = mkdtempSync(path.join(tmpdir(), "aigcfroge-zoom-"))
-    if (seedZoom) seedZoomProfile(profile, ZOOM_HOST, ZOOM_LEVEL_200)
-
-    const context = await chromium.launchPersistentContext(profile, {
-      // `chromium` is Chrome for Testing ("Chromium new headless"), the only
-      // Playwright-launched browser with a zoom subsystem.
-      channel: "chromium",
-      headless: true,
-      // No `Emulation.setDeviceMetricsOverride`: the page must stay tied to the real
-      // window so a page zoom can shrink the layout viewport.
-      viewport: null,
-      // Normal E3 projects set a DPR; native page zoom must own it with a null viewport.
-      deviceScaleFactor: undefined,
-      baseURL: testInfo.project.use.baseURL,
-      args: [`--window-size=${WINDOW_SIZE.width},${WINDOW_SIZE.height}`],
-    })
-
+    // Chromium puts its SingletonSocket in TMPDIR; long artifact paths exceed
+    // the Unix-domain socket limit before the browser can open a page.
+    const temporary = mkdtempSync(path.join(process.platform === "linux" ? "/tmp" : tmpdir(), "aigcfroge-zoom-"))
+    const profile = path.join(temporary, "profile")
     try {
-      await use(context)
+      if (seedZoom) seedZoomProfile(profile, ZOOM_HOST, ZOOM_LEVEL_200)
+      const context = await chromium.launchPersistentContext(profile, {
+        // `chromium` is Chrome for Testing ("Chromium new headless"), the only
+        // Playwright-launched browser with a zoom subsystem.
+        channel: "chromium",
+        headless: true,
+        // No `Emulation.setDeviceMetricsOverride`: the page must stay tied to the real
+        // window so a page zoom can shrink the layout viewport.
+        viewport: null,
+        // Normal E3 projects set a DPR; native page zoom must own it with a null viewport.
+        deviceScaleFactor: undefined,
+        baseURL: testInfo.project.use.baseURL,
+        args: [`--window-size=${WINDOW_SIZE.width},${WINDOW_SIZE.height}`],
+        env: { ...process.env, TMPDIR: temporary, TMP: temporary, TEMP: temporary },
+      })
+      try {
+        await use(context)
+      } finally {
+        await context.close()
+      }
     } finally {
-      await context.close()
-      rmSync(profile, { recursive: true, force: true })
+      rmSync(temporary, { recursive: true, force: true })
     }
   },
 
