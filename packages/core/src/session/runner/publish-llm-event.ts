@@ -70,8 +70,6 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
   let assistantActive = false
   let assistantFailed = false
   let providerFailed = false
-  let aborted = false
-  let textStarted = false // Phase 5: track whether any text delta arrived
 
   const startAssistant = Effect.fnUntraced(function* () {
     if (assistantMessageID !== undefined) return assistantMessageID
@@ -245,7 +243,6 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
       case "step-start":
         return
       case "text-start":
-        textStarted = true
         yield* text.start(event.id)
         yield* events.publish(SessionEvent.Text.Started, {
           sessionID: input.sessionID,
@@ -412,13 +409,6 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
       case "finish":
         return
       case "provider-error":
-        if (textStarted && !event.classification) {
-          // Text was being streamed and this is a transient (unclassified)
-          // provider error — mark as aborted so the runner can retry.
-          aborted = true
-          providerFailed = true
-          return
-        }
         providerFailed = true
         yield* failAssistant(event.message)
         return
@@ -433,7 +423,6 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
     hasActiveAssistant: () => assistantActive,
     hasAssistantStarted: () => assistantMessageID !== undefined,
     hasProviderError: () => providerFailed,
-    isAborted: () => aborted,
     assistantMessageID: assistantMessageIDForTool,
   }
 }

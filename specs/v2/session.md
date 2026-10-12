@@ -185,6 +185,8 @@ Status: `complete` is usable in the native V2 path, `partial` covers only part o
 
 Provider timeout, retry, and watchdog policy is intentionally deferred. The runner does not impose a universal provider-stream inactivity or absolute timeout. A future slice should design configurable policy around provider behavior, durable failure reporting, and local drain-chain release rather than hardcoding one default for every provider.
 
+A provider error after partial output follows the same terminal failure path as an error before output: flush partial fragments, persist the failed assistant step, and settle already-started tools without automatically repeating the provider turn. An absent error classification does not imply that retry is safe. Explicit resume reloads durable history, including partial text and completed tool results; exact prompt retry does not repeat a promoted input. Newly admitted steer or queue inputs retain their existing delivery semantics.
+
 Inbox delivery is explicit:
 
 - `steer` inputs promote at the next safe provider-turn boundary, including continuation inside the current drain.

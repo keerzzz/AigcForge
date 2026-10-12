@@ -816,3 +816,13 @@ WorkReview新增双backend场景 `work-review-dual-e4` **1 pass / exit 0**，既
 仍开放：完整相关包/API/E3/E4、历史pre-identity与其它跨backend故障/上下文隔离、性能tab/flash、packaged Electron和其它平台、真实DeepSeek/OAuth及CI/release，沿coverage manifest原owner/unlock继续推进。没有以本批通过关闭S08/S09。
 
 类型检查：`custom-runtime-types-core`、`custom-runtime-types-fixed-server`、`custom-runtime-types-fixed-aigcfroge` 均exit0。初次Server类型检查发现共享能力helper的404错误通道不属于create已发布错误集合，现按create已有InvalidRequestError映射；未扩展API错误schema。原失败回执保留。
+
+### 15.18 2026-10-12 S08 / 部分输出失败终态
+
+同一实施工作区和分支继续执行。`createLLMEventPublisher` 曾将没有 classification 的部分文本错误标为 aborted；`SessionRunnerLLM` 仅在有本地工具调用时需要 continuation，因此同一错误会导致纯文本无终态、含工具时额外调用 provider。现在 `packages/core/src/session/runner/publish-llm-event.ts:198` 复用先 flush 再 Step.Failed 的收束路径，`:411` 对所有 provider-error 统一调用；`packages/core/src/session/runner/llm.ts:865` 禁止失败轮自动 continuation。既有新输入投递、已启动工具的等待与结算、legacy 真重试保持原契约。
+
+证据位于 `aigcfroge-remaining-20261011/checks`：`core-provider-terminal-red-refined` 为 2 pass / 2 fail，明确捕获第二次 provider 请求与缺失终态；修复后的 `core-provider-terminal-green` 为 91 pass / 284 assertions、exit 0。文本、reasoning、工具输入的失败收束与持久化重放均验证；未解析工具输入的原文保留于 Input.Ended 事件，失败投影按原契约使用空对象。
+
+`assistant-stream-http-reset` 为 2 pass / 109 assertions、exit 0。生产 HttpApi 与实际 Node provider HTTP 验证部分文本先经产品 SSE 到达，再重置连接；同一消息持久化为失败，精确重试不调用 provider，显式 service resume 保留历史与输入。另一个用例保留 reminder 副作用后的失败恢复证据。没有公开 HTTP resume endpoint，因此不称为浏览器恢复。
+
+保留的非绿证据：`assistant-stream-http-green` 为 1 pass / 1 fail。测试服务的 Stream.fail 实际在已发送响应头后正常 end，没有发生 wire reset；这同时发现 OpenAI Chat 提前 EOF 且无 finish_reason 时未收束终态。该独立缺口仍由 `assistant-reminder-provider-lifeline` 的 S9B owner 管理，解锁需明确失败契约并验证部分输出保留、未完成工具不执行、恢复不重放。其余完整 S08/S09、跨 backend、性能、packaged 平台及外部环境事项继续保留原 owner/unlock。

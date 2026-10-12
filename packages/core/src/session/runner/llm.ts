@@ -857,20 +857,12 @@ export const layer = Layer.effect(
           }
           if (publisher.hasProviderError())
             yield* withPublication(publisher.failUnsettledTools("Tool execution interrupted"))
-          if (publisher.isAborted()) {
-            yield* events.publish(SessionEvent.Retried, {
-              sessionID: session.id,
-              timestamp: yield* DateTime.now,
-              attempt: 1,
-              error: { message: "Stream interrupted after partial output", isRetryable: true },
-            })
-          }
           if (stream._tag === "Success" && !publisher.hasProviderError())
             yield* withPublication(publisher.failUnsettledTools("Provider did not return a tool result", true))
           if (stream._tag === "Failure") return yield* Effect.failCause(stream.cause)
           if (settled._tag === "Failure") return yield* Effect.failCause(settled.cause)
           return {
-            needsContinuation: (!publisher.hasProviderError() || publisher.isAborted()) && needsContinuation,
+            needsContinuation: !publisher.hasProviderError() && needsContinuation,
             step: currentStep,
           }
         }),
