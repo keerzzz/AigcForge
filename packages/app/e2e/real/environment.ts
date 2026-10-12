@@ -43,7 +43,7 @@ export function create(runDir: string, parent: NodeJS.ProcessEnv): Record<string
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_TEMPLATE_DIR: dirs.gitTemplate,
     npm_config_userconfig: path.join(dirs.home, ".npmrc"),
-    npm_config_globalconfig: path.join(dirs.home, ".npmrc"),
+    npm_config_globalconfig: path.join(dirs.home, ".npmrc-global"),
     npm_config_cache: path.join(dirs.cache, "npm"),
     BUN_INSTALL_CACHE_DIR: path.join(dirs.cache, "bun"),
     // No fallback to cloud instance credentials if a provider SDK probes the default chain.

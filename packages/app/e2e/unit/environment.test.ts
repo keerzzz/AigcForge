@@ -73,6 +73,10 @@ test("all user-directory and temporary-file sources are run-local", () => {
   expect(env.PATH).toBe(parent.PATH)
   expect(env.SystemRoot).toBe(parent.SystemRoot)
   expect(env.LANG).toBe(parent.LANG)
+  // npm rejects loading one pathname as both the user and global config.
+  expect(env.npm_config_userconfig).not.toBe(env.npm_config_globalconfig)
+  expect(env.npm_config_userconfig).toStartWith(runDir + path.sep)
+  expect(env.npm_config_globalconfig).toStartWith(runDir + path.sep)
 })
 
 test("child environment is an allowlist, not a product-prefix blacklist", () => {
