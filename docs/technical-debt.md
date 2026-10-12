@@ -836,3 +836,13 @@ WorkReview新增双backend场景 `work-review-dual-e4` **1 pass / exit 0**，既
 `assistant-partial-http-complete` 为 **3 pass / 149 assertions、exit 0**，包含生产 HTTP 的 reminder 后失败、部分输出后真实连接重置、部分输出后收到 [DONE] 但缺少结束原因（无 [DONE] 的 EOF 由 LLM 层覆盖）；都验证持久化失败、精确重试不重复调用和显式恢复。该证据使用隔离 Node loopback provider，不代表真实 OAuth/外部模型服务。其它 S08/S09 缺口和完整交付定义继续沿 coverage manifest 执行。
 
 最终检查：两处测试改用 data-first `Stream.toReadableStreamEffect(stream)` 后，`eof-provider-final` 为 **40 pass / 92 assertions、exit 0**；`eof-types-fixed-{llm,core,aigcfroge,app}` 均 exit 0。保留 `eof-types-llm` 的初次推断失败，不记作通过。`eof-final-lint` 以 `e8c297c83` 为显式基线通过（12 changed files / 780 added lines），`eof-final-ledger` 为 **8 pass / 20 assertions**。只读独立审查未发现阻断项。
+
+### 15.20 2026-10-12 S08 / 跨后端 provider 与历史身份
+
+`assistant-isolation-e4-config-owner` **1 pass / exit 0**，`historical-identity-dual-e4` **1 pass / exit 0**；均 workers=1、retries=0、独立 240 秒外限，两次 teardown gate 均通过（无监听端口、进程组或 workspace 残留）。收据、trace 与布尔化 provider 附件在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011`。此前 `assistant-isolation-e4` 的 model unavailable 失败保留；其根因是 fixture 通过 public global settings 写 XDG，而 native Global 读取固定 configDir。修正复用该配置 owner，在打开 Location 前写入自有 fixture，不改产品运行路径。
+
+Assistant 场景使用两个实际产品后端、各一个 Location、不同 Session ID，四次真实 HTTP 请求验证 endpoint、model、合成凭据、System Context、用户历史与回复均不串台。左侧 provider 被就绪 gate 持有时，右侧仍能完成。临时 provider 在 finally 中关闭。这个结果不代表单后端多 Location、同 ID provider 并发、Settings 热更新或外部模型服务。
+
+历史身份场景使用同一 Session ID：A 保有 full tier、模型和 approved artifact；B 的自有 SQLite seed 去掉 model/workContract 后呈现 missing model、propose 和无 Review，刷新及真实 SPA 切换不会借用 A 的结果。随后去掉 B agent，真实 API 返回 InvalidRequestError/400，Header 与权限转为 unavailable/degraded；A 的 identity/review 保持不变。新 artifact 只在本测试创建，并在 finally 精确清除。该读取兼容性与隔离子项从 deferred `identity-e4-cross-server-and-historical` 移除；实际 migration 执行仍由 `work-review-lifecycle` 的 S9A owner 持有，其它失败/完整矩阵/平台/CI 范围不变。
+
+收尾：`isolation-config-contracts` **14 pass / 44 assertions**；`isolation-final-app-types` 与以 `d0adc5e63` 为基线的 `isolation-final-lint` 均 exit 0。独立只读复核发现的 workspace 残留已在执行前修复，未通过放宽 teardown 规避。

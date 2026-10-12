@@ -48,7 +48,15 @@ Object.assign(process.env, env)
 export default defineConfig({
   testDir: here,
   ...(dualBackend
-    ? { testMatch: ["**/session-decision-scope.spec.ts", "**/work-review-lifeline.spec.ts", "**/manifest.spec.ts"] }
+    ? {
+        testMatch: [
+          "**/session-decision-scope.spec.ts",
+          "**/work-review-lifeline.spec.ts",
+          "**/session-identity-consumers.spec.ts",
+          "**/assistant-provider-isolation.spec.ts",
+          "**/manifest.spec.ts",
+        ],
+      }
     : { testIgnore: ["**/session-decision-scope.spec.ts"] }),
   outputDir: path.join(here, "test-results"),
   timeout: 120_000,

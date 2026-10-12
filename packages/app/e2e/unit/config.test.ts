@@ -100,6 +100,8 @@ test("dual-backend E4 is opt-in, allocates a peer and only discovers the scope m
   expect(dual.testMatch).toEqual([
     "**/session-decision-scope.spec.ts",
     "**/work-review-lifeline.spec.ts",
+    "**/session-identity-consumers.spec.ts",
+    "**/assistant-provider-isolation.spec.ts",
     "**/manifest.spec.ts",
   ])
   if (!isRecord(dual.webServer) || !isRecord(dual.webServer.env)) throw new Error("missing dual E4 launcher")
