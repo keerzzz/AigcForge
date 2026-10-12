@@ -801,3 +801,18 @@ before 于 2026-10-03、after 于 2026-10-04；均为 production、Chromium、CP
 本轮后续验证：`capabilities-mock-e3` 6 pass；`canonical-ui-timeline-after` 1 pass，两者 exit 0。相同配置的timeline前后各一描述性样本，首次内容观察215.909→84.547ms，流完成观察76.4→93.6ms；12个增量完整交付、零pending、无message/markdown节点替换。共享mock新增capabilities响应，各一个样本不能声称统计无回归。
 
 WorkReview新增双backend场景 `work-review-dual-e4` **1 pass / exit 0**，既有默认两例 `work-review-default-e4-current` **2 pass / exit 0**，均有完整teardown。新场景在相同Session ID的两个服务端中产生各自真实provider/artifact；B同内容新artifact ID使旧结论过期，旧approve真实返回409时A状态/SQLite不变，B显式re_review、approve、reload恢复。关系由 `packages/core/src/session/work-review.ts:84` 的 `isVerdictCurrent` 比较artifact ID与revision决定，不从同名/同内容推断。上述两次执行期间仅独立Custom测试文件变更，WorkReview生产/测试不变。此处关闭双backend stale-binding冲突恢复子项；历史pre-identity与其它故障类别仍保留manifest owner/unlock。
+
+### 15.17 2026-10-12 S08 / Custom 冻结子委派与运行时根因
+
+工作区 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`。已验证的上一批按授权提交；本批证据继续保存在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/checks`，所有测试串行、原外限不变。
+
+- **权限顺序**：`PermissionEffective.compute`（`packages/core/src/permission/effective.ts:52`）曾将 Custom 的 allow→ask 排到头部 fallback deny 之前；`evaluate`（`:36`）和 ToolRegistry 的 `whollyDisabled` 按最后匹配规则判断，因此 task 从实际工具目录消失。修复保留头部 deny→声明审批的顺序，末尾全局 deny、资源级 deny、未知工具 deny 和无人值守天花板不放宽。新增反例先得30 pass/2 fail，修复后权限三组60 pass/341 assertions。遵循 ADR-20 §2.6 已接受的 ask 契约。
+- **进程级后台任务**：生产 AppLayer 的 V2 TaskDriverFill/DelegationExecution 错接依赖 InstanceRef 的旧 BackgroundJob，真实 task 因 `InstanceRef not provided` 失败。`packages/aigcfroge/src/effect/app-runtime.ts:152`、`:185` 现在共同复用 Core BackgroundJob.defaultLayer，旧实例服务仍由原消费者使用。没有捕获失败伪造成功，也没有在测试中注入 InstanceRef。
+- **已有身份采用**：`SessionV2.create`（`packages/core/src/session.ts:430`）对已存在 Custom ID 错用新建根会话门禁，阻断再次委派；现改用 runtime 门禁，kill switch 仍生效，新建 Custom 根仍必须 composition start。HTTP create（`packages/server/src/handlers/session.ts:151`）在任何创建前读取持久化的已有/父身份并复用能力门禁；无能力头的父继承反例先返回200，修后400且无子行，带能力头则可创建/采用。能力预检只读 SessionStore，不触发 legacy history adoption；新增旧 Assistant反例曾返回500，修后已有身份采用200、历史读取/提示仍按既有400契约拒绝不支持的历史。
+- **真实链证据**：`httpapi-custom-child.test.ts` 通过生产 HttpApi web handler、实际Node provider HTTP、带Custom能力的SSE存活和真实once审批，验证根→冻结child→结果→同child再次委派，pool外失败→模型重新委派，拒绝的messageID可用合法agent恢复，精确重试无新provider/事件/输入，snapshot和provenance保持不变。HTTP decode复用各端点实际schema；child快照与持久化root比较，避免把start响应的workflow:null与存储缺省字段误判为快照变更。
+
+最终定向回归：`custom-runtime-core-regressions` **86 pass/410 assertions、exit0**；`custom-runtime-http-regressions` **21 pass/404 assertions、exit0**，覆盖Custom三例、历史两例、capabilities三例、AppRuntime两例及旧BackgroundJob十一例，均有源码快照与清理回执。它们不代表完整包/浏览器/发布验收。初始fixture的JSON codec、快照传输表示问题与真实产品RED分别保留原始失败回执，不计入通过。
+
+仍开放：完整相关包/API/E3/E4、历史pre-identity与其它跨backend故障/上下文隔离、性能tab/flash、packaged Electron和其它平台、真实DeepSeek/OAuth及CI/release，沿coverage manifest原owner/unlock继续推进。没有以本批通过关闭S08/S09。
+
+类型检查：`custom-runtime-types-core`、`custom-runtime-types-fixed-server`、`custom-runtime-types-fixed-aigcfroge` 均exit0。初次Server类型检查发现共享能力helper的404错误通道不属于create已发布错误集合，现按create已有InvalidRequestError映射；未扩展API错误schema。原失败回执保留。

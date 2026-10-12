@@ -54,6 +54,8 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 
 // V2 imports
+// Distinguish the process-scoped registry from the legacy InstanceRef wrapper.
+import { BackgroundJob as CoreBackgroundJob } from "@aigcfroge/core/background-job"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { LocationServiceMap } from "@aigcfroge/core/location-layer"
 import { Git as CoreGit } from "@aigcfroge/core/git"
@@ -147,7 +149,7 @@ const v2SessionLayer = SessionV2.layer.pipe(
 const v2DelegationExecutionLayer = DelegationExecution.layer.pipe(
   Layer.provide(v2SessionLayer),
   Layer.provide(DelegationService.defaultLayer),
-  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(CoreBackgroundJob.defaultLayer),
   Layer.provideMerge(v2TaskDriverRuntimeLayer),
 )
 
@@ -180,7 +182,7 @@ const v2SessionShareLayer = SessionShareV2.layer.pipe(
 const v2TaskDriverFillLayer = TaskDriverFill.layer.pipe(
   Layer.provideMerge(v2SessionLayer),
   Layer.provide(v2DelegationExecutionLayer),
-  Layer.provide(BackgroundJob.defaultLayer),
+  Layer.provide(CoreBackgroundJob.defaultLayer),
   Layer.provide(DelegationService.defaultLayer),
   Layer.provide(CrossSpawnSpawner.defaultLayer),
   // The fill writes child messages through EventV2; v2SessionLayer consumes its

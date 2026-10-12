@@ -1,5 +1,12 @@
 # V2 Schema Changelog
 
+## 2026-10-12: Custom Session Identity and Delegation Gates
+
+- Existing Custom Session IDs are adopted under the runtime kill switch; the generic creation ban still applies to new Custom roots.
+- Generic HTTP creation checks client capability against stored adopted or parent identity before a create write, including payloads with omitted mode. This identity preflight does not import legacy Assistant history.
+- V2 delegation uses the shared process-scoped Core BackgroundJob registry. Custom permission rewriting keeps the leading fallback deny before declared ask rules, with explicit denies and the unattended ceiling preserved.
+- No public payload/response fields, events, tables or migrations change. Production HttpApi plus actual Node provider HTTP verifies frozen child dispatch/reuse, denial/recovery, and capability checks; the full integration and release matrix remains tracked separately.
+
 ## 2026-10-12: Server-Owned Session History Selection
 
 - `GET /experimental/capabilities` adds required `canonicalSessionModes`, derived by the same `ProductModePolicy.shouldUseV2Runtime` rule that selects async prompt execution. The field describes the serving process, not durable Session identity.

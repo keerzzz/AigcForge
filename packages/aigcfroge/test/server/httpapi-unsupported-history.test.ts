@@ -77,6 +77,10 @@ it.live("unsupported Assistant history returns safe typed HTTP errors without im
         )
         expect(rejected).toBe(true)
         const sdk = createAigcfrogeClient({ baseUrl, directory, headers: { authorization } })
+        const adopted = yield* Effect.promise(() => sdk.v2.session.create({ id: seeded.sessionID }))
+        expect(adopted.response.status).toBe(200)
+        expect(adopted.data?.data.id).toBe(seeded.sessionID)
+        expect(yield* LegacyHistory.persistedState(seeded.sessionID)).toEqual(before)
         const responses = [
           yield* Effect.promise(() => sdk.v2.session.get({ sessionID: seeded.sessionID })),
           yield* Effect.promise(() => sdk.v2.session.messages({ sessionID: seeded.sessionID })),

@@ -54,18 +54,24 @@ function compute(input: Input, baseInput: Permission.Ruleset): Permission.Rulese
   // ADR-20 §2.6 (Phase D)：custom 模式下资产来源的执行类 allow 一律改判 ask
   // ——审批框只在 ask 时出现，「用户在场 ≠ 用户同意」。白名单只读类保持
   // allow；saved 追加来源在下游单独追加，不受此重写影响。
-  const rewrittenAsks: Permission.Ruleset = []
+  const approvalPrefix: Permission.Ruleset = []
   const rest: Permission.Ruleset = []
-  for (const rule of baseInput) {
+  for (const [index, rule] of baseInput.entries()) {
+    // Keep the leading default deny before declared approvals. Later global
+    // denies remain in place, so an explicit terminal deny still wins.
+    if (index === 0 && rule.action === "*" && rule.resource === "*" && rule.effect === "deny") {
+      approvalPrefix.push(rule)
+      continue
+    }
     const rewritten =
       input.mode === "custom" && rule.effect === "allow" && !readonlyCeilingAction.has(rule.action)
         ? { ...rule, effect: "ask" as const }
         : rule
     // 位序即语义（evaluate 是 findLast）：由 allow 改判的 ask 前置到白名单
     // allow 与显式 deny 之前，避免尾部通配改判遮蔽它们；其余规则保持原序。
-    ;(rewritten.effect === "ask" && rule.effect === "allow" ? rewrittenAsks : rest).push(rewritten)
+    ;(rewritten.effect === "ask" && rule.effect === "allow" ? approvalPrefix : rest).push(rewritten)
   }
-  const base = input.mode === "custom" ? [...rewrittenAsks, ...rest] : baseInput
+  const base = input.mode === "custom" ? [...approvalPrefix, ...rest] : baseInput
   // 档位只对 chat/work/assistant × meta × full 抬权；未知 mode fail-safe 不抬权。
   const elevatedMode = input.mode === "chat" || input.mode === "work" || input.mode === "assistant"
   const elevated = elevatedMode && input.agent === "meta" && input.tier === "full"

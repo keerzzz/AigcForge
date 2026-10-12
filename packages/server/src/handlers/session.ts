@@ -1,7 +1,8 @@
 import { SessionV2 } from "@aigcfroge/core/session"
+import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
 import { WorkReviewService } from "@aigcfroge/core/session/work-review-service"
-import { absurd, Cause, DateTime, Effect, Option, Schema } from "effect"
+import { absurd, Cause, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import { SqlError } from "effect/unstable/sql/SqlError"
@@ -29,8 +30,13 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
   Effect.gen(function* () {
     const session = yield* SessionV2.Service
     const share = yield* SessionShareV2.Service
+    const store = yield* SessionStore.Service
 
-    const requireSessionAndCapability = (sessionID: string, capabilitiesHeader?: string | null) =>
+    const requireSessionAndCapability = (
+      sessionID: string,
+      capabilitiesHeader?: string | null,
+      recorded?: SessionV2.Info,
+    ) =>
       Effect.gen(function* () {
         const idOpt = Schema.decodeUnknownOption(SessionV2.SessionSchema.ID)(sessionID)
         if (Option.isNone(idOpt)) {
@@ -41,16 +47,18 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
             }),
           )
         }
-        const info = yield* session.get(idOpt.value).pipe(
-          Effect.catchTag("Session.NotFoundError", (error) =>
-            Effect.fail(
-              new SessionNotFoundError({
-                sessionID: error.sessionID,
-                message: `Session not found: ${error.sessionID}`,
-              }),
+        const info =
+          recorded ??
+          (yield* session.get(idOpt.value).pipe(
+            Effect.catchTag("Session.NotFoundError", (error) =>
+              Effect.fail(
+                new SessionNotFoundError({
+                  sessionID: error.sessionID,
+                  message: `Session not found: ${error.sessionID}`,
+                }),
+              ),
             ),
-          ),
-        )
+          ))
         if (!ProductModePolicy.isSessionSupported(info, capabilitiesHeader)) {
           // S7: capability missing is a typed unsupported-mode error, not 404.
           // 404 is reserved for sessions that do not exist. A client without
@@ -142,7 +150,18 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.create",
         Effect.fn(function* (ctx) {
-          yield* ProductModePolicy.assertCreationSupported(ctx.payload.mode)
+          const request = yield* HttpServerRequest.HttpServerRequest
+          const capabilities = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
+          // Identity lookup must not adopt legacy history as canonical reads do.
+          const recorded = ctx.payload.id ? yield* store.get(ctx.payload.id) : undefined
+          const source = recorded ?? (ctx.payload.parentID ? yield* store.get(ctx.payload.parentID) : undefined)
+          // Existing identity wins over create arguments. Otherwise a child
+          // inherits its parent's mode, which must be checked before any write.
+          if (source)
+            yield* requireSessionAndCapability(source.id, capabilities, source).pipe(
+              Effect.catchTag("SessionNotFoundError", (error) => new InvalidRequestError({ message: error.message })),
+            )
+          if (!recorded) yield* ProductModePolicy.assertCreationSupported(ctx.payload.mode)
           return {
             data: yield* session
               .create({
@@ -815,7 +834,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         )
       })
   }),
-)
+).pipe(Layer.provide(SessionStore.defaultLayer))
 
 function workReviewError(error: WorkReviewService.ReviewError, sessionID: SessionV2.ID) {
   // Public errors must never include storage paths, file contents, or raw causes.

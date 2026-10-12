@@ -431,7 +431,7 @@ export const layer = Layer.effect(
         const sessionID = input.id ?? SessionSchema.ID.create()
         const recorded = yield* store.get(sessionID)
         if (recorded) {
-          yield* ProductModePolicy.assertCreationSupported(recorded.mode)
+          yield* ProductModePolicy.assertRuntimeSupported(recorded.mode)
           return recorded
         }
         const parent = input.parentID ? yield* store.get(input.parentID) : undefined

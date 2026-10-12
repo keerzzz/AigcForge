@@ -21,6 +21,8 @@ ADR-17 (Accepted for M0/M1 implementation) and the Custom PRD add one fixed `cus
 - Context Epoch remains the single source of truth for exact model-visible System Context, while Composition Snapshot preserves frozen asset references, versions, and allowlists;
 - Custom sessions are governed by a single V2-native runtime policy owner (no V1 fallback or scattered flag checks);
 - child Sessions and forks inherit the parent/source Custom Mode and the applicable Snapshot facts;
+- reusing a Custom Session ID adopts its existing identity under the runtime kill switch; it does not create a new Custom root or replace its frozen Snapshot;
+- generic HTTP creation checks the persisted adopted or parent identity against the client capability before any create write, even when the payload omits Mode; identity lookup does not import legacy history;
 - `task` tool execution and child Session creation enforce a dual-gate check against the Snapshot's authorized Agent allowlist;
 - profile or asset changes never rewrite a running Session; adopting new revisions requires a fork or new Session;
 - client capability negotiation via `x-aigcfroge-capabilities: product-mode-custom-v1`; unsupported old clients fail explicitly for `custom` with a typed error and never apply the historical Coding fallback;

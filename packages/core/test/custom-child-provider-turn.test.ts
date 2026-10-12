@@ -4,6 +4,7 @@ import { route } from "@aigcfroge/llm/protocols/openai-chat"
 import { Cause, Effect, Exit, Layer, Schema, Stream } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { AppProcess } from "@aigcfroge/core/process"
 import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
 import { Composition } from "@aigcfroge/schema/composition"
@@ -44,7 +45,7 @@ import { Tool } from "@aigcfroge/core/tool/tool"
 import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
 import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { testEffect } from "./lib/effect"
-import { withCustomModeEnabled } from "./lib/product-mode"
+import { withCustomMode, withCustomModeEnabled } from "./lib/product-mode"
 import { eq } from "drizzle-orm"
 
 // Phase A probe for the unregistered contradiction between per-turn
@@ -449,6 +450,14 @@ describe("Custom Mode non-meta child provider turn (Phase A probe)", () => {
       expect(child.mode).toBe("custom")
       expect(child.agent).toBe(AgentV2.ID.make(CHILD_AGENT))
       expect(child.parentID).toBe(parentID)
+      expect(yield* sessions.create({ id: child.id, location: child.location })).toEqual(child)
+      expect(
+        yield* withCustomMode(undefined, sessions.create({ id: child.id, location: child.location })).pipe(Effect.flip),
+      ).toMatchObject({
+        _tag: "UnsupportedProductModeError",
+        mode: "custom",
+        message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+      })
     }),
   )
 
