@@ -278,9 +278,16 @@ function makeFromTransport<Body, Prepared, Frame, Event, State>(
             protocol.stream.terminal ? Stream.takeUntil(protocol.stream.terminal) : (stream) => stream,
           )
         return events.pipe(
+          Stream.map(Option.some),
+          // The completion marker is unreachable on transport or decode failure.
+          // Preserve onHalt's existing flush before the original error propagates.
+          Stream.concat(Stream.succeed(Option.none<Event>())),
           Stream.mapAccumEffect(
             () => protocol.stream.initial(request),
-            protocol.stream.step,
+            (state, event) =>
+              Option.isSome(event)
+                ? protocol.stream.step(state, event.value)
+                : Effect.succeed([state, protocol.stream.onEnd?.(state) ?? []] as const),
             protocol.stream.onHalt ? { onHalt: protocol.stream.onHalt } : undefined,
           ),
           Stream.catchCause((cause) => Stream.fail(streamError(route, `Failed to read ${route} stream`, cause))),

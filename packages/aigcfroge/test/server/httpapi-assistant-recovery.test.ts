@@ -257,133 +257,137 @@ it.live("Assistant HTTP retry and explicit recovery preserve a completed reminde
   ),
 )
 
-it.live("Assistant HTTP preserves visible partial output after a provider stream failure and explicit recovery", () =>
-  provideTmpdirServer(
-    ({ dir, llm }) =>
-      Effect.gen(function* () {
-        expect(AIGCFROGE_V2_RUNTIME).toBe(false)
-        const sessions = yield* SessionV2.Service
-        const execution = yield* SessionExecution.Service
-        const created = yield* request(dir, "/session", {
-          method: "POST",
-          body: JSON.stringify({ mode: "assistant", title: "Assistant partial output recovery" }),
-        })
-        expect(created.status).toBe(200)
-        const session = yield* Schema.decodeUnknownEffect(CreatedSession)(yield* Effect.promise(() => created.json()))
-        yield* Effect.addFinalizer(() =>
-          execution.interrupt(session.id).pipe(Effect.andThen(sessions.remove(session.id)), Effect.orDie),
-        )
-        const partial = "This partial Assistant answer arrived before the connection failed."
-        const gate = Promise.withResolvers<void>()
-        yield* Effect.addFinalizer(() => Effect.sync(() => gate.resolve()))
-        const stream = reply().text(partial).reset().item()
-        if (stream.type !== "sse") throw new Error("Expected the provider's SSE fixture")
-        const events = yield* request(dir, "/event")
-        expect(events.status).toBe(200)
-        if (!events.body) throw new Error("The production event stream has no body")
-        const reader = events.body.getReader()
-        yield* Effect.addFinalizer(() => Effect.promise(() => reader.cancel()))
-        // Deltas are live-only. Confirm delivery through the actual product SSE
-        // stream before breaking the provider; canonical reads test settlement below.
-        yield* llm.push({ ...stream, head: [...stream.head, ...stream.tail], tail: [], wait: gate.promise })
-        yield* llm.text("Recovered after the partial answer without repeating the prompt.")
-        const input = {
-          messageID: SessionMessage.ID.create(),
-          agent: ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR,
-          model: { providerID: LegacyHistory.providerID, modelID: LegacyHistory.modelID },
-          parts: [{ type: "text", text: "Give a synthetic answer that exercises partial output recovery." }],
-        }
-        const admitted = yield* request(dir, `/session/${session.id}/prompt_async`, {
-          method: "POST",
-          body: JSON.stringify(input),
-        })
-        expect(admitted.status).toBe(204)
-        yield* awaitWithTimeout(llm.wait(1), "Assistant did not reach the streaming provider", "20 seconds")
-        const visible = yield* awaitWithTimeout(
-          Effect.promise(() => readPartialDelta(reader, session.id, partial)),
-          "Partial Assistant output was not delivered through the product event stream",
-          "20 seconds",
-        )
-        expect(yield* execution.isActive(session.id)).toBe(true)
-        yield* Effect.sync(() => gate.resolve())
-        const failedMessages = yield* pollWithTimeout(
-          Effect.gen(function* () {
-            if (yield* execution.isActive(session.id)) return undefined
-            return yield* messages(dir, session.id)
-          }),
-          "The interrupted Assistant stream did not become idle",
-          "20 seconds",
-        )
-        const failed = failedMessages.at(-1)
-        if (failed?.type !== "assistant") throw new Error("Expected the failed Assistant message")
-        expect({ finish: failed.finish, error: failed.error?.type, calls: yield* llm.calls }).toEqual({
-          finish: "error",
-          error: "unknown",
-          calls: 1,
-        })
-        expect(failed.id).toBe(visible.assistantMessageID)
-        expect(failed.content).toHaveLength(1)
-        expect(failed.content[0]).toMatchObject({ type: "text", text: partial, id: visible.textID })
-        expect(failed.time.completed).toBeDefined()
-        expect(failed.error).toBeDefined()
-        expect(failedMessages.filter((message) => message.type === "user").map((message) => message.id)).toEqual([
-          input.messageID,
-        ])
-        const beforeRetry = yield* LegacyHistory.persistedState(session.id)
-        expect(beforeRetry.inputs).toHaveLength(1)
-        expect(beforeRetry.inputs[0]?.promoted_seq).not.toBeNull()
-        expect(beforeRetry.events.filter((event) => event.type === "session.next.step.started.1")).toHaveLength(1)
-        expect(beforeRetry.events.filter((event) => event.type === "session.next.step.failed.2")).toHaveLength(1)
-        expect(beforeRetry.events.filter((event) => event.type === "session.next.step.ended.2")).toHaveLength(0)
-        expect(yield* llm.calls).toBe(1)
+for (const ending of ["connection reset", "missing finish reason"] as const) {
+  it.live(`Assistant HTTP preserves visible partial output after ${ending} and explicit recovery`, () =>
+    provideTmpdirServer(
+      ({ dir, llm }) =>
+        Effect.gen(function* () {
+          expect(AIGCFROGE_V2_RUNTIME).toBe(false)
+          const sessions = yield* SessionV2.Service
+          const execution = yield* SessionExecution.Service
+          const created = yield* request(dir, "/session", {
+            method: "POST",
+            body: JSON.stringify({ mode: "assistant", title: "Assistant partial output recovery" }),
+          })
+          expect(created.status).toBe(200)
+          const session = yield* Schema.decodeUnknownEffect(CreatedSession)(yield* Effect.promise(() => created.json()))
+          yield* Effect.addFinalizer(() =>
+            execution.interrupt(session.id).pipe(Effect.andThen(sessions.remove(session.id)), Effect.orDie),
+          )
+          const partial = "This partial Assistant answer arrived before the connection failed."
+          const gate = Promise.withResolvers<void>()
+          yield* Effect.addFinalizer(() => Effect.sync(() => gate.resolve()))
+          const stream =
+            ending === "connection reset" ? reply().text(partial).reset().item() : reply().text(partial).item()
+          if (stream.type !== "sse") throw new Error("Expected the provider's SSE fixture")
+          const events = yield* request(dir, "/event")
+          expect(events.status).toBe(200)
+          if (!events.body) throw new Error("The production event stream has no body")
+          const reader = events.body.getReader()
+          yield* Effect.addFinalizer(() => Effect.promise(() => reader.cancel()))
+          // Deltas are live-only. Confirm delivery through the actual product SSE
+          // stream before breaking the provider; canonical reads test settlement below.
+          yield* llm.push({ ...stream, head: [...stream.head, ...stream.tail], tail: [], wait: gate.promise })
+          yield* llm.text("Recovered after the partial answer without repeating the prompt.")
+          const input = {
+            messageID: SessionMessage.ID.create(),
+            agent: ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR,
+            model: { providerID: LegacyHistory.providerID, modelID: LegacyHistory.modelID },
+            parts: [{ type: "text", text: "Give a synthetic answer that exercises partial output recovery." }],
+          }
+          const admitted = yield* request(dir, `/session/${session.id}/prompt_async`, {
+            method: "POST",
+            body: JSON.stringify(input),
+          })
+          expect(admitted.status).toBe(204)
+          yield* awaitWithTimeout(llm.wait(1), "Assistant did not reach the streaming provider", "20 seconds")
+          const visible = yield* awaitWithTimeout(
+            Effect.promise(() => readPartialDelta(reader, session.id, partial)),
+            "Partial Assistant output was not delivered through the product event stream",
+            "20 seconds",
+          )
+          expect(yield* execution.isActive(session.id)).toBe(true)
+          yield* Effect.sync(() => gate.resolve())
+          const failedMessages = yield* pollWithTimeout(
+            Effect.gen(function* () {
+              if (yield* execution.isActive(session.id)) return undefined
+              return yield* messages(dir, session.id)
+            }),
+            "The interrupted Assistant stream did not become idle",
+            "20 seconds",
+          )
+          const failed = failedMessages.at(-1)
+          if (failed?.type !== "assistant") throw new Error("Expected the failed Assistant message")
+          expect({ finish: failed.finish, error: failed.error?.type, calls: yield* llm.calls }).toEqual({
+            finish: "error",
+            error: "unknown",
+            calls: 1,
+          })
+          if (ending === "missing finish reason") expect(failed.error?.message).toContain("finish_reason")
+          expect(failed.id).toBe(visible.assistantMessageID)
+          expect(failed.content).toHaveLength(1)
+          expect(failed.content[0]).toMatchObject({ type: "text", text: partial, id: visible.textID })
+          expect(failed.time.completed).toBeDefined()
+          expect(failed.error).toBeDefined()
+          expect(failedMessages.filter((message) => message.type === "user").map((message) => message.id)).toEqual([
+            input.messageID,
+          ])
+          const beforeRetry = yield* LegacyHistory.persistedState(session.id)
+          expect(beforeRetry.inputs).toHaveLength(1)
+          expect(beforeRetry.inputs[0]?.promoted_seq).not.toBeNull()
+          expect(beforeRetry.events.filter((event) => event.type === "session.next.step.started.1")).toHaveLength(1)
+          expect(beforeRetry.events.filter((event) => event.type === "session.next.step.failed.2")).toHaveLength(1)
+          expect(beforeRetry.events.filter((event) => event.type === "session.next.step.ended.2")).toHaveLength(0)
+          expect(yield* llm.calls).toBe(1)
 
-        const retried = yield* request(dir, `/session/${session.id}/prompt_async`, {
-          method: "POST",
-          body: JSON.stringify(input),
-        })
-        expect(retried.status).toBe(204)
-        yield* pollWithTimeout(
-          execution.isActive(session.id).pipe(Effect.map((active) => (active ? undefined : true))),
-          "The exact partial-output retry did not become idle",
-        )
-        expect(yield* llm.calls).toBe(1)
-        expect(yield* messages(dir, session.id)).toEqual(failedMessages)
-        expect(yield* LegacyHistory.persistedState(session.id)).toEqual(beforeRetry)
+          const retried = yield* request(dir, `/session/${session.id}/prompt_async`, {
+            method: "POST",
+            body: JSON.stringify(input),
+          })
+          expect(retried.status).toBe(204)
+          yield* pollWithTimeout(
+            execution.isActive(session.id).pipe(Effect.map((active) => (active ? undefined : true))),
+            "The exact partial-output retry did not become idle",
+          )
+          expect(yield* llm.calls).toBe(1)
+          expect(yield* messages(dir, session.id)).toEqual(failedMessages)
+          expect(yield* LegacyHistory.persistedState(session.id)).toEqual(beforeRetry)
 
-        yield* awaitWithTimeout(
-          sessions.resume(session.id),
-          "Explicit partial-output recovery did not finish",
-          "20 seconds",
-        )
-        expect(yield* execution.isActive(session.id)).toBe(false)
-        expect(yield* llm.calls).toBe(2)
-        expect(yield* llm.pending).toBe(0)
-        const recovered = yield* messages(dir, session.id)
-        expect(recovered.slice(0, -1)).toEqual([...failedMessages])
-        expect(recovered.at(-1)).toMatchObject({
-          type: "assistant",
-          finish: "stop",
-          content: [{ type: "text", text: "Recovered after the partial answer without repeating the prompt." }],
-        })
-        const after = yield* LegacyHistory.persistedState(session.id)
-        expect(after.inputs).toEqual(beforeRetry.inputs)
-        expect(after.events.filter((event) => event.type === "session.next.step.started.1")).toHaveLength(2)
-        expect(after.events.filter((event) => event.type === "session.next.step.ended.2")).toHaveLength(1)
-        expect(after.events.filter((event) => event.type === "session.next.step.failed.2")).toEqual(
-          beforeRetry.events.filter((event) => event.type === "session.next.step.failed.2"),
-        )
-        expect(after.events.filter((event) => event.type.startsWith("session.next.tool."))).toEqual([])
-        const hits = yield* llm.hits
-        expect(hits.map((hit) => hit.url.pathname)).toEqual(Array(2).fill("/v1/chat/completions"))
-        expect(LegacyHistory.decodeMessages(hits[1]?.body.messages)).toEqual([
-          { role: "user", content: input.parts[0]?.text },
-          { role: "assistant", content: partial },
-        ])
-        expect(yield* messages(dir, session.id)).toEqual(recovered)
-      }),
-    { config: LegacyHistory.providerConfig },
-  ),
-)
+          yield* awaitWithTimeout(
+            sessions.resume(session.id),
+            "Explicit partial-output recovery did not finish",
+            "20 seconds",
+          )
+          expect(yield* execution.isActive(session.id)).toBe(false)
+          expect(yield* llm.calls).toBe(2)
+          expect(yield* llm.pending).toBe(0)
+          const recovered = yield* messages(dir, session.id)
+          expect(recovered.slice(0, -1)).toEqual([...failedMessages])
+          expect(recovered.at(-1)).toMatchObject({
+            type: "assistant",
+            finish: "stop",
+            content: [{ type: "text", text: "Recovered after the partial answer without repeating the prompt." }],
+          })
+          const after = yield* LegacyHistory.persistedState(session.id)
+          expect(after.inputs).toEqual(beforeRetry.inputs)
+          expect(after.events.filter((event) => event.type === "session.next.step.started.1")).toHaveLength(2)
+          expect(after.events.filter((event) => event.type === "session.next.step.ended.2")).toHaveLength(1)
+          expect(after.events.filter((event) => event.type === "session.next.step.failed.2")).toEqual(
+            beforeRetry.events.filter((event) => event.type === "session.next.step.failed.2"),
+          )
+          expect(after.events.filter((event) => event.type.startsWith("session.next.tool."))).toEqual([])
+          const hits = yield* llm.hits
+          expect(hits.map((hit) => hit.url.pathname)).toEqual(Array(2).fill("/v1/chat/completions"))
+          expect(LegacyHistory.decodeMessages(hits[1]?.body.messages)).toEqual([
+            { role: "user", content: input.parts[0]?.text },
+            { role: "assistant", content: partial },
+          ])
+          expect(yield* messages(dir, session.id)).toEqual(recovered)
+        }),
+      { config: LegacyHistory.providerConfig },
+    ),
+  )
+}
 
 function request(directory: string, path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers)

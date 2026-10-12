@@ -826,3 +826,13 @@ WorkReview新增双backend场景 `work-review-dual-e4` **1 pass / exit 0**，既
 `assistant-stream-http-reset` 为 2 pass / 109 assertions、exit 0。生产 HttpApi 与实际 Node provider HTTP 验证部分文本先经产品 SSE 到达，再重置连接；同一消息持久化为失败，精确重试不调用 provider，显式 service resume 保留历史与输入。另一个用例保留 reminder 副作用后的失败恢复证据。没有公开 HTTP resume endpoint，因此不称为浏览器恢复。
 
 保留的非绿证据：`assistant-stream-http-green` 为 1 pass / 1 fail。测试服务的 Stream.fail 实际在已发送响应头后正常 end，没有发生 wire reset；这同时发现 OpenAI Chat 提前 EOF 且无 finish_reason 时未收束终态。该独立缺口仍由 `assistant-reminder-provider-lifeline` 的 S9B owner 管理，解锁需明确失败契约并验证部分输出保留、未完成工具不执行、恢复不重放。其余完整 S08/S09、跨 backend、性能、packaged 平台及外部环境事项继续保留原 owner/unlock。
+
+### 15.19 2026-10-12 S08 / 提前 EOF 收束
+
+上一节登记的 OpenAI Chat 提前 EOF 子项已补实现和直接证据。`packages/llm/src/route/client.ts:284` 仅在成功输入耗尽时追加完成标记并调用可选 `ProtocolStream.onEnd`；原 `onHalt` 仍在失败路径执行，原始传输/解析错误不会被 EOF 诊断覆盖。`packages/llm/src/protocols/openai-chat.ts:485` 根据实际 parser 的 finishReason 与 lifecycle.stepStarted 判定不完整响应；OpenAI-compatible 复用同一 protocol。它只发出非重试 provider-error，不伪造 stop，不将未完成工具输入转为 tool-call。空 role-only 响应的既有行为保留。
+
+同目录收据：`llm-premature-eof-red` 为 34 pass / 6 fail；六处分别为 text/reasoning × EOF/[DONE]、无结束原因的工具输入以及 compatible 输出。修复后 `llm-premature-eof-full` 执行包原 test 脚本，**291 pass / 30 skip / 0 fail、651 assertions，exit 0**；30 个跳过项保留，不计外部服务商验收。测试还直接验证传输错误、坏 JSON 和消费者取消不会误发 EOF provider-error。
+
+`assistant-partial-http-complete` 为 **3 pass / 149 assertions、exit 0**，包含生产 HTTP 的 reminder 后失败、部分输出后真实连接重置、部分输出后收到 [DONE] 但缺少结束原因（无 [DONE] 的 EOF 由 LLM 层覆盖）；都验证持久化失败、精确重试不重复调用和显式恢复。该证据使用隔离 Node loopback provider，不代表真实 OAuth/外部模型服务。其它 S08/S09 缺口和完整交付定义继续沿 coverage manifest 执行。
+
+最终检查：两处测试改用 data-first `Stream.toReadableStreamEffect(stream)` 后，`eof-provider-final` 为 **40 pass / 92 assertions、exit 0**；`eof-types-fixed-{llm,core,aigcfroge,app}` 均 exit 0。保留 `eof-types-llm` 的初次推断失败，不记作通过。`eof-final-lint` 以 `e8c297c83` 为显式基线通过（12 changed files / 780 added lines），`eof-final-ledger` 为 **8 pass / 20 assertions**。只读独立审查未发现阻断项。

@@ -482,6 +482,15 @@ export const protocol = Protocol.make({
     event: Protocol.jsonEvent(OpenAIChatEvent),
     initial: () => ({ tools: ToolStream.empty<number>(), toolCallEvents: [], lifecycle: Lifecycle.initial() }),
     step,
+    onEnd: (state) => {
+      if (state.finishReason !== undefined || !state.lifecycle.stepStarted) return []
+      return [
+        LLMEvent.providerError({
+          message: "OpenAI Chat stream ended without finish_reason",
+          retryable: false,
+        }),
+      ]
+    },
     onHalt: finishEvents,
   },
 })

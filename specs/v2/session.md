@@ -187,6 +187,8 @@ Provider timeout, retry, and watchdog policy is intentionally deferred. The runn
 
 A provider error after partial output follows the same terminal failure path as an error before output: flush partial fragments, persist the failed assistant step, and settle already-started tools without automatically repeating the provider turn. An absent error classification does not imply that retry is safe. Explicit resume reloads durable history, including partial text and completed tool results; exact prompt retry does not repeat a promoted input. Newly admitted steer or queue inputs retain their existing delivery semantics.
 
+For OpenAI Chat and compatible routes, successful transport EOF without `finish_reason` after content has started is an incomplete provider response, including when `[DONE]` was received. The protocol emits a non-retryable provider error rather than fabricating successful completion or executing accumulated tool inputs. Completion validation runs only after successful input exhaustion; transport failures, decode failures and consumer cancellation keep their original semantics.
+
 Inbox delivery is explicit:
 
 - `steer` inputs promote at the next safe provider-turn boundary, including continuation inside the current drain.
