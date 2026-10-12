@@ -52,7 +52,7 @@ export function create(runDir: string, parent: NodeJS.ProcessEnv): Record<string
 }
 
 export function backend(
-  input: { runDir: string; entrypoint: string; port: number; v2Runtime: boolean },
+  input: { runDir: string; entrypoint: string; port: number; v2Runtime: boolean; customMode?: boolean },
   parent: NodeJS.ProcessEnv,
 ): { args: string[]; cwd: string; env: Record<string, string> } {
   if (!path.isAbsolute(input.entrypoint)) throw new Error("E4 backend entrypoint must be absolute")
@@ -79,6 +79,7 @@ export function backend(
       AIGCFROGE_DISABLE_AUTOUPDATE: "true",
       AIGCFROGE_DISABLE_MODELS_FETCH: "true",
       ...(input.v2Runtime ? { AIGCFROGE_V2_RUNTIME: "true" } : {}),
+      ...(input.customMode ? { AIGCFROGE_CUSTOM_MODE: "true" } : {}),
     },
   }
 }

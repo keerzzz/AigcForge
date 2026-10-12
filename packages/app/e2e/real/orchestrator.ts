@@ -26,6 +26,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node
 import path from "node:path"
 import { isRecord } from "./manifest"
 import { Environment } from "./environment"
+import { customRuntimeAgent } from "./fixture"
 
 // This file lives at packages/app/e2e/real/ — four levels below the repo root.
 const REPO_ROOT = path.resolve(import.meta.dir, "../../../..")
@@ -35,6 +36,7 @@ const BACKEND_ROOT = path.join(REPO_ROOT, "packages/aigcfroge")
 // Explicit V2-variant switch (default OFF). Only this switch injects the flag,
 // and only into the backend; the default Assistant path uses canonical admission.
 const v2Runtime = process.env.E4_V2_RUNTIME === "1"
+const customMode = process.env.E4_CUSTOM_MODE === "1"
 const providerPort = Number(process.env.E4_PROVIDER_PORT)
 const backendPort = Number(process.env.E4_BACKEND_PORT)
 const previewPort = Number(process.env.E4_PREVIEW_PORT)
@@ -68,7 +70,7 @@ for (const dir of [configDir, workspaceDir]) mkdirSync(dir, { recursive: true, m
 
 // Startup and restart share the same absolute entrypoint, workspace cwd and isolated env.
 const backend = Environment.backend(
-  { runDir, entrypoint: path.join(BACKEND_ROOT, "src/index.ts"), port: backendPort, v2Runtime },
+  { runDir, entrypoint: path.join(BACKEND_ROOT, "src/index.ts"), port: backendPort, v2Runtime, customMode },
   process.env,
 )
 
@@ -106,6 +108,7 @@ type ProviderRequest = {
 }
 
 const providerRequests: ProviderRequest[] = []
+let backendRestarting = false
 
 /**
  * Armed provider scenarios for the failure/recovery and tool-loop cases. The four failure modes
@@ -258,20 +261,23 @@ async function handleProvider(request: IncomingMessage, response: ServerResponse
   // trips the client's header timeout long before the backend is healthy. The
   // test polls /e4/backend-health for the real readiness signal instead.
   if (request.method === "POST" && record.path.startsWith("/e4/restart-backend")) {
+    if (backendRestarting) {
+      response.writeHead(409)
+      response.end("Backend restart already in progress")
+      return
+    }
+    backendRestarting = true
     void (async () => {
       try {
         const previous = backendChild
-        if (previous && previous.exitCode === null && previous.signalCode === null) {
-          const stopped = new Promise<void>((resolve) => previous.once("exit", () => resolve()))
-          previous.kill("SIGTERM")
-          await Promise.race([stopped, new Promise((resolve) => setTimeout(resolve, 5_000))])
-          if (previous.exitCode === null && previous.signalCode === null) previous.kill("SIGKILL")
-        }
+        if (previous) await stopChild(previous)
         backendChild = spawnChild("backend", process.execPath, backend.args, backend.cwd, backend.env)
         const health = await waitForHealthy(backendUrl, 300_000)
         log(`[E4] backend restarted and healthy (version ${health.version})\n`)
       } catch (error) {
         log(`[E4] backend restart failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      } finally {
+        backendRestarting = false
       }
     })()
     response.writeHead(202, { "content-type": "application/json" })
@@ -283,18 +289,19 @@ async function handleProvider(request: IncomingMessage, response: ServerResponse
   if (request.method === "GET" && record.path.startsWith("/e4/backend-health")) {
     void (async () => {
       try {
-        const probe = await fetch(`${backendUrl}/global/health`)
+        const probe = await fetchWithin(`${backendUrl}/global/health`, 5_000)
         const body: unknown = probe.ok ? await probe.json() : undefined
         response.writeHead(200, { "content-type": "application/json" })
         response.end(
           JSON.stringify({
             healthy: probe.ok,
+            restarting: backendRestarting,
             version: isRecordLocal(body) && typeof body.version === "string" ? body.version : undefined,
           }),
         )
       } catch {
         response.writeHead(200, { "content-type": "application/json" })
-        response.end(JSON.stringify({ healthy: false }))
+        response.end(JSON.stringify({ healthy: false, restarting: backendRestarting }))
       }
     })()
     return
@@ -652,6 +659,13 @@ async function main() {
   )
 
   // 2. git-init the temp workspace so the backend sees a real project directory.
+  // AgentAsset snapshots its owner directory when the Location layer starts.
+  // Seed before backend startup so the test does not depend on watcher timing.
+  if (customMode) {
+    const agents = path.join(workspaceDir, ".aigcfroge", "agents")
+    mkdirSync(agents, { recursive: true, mode: 0o700 })
+    writeFileSync(path.join(agents, customRuntimeAgent.fileName), customRuntimeAgent.source)
+  }
   const git = spawnSync("git", ["init", "-q", workspaceDir], {
     cwd: workspaceDir,
     env: Environment.create(runDir, process.env),
@@ -718,6 +732,7 @@ async function main() {
         dbPath,
         workspaceDir,
         v2Runtime,
+        customMode,
         pid: process.pid,
         pgid: currentPgid(),
         ...(peer === undefined ? {} : { peer }),

@@ -91,6 +91,14 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     home: "C:/Aigcfroge",
   }
   const staticRoutes: Record<string, unknown> = {
+    "/experimental/capabilities": {
+      backgroundSubagents: false,
+      chatAsset: false,
+      customMode: false,
+      productModes: ["chat", "coding", "work", "assistant", "custom"],
+      customCompositionVersion: 1,
+      canonicalSessionModes: ["assistant", "custom"],
+    },
     "/provider": config.provider,
     "/path": pathProjection,
     "/project": config.projects ?? [config.project],

@@ -6,6 +6,12 @@
  */
 import { readManifest, type E4Manifest } from "./manifest"
 
+export const customRuntimeAgent = {
+  fileName: "e4-runtime.md",
+  source:
+    "---\nkind: agent\nname: e4-runtime\ndescription: Isolated runtime acceptance\n---\nAnswer the synthetic test question.\n",
+}
+
 export function e4(): E4Manifest {
   return readManifest(process.env.E4_RUN_DIR ?? "")
 }

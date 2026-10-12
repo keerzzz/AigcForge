@@ -637,6 +637,7 @@ export const dict = {
     "Root element not found. Did you forget to add it to your index.html? Or maybe the id attribute got misspelled?",
 
   "error.serverSync.connectFailed": "Could not connect to server. Is there a server running at `{{url}}`?",
+  "error.serverSync.sessionHistoryUnsupported": "Update Aigcfroge Server to load this conversation.",
   "error.serverSDK.noServerAvailable": "No server available",
   "error.serverSDK.serverNotAvailable": "Server not available",
   "error.childStore.persistedCacheCreateFailed": "Failed to create persisted cache",

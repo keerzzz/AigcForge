@@ -529,6 +529,7 @@ export const dict = {
   "error.page.version": "版本：{{version}}",
   "error.dev.rootNotFound": "未找到根元素。你是不是忘了把它添加到 index.html？或者 id 属性拼写错了？",
   "error.serverSync.connectFailed": "无法连接到服务器。是否有服务器正在 `{{url}}` 运行？",
+  "error.serverSync.sessionHistoryUnsupported": "请更新 Aigcfroge 服务端后加载此会话。",
 
   "directory.error.invalidUrl": "URL 中的目录无效。",
 

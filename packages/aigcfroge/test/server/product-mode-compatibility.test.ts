@@ -9,6 +9,7 @@ import { testEffect } from "../lib/effect"
 import { httpApiLayer, requestInDirectory } from "./httpapi-layer"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
 import { TestInstance } from "../fixture/fixture"
+import { AIGCFROGE_V2_RUNTIME } from "@/effect/app-runtime"
 
 const it = testEffect(Layer.mergeAll(Session.defaultLayer, Database.defaultLayer, httpApiLayer))
 
@@ -52,6 +53,9 @@ describe("ProductMode Capability & Compatibility", () => {
         const body = yield* responseJson(response)
         if (!isRecord(body)) throw new Error("Expected object response")
         expect(body.customMode).toBe(false)
+        expect(body.canonicalSessionModes).toEqual(
+          AIGCFROGE_V2_RUNTIME ? ["chat", "coding", "work", "assistant", "custom"] : ["assistant", "custom"],
+        )
         expect(body.customCompositionVersion).toBe(1)
         expect(Array.isArray(body.productModes)).toBe(true)
         const modes = Array.isArray(body.productModes) ? body.productModes : []
@@ -71,6 +75,9 @@ describe("ProductMode Capability & Compatibility", () => {
         const body = yield* responseJson(response)
         if (!isRecord(body)) throw new Error("Expected object response")
         expect(body.customMode).toBe(true)
+        expect(body.canonicalSessionModes).toEqual(
+          AIGCFROGE_V2_RUNTIME ? ["chat", "coding", "work", "assistant", "custom"] : ["assistant", "custom"],
+        )
       }),
     ),
   )

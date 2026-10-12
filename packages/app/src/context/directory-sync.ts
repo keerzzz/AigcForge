@@ -10,6 +10,7 @@ import {
   setSessionPrefetch,
 } from "./global-sync/session-prefetch"
 import type { Message, Part, SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { SESSION_CACHE_LIMIT, dropSessionCaches, pickSessionCacheEvictions } from "./global-sync/session-cache"
 import { diffs as list, message as clean } from "@/utils/diffs"
 import { type createServerSdkContext } from "./server-sdk"
@@ -443,7 +444,8 @@ export const createDirSyncContext = (
     const info =
       current()[0].session.find((item) => item.id === input.sessionID) ??
       (await input.client.session.get({ sessionID: input.sessionID })).data
-    if (info?.mode === "assistant" || info?.mode === "custom")
+    const capabilities = await serverSync.capabilities()
+    if (info && capabilities.canonicalSessionModes.includes(info.mode ?? ProductMode.Default))
       return CanonicalMessages.page(input.client, info, input.limit, input.before, input.through)
     const messages = await retry(() =>
       input.client.session.messages({ sessionID: input.sessionID, limit: input.limit, before: input.before }),

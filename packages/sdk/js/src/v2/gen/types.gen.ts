@@ -2831,6 +2831,7 @@ export type ExperimentalCapabilities = {
   customMode?: boolean
   productModes?: Array<string>
   customCompositionVersion?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  canonicalSessionModes: Array<ProductMode>
 }
 
 export type ConsoleState = {

@@ -41,6 +41,7 @@ export interface E4Manifest extends E4Backend {
   previewPort: number
   previewUrl: string
   v2Runtime: boolean
+  customMode: boolean
   pid: number
   pgid?: number
   peer?: E4Backend
@@ -78,6 +79,7 @@ export function readManifest(runDir: string): E4Manifest {
     previewPort: numberField(raw, "previewPort", source),
     previewUrl: stringField(raw, "previewUrl", source),
     v2Runtime: raw.v2Runtime === true,
+    customMode: raw.customMode === true,
     pid: numberField(raw, "pid", source),
     pgid,
   }

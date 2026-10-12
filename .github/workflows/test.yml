@@ -96,11 +96,10 @@ jobs:
     # The real-backend harness builds the production app and boots a real backend,
     # a real PTY and a real SQLite DB. It is deliberately NOT part of the PR gate:
     # the E3 job already covers the browser surface there, and this job's value is
-    # the production chain plus the V2 variant, which only runs here.
+    # the production chain plus the independent V2 and Custom variants.
     #
-    # Both variants run: the default runtime is the product chain, and the flag-on
-    # variant is the only place `v2-admission-gap.spec.ts` executes — its green
-    # state means the V2 gap is still present (see the spec header).
+    # Default and V2 run the full suite. Custom runs its positive runtime case
+    # with the global V2 switch off, so Custom's own routing is exercised.
     if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
@@ -176,6 +175,15 @@ jobs:
           E4_V2_RUNTIME: "1"
           E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/v2
         run: bun --cwd packages/app test:e2e --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
+        timeout-minutes: 45
+
+      - name: Run E4 — Custom variant
+        env:
+          CI: true
+          E4_V2_RUNTIME: "0"
+          E4_CUSTOM_MODE: "1"
+          E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/custom
+        run: bun --cwd packages/app test:e2e e2e/real/canonical-runtime.spec.ts --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
         timeout-minutes: 45
 
       - name: Upload E4 evidence

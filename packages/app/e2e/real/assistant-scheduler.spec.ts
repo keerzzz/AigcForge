@@ -11,6 +11,8 @@ import { isRecord, type E4Manifest } from "./manifest"
 import { pinEnglishUI } from "../utils/locale"
 import { sessionTitle } from "../../src/utils/session-title"
 
+test.skip(() => e4().v2Runtime, "This acceptance verifies Assistant execution with the global V2 opt-in disabled")
+
 test("Assistant reminder: new chat first send, daemon delivery and inbox read persist across reload", async ({
   page,
   request,

@@ -1,10 +1,10 @@
 /**
  * S07 R05/R06: a real provider turn becomes a file through the production Work UI,
  * then the canonical review survives browser reload and the harness-owned restart.
- * No business API interception, transcript seed, metadata write, or frontend hash.
+ * No fabricated API response, transcript seed, metadata write, or frontend hash.
  * Hashes below are independent evidence only; commands use the GET-provided binding.
  *
- * Default-runtime coverage only. The separate V2 defect pin is not a Custom pass.
+ * Default-runtime coverage only; canonical-runtime.spec.ts owns V2/Custom execution.
  * Keep this file serial: the provider and restart endpoint belong to the whole run.
  */
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from "@playwright/test"
@@ -21,7 +21,7 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync }
 import path from "node:path"
 import { backup, DatabaseSync } from "node:sqlite"
 import { e4, seedRealBackend } from "./fixture"
-import { isRecord } from "./manifest"
+import { isRecord, type E4Backend } from "./manifest"
 import { pinEnglishUI } from "../utils/locale"
 import { expectSessionTitle } from "../utils/waits"
 
@@ -33,6 +33,7 @@ type Work = {
   sessionID: string
   directory: string
   title: string
+  backend: E4Backend
 }
 
 test.skip(() => e4().v2Runtime, "Default Work product chain; V2/Custom requires separate positive execution evidence")
@@ -41,6 +42,7 @@ test("AI-TDD-S07-R06/R07: provider → UI apply → six review actions add no pr
   page,
   request,
 }, testInfo) => {
+  test.skip(!!e4().peer, "The single-backend lifecycle runs in the default E4 topology")
   test.setTimeout(240_000)
   await withWork(page, request, testInfo, async (work) => {
     const produced = await produceArtifact(work, page, request, testInfo)
@@ -100,6 +102,7 @@ test("AI-TDD-S07-R05: unsubmitted artifact binding and resolved review survive r
   page,
   request,
 }, testInfo) => {
+  test.skip(!!e4().peer, "The single-backend restart runs in the default E4 topology")
   test.setTimeout(480_000)
   await withWork(page, request, testInfo, async (work) => {
     const produced = await produceArtifact(work, page, request, testInfo)
@@ -141,7 +144,7 @@ test("AI-TDD-S07-R05: unsubmitted artifact binding and resolved review survive r
           const health: unknown = probe?.ok() ? await probe.json() : undefined
           return {
             restarted: log.includes(`[E4] backend restarted and healthy (version ${e4().backendVersion})`),
-            healthy: !!probe?.ok() && isRecord(health) && health.healthy === true,
+            healthy: !!probe?.ok() && isRecord(health) && health.healthy === true && health.restarting === false,
             version: isRecord(health) ? health.version : undefined,
           }
         },
@@ -183,32 +186,217 @@ test("AI-TDD-S07-R05: unsubmitted artifact binding and resolved review survive r
   })
 })
 
+test("AI-TDD-S08: a stale review command stays on its real backend when two servers share a Session ID", async ({
+  page,
+  request,
+}, testInfo) => {
+  const peer = e4().peer
+  test.skip(!peer, "Requires E4_DUAL_BACKEND=1")
+  if (!peer) throw new Error("The dual-backend manifest is missing its peer")
+  test.setTimeout(240_000)
+  expect(peer.backendUrl).not.toBe(e4().backendUrl)
+  expect(peer.dbPath).not.toBe(e4().dbPath)
+
+  await withWork(
+    page,
+    request,
+    testInfo,
+    async (first) => {
+      const firstArtifact = await produceArtifact(first, page, request, testInfo)
+      await openReview(page)
+      await transition(first, page, firstArtifact.binding, { action: "submit", state: "open", revision: 1 })
+      await transition(first, page, firstArtifact.binding, { action: "approve", state: "resolved", revision: 2 })
+      const firstBefore = await checkpoint(first, firstArtifact.binding, testInfo, "first-before-switch")
+
+      await withWork(
+        page,
+        request,
+        testInfo,
+        async (second) => {
+          expect(second.sessionID).toBe(first.sessionID)
+          expect(second.directory).not.toBe(first.directory)
+          const secondArtifact = await produceArtifact(second, page, request, testInfo)
+          expect(secondArtifact.binding.artifactID).not.toBe(firstArtifact.binding.artifactID)
+          expect(secondArtifact.binding.artifactRevision).toBe(firstArtifact.binding.artifactRevision)
+          await openReview(page)
+          await transition(second, page, secondArtifact.binding, { action: "submit", state: "open", revision: 1 })
+          const secondBefore = await checkpoint(second, secondArtifact.binding, testInfo, "second-before-conflict")
+          if (secondBefore.review.status !== "ready") throw new Error("The second backend has no submitted review")
+          const calls = await providerCalls(request)
+          await page.locator("html").evaluate((element) => element.setAttribute("data-e4-spa", "work-review-scope"))
+
+          const protocol = await page.context().newCDPSession(page)
+          const reviewUrl = `${second.backend.backendUrl}/api/session/${second.sessionID}/work-review`
+          const paused = Promise.withResolvers<{
+            requestId: string
+            request: { url: string; method: string; postData?: string }
+          }>()
+          const onPaused = (event: {
+            requestId: string
+            request: { url: string; method: string; postData?: string }
+          }) => {
+            if (event.request.method === "POST") {
+              paused.resolve(event)
+              return
+            }
+            void protocol.send("Fetch.continueRequest", { requestId: event.requestId }).catch(paused.reject)
+          }
+          protocol.on("Fetch.requestPaused", onPaused)
+          try {
+            // Pause delivery only. The eventual status and body still come from the real server.
+            await protocol.send("Fetch.enable", { patterns: [{ urlPattern: reviewUrl, requestStage: "Request" }] })
+            await panel(page).locator('button[data-action="work-review-approve"]').click()
+            const held = await paused.promise
+            expect(held.request.url).toBe(reviewUrl)
+            expect(JSON.parse(held.request.postData ?? "{}")).toEqual({
+              action: "approve",
+              expectedReviewRevision: 1,
+              artifactID: secondArtifact.binding.artifactID,
+              expectedArtifactRevision: secondArtifact.binding.artifactRevision,
+            })
+
+            // A new artifact with identical bytes must not inherit the old artifact's review.
+            const applied = await second.client.workArtifact.apply({
+              sessionID: second.sessionID,
+              title: "work-draft.md",
+              relativePath: "work-draft.md",
+              content: providerText,
+              overwrite: true,
+            })
+            expect(applied.response.status).toBe(200)
+            if (!applied.data) throw new Error("The replacement artifact response is empty")
+            const stale = await readReview(second)
+            if (stale.status !== "ready") throw new Error("The previous review was not retained")
+            expect(stale.artifact.artifactID).toBe(applied.data.id)
+            expect(stale.artifact.artifactID).not.toBe(secondArtifact.binding.artifactID)
+            expect(stale.artifact.artifactRevision).toBe(secondArtifact.binding.artifactRevision)
+            expect(stale.current).toBe(false)
+            expect(stale.review).toEqual(secondBefore.review.review)
+
+            await switchWork(page, first)
+            await openReview(page)
+            await expectReviewFields(page, firstBefore.review)
+            await expect(panel(page).locator('[data-slot="approved"]')).toBeVisible()
+            const response = page.waitForResponse(
+              (response) => response.url() === reviewUrl && response.request().method() === "POST",
+            )
+            await protocol.send("Fetch.continueRequest", { requestId: held.requestId })
+            const rejected = await response
+            await protocol.send("Fetch.disable")
+            expect(rejected.status()).toBe(409)
+            expect(await rejected.json()).toMatchObject({ _tag: "ConflictError", resource: "work-artifact" })
+            expect(await checkpoint(first, firstArtifact.binding, testInfo, "first-after-peer-conflict")).toEqual(
+              firstBefore,
+            )
+            await expectReviewFields(page, firstBefore.review)
+            await expect(panel(page).locator('[data-slot="approved"]')).toBeVisible()
+            await expect(panel(page).locator('[data-slot="notice"]')).toHaveCount(0)
+
+            await switchWork(page, second)
+            await openReview(page)
+            const recovered = await checkpoint(second, stale.artifact, testInfo, "second-stale-readback")
+            expect(recovered.review).toEqual(stale)
+            expect(recovered.sqlite.policy).toEqual(secondBefore.sqlite.policy)
+            await expectReviewFields(page, recovered.review)
+            await expect(panel(page).locator('[data-slot="stale"]')).toBeVisible()
+            await expect(panel(page).locator('[data-slot="approved"]')).toHaveCount(0)
+            await transition(second, page, stale.artifact, { action: "re_review", state: "open", revision: 2 })
+            await transition(second, page, stale.artifact, { action: "approve", state: "resolved", revision: 3 })
+            const approved = await checkpoint(second, stale.artifact, testInfo, "second-rebound-approved")
+            await page.reload()
+            await expectSessionTitle(page, second.title)
+            await openReview(page)
+            await expectReviewFields(page, approved.review)
+            await expect(panel(page).locator('[data-slot="approved"]')).toBeVisible()
+            expect(await checkpoint(second, stale.artifact, testInfo, "second-after-reload")).toEqual(approved)
+            expect(await checkpoint(first, firstArtifact.binding, testInfo, "first-after-peer-recovery")).toEqual(
+              firstBefore,
+            )
+            expect(await providerCalls(request)).toEqual(calls)
+            await testInfo.attach("e4-cross-backend-review", {
+              body: JSON.stringify(
+                {
+                  sessionID: first.sessionID,
+                  firstBackend: first.backend.backendUrl,
+                  secondBackend: second.backend.backendUrl,
+                  rejectedStatus: rejected.status(),
+                  oldBinding: secondArtifact.binding,
+                  currentBinding: stale.artifact,
+                  providerCalls: calls,
+                },
+                null,
+                2,
+              ),
+              contentType: "application/json",
+            })
+          } finally {
+            protocol.off("Fetch.requestPaused", onPaused)
+            await protocol.send("Fetch.disable")
+            await protocol.detach()
+          }
+        },
+        { backend: peer, sessionID: first.sessionID, title: "E4 Work review second backend" },
+      )
+    },
+    { title: "E4 Work review first backend" },
+  )
+})
+
+async function switchWork(page: Page, work: Work) {
+  await page.locator('[data-slot="titlebar-tabs"]').getByRole("link").filter({ hasText: work.title }).click()
+  await expect(page).toHaveURL(
+    new RegExp(`/server/${base64Encode(work.backend.backendUrl)}/session/${work.sessionID}$`),
+  )
+  await expectSessionTitle(page, work.title)
+  await expect(page.locator("html")).toHaveAttribute("data-e4-spa", "work-review-scope")
+}
+
 /** Own one fresh Location under the harness workspace, not another test's file. */
 async function withWork(
   page: Page,
   request: APIRequestContext,
   testInfo: TestInfo,
   use: (work: Work) => Promise<void>,
+  options?: { backend?: E4Backend; sessionID?: string; title?: string },
 ) {
-  const directory = mkdtempSync(path.join(e4().workspaceDir, "e4-work-review-"))
+  const manifest = e4()
+  const backend = options?.backend ?? manifest
+  const suffix = backend.backendUrl === manifest.backendUrl ? "" : "-peer"
+  const directory = mkdtempSync(path.join(backend.workspaceDir, "e4-work-review-"))
   try {
-    const health = await request.get(`${e4().backendUrl}/global/health`)
+    const health = await request.get(`${backend.backendUrl}/global/health`)
     expect(health.status()).toBe(200)
-    expect(await health.json()).toMatchObject({ healthy: true, version: e4().backendVersion })
+    expect(await health.json()).toMatchObject({ healthy: true, version: backend.backendVersion })
     const disarmed = await request.post(`${new URL(e4().providerBaseURL).origin}/e4/provider-failures?count=0`)
     expect(disarmed.status()).toBe(200)
-    const client = createAigcfrogeClient({ baseUrl: e4().backendUrl, directory, throwOnError: true })
-    const title = `E4 Work review ${testInfo.title.includes("R05") ? "recovery" : "lifecycle"}`
-    const created = await client.session.create({
-      directory,
-      mode: "work",
-      agent: "work-orchestrator",
-      model: { providerID: "e4-real", id: "e4-deterministic" },
-      title,
-    })
-    expect(created.response.status).toBe(200)
-    if (!created.data) throw new Error("Work Session creation returned no body")
-    const work = { client, directory, title, sessionID: created.data.id }
+    const client = createAigcfrogeClient({ baseUrl: backend.backendUrl, directory, throwOnError: true })
+    const title = options?.title ?? `E4 Work review ${testInfo.title.includes("R05") ? "recovery" : "lifecycle"}`
+    const sessionID = await (async () => {
+      if (options?.sessionID) {
+        const created = await client.v2.session.create({
+          id: options.sessionID,
+          location: { directory },
+          mode: "work",
+          agent: "work-orchestrator",
+          model: { providerID: "e4-real", id: "e4-deterministic" },
+        })
+        expect(created.response.status).toBe(200)
+        expect(created.data?.data.id).toBe(options.sessionID)
+        await client.session.update({ sessionID: options.sessionID, title })
+        return options.sessionID
+      }
+      const created = await client.session.create({
+        directory,
+        mode: "work",
+        agent: "work-orchestrator",
+        model: { providerID: "e4-real", id: "e4-deterministic" },
+        title,
+      })
+      expect(created.response.status).toBe(200)
+      if (!created.data) throw new Error("Work Session creation returned no body")
+      return created.data.id
+    })()
+    const work = { client, directory, title, sessionID, backend }
     const persisted = await client.session.get({ sessionID: work.sessionID })
     expect(persisted.data).toMatchObject({
       id: work.sessionID,
@@ -219,30 +407,33 @@ async function withWork(
     })
     expect(await readReview(work)).toEqual({ status: "none" })
     await pinEnglishUI(page)
-    seedRealBackend(page, e4().backendUrl)
-    await page.goto(`/server/${base64Encode(e4().backendUrl)}/session/${work.sessionID}`)
+    seedRealBackend(page, manifest.backendUrl, manifest.peer ? [manifest.peer.backendUrl] : [])
+    await page.goto(`/server/${base64Encode(backend.backendUrl)}/session/${work.sessionID}`)
     await expectSessionTitle(page, title)
     await use(work)
   } finally {
     try {
       const file = path.join(directory, "work-draft.md")
       if (existsSync(file)) {
-        await testInfo.attach("e4-provider-artifact", { path: file, contentType: "text/markdown" })
-        await testInfo.attach("e4-provider-artifact-sha256", {
+        await testInfo.attach(`e4-provider-artifact${suffix}`, { path: file, contentType: "text/markdown" })
+        await testInfo.attach(`e4-provider-artifact-sha256${suffix}`, {
           body: createHash("sha256").update(readFileSync(file)).digest("hex"),
           contentType: "text/plain",
         })
       }
       // SQLite's backup API captures committed WAL contents; copying only e4.sqlite
       // while the backend is alive could silently omit the very review being tested.
-      const db = new DatabaseSync(e4().dbPath, { readOnly: true, timeout: 5_000 })
-      const snapshot = testInfo.outputPath("e4-work-review.sqlite")
+      const db = new DatabaseSync(backend.dbPath, { readOnly: true, timeout: 5_000 })
+      const snapshot = testInfo.outputPath(`e4-work-review${suffix}.sqlite`)
       try {
         expect(await backup(db, snapshot)).toBeGreaterThan(0)
       } finally {
         db.close()
       }
-      await testInfo.attach("e4-work-review-sqlite", { path: snapshot, contentType: "application/vnd.sqlite3" })
+      await testInfo.attach(`e4-work-review-sqlite${suffix}`, {
+        path: snapshot,
+        contentType: "application/vnd.sqlite3",
+      })
       await testInfo.attach("e4-runtime-manifest", {
         path: path.join(e4().runDir, "manifest.json"),
         contentType: "application/json",
@@ -264,6 +455,7 @@ async function produceArtifact(work: Work, page: Page, request: APIRequestContex
     page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
+        new URL(response.url()).origin === work.backend.backendUrl &&
         new URL(response.url()).pathname === `/session/${work.sessionID}/prompt_async`,
     ),
     prompt.press("Enter"),
@@ -289,7 +481,12 @@ async function produceArtifact(work: Work, page: Page, request: APIRequestContex
   expect(calls.length).toBeGreaterThan(before.length)
   await testInfo.attach("e4-provider-turn", {
     body: JSON.stringify(
-      { sessionID: work.sessionID, messageID: completed.info.id, calls: calls.slice(before.length) },
+      {
+        backendUrl: work.backend.backendUrl,
+        sessionID: work.sessionID,
+        messageID: completed.info.id,
+        calls: calls.slice(before.length),
+      },
       null,
       2,
     ),
@@ -301,6 +498,7 @@ async function produceArtifact(work: Work, page: Page, request: APIRequestContex
     page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
+        new URL(response.url()).origin === work.backend.backendUrl &&
         new URL(response.url()).pathname === `/session/${work.sessionID}/work-artifact/apply`,
     ),
     page.getByRole("button", { name: "Apply to project", exact: true }).click(),
@@ -379,6 +577,7 @@ async function refreshReview(work: Work, page: Page) {
     page.waitForResponse(
       (response) =>
         response.request().method() === "GET" &&
+        new URL(response.url()).origin === work.backend.backendUrl &&
         new URL(response.url()).pathname === `/api/session/${work.sessionID}/work-review`,
     ),
     panel(page).locator('button[data-action="work-review-refresh"]').click(),
@@ -427,6 +626,7 @@ async function transition(
     page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
+        new URL(response.url()).origin === work.backend.backendUrl &&
         new URL(response.url()).pathname === `/api/session/${work.sessionID}/work-review`,
     ),
     panel(page).locator(`button[data-action="work-review-${step.action}"]`).click(),
@@ -468,7 +668,7 @@ async function checkpoint(work: Work, binding: WorkReviewBinding, testInfo: Test
   const bytes = readFileSync(path.join(work.directory, "work-draft.md"))
   expect(bytes.toString("utf8")).toBe(providerText)
   expect(createHash("sha256").update(bytes).digest("hex")).toBe(binding.artifactRevision)
-  const db = new DatabaseSync(e4().dbPath, { readOnly: true, timeout: 5_000 })
+  const db = new DatabaseSync(work.backend.dbPath, { readOnly: true, timeout: 5_000 })
   try {
     const row = db
       .prepare("SELECT id, directory, mode, agent, permission, permission_tier, metadata FROM session WHERE id = ?")
@@ -492,11 +692,11 @@ async function checkpoint(work: Work, binding: WorkReviewBinding, testInfo: Test
       },
       revision: binding.artifactRevision,
     })
-    const file = statSync(e4().dbPath)
+    const file = statSync(work.backend.dbPath)
     const evidence = {
       review,
       sqlite: {
-        path: realpathSync(e4().dbPath),
+        path: realpathSync(work.backend.dbPath),
         device: file.dev,
         inode: file.ino,
         sessionID: row.id,
@@ -511,7 +711,8 @@ async function checkpoint(work: Work, binding: WorkReviewBinding, testInfo: Test
         sha256: binding.artifactRevision,
         bytes: bytes.length,
       },
-      backendVersion: e4().backendVersion,
+      backendVersion: work.backend.backendVersion,
+      backendUrl: work.backend.backendUrl,
     }
     await testInfo.attach(`e4-${label}`, { body: JSON.stringify(evidence, null, 2), contentType: "application/json" })
     return evidence

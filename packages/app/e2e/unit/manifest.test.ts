@@ -19,6 +19,7 @@ const primary = {
   dbPath: path.join(runDir, "e4.sqlite"),
   workspaceDir: path.join(runDir, "workspace"),
   v2Runtime: false,
+  customMode: false,
   pid: 12345,
 }
 const peer = {

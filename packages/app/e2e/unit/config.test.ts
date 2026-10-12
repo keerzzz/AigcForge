@@ -97,7 +97,11 @@ test("dual-backend E4 is opt-in, allocates a peer and only discovers the scope m
   const single = loadConfig("./e2e/real/playwright.config.ts")
   expect(single.testIgnore).toContain("**/session-decision-scope.spec.ts")
   const dual = loadConfig("dual")
-  expect(dual.testMatch).toEqual(["**/session-decision-scope.spec.ts", "**/manifest.spec.ts"])
+  expect(dual.testMatch).toEqual([
+    "**/session-decision-scope.spec.ts",
+    "**/work-review-lifeline.spec.ts",
+    "**/manifest.spec.ts",
+  ])
   if (!isRecord(dual.webServer) || !isRecord(dual.webServer.env)) throw new Error("missing dual E4 launcher")
   expect(dual.webServer.env.E4_DUAL_BACKEND).toBe("1")
   expect(dual.webServer.env.E4_PEER_BACKEND_PORT).toBe("41004")

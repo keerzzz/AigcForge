@@ -36762,9 +36762,15 @@
                 "enum": ["Infinity", "-Infinity", "NaN"]
               }
             ]
+          },
+          "canonicalSessionModes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductMode"
+            }
           }
         },
-        "required": ["backgroundSubagents", "chatAsset"],
+        "required": ["backgroundSubagents", "chatAsset", "canonicalSessionModes"],
         "additionalProperties": false
       },
       "ConsoleState": {

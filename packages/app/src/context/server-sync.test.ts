@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import type { Event, ProductMode, Session } from "@aigcfroge/sdk/v2/client"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
-import { createComponent } from "solid-js"
+import { createComponent, untrack } from "solid-js"
 import { render } from "solid-js/web"
 import type { SetStoreFunction, Store } from "solid-js/store"
 import { WorkReview } from "@aigcfroge/schema/work-review"
@@ -205,6 +205,8 @@ async function reviewReadbackOwner() {
         return Response.json(await get.promise)
       }
       if (url.pathname === "/session/ses_a/message") return Response.json([])
+      if (url.pathname === "/experimental/capabilities")
+        return Response.json({ canonicalSessionModes: ["assistant", "custom"] })
       if (url.pathname === "/global/config" || url.pathname === "/mcp") return Response.json({})
       if (url.pathname === "/path") {
         return Response.json({ state: "", config: "", worktree: "/project", directory: "/project", home: "/home" })
@@ -260,12 +262,14 @@ async function reviewReadbackOwner() {
               return createComponent(LanguageProvider, {
                 locale: "en",
                 get children() {
-                  const server = createServerSyncContextInner(sdk)
-                  const [store, setStore] = server.child("/project", { bootstrap: false })
-                  setStore("status", "complete")
-                  const directory = createDirSyncContext("/project", server, sdk)
-                  ready.resolve({ server, directory, store, setStore })
-                  return null
+                  return untrack(() => {
+                    const server = createServerSyncContextInner(sdk)
+                    const [store, setStore] = server.child("/project", { bootstrap: false })
+                    setStore("status", "complete")
+                    const directory = createDirSyncContext("/project", server, sdk)
+                    ready.resolve({ server, directory, store, setStore })
+                    return null
+                  })
                 },
               })
             },

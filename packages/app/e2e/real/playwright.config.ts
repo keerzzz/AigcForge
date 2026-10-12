@@ -33,6 +33,7 @@ const dualBackend = process.env.E4_DUAL_BACKEND === "1"
 const peerPort = dualBackend ? Number(process.env.E4_PEER_BACKEND_PORT) || freePortSync(isolatedEnv) : undefined
 const env = {
   E4_V2_RUNTIME: process.env.E4_V2_RUNTIME ?? "",
+  E4_CUSTOM_MODE: process.env.E4_CUSTOM_MODE ?? "",
   E4_PROVIDER_PORT: String(providerPort),
   E4_BACKEND_PORT: String(backendPort),
   E4_PREVIEW_PORT: String(previewPort),
@@ -47,7 +48,7 @@ Object.assign(process.env, env)
 export default defineConfig({
   testDir: here,
   ...(dualBackend
-    ? { testMatch: ["**/session-decision-scope.spec.ts", "**/manifest.spec.ts"] }
+    ? { testMatch: ["**/session-decision-scope.spec.ts", "**/work-review-lifeline.spec.ts", "**/manifest.spec.ts"] }
     : { testIgnore: ["**/session-decision-scope.spec.ts"] }),
   outputDir: path.join(here, "test-results"),
   timeout: 120_000,

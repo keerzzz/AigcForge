@@ -43,6 +43,7 @@ const secrets = Object.fromEntries(
     "AIGCFROGE_CONFIG_CONTENT",
     "AIGCFROGE_TEST_HOME",
     "AIGCFROGE_V2_RUNTIME",
+    "AIGCFROGE_CUSTOM_MODE",
     "AIGCFROGE_SERVER_PASSWORD",
     "GIT_CONFIG_COUNT",
     "GIT_CONFIG_KEY_0",
@@ -120,6 +121,8 @@ test("backend startup and restart use an absolute entrypoint and the run workspa
   expect(backend.env.AIGCFROGE_DB).toBe(path.join(runDir, "e4.sqlite"))
   expect(backend.env.AIGCFROGE_DISABLE_PROJECT_CONFIG).toBe("true")
   expect(backend.env.AIGCFROGE_V2_RUNTIME).toBeUndefined()
+  expect(backend.env.AIGCFROGE_CUSTOM_MODE).toBeUndefined()
+  expect(Environment.backend({ ...input, customMode: true }, parent).env.AIGCFROGE_CUSTOM_MODE).toBe("true")
   expect(backend.env.OPENAI_API_KEY).toBeUndefined()
   expect(Environment.backend(input, { ...parent, ...secrets })).toEqual(backend)
   expect(Environment.backend({ ...input, v2Runtime: true }, parent).env.AIGCFROGE_V2_RUNTIME).toBe("true")

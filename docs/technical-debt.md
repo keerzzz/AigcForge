@@ -786,3 +786,18 @@ before 于 2026-10-03、after 于 2026-10-04；均为 production、Chromium、CP
 四类历史形态的正向支持继续分别由原manifest owner/unlock持有；公共错误契约完成不代表自动混合、旧system重放、retained-tail迁移或远端媒体解析完成。Custom/V2、完整五模式/跨后端故障、真实DeepSeek/OAuth、性能、平台与CI/release仍需各自证据。用户已授权暂存/提交通过验证的代码；未授权push或发布。
 
 2026-10-12 提交前恢复验证：上次 `history-http-final.log` 虽打印6通过，但连接中断导致退出码收据缺失，未作为green round。重新执行的 `checks/history-http-resumed.json` 记录 **6 pass / 0 fail / 271 assertions、exit 0、53.461秒**，源码未在执行期间变化，测试进程组和临时数据已清理；既有backend/server types和incremental lint的成功收据按相同源码复用。
+
+### 15.16 2026-10-12 S08 / 服务端历史格式协商与正向执行
+
+实施目录及分支保持不变，证据统一保存在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011`。用户已授权继续剩余任务并提交通过验证的部分；不代表 push、远端 CI 或发布授权。
+
+- **Coding/V2 空白历史的根因已修复**：后端执行选择由 `packages/core/src/product-mode-policy.ts:102` 决定，前端过去仅按 Assistant/Custom 选择 canonical API。现在既有 capabilities endpoint 复用此函数提供 `canonicalSessionModes`，前端等待服务器范围的查询缓存后选择已有消息 API。重连取消旧能力请求并失效缓存；失败保留已有消息、显式报错；旧会话缺省 mode 复用 `ProductMode.Default`。没有双写、消息格式猜测或第二转换器。官方 SDK 生成 exit 0；默认后端 3/22、V2 能力 2/10、App 定向 71/167 均通过，App typecheck exit 0。独立审查记录 `runtime-review.md`。
+- **真实正向 E4**：`canonical-coding-e4-final` 为 1 pass，Coding/V2 on；`history-custom-default-e4-final` 为 2 pass，global V2 off/Custom on。分别验证 Coding/Custom 根回合的 admission、一次 provider 调用、canonical UI、精确重试、reload、已完成回合重启读回，以及 Assistant 旧历史导入后的实际浏览器续问和重启。两轮均 exit 0、workers=1、retries=0、teardown gate通过。Coding轮只有schema说明文档在执行期间更新，生产源码及测试不变。
+- **Assistant 工具后失败**：`assistant-post-tool-recovery-fixed` 为 1 pass / 70 assertions、exit 0。真实 reminder_create 后续 provider 400，输入/失败回合持久化；精确重试无新调用，显式 service resume 成功，完整 schedule 和 tool events 保持相同，排除仅靠schedule幂等掩盖工具重放。创建/入场/读回是生产 HttpApi web handler，provider是实际Node HTTP；无公开HTTP resume接口，故不将service恢复称为浏览器恢复。
+- **App全套按脚本三段交账**：`capabilities-app-full` 的 unit 1433 pass、virtualizer 3 pass；整条命令 exit 1，最后E2E contracts有55 pass/1 fail，原因是新增dual WorkReview文件未加入发现列表的期望。仅修改该测试契约后，`capabilities-e2e-contracts-fixed` 为56 pass/187 assertions、exit 0；前两段源码不变，复用其实际通过收据。不得把首条失败命令称为exit 0。
+
+仍开放：Custom frozen-child真实委派、同child再次采用及池外失败恢复（Owner S9C）；WorkReview历史identity与剩余故障类别（Owner S9A）；Assistant剩余流/部分输出及凭据/System Context跨backend（Owner S9B）；完整API/E3/E4/其他包、性能、packaged平台与CI/release（Owner S8/S9）。解锁条件继续在coverage manifest；已通过根回合或局部包不能关闭完整S08/S09。四种历史排除项保留明确拒绝契约，未自行发明正向语义。
+
+本轮后续验证：`capabilities-mock-e3` 6 pass；`canonical-ui-timeline-after` 1 pass，两者 exit 0。相同配置的timeline前后各一描述性样本，首次内容观察215.909→84.547ms，流完成观察76.4→93.6ms；12个增量完整交付、零pending、无message/markdown节点替换。共享mock新增capabilities响应，各一个样本不能声称统计无回归。
+
+WorkReview新增双backend场景 `work-review-dual-e4` **1 pass / exit 0**，既有默认两例 `work-review-default-e4-current` **2 pass / exit 0**，均有完整teardown。新场景在相同Session ID的两个服务端中产生各自真实provider/artifact；B同内容新artifact ID使旧结论过期，旧approve真实返回409时A状态/SQLite不变，B显式re_review、approve、reload恢复。关系由 `packages/core/src/session/work-review.ts:84` 的 `isVerdictCurrent` 比较artifact ID与revision决定，不从同名/同内容推断。上述两次执行期间仅独立Custom测试文件变更，WorkReview生产/测试不变。此处关闭双backend stale-binding冲突恢复子项；历史pre-identity与其它故障类别仍保留manifest owner/unlock。

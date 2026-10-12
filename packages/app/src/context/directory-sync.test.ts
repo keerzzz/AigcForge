@@ -13,6 +13,7 @@ import { PlatformProvider } from "./platform"
 import type { ServerSDK } from "./server-sdk"
 import { createServerSyncContextInner } from "./server-sync"
 import { createDirSyncContext } from "./directory-sync"
+import { ServerConnection } from "./server"
 
 describe("pickTarget", () => {
   test("returns requested directory when it differs from own", () => {
@@ -301,6 +302,114 @@ function taskReadbackFixture() {
 }
 
 describe("canonical message readback", () => {
+  test("a historical session without a mode follows the server's coding history policy", async () => {
+    const fixture = canonicalReadbackFixture("text", 2, { mode: undefined, canonicalSessionModes: ["coding"] })
+    try {
+      await fixture.directory.session.sync("ses_canonical")
+      expect(fixture.reads).toEqual({ capabilities: 1, legacy: 0, canonical: 1 })
+    } finally {
+      fixture.dispose()
+    }
+  })
+
+  test("coding waits for the server's first capability response before reading either history API", async () => {
+    const fixture = canonicalReadbackFixture("text", 2, { mode: "coding", canonicalSessionModes: ["coding"] })
+    try {
+      const held = fixture.holdCapabilities()
+      const initial = fixture.directory.session.sync("ses_canonical")
+      await held.started.promise
+      expect(fixture.reads).toEqual({ capabilities: 1, legacy: 0, canonical: 0 })
+      held.release.resolve()
+      await initial
+      await fixture.directory.session.sync("ses_canonical", { force: true })
+      expect(fixture.reads).toEqual({ capabilities: 1, legacy: 0, canonical: 2 })
+    } finally {
+      fixture.dispose()
+    }
+  })
+
+  test("coding reads legacy history only when the server's capability excludes it", async () => {
+    const fixture = canonicalReadbackFixture("text", 2, { mode: "coding" })
+    try {
+      await fixture.directory.session.sync("ses_canonical")
+      expect(fixture.reads).toEqual({ capabilities: 1, legacy: 1, canonical: 0 })
+    } finally {
+      fixture.dispose()
+    }
+  })
+
+  for (const failure of ["missing", "malformed", "unavailable"] as const) {
+    test(`${failure} capabilities cannot select legacy history or erase a cached canonical conversation`, async () => {
+      const fixture = canonicalReadbackFixture("text", 2, { mode: "coding", canonicalSessionModes: ["coding"] })
+      const body = failure === "malformed" ? { canonicalSessionModes: ["unknown"] } : {}
+      const status = failure === "unavailable" ? 503 : 200
+      try {
+        fixture.setCapabilities(body, status)
+        await expect(fixture.directory.session.sync("ses_canonical")).rejects.toBeInstanceOf(Error)
+        expect(fixture.reads).toEqual({ capabilities: 1, legacy: 0, canonical: 0 })
+        expect(fixture.directory.data.message.ses_canonical).toBeUndefined()
+
+        fixture.setCapabilities({ canonicalSessionModes: ["coding"] })
+        fixture.setText("retained conversation")
+        await fixture.directory.session.sync("ses_canonical")
+        const messages = fixture.directory.data.message.ses_canonical?.map((message) => message.id)
+        fixture.setCapabilities(body, status)
+        fixture.reconnect()
+        await expect(fixture.directory.session.sync("ses_canonical", { force: true })).rejects.toBeInstanceOf(Error)
+        expect(fixture.reads).toEqual({ capabilities: 3, legacy: 0, canonical: 1 })
+        expect(fixture.directory.data.message.ses_canonical?.map((message) => message.id)).toEqual(messages)
+        expect(fixture.text()).toBe("retained conversation")
+      } finally {
+        fixture.dispose()
+      }
+    })
+  }
+
+  test("reconnect cancels a capability refetch without resolving readers with the previous cached policy", async () => {
+    const fixture = canonicalReadbackFixture("text", 2, { mode: "coding", canonicalSessionModes: ["coding"] })
+    try {
+      await fixture.directory.session.sync("ses_canonical")
+      fixture.reconnect()
+      const held = fixture.holdCapabilities()
+      const refresh = fixture.directory.session.sync("ses_canonical", { force: true })
+      const signal = await held.started.promise
+      fixture.setCapabilities({ canonicalSessionModes: ["assistant", "custom"] })
+      fixture.reconnect()
+      await refresh
+      expect(signal.aborted).toBe(true)
+      expect(fixture.reads).toEqual({ capabilities: 3, legacy: 1, canonical: 1 })
+      held.release.resolve()
+      await held.finished.promise
+      await fixture.directory.session.sync("ses_canonical", { force: true })
+      expect(fixture.reads).toEqual({ capabilities: 3, legacy: 2, canonical: 1 })
+    } finally {
+      fixture.dispose()
+    }
+  })
+
+  test("servers sharing a query cache keep separate history policies for the same Session ID", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const legacy = canonicalReadbackFixture("text", 2, { mode: "coding", queryClient })
+    const canonical = canonicalReadbackFixture("text", 2, {
+      mode: "coding",
+      canonicalSessionModes: ["coding"],
+      scope: ServerScope.fromServerKey(ServerConnection.Key.make("http://canonical-peer.test")),
+      queryClient,
+    })
+    try {
+      await Promise.all([
+        legacy.directory.session.sync("ses_canonical"),
+        canonical.directory.session.sync("ses_canonical"),
+      ])
+      expect(legacy.reads).toEqual({ capabilities: 1, legacy: 1, canonical: 0 })
+      expect(canonical.reads).toEqual({ capabilities: 1, legacy: 0, canonical: 1 })
+    } finally {
+      legacy.dispose()
+      canonical.dispose()
+      queryClient.clear()
+    }
+  })
+
   for (const type of ["text", "reasoning"] as const) {
     test(`${type} deltas before the initial snapshot remain visible across refresh and end at the full value`, async () => {
       const fixture = canonicalReadbackFixture(type)
@@ -367,7 +476,16 @@ describe("canonical message readback", () => {
   })
 })
 
-function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
+function canonicalReadbackFixture(
+  type: "text" | "reasoning",
+  count = 2,
+  options?: {
+    mode?: Session["mode"]
+    canonicalSessionModes?: Session["mode"][]
+    scope?: ServerScope
+    queryClient?: QueryClient
+  },
+) {
   const session: Session = {
     id: "ses_canonical",
     slug: "canonical",
@@ -375,7 +493,7 @@ function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
     projectID: "project",
     directory: "/canonical",
     version: "test",
-    mode: "assistant",
+    mode: options && "mode" in options ? options.mode : "assistant",
     agent: "assistant-orchestrator",
     model: { providerID: "test", id: "model" },
     time: { created: 1, updated: 1 },
@@ -402,16 +520,51 @@ function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
   append(count)
   const messageID = rows.at(-1)?.id
   if (!messageID) throw new Error("Assistant fixture is empty")
-  const held: Array<{
-    started: ReturnType<typeof Promise.withResolvers<void>>
+  const reads = { capabilities: 0, legacy: 0, canonical: 0 }
+  const capabilities: { body: unknown; status: number } = {
+    body: { canonicalSessionModes: options?.canonicalSessionModes ?? ["assistant", "custom"] },
+    status: 200,
+  }
+  type PendingRead = {
+    started: ReturnType<typeof Promise.withResolvers<AbortSignal>>
     release: ReturnType<typeof Promise.withResolvers<void>>
-  }> = []
+    finished: ReturnType<typeof Promise.withResolvers<void>>
+  }
+  const held: PendingRead[] = []
+  const heldCapabilities: PendingRead[] = []
+  const pendingReads = new Set<PendingRead>()
+  const hold = (queue: PendingRead[]) => {
+    const pending = {
+      started: Promise.withResolvers<AbortSignal>(),
+      release: Promise.withResolvers<void>(),
+      finished: Promise.withResolvers<void>(),
+    }
+    queue.push(pending)
+    pendingReads.add(pending)
+    return pending
+  }
   const fetch = Object.assign(
     async (input: RequestInfo | URL) => {
-      const url = new URL(input instanceof Request ? input.url : String(input))
+      const request = input instanceof Request ? input : new Request(input)
+      const url = new URL(request.url)
       if (url.pathname === `/session/${session.id}`) return Response.json(session)
       if (url.pathname === "/session") return Response.json([session])
+      if (url.pathname === "/experimental/capabilities") {
+        reads.capabilities++
+        const response = Response.json(capabilities.body, { status: capabilities.status })
+        const pending = heldCapabilities.shift()
+        pending?.started.resolve(request.signal)
+        if (pending) await pending.release.promise
+        pending?.finished.resolve()
+        if (pending) pendingReads.delete(pending)
+        return response
+      }
+      if (url.pathname === `/session/${session.id}/message`) {
+        reads.legacy++
+        return Response.json([])
+      }
       if (url.pathname === `/api/session/${session.id}/message`) {
+        reads.canonical++
         const start = Number(url.searchParams.get("cursor") ?? 0)
         const end = Math.min(rows.length, start + Number(url.searchParams.get("limit")))
         const response = Response.json({
@@ -419,8 +572,10 @@ function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
           cursor: { next: end < rows.length ? String(end) : undefined },
         })
         const pending = held.shift()
-        pending?.started.resolve()
+        pending?.started.resolve(request.signal)
         if (pending) await pending.release.promise
+        pending?.finished.resolve()
+        if (pending) pendingReads.delete(pending)
         return response
       }
       if (url.pathname === "/global/config" || url.pathname === "/mcp") return Response.json({})
@@ -437,13 +592,13 @@ function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
   const createClient: ServerSDK["createClient"] = (options) =>
     createAigcfrogeClient({ baseUrl: "http://canonical-sync.test", fetch, ...options })
   const sdk: ServerSDK = {
-    scope: ServerScope.local,
+    scope: options?.scope ?? ServerScope.local,
     url: "http://canonical-sync.test",
     client: createClient({ throwOnError: true }),
     createClient,
     event: { on: emitter.on.bind(emitter), listen: emitter.listen.bind(emitter), start: async () => {} },
     ensureDirSdkContext: (directory) => ({
-      scope: ServerScope.local,
+      scope: options?.scope ?? ServerScope.local,
       directory,
       url: "http://canonical-sync.test",
       createClient,
@@ -451,7 +606,7 @@ function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
       event: createGlobalEmitter<{ [Kind in Event["type"]]: Extract<Event, { type: Kind }> }>(),
     }),
   }
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queryClient = options?.queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
   let directory: ReturnType<typeof createDirSyncContext> | undefined
   const container = document.createElement("div")
   const dispose = render(
@@ -493,10 +648,15 @@ function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
   return {
     directory: owner,
     append,
-    hold() {
-      const pending = { started: Promise.withResolvers<void>(), release: Promise.withResolvers<void>() }
-      held.push(pending)
-      return pending
+    reads,
+    hold: () => hold(held),
+    holdCapabilities: () => hold(heldCapabilities),
+    setCapabilities(body: unknown, status = 200) {
+      capabilities.body = body
+      capabilities.status = status
+    },
+    reconnect() {
+      emitter.emit("global", { id: "evt_connected", type: "server.connected", properties: {} })
     },
     text: () => {
       const part = owner.data.part[messageID]?.find((part) => part.type === type)
@@ -536,7 +696,8 @@ function canonicalReadbackFixture(type: "text" | "reasoning", count = 2) {
     },
     dispose() {
       dispose()
-      queryClient.clear()
+      pendingReads.forEach((pending) => pending.release.resolve())
+      if (!options?.queryClient) queryClient.clear()
       container.remove()
     },
   }

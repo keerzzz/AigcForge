@@ -1,12 +1,19 @@
 # V2 Schema Changelog
 
+## 2026-10-12: Server-Owned Session History Selection
+
+- `GET /experimental/capabilities` adds required `canonicalSessionModes`, derived by the same `ProductModePolicy.shouldUseV2Runtime` rule that selects async prompt execution. The field describes the serving process, not durable Session identity.
+- App message reads await this server-scoped capability before choosing the existing canonical or legacy message API. Reconnect invalidates the selection, including a capability response already in flight.
+- Older servers without this field produce an explicit unsupported-read error. A missing or failed capability response cannot silently select legacy history or replace already rendered messages with an empty result.
+- No Session schema, event, storage migration, legacy `WithParts` response, or conversation double write is introduced. SDK and OpenAPI are regenerated from the existing capabilities endpoint.
+
 ## 2026-10-11: Lazy Assistant Legacy History Adoption
 
 - Add the durable `session.next.history.imported.1` event carrying an immutable legacy transcript snapshot. No new table or destructive migration is introduced.
 - Assistant `SessionV2.get` adopts V1 history before canonical reads/admission. Atomic `EventV2.publishBatch` preserves message IDs and ordering; exact retries do not duplicate adoption.
 - Canonical projection and provider lowering consume the imported user/assistant/tool history without executing historical tools or replaying billing. V1 source rows remain available.
 - Mixed V1/canonical conversation history, legacy per-prompt system instructions, reordered compaction tails and unmaterialized remote/tool media fail explicitly pending defined reconciliation rules. Deletion remains available for rejected sessions.
-- Real provider lowering is tested; an actual HTTP provider request containing imported history is still deferred. See `docs/technical-debt.md` §15.12 and the Assistant history entries in `packages/app/e2e/coverage-manifest.json`.
+- On 2026-10-12, actual native loopback HTTP and the production HttpApi web handler verify imported history ordering, continuation, unchanged source/billing and no historical tool replay. Node HTTP/generated SDK tests verify explicit unsupported-history rejection. Browser/restart and broader provider acceptance remain separately tracked in `docs/technical-debt.md` and `packages/app/e2e/coverage-manifest.json`.
 
 ## 2026-10-08: WorkReview optional JSON fields (AI-TDD-S07/S09)
 

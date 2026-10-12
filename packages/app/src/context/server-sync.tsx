@@ -2,11 +2,11 @@ import type {
   AigcfrogeClient,
   Config,
   Path,
-  ProductMode,
   Project,
   ProviderAuthResponse,
   SessionTaskInfo,
 } from "@aigcfroge/sdk/v2/client"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@aigcfroge/core/util/path"
 
@@ -48,7 +48,14 @@ import { trimSessions } from "./global-sync/session-trim"
 import type { ProjectMeta } from "./global-sync/types"
 import { SESSION_RECENT_LIMIT } from "./global-sync/types"
 import { formatServerError } from "@/utils/server-errors"
-import { queryOptions, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/solid-query"
+import {
+  isCancelledError,
+  queryOptions,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/solid-query"
 import { createRefreshQueue } from "./global-sync/queue"
 import { directoryKey, mergeSessionReview } from "./global-sync/utils"
 import { PathKey } from "@/utils/path-key"
@@ -98,8 +105,25 @@ function makeQueryOptionsApi(
   scope: ServerScope,
   serverSDK: () => AigcfrogeClient,
   sdkFor: (dir: PathKey) => AigcfrogeClient,
+  unsupportedHistory: () => string,
 ) {
   return {
+    capabilities: () =>
+      queryOptions({
+        queryKey: [scope, "capabilities"] as const,
+        staleTime: Infinity,
+        queryFn: async ({ signal }) => {
+          const response = await serverSDK().experimental.capabilities.get(undefined, { signal, throwOnError: true })
+          const capabilities = response.data
+          if (
+            !capabilities ||
+            !Array.isArray(capabilities.canonicalSessionModes) ||
+            !capabilities.canonicalSessionModes.every(ProductMode.isID)
+          )
+            throw new Error(unsupportedHistory())
+          return capabilities
+        },
+      }),
     globalConfig: () => loadGlobalConfigQuery(scope, serverSDK()),
     projects: () => loadProjectsQuery(scope, serverSDK()),
     providers: (directory: PathKey | null) =>
@@ -109,7 +133,7 @@ function makeQueryOptionsApi(
     agents: (directory: PathKey) => loadAgentsQuery(scope, directory, sdkFor(directory)),
     mcp: (directory: PathKey) => loadMcpQuery(scope, directory, sdkFor(directory)),
     lsp: (directory: PathKey) => loadLspQuery(scope, directory, sdkFor(directory)),
-    sessions: (directory: PathKey, mode?: ProductMode) => ({
+    sessions: (directory: PathKey, mode?: ProductMode.ID) => ({
       queryKey: [scope, directory, "loadSessions", mode] as const,
     }),
   }
@@ -138,7 +162,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     return sdk
   }
 
-  const queryOptionsApi = makeQueryOptionsApi(serverSDK.scope, () => serverSDK.client, sdkFor)
+  const queryOptionsApi = makeQueryOptionsApi(
+    serverSDK.scope,
+    () => serverSDK.client,
+    sdkFor,
+    () => language.t("error.serverSync.sessionHistoryUnsupported"),
+  )
 
   const [configQuery, providerQuery, pathQuery] = useQueries(() => ({
     queries: [queryOptionsApi.globalConfig(), queryOptionsApi.providers(null), queryOptionsApi.path(null)],
@@ -172,6 +201,17 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
   })
 
   const queryClient = useQueryClient()
+  let disposed = false
+  const capabilities = async () => {
+    for (;;) {
+      try {
+        return await queryClient.fetchQuery(queryOptionsApi.capabilities())
+      } catch (error) {
+        // Reconnect cancels the previous process's decision before a fresh read.
+        if (disposed || !isCancelledError(error)) throw error
+      }
+    }
+  }
 
   let bootedAt = 0
   let bootingRoot = false
@@ -179,6 +219,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
   let eventTimer: ReturnType<typeof setTimeout> | undefined
 
   onCleanup(() => {
+    disposed = true
     if (eventFrame !== undefined) cancelAnimationFrame(eventFrame)
     if (eventTimer !== undefined) clearTimeout(eventTimer)
   })
@@ -315,7 +356,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     },
   })
 
-  async function loadSessions(directory: string, options?: { limit?: number; mode?: ProductMode }) {
+  async function loadSessions(directory: string, options?: { limit?: number; mode?: ProductMode.ID }) {
     const key = directoryKey(directory)
     const bucket = options?.mode ? `${key}\0${options.mode}` : key
     const pending = sessionLoads.get(bucket)
@@ -484,6 +525,13 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
         setGlobalProject: setProjects,
       })
       if (event.type === "server.connected" || event.type === "global.disposed") {
+        // Reverting a cancelled refetch would resolve it with the old cached data.
+        // Reject that decision instead, then let waiting message reads retry.
+        void queryClient.cancelQueries(
+          { queryKey: queryOptionsApi.capabilities().queryKey, exact: true },
+          { revert: false },
+        )
+        void queryClient.invalidateQueries({ queryKey: queryOptionsApi.capabilities().queryKey, refetchType: "none" })
         const active = task.reset()
         const directory = Object.keys(children.children)[0]
         if (active && directory) {
@@ -589,6 +637,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     peek: children.peek,
     disableMcp: children.disableMcp,
     queryOptions: queryOptionsApi,
+    capabilities,
     // bootstrap,
     updateConfig: updateConfigMutation.mutateAsync,
     project: projectApi,

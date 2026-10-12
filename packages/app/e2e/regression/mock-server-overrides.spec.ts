@@ -96,6 +96,7 @@ test("absent knobs keep the previous answers byte-for-byte", async ({ page }) =>
       path: await read("/path"),
       file: await read("/file?path="),
       projectUpdate: await read("/project/proj_mock_overrides", { method: "PATCH" }),
+      capabilities: await read("/experimental/capabilities"),
     }
   })
 
@@ -107,6 +108,17 @@ test("absent knobs keep the previous answers byte-for-byte", async ({ page }) =>
   })
   expect(result.file).toEqual({ status: 200, body: [] })
   expect(result.projectUpdate).toEqual({ status: 200, body: { fellThrough: true } })
+  expect(result.capabilities).toEqual({
+    status: 200,
+    body: {
+      backgroundSubagents: false,
+      chatAsset: false,
+      customMode: false,
+      productModes: ["chat", "coding", "work", "assistant", "custom"],
+      customCompositionVersion: 1,
+      canonicalSessionModes: ["assistant", "custom"],
+    },
+  })
 })
 ;(["same-origin", "separate-origin"] as const).forEach((topology) => {
   test(`an absent project override still answers ${topology} SDK writes`, async ({ page }, testInfo) => {
