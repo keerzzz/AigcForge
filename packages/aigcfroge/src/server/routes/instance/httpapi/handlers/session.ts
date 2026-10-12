@@ -12,6 +12,7 @@ import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task
 import { PermissionV2 } from "@aigcfroge/core/permission"
 import { SessionPermissionOverride } from "@aigcfroge/core/permission/session-override"
 import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
+import { mapUnsupportedHistory } from "@aigcfroge/server/errors"
 import { SessionRevert as V2SessionRevert } from "@aigcfroge/core/session/revert"
 import { SessionSummary as V2SessionSummary } from "@aigcfroge/core/session/summary"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -882,6 +883,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
               : undefined,
           })
           .pipe(
+            mapUnsupportedHistory,
             Effect.catchTag("Session.NotFoundError", () =>
               Effect.fail(notFound(`Session not found: ${ctx.params.sessionID}`)),
             ),

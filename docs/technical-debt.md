@@ -774,3 +774,15 @@ before 于 2026-10-03、after 于 2026-10-04；均为 production、Chromium、CP
 - **验证与审查边界**。两条新增用例最初均在生产代码不变时通过，按 C 验收记账，不制造产品 RED。第一次后端类型检查发现跨 Location 断言的 string/AbsolutePath 品牌不一致，已使用现有 `AbsolutePath.make` 修复；独立审查发现 raw hits 数组长度断言在失败时可能打印特权 baseline，已改为只断言数值长度。原始记录保留，最终同文件回归、类型、lint/格式及账本检查以最终证据索引为准。没有修改生产源码、公共契约、SDK、schema 或 UI。
 
 未交付及解锁条件继续登记在 `assistant-reminder-provider-lifeline` 与 `agent-interaction-s08-full-matrix`：本次只覆盖无部分输出、无新工具副作用、无待处理 steer 的非重试型 400；5xx/流中断/部分输出/工具执行后的失败、产品入站 prompt/resume HTTP、历史 UI/restart、两个产品后端、不同模型选择和真实 OAuth/provider 仍待对应隔离环境中的直接验证。跨 Location 的 System Context/Context Source 与凭据隔离也未覆盖：wire 解码刻意过滤 system/developer，两侧使用同一合成 API key。四类历史排除项与公共错误契约、FFF 完整进程隔离、Custom/V2 正向链、完整 S08/S09 和 CI/release 仍沿各自 owner/unlock；最小测试与本地通过不缩减完成定义。保留暂存和未暂存工作，未 stage、commit、push、reset、stash 或重启用户服务。
+
+### 15.15 2026-10-11 S08 / 历史公共错误与产品 HTTP
+
+上一批已验证代码按用户授权提交；提交清单由 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/commits.txt` 的 Git 输出生成。本节继续使用 `agent-ui-tdd` 实施工作区，源 main 保持只读。原计划 S08/S09 的剩余完成定义不变。
+
+- **公共历史错误已闭环**：复用 `packages/server/src/errors.ts` 的 InvalidRequestError，仅将 SessionLegacyHistory.ImportError defect 映射为安全的 HTTP 400、kind=unsupported-history、field=sessionID；无关损坏继续 500。SessionLocationMiddleware 覆盖 canonical reads/prompt，旧 prompt_async 在 canonical admission 边界复用相同映射。契约记录于 `specs/v2/session.md` 的 Legacy Assistant History Adoption。`httpapi-unsupported-history.test.ts` 通过真实 Node HTTP 与生成 SDK 验证 mixed/system/user-remote/tool-media/tail 五种形态、源和canonical状态保留、零input/provider、仍可查看V1和删除；另验证无关损坏保持500。收据 `checks/unsupported-history-http.json`：2 pass / 0 fail / 101 assertions，exit 0。
+- **产品 HTTP 历史继续对话已补证**：`httpapi-assistant-history.test.ts` 复用生产 HttpApi web handler 与真实 Node provider HTTP，验证读取触发一次adoption、prompt_async 204、canonical完成回复、历史wire顺序、旧工具不重放、使用量不重计、精确重试不新增调用。共享fixture提取到 `test/lib/legacy-history.ts`，原3条native HTTP用例保持原语义。`checks/history-http-tests.json`：4 pass / 0 fail / 170 assertions，exit 0。该入口为内存Request/Response，不代替入站TCP/browser/restart证据；负例则独立使用真实入站Node HTTP。
+- **验证边界**：本轮首个backend typecheck发现测试expected值的V1/canonical ID品牌与readonly差异，已用现有ID.make和数组复制修复；`checks/backend-typecheck-fixed.json`、`checks/server-typecheck.json`均exit 0。失败记录保留，不与通过记录混称。
+
+四类历史形态的正向支持继续分别由原manifest owner/unlock持有；公共错误契约完成不代表自动混合、旧system重放、retained-tail迁移或远端媒体解析完成。Custom/V2、完整五模式/跨后端故障、真实DeepSeek/OAuth、性能、平台与CI/release仍需各自证据。用户已授权暂存/提交通过验证的代码；未授权push或发布。
+
+2026-10-12 提交前恢复验证：上次 `history-http-final.log` 虽打印6通过，但连接中断导致退出码收据缺失，未作为green round。重新执行的 `checks/history-http-resumed.json` 记录 **6 pass / 0 fail / 271 assertions、exit 0、53.461秒**，源码未在执行期间变化，测试进程组和临时数据已清理；既有backend/server types和incremental lint的成功收据按相同源码复用。

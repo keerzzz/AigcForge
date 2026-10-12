@@ -74,6 +74,14 @@ The local runner issues one explicit `llm.stream(request)` per provider turn, pr
 
 Projected hosted tools preserve call-side and settlement-side provider metadata separately so settlement and interruption recovery cannot erase continuation identifiers. Provider-native reasoning and provider metadata replay only while the historical assistant model matches the selected continuation model; after a model switch, visible reasoning text remains ordinary assistant text and provider-native metadata is omitted.
 
+## Legacy Assistant History Adoption
+
+Canonical reads and prompt admission may adopt a legacy Assistant transcript. Adoption preserves its source rows and message/tool identities, records the imported history once, and does not execute historical tools or charge historical usage again. Repeated reads and exact prompt retries must not duplicate the imported transcript.
+
+The current compatibility boundary atomically rejects mixed V1/canonical conversation history, legacy per-prompt system instructions, compaction with retained `tail_start_id`, and unmaterialized remote/tool attachments. Rejection leaves both source history and existing canonical state unchanged and admits no new input. It must not guess a cross-source ordering, promote old instructions into permanent privileged context, truncate a retained tail, or fetch historical remote content using ambient credentials. Supporting these shapes requires the explicit contracts tracked in the coverage manifest.
+
+At the public HTTP boundary, `SessionLegacyHistory.ImportError` is returned as `InvalidRequestError` with status 400, `kind: "unsupported-history"`, and `field: "sessionID"`. Its message states that the source history was preserved and contains no transcript, remote URL or credential details. This applies to canonical Session/message reads and prompt admission, including the legacy `prompt_async` adapter when it enters the canonical runtime. Unrelated storage defects remain server errors. Raw V1 inspection and Session deletion remain available after a rejected adoption.
+
 ## Context Epochs
 
 V2 Sessions persist the exact privileged System Context shown to the model. A Context Epoch stores one immutable provider-cache baseline and a model-hidden structured snapshot used to compare independently observed Context Sources. Environment facts, the host-local date, ambient global/upward-project `AGENTS.md` files, and selected-agent available-skill guidance are the initial sources. Location-wide sources come from the System Context Registry; selected-agent guidance composes with them immediately before Context Epoch admission.

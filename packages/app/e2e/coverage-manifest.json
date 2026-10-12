@@ -116,7 +116,7 @@
     "assistant-legacy-history-remote-media": {
       "owner": "S9B",
       "scope": "Unmaterialized legacy remote/tool media is rejected. User data URIs are materialized; user file URIs are resolved at provider time through AttachmentResolver.confine (packages/core/src/session/runner/attachment-resolver.ts:33), so they are current local bytes, not a historical byte snapshot. Tool attachments currently require data URIs via requireMaterialized (packages/core/src/session/legacy-history.ts:329).",
-      "unlock": "Define retrieval credentials/permissions, historical-snapshot versus current-content semantics, retention and expiry for remote/MCP references before adding a resolver. Preserve the existing realPath Location confinement for user files. Add non-data tool-attachment rejection coverage; the current Core media negative fixture covers only a user HTTPS image."
+      "unlock": "Define retrieval credentials/permissions, historical-snapshot versus current-content semantics, retention and expiry for remote/MCP references before adding a resolver. Preserve the existing realPath Location confinement for user files. User HTTPS and non-data tool attachments now have real Node HTTP/generated SDK rejection coverage in httpapi-unsupported-history.test.ts; positive remote resolution remains deferred under this contract."
     },
     "assistant-native-provider-coverage": {
       "owner": "S9B",
@@ -127,11 +127,6 @@
       "owner": "S9B",
       "scope": "Core Filesystem / QA: FFF 0.9.4 reads files for binary detection even when both indexing flags are false. Scanning this process's SQLite DB releases POSIX locks and a later connection close can unlink the live WAL. locationLayer now reuses subprocess ripgrep for realpath-resolved directories containing the configured DB, and for unresolved paths. This preserves storage at the cost of FFF search performance there. General FFF process isolation and hard-link/bind-mount aliases or additional custom Database.layerFromPath databases remain unverified.",
       "unlock": "Move FFF behind a supervised subprocess or obtain a verified upstream no-open exclusion contract, then exercise native scan plus independent DB writes/reopens. Validate hard-link/bind-mount aliases and additional custom databases before broadening the safety claim."
-    },
-    "assistant-legacy-history-error-surface": {
-      "owner": "S9B",
-      "scope": "Unsupported legacy-history shapes are tested at the Core Effect boundary for failure, no partial canonical import and deletion. ImportError currently propagates through Effect.die or synchronous throw in packages/core/src/session/legacy-history.ts; these tests do not establish a typed HTTP 4xx classification or public-API failure contract.",
-      "unlock": "Define the public unsupported-history error contract, then verify it through production read/prompt HTTP routes with source retention, no partial import and stable generated-client decoding. Do not infer a particular status code from the Core TaggedErrorClass alone."
     }
   },
   "entries": [

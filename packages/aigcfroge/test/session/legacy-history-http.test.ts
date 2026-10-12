@@ -1,68 +1,19 @@
 import { expect } from "bun:test"
 import { NodeFileSystem } from "@effect/platform-node"
-import { asc, eq } from "drizzle-orm"
 import { Context, Deferred, Effect, FileSystem, Layer, Schema } from "effect"
-import { Database } from "@aigcfroge/core/database/database"
-import { EventTable } from "@aigcfroge/core/event/sql"
-import { ModelV2 } from "@aigcfroge/core/model"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { ProviderV2 } from "@aigcfroge/core/provider"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionMessage } from "@aigcfroge/core/session/message"
-import { MessageTable, PartTable, SessionInputTable, SessionTable } from "@aigcfroge/core/session/sql"
-import { ConfigV1 } from "@aigcfroge/core/v1/config/config"
-import { MessageID, PartID, SessionV1 } from "@aigcfroge/core/v1/session"
 import { AIGCFROGE_V2_RUNTIME, AppLayer } from "../../src/effect/app-runtime"
 import { EffectBridge } from "../../src/effect/bridge"
 import { provideTmpdirServer, tmpdirScoped } from "../fixture/fixture"
 import { awaitWithTimeout, pollWithTimeout, testEffect } from "../lib/effect"
 import { TestLLMServer } from "../lib/llm-server"
+import { LegacyHistory } from "../lib/legacy-history"
 
 const it = testEffect(Layer.mergeAll(AppLayer, TestLLMServer.layer, NodeFileSystem.layer))
-const providerID = ProviderV2.ID.make("history-http")
-const modelID = ModelV2.ID.make("history-model")
-const historicalUsage = {
-  cost: 2,
-  tokens: { input: 10, output: 5, reasoning: 0, cache: { read: 0, write: 0 } },
-}
-class WireFunction extends Schema.Class<WireFunction>("LegacyHistory.WireFunction")({
-  name: Schema.String,
-  arguments: Schema.String,
-}) {}
-
-class WireToolCall extends Schema.Class<WireToolCall>("LegacyHistory.WireToolCall")({
-  id: Schema.String,
-  type: Schema.String,
-  function: WireFunction,
-}) {}
-
-class WireMessage extends Schema.Class<WireMessage>("LegacyHistory.WireMessage")({
-  role: Schema.String,
-  content: Schema.optional(Schema.NullOr(Schema.String)),
-  tool_call_id: Schema.optional(Schema.String),
-  tool_calls: Schema.optional(Schema.Array(WireToolCall)),
-}) {}
-
-function decodeMessages(value: unknown) {
-  if (!Array.isArray(value)) throw new Error("Provider request must contain a messages array")
-  // Remove privileged context before parsing so decoder failures cannot print it.
-  return Schema.decodeUnknownSync(Schema.Array(WireMessage))(
-    value.filter(
-      (message) =>
-        !(
-          typeof message === "object" &&
-          message !== null &&
-          "role" in message &&
-          (message.role === "system" || message.role === "developer")
-        ),
-    ),
-  )
-}
-
 it.live("adopted Assistant history reaches native HTTP once without replaying tools or billing", () =>
   provideTmpdirServer(
     ({ dir, llm }) =>
@@ -71,11 +22,11 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
         const sessions = yield* SessionV2.Service
         const execution = yield* SessionExecution.Service
         const filesystem = yield* FileSystem.FileSystem
-        const seeded = yield* seedLegacyTranscript(dir)
+        const seeded = yield* LegacyHistory.seedLegacyTranscript(dir)
         yield* Effect.addFinalizer(() =>
           execution.interrupt(seeded.sessionID).pipe(Effect.andThen(sessions.remove(seeded.sessionID)), Effect.orDie),
         )
-        const before = yield* persistedState(seeded.sessionID)
+        const before = yield* LegacyHistory.persistedState(seeded.sessionID)
         const input = {
           id: SessionMessage.ID.make("msg_history_http_continue"),
           sessionID: seeded.sessionID,
@@ -90,8 +41,8 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
           SessionMessage.ID.make(seeded.user),
           SessionMessage.ID.make(seeded.assistant),
         ])
-        expect(adopted[1]).toMatchObject({ type: "assistant", ...historicalUsage })
-        const imported = yield* persistedState(seeded.sessionID)
+        expect(adopted[1]).toMatchObject({ type: "assistant", ...LegacyHistory.historicalUsage })
+        const imported = yield* LegacyHistory.persistedState(seeded.sessionID)
         expect(imported.source).toEqual(before.source)
         expect(imported.usage).toEqual(before.usage)
         expect(imported.events.map((event) => event.type)).toEqual([
@@ -107,9 +58,12 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
         const hits = yield* llm.hits
         expect(hits.length).toBe(1)
         expect(hits[0]?.url.pathname).toBe("/v1/chat/completions")
-        expect({ model: hits[0]?.body.model, stream: hits[0]?.body.stream }).toEqual({ model: modelID, stream: true })
+        expect({ model: hits[0]?.body.model, stream: hits[0]?.body.stream }).toEqual({
+          model: LegacyHistory.modelID,
+          stream: true,
+        })
         // Inspect the actual provider body; privileged environment context is not fixture history.
-        const messages = decodeMessages(hits[0]?.body.messages)
+        const messages = LegacyHistory.decodeMessages(hits[0]?.body.messages)
         expect(messages.map((message) => message.role)).toEqual(["user", "assistant", "tool", "tool", "user"])
         expect(messages[0]).toEqual({ role: "user", content: "Historical question." })
         expect(messages[1]).toEqual({
@@ -154,7 +108,7 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
           content: [{ type: "text", text: "The imported history is available." }],
           tokens: { input: 7, output: 3 },
         })
-        const after = yield* persistedState(seeded.sessionID)
+        const after = yield* LegacyHistory.persistedState(seeded.sessionID)
         expect(after.source).toEqual(before.source)
         expect(after.events.filter((event) => event.type === "session.next.history.imported.1")).toHaveLength(2)
         expect(after.events.filter((event) => event.type === "session.next.step.started.1")).toHaveLength(1)
@@ -173,7 +127,7 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
           "Exact retry did not become idle",
         )
         expect(yield* llm.calls).toBe(1)
-        expect(yield* persistedState(seeded.sessionID)).toEqual(after)
+        expect(yield* LegacyHistory.persistedState(seeded.sessionID)).toEqual(after)
 
         const conflicts = [
           { ...input, prompt: { text: "A different prompt." } },
@@ -189,7 +143,7 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
           }),
         )
         expect(yield* llm.calls).toBe(1)
-        expect(yield* persistedState(seeded.sessionID)).toEqual(after)
+        expect(yield* LegacyHistory.persistedState(seeded.sessionID)).toEqual(after)
 
         const evidenceDirectory = process.env.AIGCFROGE_HISTORY_HTTP_EVIDENCE_DIR
         if (evidenceDirectory) {
@@ -202,7 +156,7 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
                 runtime: { v2: AIGCFROGE_V2_RUNTIME, mode: "assistant", transport: "native-loopback-http" },
                 requests: hits.map((hit) => ({
                   path: hit.url.pathname,
-                  receivedBodySha256: digest(hit.body),
+                  receivedBodySha256: LegacyHistory.digest(hit.body),
                   model: hit.body.model,
                   stream: hit.body.stream,
                   messages,
@@ -212,7 +166,10 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
                 finalEvents: after.events.map((event) => ({ id: event.id, type: event.type, seq: event.seq })),
                 inputs: after.inputs,
                 usage: { before: before.usage, afterImport: imported.usage },
-                source: { beforeSha256: digest(before.source), afterSha256: digest(after.source) },
+                source: {
+                  beforeSha256: LegacyHistory.digest(before.source),
+                  afterSha256: LegacyHistory.digest(after.source),
+                },
                 toolReplayFiles: {
                   completed: yield* filesystem.exists(seeded.completedInput.filePath),
                   pending: yield* filesystem.exists(seeded.pendingInput.filePath),
@@ -225,7 +182,7 @@ it.live("adopted Assistant history reaches native HTTP once without replaying to
           )
         }
       }),
-    { config: providerConfig },
+    { config: LegacyHistory.providerConfig },
   ),
 )
 
@@ -237,11 +194,11 @@ it.live("a failed native history turn requires explicit resume after an exact pr
         const sessions = yield* SessionV2.Service
         const execution = yield* SessionExecution.Service
         const filesystem = yield* FileSystem.FileSystem
-        const seeded = yield* seedLegacyTranscript(dir, "_failure")
+        const seeded = yield* LegacyHistory.seedLegacyTranscript(dir, "_failure")
         yield* Effect.addFinalizer(() =>
           execution.interrupt(seeded.sessionID).pipe(Effect.andThen(sessions.remove(seeded.sessionID)), Effect.orDie),
         )
-        const before = yield* persistedState(seeded.sessionID)
+        const before = yield* LegacyHistory.persistedState(seeded.sessionID)
         const input = {
           id: SessionMessage.ID.make("msg_history_http_failure_continue"),
           sessionID: seeded.sessionID,
@@ -253,7 +210,7 @@ it.live("a failed native history turn requires explicit resume after an exact pr
         yield* llm.text("The explicit resume recovered.", { usage: { input: 9, output: 4 } })
         const admitted = yield* sessions.prompt({ ...input, resume: false })
         const adopted = yield* sessions.messages({ sessionID: seeded.sessionID, order: "asc" })
-        const imported = yield* persistedState(seeded.sessionID)
+        const imported = yield* LegacyHistory.persistedState(seeded.sessionID)
         expect(imported.source).toEqual(before.source)
         expect(imported.usage).toEqual(before.usage)
         expect(yield* llm.calls).toBe(0)
@@ -293,7 +250,7 @@ it.live("a failed native history turn requires explicit resume after an exact pr
         expect(failedAssistant.time.completed).toBeDefined()
         expect(failedAssistant.error?.message).toContain("HTTP 400")
         expect(failedAssistant.error?.message).toContain("Synthetic history request rejected.")
-        const failed = yield* persistedState(seeded.sessionID)
+        const failed = yield* LegacyHistory.persistedState(seeded.sessionID)
         expect(failed.source).toEqual(before.source)
         expect(failed.events.map((event) => event.type)).toEqual([
           "session.next.history.imported.1",
@@ -318,7 +275,7 @@ it.live("a failed native history turn requires explicit resume after an exact pr
         const callsAfterRetry = yield* llm.calls
         expect(callsAfterRetry).toBe(1)
         expect(yield* llm.pending).toBe(1)
-        expect(yield* persistedState(seeded.sessionID)).toEqual(failed)
+        expect(yield* LegacyHistory.persistedState(seeded.sessionID)).toEqual(failed)
         expect(yield* sessions.messages({ sessionID: seeded.sessionID, order: "asc" })).toEqual(failedMessages)
 
         yield* awaitWithTimeout(
@@ -331,10 +288,10 @@ it.live("a failed native history turn requires explicit resume after an exact pr
         expect(hits.length).toBe(2)
         expect(hits.map((hit) => hit.url.pathname)).toEqual(["/v1/chat/completions", "/v1/chat/completions"])
         expect(hits.map((hit) => ({ model: hit.body.model, stream: hit.body.stream }))).toEqual([
-          { model: modelID, stream: true },
-          { model: modelID, stream: true },
+          { model: LegacyHistory.modelID, stream: true },
+          { model: LegacyHistory.modelID, stream: true },
         ])
-        const messages = hits.map((hit) => decodeMessages(hit.body.messages))
+        const messages = hits.map((hit) => LegacyHistory.decodeMessages(hit.body.messages))
         expect(messages[0]?.map((message) => message.role)).toEqual(["user", "assistant", "tool", "tool", "user"])
         expect(messages[0]?.[0]).toEqual({ role: "user", content: "Historical question." })
         expect(messages[0]?.[1]).toMatchObject({ role: "assistant", content: "Historical answer." })
@@ -362,7 +319,7 @@ it.live("a failed native history turn requires explicit resume after an exact pr
           content: [{ type: "text", text: "The explicit resume recovered." }],
           tokens: { input: 9, output: 4 },
         })
-        const after = yield* persistedState(seeded.sessionID)
+        const after = yield* LegacyHistory.persistedState(seeded.sessionID)
         expect(after.source).toEqual(before.source)
         expect(after.inputs).toEqual(failed.inputs)
         expect(after.events.filter((event) => event.type === "session.next.history.imported.1")).toHaveLength(2)
@@ -384,7 +341,7 @@ it.live("a failed native history turn requires explicit resume after an exact pr
                 failure,
                 requests: hits.map((hit, index) => ({
                   path: hit.url.pathname,
-                  receivedBodySha256: digest(hit.body),
+                  receivedBodySha256: LegacyHistory.digest(hit.body),
                   model: hit.body.model,
                   stream: hit.body.stream,
                   messages: messages[index],
@@ -395,7 +352,10 @@ it.live("a failed native history turn requires explicit resume after an exact pr
                 finalEvents: after.events.map((event) => ({ id: event.id, type: event.type, seq: event.seq })),
                 inputs: after.inputs,
                 usage: { before: before.usage, afterImport: imported.usage },
-                source: { beforeSha256: digest(before.source), afterSha256: digest(after.source) },
+                source: {
+                  beforeSha256: LegacyHistory.digest(before.source),
+                  afterSha256: LegacyHistory.digest(after.source),
+                },
                 callsAfterRetry,
                 callsAfterExplicitResume: hits.length,
                 toolReplayFiles: {
@@ -409,7 +369,7 @@ it.live("a failed native history turn requires explicit resume after an exact pr
           )
         }
       }),
-    { config: providerConfig },
+    { config: LegacyHistory.providerConfig },
   ),
 )
 
@@ -428,14 +388,14 @@ it.live("Assistant Locations isolate native HTTP endpoints and history while ano
     )
     const second = Context.get(peerContext, TestLLMServer)
     expect(first.url).not.toBe(second.url)
-    const leftDirectory = yield* tmpdirScoped({ config: providerConfig(first.url) })
-    const rightDirectory = yield* tmpdirScoped({ config: providerConfig(second.url) })
+    const leftDirectory = yield* tmpdirScoped({ config: LegacyHistory.providerConfig(first.url) })
+    const rightDirectory = yield* tmpdirScoped({ config: LegacyHistory.providerConfig(second.url) })
     const left = yield* Effect.acquireRelease(
       sessions.create({
         location: { directory: AbsolutePath.make(leftDirectory) },
         mode: "assistant",
         title: "Left Location fixture",
-        model: { id: modelID, providerID },
+        model: { id: LegacyHistory.modelID, providerID: LegacyHistory.providerID },
       }),
       (session) => execution.interrupt(session.id).pipe(Effect.andThen(sessions.remove(session.id)), Effect.orDie),
     )
@@ -444,7 +404,7 @@ it.live("Assistant Locations isolate native HTTP endpoints and history while ano
         location: { directory: AbsolutePath.make(rightDirectory) },
         mode: "assistant",
         title: "Right Location fixture",
-        model: { id: modelID, providerID },
+        model: { id: LegacyHistory.modelID, providerID: LegacyHistory.providerID },
       }),
       (session) => execution.interrupt(session.id).pipe(Effect.andThen(sessions.remove(session.id)), Effect.orDie),
     )
@@ -479,7 +439,7 @@ it.live("Assistant Locations isolate native HTTP endpoints and history while ano
       finish: "stop",
       content: [{ type: "text", text: "Right Location response." }],
     })
-    const rightState = yield* persistedState(right.id)
+    const rightState = yield* LegacyHistory.persistedState(right.id)
 
     yield* Deferred.succeed(release, undefined)
     yield* pollWithTimeout(
@@ -510,12 +470,12 @@ it.live("Assistant Locations isolate native HTTP endpoints and history while ano
     expect(leftHits.length).toBe(2)
     expect(rightHits.length).toBe(1)
     expect([...leftHits, ...rightHits].map((hit) => ({ path: hit.url.pathname, model: hit.body.model }))).toEqual([
-      { path: "/v1/chat/completions", model: modelID },
-      { path: "/v1/chat/completions", model: modelID },
-      { path: "/v1/chat/completions", model: modelID },
+      { path: "/v1/chat/completions", model: LegacyHistory.modelID },
+      { path: "/v1/chat/completions", model: LegacyHistory.modelID },
+      { path: "/v1/chat/completions", model: LegacyHistory.modelID },
     ])
-    const leftWire = leftHits.map((hit) => decodeMessages(hit.body.messages))
-    const rightWire = rightHits.map((hit) => decodeMessages(hit.body.messages))
+    const leftWire = leftHits.map((hit) => LegacyHistory.decodeMessages(hit.body.messages))
+    const rightWire = rightHits.map((hit) => LegacyHistory.decodeMessages(hit.body.messages))
     expect(leftWire).toEqual([
       [{ role: "user", content: "Left Location first input." }],
       [
@@ -535,10 +495,10 @@ it.live("Assistant Locations isolate native HTTP endpoints and history while ano
       content: [{ type: "text", text: "Left Location continued response." }],
     })
     expect(yield* sessions.messages({ sessionID: right.id, order: "asc" })).toEqual(rightCompleted)
-    expect(yield* persistedState(right.id)).toEqual(rightState)
+    expect(yield* LegacyHistory.persistedState(right.id)).toEqual(rightState)
     expect((yield* sessions.get(left.id)).location.directory).toBe(AbsolutePath.make(leftDirectory))
     expect((yield* sessions.get(right.id)).location.directory).toBe(AbsolutePath.make(rightDirectory))
-    const leftState = yield* persistedState(left.id)
+    const leftState = yield* LegacyHistory.persistedState(left.id)
     expect(leftState.inputs.map((input) => input.id)).toEqual([leftAdmission.id, continued.id])
     expect(rightState.inputs.map((input) => input.id)).toEqual([rightAdmission.id])
     expect([...leftState.inputs, ...rightState.inputs].every((input) => input.promoted_seq !== null)).toBe(true)
@@ -555,7 +515,7 @@ it.live("Assistant Locations isolate native HTTP endpoints and history while ano
         JSON.stringify(
           {
             runtime: { v2: AIGCFROGE_V2_RUNTIME, mode: "assistant", transport: "native-loopback-http" },
-            sharedSelection: { providerID, modelID },
+            sharedSelection: { providerID: LegacyHistory.providerID, modelID: LegacyHistory.modelID },
             left: {
               directory: leftDirectory,
               providerURL: first.url,
@@ -583,225 +543,3 @@ it.live("Assistant Locations isolate native HTTP endpoints and history while ano
     }
   }),
 )
-
-function digest(value: unknown) {
-  return new Bun.CryptoHasher("sha256").update(JSON.stringify(value)).digest("hex")
-}
-
-function providerConfig(url: string) {
-  return {
-    model: `${providerID}/${modelID}`,
-    provider: {
-      [providerID]: {
-        name: "History HTTP fixture",
-        npm: "@ai-sdk/openai-compatible",
-        options: { baseURL: url, apiKey: "synthetic-history-key" },
-        models: {
-          [modelID]: {
-            name: "History fixture model",
-            tool_call: true,
-            limit: { context: 100000, output: 10000 },
-            cost: { input: 0, output: 0 },
-          },
-        },
-      },
-    },
-  } satisfies Partial<ConfigV1.Info>
-}
-
-// Seed durable V1 rows directly so the canonical reader, rather than a test converter, adopts them.
-const seedLegacyTranscript = Effect.fnUntraced(function* (directory: string, suffix = "") {
-  const db = (yield* Database.Service).db
-  const sessionID = SessionV2.ID.make(`ses_history_http${suffix}`)
-  const user = MessageID.make(`msg_history_http_old_user${suffix}`)
-  const assistant = MessageID.make(`msg_history_http_old_assistant${suffix}`)
-  const completedInput = { filePath: `${directory}/completed-replay.txt`, content: "Unexpected historical replay." }
-  const pendingInput = { filePath: `${directory}/pending-replay.txt`, content: "Unexpected pending replay." }
-  yield* db
-    .insert(ProjectTable)
-    .values({
-      id: Project.ID.global,
-      worktree: AbsolutePath.make(directory),
-      sandboxes: [],
-    })
-    .onConflictDoNothing()
-    .run()
-    .pipe(Effect.orDie)
-  yield* db
-    .insert(SessionTable)
-    .values({
-      id: sessionID,
-      project_id: Project.ID.global,
-      mode: "assistant",
-      slug: "history-http",
-      directory: AbsolutePath.make(directory),
-      title: "Existing Assistant history",
-      version: "test",
-      time_created: 1,
-      time_updated: 3,
-      agent: ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR,
-      model: { id: modelID, providerID },
-      cost: historicalUsage.cost,
-      tokens_input: historicalUsage.tokens.input,
-      tokens_output: historicalUsage.tokens.output,
-    })
-    .run()
-    .pipe(Effect.orDie)
-  // Insert out of order: the importer owns chronology, not fixture insertion order or lexical IDs.
-  yield* db
-    .insert(MessageTable)
-    .values([
-      {
-        id: assistant,
-        session_id: sessionID,
-        time_created: 2,
-        time_updated: 3,
-        data: {
-          ...({
-            role: "assistant",
-            parentID: user,
-            agent: ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR,
-            mode: "assistant",
-            providerID,
-            modelID,
-            path: { cwd: directory, root: directory },
-            time: { created: 2, completed: 3 },
-            ...historicalUsage,
-            finish: "stop",
-          } satisfies Omit<SessionV1.Assistant, "id" | "sessionID">),
-        },
-      },
-      {
-        id: user,
-        session_id: sessionID,
-        time_created: 1,
-        time_updated: 1,
-        data: {
-          ...({
-            role: "user",
-            agent: ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR,
-            model: { providerID, modelID },
-            time: { created: 1 },
-          } satisfies Omit<SessionV1.User, "id" | "sessionID">),
-        },
-      },
-    ])
-    .run()
-    .pipe(Effect.orDie)
-  yield* db
-    .insert(PartTable)
-    .values([
-      {
-        id: PartID.make(`prt_history_http_1${suffix}`),
-        message_id: user,
-        session_id: sessionID,
-        time_created: 1,
-        time_updated: 1,
-        data: {
-          ...({ type: "text", text: "Historical question." } satisfies Omit<
-            SessionV1.TextPart,
-            "id" | "sessionID" | "messageID"
-          >),
-        },
-      },
-      {
-        id: PartID.make(`prt_history_http_2${suffix}`),
-        message_id: assistant,
-        session_id: sessionID,
-        time_created: 2,
-        time_updated: 3,
-        data: {
-          ...({ type: "text", text: "Historical answer." } satisfies Omit<
-            SessionV1.TextPart,
-            "id" | "sessionID" | "messageID"
-          >),
-        },
-      },
-      {
-        id: PartID.make(`prt_history_http_3${suffix}`),
-        message_id: assistant,
-        session_id: sessionID,
-        time_created: 2,
-        time_updated: 3,
-        data: {
-          ...({
-            type: "tool",
-            callID: "history-completed-call",
-            tool: "write",
-            state: {
-              status: "completed",
-              input: completedInput,
-              output: "Historical tool output.",
-              title: "Historical write",
-              metadata: { title: "private-tool-metadata" },
-              time: { start: 2, end: 3 },
-            },
-          } satisfies Omit<SessionV1.ToolPart, "id" | "sessionID" | "messageID">),
-        },
-      },
-      {
-        id: PartID.make(`prt_history_http_4${suffix}`),
-        message_id: assistant,
-        session_id: sessionID,
-        time_created: 2,
-        time_updated: 3,
-        data: {
-          ...({
-            type: "tool",
-            callID: "history-pending-call",
-            tool: "write",
-            state: { status: "pending", input: pendingInput, raw: JSON.stringify(pendingInput) },
-          } satisfies Omit<SessionV1.ToolPart, "id" | "sessionID" | "messageID">),
-        },
-      },
-    ])
-    .run()
-    .pipe(Effect.orDie)
-  return { sessionID, user, assistant, completedInput, pendingInput }
-})
-
-const persistedState = Effect.fnUntraced(function* (sessionID: SessionV2.ID) {
-  const db = (yield* Database.Service).db
-  const messages = yield* db
-    .select()
-    .from(MessageTable)
-    .where(eq(MessageTable.session_id, sessionID))
-    .orderBy(asc(MessageTable.id))
-    .all()
-    .pipe(Effect.orDie)
-  const parts = yield* db
-    .select()
-    .from(PartTable)
-    .where(eq(PartTable.session_id, sessionID))
-    .orderBy(asc(PartTable.id))
-    .all()
-    .pipe(Effect.orDie)
-  const usage = yield* db
-    .select({
-      cost: SessionTable.cost,
-      input: SessionTable.tokens_input,
-      output: SessionTable.tokens_output,
-      reasoning: SessionTable.tokens_reasoning,
-      cacheRead: SessionTable.tokens_cache_read,
-      cacheWrite: SessionTable.tokens_cache_write,
-    })
-    .from(SessionTable)
-    .where(eq(SessionTable.id, sessionID))
-    .get()
-    .pipe(Effect.orDie)
-  const events = yield* db
-    .select()
-    .from(EventTable)
-    .where(eq(EventTable.aggregate_id, sessionID))
-    .orderBy(asc(EventTable.seq))
-    .all()
-    .pipe(Effect.orDie)
-  const inputs = yield* db
-    .select()
-    .from(SessionInputTable)
-    .where(eq(SessionInputTable.session_id, sessionID))
-    .orderBy(asc(SessionInputTable.admitted_seq))
-    .all()
-    .pipe(Effect.orDie)
-  return { source: { messages, parts }, usage, events, inputs }
-})
