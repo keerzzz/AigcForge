@@ -35,11 +35,6 @@ Flag.AIGCFROGE_MODELS_PATH = exerciseModelsPath
 process.env.AIGCFROGE_CUSTOM_MODE = "true"
 process.env.AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS = "true"
 
-export const original = {
-  AIGCFROGE_SERVER_PASSWORD: Flag.AIGCFROGE_SERVER_PASSWORD,
-  AIGCFROGE_SERVER_USERNAME: Flag.AIGCFROGE_SERVER_USERNAME,
-}
-
 export const cleanupExercisePaths = Effect.promise(async () => {
   const fs = await import("fs/promises")
   if (!preserveExerciseDatabase) {

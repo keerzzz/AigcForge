@@ -3799,6 +3799,14 @@ const scenarios: Scenario[] = [
   http.protected
     .get("/tui/control/next", "tui.control.next")
     .mutating()
+    .probe({
+      path: "/tui/control/next",
+      prepare: () =>
+        Effect.gen(function* () {
+          const modules = yield* Effect.promise(runtime)
+          modules.Tui.submitTuiRequest({ path: "/tui/auth-probe", body: { text: "queued" } })
+        }),
+    })
     .seeded((ctx) => ctx.tuiRequest({ path: "/tui/exercise", body: { text: "queued" } }))
     .json(
       200,

@@ -45,6 +45,10 @@ export type RequestSpec = {
   body?: unknown
 }
 
+export type AuthProbe = RequestSpec & {
+  prepare?: () => Effect.Effect<void>
+}
+
 export type CallResult = {
   status: number
   contentType: string
@@ -154,7 +158,7 @@ export type ActiveScenario = {
   project: ProjectOptions | undefined
   seed: (ctx: ScenarioContext) => Effect.Effect<unknown>
   request: (ctx: ScenarioContext, state: unknown) => RequestSpec
-  authProbe: RequestSpec | undefined
+  authProbe: AuthProbe | undefined
   expect: (ctx: ScenarioContext, state: unknown, result: CallResult) => Effect.Effect<void>
   compare: Comparison
   capture: CaptureMode
@@ -170,7 +174,7 @@ export type BuilderState<S> = {
   project: ProjectOptions | undefined
   seed: (ctx: ScenarioContext) => Effect.Effect<S>
   request: (ctx: SeededContext<S>) => RequestSpec
-  authProbe: RequestSpec | undefined
+  authProbe: AuthProbe | undefined
   capture: CaptureMode
   mutates: boolean
   reset: boolean
