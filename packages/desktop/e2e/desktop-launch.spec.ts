@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 
+import { Environment } from "../../app/e2e/real/environment"
 import type { ElectronAPI, ServerReadyData } from "../src/preload/types"
 
 declare global {
@@ -18,45 +19,56 @@ declare global {
 
 const execFileAsync = promisify(execFile)
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+const packagedExecutable = process.env.AIGCFROGE_DESKTOP_PACKAGED_EXECUTABLE
+const launchArgs = packagedExecutable ? [] : [desktopRoot]
 const deepLink = "aigcfroge://smoke/deep-link?source=desktop-launch"
 const profileDirectory = "ai.aigcfroge.desktop.dev"
 const restoredBounds = { x: 40, y: 60, width: 1024, height: 700 }
 
 type PickerGlobal = typeof globalThis & { __desktopSmokePickerCalls?: number }
 
-test("launches the real desktop stack with isolated state", async () => {
-  const runRoot = await mkdtemp(join(tmpdir(), "aigcfroge-desktop-smoke-"))
-  const configRoot = join(runRoot, "config")
-  const dataRoot = join(runRoot, "data")
-  const cacheRoot = join(runRoot, "cache")
-  const stateRoot = join(runRoot, "state")
-  const tempRoot = join(runRoot, "tmp")
-  const userDataPath = join(configRoot, profileDirectory)
-
-  await Promise.all(
-    [configRoot, dataRoot, cacheRoot, stateRoot, tempRoot, userDataPath].map((path) =>
-      mkdir(path, { recursive: true }),
-    ),
-  )
-  await writeFile(join(userDataPath, "window-state.json"), JSON.stringify(restoredBounds))
-
+test("launches the real desktop stack with isolated state", async ({}, testInfo) => {
   const port = await unusedLoopbackPort()
-  const env = isolatedEnv({ configRoot, dataRoot, cacheRoot, stateRoot, tempRoot, port })
+  // Chromium's SingletonSocket must fit Linux's Unix-domain socket path limit.
+  const runRoot = await mkdtemp(join(process.platform === "linux" ? "/tmp" : tmpdir(), "aigcfroge-desktop-smoke-"))
   let electronApp: ElectronApplication | undefined
+  let tracingStarted = false
 
   try {
+    Environment.prepare(runRoot)
+    const env = isolatedEnv(runRoot, port)
+    const workspaceDirectory = join(runRoot, "workspace")
+    const userDataPath = join(env.XDG_CONFIG_HOME, profileDirectory)
+    await Promise.all(
+      [workspaceDirectory, userDataPath, env.AIGCFROGE_CONFIG_DIR, env.AIGCFROGE_TEST_MANAGED_CONFIG_DIR].map((path) =>
+        mkdir(path, { recursive: true, mode: 0o700 }),
+      ),
+    )
+    await writeFile(join(userDataPath, "window-state.json"), JSON.stringify(restoredBounds))
+    // The launch smoke does not exercise terminals; its shell probe must not source login profiles.
+    await writeFile(env.SHELL, "#!/bin/sh\nexec /usr/bin/env -0\n", { mode: 0o700 })
+
     electronApp = await electron.launch({
-      args: [desktopRoot],
-      cwd: desktopRoot,
+      executablePath: packagedExecutable,
+      args: launchArgs,
+      cwd: workspaceDirectory,
       env,
-      artifactsDir: join(runRoot, "playwright-artifacts"),
+      artifactsDir: testInfo.outputPath("electron-artifacts"),
       timeout: 60_000,
     })
+    // Electron contexts do not use Playwright's browser fixture trace lifecycle.
+    await electronApp.context().tracing.start({ screenshots: true, snapshots: true })
+    tracingStarted = true
 
     const page = await electronApp.firstWindow()
     await page.waitForLoadState("domcontentloaded")
 
     await test.step("renderer and preload load through the real owners", async () => {
+      expect(await electronApp!.evaluate(({ app }) => app.isPackaged)).toBe(Boolean(packagedExecutable))
+      // Desktop updating is disabled by the compiled dev channel, independently of the backend flag.
+      expect(await electronApp!.evaluate(({ app }) => app.getName())).toBe("Aigcfroge Dev")
+      expect(await electronApp!.evaluate(({ app }) => app.getPath("home"))).toBe(env.HOME)
+      expect(await electronApp!.evaluate(() => process.cwd())).toBe(env.HOME)
       expect(page.url()).toBe("oc://renderer/index.html")
       expect(await electronApp!.evaluate(({ app }) => app.getPath("userData"))).toBe(userDataPath)
       await expect.poll(() => page.locator("#root").evaluate((root) => root.childElementCount)).toBeGreaterThan(0)
@@ -113,14 +125,18 @@ test("launches the real desktop stack with isolated state", async () => {
     })
 
     await test.step("runs a menu-owned window action", async () => {
-      const windowCount = await page.evaluate(() => window.api.getWindowCount())
+      const windowIDs = await electronApp!.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().map((window) => window.id),
+      )
+      expect(await page.evaluate(() => window.api.getWindowCount())).toBe(windowIDs.length)
       await page.evaluate(() => window.api.runDesktopMenuAction("window.new"))
-      await expect.poll(() => page.evaluate(() => window.api.getWindowCount())).toBe(windowCount + 1)
-      await electronApp!.evaluate(({ BrowserWindow }, keepCount) => {
-        const windows = BrowserWindow.getAllWindows()
-        for (const window of windows.slice(keepCount)) window.close()
-      }, windowCount)
-      await expect.poll(() => page.evaluate(() => window.api.getWindowCount())).toBe(windowCount)
+      await expect.poll(() => page.evaluate(() => window.api.getWindowCount())).toBe(windowIDs.length + 1)
+      await electronApp!.evaluate(({ BrowserWindow }, retained) => {
+        BrowserWindow.getAllWindows()
+          .filter((window) => !retained.includes(window.id))
+          .forEach((window) => window.close())
+      }, windowIDs)
+      await expect.poll(() => page.evaluate(() => window.api.getWindowCount())).toBe(windowIDs.length)
     })
 
     await test.step("delivers a second-instance deep link to the renderer", async () => {
@@ -134,8 +150,8 @@ test("launches the real desktop stack with isolated state", async () => {
       const electronExecutable = electronApp!.process().spawnfile
       await execFileAsync(
         electronExecutable,
-        [...(process.platform === "linux" ? ["--no-sandbox"] : []), desktopRoot, deepLink],
-        { cwd: desktopRoot, env, timeout: 30_000 },
+        [...(process.platform === "linux" ? ["--no-sandbox"] : []), ...launchArgs, deepLink],
+        { cwd: workspaceDirectory, env, timeout: 30_000 },
       )
 
       await expect.poll(() => page.evaluate(() => window.__desktopSmokeDeepLinks ?? [])).toEqual([deepLink])
@@ -172,8 +188,33 @@ test("launches the real desktop stack with isolated state", async () => {
       expect(await page.evaluate(() => window.api.getWindowCount())).toBe(1)
     })
   } finally {
-    await electronApp?.close()
-    await rm(runRoot, { recursive: true, force: true })
+    try {
+      if (electronApp && tracingStarted) {
+        await electronApp.context().tracing.stop({ path: testInfo.outputPath("desktop-trace.zip") })
+        await testInfo.attach("desktop-trace", {
+          path: testInfo.outputPath("desktop-trace.zip"),
+          contentType: "application/zip",
+        })
+      }
+    } finally {
+      try {
+        await electronApp?.close()
+        // Main-process exit alone does not certify that the sidecar released its listener.
+        await expect
+          .poll(
+            () =>
+              new Promise<boolean>((resolveClosed) => {
+                const server = createServer()
+                server.once("error", () => resolveClosed(false))
+                server.listen(port, "127.0.0.1", () => server.close(() => resolveClosed(true)))
+              }),
+            { timeout: 10_000 },
+          )
+          .toBe(true)
+      } finally {
+        await rm(runRoot, { recursive: true, force: true })
+      }
+    }
   }
 })
 
@@ -193,31 +234,26 @@ async function unusedLoopbackPort() {
   return port
 }
 
-function isolatedEnv(input: {
-  configRoot: string
-  dataRoot: string
-  cacheRoot: string
-  stateRoot: string
-  tempRoot: string
-  port: number
-}) {
-  const env = Object.entries(process.env).reduce<Record<string, string>>((result, [key, value]) => {
-    if (value === undefined || key.startsWith("AIGCFROGE_")) return result
-    if (key === "ELECTRON_RUN_AS_NODE" || key === "NODE_OPTIONS") return result
-    result[key] = value
-    return result
-  }, {})
-  Object.assign(env, {
-    SHELL: "/bin/sh",
-    TMPDIR: input.tempRoot,
-    XDG_CONFIG_HOME: input.configRoot,
-    XDG_DATA_HOME: input.dataRoot,
-    XDG_CACHE_HOME: input.cacheRoot,
-    XDG_STATE_HOME: input.stateRoot,
+function isolatedEnv(runRoot: string, port: number): Record<string, string> {
+  return {
+    ...Environment.create(runRoot, process.env),
+    ...Object.fromEntries(
+      ["DISPLAY", "XAUTHORITY"].flatMap((key) => (process.env[key] === undefined ? [] : [[key, process.env[key]]])),
+    ),
+    SHELL: join(runRoot, "shell"),
     AIGCFROGE_DB: ":memory:",
-    AIGCFROGE_PORT: String(input.port),
-  })
-  return env
+    AIGCFROGE_PORT: String(port),
+    AIGCFROGE_CONFIG_DIR: join(runRoot, "config"),
+    AIGCFROGE_TEST_MANAGED_CONFIG_DIR: join(runRoot, "managed-config"),
+    AIGCFROGE_DISABLE_PROJECT_CONFIG: "true",
+    AIGCFROGE_DISABLE_AUTOUPDATE: "true",
+    AIGCFROGE_DISABLE_MODELS_FETCH: "true",
+    AIGCFROGE_DISABLE_DEFAULT_PLUGINS: "true",
+    AIGCFROGE_DISABLE_EXTERNAL_SKILLS: "true",
+    AIGCFROGE_DISABLE_CLAUDE_CODE: "true",
+    AIGCFROGE_DISABLE_LSP_DOWNLOAD: "true",
+    npm_config_offline: "true",
+  }
 }
 
 async function healthStatus(ready: ServerReadyData) {

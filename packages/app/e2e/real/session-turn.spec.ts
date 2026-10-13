@@ -8,8 +8,7 @@
  * which writes messages/parts directly. So THIS spec asserts what the product
  * actually does: submit → provider turn → projected parts → reload → restart
  * durability of a completed turn. Durable-admission evidence lives in
- * `v2-admission-gap.spec.ts`, which pins the V2 gap instead of pretending it is
- * the product chain.
+ * `canonical-runtime.spec.ts`, which exercises positive V2 admission and execution.
  *
  * V1 semantics deliberately NOT asserted here (the payload has no such fields —
  * packages/aigcfroge/src/session/prompt.ts:117-130): queue, steer, resume. Only
@@ -226,7 +225,7 @@ test("a completed turn's projection survives a backend restart", async ({ page, 
       async () => {
         const probe = await request.get(`${harness}/e4/backend-health`)
         const body: unknown = await probe.json()
-        return isRecord(body) && body.healthy === true
+        return isRecord(body) && body.healthy === true && body.restarting === false
       },
       { timeout: 300_000, intervals: [500, 1_000, 2_000] },
     )
