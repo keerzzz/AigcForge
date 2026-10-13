@@ -11,9 +11,11 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
+import * as TestClock from "effect/testing/TestClock"
 import { makeClaudeCodeSdkAdapter, type ClaudeSdk } from "../src/tool/claude-code-sdk"
 import { makeCodexSdkAdapter, type CodexSdk } from "../src/tool/codex-sdk"
+import { it } from "./lib/effect"
 
 const run = <A>(effect: Effect.Effect<A>) => Effect.runPromise(effect)
 
@@ -121,6 +123,73 @@ describe("claude-code SDK adapter", () => {
 })
 
 describe("codex SDK adapter", () => {
+  test("constructs an optional SDK only when its execution runs", async () => {
+    const constructions: string[] = []
+    const starts: unknown[] = []
+    const adapter = makeCodexSdkAdapter(async () => {
+      constructions.push("constructed")
+      return {
+        startThread: (options) => {
+          starts.push(options)
+          return { id: "thread_lazy", run: async () => ({ finalResponse: "lazy result" }) }
+        },
+        resumeThread: (id) => ({ id, run: async () => ({ finalResponse: "resumed" }) }),
+      } satisfies CodexSdk
+    })
+    await run(adapter.detect())
+    expect(constructions).toEqual([])
+    if (!adapter.execute) throw new Error("SDK adapter has no execute method")
+    const execution = adapter.execute({ prompt: "x", cwd: "/p" })
+    expect(constructions).toEqual([])
+    expect(await run(execution)).toMatchObject({ status: "success", summary: "lazy result", sessionId: "thread_lazy" })
+    expect(constructions).toEqual(["constructed"])
+    expect(starts).toEqual([{ workingDirectory: "/p", approvalPolicy: "never" }])
+  })
+
+  test.each(["construction", "async construction", "start", "resume", "run"] as const)(
+    "returns provider_error without a defect when %s fails",
+    async (stage) => {
+      const sdk: CodexSdk = {
+        startThread: () => {
+          if (stage === "start") throw new Error(`${stage} failed`)
+          return {
+            id: "thread_started",
+            run: async () => {
+              throw new Error(`${stage} failed`)
+            },
+          }
+        },
+        resumeThread: () => {
+          throw new Error(`${stage} failed`)
+        },
+      }
+      const adapter = makeCodexSdkAdapter(
+        stage === "construction"
+          ? () => {
+              throw new Error(`${stage} failed`)
+            }
+          : stage === "async construction"
+            ? async () => {
+                throw new Error(`${stage} failed`)
+              }
+            : sdk,
+      )
+      if (!adapter.execute) throw new Error("SDK adapter has no execute method")
+      const result = await run(
+        adapter.execute({ prompt: "x", cwd: "/p", ...(stage === "resume" ? { resumeId: "thread_existing" } : {}) }),
+      )
+      expect(result).toEqual({
+        status: "failed",
+        summary: `CLI "codex" SDK execution failed: ${stage} failed`,
+        ...(stage === "resume" ? { sessionId: "thread_existing" } : {}),
+        ...(stage === "run" ? { sessionId: "thread_started" } : {}),
+        errorCode: "provider_error",
+        recoveryRequired: true,
+        errors: [`${stage} failed`],
+      })
+    },
+  )
+
   test("runs a turn and returns finalResponse", async () => {
     let seenInput: string | undefined
     const sdk: CodexSdk = {
@@ -175,4 +244,102 @@ describe("codex SDK adapter", () => {
     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
     expect(result.sessionId).toBe("thread_9")
   })
+
+  test("reads the persistent thread id assigned during the first run", async () => {
+    let id: string | null = null
+    const sdk: CodexSdk = {
+      startThread: () => ({
+        get id() {
+          return id
+        },
+        run: async () => {
+          id = "thread_after_run"
+          return { finalResponse: "Completed after thread.started" }
+        },
+      }),
+      resumeThread: (threadID) => ({ id: threadID, run: async () => ({ finalResponse: "resumed" }) }),
+    }
+    const adapter = makeCodexSdkAdapter(sdk)
+    if (!adapter.execute) throw new Error("SDK adapter has no execute method")
+    expect(await run(adapter.execute({ prompt: "x", cwd: "/p" }))).toMatchObject({
+      status: "success",
+      summary: "Completed after thread.started",
+      sessionId: "thread_after_run",
+    })
+  })
+
+  it.effect("preserves the persistent thread id when the first run rejects", () =>
+    Effect.gen(function* () {
+      let id: string | null = null
+      const sdk: CodexSdk = {
+        startThread: () => ({
+          get id() {
+            return id
+          },
+          run: async () => {
+            id = "thread_failed_after_start"
+            throw new Error("First turn failed after thread.started")
+          },
+        }),
+        resumeThread: (threadID) => ({ id: threadID, run: async () => ({ finalResponse: "resumed" }) }),
+      }
+      const adapter = makeCodexSdkAdapter(sdk)
+      if (!adapter.execute) throw new Error("SDK adapter has no execute method")
+      const result = yield* adapter.execute({ prompt: "x", cwd: "/p" })
+      expect(result).toMatchObject({
+        status: "failed",
+        sessionId: "thread_failed_after_start",
+        errorCode: "provider_error",
+        recoveryRequired: true,
+        errors: ["First turn failed after thread.started"],
+      })
+    }),
+  )
+
+  it.effect("preserves the persistent thread id when the first run times out", () =>
+    Effect.gen(function* () {
+      const started = Promise.withResolvers<void>()
+      let id: string | null = null
+      let aborted = false
+      const sdk: CodexSdk = {
+        startThread: () => ({
+          get id() {
+            return id
+          },
+          run: (_input, options) =>
+            new Promise((_resolve, reject) => {
+              if (!options?.signal) {
+                reject(new Error("SDK run requires the adapter's abort signal"))
+                return
+              }
+              options.signal.addEventListener(
+                "abort",
+                () => {
+                  aborted = true
+                  reject(new Error("SDK run aborted"))
+                },
+                { once: true },
+              )
+              id = "thread_timed_out_after_start"
+              started.resolve()
+            }),
+        }),
+        resumeThread: (threadID) => ({ id: threadID, run: async () => ({ finalResponse: "resumed" }) }),
+      }
+      const adapter = makeCodexSdkAdapter(sdk)
+      if (!adapter.execute) throw new Error("SDK adapter has no execute method")
+      const fiber = yield* adapter
+        .execute({ prompt: "x", cwd: "/p", timeoutMs: 1_000 })
+        .pipe(Effect.forkIn(yield* Effect.scope))
+      yield* Effect.promise(() => started.promise)
+      yield* TestClock.adjust("1 second")
+      expect(yield* Fiber.join(fiber)).toMatchObject({
+        status: "failed",
+        sessionId: "thread_timed_out_after_start",
+        errorCode: "timeout",
+        recoveryRequired: true,
+      })
+      expect(aborted).toBe(true)
+    }),
+  )
 })
