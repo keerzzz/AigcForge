@@ -9,17 +9,20 @@ import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 import { assistantQueryKey } from "@/utils/assistant-query"
+import { useModeQueryActivity } from "@/pages/mode-slot-active"
 
 /** Knowledge-base search, filtering, backlinks, and dangling-link inspection. */
 export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNoteNote) => void }) {
   const language = useLanguage()
   const serverSDK = useServerSDK()
+  const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
 
   const [search, setSearch] = createSignal("")
   const [tagFilter, setTagFilter] = createSignal<string | undefined>()
   const [selectedID, setSelectedID] = createSignal<string | undefined>(props.target)
 
   const notesQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
@@ -29,6 +32,7 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
   const notes = createMemo(() => notesQuery.data ?? [])
 
   const searchQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "kb-search", search()),
     queryFn: async () => {
       const value = search()
@@ -75,11 +79,12 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
       const res = await serverSDK().client.kb.backlinks({ id })
       return Array.isArray(res.data) ? res.data : []
     },
-    enabled: !!selectedID(),
+    enabled: slotActive() && !!selectedID(),
   }))
   const backlinks = createMemo(() => backlinksQuery.data ?? [])
 
   const danglingQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "dangling"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.dangling()

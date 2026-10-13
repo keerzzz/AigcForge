@@ -27,6 +27,7 @@ import { FileTabContent } from "@/pages/session/file-tabs"
 import { createOpenSessionFileTab, createSessionTabs, getTabReorderIndex, type Sizing } from "@/pages/session/helpers"
 import { setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
 
 type RenderDiff = (SnapshotFileDiff & { file: string }) | VcsFileDiff
 
@@ -35,6 +36,7 @@ function renderDiff(value: SnapshotFileDiff | VcsFileDiff): value is RenderDiff 
 }
 
 export function SessionSidePanel(props: {
+  sessionMode: () => string | undefined
   canReview: () => boolean
   diffs: () => (SnapshotFileDiff | VcsFileDiff)[]
   diffsReady: () => boolean
@@ -204,7 +206,8 @@ export function SessionSidePanel(props: {
   // One wrapper per mode, kept mounted and toggled by `display` (the pre-existing contract:
   // switching modes must not reset a panel's state). The narrow presentation only changes the
   // wrapper's box, never the owner inside it.
-  const modePanel = (id: string, children: JSX.Element) => (
+  // Route params can advance before the global Mode; reads also require the target Session's Mode.
+  const modePanel = (id: string, children: () => JSX.Element) => (
     <div
       data-component="session-mode-panel"
       data-mode={id}
@@ -215,7 +218,9 @@ export function SessionSidePanel(props: {
       }}
       style={{ display: mode.currentMode === id && (isDesktop() || mode.contentPanelOpen) ? "" : "none" }}
     >
-      {children}
+      <ModeSlotActiveProvider value={() => mode.currentMode === id && props.sessionMode() === id}>
+        {children()}
+      </ModeSlotActiveProvider>
     </div>
   )
 
@@ -367,11 +372,16 @@ export function SessionSidePanel(props: {
       </Show>
       {/* Keep mode panels mounted so switching modes does not reset their state. */}
       <Show when={contentPanelShown()}>
-        {modePanel("chat", <ChatRightPanel />)}
-        {modePanel("work", <WorkSessionPanel />)}
-        {modePanel("assistant", <AssistantSessionPanel />)}
-        {modePanel(
-          "custom",
+        {modePanel("chat", () => (
+          <ChatRightPanel />
+        ))}
+        {modePanel("work", () => (
+          <WorkSessionPanel />
+        ))}
+        {modePanel("assistant", () => (
+          <AssistantSessionPanel />
+        ))}
+        {modePanel("custom", () => (
           <CustomDraftProvider
             location={() => {
               const current = sdk()
@@ -379,8 +389,8 @@ export function SessionSidePanel(props: {
             }}
           >
             <CustomSessionPanel sessionID={params.id} />
-          </CustomDraftProvider>,
-        )}
+          </CustomDraftProvider>
+        ))}
       </Show>
     </Show>
   )

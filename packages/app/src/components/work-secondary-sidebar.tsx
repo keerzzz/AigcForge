@@ -9,6 +9,7 @@ import { isMode, modeDefinition } from "@/context/mode"
 import { ServerConnection } from "@/context/server"
 import { useServerSync } from "@/context/server-sync"
 import { useWorkSecondaryTab } from "@/context/work-secondary-tab"
+import { useModeSlotActive } from "@/pages/mode-slot-active"
 import { computeWorkSidebarGroups } from "@/pages/work-sidebar-groups"
 import { SessionItem, SessionSkeleton } from "@/pages/layout/sidebar-items"
 import { sortedRootSessions } from "@/pages/layout/helpers"
@@ -23,6 +24,7 @@ export function WorkSecondarySidebar(props: {
 }) {
   const language = useLanguage()
   const sync = useServerSync()
+  const slotActive = useModeSlotActive()
   const params = useParams()
   const { selected: tab, set: setTab } = useWorkSecondaryTab()
 
@@ -55,6 +57,7 @@ export function WorkSecondarySidebar(props: {
   const groups = createMemo(() => computeWorkSidebarGroups(sessions()))
 
   createEffect(() => {
+    if (!slotActive()) return
     const directory = props.directory()
     if (!directory) return
     void sync().project.loadSessions(directory, { mode: "work" })

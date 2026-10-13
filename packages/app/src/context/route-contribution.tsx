@@ -1,5 +1,9 @@
-import { createContext, createSignal, useContext, type ParentProps } from "solid-js"
-import type { ServerConnection } from "@/context/server"
+import { createContext, createSignal, useContext, type Accessor, type ParentProps } from "solid-js"
+import { ServerConnection } from "@/context/server"
+import type { useNotification } from "./notification"
+import type { usePermission } from "./permission"
+import type { LayoutRoute } from "@/context/layout-helpers"
+import type { AssistantPanelTab } from "@/utils/assistant-panel"
 import type { ServerScope, SessionStateKey } from "@/utils/server-scope"
 
 export type SessionContribution = {
@@ -11,6 +15,21 @@ export type SessionContribution = {
   directory: string
   leafID: string
   openContext: () => void
+  sessionStatus: Pick<ReturnType<typeof useNotification>["session"], "unseenCount" | "unseenHasError"> &
+    Pick<ReturnType<typeof usePermission>, "autoResponds">
+  assistantPanel: {
+    available: Accessor<boolean>
+    active: Accessor<string | undefined>
+    target: Accessor<string | undefined>
+    open: (kind: AssistantPanelTab, itemId?: string) => void
+  }
+}
+
+/** Only the resolved owner of the displayed route may handle shell actions. */
+export function sessionContributionForRoute(value: SessionContribution | undefined, route: LayoutRoute) {
+  if (!value || route.type !== "session" || !route.server) return undefined
+  if (value.leafID !== route.sessionId || !ServerConnection.sameKey(value.server, route.server)) return undefined
+  return value
 }
 
 export type RouteContributionContext = {

@@ -1,4 +1,4 @@
-import type { Accessor } from "solid-js"
+import { createMemo, type Accessor } from "solid-js"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { Icon } from "@aigcfroge/ui/v2/icon"
@@ -10,7 +10,7 @@ import { useTabs } from "@/context/tabs"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useModeDirectory } from "@/pages/mode-workspace-context"
 import type { Mode } from "@/context/mode"
-import { ServerConnection } from "@/context/server"
+import { ServerConnection, useServer } from "@/context/server"
 import { homeProjectDirectories, launchModeSession } from "@/pages/layout/helpers"
 
 /** Shared location and new-session controls for Chat, Work, and Assistant. */
@@ -19,13 +19,26 @@ import { homeProjectDirectories, launchModeSession } from "@/pages/layout/helper
 // rather than letting a dynamic one arrive and fail on first send.
 export function ModeLocationNewSession(props: {
   directory: Accessor<string | undefined>
+  server?: Accessor<ServerConnection.Key | undefined>
   mode: ProductMode.GenericSessionMode
 }) {
   const language = useLanguage()
   const global = useGlobal()
   const tabs = useTabs()
   const pickDirectory = useDirectoryPicker()
-  const { conn, ctx } = useModeDirectory()
+  const modeDirectory = useModeDirectory()
+  const server = useServer()
+  const conn = createMemo(() => {
+    if (!props.server) return modeDirectory.conn()
+    const key = props.server()
+    if (!key) return undefined
+    return server.list.find((item) => ServerConnection.sameKey(key, ServerConnection.key(item)))
+  })
+  const ctx = createMemo(() => {
+    const current = conn()
+    if (!current) return undefined
+    return global.ensureServerCtx(current)
+  })
 
   function newSession() {
     const c = conn()
@@ -86,7 +99,7 @@ export function ModeLocationNewSession(props: {
           size="normal"
           icon="edit"
           class="w-full"
-          disabled={!props.directory()}
+          disabled={!props.directory() || !conn()}
           onClick={newSession}
         >
           {language.t("command.session.new")}

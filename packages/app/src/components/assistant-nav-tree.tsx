@@ -7,7 +7,7 @@ import { useServerSDK } from "@/context/server-sdk"
 import { buildKbTagTree, type AssistantNavSelection, type KbTagNode } from "./assistant-nav-model"
 import type { KbNoteNote, PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
 import { assistantQueryKey } from "@/utils/assistant-query"
-import { useModeSlotActive } from "@/pages/mode-slot-active"
+import { useModeQueryActivity } from "@/pages/mode-slot-active"
 
 /**
  * Provides the reactive selection straight to note leaves so the intermediate
@@ -23,11 +23,9 @@ export function AssistantNavTree(props: {
   const language = useLanguage()
   const serverSDK = useServerSDK()
 
-  // Rendered by the Assistant sidebar slot, which `ModeWorkspace` keeps mounted in every
-  // mode, so these four followed the Assistant's data around the whole app. Also rendered by
-  // `assistant-session-sidebar.tsx` inside a session, where there is no slot above and
-  // `useModeSlotActive` returns always-active — so the same gate is correct in both places.
-  const slotActive = useModeSlotActive()
+  // Both the workspace and Session sidebars stay mounted while their mode is hidden.
+  // Their slot boundary gates reads and stops retries without losing navigation state.
+  const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
   const pendingQuery = useQuery(() => ({
     enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "pending"),

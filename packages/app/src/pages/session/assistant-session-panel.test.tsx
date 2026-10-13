@@ -81,7 +81,7 @@ describe("SessionSidePanel mode slots (batch 1 G2, reshaped by S7)", () => {
   })
 
   test("keeps every mode panel mounted and toggles it by display, never per-mode unmount", () => {
-    expect(sidePanel).toContain("const modePanel = (id: string, children: JSX.Element)")
+    expect(sidePanel).toContain("const modePanel = (id: string, children: () => JSX.Element)")
     for (const mode of ["chat", "work", "assistant", "custom"]) {
       // Whitespace-tolerant: the custom slot's children are long enough that the formatter wraps
       // the call onto its own line, which a literal match would miss for the wrong reason.

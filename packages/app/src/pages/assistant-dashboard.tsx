@@ -25,7 +25,7 @@ import {
   type HomeSessionRecord,
 } from "@/pages/home-shared"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
-import { useModeSlotActive } from "@/pages/mode-slot-active"
+import { useModeQueryActivity } from "@/pages/mode-slot-active"
 import { mutationErrorMessage } from "./assistant-dashboard-model"
 
 /** Assistant dashboard for reminders, deliveries, memory, notes, and Sessions. */
@@ -55,7 +55,7 @@ export function AssistantDashboardMain() {
   // mounted, so without this gate opening Coding also asked the server for the Assistant's
   // reminders, memory and knowledge base. Same shape as the coding and work session loads
   // in `mode-workspace-slots.tsx`.
-  const slotActive = useModeSlotActive()
+  const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
   const pendingQuery = useQuery(() => ({
     enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "pending"),

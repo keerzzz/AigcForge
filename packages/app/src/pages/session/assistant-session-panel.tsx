@@ -10,6 +10,7 @@ import { useServerSDK } from "@/context/server-sdk"
 import { useCommand } from "@/context/command"
 import { useMode } from "@/context/mode"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import { useModeQueryActivity } from "@/pages/mode-slot-active"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import { SessionContextTab, SessionContextTabTrigger } from "@/components/session"
 import { createSizing } from "@/pages/session/helpers"
@@ -32,6 +33,7 @@ export function AssistantSessionPanel() {
   const serverSDK = useServerSDK()
   const command = useCommand()
   const mode = useMode()
+  const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
   const { params, assistant, tabs, view } = useSessionLayout()
   const size = createSizing()
 
@@ -56,7 +58,9 @@ export function AssistantSessionPanel() {
   )
 
   const selectTab = (value: string | number) => {
+    if (!slotActive()) return
     const tab = String(value)
+    if (!openTabs().includes(tab)) return
     if (tab !== "context" && !ENTITY_TABS.some((item) => item.id === tab)) return
     tabs().setActive(tab)
     assistant().setTarget(undefined)
@@ -65,6 +69,7 @@ export function AssistantSessionPanel() {
   const closeTab = (tab: string) => tabs().close(tab)
 
   const remindersQuery = useQuery(() => ({
+    enabled: slotActive() && !!sessionID(),
     queryKey: assistantQueryKey(serverSDK().scope, "panel", "reminders", sessionID()),
     queryFn: async () => {
       const id = sessionID()
@@ -76,6 +81,7 @@ export function AssistantSessionPanel() {
   const reminders = createMemo(() => remindersQuery.data ?? [])
 
   const inboxQuery = useQuery(() => ({
+    enabled: slotActive() && !!sessionID(),
     queryKey: assistantQueryKey(serverSDK().scope, "panel", "inbox", sessionID()),
     queryFn: async () => {
       const id = sessionID()
@@ -101,6 +107,7 @@ export function AssistantSessionPanel() {
   }
 
   const memoryQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
@@ -156,20 +163,23 @@ export function AssistantSessionPanel() {
         >
           <For each={ENTITY_TABS}>
             {(item) => (
-              <Show when={openTabs().includes(item.id)}>
+              // Keep the finite trigger collection registered. Kobalte otherwise
+              // falls back to the first tab before a newly opened trigger registers.
+              <span style={{ display: openTabs().includes(item.id) ? "contents" : "none" }}>
                 <TabsV2.Trigger
                   value={item.id}
                   class="shrink-0"
+                  disabled={!openTabs().includes(item.id)}
                   closeButton={closeButton(item.id)}
                   hideCloseButton
                   onMiddleClick={() => closeTab(item.id)}
                 >
                   <span class="whitespace-nowrap">{language.t(item.label)}</span>
                 </TabsV2.Trigger>
-              </Show>
+              </span>
             )}
           </For>
-          <SessionContextTabTrigger contextOpen={contextOpen} onClose={() => closeTab("context")} />
+          <SessionContextTabTrigger contextOpen={contextOpen} onClose={() => closeTab("context")} forceMount />
         </TabsV2.List>
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden">

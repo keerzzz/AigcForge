@@ -1,5 +1,6 @@
 import { useFile } from "@/context/file"
 import { encodeFilePath } from "@/context/file/path"
+import { useModeSlotActive } from "@/pages/mode-slot-active"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
 import { FileIcon } from "@aigcfroge/ui/file-icon"
 import { Icon } from "@aigcfroge/ui/icon"
@@ -209,6 +210,7 @@ export default function FileTree(props: {
   _chain?: readonly string[]
 }) {
   const file = useFile()
+  const slotActive = useModeSlotActive()
   const level = props.level ?? 0
   const draggable = () => props.draggable ?? true
 
@@ -303,6 +305,7 @@ export default function FileTree(props: {
   })
 
   createEffect(() => {
+    if (!slotActive()) return
     const current = filter()
     const dirs = dirsToExpand({
       level,
@@ -314,8 +317,9 @@ export default function FileTree(props: {
 
   createEffect(
     on(
-      () => props.path,
-      (path) => {
+      [slotActive, () => props.path],
+      ([active, path]) => {
+        if (!active) return
         const dir = untrack(() => file.tree.state(path))
         if (!shouldListRoot({ level, dir })) return
         void file.tree.list(path)

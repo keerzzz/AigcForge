@@ -76,7 +76,10 @@ import { formatServerError } from "@/utils/server-errors"
 import { runInternalNavigation, useChatWorkspace } from "@/context/chat-workspace"
 import { UrlParams } from "@/utils/url-params"
 import { tabKey } from "@/context/tabs"
+import { useNotification } from "@/context/notification"
+import { usePermission } from "@/context/permission"
 import { useRouteContribution } from "@/context/route-contribution"
+import { openEntityPanel } from "@/pages/session/assistant-session-panel-open"
 import { openSessionContext } from "@/components/open-session-context"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
@@ -97,6 +100,8 @@ type VcsMode = "git" | "branch"
 
 export default function Page(props: { rootID: string }) {
   const serverSync = useServerSync()
+  const notification = useNotification()
+  const permission = usePermission()
   const layout = useLayout()
   const productMode = useMode()
   const local = useLocal()
@@ -121,7 +126,7 @@ export default function Page(props: { rootID: string }) {
   const [capturePulse, setCapturePulse] = createSignal(false)
   const location = useLocation()
   const navigate = useNavigate()
-  const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
+  const { params, sessionKey, workspaceKey, tabs, view, assistant } = useSessionLayout()
   const newSessionDesign = createMemo(() => true)
 
   createEffect(() => {
@@ -197,7 +202,7 @@ export default function Page(props: { rootID: string }) {
 
   const topLevelTabKey = createMemo(() => {
     if (!params.id) return undefined
-    return tabKey({ type: "session", server: server.key, sessionId: props.rootID })
+    return tabKey({ type: "session", server: routeServerKey(), sessionId: props.rootID })
   })
 
   createEffect(() => {
@@ -212,6 +217,7 @@ export default function Page(props: { rootID: string }) {
     if (!key || !params.id) return
     const sessionTabs = tabs()
     const sessionView = view()
+    const sessionAssistant = assistant()
     const dispose = routeContribution?.register({
       routeIdentity: `${routeServerKey()}\0${params.id}`,
       activeTopLevelTabKey: key,
@@ -221,6 +227,18 @@ export default function Page(props: { rootID: string }) {
       directory: sdk().directory,
       leafID: params.id,
       openContext: () => openSessionContext({ layout, tabs: sessionTabs, view: sessionView }),
+      sessionStatus: {
+        unseenCount: (id) => notification.session.unseenCount(id),
+        unseenHasError: (id) => notification.session.unseenHasError(id),
+        autoResponds: (request, directory) => permission.autoResponds(request, directory),
+      },
+      assistantPanel: {
+        available: () => info()?.mode === "assistant",
+        active: sessionTabs.active,
+        target: sessionAssistant.target,
+        open: (kind, itemId) =>
+          openEntityPanel({ view: sessionView, tabs: sessionTabs, assistant: sessionAssistant, kind, itemId }),
+      },
     })
     onCleanup(() => dispose?.())
   })
@@ -2190,6 +2208,7 @@ export default function Page(props: { rootID: string }) {
         </div>
 
         <SessionSidePanel
+          sessionMode={sessionMode}
           canReview={canReview}
           diffs={reviewDiffs}
           diffsReady={reviewReady}

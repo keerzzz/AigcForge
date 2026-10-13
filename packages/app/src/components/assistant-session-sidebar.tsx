@@ -1,43 +1,29 @@
 import { createMemo, For, Show, type Accessor } from "solid-js"
-import { useParams } from "@solidjs/router"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { useLanguage } from "@/context/language"
 import { ModeLocationNewSession } from "@/components/mode-location-new-session"
 import { useServerSync } from "@/context/server-sync"
-import { useServerSDK } from "@/context/server-sdk"
-import { useLayout } from "@/context/layout"
-import { SessionRouteKey, SessionStateKey } from "@/utils/server-scope"
+import type { SessionContribution } from "@/context/route-contribution"
 import { sortedRootSessions } from "@/pages/layout/helpers"
 import { SessionItem, SessionSkeleton } from "@/pages/layout/sidebar-items"
 import { AssistantNavTree } from "@/components/assistant-nav-tree"
-import { openEntityPanel } from "@/pages/session/assistant-session-panel-open"
 import type { WorkspaceSidebarContext } from "@/pages/layout/sidebar-workspace"
-import type { ServerConnection } from "@/context/server"
 import type { AssistantNavSelection } from "@/components/assistant-nav-model"
 
 /** Assistant session sidebar with mode-scoped sessions and entity navigation. */
 export function AssistantSessionSidebar(props: {
-  directory: Accessor<string>
+  target: Accessor<SessionContribution>
   sortNow: Accessor<number>
   ctx: WorkspaceSidebarContext
-  serverKey?: ServerConnection.Key
 }) {
   const language = useLanguage()
   const sync = useServerSync()
-  const params = useParams()
-  const serverSDK = useServerSDK()
-  const layout = useLayout()
-  // This shell renders outside SDKProvider, so derive the same scoped key that
-  // useSessionLayout would create from its directory SDK context.
-  const sessionKey = createMemo(() =>
-    SessionStateKey.from(serverSDK().scope, SessionRouteKey.fromRoute(base64Encode(props.directory()), params.id)),
-  )
-  const assistant = createMemo(() => layout.assistant(sessionKey))
-  const tabs = createMemo(() => layout.tabs(sessionKey))
-  const view = createMemo(() => layout.view(sessionKey))
+  // The shell and canonical Session intentionally have separate Layout owners.
+  // Selection and mutations therefore come from the Session's published handle.
+  const panel = () => props.target().assistantPanel
 
   const store = createMemo(() => {
-    const directory = props.directory()
+    const directory = props.target().directory
     if (!directory) return undefined
     return sync().child(directory, { bootstrap: false })[0]
   })
@@ -50,8 +36,8 @@ export function AssistantSessionSidebar(props: {
 
   // Entity tabs map to navigation selections; context and editor have no tree node.
   const selected = createMemo<AssistantNavSelection>(() => {
-    const active = tabs().active()
-    const target = assistant().target()
+    const active = panel().active()
+    const target = panel().target()
     if (active === "reminders" || active === "memory" || active === "kb") {
       return target ? { kind: active, itemId: target } : { kind: active }
     }
@@ -61,15 +47,19 @@ export function AssistantSessionSidebar(props: {
   const onSelect = (next: AssistantNavSelection) => {
     if (!next) return
     if (next.kind === "reminders" || next.kind === "memory" || next.kind === "kb") {
-      openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: next.kind, itemId: next.itemId })
+      panel().open(next.kind, next.itemId)
       return
     }
-    openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: "kb" })
+    panel().open("kb")
   }
 
   return (
     <div class="flex min-h-0 flex-1 flex-col" data-component="assistant-session-sidebar">
-      <ModeLocationNewSession directory={props.directory} mode="assistant" />
+      <ModeLocationNewSession
+        directory={() => props.target().directory}
+        server={() => props.target().server}
+        mode="assistant"
+      />
       {/* Entity navigation module sits above the session list, capped so a large
           knowledge tree cannot collapse the conversations below. */}
       <div
@@ -97,9 +87,10 @@ export function AssistantSessionSidebar(props: {
                   <SessionItem
                     session={session}
                     list={sessions()}
-                    navList={props.ctx.navList}
-                    slug={base64Encode(props.directory())}
-                    serverKey={props.serverKey}
+                    navList={sessions}
+                    slug={base64Encode(props.target().directory)}
+                    serverKey={props.target().server}
+                    status={props.target().sessionStatus}
                     sidebarExpanded={props.ctx.sidebarExpanded}
                     clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
                     prefetchSession={props.ctx.prefetchSession}

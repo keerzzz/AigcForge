@@ -8,6 +8,8 @@ import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
 import { assistantQueryKey } from "@/utils/assistant-query"
+import { ScopedKey } from "@/utils/server-scope"
+import { useModeQueryActivity } from "@/pages/mode-slot-active"
 import {
   danglingWikilinks,
   findWikilinkBeforeCaret,
@@ -20,6 +22,7 @@ import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => void }) {
   const language = useLanguage()
   const serverSDK = useServerSDK()
+  const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
 
   const [title, setTitle] = createSignal("")
   const [tags, setTags] = createSignal("")
@@ -31,6 +34,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   const [completionIndex, setCompletionIndex] = createSignal(0)
 
   const notesQuery = useQuery(() => ({
+    enabled: slotActive(),
     queryKey: assistantQueryKey(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
@@ -40,13 +44,19 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   const notes = createMemo(() => notesQuery.data ?? [])
   const titleIndex = createMemo(() => new Set(notes().map((note) => note.title)))
 
+  // Reactivating a mounted editor may resume a pending read, but must not hydrate
+  // an already loaded note over its unsaved draft.
+  let loadedNote: string | undefined
   createEffect(() => {
     const id = props.noteId
-    if (!id) return
+    if (!id || !slotActive()) return
+    const sdk = serverSDK()
+    const key = ScopedKey.from(sdk.scope, "kb", id)
+    if (loadedNote === key) return
     let cancelled = false
     setLoading(true)
-    void serverSDK()
-      .client.kb.get({ id })
+    void sdk.client.kb
+      .get({ id })
       .then((res) => {
         if (cancelled) return
         const note = res.data as KbNoteNote | undefined
@@ -54,6 +64,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
         setTitle(note.title ?? "")
         setTags((note.tags ?? []).join(", "))
         setContent(note.content ?? "")
+        loadedNote = key
       })
       .catch(console.error)
       .finally(() => {
@@ -61,11 +72,13 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
       })
     onCleanup(() => {
       cancelled = true
+      setLoading(false)
     })
   })
 
   createEffect(() => {
     if (props.noteId) return
+    loadedNote = undefined
     setTitle("")
     setTags("")
     setContent("")

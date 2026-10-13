@@ -26,6 +26,7 @@ import { findProposeResult } from "./prompt-asset-candidate"
 import { applyAssetCandidate, assetKindDir, fetchAssetInsertText, listAssets } from "./asset-insert"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 type ApplyWarning = {
   readonly code: "wildcard_allow" | "dangerous_allow"
@@ -51,6 +52,7 @@ export function ChatRightPanel() {
   const sdk = useSDK()
   const sync = useSync()
   const mode = useMode()
+  const slotActive = useModeSlotActive()
   const candidate = useProposeCandidate()
   const [searchQuery, setSearchQuery] = createSignal("")
   const file = useFile()
@@ -91,6 +93,7 @@ export function ChatRightPanel() {
   // Cancel stale recursive searches when the query or directory context changes.
   const [searchAllowed, setSearchAllowed] = createSignal<readonly string[] | undefined>(undefined)
   createEffect(() => {
+    if (!slotActive()) return
     const q = searchQuery().trim().toLowerCase()
     if (!q) {
       setSearchAllowed(undefined)
@@ -144,12 +147,17 @@ export function ChatRightPanel() {
   })
 
   const [, { refetch }] = createResource(
-    () => ({ client: sdk().client, kind: candidate.candidate?.kind ?? ("prompt" as const) }),
+    () =>
+      whenActive(slotActive(), () => ({
+        client: sdk().client,
+        kind: candidate.candidate?.kind ?? ("prompt" as const),
+      })),
     ({ client, kind }) => listAssets(client, kind),
   )
   // Existing asset content (overwrite diff when candidate.status === "exists")
   const [oldContent] = createResource(
     () => {
+      if (!slotActive()) return
       const c = candidate.candidate
       if (!c?.exists) return null
       return { path: c.relativePath, kind: c.kind }

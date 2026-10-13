@@ -71,7 +71,8 @@ import { useServerSDK } from "@/context/server-sdk"
 import { usePlatform } from "@/context/platform"
 import { useSettings } from "@/context/settings"
 import { useTabs } from "@/context/tabs"
-import { requireServerKey, sessionHref } from "@/utils/session-route"
+import { ServerConnection } from "@/context/server"
+import { parseServerKey, requireServerKey, sessionHref } from "@/utils/session-route"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useServerSync } from "@/context/server-sync"
@@ -862,20 +863,23 @@ export function MessageTimeline(props: {
     titleMutation.mutate({ id, title: next })
   }
 
-  const navigateAfterSessionRemoval = (sessionID: string, parentID?: string, nextSessionID?: string) => {
-    if (params.id !== sessionID) return
-    const key = params.serverKey
-    if (!key) {
-      navigate(`/${params.dir}/session`)
+  const navigateAfterSessionRemoval = (input: {
+    server: ServerConnection.Key
+    directory: string
+    sessionID: string
+    parentID?: string
+    nextSessionID?: string
+  }) => {
+    if (params.id !== input.sessionID) return
+    const route = parseServerKey(params.serverKey)
+    if (!route.ok || !ServerConnection.sameKey(route.key, input.server)) return
+    const href = (id: string) => sessionHref(input.server, id)
+    if (input.parentID) {
+      navigate(href(input.parentID))
       return
     }
-    const href = (id: string) => sessionHref(requireServerKey(key), id)
-    if (parentID) {
-      navigate(href(parentID))
-      return
-    }
-    if (nextSessionID) {
-      navigate(href(nextSessionID))
+    if (input.nextSessionID) {
+      navigate(href(input.nextSessionID))
       return
     }
     // Same bypass the titlebar closed: the last session is gone, so this would start a fresh
@@ -885,29 +889,41 @@ export function MessageTimeline(props: {
       navigate(modeDefinition(mode.currentMode).href)
       return
     }
-    tabs.newDraft({ server: requireServerKey(key), directory: sdk().directory, mode: mode.currentMode })
+    tabs.newDraft({ server: input.server, directory: input.directory, mode: mode.currentMode })
   }
 
   const archiveSession = async (sessionID: string) => {
-    const session = sync().session.get(sessionID)
+    const target = { sdk: sdk(), sync: sync(), server: requireServerKey(params.serverKey) }
+    const session = target.sync.session.get(sessionID)
     if (!session) return
 
-    const sessions = sync().data.session ?? []
+    const sessions = target.sync.data.session ?? []
     const index = sessions.findIndex((s) => s.id === sessionID)
     const nextSession = index === -1 ? undefined : (sessions[index + 1] ?? sessions[index - 1])
 
-    await sdk()
-      .client.session.update({ sessionID, time: { archived: Date.now() } })
+    await target.sdk.client.session
+      .update({ sessionID, time: { archived: Date.now() } })
       .then(() => {
-        sync().set(
+        target.sync.set(
           produce((draft) => {
             const index = draft.session.findIndex((s) => s.id === sessionID)
             if (index !== -1) draft.session.splice(index, 1)
           }),
         )
-        sync().session.evict(sessionID)
-        navigateAfterSessionRemoval(sessionID, session.parentID, nextSession?.id)
-        notifySessionTabsRemoved({ directory: sdk().directory, sessionIDs: [sessionID] })
+        target.sync.session.evict(sessionID)
+        navigateAfterSessionRemoval({
+          server: target.server,
+          directory: target.sdk.directory,
+          sessionID,
+          parentID: session.parentID,
+          nextSessionID: nextSession?.id,
+        })
+        notifySessionTabsRemoved({
+          server: target.server,
+          directory: target.sdk.directory,
+          sessionIDs: [sessionID],
+          navigate: false,
+        })
       })
       .catch((err) => {
         showToast({
@@ -918,15 +934,16 @@ export function MessageTimeline(props: {
   }
 
   const deleteSession = async (sessionID: string) => {
-    const session = sync().session.get(sessionID)
+    const target = { sdk: sdk(), sync: sync(), server: requireServerKey(params.serverKey) }
+    const session = target.sync.session.get(sessionID)
     if (!session) return false
 
-    const sessions = (sync().data.session ?? []).filter((s) => !s.parentID && !s.time?.archived)
+    const sessions = (target.sync.data.session ?? []).filter((s) => !s.parentID && !s.time?.archived)
     const index = sessions.findIndex((s) => s.id === sessionID)
     const nextSession = index === -1 ? undefined : (sessions[index + 1] ?? sessions[index - 1])
 
-    const result = await sdk()
-      .client.session.delete({ sessionID })
+    const result = await target.sdk.client.session
+      .delete({ sessionID })
       .then((x) => x.data)
       .catch((err) => {
         showToast({
@@ -940,7 +957,7 @@ export function MessageTimeline(props: {
 
     const removed = new Set<string>([sessionID])
     const byParent = new Map<string, string[]>()
-    for (const item of sync().data.session) {
+    for (const item of target.sync.data.session) {
       const parentID = item.parentID
       if (!parentID) continue
       const existing = byParent.get(parentID)
@@ -966,18 +983,29 @@ export function MessageTimeline(props: {
       }
     }
 
-    navigateAfterSessionRemoval(sessionID, session.parentID, nextSession?.id)
+    navigateAfterSessionRemoval({
+      server: target.server,
+      directory: target.sdk.directory,
+      sessionID,
+      parentID: session.parentID,
+      nextSessionID: nextSession?.id,
+    })
 
-    sync().set(
+    target.sync.set(
       produce((draft) => {
         draft.session = draft.session.filter((s) => !removed.has(s.id))
       }),
     )
 
     for (const id of removed) {
-      sync().session.evict(id)
+      target.sync.session.evict(id)
     }
-    notifySessionTabsRemoved({ directory: sdk().directory, sessionIDs: [...removed] })
+    notifySessionTabsRemoved({
+      server: target.server,
+      directory: target.sdk.directory,
+      sessionIDs: [...removed],
+      navigate: false,
+    })
     return true
   }
 

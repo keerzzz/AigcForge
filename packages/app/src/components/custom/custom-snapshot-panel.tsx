@@ -16,6 +16,7 @@ import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import { createSizing } from "@/pages/session/helpers"
 import { classifySnapshotFailure, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 export interface CustomSessionPanelProps {
   sessionID?: string
@@ -23,6 +24,7 @@ export interface CustomSessionPanelProps {
 }
 
 export function CustomSessionPanel(props: CustomSessionPanelProps) {
+  const slotActive = useModeSlotActive()
   const language = useLanguage()
   const sdk = useSDK()
   const tabs = useTabs()
@@ -41,7 +43,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   // the panel must not render a 400 (a snapshot the server could not decode) or a
   // dropped connection as the same thing. See custom-plan-state.ts (P2-11).
   const [snapshotFetch] = createResource(
-    () => ({ sessionID: props.sessionID, directory: props.directory }),
+    () => whenActive(slotActive(), () => ({ sessionID: props.sessionID, directory: props.directory })),
     async (source): Promise<SnapshotFetch<Snapshot>> => {
       if (!source.sessionID) return { state: "absent" }
       try {

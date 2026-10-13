@@ -476,11 +476,11 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 
 来源：R2 `agent-interaction-ui-tdd-implementation.md` 的 S03 / §0.3 / §9-X03；续接两个 Codex 对话及 Claude 原始任务记录。实施目录 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`，冻结 HEAD `260e8275b9b0af9d0b445e5acfb6f4d3545eac7b`。源目录的 main 已前进，未 rebase、切换或复制其修改。保留既有 B1/S02 未提交内容；本轮未 commit/push/PR。
 
-**状态（2026-10-04）：本轮已补默认双后端 E4、鼠标命中与 Task 焦点修复，并修复真实 Question 工具可用性及取消传播/通知缺口；S03/B2 仍在整批门禁收尾，不能自动放行 B3。** 当前事实与待完成检查以 §15.4 为准。S04–S09 未实施，commit/push/PR/发布均未授权执行。
+**当前续作状态（2026-10-13）见 §15.21；S08/S09 整体仍开放。** §15.1–§15.20 保留各日期的实施、失败、授权与交审状态，不能把早期的“S04–S09 未实施”“commit 未授权”继续作为当前总状态。后续用户已授权本地剩余任务及通过验证后的本地提交；push、远端 CI、签名、发布与 rollout 仍按各自实际目标和授权处理。
 
 ### 15.1 2026-10-02 已实施与复用决定（历史检查点）
 
-以下保留 2026-10-02 的实现范围与当时证据，不覆盖历史失败；其中“生产 App 未改”“旧 Session alias 原生分支未验证”等描述只适用于该检查点。2026-10-03 的历史检查点见 §15.2；2026-10-04 当前状态以 §15.4 为准。
+以下保留 2026-10-02 的实现范围与当时证据，不覆盖历史失败；其中“生产 App 未改”“旧 Session alias 原生分支未验证”等描述只适用于该检查点。2026-10-03 的历史检查点见 §15.2；2026-10-04 的状态见 §15.4；当前续作状态见 §15.21。
 
 - **一次终态与失败收尾**：Core Question/Permission 和默认执行链各自在现有 pending owner 内处理请求；先提交终态、唤醒 Deferred，再通知订阅者。通知失败仍向调用方报错，不让请求从清单消失却留下永远等待的工具。admission 失败、取消和 finalizer 清理受各自 Scope 约束；Permission 的整个 timeout combinator 放入 interruptible restore，取消不再被外层 mask 拖到 TTL。
 - **授权竞争**：拒绝只在 HTTP handler 加一把独立锁或先发 grant 再补偿的方案。`packages/core/src/permission.ts` 的 `grant` 与 `reply` 共用已有 pending owner 的 decision semaphore；复用 `ScopedGrantStore.issue` 的真实持久化，不增加表、事件、兼容路径或第二个 Gate store。`packages/server/src/handlers/grant.ts` 只调用领域操作并映射错误，原 `issueGrantForRequest` 及其只用 fake owner 的补偿测试已由真实 owner/HTTP 测试替换。25 个完整 Permission 测试替身仅补齐新方法的显式未实现缺陷，不改变其既有用例行为。
@@ -518,7 +518,9 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 3. **S02 与跨域浏览器验收仍开放。** §13.1 的 Task timeline 重建、§14.1 的文件补全鼠标 hit-testing、两个真实 server/Location 的浏览器全矩阵未在本轮交付。Owner/Unlock 沿原条目：App / timeline / E2E，须独立重现命中层级及真实多后端 fixture 或 S08 矩阵；单后端 E3、owner HTTP 负例和本次 benchmark 不能替代。
 4. **B2 整批交审、S04–S09 与发布不在本轮自动授权内。** Owner：技术审查 / 各批次负责人。Unlock：完整交回本轮代码、红绿证据与开放债务后取得明确批次放行。WorkReview 尚无本计划 S06 producer，不能宣称生产授权隔离或 E4 已完成；后续批次逐项见 §15.3。commit/push/PR/发布均未执行。
 
-### 15.3 后续批次清单（均未执行，不因本轮继续请求自动视为验收）
+### 15.3 2026-10-03 后续批次清单（历史检查点）
+
+以下为当时尚未执行的批次与授权边界，保留历史记录；后续实施与授权以各日期续作节及 §15.21 为准，不据此重新要求已获准的本地续作或本地提交。当前未交付范围继续由 `packages/app/e2e/coverage-manifest.json` 的既有 owner/unlock 持有。
 
 - **B3 / S04–S05**：Agent 目录/真实运行关系、生产 Icon/ToolRow 与历史呈现。Owner：App / session-ui / ui；tests：R2 的 S04、S05 施工卡；unlock：B2 完整交审后获得明确放行。
 - **B4 / S06**：WorkReview producer、metadata、HTTP/SDK、并发与授权。Owner：Core / Server / SDK；tests：R2 S06；unlock：前批审查及高风险数据/授权批次的独立批准。
@@ -846,3 +848,84 @@ Assistant 场景使用两个实际产品后端、各一个 Location、不同 Ses
 历史身份场景使用同一 Session ID：A 保有 full tier、模型和 approved artifact；B 的自有 SQLite seed 去掉 model/workContract 后呈现 missing model、propose 和无 Review，刷新及真实 SPA 切换不会借用 A 的结果。随后去掉 B agent，真实 API 返回 InvalidRequestError/400，Header 与权限转为 unavailable/degraded；A 的 identity/review 保持不变。新 artifact 只在本测试创建，并在 finally 精确清除。该读取兼容性与隔离子项从 deferred `identity-e4-cross-server-and-historical` 移除；实际 migration 执行仍由 `work-review-lifecycle` 的 S9A owner 持有，其它失败/完整矩阵/平台/CI 范围不变。
 
 收尾：`isolation-config-contracts` **14 pass / 44 assertions**；`isolation-final-app-types` 与以 `d0adc5e63` 为基线的 `isolation-final-lint` 均 exit 0。独立只读复核发现的 workspace 残留已在执行前修复，未通过放宽 teardown 规避。
+
+### 15.21 2026-10-13 S08/S09 / Session 恢复、Auth 真响应与打包桌面续作
+
+继续使用 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl` / `agent-ui-tdd`；原主目录未混入本轮修改。证据根目录为 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011`，以下收据路径均相对于该目录。用户已授权剩余本地工作与通过验证后的本地提交；本节记录已完成子项，**不关闭完整 S08/S09，不代表远端 CI 或发布通过**。
+
+**默认 Session 补验为七次实际测试执行。** `resume-session-restart` 为 **1 pass / exit 0**；`resume-session-default-turns` 为 **3 pass / exit 0**（chat-mode、实际 streamed read tool dispatch/continuation/durability、重复 delta 不复制 message）；`resume-session-recovery-turns` 为 **3 pass / exit 0**（transient HTTP 500、SSE cut、slow provider）。均为默认 V1 分支、workers=1、retries=0、outer240，elapsed 分别 **93.422 / 70.902 / 79.525 秒**，源码无运行中变更，三个 E4 teardown gate 均通过。D02 restart 的已保存 trace 同时证明普通 browser submit/reload、未显式指定 mode 时为 coding，以及未武装故障时只有一次 provider 请求；这三行是复用 D02 的行为证据，不能写成另跑三例或“十次测试通过”。completed-turn restart 不证明中断 provider 的自动崩溃恢复。V1 恢复不能替代 Assistant/Custom：分支由 `packages/core/src/product-mode-policy.ts:102` 的 `shouldUseV2Runtime` 决定，`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:858` 在 promptAsync 处应用它。
+
+**Assistant 503 重试耗尽后的显式恢复已补证。** `checks/resume-assistant-503.json` 及日志为 **2 pass / 0 fail / 140 assertions、exit 0**；过滤排除的同文件两例未计入本轮。真实 reminder 完成后连续三次 provider HTTP 503，累计请求为 4；exact retry 仍为 4，显式 `SessionV2.Service.resume` 才发第 5 次请求。输入、失败终态与完成工具事件保持，reminder 不重放。入站使用生产 in-memory HttpApi web handler，provider 为实际 Node loopback HTTP；没有公开 HTTP resume endpoint，因此 service resume 不等于 browser recovery 或 automatic post-crash continuation。其它 provider/OAuth 与完整集成范围仍开放。
+
+**可选 Codex 初始化和首次持久 thread ID 的三个出口已修复。** 实际 packaged desktop 曾因 SDK 提前构造而在未选择 Codex transport 时抛出 `Unable to locate Codex CLI binaries`。adapter 现在执行时解析 SDK，构造/start/resume/run 失败进入已有 `provider_error` 通道；首次 thread ID 在结果出口从 live thread 读取，覆盖成功、reject 和 timeout。`codex-first-thread-recovery-red` 的两例失败保留；最终 `codex-first-thread-recovery-green-final` 为 **24 pass / 0 fail / 40 assertions、exit 0**，对应 format/typecheck 均 exit 0。success-only 的中间 22 pass 不再作为最终结论。未复制或下载可选 CLI 资源；这些单测与桌面启动成功仍不证明真实 packaged Codex 新 thread/resume 委派。
+
+**上一轮 Linux 实际打包入口已有完整成功子项。** `resume-recovery-desktop-main`、`resume-recovery-desktop-package`、`resume-recovery-desktop-smoke` 均 **exit 0**，elapsed 分别 **48.009 / 14.307 / 11.506 秒**；smoke 为 **1 pass**，workers=1、retries=0、trace=on，测试断言实际 `app.isPackaged`。main/sidecar 已按当前 Codex 修复重建；`resume-recovery-desktop-cleanup.json` 记录复用的 **1642 个 renderer/preload 文件无变化**、`packaged_processes=[]`、`temporary_directories=[]`，并保存主进程输出哈希与 Electron trace。限定 smoke 覆盖实际入口、窗口恢复、DPI/native zoom、菜单窗口动作、deep link、picker cancel 和 updater 非就绪失败。首轮可选 Codex 初始化失败与随后按旧窗口数误关主窗口的 fixture 失败均保留；fixture 后来按 BrowserWindow ID 精确清理新窗口。此结果仅适用于 Linux x64 unpacked 产物，不证明全部平台、签名、安装包升级、真实 Codex 委派或发布。产品 `stopSidecars` 的异步关闭本身也不等于所有 PID 已退出；本轮退出结论来自独立 cleanup 收据。
+
+**Auth 门禁改为等待真实 Response，当前 334 场景完整通过。** 原 1 秒 `Promise.race` 会合成 `status=0/timedOut`，而 valid probe 曾允许该值通过；修复将 Effect 的取消信号传给实际 Request，沿用既有 **30 秒 scenario deadline**，收到 Response 后取消业务 body，不等待 SSE/长轮询业务结束。需要业务就绪的 TUI probe 只在 valid 请求前准备队列输入。`resume-auth-response-green` 为 **2 pass / 6 assertions、exit 0**，含合法凭据超时必须失败和准备后取得真实响应的两个反例。三次串行 `resume-auth-response-matrix-{1,2,3}` 分别 **100 / 100 / 134 pass、exit 0**，elapsed **44.169 / 42.812 / 50.627 秒**，保持 outer90/internal80。`resume-auth-response-audit.json` 为 passed：**registered=RUN=PASS=334，305 unique routes，fail/skip/duplicates/missing/extra 均为 0**，三组源码哈希一致，进程组与临时目录清理通过。原 `resume-api-auth` 的 **internal80 截断 / exit 124** 和旧 `resume-auth-matrix-{1,2,3}` 合计 **330 pass / 4 fail** 保留为失败历史，不倒推为绿色。Bun 的 directory-mismatch 诊断在本轮日志中仍有记录，但每组真实退出码为 0；不把诊断隐藏，也不将其等同于测试失败。Auth 只证明认证检查取得实际响应，不等价于完整 effect-mode 业务断言或真实外部 provider。
+
+**Auth 测试基础设施仍有明确边界。** 本轮采用独立隔离 exerciser 进程，未为一次探针扩展生产队列契约。旧 TUI AsyncQueue 无撤销/清空接口，prepare 入队后若在消费前失败，同进程重用可能残留队列项；Effect 冷 web handler 建立期间也可能错过已触发的 abort。正常 334 场景均取得真实响应且退出清理通过，但这不证明所有失败/取消清理。Owner：S9；Unlock：复用具备可取消语义的队列或上游 handler 生命周期契约，并补请求实际进入、超时取消及再次使用互不污染的证据；未改动生产队列去扩大本次测试修复范围。
+
+**真实 DeepSeek Flash 产品服务链已通过一次限定回合。** 用户授权复用 OpenCode 配置中的 `deepseek-1/deepseek-v4-flash`。其原 `@ai-sdk/anthropic` 与 `https://api.deepseek.com/v1` 组合实际返回 404；按官方 Anthropic 文档及 SDK `/v1/messages` 路径规则，只在临时配置改为本项目 native adapter 所需的 `https://api.deepseek.com/anthropic/v1`，未改用户 OpenCode 文件。`flash-live-product-4` 为 **exit0 / passed**，outer90、elapsed **8.788 秒**，一个真实外部 POST 返回 **200**；真实 AppRuntime/SessionV2 admit-only 后读得未提升 input，resume 后取得一个成功助手消息（finish=stop、正文302字符），精确重试不增调用且 durable 输入/事件/消息摘要不变。产品退出后 SQLite 只读 integrity=ok，输入和助手正文哈希一致，零工具事件；独立清理记录进程0、转发端口释放、私有目录删除。步骤限制1和权限deny-all复用生产 text-only 分支，该分支带 MAX_STEPS 提示；它不是通常的无约束工具回合、browser/HTTP admission 或全部失败矩阵证明。
+
+`flash-live-product-1` 的404、`-2` 的HTTP200但断言失败、`-3` 的明确 **finish=length / reasoning1 / text0** 全部保留；第三次证实128 token测试上限不足后，第四次仅改1024 token请求预算。四次各一个外部请求，总计由 `flash-live-attempts.json` 对账为 **4**，无自动付费重试；原始输出、正文和凭据仅在0700/0600私有tmp中并已清理。官方文档说明旧 `deepseek-v4-flash` 名称实际由 **V4.1 Flash** 承接，因此本证据只证明当前别名服务链，不宣称旧V4权重仍可用。其余provider、OAuth和适用故障范围仍由S9B持有。
+
+**API 注册与 drift 分别完成。** `resume-api-coverage` 为 **covered=334 / todo=0 / missing=0 / extra=0、exit 0**；`resume-api-drift` 为 **OpenAPI snapshot is up to date、exit 0**。coverage 是场景注册覆盖，不能替代 Auth 或业务执行。当前完整 effect-mode 业务矩阵未因此关闭。
+
+**已完成的包分组与未完成范围分别计数。** `resume-package-audit-20261013.json` 的 34 个已验证分组均有 exit 0，逐组日志汇总如下；audit 的 `tests` 字段包含 skip，故不能直接写成 pass。本轮定向测试与这些分组有重叠，不相加伪造去重总量，也不宣称后续源码改动已整包重跑。
+
+| 分组范围           | 已完成/计划组数 | 实际日志 tally                                  |
+| ------------------ | --------------- | ----------------------------------------------- |
+| Core               | 15/15           | 2632 pass / 2 skip / 0 fail                     |
+| Schema             | 1/1             | 324 pass / 0 fail                               |
+| session-ui         | 1/1             | 121 pass / 0 fail                               |
+| ui                 | 1/1             | 20 pass / 0 fail                                |
+| App unit           | 7/7             | 1433 pass / 0 fail                              |
+| App virtualizer    | 1/1             | 3 pass / 0 fail                                 |
+| App E2E contracts  | 1/1             | 56 pass / 0 fail                                |
+| TUI                | 5/5             | 220 pass / 1 skip / 0 fail                      |
+| aigcfroge backend  | 2/74            | 147 pass / 0 fail；第 3 组 exit 124，其余未执行 |
+| desktop 普通包级组 | 0/1             | 未执行；与 packaged smoke 分开                  |
+
+**类型边界修复及当前范围。** `resume-types-aigcfroge` 原 **outer90 / exit124** 保留。构建后的 `dist/node/node.js` 被默认输入发现纳入 typecheck；复用 `outDir: "dist"` 声明产物边界后，`resume-typecheck-scope.json` 记录输入 **780→779**，唯一移除项是该生成文件，无新增输入。`resume-types-aigcfroge-dist` 和 `resume-final-types-{core,app,desktop}`、`resume-final-code-format`、`resume-final-incremental-lint` 均 exit 0，只证明已提交批次的对应源码。Auth 最终 `resume-auth-response-format/types/lint` 均 exit 0；增量 lint 使用冻结基线 `56cac381f75c69a9b3198f3b487708fc645245bf`，覆盖 11 个变更 TS 文件、636 行新增。七个 Auth 文件已独立静态复核并提交；最终差分与账本验证另记。
+
+**性能原八次采样已完整，当前只能作描述性比较。** 页面 real200% zoom 的 `tool-row-real-zoom-short-temp` 为 **1 pass / exit0**，`zoom-control-mode-panels-history-fixed` 为 **2 pass / exit0**。原合并 tab/flash before **outer600 / exit124** 保留。`s09-paired-{before,after}-{tab,flash}-{1,2}` 八次各 **1 pass / exit0**，workers=1、retries=0、outer600；每次 workload、bundle 及清理检查通过。第二次 after-tab 期间变更的是本账本与 coverage manifest；第一次 after-tab 期间变更的是两个 Auth 测试文件，均不在被测 workload 内，完整收据仍保留这些差异。`checks/s09-paired-comparison.json` exit0，`s09-paired-comparison.json/md` 为 `complete-descriptive-only`，保留 44 份 trace 哈希。两组冷切换首次正确观察的 after-minus-before 中位差为 **+22.9 / +3.0 ms**；热切换为 **+7.6 / -0.1 ms**。四个重绘样本在原 1000ms 窗口内分别有 **54/56、51/53、53/55、56/58** 个空白观察，首样本均不正确。计数不是时间占比，采样成功不代表闪烁消失，也不证明统计无回归。before 完整哈希是后来捕获，不能仅凭历史路径证明历史逐字节身份。
+
+**原性能夹具仍有 API 响应形状缺口，隐藏 Mode 请求已按产品 owner 修复。** `s09-repaint-observation.json` 保留原 after-tab trace 中 `/schedule/pending`、Session schedule/delivery、`/memory` 返回 **200 text/html** 及约 1/2/4 秒重试的事实。判定函数仍是 `packages/app/e2e/utils/mock-server.ts:297` 的 `shouldMockApiFallback`；通用 canonical messages 夹具也仍是旧数组形状。本轮没有改通用 mock-server 或原八次样本，新的功能 E3 在局部返回正确 JSON / `{data:[],cursor:{}}`。原约 7.2 秒不能直接视为健康生产性能。
+
+**S08-R02 的活动边界与 Assistant 状态 owner 已补红绿。** `packages/app/src/pages/session/session-side-panel.tsx:210` 的 `modePanel` 保留挂载，由现有 `ModeSlotActiveProvider` 在 children 求值前提供活动状态，且同时核对全局 Mode 与目标 Session Mode，避免切路由期间旧 Mode 对新 Session 发请求。`pages/mode-slot-active.ts:32` 的 `useModeQueryActivity` 停用 observer 并取消 inactive query 的排程重试，保留其他 active observer；未向 SDK 传 signal 的已发 HTTP 不保证传输 abort。Assistant panel/KB/editor/nav/dashboard、Custom snapshot、Chat resources/递归搜索、FileTree 和 Work sidebar 复用活动契约；cache diagnostics 补 server scope 并受 enabled 门控，其 30 秒轮询尚无直接 E3。
+
+Assistant 左右交互现在复用目标 Session 发布的 Layout handle，保留外壳与目标页各自的 LayoutProvider。归属由 `packages/app/src/context/route-contribution.tsx:29` 的 `sessionContributionForRoute` 以 leaf Session ID 与 `ServerConnection.sameKey` 判定；仅持有相同 persist key 不代表内存 store 共享。左侧数据/归档/新 draft 使用目标 server。归档事件携带 server；`context/tabs.tsx:250` 的 `removeSessions` 以事件 server + Session ID 删除，导航只使用当前路由的有效 owner，保留另一 server 同 ID 及 draft；timeline 在 await 前 capture SDK/sync/server，并用 `navigate:false` 保留自己的父/邻居/draft 导航。`s08-r02-owner-stale-red` 的 **2 pass / 1 fail** 与修复后 **3 pass / 43 assertions** 均保留。
+
+动态 KB/editor/context 标签的自动回退来自 Kobalte 在新 trigger 注册前选择首项。Assistant 复用有限 trigger 集合并保持注册，关闭项由外层 `display:none` 与 disabled 隐藏；不靠延时再选择。`s08-r02-e3-owner`（KB出现但回提醒）、`-tabs`（切 Coding 后 schedule/delivery 多发）、`-session-mode`（测试未启 FileTree）、`-file-enabled`（CSS 覆盖 hidden）各 **2 pass / 1 fail** 保留；最终 `-visibility` 为 **3 pass**。Context 关闭遵循既有相邻项选择规则。左导航在外壳关闭时仍会卸载，未承诺其 DOM/折叠状态保留。
+
+**新生产 Web 产物的 E3 为 17 次实际执行，全部无 skip/retry。** `s08-r02-build-visibility` 构建 1,507 文件；`s08-r02-e3-visibility` **3 pass**、`-scope` **1 pass**、`-modes` **5 pass**、`-neighbors` **8 pass**，各 bounded receipt exit0、supervisor passed、source/bundle 不变、owned 进程0、端口释放及私有目录删除。实际覆盖冷/热隐藏 Assistant/Custom/Chat 请求为零、活动读取为正、左 KB→右 KB→editor、同 Session desktop↔390px 抽屉往返的 textarea DOM 与未保存草稿、Session 往返的 editor tab 恢复、Context 开关，以及全局 A/目标 B 同 note ID 的数据和新 draft 归属。Session 往返没有证明草稿或 DOM 保留；可见 Session/composer 的两次 composition 和全局 pending badge 单独归属，不计作隐藏 panel 漏请求。没有直接验完全部 SDK/SSE effect、重复提交、所有状态/展示组合，**不能关闭完整 R02 或 S08**。
+
+**本轮共享 App UI 已重新打包并实际启动 Desktop。** `s08-r02-desktop-renderer`、`-package`、`-smoke` 各 exit0 / supervisor passed，elapsed **44.416 / 11.694 / 13.063 秒**，smoke **1 pass**。新 ASAR 与本轮 output 的 **1,649 文件**逐一匹配，missing/extra/changed 均0；复用的7 main/1 preload有来源连续哈希。旧 workspace/out、旧 package、Electron dist、native均未变，owned进程与私有目录清理通过。仍仅证明 Linux x64 离线预编译 native 的限定 packaged entry/window/zoom/menu/deeplink/picker smoke，不替代实际 packaged Codex、新平台/签名/发布或全部 Mode UI。
+
+**修复后性能另存两次采样。** `s08-r02-after-tab` **1 pass / 135.352 秒**、`s08-r02-after-flash` **1 pass / 22.770 秒**，outer600、单 worker、零 retry，源码与 bundle一致、清理通过。`checks/s08-r02-performance-comparison.json` exit0，比较文件 `s08-r02-performance-comparison.json/md` 为 `complete-descriptive-only`：重新验证原8次证据哈希，加本次11份 trace；每 spec 仅1个新样本，与原4个同类样本逐次比较而不池化。冷/热 firstCorrect 中位数 **234.8 / 225.6 ms**；新1000ms重绘窗口 **51观察、0空白、3旧会话、首观察不正确**。这只表明该次观察改善，不能证明零闪烁、统计无回归或夹具已达到完整 API 保真。
+
+**状态提示补修前的定向门禁已通过。** `s08-r02-final-format` 为29个改动TS/TSX格式检查 exit0；`-unit` **82 pass / 185 assertions**（9文件，含契约检查）、`-tabs` **3 pass / 43 assertions**（独立进程真实Provider）、`-types` App typecheck含e2e、`-lint` 冻结基线增量lint **40 changed files / 2154 added lines**均exit0；运行期间没有源码变更。它们没有替代完整相关包与展示矩阵。账本文档格式与coverage ledger单列收据 `s08-r02-ledger-format` / `s08-r02-ledger-unit`，以实际退出码为准。
+
+**独立复核发现并修复跨服务器状态提示。** 左侧数据已取目标B，但 SessionItem 的 notification/permission 仍继承全局A。`s08-r02-scope-status-red-scoped` 为 **1 fail / 4 failed assertions**：同ID行显示A错误点，并遗漏B错误、未读及待授权点。现在目标 Session 发布已有 Notification/Permission 的只读方法；`packages/app/src/pages/layout/sidebar-items.tsx:155` 与 `:160` 决定使用传入 owner，子行沿既有props传递。没有新增Provider或事件订阅。`s08-r02-status-e3-scope` **1 pass** 同时验证四项状态、KB/editor以及B新draft；只读复核确认原P2已解决，见 `s08-r02-status-review.json`。首轮 `-status-red` 只复现B错误/未读，因A fixture错误使用local scope；更正为注册URL scope后才得到四项完整红证据。E3 fixture曾因导入生产运行时类型图触发TS6307，后改用已知持久化wire格式，未扩张e2e tsconfig。
+
+**状态补修后的最终运行时证据再次通过。** `s08-r02-build-status-final` 为 **55.735秒 / exit0**；其 `s08-r02-app-status` 共1,507文件。`s08-r02-status-e3-{scope,panel,modes,neighbors}` 分别 **1/3/5/8 pass**，仍是17次实际执行，不与前一版17次相加冒充34个去重用例。`s08-r02-desktop-status-{renderer,package,smoke}` elapsed **44.155 / 11.190 / 11.744秒**，均exit0 / supervisor passed；实际packaged smoke **1 pass**，1,649 ASAR文件missing/extra/changed均0。各运行期源码与产物不变，owned进程0、端口/临时目录清理通过。初次build目标已存在和Desktop标签前缀错误均在启动前被监督器拒绝；保留失败记录后使用新目标/合法标签，没有覆盖旧证据。
+
+最终性能 `s08-r02-status-tab` **1 pass / 139.221秒**、`s08-r02-status-flash` **1 pass / 24.628秒**。`s08-r02-status-performance-comparison.json/md` 校验原8次记录及本次11份trace，结果仍为 `complete-descriptive-only`。本次cold/hot firstCorrect中位数 **247.2 / 231.8 ms**；1000ms窗口 **49观察、1空白、2旧会话、首观察不正确、maxBottomErrorPx=7255.5**。上一版0空白不是本版结果，计数也不是时间占比。未修通用API夹具，未关闭重绘残留或完整因果验证。
+
+**提交前检查与产物对应关系。** `s08-r02-status-final-unit` **82 pass / 185 assertions**、`-tabs` **3 pass / 43 assertions**。末次lint发现context层导入page类型的架构违规，保留 `s08-r02-status-final-lint` exit1；类型定义移回已有context owner后，`s08-r02-status-type-final-{format,types,lint}` 全部exit0，格式检查30个TS/TSX，lint **41 changed files / 2255 added lines**。仅 `route-contribution.tsx` / `sidebar-items.tsx` 两个模块在运行时验收后调整类型；`s08-r02-type-equivalence.json` 用安装的 Bun.Transpiler 验证修改前后输出JavaScript完全相同，保存两侧源码与输出哈希，因此复用已验产物与行为测试。此关系不是“最终源码字节与构建时完全相同”。完整汇总以 `s08-r02-status-final-audit.json` 为准；账本格式与8条coverage检查分别归 `s08-r02-ledger-format` / `s08-r02-ledger-unit`。最终代码恢复仍在本地提交后执行，结果只由外部收据认定。
+
+当前仍未交付的范围及持有人：
+
+| 范围                                                                                             | Owner                              | Unlock                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 完整 S08/package/API/E3/E4/适用展示矩阵                                                          | S8 / Integration QA / Core runtime | 对照发现集合与源码，补齐 backend 剩余组、desktop 普通包组、effect-mode 业务及适用矩阵；有限代表性通过不自动缩减完成定义。                                                                                                                                                                                          |
+| E4 未执行文件/large text、PTY stream/exit/delete、not-found/剩余 identity、default/V2 与平台组合 | S10                                | 在既有批准的隔离环境按原 deadline/retries=0 执行，保留真实退出码与进程/端口/workspace 清理证据；不复用用户 HOME、auth、服务。                                                                                                                                                                                      |
+| S08-R02 剩余 effect/状态范围与性能夹具响应缺口                                                   | S8 / S9 / App / QA                 | 已有17条定向E3及新产物性能/desktop证据；继续验证全部SDK/SSE、重复提交、未覆盖状态与cache diagnostics轮询。修正通用API夹具保真后另建样本；原8次及本次2次不得改写或冒充完整R02。                                                                                                                                     |
+| 最终本地恢复演练、差分与提交清单                                                                 | S9 / 全栈                          | 本记录写入时尚未执行；通过的代码本地提交并冻结后，按outer180执行，结果以外部 `checks/s08-r02-final-recovery.json` 与 `s08-r02-final-recovery/RECOVERY.json` 为准。核对字节/执行位/symlink与自有fixture备份，不在执行前记通过；提交清单由 `git log --oneline 56cac381f75c69a9b3198f3b487708fc645245bf..HEAD` 生成。 |
+| 真实 packaged Codex 新 thread/resume                                                             | S9 / Core CLI / Desktop            | 在实际打包入口验证 transport/CLI 资源解析、持久 ID 与回收；入口 smoke/单测不替代。                                                                                                                                                                                                                                 |
+| DeepSeek Flash / 实际外部 provider / OAuth                                                       | S9B / Provider 配置负责人          | 普通Flash别名的单回合AppRuntime/SessionV2实际服务链已由 `flash-live-product-4` 验证；继续补其余适用transport/auth/OAuth与故障范围。旧V4权重已由服务商退役，不能把别名成功当旧权重证明。loopback 合成凭据不能替代。模型 Flash 与页面重绘 flash 是不同范围。                                                         |
+| macOS、Windows/WSL、签名、真实 CI、release/rollout                                               | S9 / Desktop / Release             | 按实际支持平台和明确目标完成门禁，并取得对应远端/发布授权；本地提交已有授权。                                                                                                                                                                                                                                      |
+| WorkReview 实际 historical migration、其它存储/通知失败                                          | S9A                                | 继续沿 `work-review-lifecycle` 原 unlock；历史读回或当前 SQLite 快照恢复不替代真实 migration。                                                                                                                                                                                                                     |
+| 四类历史正向支持、FFF 完整进程隔离                                                               | S9B                                | 保持既有 legacy-history / filesystem-fff-process-isolation owner/unlock；本轮没有关闭它们的直接证据。                                                                                                                                                                                                              |
+
+最终恢复脚本重建本批冻结代码与保存的自有 fixture SQLite/artifact 字节；执行结果单独留在上述外部收据，即使成功，也不证明生产灾备、旧版 migration、Location 迁移或 automatic post-crash continuation。S08/S09 保持开放，未把局部绿色扩展成整期验收。
