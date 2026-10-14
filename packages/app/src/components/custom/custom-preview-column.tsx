@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, Show } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, on, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -18,13 +18,13 @@ import { useGlobal } from "@/context/global"
 import { ServerConnection } from "@/context/server"
 import { openSessionByID } from "@/pages/layout/helpers"
 import type { DirectorySDK } from "@/context/sdk"
-import type { CompositionPlan } from "@aigcfroge/sdk/v2/client"
 import {
   blockerOf,
   blockingDiagnostics,
   classifyPlanFailure,
   evaluateStartGate,
   parseErrorDetails,
+  type PlanResult,
 } from "./custom-plan-state"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
@@ -41,21 +41,30 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
   const [activeTab, setActiveTab] = createSignal("workflow")
   const [starting, setStarting] = createSignal(false)
   const [errorMessage, setErrorMessage] = createSignal<string | undefined>()
+  createEffect(
+    on(draft, () => {
+      setStarting(false)
+      setErrorMessage(undefined)
+    }),
+  )
 
   // P2-14: an object source is always truthy, so gating collapses it to undefined.
   const slotActive = useModeSlotActive()
+  const source = createMemo(() =>
+    whenActive(slotActive(), () => ({ sdk: props.dirSdk(), draft: draft(), composition: draft().composition })),
+  )
   const [planResult, { refetch: refetchPlan }] = createResource(
-    () => whenActive(slotActive(), () => ({ sdk: props.dirSdk(), composition: draft.composition })),
-    async (source): Promise<{ plan?: CompositionPlan; error?: string; disabled?: boolean; unsupported?: boolean }> => {
-      if (!source.sdk) return {}
+    source,
+    async (source): Promise<PlanResult & { source: typeof source }> => {
+      if (!source.sdk) return { source }
       try {
         const res = await source.sdk.client.customComposition.plan({
           directory: source.sdk.directory,
           body: source.composition,
         })
-        return { plan: res.data }
+        return { source, plan: res.data }
       } catch (err: unknown) {
-        return classifyPlanFailure(err)
+        return { source, ...classifyPlanFailure(err) }
       }
     },
   )
@@ -75,7 +84,12 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
    * loading state from `planResult.loading`. The app-wide fallback-less
    * `<Suspense>` is a separate, pre-existing problem — see technical-debt §4.
    */
-  const result = createMemo(() => planResult.latest)
+  const result = createMemo(() => {
+    const settled = planResult.latest
+    const current = source()
+    if (!current || settled?.source.draft !== current.draft || settled.source.sdk !== current.sdk) return undefined
+    return settled
+  })
   const plan = createMemo(() => result()?.plan)
   const blockingCount = createMemo(() => blockingDiagnostics(plan()))
   const startGate = createMemo(() =>
@@ -83,18 +97,20 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       starting: starting(),
       hasSdk: props.dirSdk() !== undefined,
       result: result(),
-      draft: { source: draft.state.source, agentCount: draft.state.agents.length },
+      draft: { source: draft().state.source, agentCount: draft().state.agents.length },
     }),
   )
 
   const startBlocker = createMemo(() => blockerOf(startGate()))
 
   async function handleStart() {
+    if (!startGate().canStart) return
     const sdk = props.dirSdk()
     const currentConn = conn()
     const currentCtx = ctx()
     const dir = directory()
     if (!sdk || !currentConn || !currentCtx || !dir) return
+    const currentDraft = draft()
 
     setStarting(true)
     setErrorMessage(undefined)
@@ -104,9 +120,9 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
         {
           directory: dir,
           compositionStartInput: {
-            composition: draft.composition,
+            composition: currentDraft.composition,
             expectedPlanDigest: plan()?.digest,
-            title: draft.state.title || undefined,
+            title: currentDraft.state.title || undefined,
           },
         },
         { throwOnError: true },
@@ -119,7 +135,7 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       // (BUG-CUSTOM-START, 2026-09-03 dogfood run).
       const started = res.data?.session
       if (!started?.id) {
-        setErrorMessage(language.t("common.requestFailed"))
+        if (draft() === currentDraft) setErrorMessage(language.t("common.requestFailed"))
         return
       }
       openSessionByID({
@@ -133,9 +149,9 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
       })
     } catch (err: unknown) {
       const { message } = parseErrorDetails(err)
-      setErrorMessage(message ?? String(err))
+      if (draft() === currentDraft) setErrorMessage(message ?? String(err))
     } finally {
-      setStarting(false)
+      if (draft() === currentDraft) setStarting(false)
     }
   }
 
@@ -148,8 +164,8 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
             type="text"
             class="flex-1 rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-03 px-3 py-1.5 text-13-regular text-v2-text-text-base placeholder:text-v2-text-text-muted focus:border-v2-border-border-focus focus:outline-none"
             placeholder={language.t("custom.builder.titlePlaceholder")}
-            value={draft.state.title}
-            onInput={(e) => draft.setTitle(e.currentTarget.value)}
+            value={draft().state.title}
+            onInput={(e) => draft().setTitle(e.currentTarget.value)}
           />
           <ButtonV2
             variant="contrast"

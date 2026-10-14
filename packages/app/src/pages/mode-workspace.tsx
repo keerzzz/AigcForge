@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, Suspense } from "solid-js"
+import { createMemo, ErrorBoundary, For, Suspense } from "solid-js"
 import * as Sentry from "@sentry/solid"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
@@ -9,9 +9,6 @@ import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
 import { CustomDraftProvider } from "@/context/custom-draft"
 import { modeSurface } from "@/components/mode-surfaces"
 import { LocationApprovalCenter } from "@/components/approval-center"
-import { useServerSync } from "@/context/server-sync"
-import { type DirectorySDK } from "@/context/sdk"
-import { AssetWorkbench } from "@/components/chat/asset-workbench"
 import { useMode } from "@/context/mode"
 import { useServer } from "@/context/server"
 import { ServerConnection } from "@/context/server"
@@ -71,25 +68,18 @@ function SlotError(props: { error: unknown; reset: () => void }) {
 }
 
 /**
- * Chat asset owner (S3-3) is mounted here, gated by the `chatShown` latch: nothing runs
- * until Chat is shown once, so opening another mode does not issue Chat's seven list
- * requests (P2-14). The session secondary sidebar mounts the same provider with its own
- * directory — see `components/chat/chat-assets.tsx`.
+ * Keep the Chat asset owner mounted, but advance its inputs only while Chat is visible.
+ * The session secondary sidebar mounts the same provider with its own directory.
  */
 export function ModeWorkspace() {
   const mode = useMode()
   const server = useServer()
   const { directory: chatDirectory } = useModeDirectory()
-  const [chatShown, setChatShown] = createSignal(false)
-  createEffect(() => {
-    if (mode.currentMode === "chat") setChatShown(true)
-  })
-  const directory = createMemo(() => (chatShown() ? chatDirectory() : undefined))
-
   return (
     <ChatAssetsProvider
       serverKey={() => (server.current ? ServerConnection.key(server.current) : undefined)}
-      directory={directory}
+      directory={chatDirectory}
+      active={() => mode.currentMode === "chat"}
     >
       <ModeWorkspaceBody />
     </ChatAssetsProvider>

@@ -285,6 +285,7 @@ export function CodingSessionListMain() {
   })
 
   createEffect(() => {
+    if (!slotActive()) return
     const ctx = focusedServerCtx()
     if (!ctx) return
     prefetched.clear()
@@ -303,6 +304,7 @@ export function CodingSessionListMain() {
             void directory.session
               .sync(record.session.id)
               .then(() => {
+                if (!slotActive()) return
                 const store = ctx.sync.child(record.session.directory)[0]
                 return Promise.all(
                   (store.message[record.session.id] ?? []).flatMap((message) =>

@@ -351,6 +351,90 @@ test.describe("regression: Custom Builder request and failure states", () => {
     await expect(startButton(page)).toBeEnabled()
   })
 
+  test("switching projects retains the Builder and waits for the new draft's plan", async ({ page }) => {
+    const nextDirectory = "C:/Aigcfroge/CustomBuilderOther"
+    await openMode(page, wire(), "custom")
+    await expectAppVisible(assetsTitle(page))
+    const sidebar = page.locator('[data-mode-sidebar="custom"]')
+    const title = page.getByPlaceholder("Title for custom session (optional)")
+    await sidebar.getByRole("button", { name: "reviewer", exact: true }).click()
+    await title.fill("Project A draft")
+    await expect(startButton(page)).toBeEnabled()
+    await title.evaluate((node) => node.setAttribute("data-draft-probe", "retained"))
+
+    await page.route(
+      (url) => url.port === (process.env.PLAYWRIGHT_SERVER_PORT ?? "4096") && url.pathname === "/file",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          headers: { "content-type": "application/json", ...cors },
+          body: JSON.stringify(
+            ["C:/Aigcfroge", directory, nextDirectory].map((absolute) => ({
+              name: absolute.split("/").at(-1),
+              path: absolute.split("/").at(-1),
+              absolute,
+              type: "directory",
+              ignored: false,
+            })),
+          ),
+        }),
+    )
+    let release: (() => void) | undefined
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let planReads = 0
+    await page.route("**/custom-composition/plan*", async (route) => {
+      const request = route.request()
+      if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors, body: "" })
+      const target = new URL(request.url()).searchParams.get("directory")
+      if (target?.replaceAll("\\", "/") !== nextDirectory) return route.fallback()
+      planReads += 1
+      await held
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json", ...cors },
+        body: JSON.stringify({ ...plan, digest: "b".repeat(64) }),
+      })
+    })
+
+    try {
+      await sidebar.getByRole("button", { name: "Add project", exact: true }).click()
+      const dialog = page.getByRole("dialog")
+      await dialog.getByPlaceholder("Search folders").fill(nextDirectory.replaceAll("/", "\\"))
+      const row = dialog.locator('[data-slot="list-item"]').filter({ hasText: "CustomBuilderOther" })
+      await expect(row).toHaveCount(1)
+      await row.click()
+      await expect(dialog).toBeHidden()
+      await expect(sidebar.getByText("CustomBuilderOther", { exact: true })).toBeVisible()
+      await expect(title).toHaveValue("")
+      await expect(title).toHaveAttribute("data-draft-probe", "retained")
+      await expect(sidebar.locator('option[value="agents/reviewer"]')).toHaveCount(0)
+      await sidebar.getByRole("button", { name: "reviewer", exact: true }).click()
+      await title.fill("Project B draft")
+      await expect.poll(() => planReads).toBeGreaterThan(0)
+      await expect(startButton(page)).toBeDisabled()
+      await expect(page.locator('[data-component="custom-start-blocker"]')).toHaveAttribute(
+        "data-blocker",
+        "plan-pending",
+      )
+    } finally {
+      release?.()
+    }
+    await expect(startButton(page)).toBeEnabled()
+
+    await sidebar.getByRole("button", { name: "Add project", exact: true }).click()
+    const dialog = page.getByRole("dialog")
+    await dialog.getByPlaceholder("Search folders").fill(directory.replaceAll("/", "\\"))
+    const row = dialog.locator('[data-slot="list-item"]').filter({ hasText: "CustomBuilderStates" })
+    await expect(row).toHaveCount(1)
+    await row.click()
+    await expect(dialog).toBeHidden()
+    await expect(title).toHaveValue("Project A draft")
+    await expect(title).toHaveAttribute("data-draft-probe", "retained")
+    await expect(startButton(page)).toBeEnabled()
+  })
+
   test("Start opens the session the server created, not a blank draft", async ({ page }) => {
     // BUG-CUSTOM-START (2026-09-03 dogfood run): start returned 200 with a real session
     // and a frozen snapshot, and the UI navigated to `/new-session?draftId=...` instead.

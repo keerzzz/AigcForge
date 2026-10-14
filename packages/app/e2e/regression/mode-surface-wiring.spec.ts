@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test, type Page, type Request } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import { mockAigcfrogeServer } from "../utils/mock-server"
+import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { APP_READY_TIMEOUT, expectAppVisible } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
 
@@ -50,8 +50,13 @@ const sidebarMarker: Record<Mode, (page: Page) => ReturnType<Page["locator"]>> =
 const slot = (page: Page, mode: Mode) => page.locator(`[data-mode-sidebar="${mode}"]`)
 const mainSlot = (page: Page, mode: Mode) => page.locator(`[data-mode-main="${mode}"]`)
 
-async function openWorkspace(page: Page, sessionMode: Mode = "chat") {
+async function openWorkspace(
+  page: Page,
+  sessionMode: Mode = "chat",
+  extra: Pick<Partial<MockServerConfig>, "sessions" | "files" | "onMessages"> = {},
+) {
   await mockAigcfrogeServer(page, {
+    ...extra,
     directory,
     project: {
       id: projectID,
@@ -74,6 +79,7 @@ async function openWorkspace(page: Page, sessionMode: Mode = "chat") {
         version: "dev",
         time: { created: 1700000000000, updated: 1700000000000 },
       },
+      ...(extra.sessions ?? []),
     ],
     pageMessages: () => ({ items: [] }),
     events: () => [],
@@ -318,7 +324,164 @@ async function countPaths(page: Page, paths: readonly string[]) {
   return () => Object.fromEntries([...counts].filter(([, hits]) => hits > 0))
 }
 
+async function settleModeRender(page: Page) {
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  )
+}
+
 test.describe("regression: hidden mode slots stay off the wire", () => {
+  test("hidden Coding does not prefetch an unopened Work session", async ({ page }) => {
+    const coldIDs = { coding: "ses_mode_surface_cold_coding", work: "ses_mode_surface_cold_work" }
+    const messageReads: string[] = []
+    // A visited Session sets placement, but does not open its project for Home lists.
+    // Seed only that registry entry; the two message caches must remain cold below.
+    await page.addInitScript((worktree: string) => {
+      localStorage.setItem(
+        "aigcfroge.global.dat:server",
+        JSON.stringify({ list: [], projects: { local: [{ worktree, expanded: true }] }, lastProject: {} }),
+      )
+    }, directory)
+    await openWorkspace(page, "coding", {
+      sessions: (["coding", "work"] as const).map((mode) => ({
+        id: coldIDs[mode],
+        slug: `mode-surface-cold-${mode}`,
+        projectID,
+        directory,
+        title: `Unopened ${mode} session`,
+        mode,
+        agent: "meta",
+        version: "dev",
+        time: { created: 1700000001000, updated: 1700000001000 },
+      })),
+      onMessages: (request) => {
+        if (request.phase !== "start") return
+        if (request.sessionID !== coldIDs.coding && request.sessionID !== coldIDs.work) return
+        messageReads.push(request.sessionID)
+      },
+    })
+    // The placement seed is a different Session. A warmed probe would hide the leak.
+    expect(messageReads, "both probe Sessions must still have cold message caches").toEqual([])
+
+    await page.goto("/mode/work")
+    await expectAppVisible(mainSlot(page, "work").getByText("Unopened work session", { exact: true }))
+    await expect(mainSlot(page, "coding")).toHaveCount(1)
+    await expect(mainSlot(page, "coding")).toBeHidden()
+    await settleModeRender(page)
+    expect
+      .soft(
+        messageReads.filter((id) => id === coldIDs.work),
+        "the Work row must not trigger hidden Coding prefetch",
+      )
+      .toEqual([])
+
+    // Positive control: the visible Coding list still warms its own cold Session.
+    await page.getByRole("navigation").getByRole("button", { name: "Coding", exact: true }).click()
+    await expectAppVisible(mainSlot(page, "coding").getByText("Unopened coding session", { exact: true }))
+    await expect.poll(() => messageReads.filter((id) => id === coldIDs.coding).length).toBeGreaterThan(0)
+  })
+
+  test("changing Work's project keeps the previously shown Chat slot's asset reads paused", async ({ page }) => {
+    const nextDirectory = "C:/Aigcfroge/ModeSurfaceOtherProject"
+    const chatOwnedPaths = ["/prompt-asset", "/skill-asset", "/mcp-asset", "/command-asset", "/plugin-asset"]
+    const reads: Request[] = []
+    const finished = new Set<Request>()
+    const apiPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
+    const requestedDirectory = (request: Request) =>
+      (request.headers()["x-aigcfroge-directory"] ?? new URL(request.url()).searchParams.get("directory") ?? "")
+        .replaceAll("\\", "/")
+        .replace(/\/+$/, "")
+    await openWorkspace(page, "coding", {
+      files: [
+        { name: "Aigcfroge", path: "Aigcfroge", absolute: "C:/Aigcfroge", type: "directory", ignored: false },
+        {
+          name: "ModeSurfaceOtherProject",
+          path: "ModeSurfaceOtherProject",
+          absolute: nextDirectory,
+          type: "directory",
+          ignored: false,
+        },
+      ],
+    })
+    page.on("request", (request) => {
+      const url = new URL(request.url())
+      if (request.method() !== "GET" || url.port !== apiPort || !chatOwnedPaths.includes(url.pathname)) return
+      reads.push(request)
+    })
+    page.on("requestfinished", (request) => {
+      if (reads.includes(request)) finished.add(request)
+    })
+
+    await page.goto("/mode/chat")
+    await expectAppVisible(sidebarMarker.chat(page))
+    await expect
+      .poll(() =>
+        chatOwnedPaths.every((path) =>
+          reads.some(
+            (request) => requestedDirectory(request) === directory && new URL(request.url()).pathname === path,
+          ),
+        ),
+      )
+      .toBe(true)
+    await expect.poll(() => reads.every((request) => finished.has(request))).toBe(true)
+    await page.evaluate(() => {
+      document.querySelectorAll<HTMLElement>('[data-mode-main="chat"], [data-mode-sidebar="chat"]').forEach((node) => {
+        node.dataset.nodeProbe = "r02-project-change"
+      })
+    })
+
+    const rail = page.getByRole("navigation")
+    await rail.getByRole("button", { name: "Work", exact: true }).click()
+    await expectAppVisible(sidebarMarker.work(page))
+    await expect(mainSlot(page, "chat")).toBeHidden()
+    await slot(page, "work").getByRole("button", { name: "Add project", exact: true }).click()
+    const dialog = page.getByRole("dialog")
+    await expect(dialog).toBeVisible()
+    await dialog.getByPlaceholder("Search folders").fill("C:\\Aigcfroge\\ModeSurfaceOtherProject")
+    const projectRow = dialog.locator('[data-slot="list-item"]').filter({ hasText: "ModeSurfaceOtherProject" })
+    await expect(projectRow).toHaveCount(1)
+
+    // Work owns this request. Its completed response proves the new Location is active.
+    const workAssets = page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return (
+        url.port === apiPort &&
+        url.pathname === "/workflow-asset" &&
+        requestedDirectory(response.request()) === nextDirectory
+      )
+    })
+    await projectRow.click()
+    const response = await workAssets
+    expect(response.status()).toBe(200)
+    await response.finished()
+    await expect(dialog).toBeHidden()
+    await expect(sidebarMarker.work(page).getByText("ModeSurfaceOtherProject", { exact: true })).toBeVisible()
+    await settleModeRender(page)
+    await expect.poll(() => reads.every((request) => finished.has(request))).toBe(true)
+    expect
+      .soft(
+        reads
+          .filter((request) => requestedDirectory(request) === nextDirectory)
+          .map((request) => new URL(request.url()).pathname),
+        "changing Work's Location must not load Chat-only assets",
+      )
+      .toEqual([])
+
+    await rail.getByRole("button", { name: "Chat", exact: true }).click()
+    await expectAppVisible(sidebarMarker.chat(page))
+    await expect(mainSlot(page, "chat")).toHaveAttribute("data-node-probe", "r02-project-change")
+    await expect(slot(page, "chat")).toHaveAttribute("data-node-probe", "r02-project-change")
+    await expect
+      .poll(() =>
+        chatOwnedPaths.every((path) =>
+          reads.some(
+            (request) => requestedDirectory(request) === nextDirectory && new URL(request.url()).pathname === path,
+          ),
+        ),
+      )
+      .toBe(true)
+  })
+
   test("coding does not fetch the assistant dashboard's data", async ({ page }) => {
     await openWorkspace(page, "coding")
     const slotOwned = await countPaths(page, ASSISTANT_SLOT_PATHS)

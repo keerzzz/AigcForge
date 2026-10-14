@@ -7,8 +7,8 @@
  * (`secondary-sidebar.tsx` → `ChatSessionSidebar` → `ChatFeatureList`) — and each
  * mounts this provider with the directory it means:
  *
- * - the workspace passes its mode directory, gated behind the `chatShown` latch so
- *   opening another mode does not issue Chat's requests (P2-14);
+ * - the workspace passes its mode directory and activity; hidden input changes wait
+ *   until Chat is visible again;
  * - the session sidebar passes the session's own directory.
  *
  * Both mount points are on sibling routes (`app.tsx`: `/mode/:mode` vs
@@ -34,13 +34,12 @@
  */
 import { createContext, createEffect, createMemo, createResource, createSignal, useContext } from "solid-js"
 import type { Accessor, JSX } from "solid-js"
-import { useServerSync } from "@/context/server-sync"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
 import type { State } from "@/context/global-sync/types"
 import { type DirectorySDK } from "@/context/sdk"
 import { AssetWorkbench } from "./asset-workbench"
-import { assetVersion } from "./prompt-asset-store"
+import { assetVersion, bumpAssetVersion } from "./prompt-asset-store"
 import { assetListStatus, type AssetListStatus } from "@/components/asset-list-status"
 import type { AssetKindId } from "@aigcfroge/schema/asset"
 
@@ -92,12 +91,16 @@ export function ChatAssetsProvider(props: {
    */
   serverKey: Accessor<ServerConnection.Key | undefined>
   directory: Accessor<string | undefined>
+  active?: Accessor<boolean>
   children: JSX.Element
 }) {
-  const sync = useServerSync()
   const global = useGlobal()
   const server = useServer()
-  const chatCtx = createMemo(() => {
+  const active = () => props.active?.() ?? true
+  const directory = createMemo<string | undefined>((previous) => (active() ? props.directory() : previous))
+  const version = createMemo<number | undefined>((previous) => (active() ? assetVersion() : previous))
+  const chatCtx = createMemo<ReturnType<typeof global.ensureServerCtx> | undefined>((previous) => {
+    if (!active()) return previous
     const key = props.serverKey()
     if (!key) return undefined
     const conn = server.list.find((item) => ServerConnection.sameKey(key, ServerConnection.key(item)))
@@ -109,7 +112,7 @@ export function ChatAssetsProvider(props: {
   // disposes the previous directory context when the location changes.
   const [dirSdk, setDirSdk] = createSignal<DirectorySDK | undefined>()
   createEffect(() => {
-    const dir = props.directory()
+    const dir = directory()
     const currentCtx = chatCtx()
     if (!dir || !currentCtx) {
       setDirSdk(undefined)
@@ -118,18 +121,27 @@ export function ChatAssetsProvider(props: {
     setDirSdk(currentCtx.sdk.ensureDirSdkContext(dir))
   })
 
-  // Command and MCP data load only when the child store opts into MCP bootstrap.
-  const systemData = createMemo(() => {
-    const dir = props.directory()
-    if (!dir) return undefined
-    return sync().child(dir, { mcp: true })[0]
+  // Target memos update before the SDK effect. Never pair an old SDK with a new revision.
+  const currentSdk = createMemo(() => {
+    const sdk = dirSdk()
+    if (sdk?.scope !== chatCtx()?.sdk.scope || sdk?.directory !== directory()) return undefined
+    return sdk
   })
 
-  const [list, { refetch }] = createResource(
-    () => ({ sdk: dirSdk(), version: assetVersion() }),
+  // Command and MCP data load only when the child store opts into MCP bootstrap.
+  const systemData = createMemo(() => {
+    const dir = directory()
+    if (!dir) return undefined
+    return chatCtx()?.sync.child(dir, { mcp: true })[0]
+  })
+
+  const [list] = createResource(
+    () => {
+      const sdk = currentSdk()
+      return sdk ? { sdk, version: version() } : undefined
+    },
     async (source) => {
       const sdk = source.sdk
-      if (!sdk) return undefined
       // Each list is settled individually, so one failing endpoint contributes nothing
       // instead of rejecting the whole resource. That matters because `merged` below
       // reads this resource, and reading a rejected resource throws into the nearest
@@ -195,8 +207,15 @@ export function ChatAssetsProvider(props: {
     },
   )
 
+  // Resource reads must not suspend the workspace owner or expose a previous Location's rows.
+  const currentList = createMemo(() => {
+    if (list.state === "pending" || list.state === "unresolved") return undefined
+    const latest = list.latest
+    return latest?.source === currentSdk() ? latest : undefined
+  })
+
   const merged = createMemo(() => {
-    const project = list()
+    const project = currentList()
     const system = systemData()
     if (!project && !system) {
       const emptyAssets: AssetWorkbench.AssetInput[] = []
@@ -217,21 +236,21 @@ export function ChatAssetsProvider(props: {
   })
 
   const value: ChatAssetsValue = {
-    dirSdk,
-    list,
+    dirSdk: currentSdk,
+    list: currentList,
     systemData,
     merged,
     counts: createMemo(() => AssetWorkbench.countAssetsByKind(merged().assets)),
     status: createMemo(() =>
       assetListStatus({
-        source: dirSdk(),
-        settledSource: list()?.source,
+        source: currentSdk(),
+        settledSource: currentList()?.source,
         state: list.state,
-        failed: list()?.failed,
+        failed: currentList()?.failed,
         total: PROJECT_ASSET_LIST_COUNT,
       }),
     ),
-    refetch,
+    refetch: bumpAssetVersion,
   }
 
   return <Ctx.Provider value={value}>{props.children}</Ctx.Provider>

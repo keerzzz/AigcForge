@@ -1,4 +1,12 @@
 import type { Page, Route } from "@playwright/test"
+import type {
+  InvalidCursorError,
+  InvalidRequestError,
+  SchedulePendingResponse,
+  SessionMessagesResponse,
+  SessionNotFoundError,
+  V2SessionMessagesData,
+} from "@aigcfroge/sdk/v2/client"
 
 const isRecordOf = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
 type MockSession = { id: string } & Record<string, unknown>
@@ -17,6 +25,9 @@ const emptyList = new Set([
 ])
 const emptyObject = new Set(["/global/config", "/config", "/provider/auth", "/mcp", "/session/status"])
 
+export type MockCanonicalMessageQuery = V2SessionMessagesData["path"] &
+  NonNullable<V2SessionMessagesData["query"]> & { limit: number }
+
 export interface MockServerConfig {
   provider: unknown
   directory: string
@@ -28,6 +39,13 @@ export interface MockServerConfig {
   project: unknown
   sessions: MockSession[]
   pageMessages: (sessionId: string, limit: number, before?: string) => { items: unknown[]; cursor?: string }
+  /** GET /api/session/:id/message uses its own canonical message shape and body
+   * cursors. Omitted means empty canonical history for the declared sessions;
+   * populated canonical histories must supply this callback, never `pageMessages`.
+   * It receives limit=50 and first-page order=desc when those parameters are absent.
+   * Returned cursors are opaque fixture tokens. A known token whose anchor belongs
+   * to another session returns an empty page, matching the canonical store. */
+  canonicalMessages?: (input: MockCanonicalMessageQuery) => SessionMessagesResponse
   vcsDiff?: unknown[]
   messageDelay?: number
   onMessages?: (input: { sessionID: string; before?: string; phase: "start" | "end" }) => void
@@ -81,6 +99,7 @@ export interface MockServerConfig {
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
   const cursors = new Map<string, string>()
+  const canonicalCursors = new Map<string, Set<string>>()
   let nextCursor = 0
   let nextTaskID = 0
   const pathProjection = {
@@ -123,6 +142,9 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     const path = url.pathname
     if (path === "/global/event" || path === "/event") return sse(route, config.events?.(), config.eventRetry)
     if (path === "/global/health") return json(route, { healthy: true })
+    if (path === "/schedule/pending" && route.request().method() === "GET") {
+      return json(route, [] satisfies SchedulePendingResponse)
+    }
     if (/^\/session\/[^/]+\/agent-asset\/apply$/.test(path) && route.request().method() === "POST") {
       return json(route, config.agentAssetApply ?? {}, undefined, config.agentAssetApplyStatus ?? 200)
     }
@@ -255,6 +277,73 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
             : { health: "degraded", reasons: [{ code: "mode-detail-not-projected", severity: "info" }] },
         detail: mode === "coding" ? codingDetail : missingDetail,
       })
+    }
+
+    const canonicalMatch = path.match(/^\/api\/session\/([^/]+)\/message$/)
+    if (canonicalMatch && route.request().method() === "GET") {
+      const sessionID = canonicalMatch[1]
+      if (!config.sessions.some((session) => session.id === sessionID)) {
+        return json(
+          route,
+          {
+            _tag: "SessionNotFoundError",
+            sessionID,
+            message: `Session not found: ${sessionID}`,
+          } satisfies SessionNotFoundError,
+          undefined,
+          404,
+        )
+      }
+      const limit = Number(url.searchParams.get("limit") ?? 50)
+      const order = url.searchParams.get("order")
+      const cursor = url.searchParams.get("cursor")
+      if (
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > 200 ||
+        (order !== null && order !== "asc" && order !== "desc")
+      ) {
+        return json(
+          route,
+          {
+            _tag: "InvalidRequestError",
+            message: "Invalid message pagination query",
+            kind: "Query",
+          } satisfies InvalidRequestError,
+          undefined,
+          400,
+        )
+      }
+      if (cursor && order !== null) {
+        return json(
+          route,
+          { _tag: "InvalidCursorError", message: "Cursor cannot be combined with order" } satisfies InvalidCursorError,
+          undefined,
+          400,
+        )
+      }
+      if (cursor && !canonicalCursors.get(sessionID)?.has(cursor)) {
+        if ([...canonicalCursors.values()].some((issued) => issued.has(cursor))) {
+          return json(route, { data: [], cursor: {} } satisfies SessionMessagesResponse)
+        }
+        return json(
+          route,
+          { _tag: "InvalidCursorError", message: "Invalid cursor" } satisfies InvalidCursorError,
+          undefined,
+          400,
+        )
+      }
+      const response: SessionMessagesResponse = config.canonicalMessages?.({
+        sessionID,
+        limit,
+        ...(cursor ? { cursor } : { order: order ?? "desc" }),
+      }) ?? { data: [], cursor: {} }
+      const issued = canonicalCursors.get(sessionID) ?? new Set<string>()
+      Object.values(response.cursor).forEach((token) => {
+        if (token) issued.add(token)
+      })
+      canonicalCursors.set(sessionID, issued)
+      return json(route, response)
     }
 
     const messagesMatch = path.match(/^\/session\/([^/]+)\/message$/)

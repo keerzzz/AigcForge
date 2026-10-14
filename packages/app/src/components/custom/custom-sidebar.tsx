@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, For, Show } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
@@ -29,6 +29,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
   const [search, setSearch] = createSignal("")
   const [activeCategory, setActiveCategory] = createSignal<AssetCategory>("all")
   const [commandConsumer, setCommandConsumer] = createSignal("orchestrator")
+  createEffect(on(draft, () => setCommandConsumer("orchestrator")))
 
   // P2-14: hidden mode slots must not issue asset requests.
   const slotActive = useModeSlotActive()
@@ -134,7 +135,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
   }
 
   function handleCreateStarterAgent() {
-    draft.addAgent({
+    draft().addAgent({
       kind: "agent",
       relativePath: "custom-assistant.md",
       revision: "",
@@ -264,7 +265,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
               >
                 <For each={filteredAgents()}>
                   {(agent) => {
-                    const isIncluded = () => draft.state.agents.some((a) => a.relativePath === agent.relativePath)
+                    const isIncluded = () => draft().state.agents.some((a) => a.relativePath === agent.relativePath)
 
                     return (
                       <button
@@ -272,10 +273,10 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                         class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
                         onClick={() => {
                           if (isIncluded()) {
-                            draft.removeAgent(agent.relativePath)
+                            draft().removeAgent(agent.relativePath)
                             return
                           }
-                          draft.addAgent({
+                          draft().addAgent({
                             kind: "agent",
                             relativePath: agent.relativePath,
                             revision: agent.revision,
@@ -318,14 +319,14 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
               >
                 <For each={filteredWorkflows()}>
                   {(workflow) => {
-                    const isSelected = () => draft.state.workflow?.relativePath === workflow.relativePath
+                    const isSelected = () => draft().state.workflow?.relativePath === workflow.relativePath
                     return (
                       <button
                         type="button"
                         aria-pressed={isSelected()}
                         class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
                         onClick={() =>
-                          draft.toggleWorkflow({
+                          draft().toggleWorkflow({
                             kind: "workflow",
                             relativePath: workflow.relativePath,
                             revision: workflow.revision,
@@ -368,7 +369,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                 <For each={filteredPrompts()}>
                   {(prompt) => {
                     const isBound = () =>
-                      (draft.state.bindings["orchestrator"]?.prompts ?? []).some(
+                      (draft().state.bindings["orchestrator"]?.prompts ?? []).some(
                         (p) => p.relativePath === prompt.relativePath,
                       )
 
@@ -377,7 +378,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                         type="button"
                         class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
                         onClick={() =>
-                          draft.togglePrompt("orchestrator", {
+                          draft().togglePrompt("orchestrator", {
                             kind: "prompt",
                             relativePath: prompt.relativePath,
                             revision: prompt.revision,
@@ -415,7 +416,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                     onChange={(event) => setCommandConsumer(event.currentTarget.value)}
                   >
                     <option value="orchestrator">{language.t("custom.sidebar.consumerOrchestrator")}</option>
-                    <For each={draft.state.agents}>
+                    <For each={draft().state.agents}>
                       {(agent) => {
                         const name = agent.name ?? agent.relativePath.replace(/\.md$/, "")
                         return <option value={`agents/${name}`}>{name}</option>
@@ -437,7 +438,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                 <For each={filteredCommands()}>
                   {(command) => {
                     const isBound = () =>
-                      (draft.state.bindings[commandConsumer()]?.commands ?? []).some(
+                      (draft().state.bindings[commandConsumer()]?.commands ?? []).some(
                         (item) => item.relativePath === command.relativePath,
                       )
                     return (
@@ -446,7 +447,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                         aria-pressed={isBound()}
                         class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
                         onClick={() =>
-                          draft.toggleCommand(commandConsumer(), {
+                          draft().toggleCommand(commandConsumer(), {
                             kind: "command",
                             relativePath: command.relativePath,
                             revision: command.revision,
@@ -489,7 +490,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                 <For each={filteredSkills()}>
                   {(skill) => {
                     const isBound = () =>
-                      (draft.state.bindings["orchestrator"]?.skills ?? []).some(
+                      (draft().state.bindings["orchestrator"]?.skills ?? []).some(
                         (s) => s.relativePath === skill.relativePath,
                       )
 
@@ -498,7 +499,7 @@ export function CustomProjectColumnSidebar(props: CustomSidebarProps) {
                         type="button"
                         class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-v2-overlay-simple-overlay-hover"
                         onClick={() =>
-                          draft.toggleSkill("orchestrator", {
+                          draft().toggleSkill("orchestrator", {
                             kind: "skill",
                             relativePath: skill.relativePath,
                             revision: skill.revision,

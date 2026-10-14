@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, For, Show } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -37,37 +37,50 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   const [upgrading, setUpgrading] = createSignal(false)
   const [upgradeError, setUpgradeError] = createSignal<string | undefined>()
   const [copied, setCopied] = createSignal(false)
+  createEffect(
+    on([draft, () => props.sessionID], () => {
+      setUpgrading(false)
+      setUpgradeError(undefined)
+      setCopied(false)
+    }),
+  )
 
   // Fetch snapshot for the session. `throwOnError: true` so the status reaches
   // `classifySnapshotFailure`: only a 404 means "this session has no snapshot", and
   // the panel must not render a 400 (a snapshot the server could not decode) or a
   // dropped connection as the same thing. See custom-plan-state.ts (P2-11).
+  const source = createMemo(() =>
+    whenActive(slotActive(), () => ({ sessionID: props.sessionID, directory: props.directory, sdk: sdk() })),
+  )
   const [snapshotFetch] = createResource(
-    () => whenActive(slotActive(), () => ({ sessionID: props.sessionID, directory: props.directory })),
-    async (source): Promise<SnapshotFetch<Snapshot>> => {
-      if (!source.sessionID) return { state: "absent" }
+    source,
+    async (source): Promise<SnapshotFetch<Snapshot> & { source: typeof source }> => {
+      if (!source.sessionID) return { source, state: "absent" }
       try {
-        const s = sdk()
-        const res = await s.client.session.composition({ sessionID: source.sessionID }, { throwOnError: true })
+        const res = await source.sdk.client.session.composition({ sessionID: source.sessionID }, { throwOnError: true })
         const decoded = decodeSnapshotResponse(res.data)
         if (decoded === undefined) {
           // 2xx whose body is not a Snapshot: server/client schema drift, not an
           // absent composition.
-          return { state: "failed", message: language.t("custom.snapshot.undecodable") }
+          return { source, state: "failed", message: language.t("custom.snapshot.undecodable") }
         }
-        return { state: "ready", snapshot: decoded }
+        return { source, state: "ready", snapshot: decoded }
       } catch (err: unknown) {
-        return classifySnapshotFailure(err)
+        return { source, ...classifySnapshotFailure(err) }
       }
     },
   )
 
-  const snapshot = createMemo(() => {
+  const result = createMemo(() => {
     const fetched = snapshotFetch.latest
+    return fetched?.source === source() ? fetched : undefined
+  })
+  const snapshot = createMemo(() => {
+    const fetched = result()
     return fetched?.state === "ready" ? fetched.snapshot : undefined
   })
   const snapshotError = createMemo(() => {
-    const fetched = snapshotFetch.latest
+    const fetched = result()
     return fetched?.state === "failed" ? fetched.message : undefined
   })
 
@@ -95,15 +108,17 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   }
 
   async function handleUpgrade() {
+    if (upgrading()) return
     const currentSessionID = props.sessionID
     const s = sdk()
     const dir = props.directory ?? s.directory
     const currentServer = server.current
     if (!currentSessionID || !dir || !currentServer) return
+    const currentDraft = draft()
 
     const currentSnapshot = snapshot()
     if (currentSnapshot) {
-      draft.loadFromSnapshot(currentSnapshot)
+      currentDraft.loadFromSnapshot(currentSnapshot)
     }
 
     setUpgrading(true)
@@ -115,7 +130,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           directory: dir,
           compositionUpgradeInput: {
             sessionID: currentSessionID,
-            composition: draft.composition,
+            composition: currentDraft.composition,
             expectedPlanDigest: currentSnapshot?.digest,
           },
         },
@@ -143,6 +158,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         showToast(language.t("custom.snapshot.upgradeSuccess"))
       }
     } catch (err: unknown) {
+      if (draft() !== currentDraft || props.sessionID !== currentSessionID) return
       const { status, message } = parseErrorDetails(err)
       const msg = message ?? String(err)
       if (status === 409 || msg.includes("busy") || msg.includes("SessionBusyError")) {
@@ -151,7 +167,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       }
       setUpgradeError(msg)
     } finally {
-      setUpgrading(false)
+      if (draft() === currentDraft && props.sessionID === currentSessionID) setUpgrading(false)
     }
   }
 
