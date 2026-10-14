@@ -1,5 +1,6 @@
-import { expect, test, type Request, type Page } from "@playwright/test"
+import { expect, test, type ElementHandle, type Request, type Page } from "@playwright/test"
 import type {
+  CacheDiagnostics,
   CompositionSnapshotV1,
   FileNode,
   KbNoteNote,
@@ -587,6 +588,150 @@ test("AI-TDD-S08-R02: a completed reminder mutation stays with its original Sess
       body: JSON.stringify(probe.receipt(), null, 2),
       contentType: "application/json",
     })
+  }
+})
+
+test("AI-TDD-S08-R02: a closed drawer pauses diagnostics polling without replacing its Context", async ({
+  page,
+}, testInfo) => {
+  const assistant = {
+    ...session(),
+    id: "ses_closed_drawer_diagnostics",
+    title: "Closed drawer diagnostics",
+    mode: "assistant",
+    agent: "assistant-orchestrator",
+  } satisfies Session
+  // Install before navigation and keep normal time progression. Each fastForward below
+  // fires at most one due interval; response bodies and rendering have separate barriers.
+  await page.clock.install({ time: new Date("2026-10-14T00:00:00Z") })
+  const fixture = await mockAssistantMutationPanel(page, [assistant])
+  await page.setViewportSize({ width: 390, height: 844 })
+  const path = `/session/${assistant.id}/cache-diagnostics`
+  fixture.replies.set(path, {
+    sessionHitRate: 19,
+    sessionCacheRead: 19,
+    sessionCacheWrite: 0,
+    sessionTotalInput: 100,
+    confidence: "high",
+    perStep: [],
+  } satisfies CacheDiagnostics)
+  const probe = await AssistantMutationProbe.track(page, fixture.replies, [])
+  const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+  const toggle = page.locator("#session-mode-panel-toggle")
+  const context = panel.locator('[data-slot="tabs-v2-trigger"][data-value="context"]')
+  const diagnostic = panel.getByRole("button", { name: "Cache Diagnostics", exact: true })
+  let original: ElementHandle<HTMLElement | SVGElement> | null = null
+  const clockMoves: Array<{ phase: string; before: number; after: number }> = []
+  const observations: Array<{
+    phase: string
+    diagnostics: number
+    url: string
+    viewport: ReturnType<Page["viewportSize"]>
+    drawerVisible: boolean
+    contextSelected: string | null
+    ownerConnected: boolean
+  }> = []
+  const advance = async (phase: string) => {
+    const before = await page.evaluate(() => Date.now())
+    await page.clock.fastForward(30_001)
+    const after = await page.evaluate(() => Date.now())
+    clockMoves.push({ phase, before, after })
+    expect(after - before, `${phase}: one diagnostics interval elapsed`).toBeGreaterThanOrEqual(30_001)
+  }
+  const observe = async (phase: string) => {
+    await probe.settle(phase)
+    observations.push({
+      phase,
+      diagnostics: probe.count(path),
+      url: page.url(),
+      viewport: page.viewportSize(),
+      drawerVisible: await panel.isVisible(),
+      contextSelected: await context.getAttribute("data-selected"),
+      ownerConnected: original !== null && (await original.evaluate((node) => node.isConnected)),
+    })
+  }
+
+  try {
+    await page.goto(fixture.url)
+    await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+    await expect(panel).toBeHidden()
+    await expect(toggle).toHaveAttribute("aria-expanded", "false")
+    // The timeline header exposes Context even when an empty Session has no metrics label.
+    const contextUsage = page.getByRole("button", { name: "View context usage", exact: true })
+    await expect(contextUsage).toBeVisible()
+    await contextUsage.click()
+    await expect(panel).toBeHidden()
+    await toggle.click()
+    await expect(panel).toBeVisible()
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await expect(context).toHaveAttribute("data-selected", "")
+    await expect.poll(() => probe.count(path)).toBeGreaterThan(0)
+    await diagnostic.click()
+    await expect(diagnostic).toHaveAttribute("aria-expanded", "true")
+    await expect(panel.getByText("19%", { exact: true })).toBeVisible()
+    original = await diagnostic.elementHandle()
+    if (!original) throw new Error("The visible diagnostics trigger must have a DOM owner")
+    expect(await original.evaluate((node) => node.isConnected)).toBe(true)
+    await observe("visible-initial-read")
+    expect(await page.evaluate(() => document.visibilityState)).toBe("visible")
+
+    const openBaseline = probe.count(path)
+    await advance("visible-interval")
+    await expect.poll(() => probe.count(path)).toBeGreaterThan(openBaseline)
+    await observe("visible-interval-read-finished")
+
+    // Use the drawer control: Escape on an accordion trigger also collapses that
+    // accordion. Closing only the drawer must retain Context but disable its observer.
+    await toggle.click()
+    await expect(panel).toBeHidden()
+    await expect(toggle).toHaveAttribute("aria-expanded", "false")
+    await expect(toggle).toBeFocused()
+    await expect(page).toHaveURL(fixture.url)
+    await expect(context).toHaveAttribute("data-selected", "")
+    expect(await original.evaluate((node) => node.isConnected)).toBe(true)
+    await observe("closed-before-interval")
+    const closedBaseline = probe.count(path)
+    await advance("closed-interval")
+    await observe("closed-interval-reads-finished")
+    expect(await page.evaluate(() => document.visibilityState)).toBe("visible")
+    expect(probe.count(path), "a closed same-Session drawer must add no diagnostics GET").toBe(closedBaseline)
+
+    const reopenBaseline = probe.count(path)
+    await toggle.click()
+    await expect(panel).toBeVisible()
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await expect(page).toHaveURL(fixture.url)
+    await expect(context).toHaveAttribute("data-selected", "")
+    await expect(diagnostic).toHaveAttribute("aria-expanded", "true")
+    expect(await diagnostic.evaluate((node, previous) => node === previous, original)).toBe(true)
+    await expect(panel.getByText("19%", { exact: true })).toBeVisible()
+    await expect.poll(() => probe.count(path)).toBeGreaterThan(reopenBaseline)
+    await observe("reopened-read-finished")
+    const resumedBaseline = probe.count(path)
+    await advance("reopened-interval")
+    await expect.poll(() => probe.count(path)).toBeGreaterThan(resumedBaseline)
+    await observe("reopened-interval-read-finished")
+  } finally {
+    await probe.close()
+    try {
+      await testInfo.attach("s08-r02-closed-drawer-diagnostics", {
+        body: JSON.stringify(
+          {
+            path,
+            clockMoves,
+            observations,
+            probe: probe.receipt(),
+            url: page.url(),
+            viewport: page.viewportSize(),
+          },
+          null,
+          2,
+        ),
+        contentType: "application/json",
+      })
+    } finally {
+      await original?.dispose()
+    }
   }
 })
 

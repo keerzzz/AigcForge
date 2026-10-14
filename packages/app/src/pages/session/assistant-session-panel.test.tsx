@@ -80,17 +80,8 @@ describe("SessionSidePanel mode slots (batch 1 G2, reshaped by S7)", () => {
     expect(sidePanel).not.toContain("<PlaceholderPanel")
   })
 
-  test("keeps every mode panel mounted and toggles it by display, never per-mode unmount", () => {
-    expect(sidePanel).toContain("const modePanel = (id: string, children: () => JSX.Element)")
-    for (const mode of ["chat", "work", "assistant", "custom"]) {
-      // Whitespace-tolerant: the custom slot's children are long enough that the formatter wraps
-      // the call onto its own line, which a literal match would miss for the wrong reason.
-      expect(sidePanel, `${mode} is rendered through the shared slot`).toMatch(new RegExp(`modePanel\\(\\s*"${mode}"`))
-    }
-    expect(sidePanel).toContain(
-      'style={{ display: mode.currentMode === id && (isDesktop() || mode.contentPanelOpen) ? "" : "none" }}',
-    )
-  })
+  // Mode-slot and assistant-session-panel E3s verify retained DOM and query activity;
+  // matching a particular display expression cannot establish those behaviors.
 
   test("the mode slot fills the remaining width when docked", () => {
     expect(sidePanel).toContain('"flex-1 min-w-0": isDesktop()')

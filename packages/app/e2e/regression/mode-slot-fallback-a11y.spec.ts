@@ -742,8 +742,9 @@ test.describe("S7: the mode content panel is reachable at narrow widths", { tag:
     // and then required to persist — a reset to the default would fail that.
     // `data-value` is the trigger's stable hook (`ui/src/v2/components/tabs-v2.tsx:85`); the
     // labels are translated, so matching them by English name only worked in the en project.
-    const artifact = page.locator('[data-slot="tabs-v2-trigger"][data-value="artifact"]')
-    const context = page.locator('[data-slot="tabs-v2-trigger"][data-value="context"]')
+    const panel = modePanel(page, "work")
+    const artifact = panel.locator('[data-slot="tabs-v2-trigger"][data-value="artifact"]')
+    const context = panel.locator('[data-slot="tabs-v2-trigger"][data-value="context"]')
     const selected = (await context.getAttribute("data-selected")) === "" ? context : artifact
     const other = selected === context ? artifact : context
     await other.click()

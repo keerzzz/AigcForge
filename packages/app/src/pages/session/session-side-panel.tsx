@@ -207,6 +207,7 @@ export function SessionSidePanel(props: {
   // switching modes must not reset a panel's state). The narrow presentation only changes the
   // wrapper's box, never the owner inside it.
   // Route params can advance before the global Mode; reads also require the target Session's Mode.
+  const modePanelVisible = (id: string) => mode.currentMode === id && (isDesktop() || mode.contentPanelOpen)
   const modePanel = (id: string, children: () => JSX.Element) => (
     <div
       data-component="session-mode-panel"
@@ -216,9 +217,9 @@ export function SessionSidePanel(props: {
         "flex-1 min-w-0": isDesktop(),
         "absolute inset-0 z-30 overflow-hidden rounded-xl bg-v2-background-bg-base": contentPanelFloats(),
       }}
-      style={{ display: mode.currentMode === id && (isDesktop() || mode.contentPanelOpen) ? "" : "none" }}
+      style={{ display: modePanelVisible(id) ? "" : "none" }}
     >
-      <ModeSlotActiveProvider value={() => mode.currentMode === id && props.sessionMode() === id}>
+      <ModeSlotActiveProvider value={() => modePanelVisible(id) && props.sessionMode() === id}>
         {children()}
       </ModeSlotActiveProvider>
     </div>
