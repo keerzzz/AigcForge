@@ -16,13 +16,14 @@ describe("custom start blocker coverage", () => {
     "unsupported-server",
     "no-digest",
     "blocking-diagnostics",
+    "invalid-plan",
     "no-agents",
   ] as const
 
   test("every blocker the gate can return has a message", () => {
     // The list is asserted against the gate's own union at the type level: a new
-    // blocker makes `satisfies` below fail until it is listed here.
-    expect(blockers.length).toBe(9)
+    // blocker makes the typed `toContain` below fail until it is listed here.
+    expect(blockers.length).toBe(10)
     for (const blocker of blockers) {
       expect(english[`custom.builder.startBlocker.${blocker}`], blocker).toBeTruthy()
     }

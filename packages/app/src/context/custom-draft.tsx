@@ -129,7 +129,7 @@ export function toCompositionInput(state: CustomDraftState): CompositionTemporar
     workflow,
     bindings,
     presentation: state.presentation,
-    requestedCapabilities: state.requestedCapabilities,
+    requestedCapabilities: [...state.requestedCapabilities],
   }
 }
 

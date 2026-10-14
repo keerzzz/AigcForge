@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { createStore } from "solid-js/store"
+import { createMemo, createRoot } from "solid-js"
 import {
   createCustomDraftState,
   createCustomDraftStore,
@@ -16,6 +17,36 @@ describe("custom-draft ownership", () => {
   // it, and one failing case must not determine another case's starting data.
   beforeEach(() => Object.assign(DEFAULT_DRAFT, structuredClone(pristine)))
   afterEach(() => Object.assign(DEFAULT_DRAFT, structuredClone(pristine)))
+
+  test("a captured composition keeps its requested capabilities after later edits", () => {
+    const draft = createCustomDraftState()
+    const captured = draft.composition
+    draft.toggleCapability("tools")
+    expect(captured).toMatchObject({ requestedCapabilities: [] })
+    const enabled = draft.composition
+    draft.toggleCapability("tools")
+    expect(enabled).toMatchObject({ requestedCapabilities: ["tools"] })
+    expect(draft.composition).toMatchObject({ requestedCapabilities: [] })
+  })
+
+  test("a composition memo advances when capabilities are added and removed", () => {
+    createRoot((dispose) => {
+      try {
+        const draft = createCustomDraftState()
+        const input = createMemo(() => draft.composition)
+        const initial = input()
+        draft.toggleCapability("tools")
+        const enabled = input()
+        expect(enabled).not.toBe(initial)
+        expect(enabled).toMatchObject({ requestedCapabilities: ["tools"] })
+        draft.toggleCapability("tools")
+        expect(input()).not.toBe(enabled)
+        expect(input()).toMatchObject({ requestedCapabilities: [] })
+      } finally {
+        dispose()
+      }
+    })
+  })
 
   test("fresh stores keep nested selections independent", () => {
     const first = createCustomDraftState()

@@ -1383,6 +1383,7 @@ export const dict = {
   "custom.builder.startBlocker.unsupported-server": "此服务器不支持自定义模式。",
   "custom.builder.startBlocker.no-digest": "计划尚无摘要，请重新计算。",
   "custom.builder.startBlocker.blocking-diagnostics": "请先解决阻塞性诊断后再启动。",
+  "custom.builder.startBlocker.invalid-plan": "组合计划无效。请先解决诊断问题后再继续。",
   "custom.builder.startBlocker.no-agents": "计划中没有可运行的智能体。",
   "error.page.circular": "[循环]",
   "error.serverSDK.noServerAvailable": "无可用服务器",

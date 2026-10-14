@@ -111,6 +111,7 @@ export type StartBlocker =
   | "unsupported-server"
   | "no-digest"
   | "blocking-diagnostics"
+  | "invalid-plan"
   | "no-agents"
 
 export type StartGate = { canStart: true } | { canStart: false; blocker: StartBlocker }
@@ -141,7 +142,7 @@ export function evaluateStartGate(input: {
 }): StartGate {
   if (input.starting) return { canStart: false, blocker: "starting" }
   if (!input.hasSdk) return { canStart: false, blocker: "no-sdk" }
-  // `undefined` is the first paint, before the plan resource has settled once.
+  // The caller withholds a Plan until the current composition has finished planning.
   if (input.result === undefined) return { canStart: false, blocker: "plan-pending" }
   if (input.result.disabled === true) return { canStart: false, blocker: "custom-disabled" }
   if (input.result.unsupported === true) return { canStart: false, blocker: "unsupported-server" }
@@ -151,6 +152,7 @@ export function evaluateStartGate(input: {
   // is nothing for Start to freeze.
   if (plan === undefined || !plan.digest) return { canStart: false, blocker: "no-digest" }
   if (blockingDiagnostics(plan) > 0) return { canStart: false, blocker: "blocking-diagnostics" }
+  if (!plan.valid) return { canStart: false, blocker: "invalid-plan" }
   if (input.draft.source === "temporary" && input.draft.agentCount === 0) {
     return { canStart: false, blocker: "no-agents" }
   }

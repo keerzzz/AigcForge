@@ -1041,6 +1041,7 @@ export const dict = {
   "custom.builder.startBlocker.unsupported-server": "此伺服器不支援自訂模式。",
   "custom.builder.startBlocker.no-digest": "計畫尚無摘要，請重新計算。",
   "custom.builder.startBlocker.blocking-diagnostics": "請先解決阻塞性診斷後再啟動。",
+  "custom.builder.startBlocker.invalid-plan": "組合計畫無效。請先解決診斷問題後再繼續。",
   "custom.builder.startBlocker.no-agents": "計畫中沒有可執行的代理。",
   "error.page.circular": "[循環]",
   "error.serverSDK.noServerAvailable": "無可用的伺服器",

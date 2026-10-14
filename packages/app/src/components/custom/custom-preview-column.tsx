@@ -86,9 +86,8 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
    */
   const result = createMemo(() => {
     const settled = planResult.latest
-    const current = source()
-    if (!current || settled?.source.draft !== current.draft || settled.source.sdk !== current.sdk) return undefined
-    return settled
+    // The draft and SDK survive composition edits; each Plan belongs to its complete source.
+    return settled?.source === source() ? settled : undefined
   })
   const plan = createMemo(() => result()?.plan)
   const blockingCount = createMemo(() => blockingDiagnostics(plan()))
@@ -96,7 +95,7 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
     evaluateStartGate({
       starting: starting(),
       hasSdk: props.dirSdk() !== undefined,
-      result: result(),
+      result: planResult.loading ? undefined : result(),
       draft: { source: draft().state.source, agentCount: draft().state.agents.length },
     }),
   )
@@ -104,13 +103,14 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
   const startBlocker = createMemo(() => blockerOf(startGate()))
 
   async function handleStart() {
-    if (!startGate().canStart) return
-    const sdk = props.dirSdk()
+    const accepted = result()
+    if (!startGate().canStart || !accepted?.plan) return
+    const sdk = accepted.source.sdk
     const currentConn = conn()
     const currentCtx = ctx()
     const dir = directory()
     if (!sdk || !currentConn || !currentCtx || !dir) return
-    const currentDraft = draft()
+    const currentDraft = accepted.source.draft
 
     setStarting(true)
     setErrorMessage(undefined)
@@ -120,8 +120,8 @@ export function CustomPlanPreviewColumn(props: CustomPreviewColumnProps) {
         {
           directory: dir,
           compositionStartInput: {
-            composition: currentDraft.composition,
-            expectedPlanDigest: plan()?.digest,
+            composition: accepted.source.composition,
+            expectedPlanDigest: accepted.plan.digest,
             title: currentDraft.state.title || undefined,
           },
         },

@@ -15,7 +15,7 @@ import { decodeSnapshotResponse } from "@/utils/snapshot-decode"
 import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import { createSizing } from "@/pages/session/helpers"
-import { classifySnapshotFailure, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
+import { classifySnapshotFailure, evaluateStartGate, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
 import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 export interface CustomSessionPanelProps {
@@ -107,42 +107,61 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  async function handleUpgrade() {
-    if (upgrading()) return
-    const currentSessionID = props.sessionID
-    const s = sdk()
-    const dir = props.directory ?? s.directory
-    const currentServer = server.current
-    if (!currentSessionID || !dir || !currentServer) return
-    const currentDraft = draft()
+  const canUpgrade = () => !upgrading() && !snapshotFetch.loading && snapshot() !== undefined
 
+  async function handleUpgrade() {
+    if (!canUpgrade()) return
+    const currentSource = source()
     const currentSnapshot = snapshot()
-    if (currentSnapshot) {
-      currentDraft.loadFromSnapshot(currentSnapshot)
-    }
+    if (!currentSource?.sessionID || !currentSnapshot) return
+    const currentSessionID = currentSource.sessionID
+    const s = currentSource.sdk
+    const dir = currentSource.directory ?? s.directory
+    const currentServer = server.list.find((connection) => server.scope(ServerConnection.key(connection)) === s.scope)
+    if (!dir || !currentServer) return
+    const currentDraft = draft()
+    currentDraft.loadFromSnapshot(currentSnapshot)
+    const composition = currentDraft.composition
 
     setUpgrading(true)
     setUpgradeError(undefined)
 
     try {
+      // Reconstructing an editable draft can change the input (for example profile
+      // to temporary). Its new plan, rather than the old snapshot, owns the digest.
+      const planned = await s.client.customComposition.plan(
+        { directory: dir, body: composition },
+        { throwOnError: true },
+      )
+      if (source() !== currentSource || draft() !== currentDraft) return
+      const gate = evaluateStartGate({
+        starting: false,
+        hasSdk: true,
+        result: { plan: planned.data },
+        draft: {
+          source: composition.source,
+          agentCount: composition.source === "temporary" ? composition.agents.length : 0,
+        },
+      })
+      if (!gate.canStart) {
+        setUpgradeError(language.t(`custom.builder.startBlocker.${gate.blocker}`))
+        return
+      }
       const res = await s.client.customComposition.upgrade(
         {
           directory: dir,
           compositionUpgradeInput: {
             sessionID: currentSessionID,
-            composition: currentDraft.composition,
-            expectedPlanDigest: currentSnapshot?.digest,
+            composition,
+            expectedPlanDigest: planned.data?.digest,
           },
         },
         { throwOnError: true },
       )
 
-      // Upgrade is atomic like start: it returns the Session it re-froze, so open that one.
-      // Handing off to `launchModeSession` opened a blank custom draft instead, orphaning the
-      // upgraded session and leaving a draft whose first send goes to plain `POST /session` —
-      // which custom mode rejects with 400. `custom-preview-column.tsx:107-112` fixed exactly
-      // this for the start path (BUG-CUSTOM-START); this call site survived because nothing
-      // stopped a client passing `custom` to a generic-creation helper.
+      if (source() !== currentSource || draft() !== currentDraft) return
+      // Upgrade creates a new Session on the source server. Open the returned ID
+      // through that same owner, even when the global server selection differs.
       const upgraded = res.data?.session
       if (upgraded?.id) {
         const ctx = global.ensureServerCtx(currentServer)
@@ -158,7 +177,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         showToast(language.t("custom.snapshot.upgradeSuccess"))
       }
     } catch (err: unknown) {
-      if (draft() !== currentDraft || props.sessionID !== currentSessionID) return
+      if (draft() !== currentDraft || props.sessionID !== currentSessionID || sdk() !== s) return
       const { status, message } = parseErrorDetails(err)
       const msg = message ?? String(err)
       if (status === 409 || msg.includes("busy") || msg.includes("SessionBusyError")) {
@@ -167,7 +186,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       }
       setUpgradeError(msg)
     } finally {
-      if (draft() === currentDraft && props.sessionID === currentSessionID) setUpgrading(false)
+      if (draft() === currentDraft && props.sessionID === currentSessionID && sdk() === s) setUpgrading(false)
     }
   }
 
@@ -180,7 +199,14 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
             <Icon name="mode-custom" size="small" class="text-v2-text-text-base" />
             <span class="text-v2-text-text-base text-14-medium">{language.t("custom.snapshot.panelTitle")}</span>
           </div>
-          <ButtonV2 variant="neutral" size="small" icon="edit" loading={upgrading()} onClick={handleUpgrade}>
+          <ButtonV2
+            variant="neutral"
+            size="small"
+            icon="edit"
+            disabled={!canUpgrade()}
+            loading={upgrading()}
+            onClick={handleUpgrade}
+          >
             {language.t("custom.snapshot.upgradeButton")}
           </ButtonV2>
         </div>

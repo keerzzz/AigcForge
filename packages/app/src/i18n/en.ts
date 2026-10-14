@@ -627,6 +627,8 @@ export const dict = {
   "custom.builder.startBlocker.unsupported-server": "This server does not support custom mode.",
   "custom.builder.startBlocker.no-digest": "The plan has no digest yet. Recalculate it.",
   "custom.builder.startBlocker.blocking-diagnostics": "Resolve the blocking diagnostics before starting.",
+  "custom.builder.startBlocker.invalid-plan":
+    "The composition plan is invalid. Resolve its diagnostics before continuing.",
   "custom.builder.startBlocker.no-agents": "The plan has no runnable agents.",
   "error.page.circular": "[Circular]",
   "error.page.report.prefix": "Please report this error to the Aigcfroge team",

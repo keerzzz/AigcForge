@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
+import type { CompositionPlan, CompositionStartInput, CompositionStartResponse } from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
@@ -60,11 +61,13 @@ type Wire = {
   planMessage?: string
   /** Mirror the real typed UnsupportedProductModeError body for the kill-switch case. */
   planErrorTag?: boolean
+  /** Only cases that change the composition need more than the reviewer asset. */
+  agents?: Array<typeof agentAsset>
 }
 
 const wire = (over: Partial<Wire> = {}): Wire => ({ armed: false, hits: {}, fail: new Set(), ...over })
 
-const plan = {
+const plan: CompositionPlan = {
   version: 2,
   valid: true,
   digest: "c".repeat(64),
@@ -99,7 +102,7 @@ async function mockBuilderRoutes(page: Page, state: Wire) {
       return route.fulfill({
         status: 200,
         headers: { "content-type": "application/json", ...cors },
-        body: JSON.stringify({ assets: path === "agent-asset" ? [agentAsset] : [], invalid: [] }),
+        body: JSON.stringify({ assets: path === "agent-asset" ? (state.agents ?? [agentAsset]) : [], invalid: [] }),
       })
     })
   }
@@ -349,6 +352,177 @@ test.describe("regression: Custom Builder request and failure states", () => {
     await page.getByText("reviewer", { exact: true }).first().click()
 
     await expect(startButton(page)).toBeEnabled()
+  })
+
+  test("changing agents in one Location blocks Start until the matching plan settles", async ({ page }) => {
+    const agents = [
+      agentAsset,
+      {
+        name: "implementer",
+        description: "Implements changes",
+        relativePath: "implementer.md",
+        revision: "b".repeat(64),
+      },
+    ]
+    const plannedAgents = agents.map((asset) => ({ ...asset, id: asset.name }))
+    const digest = "d".repeat(64)
+    const response: CompositionStartResponse = {
+      session: {
+        id: "ses_custom_replanned",
+        slug: "custom-replanned",
+        projectID,
+        title: "Replanned custom session",
+        mode: "custom",
+        version: "dev",
+        location: { directory },
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        time: { created: 1700000002000, updated: 1700000002000 },
+      },
+      snapshot: {
+        version: 2,
+        digest,
+        sessionID: "ses_custom_replanned",
+        createdAt: 1700000002000,
+        data: {
+          agents: plannedAgents,
+          instructions: [],
+          prompts: [],
+          skills: [],
+          tools: { fingerprints: [], catalogDigest: "e".repeat(64), catalog: [] },
+        },
+      },
+    }
+    await openMode(page, wire({ agents }), "custom", "custom", [{ ...response.session, directory, agent: "meta" }])
+    await expectAppVisible(assetsTitle(page))
+    const sidebar = page.locator('[data-mode-sidebar="custom"]')
+    const title = page.getByPlaceholder("Title for custom session (optional)")
+    const firstPlan = page.waitForResponse((res) => {
+      if (!res.url().includes("/custom-composition/plan") || res.request().method() !== "POST") return false
+      const input: CompositionPlan["input"] = res.request().postDataJSON()
+      return input.source === "temporary" && input.agents.length === 1
+    })
+    await sidebar.getByRole("button", { name: "reviewer", exact: true }).click()
+    await (await firstPlan).finished()
+    await expect(startButton(page)).toBeEnabled()
+    await title.fill(response.session.title)
+    await title.evaluate((node) => node.setAttribute("data-draft-probe", "retained"))
+
+    const plans: CompositionPlan["input"][] = []
+    const starts: CompositionStartInput[] = []
+    let release: (() => void) | undefined
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route("**/custom-composition/plan*", async (route) => {
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors, body: "" })
+      const input: CompositionPlan["input"] = route.request().postDataJSON()
+      if (input.source !== "temporary" || input.agents.length !== 2) return route.fallback()
+      plans.push(input)
+      await held
+      return route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json", ...cors },
+        body: JSON.stringify({ ...plan, input, digest, agents: plannedAgents }),
+      })
+    })
+    await page.route("**/custom-composition/start*", async (route) => {
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors, body: "" })
+      starts.push(route.request().postDataJSON())
+      return route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json", ...cors },
+        body: JSON.stringify(response),
+      })
+    })
+
+    try {
+      await sidebar.getByRole("button", { name: "implementer", exact: true }).click()
+      await expect.poll(() => plans.length).toBe(1)
+      expect(plans[0]).toEqual({
+        source: "temporary",
+        agents: agents.map((asset) => ({ kind: "agent", relativePath: asset.relativePath, revision: asset.revision })),
+        bindings: {},
+        presentation: "native",
+        requestedCapabilities: [],
+      })
+      await expect(title).toHaveValue(response.session.title)
+      await expect(title).toHaveAttribute("data-draft-probe", "retained")
+      await expect(startButton(page)).toBeDisabled()
+      await expect(page.locator('[data-component="custom-start-blocker"]')).toHaveAttribute(
+        "data-blocker",
+        "plan-pending",
+      )
+      expect(starts).toHaveLength(0)
+    } finally {
+      release?.()
+    }
+
+    await expect(startButton(page)).toBeEnabled()
+    await startButton(page).click()
+    await expect.poll(() => starts.length).toBe(1)
+    expect(starts[0]).toEqual({ composition: plans[0], expectedPlanDigest: digest, title: response.session.title })
+    await expect(page).toHaveURL(new RegExp(`/server/[^/]+/session/${response.session.id}$`))
+    await expectAppVisible(page.getByRole("heading", { name: response.session.title }))
+  })
+
+  test("Recalculate retains the Builder but blocks Start while its plan is pending", async ({ page }) => {
+    await openMode(page, wire(), "custom")
+    await expectAppVisible(assetsTitle(page))
+    const sidebar = page.locator('[data-mode-sidebar="custom"]')
+    const title = page.getByPlaceholder("Title for custom session (optional)")
+    const firstPlan = page.waitForResponse((res) => {
+      if (!res.url().includes("/custom-composition/plan") || res.request().method() !== "POST") return false
+      const input: CompositionPlan["input"] = res.request().postDataJSON()
+      return input.source === "temporary" && input.agents.length === 1
+    })
+    await sidebar.getByRole("button", { name: "reviewer", exact: true }).click()
+    await (await firstPlan).finished()
+    await expect(startButton(page)).toBeEnabled()
+    await title.fill("Retain this draft")
+    await title.evaluate((node) => node.setAttribute("data-draft-probe", "retained"))
+    const mcp = page.getByRole("tab", { name: "MCP", exact: true })
+    await mcp.click()
+    await mcp.evaluate((node) => node.setAttribute("data-tab-probe", "retained"))
+
+    const plans: CompositionPlan["input"][] = []
+    let release: (() => void) | undefined
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route("**/custom-composition/plan*", async (route) => {
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors, body: "" })
+      const input: CompositionPlan["input"] = route.request().postDataJSON()
+      plans.push(input)
+      await held
+      return route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json", ...cors },
+        body: JSON.stringify({ ...plan, input, digest: "f".repeat(64) }),
+      })
+    })
+
+    try {
+      await page.getByRole("button", { name: "Recalculate", exact: true }).click()
+      await expect.poll(() => plans.length).toBe(1)
+      await expect(page.getByText("Loading MCP plan from the server...", { exact: true })).toBeVisible()
+      await expect(title).toHaveValue("Retain this draft")
+      await expect(title).toHaveAttribute("data-draft-probe", "retained")
+      await expect(mcp).toHaveAttribute("data-tab-probe", "retained")
+      await expect(mcp).toHaveAttribute("aria-selected", "true")
+      await expect(startButton(page)).toBeDisabled()
+      await expect(page.locator('[data-component="custom-start-blocker"]')).toHaveAttribute(
+        "data-blocker",
+        "plan-pending",
+      )
+    } finally {
+      release?.()
+    }
+
+    await expect(startButton(page)).toBeEnabled()
+    await expect(page.getByText("Loading MCP plan from the server...", { exact: true })).toBeHidden()
+    await expect(title).toHaveAttribute("data-draft-probe", "retained")
+    await expect(mcp).toHaveAttribute("data-tab-probe", "retained")
   })
 
   test("switching projects retains the Builder and waits for the new draft's plan", async ({ page }) => {
