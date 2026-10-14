@@ -10,7 +10,7 @@ import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { DialogSettings } from "@/components/settings-v2"
 import { usePlatform } from "@/context/platform"
 import { useQuery } from "@tanstack/solid-query"
-import { assistantQueryKey } from "@/utils/assistant-query"
+import { assistantQueryOptions } from "@/utils/assistant-query"
 
 export function ModeSwitcher() {
   const mode = useMode()
@@ -22,7 +22,7 @@ export function ModeSwitcher() {
   const serverSDK = useServerSDK()
 
   const pendingQuery = useQuery(() => ({
-    queryKey: assistantQueryKey(serverSDK().scope, "pending"),
+    ...assistantQueryOptions(serverSDK().scope, "pending"),
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
       return Array.isArray(res.data) ? res.data : []

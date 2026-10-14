@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test"
+import type { BadRequestError, KbNoteNote, PersonalMemoryInfo, ProviderListResponse } from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
+import { AssistantMutationProbe } from "./assistant-mutation-probe"
 
 // English-label spec — pin the UI language so the zh projects stay green (see utils/locale.ts).
 test.beforeEach(({ page }) => pinEnglishUI(page))
@@ -123,6 +125,153 @@ test.describe("regression: assistant dashboard", () => {
     await expect.poll(() => confirmed, { timeout: 10_000 }).toBe(true)
     await page.getByLabel("Reject").click()
     await expect.poll(() => rejected, { timeout: 10_000 }).toBe(true)
+  })
+  test("AI-TDD-S08-R02: a hidden dashboard defers its completed memory refresh", async ({ page }, testInfo) => {
+    const memory = {
+      ...pendingMemory,
+      source: "derived",
+      trustLevel: "medium",
+      sensitivityLevel: "low",
+      status: "pending",
+    } satisfies PersonalMemoryInfo
+    const confirmed = { ...memory, status: "confirmed", confirmedAt: 1700000000001 } satisfies PersonalMemoryInfo
+    const replies = new Map<string, unknown>([["/memory", [memory]]])
+    await mockServer(page, {
+      state: {},
+      provider: { all: [], connected: [], default: {} } satisfies ProviderListResponse,
+    })
+    await configurePage(page)
+    const probe = await AssistantMutationProbe.track(page, replies, [`/memory/${memory.id}/confirm`])
+    const dashboard = page.locator('[data-mode-main="assistant"]')
+    const rail = page.getByRole("navigation", { name: "Mode switcher", exact: true })
+
+    try {
+      await page.goto("/mode/assistant")
+      await expect(dashboard.getByRole("button", { name: "Confirm", exact: true })).toBeVisible()
+      await probe.settle("dashboard-visible")
+      expect(probe.count("/memory")).toBeGreaterThan(0)
+      await dashboard.evaluate((element) => element.setAttribute("data-node-probe", "memory-mutation-owner"))
+
+      await dashboard.getByRole("button", { name: "Confirm", exact: true }).click()
+      await expect.poll(() => probe.mutations.length).toBe(1)
+      await rail.getByRole("button", { name: "Work", exact: true }).click()
+      await expect(dashboard).toBeHidden()
+      await expect(dashboard).toHaveAttribute("data-node-probe", "memory-mutation-owner")
+      await probe.settle("dashboard-hidden-before-completion")
+      const hiddenReads = probe.count("/memory")
+
+      replies.set("/memory", [confirmed])
+      await probe.complete(0, { status: 200, json: confirmed })
+      await probe.settle("dashboard-hidden-after-completion")
+      expect(probe.count("/memory")).toBe(hiddenReads)
+
+      await rail.getByRole("button", { name: "Assistant", exact: true }).click()
+      await expect(dashboard).toBeVisible()
+      await expect(dashboard).toHaveAttribute("data-node-probe", "memory-mutation-owner")
+      await expect.poll(() => probe.count("/memory")).toBeGreaterThan(hiddenReads)
+      await probe.settle("dashboard-restored-readback")
+      await expect(dashboard.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0)
+      await expect(dashboard.getByText("Confirmed", { exact: true })).toBeVisible()
+      await expect(dashboard.getByRole("button", { name: "Forget", exact: true })).toBeVisible()
+      expect(probe.mutations).toHaveLength(1)
+    } finally {
+      await probe.close()
+      await testInfo.attach("s08-r02-dashboard-hidden-mutation", {
+        body: JSON.stringify(probe.receipt(), null, 2),
+        contentType: "application/json",
+      })
+    }
+  })
+
+  test("AI-TDD-S08-R02: a pending note save survives a mode round trip without duplicate submission", async ({
+    page,
+  }, testInfo) => {
+    const saved = {
+      ...kbNote,
+      id: "kb_dashboard_pending_save",
+      title: "Pending dashboard draft",
+      content: "A held save keeps this draft until its explicit retry succeeds.",
+      scope: "global",
+      format: "note",
+      tags: [],
+    } satisfies KbNoteNote
+    const payload = { title: saved.title, content: saved.content, scope: "global" }
+    const rejected = { name: "BadRequest", data: { message: "fixture save rejected" } } satisfies BadRequestError
+    const replies = new Map<string, unknown>([["/kb", [kbNote]]])
+    await mockServer(page, {
+      state: {},
+      provider: { all: [], connected: [], default: {} } satisfies ProviderListResponse,
+    })
+    await configurePage(page)
+    const probe = await AssistantMutationProbe.track(page, replies, ["/kb"])
+    const dashboard = page.locator('[data-mode-main="assistant"]')
+    const rail = page.getByRole("navigation", { name: "Mode switcher", exact: true })
+    const titleInput = dashboard.getByRole("textbox", { name: "Title", exact: true })
+    const bodyInput = dashboard.getByRole("textbox", { name: "Markdown body, may contain [[wikilinks]]", exact: true })
+    const save = dashboard.getByRole("button", { name: "Save", exact: true })
+
+    try {
+      await page.goto("/mode/assistant")
+      await dashboard.getByRole("button", { name: "New note", exact: true }).click()
+      await titleInput.fill(saved.title)
+      await bodyInput.fill(saved.content)
+      await titleInput.evaluate((element) => element.setAttribute("data-node-probe", "pending-title-owner"))
+      await bodyInput.evaluate((element) => element.setAttribute("data-node-probe", "pending-body-owner"))
+      await probe.settle("draft-ready")
+
+      // Both clicks use the real control while every received POST has its own held response.
+      await save.dblclick()
+      await expect.poll(() => probe.mutations.length).toBeGreaterThan(0)
+      await probe.settle("double-click-held")
+      expect(probe.mutations).toHaveLength(1)
+      expect(probe.mutations[0].body).toEqual(payload)
+      await expect(save).toBeDisabled()
+      await expect(titleInput).toBeDisabled()
+      await expect(bodyInput).toBeDisabled()
+
+      await rail.getByRole("button", { name: "Work", exact: true }).click()
+      await expect(dashboard).toBeHidden()
+      await rail.getByRole("button", { name: "Assistant", exact: true }).click()
+      await expect(titleInput).toHaveValue(saved.title)
+      await expect(bodyInput).toHaveValue(saved.content)
+      await expect(titleInput).toHaveAttribute("data-node-probe", "pending-title-owner")
+      await expect(bodyInput).toHaveAttribute("data-node-probe", "pending-body-owner")
+      await expect(save).toBeDisabled()
+      await expect(titleInput).toBeDisabled()
+      await expect(bodyInput).toBeDisabled()
+      await probe.settle("pending-save-restored")
+      expect(probe.mutations).toHaveLength(1)
+
+      await probe.complete(0, { status: 400, json: rejected })
+      await expect(dashboard.locator('[data-component="assistant-mutation-error"]')).toContainText(
+        rejected.data.message,
+      )
+      await expect(titleInput).toHaveValue(saved.title)
+      await expect(bodyInput).toHaveValue(saved.content)
+      await expect(save).toBeEnabled()
+      await expect(titleInput).toBeEnabled()
+      await expect(bodyInput).toBeEnabled()
+      await probe.settle("failed-save-keeps-draft")
+      expect(probe.mutations).toHaveLength(1)
+
+      await save.click()
+      await expect.poll(() => probe.mutations.length).toBe(2)
+      expect(probe.mutations[1].body).toEqual(payload)
+      replies.set("/kb", [kbNote, saved])
+      await probe.complete(1, { status: 200, json: saved })
+      await probe.settle("explicit-retry-readback")
+      await expect(titleInput).toHaveCount(0)
+      await expect(bodyInput).toHaveCount(0)
+      await expect(dashboard.getByText(saved.title, { exact: true })).toHaveCount(1)
+      await expect(dashboard.getByText(saved.title, { exact: true })).toBeVisible()
+      expect(probe.mutations).toHaveLength(2)
+    } finally {
+      await probe.close()
+      await testInfo.attach("s08-r02-dashboard-pending-save", {
+        body: JSON.stringify(probe.receipt(), null, 2),
+        contentType: "application/json",
+      })
+    }
   })
 })
 

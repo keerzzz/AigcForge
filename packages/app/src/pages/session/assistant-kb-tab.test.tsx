@@ -85,9 +85,6 @@ describe("AssistantSessionPanel kb/editor tabs (batch 3 G4)", () => {
     expect(panel).toContain("itemId: note.id")
   })
 
-  test("saving the editor returns to the kb tab", () => {
-    expect(panel).toContain(
-      'onSaved={() => openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: "kb" })}',
-    )
-  })
+  // e2e/regression/assistant-session-panel.spec.ts exercises both an old editor's
+  // delayed completion and the current editor's successful return to KB.
 })

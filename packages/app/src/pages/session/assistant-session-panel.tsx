@@ -1,5 +1,5 @@
 import { For, Show, createEffect, createMemo, on } from "solid-js"
-import { useQuery } from "@tanstack/solid-query"
+import { useQuery, useQueryClient } from "@tanstack/solid-query"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
@@ -17,7 +17,7 @@ import { createSizing } from "@/pages/session/helpers"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
 import { AssistantNoteEditor } from "@/components/assistant-note-editor"
 import { AssistantKbTab } from "@/pages/session/assistant-kb-tab"
-import { assistantQueryKey } from "@/utils/assistant-query"
+import { assistantQueryKey, assistantQueryOptions, invalidateAssistantQueries } from "@/utils/assistant-query"
 import { openEntityPanel, type AssistantPanelTab } from "./assistant-session-panel-open"
 
 const ENTITY_TABS: ReadonlyArray<{ id: AssistantPanelTab; label: string }> = [
@@ -31,6 +31,7 @@ const ENTITY_TABS: ReadonlyArray<{ id: AssistantPanelTab; label: string }> = [
 export function AssistantSessionPanel() {
   const language = useLanguage()
   const serverSDK = useServerSDK()
+  const queryClient = useQueryClient()
   const command = useCommand()
   const mode = useMode()
   const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
@@ -70,7 +71,7 @@ export function AssistantSessionPanel() {
 
   const remindersQuery = useQuery(() => ({
     enabled: slotActive() && !!sessionID(),
-    queryKey: assistantQueryKey(serverSDK().scope, "panel", "reminders", sessionID()),
+    ...assistantQueryOptions(serverSDK().scope, "panel", "reminders", sessionID()),
     queryFn: async () => {
       const id = sessionID()
       if (!id) return []
@@ -82,7 +83,7 @@ export function AssistantSessionPanel() {
 
   const inboxQuery = useQuery(() => ({
     enabled: slotActive() && !!sessionID(),
-    queryKey: assistantQueryKey(serverSDK().scope, "panel", "inbox", sessionID()),
+    ...assistantQueryOptions(serverSDK().scope, "panel", "inbox", sessionID()),
     queryFn: async () => {
       const id = sessionID()
       if (!id) return []
@@ -93,22 +94,30 @@ export function AssistantSessionPanel() {
   const inbox = createMemo(() => inboxQuery.data ?? [])
 
   function cancelReminder(id: string) {
-    void serverSDK()
-      .client.schedule.cancel({ id })
-      .then(() => remindersQuery.refetch())
+    const sdk = serverSDK()
+    const origin = sessionID()
+    if (!origin) return
+    const keys = [assistantQueryKey(sdk.scope, "pending"), assistantQueryKey(sdk.scope, "panel", "reminders", origin)]
+    void sdk.client.schedule
+      .cancel({ id })
+      .then(() => invalidateAssistantQueries(queryClient, keys))
       .catch(console.error)
   }
 
   function markRead(deliveryKey: string) {
-    void serverSDK()
-      .client.delivery.read({ deliveryKey })
-      .then(() => inboxQuery.refetch())
+    const sdk = serverSDK()
+    const origin = sessionID()
+    if (!origin) return
+    const keys = [assistantQueryKey(sdk.scope, "recent"), assistantQueryKey(sdk.scope, "panel", "inbox", origin)]
+    void sdk.client.delivery
+      .read({ deliveryKey })
+      .then(() => invalidateAssistantQueries(queryClient, keys))
       .catch(console.error)
   }
 
   const memoryQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "memory"),
+    ...assistantQueryOptions(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
       return Array.isArray(res.data) ? res.data : []
@@ -119,21 +128,27 @@ export function AssistantSessionPanel() {
   const confirmedMemories = createMemo(() => memories().filter((m) => m.status === "confirmed"))
 
   function confirmMemory(id: string) {
-    void serverSDK()
-      .client.memory.confirm({ id })
-      .then(() => memoryQuery.refetch())
+    const sdk = serverSDK()
+    const keys = [assistantQueryKey(sdk.scope, "memory")]
+    void sdk.client.memory
+      .confirm({ id })
+      .then(() => invalidateAssistantQueries(queryClient, keys))
       .catch(console.error)
   }
   function rejectMemory(id: string) {
-    void serverSDK()
-      .client.memory.reject({ id })
-      .then(() => memoryQuery.refetch())
+    const sdk = serverSDK()
+    const keys = [assistantQueryKey(sdk.scope, "memory")]
+    void sdk.client.memory
+      .reject({ id })
+      .then(() => invalidateAssistantQueries(queryClient, keys))
       .catch(console.error)
   }
   function removeMemory(id: string) {
-    void serverSDK()
-      .client.memory.remove({ id })
-      .then(() => memoryQuery.refetch())
+    const sdk = serverSDK()
+    const keys = [assistantQueryKey(sdk.scope, "memory")]
+    void sdk.client.memory
+      .remove({ id })
+      .then(() => invalidateAssistantQueries(queryClient, keys))
       .catch(console.error)
   }
 

@@ -6,7 +6,7 @@ import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { buildKbTagTree, type AssistantNavSelection, type KbTagNode } from "./assistant-nav-model"
 import type { KbNoteNote, PersonalMemoryInfo, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
-import { assistantQueryKey } from "@/utils/assistant-query"
+import { assistantQueryKey, assistantQueryOptions } from "@/utils/assistant-query"
 import { useModeQueryActivity } from "@/pages/mode-slot-active"
 
 /**
@@ -28,7 +28,7 @@ export function AssistantNavTree(props: {
   const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
   const pendingQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "pending"),
+    ...assistantQueryOptions(serverSDK().scope, "pending"),
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
       return Array.isArray(res.data) ? res.data : []
@@ -38,7 +38,7 @@ export function AssistantNavTree(props: {
 
   const memoryQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "memory"),
+    ...assistantQueryOptions(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
       return Array.isArray(res.data) ? res.data : []
@@ -48,7 +48,7 @@ export function AssistantNavTree(props: {
 
   const kbQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
+    ...assistantQueryOptions(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -58,7 +58,7 @@ export function AssistantNavTree(props: {
 
   const danglingQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "dangling"),
+    ...assistantQueryOptions(serverSDK().scope, "dangling"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.dangling()
       return Array.isArray(res.data) ? res.data : []

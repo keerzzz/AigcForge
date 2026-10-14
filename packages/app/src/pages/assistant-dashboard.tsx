@@ -1,5 +1,6 @@
-import { createMemo, createSignal, For, Show } from "solid-js"
-import { useQuery } from "@tanstack/solid-query"
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
+import { createStore } from "solid-js/store"
+import { useQuery, useQueryClient, type QueryKey } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
@@ -14,7 +15,12 @@ import { useLayout } from "@/context/layout"
 import { launchModeSession, openSessionRecord, filterSessionsByMode } from "@/pages/layout/helpers"
 import { DeliveryList, MemoryInspector, ReminderList } from "@/components/assistant-entity-lists"
 import { sessionHighlightIDs } from "@/components/assistant-nav-model"
-import { assistantQueryKey } from "@/utils/assistant-query"
+import {
+  assistantKbQueryKeys,
+  assistantQueryKey,
+  assistantQueryOptions,
+  invalidateAssistantQueries,
+} from "@/utils/assistant-query"
 import {
   HOME_SESSION_LIMIT,
   HomeSessionRow,
@@ -40,14 +46,28 @@ export function AssistantDashboardMain() {
   const { conn, ctx, directory } = useModeDirectory()
   const { selection } = useAssistantSelection()
   const [mutationError, setMutationError] = createSignal<string>()
+  const queryClient = useQueryClient()
+  let disposed = false
+  onCleanup(() => {
+    disposed = true
+  })
 
-  async function runMutation(action: () => Promise<unknown>, refetch: () => Promise<unknown>) {
+  async function runMutation(
+    action: () => Promise<unknown>,
+    keys: ReadonlyArray<QueryKey>,
+    current: () => boolean = () => true,
+  ) {
+    const scope = serverSDK().scope
     setMutationError(undefined)
     try {
       await action()
-      await refetch()
+      await invalidateAssistantQueries(queryClient, keys)
+      return true
     } catch (error) {
-      setMutationError(mutationErrorMessage(error, language.t("assistant.dashboard.actionError")))
+      if (!disposed && serverSDK().scope === scope && current()) {
+        setMutationError(mutationErrorMessage(error, language.t("assistant.dashboard.actionError")))
+      }
+      return false
     }
   }
 
@@ -58,7 +78,7 @@ export function AssistantDashboardMain() {
   const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
   const pendingQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "pending"),
+    ...assistantQueryOptions(serverSDK().scope, "pending"),
     queryFn: async () => {
       const res = await serverSDK().client.schedule.pending()
       // Defensive: a mock or unexpected response shape can hand back a non-array
@@ -71,7 +91,7 @@ export function AssistantDashboardMain() {
 
   const recentQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "recent"),
+    ...assistantQueryOptions(serverSDK().scope, "recent"),
     queryFn: async () => {
       const res = await serverSDK().client.delivery.recent({ limit: 6 })
       return Array.isArray(res.data) ? res.data : []
@@ -81,7 +101,7 @@ export function AssistantDashboardMain() {
 
   const memoryQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "memory"),
+    ...assistantQueryOptions(serverSDK().scope, "memory"),
     queryFn: async () => {
       const res = await serverSDK().client.memory.list()
       return Array.isArray(res.data) ? res.data : []
@@ -92,80 +112,86 @@ export function AssistantDashboardMain() {
   const confirmedMemories = createMemo(() => memories().filter((m) => m.status === "confirmed"))
 
   function confirmMemory(id: string) {
-    void runMutation(
-      () => serverSDK().client.memory.confirm({ id }),
-      () => memoryQuery.refetch(),
-    )
+    const sdk = serverSDK()
+    void runMutation(() => sdk.client.memory.confirm({ id }), [assistantQueryKey(sdk.scope, "memory")])
   }
   function rejectMemory(id: string) {
-    void runMutation(
-      () => serverSDK().client.memory.reject({ id }),
-      () => memoryQuery.refetch(),
-    )
+    const sdk = serverSDK()
+    void runMutation(() => sdk.client.memory.reject({ id }), [assistantQueryKey(sdk.scope, "memory")])
   }
   function removeMemory(id: string) {
-    void runMutation(
-      () => serverSDK().client.memory.remove({ id }),
-      () => memoryQuery.refetch(),
-    )
+    const sdk = serverSDK()
+    void runMutation(() => sdk.client.memory.remove({ id }), [assistantQueryKey(sdk.scope, "memory")])
   }
 
   const kbQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
+    ...assistantQueryOptions(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
     },
   }))
   const notes = createMemo(() => kbQuery.data ?? [])
-  const [editing, setEditing] = createSignal<KbNoteNote | undefined>()
-  const [editTitle, setEditTitle] = createSignal("")
-  const [editContent, setEditContent] = createSignal("")
-  const [creating, setCreating] = createSignal(false)
+  const [editor, setEditor] = createStore({
+    scope: serverSDK().scope,
+    note: undefined as KbNoteNote | undefined,
+    title: "",
+    content: "",
+    creating: false,
+    pending: false,
+  })
+  let editorVersion = 0
 
   function openEditor(note: KbNoteNote) {
-    setEditing(note)
-    setEditTitle(note.title)
-    setEditContent(note.content)
-    setCreating(false)
+    editorVersion += 1
+    setEditor({
+      scope: serverSDK().scope,
+      note,
+      title: note.title,
+      content: note.content,
+      creating: false,
+      pending: false,
+    })
   }
   function startCreate() {
-    setEditing(undefined)
-    setEditTitle("")
-    setEditContent("")
-    setCreating(true)
+    editorVersion += 1
+    setEditor({ scope: serverSDK().scope, note: undefined, title: "", content: "", creating: true, pending: false })
+  }
+  function closeEditor() {
+    // A cancelled draft and a new draft can both have no note ID; their instances still differ.
+    editorVersion += 1
+    setEditor({ note: undefined, creating: false, pending: false })
   }
   function saveNote() {
-    const editingNote = editing()
     const sdk = serverSDK()
-    if (creating() || !editingNote) {
-      void runMutation(
-        async () => {
-          await sdk.client.kb.create({ title: editTitle(), content: editContent(), scope: "global" })
-          setCreating(false)
-          setEditing(undefined)
-        },
-        () => kbQuery.refetch(),
-      )
-      return
-    }
+    if (editor.pending || editor.scope !== sdk.scope || (!editor.creating && !editor.note)) return
+    const version = editorVersion
+    const id = editor.note?.id
+    const input = { title: editor.title, content: editor.content }
+    const current = () => !disposed && editorVersion === version
+    setEditor("pending", true)
     void runMutation(
-      async () => {
-        await sdk.client.kb.update({ id: editingNote.id, title: editTitle(), content: editContent() })
-        setEditing(undefined)
-      },
-      () => kbQuery.refetch(),
-    )
+      () => (id ? sdk.client.kb.update({ id, ...input }) : sdk.client.kb.create({ ...input, scope: "global" })),
+      assistantKbQueryKeys(sdk.scope),
+      current,
+    ).then((saved) => {
+      if (!current()) return
+      setEditor("pending", false)
+      if (saved) closeEditor()
+    })
   }
   function deleteNote(id: string) {
-    void runMutation(
-      async () => {
-        await serverSDK().client.kb.remove({ id })
-        setEditing(undefined)
-      },
-      () => kbQuery.refetch(),
-    )
+    const sdk = serverSDK()
+    if (editor.pending || editor.scope !== sdk.scope || editor.note?.id !== id) return
+    const version = editorVersion
+    const current = () => !disposed && editorVersion === version
+    setEditor("pending", true)
+    void runMutation(() => sdk.client.kb.remove({ id }), assistantKbQueryKeys(sdk.scope), current).then((removed) => {
+      if (!current()) return
+      setEditor("pending", false)
+      if (removed) closeEditor()
+    })
   }
 
   const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
@@ -226,16 +252,26 @@ export function AssistantDashboardMain() {
   }
 
   function cancelReminder(id: string) {
+    const sdk = serverSDK()
+    const sessionID = pending().find((item) => item.id === id)?.sessionID
     void runMutation(
-      () => serverSDK().client.schedule.cancel({ id }),
-      () => pendingQuery.refetch(),
+      () => sdk.client.schedule.cancel({ id }),
+      [
+        assistantQueryKey(sdk.scope, "pending"),
+        ...(sessionID ? [assistantQueryKey(sdk.scope, "panel", "reminders", sessionID)] : []),
+      ],
     )
   }
 
   function markRead(deliveryKey: string) {
+    const sdk = serverSDK()
+    const sessionID = recent().find((item) => item.deliveryKey === deliveryKey)?.sessionID
     void runMutation(
-      () => serverSDK().client.delivery.read({ deliveryKey }),
-      () => recentQuery.refetch(),
+      () => sdk.client.delivery.read({ deliveryKey }),
+      [
+        assistantQueryKey(sdk.scope, "recent"),
+        ...(sessionID ? [assistantQueryKey(sdk.scope, "panel", "inbox", sessionID)] : []),
+      ],
     )
   }
 
@@ -330,21 +366,23 @@ export function AssistantDashboardMain() {
             />
           </div>
 
-          <Show when={creating() || editing() !== undefined}>
+          <Show when={editor.scope === serverSDK().scope && (editor.creating || editor.note !== undefined)}>
             <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
               <input
                 class="w-full rounded-md border border-v2-border-border-base bg-v2-background-bg-base px-2 py-1 text-v2-text-text-base text-13-regular focus:outline-none"
                 aria-label={language.t("assistant.kb.titlePlaceholder")}
                 placeholder={language.t("assistant.kb.titlePlaceholder")}
-                value={editTitle()}
-                onInput={(event) => setEditTitle(event.currentTarget.value)}
+                value={editor.title}
+                disabled={editor.pending}
+                onInput={(event) => setEditor("title", event.currentTarget.value)}
               />
               <textarea
                 class="min-h-24 w-full resize-y rounded-md border border-v2-border-border-base bg-v2-background-bg-base px-2 py-1 text-v2-text-text-base text-13-regular focus:outline-none"
                 aria-label={language.t("assistant.kb.contentPlaceholder")}
                 placeholder={language.t("assistant.kb.contentPlaceholder")}
-                value={editContent()}
-                onInput={(event) => setEditContent(event.currentTarget.value)}
+                value={editor.content}
+                disabled={editor.pending}
+                onInput={(event) => setEditor("content", event.currentTarget.value)}
               />
               <div class="flex items-center gap-2">
                 <IconButtonV2
@@ -352,6 +390,7 @@ export function AssistantDashboardMain() {
                   size="small"
                   icon={<Icon name="status-active" />}
                   aria-label={language.t("assistant.kb.save")}
+                  disabled={editor.pending}
                   onClick={saveNote}
                 />
                 <IconButtonV2
@@ -359,19 +398,17 @@ export function AssistantDashboardMain() {
                   size="small"
                   icon={<Icon name="xmark-small" />}
                   aria-label={language.t("assistant.kb.cancel")}
-                  onClick={() => {
-                    setCreating(false)
-                    setEditing(undefined)
-                  }}
+                  onClick={closeEditor}
                 />
-                <Show when={editing() !== undefined}>
+                <Show when={editor.note !== undefined}>
                   <IconButtonV2
                     variant="ghost-muted"
                     size="small"
                     icon={<Icon name="xmark-small" />}
                     aria-label={language.t("assistant.kb.delete")}
+                    disabled={editor.pending}
                     onClick={() => {
-                      const editingNote = editing()
+                      const editingNote = editor.note
                       if (editingNote) deleteNote(editingNote.id)
                     }}
                   />

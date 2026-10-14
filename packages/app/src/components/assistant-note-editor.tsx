@@ -1,5 +1,6 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
-import { useQuery } from "@tanstack/solid-query"
+import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js"
+import { createStore } from "solid-js/store"
+import { useQuery, useQueryClient } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
@@ -7,7 +8,12 @@ import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
-import { assistantQueryKey } from "@/utils/assistant-query"
+import {
+  assistantKbQueryKeys,
+  assistantQueryKey,
+  assistantQueryOptions,
+  invalidateAssistantQueries,
+} from "@/utils/assistant-query"
 import { ScopedKey } from "@/utils/server-scope"
 import { useModeQueryActivity } from "@/pages/mode-slot-active"
 import {
@@ -22,20 +28,27 @@ import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => void }) {
   const language = useLanguage()
   const serverSDK = useServerSDK()
+  const queryClient = useQueryClient()
   const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
+  const owner = createMemo(() => ({ scope: serverSDK().scope, noteID: props.noteId }))
+  let disposed = false
+  onCleanup(() => {
+    disposed = true
+  })
 
   const [title, setTitle] = createSignal("")
   const [tags, setTags] = createSignal("")
   const [content, setContent] = createSignal("")
   const [loading, setLoading] = createSignal(false)
-  const [saving, setSaving] = createSignal(false)
-  const [deleting, setDeleting] = createSignal(false)
+  const [mutation, setMutation] = createStore({ saving: false, deleting: false })
+  createEffect(on(owner, () => setMutation({ saving: false, deleting: false })))
+  const pending = () => mutation.saving || mutation.deleting
   const [completion, setCompletion] = createSignal<string[] | undefined>()
   const [completionIndex, setCompletionIndex] = createSignal(0)
 
   const notesQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
+    ...assistantQueryOptions(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -114,6 +127,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   }
 
   const acceptCompletion = (index: number) => {
+    if (loading() || pending()) return
     const candidates = completion()
     const match = completionMatch()
     const title = candidates?.[index]
@@ -163,15 +177,20 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   })
 
   const save = () => {
+    if (loading() || pending()) return
     const sdk = serverSDK()
-    const id = props.noteId
+    const origin = owner()
+    const id = origin.noteID
+    const keys = assistantKbQueryKeys(sdk.scope)
+    const current = () => !disposed && owner() === origin
     const currentTitle = title().trim()
     const tagList = tags()
       .split(",")
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0)
     if (!currentTitle) return
-    setSaving(true)
+    setCompletion(undefined)
+    setMutation("saving", true)
     const request = id
       ? sdk.client.kb.update({
           id,
@@ -186,26 +205,37 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           tags: tagList,
         })
     void request
-      .then(() => {
-        void notesQuery.refetch()
-        props.onSaved()
+      .then(async () => {
+        // The write still belongs to its original server even after this editor is replaced.
+        await invalidateAssistantQueries(queryClient, keys)
+        if (current()) props.onSaved()
       })
       .catch(console.error)
-      .finally(() => setSaving(false))
+      .finally(() => {
+        if (current()) setMutation("saving", false)
+      })
   }
 
   const remove = () => {
-    const id = props.noteId
+    if (loading() || pending()) return
+    const sdk = serverSDK()
+    const origin = owner()
+    const id = origin.noteID
     if (!id) return
-    setDeleting(true)
-    void serverSDK()
-      .client.kb.remove({ id })
-      .then(() => {
-        void notesQuery.refetch()
-        props.onSaved()
+    const keys = assistantKbQueryKeys(sdk.scope)
+    const current = () => !disposed && owner() === origin
+    setCompletion(undefined)
+    setMutation("deleting", true)
+    const request = sdk.client.kb.remove({ id })
+    void request
+      .then(async () => {
+        await invalidateAssistantQueries(queryClient, keys)
+        if (current()) props.onSaved()
       })
       .catch(console.error)
-      .finally(() => setDeleting(false))
+      .finally(() => {
+        if (current()) setMutation("deleting", false)
+      })
   }
 
   return (
@@ -216,6 +246,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           aria-label={language.t("assistant.kb.titlePlaceholder")}
           placeholder={language.t("assistant.kb.titlePlaceholder")}
           value={title()}
+          disabled={loading() || pending()}
           onInput={(event) => setTitle(event.currentTarget.value)}
         />
         <input
@@ -223,6 +254,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           aria-label={language.t("assistant.editor.tagsPlaceholder")}
           placeholder={language.t("assistant.editor.tagsPlaceholder")}
           value={tags()}
+          disabled={loading() || pending()}
           onInput={(event) => setTags(event.currentTarget.value)}
         />
         <IconButtonV2
@@ -230,7 +262,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           size="small"
           icon={<Icon name="status-active" />}
           aria-label={language.t("assistant.kb.save")}
-          disabled={saving() || !title().trim()}
+          disabled={loading() || pending() || !title().trim()}
           onClick={save}
         />
         <Show when={props.noteId}>
@@ -239,7 +271,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
             size="small"
             icon={<Icon name="xmark-small" />}
             aria-label={language.t("assistant.kb.delete")}
-            disabled={deleting()}
+            disabled={loading() || pending()}
             onClick={remove}
           />
         </Show>
@@ -282,7 +314,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
             aria-label={language.t("assistant.kb.contentPlaceholder")}
             placeholder={language.t("assistant.kb.contentPlaceholder")}
             value={content()}
-            disabled={loading()}
+            disabled={loading() || pending()}
             onInput={(event) => {
               setContent(event.currentTarget.value)
               updateCompletion()

@@ -8,7 +8,7 @@ import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
-import { assistantQueryKey } from "@/utils/assistant-query"
+import { assistantQueryKey, assistantQueryOptions } from "@/utils/assistant-query"
 import { useModeQueryActivity } from "@/pages/mode-slot-active"
 
 /** Knowledge-base search, filtering, backlinks, and dangling-link inspection. */
@@ -23,7 +23,7 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
 
   const notesQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
+    ...assistantQueryOptions(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -32,16 +32,17 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
   const notes = createMemo(() => notesQuery.data ?? [])
 
   const searchQuery = useQuery(() => ({
-    enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "kb-search", search()),
+    enabled: slotActive() && !!search(),
+    ...assistantQueryOptions(serverSDK().scope, "kb-search", search()),
     queryFn: async () => {
       const value = search()
-      if (!value) return notes()
+      if (!value) return []
       const res = await serverSDK().client.kb.search({ query: value })
       return Array.isArray(res.data) ? res.data : []
     },
   }))
-  const visible = createMemo(() => searchQuery.data ?? [])
+  // Empty search follows the list owner directly, including mutation readback.
+  const visible = createMemo(() => (search() ? (searchQuery.data ?? []) : notes()))
 
   const tags = createMemo(() => {
     const set = new Set<string>()
@@ -72,7 +73,7 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
   })
 
   const backlinksQuery = useQuery(() => ({
-    queryKey: assistantQueryKey(serverSDK().scope, "kb-backlinks", selectedID() ?? ""),
+    ...assistantQueryOptions(serverSDK().scope, "kb-backlinks", selectedID() ?? ""),
     queryFn: async () => {
       const id = selectedID()
       if (!id) return []
@@ -85,7 +86,7 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
 
   const danglingQuery = useQuery(() => ({
     enabled: slotActive(),
-    queryKey: assistantQueryKey(serverSDK().scope, "dangling"),
+    ...assistantQueryOptions(serverSDK().scope, "dangling"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.dangling()
       return Array.isArray(res.data) ? res.data : []
