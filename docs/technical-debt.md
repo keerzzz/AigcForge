@@ -873,18 +873,18 @@ Assistant 场景使用两个实际产品后端、各一个 Location、不同 Ses
 
 **已完成的包分组与未完成范围分别计数。** 下表合并 `resume-package-audit-20261013.json` 与后续补登记的历史分组回执；各次源码与限制见其对应段落。audit 的 `tests` 字段包含 skip，故不能直接写成 pass。本轮定向测试与这些分组有重叠，不相加伪造去重总量，也不宣称后续源码改动已整包重跑。
 
-| 分组范围           | 已完成/计划组数 | 实际日志 tally                                                                       |
-| ------------------ | --------------- | ------------------------------------------------------------------------------------ |
-| Core               | 15/15           | 2632 pass / 2 skip / 0 fail                                                          |
-| Schema             | 1/1             | 324 pass / 0 fail                                                                    |
-| session-ui         | 1/1             | 121 pass / 0 fail                                                                    |
-| ui                 | 1/1             | 20 pass / 0 fail                                                                     |
-| App unit           | 7/7             | 1433 pass / 0 fail                                                                   |
-| App virtualizer    | 1/1             | 3 pass / 0 fail                                                                      |
-| App E2E contracts  | 1/1             | 56 pass / 0 fail                                                                     |
-| TUI                | 5/5             | 220 pass / 1 skip / 0 fail                                                           |
-| aigcfroge backend  | 10/74           | 历史分组001–010已完成；008保留5条显式skip；原003/009超时及010崩溃保留；011–074未执行 |
-| desktop 普通包级组 | 1/1             | 11文件 / 60 pass / 0 fail / 0 skip；Linux本地普通包，与packaged smoke分开            |
+| 分组范围           | 已完成/计划组数 | 实际日志 tally                                                                                                   |
+| ------------------ | --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Core               | 15/15           | 2632 pass / 2 skip / 0 fail                                                                                      |
+| Schema             | 1/1             | 324 pass / 0 fail                                                                                                |
+| session-ui         | 1/1             | 121 pass / 0 fail                                                                                                |
+| ui                 | 1/1             | 20 pass / 0 fail                                                                                                 |
+| App unit           | 7/7             | 1433 pass / 0 fail                                                                                               |
+| App virtualizer    | 1/1             | 3 pass / 0 fail                                                                                                  |
+| App E2E contracts  | 1/1             | 56 pass / 0 fail                                                                                                 |
+| TUI                | 5/5             | 220 pass / 1 skip / 0 fail                                                                                       |
+| aigcfroge backend  | 18/74           | 历史分组001–018已完成；008保留5条显式skip，015保留3条Windows skip；原003/009/016超时及010崩溃保留；019–074未执行 |
+| desktop 普通包级组 | 1/1             | 11文件 / 60 pass / 0 fail / 0 skip；Linux本地普通包，与packaged smoke分开                                        |
 
 **2026-10-15：后端第 3 组与 Desktop 普通包级组已补齐。** `package-suite-backend-003-split-20261015-LCZvbK` 保留原 90 秒外层边界、90000ms 单测超时和单并发，把原第 3 组分成五个10例分片及一组39例。六份回执均 exit0；JUnit 按 `(file,name)` 精确对齐预先发现的89例，无重复、遗漏或选中 skip，六文件并集与原组一致。五份过滤运行各有40条未选中 skipped，仅用于分片，不计作通过或产品 skip。原 `full-package-aigcfroge-003` 的 exit124 仍保留；当时已有30例持续通过，证据支持累计运行达到边界，未证明单例挂死。六次运行源码/HEAD/index/branch 冻结，日志哈希一致，子进程与私有目录清理通过。原001/002组147例加本组89例只能记为历史发现计划完成3/74组；004–074的71组仍未执行，不能称当前后端整包通过。
 
@@ -1004,11 +1004,21 @@ hot-1首次正确243.3ms、稳定观察648.3ms。其间一个renderer `RunTask` 
 
 **超时清理结论补正。** 续作扫描发现原009留下PID155402，它有独立PGID，cwd为已删除的 `/tmp/aigcfroge-suite-Va3Gms/tmp/oc-cli-QJhElG`；原009的 `environment.json` 精确确认该隔离根。它不来自后来通过的009分片。已验证身份后发送SIGTERM并确认PID消失，随后扫描未发现相同测试隔离前缀的进程。证据为 `s08-r02-orphan-cli-origin-20261015.json`、`s08-r02-orphan-cli-cleanup-20261015.json`、`s08-r02-cli-after-orphan-scan.json`。原回执的“原进程组不存在”不能推出“所有脱离该组的后代均已退出”；登记 `package-supervisor-detached-processes`（owner=S8），需补齐外层监督器的后代所有权，并用真实脱离进程组的子进程验证强制超时清理，保持既有执行时限。本次原生诊断不替代该监督器验证。
 
+**2026-10-15：后端011–018已补齐，保留平台跳过与原整组超时。** 本批在干净 `a36c4e862ddd2f560beae087b350002c6dfe2c6b` 上串行执行10次完整文件运行，覆盖原8组、42个唯一测试文件：**529 pass / 3 skip / 0 fail / 1402 assertions**。011–014为131 pass/447 assertions；015为181 pass/334 assertions/3 skip；016三片为73 pass/313 assertions；017–018为144 pass/308 assertions。完整JUnit、原文件集合、用例唯一性、原始日志及源码/HEAD/index冻结均对应；各成功执行均自然exit0，owner具有实际ECHILD、无剩余后代，预登记私有root的inode已解除链接。汇总见 `s08-r02-package-backend011-018-accounting.json`；独立审计见 `backend011-014-independent-audit-20261015-h9v4y654`、`backend015-016-independent-audit-20261015-awkg6mwd`、`backend016-split-independent-audit-20261015-ry8n3vbn`。文件集合、用例唯一性与冻结对应关系由 `backend011-014-private-20261015-bebg4JI7/queue.py:86` 的 `audit` 决定；进程成功和目录身份删除分别由同目录 `gate.py:189` 的 `require_owner_success` 与 `environment.py:48` 的 `finish` 判断。上述路径均相对于本节证据根目录。这些是各检查点的接受证据，不是所有包在新修订上的完整重跑；原发现计划尚余019–074共56组，后来新增的测试文件另行对账。
+
+原 `full-package-aigcfroge-016-owned-20261015-r1` 在**90.000459秒**判定timeout、exit124，没有JUnit。日志已有51条pass，耗时相加85.0781秒，随后仍有生命周期场景和文件待执行；证据支持整组累计耗时超限，未定位单例挂死。原失败保留，按workspace单文件、delegation单文件、Effect四文件拆为三片完整运行，文件并集精确原六文件、无重复、无名称过滤；各片耗时37.701878/38.912375/28.185131秒，每片仍90秒。原51条中途日志不再计入通过。真实超时的进程回收为0.118451秒、文件系统清理为0.007053秒，实际进程身份及登记root均已消失；见 `s08-r02-package-backend016-timeout-accounting.json`。
+
+015的三条skip由 `packages/aigcfroge/test/config/tui.test.ts:15` 的 `process.platform === "win32"` 决定，分别为 `defaults Ctrl+Z to input undo on Windows`、`keeps explicit input undo overrides on Windows`、`ignores terminal suspend bindings on Windows`。它们不计为通过，登记 `windows-tui-config-tests`，owner=S8；须在原生Windows上以经验证的有界监督与清理机制执行完整相关文件，取得这三例的JUnit/源码/清理收据后关闭。当前Linux owner不提供原生Windows证据。
+
+**Linux包测试监督器的后代回收债务已关闭。** 新链复用仓库外 `linux-owner-revision-20261015-uyvnppq9/owner.py`：Linux subreaper接管脱离进程组的后代，按直接子进程pidfd发信号，以真实waitpid ECHILD收束。原七场景加收据写入故障共八场景全部达到预定结果，无driver fallback；真实90秒场景在90.001046秒决定timeout，首次KILL为90.001342秒。验证见 `linux-owner-validation-20261015-parent-01` 与独立审计 `linux-owner-validation-audit-20261015-3du7evuc`。新record/OwnedEnvironment在启动前创建并持有私有目录描述符，核对environment收据和device/inode后，仅在进程已回收时删除。六场景补验的预期退出码为0/7/124/70/70/143，分别覆盖成功、失败、真实超时、路径替换、owner收据缺失、收尾中断；无关文件哨兵保持，失败未被清理成功掩盖，见 `adapter-validation-20261015-parent-01`。实际011–018复用此链，016超时提供真实包负载回收证据。
+
+`linux-owner-port-validation-20261015-parent-01` 的单场景补验为exit0：detached子进程先持有真实loopback TCP端口，ready后仅给owner发SIGTERM；owner保持143并回收全部后代，原端口不设置reuse仍可bind/listen，无关sentinel端口在前后都接受连接并响应。没有重跑原14场景。由此关闭 `package-supervisor-detached-processes` 的Linux包runner范围；旧run.py及旧失败回执原样保留，续作不再使用旧runner。90秒仅是工作负载截止，另有最多2秒进程回收观察；文件系统清理及总耗时独立计量，不承诺总墙钟≤90或≤92秒。其它平台、浏览器/性能及完整S08/S09仍按原owner/unlock推进。
+
 当前仍未交付的范围及持有人：
 
 | 范围                                                                                             | Owner                              | Unlock                                                                                                                                                                                                                                                                                                                                                            |
 | ------------------------------------------------------------------------------------------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 完整 S08/package/API/E3/E4/适用展示矩阵                                                          | S8 / Integration QA / Core runtime | 对照发现集合与源码，补齐 backend 011–074剩余组并恢复008五项显式skip、effect-mode业务及适用矩阵；Desktop普通包组仅完成Linux本地范围；有限代表性通过不自动缩减完成定义。                                                                                                                                                                                            |
+| 完整 S08/package/API/E3/E4/适用展示矩阵                                                          | S8 / Integration QA / Core runtime | 对照发现集合与源码，补齐 backend 019–074剩余组、恢复008五项显式skip并在原生Windows验证015三例，完成effect-mode业务及适用矩阵；Desktop普通包组仅完成Linux本地范围；有限代表性通过不自动缩减完成定义。                                                                                                                                                              |
 | E4 未执行文件/large text、PTY stream/exit/delete、not-found/剩余 identity、default/V2 与平台组合 | S10                                | 在既有批准的隔离环境按原 deadline/retries=0 执行，保留真实退出码与进程/端口/workspace 清理证据；不复用用户 HOME、auth、服务。                                                                                                                                                                                                                                     |
 | S08-R02 剩余 effect/状态范围与性能调查                                                           | S8 / S9 / App / QA                 | 已有Plan、Assistant、drawer及八类API投影的选定E3（交集不相加）；继续验证全部SDK/SSE、Assistant读回失败/初次加载错误组合、跨Session草稿、closed drawer在途/共享observer及剩余Mode组合、Custom初次Snapshot pending、迟到Upgrade/异常重试、Start跨Location策略及V1 revision。新负载基线已保存；继续调查空白/旧Session观察、长尾及其它fallback保真性，不冒称完整R02。 |
 | 真实 packaged Codex 新 thread/resume                                                             | S9 / Core CLI / Desktop            | 在实际打包入口验证 transport/CLI 资源解析、持久 ID 与回收；入口 smoke/单测不替代。                                                                                                                                                                                                                                                                                |
