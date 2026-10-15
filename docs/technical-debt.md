@@ -1045,3 +1045,14 @@ SDK独立审计见 `sdk-independent-audit-20261015-lvt0udqg/audit.json`；接受
 | 四类历史正向支持、FFF 完整进程隔离                                                               | S9B                                | 保持既有 legacy-history / filesystem-fff-process-isolation owner/unlock；本轮没有关闭它们的直接证据。                                                                                                                                                                                                                                                             |
 
 恢复脚本已重建c5提交的冻结代码与保存的自有 fixture SQLite/artifact 字节；成功范围限于上述收据，不证明生产灾备、旧版 migration、Location 迁移或 automatic post-crash continuation。S08/S09 保持开放，未把局部绿色扩展成整期验收。
+
+### 15.22 2026-10-15 S08 / 后端031–038续验与Question单契约测试修正
+
+实施目录 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`。本批只改两份 OpenAPI 测试与本节/coverage manifest；生产源码、Schema、SDK与依赖不变，主目录 `main` 的原有文档未修改。历史授权允许提交已验证的本地切片，不包含push/CI/release。
+
+- **接受范围**：原031–038八组的完整相关文件集合为 **37文件、203 pass / 1既有skip / 0 fail / 1306 assertions**。031修订四例为4 pass/219 assertions；032、033为28/3 pass与59/229 assertions；034两片为35 pass/166 assertions；035为26 pass/104 assertions；036三片为29 pass/98 assertions；037六片为42 pass/1 skip/136 assertions；038完整五文件为36 pass/295 assertions。聚合由 `backend031-038-acceptance-20261015.json` 从实际queue/record/JUnit生成，未重复用例身份，也未计入超时日志的partial passes。032–033来自原停止队列中已经核验的两个成功结果，不把该队列的exit1称为整批通过。
+- **036/037截止保留**：036原完整六文件实际outer90/exit124，owner实际ECHILD、无后代且私有root已删除；原queue进程已经缺失，尚未写final result。因此单独保存 `backend036-orphan-reconcile-20261015-i7_67wlp/terminal-accounting.json`，控制器退出码为null，不伪造exit1或覆盖原queue-start。036原六文件按2＋1＋3分片，037原六文件按每文件分片；原顺序/并集、测试deadline、worker与断言不变。037原完整组同样outer90/exit124，queue明确exit1/first-error stop。新分片均自然exit0，源码/HEAD/index冻结、真实ECHILD和注册目录回收通过。只调整外部选择计划，不加timeout、filter或跳过。
+- **Question测试根因**：038原执行 **34 pass / 2 fail / 286 assertions、exit1**。两失败仍要求已退休的`/question`路由。真实合同由 `packages/server/src/groups/question.ts:43` 的 Session-owned reply与`:59` 的reject声明，ID约束来自 `packages/schema/src/question.ts:6`，不恢复旧接口。`httpapi-public-openapi.test.ts:267` 改为断言旧list/reply/reject路径不存在，并保留规范reply/reject的QuestionNotFoundError与SessionNotFoundError断言；`httpapi-query-schema-drift.test.ts:92` 验证两端点的sessionID和requestID四项pattern。原完整五文件argv不变、无名称过滤，修后 **36 pass / 295 assertions / 0 fail / 0 skip、exit0**。仅两份测试hash显式修订；旧失败/计划不覆盖。证据为 `backend038-question-green-20261015-sanoydex` 与对应raw record/JUnit/冻结结果。
+- **037既有skip仍开放**：`httpapi-provider-not-found-skip`，owner=S8，源为 `packages/aigcfroge/test/server/httpapi-provider.test.ts:331` 的 `returns public v2 provider not found errors`。实际为`it.instance.skip`，没有注明原因。需核对当前provider路由/错误合同，修复或纠正该具体测试后解除skip并跑完整文件；本轮七条active provider测试不替代它。unlock已登记coverage manifest。
+
+038测试修正后的后端typecheck、两文件format、增量lint与diff检查均exit0；增量lint实际2文件/6新增行。本节不关闭完整后端整包、R02、E4、其他平台或S08/S09；039–074、剩余包/extra tests、API硬门禁、状态/性能、真实packaged thread/resume、历史/外部provider及受授权远程交付范围仍沿各自owner/unlock开放。上一节的后代回收门禁只证明测试生命周期，不是产品完成条件。

@@ -167,6 +167,11 @@
       "owner": "S8",
       "scope": "Provider/GitLab maintainers under S8. packages/aigcfroge/test/provider/gitlab-duo.test.ts at SHA256 e3404b94a0fdce2db9af4221b139833cef316c0031b961596bcdf3f0e68854c0 contains only export {} plus commented TODO material. TypeScript AST proves zero executable statements and zero active test calls. Original group027 still passed this file in its four-file argv, but JUnit has only the three active files. The placeholder contributes zero passes and zero executed skips; the 96 active cases do not validate the commented GitLab Duo behavior. The original post-run queue audit exit1 is retained separately.",
       "unlock": "Confirm the supported GitLab Duo contract, replace the stale commented TODO material with active tests against the current implementation, then execute the complete file and affected provider cases using the validated bounded owner and registered-root cleanup. Require source-corresponding JUnit and real assertions before closing this debt. Any source-hash change invalidates this one-file empty-export exception; do not generalize missing JUnit files or delete the placeholder merely to count absent behavior as covered."
+    },
+    "httpapi-provider-not-found-skip": {
+      "owner": "S8",
+      "scope": "The complete original backend037 file partition run on 2026-10-15 records 42 passes and one existing it.instance.skip in packages/aigcfroge/test/server/httpapi-provider.test.ts:331: returns public v2 provider not found errors. The seven active provider tests do not execute this missing-provider response assertion. No reason is stated at the skip, and its root cause has not been verified. The 42 passes are accepted separately from this one unverified contract.",
+      "unlock": "Confirm the current public provider route and declared missing-provider error contract, identify why this exact case was skipped, remove the skip after a supported fix or contract correction, then execute it and the complete affected provider file under the existing isolated bounded single-concurrency protocol. Require actual assertions, source-corresponding JUnit and clean teardown. A schema-only test or unrelated discovery/OAuth pass does not replace this HTTP contract."
     }
   },
   "entries": [

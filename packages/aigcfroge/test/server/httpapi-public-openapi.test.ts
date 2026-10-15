@@ -264,13 +264,8 @@ describe("PublicApi OpenAPI v2 errors", () => {
     expect(
       componentName(responseRef(spec.paths["/permission/{requestID}/reply"]?.post?.responses?.["404"]) ?? ""),
     ).toBe("PermissionNotFoundError")
-    for (const route of [
-      ["post", "/question/{requestID}/reply"],
-      ["post", "/question/{requestID}/reject"],
-    ] as const) {
-      expect(componentName(responseRef(spec.paths[route[1]]?.[route[0]]?.responses?.["404"]) ?? "")).toBe(
-        "QuestionNotFoundError",
-      )
+    for (const path of ["/question", "/question/{requestID}/reply", "/question/{requestID}/reject"]) {
+      expect(spec.paths[path], "Retired question routes must not remain in the public contract").toBeUndefined()
     }
     for (const route of [
       ["post", "/api/session/{sessionID}/question/{requestID}/reply"],
