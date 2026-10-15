@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test"
-import type { BadRequestError, KbNoteNote, PersonalMemoryInfo, ProviderListResponse } from "@aigcfroge/sdk/v2/client"
+import type {
+  BadRequestError,
+  InvalidRequestError,
+  KbNoteNote,
+  PersonalMemoryInfo,
+  ProviderListResponse,
+} from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
 import { AssistantMutationProbe } from "./assistant-mutation-probe"
@@ -272,6 +278,98 @@ test.describe("regression: assistant dashboard", () => {
         contentType: "application/json",
       })
     }
+  })
+  ;(["success", "failure"] as const).forEach((outcome) => {
+    test(`AI-TDD-S08-R02: Dashboard Cancel then New isolates an old save ${outcome}`, async ({ page }, testInfo) => {
+      const oldNote = {
+        ...kbNote,
+        id: `kb_cancelled_draft_${outcome}`,
+        title: `Cancelled dashboard draft ${outcome}`,
+        content: "The cancelled draft may finish, but does not own its replacement.",
+        scope: "global",
+        format: "note",
+      } satisfies KbNoteNote
+      const nextNote = {
+        ...oldNote,
+        id: `kb_recreated_draft_${outcome}`,
+        title: `Replacement dashboard draft ${outcome}`,
+        content: "The replacement draft has its own pending save.",
+      } satisfies KbNoteNote
+      const rejected = {
+        _tag: "InvalidRequestError",
+        message: "old cancelled save rejected",
+      } satisfies InvalidRequestError
+      const replies = new Map<string, unknown>([["/kb", [kbNote]]])
+      await mockServer(page, {
+        state: {},
+        provider: { all: [], connected: [], default: {} } satisfies ProviderListResponse,
+      })
+      await configurePage(page)
+      const probe = await AssistantMutationProbe.track(page, replies, ["/kb"])
+      const dashboard = page.locator('[data-mode-main="assistant"]')
+      const titleInput = dashboard.getByRole("textbox", { name: "Title", exact: true })
+      const bodyInput = dashboard.getByRole("textbox", {
+        name: "Markdown body, may contain [[wikilinks]]",
+        exact: true,
+      })
+      const save = dashboard.getByRole("button", { name: "Save", exact: true })
+
+      try {
+        await page.goto("/mode/assistant")
+        await dashboard.getByRole("button", { name: "New note", exact: true }).click()
+        await titleInput.fill(oldNote.title)
+        await bodyInput.fill(oldNote.content)
+        await save.click()
+        await expect.poll(() => probe.mutations.length).toBe(1)
+        expect(probe.mutations[0].body).toEqual({ title: oldNote.title, content: oldNote.content, scope: "global" })
+        await expect(save).toBeDisabled()
+
+        await dashboard.getByRole("button", { name: "Cancel", exact: true }).click()
+        await expect(titleInput).toHaveCount(0)
+        await dashboard.getByRole("button", { name: "New note", exact: true }).click()
+        await expect(titleInput).toHaveValue("")
+        await expect(bodyInput).toHaveValue("")
+        await titleInput.fill(nextNote.title)
+        await bodyInput.fill(nextNote.content)
+        const bodyOwner = await bodyInput.elementHandle()
+        if (!bodyOwner) throw new Error("The recreated dashboard draft must have a DOM owner")
+        await save.click()
+        await expect.poll(() => probe.mutations.length).toBe(2)
+        expect(probe.mutations[1].body).toEqual({ title: nextNote.title, content: nextNote.content, scope: "global" })
+        await probe.settle("replacement-draft-save-held")
+
+        if (outcome === "success") replies.set("/kb", [kbNote, oldNote])
+        await probe.complete(
+          0,
+          outcome === "success" ? { status: 200, json: oldNote } : { status: 400, json: rejected },
+        )
+        await probe.settle("cancelled-save-completed-with-replacement-current")
+        await expect(titleInput).toHaveValue(nextNote.title)
+        await expect(bodyInput).toHaveValue(nextNote.content)
+        await expect(titleInput).toBeDisabled()
+        await expect(bodyInput).toBeDisabled()
+        await expect(save).toBeDisabled()
+        expect(await bodyInput.evaluate((element, previous) => element === previous, bodyOwner)).toBe(true)
+        await bodyOwner.dispose()
+        await expect(dashboard.locator('[data-component="assistant-mutation-error"]')).toHaveCount(0)
+        expect(probe.mutations).toHaveLength(2)
+
+        replies.set("/kb", outcome === "success" ? [kbNote, oldNote, nextNote] : [kbNote, nextNote])
+        await probe.complete(1, { status: 200, json: nextNote })
+        await probe.settle("replacement-draft-save-readback")
+        await expect(titleInput).toHaveCount(0)
+        await expect(bodyInput).toHaveCount(0)
+        await expect(dashboard.getByText(nextNote.title, { exact: true })).toBeVisible()
+        await expect(dashboard.getByText(oldNote.title, { exact: true })).toHaveCount(outcome === "success" ? 1 : 0)
+        expect(probe.mutations).toHaveLength(2)
+      } finally {
+        await probe.close()
+        await testInfo.attach(`s08-r02-dashboard-cancel-new-${outcome}`, {
+          body: JSON.stringify(probe.receipt(), null, 2),
+          contentType: "application/json",
+        })
+      }
+    })
   })
 })
 

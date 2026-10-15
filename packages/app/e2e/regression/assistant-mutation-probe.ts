@@ -3,6 +3,7 @@ import { expect, type Page, type Request } from "@playwright/test"
 type AssistantMutationReply = { status: number; json: unknown }
 type AssistantHeldMutation = {
   request: Request
+  origin: string
   path: string
   body: unknown
   reply: ReturnType<typeof Promise.withResolvers<AssistantMutationReply | undefined>>
@@ -12,16 +13,29 @@ type AssistantHeldMutation = {
   aborted?: boolean
 }
 
-export async function track(page: Page, replies: Map<string, unknown>, mutationPaths: string[]) {
+export async function track(
+  page: Page,
+  replies: Map<string, unknown>,
+  mutationPaths: string[],
+  options?: { origin: string },
+) {
   const apiPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
-  const origins = new Set([
-    `http://127.0.0.1:${apiPort}`,
-    `http://localhost:${apiPort}`,
-    new URL(process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? "3000"}`).origin,
-  ])
+  const origins = new Set(
+    options
+      ? [new URL(options.origin).origin]
+      : [
+          `http://127.0.0.1:${apiPort}`,
+          `http://localhost:${apiPort}`,
+          new URL(process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? "3000"}`)
+            .origin,
+        ],
+  )
   const writes = new Set(mutationPaths)
   const matches = (url: URL) => origins.has(url.origin) && (replies.has(url.pathname) || writes.has(url.pathname))
-  const reads = new Map<Request, { path: string; status?: number; finished?: boolean; failure?: string }>()
+  const reads = new Map<
+    Request,
+    { origin: string; path: string; status?: number; finished?: boolean; failure?: string }
+  >()
   const mutations: AssistantHeldMutation[] = []
   const observations: Array<{ phase: string; counts: Record<string, number>; mutations: number }> = []
   const count = (path: string) => [...reads.values()].filter((read) => read.path === path).length
@@ -34,7 +48,7 @@ export async function track(page: Page, replies: Map<string, unknown>, mutationP
   page.on("request", (request) => {
     const url = new URL(request.url())
     if (request.method() === "GET" && matches(url) && replies.has(url.pathname)) {
-      reads.set(request, { path: url.pathname })
+      reads.set(request, { origin: url.origin, path: url.pathname })
     }
   })
   page.on("response", (response) => {
@@ -72,6 +86,7 @@ export async function track(page: Page, replies: Map<string, unknown>, mutationP
     if (request.method() !== "POST" || !writes.has(path)) return route.fallback()
     const mutation: AssistantHeldMutation = {
       request,
+      origin: new URL(request.url()).origin,
       path,
       body: request.postData() === null ? null : request.postDataJSON(),
       reply: Promise.withResolvers<AssistantMutationReply | undefined>(),
@@ -136,6 +151,7 @@ export async function track(page: Page, replies: Map<string, unknown>, mutationP
       observations,
       reads: [...reads.values()],
       mutations: mutations.map((mutation) => ({
+        origin: mutation.origin,
         path: mutation.path,
         body: mutation.body,
         status: mutation.status,

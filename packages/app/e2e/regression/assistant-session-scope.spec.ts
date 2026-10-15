@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import type {
+  InvalidRequestError,
   KbNoteNote,
   PermissionRequest,
   ProviderListResponse,
@@ -11,6 +12,7 @@ import { mockAigcfrogeServer } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
 import { pinDesktopViewport } from "../utils/viewport"
 import { expectAppVisible } from "../utils/waits"
+import { AssistantMutationProbe } from "./assistant-mutation-probe"
 
 const urlA = "http://127.0.0.1:4097"
 const urlB = "http://127.0.0.1:4098"
@@ -199,6 +201,153 @@ test("Assistant sidebar opens notes and creates drafts on the canonical Session 
     })
   }
 })
+;(["success", "failure"] as const).forEach((outcome) => {
+  test(`AI-TDD-S08-R02: same-ID notes isolate an old server save ${outcome}`, async ({ page }, testInfo) => {
+    await pinEnglishUI(page)
+    await pinDesktopViewport(page)
+    const repliesA = await serveAssistant(page, {
+      server: urlA,
+      directory: dirA,
+      projectID: "proj_assistant_scope_a",
+      note: noteA,
+    })
+    const repliesB = await serveAssistant(page, {
+      server: urlB,
+      directory: dirB,
+      projectID: sessionB.projectID,
+      note: noteB,
+    })
+    const savedA = { ...noteA, content: "Server A submitted body", updatedAt: 1700000000001 } satisfies KbNoteNote
+    const savedB = {
+      ...noteB,
+      content: "Server B independent draft body",
+      updatedAt: 1700000000002,
+    } satisfies KbNoteNote
+    const rejected = {
+      _tag: "InvalidRequestError",
+      message: "old server A save rejected",
+    } satisfies InvalidRequestError
+    const probeA = await AssistantMutationProbe.track(page, repliesA, [`/kb/${noteA.id}`], { origin: urlA })
+    const probeB = await AssistantMutationProbe.track(page, repliesB, [`/kb/${noteB.id}`], { origin: urlB })
+    await page.addInitScript(
+      (input) => {
+        localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true, showFileTree: true } }))
+        localStorage.setItem("aigcfroge.settings.dat:defaultServerUrl", input.urlA)
+        localStorage.setItem(
+          "aigcfroge.global.dat:server",
+          JSON.stringify({
+            list: [
+              { type: "http", http: { url: input.urlA } },
+              { type: "http", http: { url: input.urlB } },
+            ],
+            projects: {},
+            lastProject: {},
+          }),
+        )
+        localStorage.setItem(
+          "aigcfroge.global.dat:tabs",
+          JSON.stringify([
+            { type: "session", server: input.urlA, sessionId: input.sessionID },
+            { type: "session", server: input.urlB, sessionId: input.sessionID },
+          ]),
+        )
+      },
+      { urlA, urlB, sessionID: sessionB.id },
+    )
+    const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+    const sidebar = page.locator('[data-component="assistant-session-sidebar"]')
+    const editor = panel.locator('[data-component="assistant-note-editor"]')
+    const titleInput = editor.getByRole("textbox", { name: "Title", exact: true })
+    const bodyInput = editor.getByRole("textbox", { name: "Markdown body, may contain [[wikilinks]]", exact: true })
+    const save = editor.getByRole("button", { name: "Save", exact: true })
+    const visit = async (server: string) => {
+      const href = `/server/${base64Encode(server)}/session/${sessionB.id}`
+      await page.locator(`[data-slot="titlebar-tabs"] a[href="${href}"]`).first().click()
+      await expect(page).toHaveURL(new RegExp(`${href}$`))
+      await expectAppVisible(page.getByRole("heading", { name: sessionB.title, exact: true }))
+    }
+    const openNote = async (note: KbNoteNote) => {
+      const toggle = page.locator("#secondary-sidebar-toggle")
+      if ((await toggle.getAttribute("aria-label")) !== "Hide sidebar") await toggle.click()
+      await expect(sidebar).toBeVisible()
+      const section = sidebar.locator('[data-nav-section="kb"] > button')
+      if ((await section.getAttribute("aria-expanded")) !== "true") await section.click()
+      await sidebar.getByRole("button", { name: note.title, exact: true }).click()
+      await panel.getByRole("button", { name: "Edit note", exact: true }).click()
+      await expect(titleInput).toHaveValue(note.title)
+      await expect(bodyInput).toHaveValue(note.content)
+    }
+
+    try {
+      await page.goto(`/server/${base64Encode(urlA)}/session/${sessionB.id}`)
+      await expectAppVisible(page.getByRole("heading", { name: sessionB.title, exact: true }))
+      await openNote(noteA)
+      await bodyInput.fill(savedA.content)
+      await save.click()
+      await expect.poll(() => probeA.mutations.length).toBe(1)
+      expect(probeA.mutations[0].origin).toBe(urlA)
+      expect(probeA.mutations[0].body).toEqual({ title: noteA.title, content: savedA.content, tags: noteA.tags })
+      expect(probeB.mutations).toHaveLength(0)
+
+      // Use the real canonical tab link: a full page.goto would abort the old request.
+      await visit(urlB)
+      await openNote(noteB)
+      await bodyInput.fill(savedB.content)
+      const bodyOwner = await bodyInput.elementHandle()
+      if (!bodyOwner) throw new Error("The current server B editor must have a DOM owner")
+      await save.click()
+      await expect.poll(() => probeB.mutations.length).toBe(1)
+      expect(probeB.mutations[0].origin).toBe(urlB)
+      expect(probeB.mutations[0].body).toEqual({ title: noteB.title, content: savedB.content, tags: noteB.tags })
+      await probeA.settle("server-b-pending-before-server-a-completes")
+      await probeB.settle("server-b-pending-before-server-a-completes")
+      const beforeB = probeB.receipt().observations.at(-1)?.counts
+      if (!beforeB) throw new Error("Server B requires a settled read baseline")
+
+      if (outcome === "success") {
+        repliesA.set("/kb", [savedA])
+        repliesA.set(`/kb/${noteA.id}`, savedA)
+      }
+      await probeA.complete(0, outcome === "success" ? { status: 200, json: savedA } : { status: 400, json: rejected })
+      await probeA.settle("server-a-completed-with-server-b-current")
+      await probeB.settle("server-a-completed-with-server-b-current")
+      expect(probeB.receipt().observations.at(-1)?.counts).toEqual(beforeB)
+      await expect(titleInput).toHaveValue(noteB.title)
+      await expect(bodyInput).toHaveValue(savedB.content)
+      await expect(titleInput).toBeDisabled()
+      await expect(bodyInput).toBeDisabled()
+      await expect(save).toBeDisabled()
+      expect(await bodyInput.evaluate((element, previous) => element === previous, bodyOwner)).toBe(true)
+      await bodyOwner.dispose()
+      await expect(page.getByText(rejected.message, { exact: true })).toHaveCount(0)
+      expect(probeA.mutations).toHaveLength(1)
+      expect(probeB.mutations).toHaveLength(1)
+
+      repliesB.set("/kb", [savedB])
+      repliesB.set(`/kb/${noteB.id}`, savedB)
+      await probeB.complete(0, { status: 200, json: savedB })
+      await probeB.settle("server-b-own-save-readback")
+      await expect(editor).toHaveCount(0)
+      await sidebar.getByRole("button", { name: noteB.title, exact: true }).click()
+      const kb = panel.locator('[data-component="assistant-kb-tab"]')
+      await expect(kb.getByText(savedB.content, { exact: true })).toBeVisible()
+
+      await visit(urlA)
+      await openNote(outcome === "success" ? savedA : noteA)
+      await expect(bodyInput).not.toHaveValue(savedB.content)
+      await expect(save).toBeEnabled()
+      await probeA.settle("original-server-restored-readback")
+      expect(probeA.mutations).toHaveLength(1)
+      expect(probeB.mutations).toHaveLength(1)
+    } finally {
+      await Promise.all([probeA.close(), probeB.close()])
+      await testInfo.attach(`s08-r02-note-server-owner-${outcome}`, {
+        body: JSON.stringify({ serverA: probeA.receipt(), serverB: probeB.receipt() }, null, 2),
+        contentType: "application/json",
+      })
+    }
+  })
+})
 
 async function serveAssistant(
   page: Page,
@@ -251,6 +400,7 @@ async function serveAssistant(
       })
     },
   )
+  return replies
 }
 
 async function persistedDrafts(page: Page) {

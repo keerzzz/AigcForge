@@ -3,6 +3,7 @@ import type {
   CacheDiagnostics,
   CompositionSnapshotV1,
   FileNode,
+  InvalidRequestError,
   KbNoteNote,
   ProviderListResponse,
   ScheduleInfo,
@@ -500,6 +501,128 @@ test("AI-TDD-S08-R02: an old note save does not close the current note draft", a
       contentType: "application/json",
     })
   }
+})
+;(["save", "delete"] as const).forEach((action) => {
+  test(`AI-TDD-S08-R02: NoteEditor ${action} pending locks fields and excludes ${action === "save" ? "delete" : "save"}`, async ({
+    page,
+  }, testInfo) => {
+    const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session
+    const note = {
+      id: `kb_note_pending_${action}`,
+      title: `NoteEditor pending ${action}`,
+      content: "Original pending note body",
+      scope: "global",
+      tags: ["original"],
+      format: "note",
+      createdAt: 1700000000000,
+      updatedAt: 1700000000000,
+    } satisfies KbNoteNote
+    const linked = { ...note, id: `kb_note_pending_link_${action}`, title: "Linked pending target" }
+    const saved = {
+      ...note,
+      title: `Edited ${note.title}`,
+      content: "Draft body with [[Linked",
+      tags: ["draft", "regression"],
+      updatedAt: 1700000000001,
+    } satisfies KbNoteNote
+    const rejected = {
+      _tag: "InvalidRequestError",
+      message: `fixture ${action} rejected`,
+    } satisfies InvalidRequestError
+    const fixture = await mockAssistantMutationPanel(page, [assistant])
+    fixture.replies.set("/kb", [note, linked])
+    fixture.replies.set(`/kb/${note.id}`, note)
+    fixture.replies.set(`/kb/${note.id}/backlinks`, [])
+    const probe = await AssistantMutationProbe.track(page, fixture.replies, [`/kb/${note.id}`, `/kb/${note.id}/remove`])
+    const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+    const sidebar = page.locator('[data-component="assistant-session-sidebar"]')
+    const editor = panel.locator('[data-component="assistant-note-editor"]')
+    const titleInput = editor.getByRole("textbox", { name: "Title", exact: true })
+    const tagsInput = editor.getByRole("textbox", { name: "Tags (comma separated)", exact: true })
+    const bodyInput = editor.getByRole("textbox", { name: "Markdown body, may contain [[wikilinks]]", exact: true })
+    const save = editor.getByRole("button", { name: "Save", exact: true })
+    const remove = editor.getByRole("button", { name: "Delete", exact: true })
+    const trigger = action === "save" ? save : remove
+    const path = `/kb/${note.id}${action === "delete" ? "/remove" : ""}`
+
+    try {
+      await page.goto(fixture.url)
+      await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+      const toggle = page.locator("#secondary-sidebar-toggle")
+      if ((await toggle.getAttribute("aria-label")) !== "Hide sidebar") await toggle.click()
+      await sidebar.locator('[data-nav-section="kb"] > button').click()
+      await sidebar.getByRole("button", { name: note.title, exact: true }).click()
+      await panel.getByRole("button", { name: "Edit note", exact: true }).click()
+      await expect(bodyInput).toHaveValue(note.content)
+      await titleInput.fill(saved.title)
+      await tagsInput.fill("draft, regression")
+      await bodyInput.fill(saved.content)
+      await expect(editor.getByRole("option", { name: "[[Linked pending target]]", exact: true })).toBeVisible()
+      const bodyOwner = await bodyInput.elementHandle()
+      if (!bodyOwner) throw new Error("The pending NoteEditor must have a DOM owner")
+      await probe.settle("note-editor-draft-ready")
+
+      await trigger.dblclick()
+      await expect.poll(() => probe.mutations.length).toBeGreaterThan(0)
+      await probe.settle("note-editor-mutation-held")
+      expect(probe.mutations).toHaveLength(1)
+      expect(probe.mutations[0].path).toBe(path)
+      expect(probe.mutations[0].body).toEqual(
+        action === "save" ? { title: saved.title, content: saved.content, tags: saved.tags } : null,
+      )
+      await expect(titleInput).toBeDisabled()
+      await expect(tagsInput).toBeDisabled()
+      await expect(bodyInput).toBeDisabled()
+      await expect(save).toBeDisabled()
+      await expect(remove).toBeDisabled()
+      await expect(editor.getByRole("listbox")).toHaveCount(0)
+      await expect(titleInput).toHaveValue(saved.title)
+      await expect(tagsInput).toHaveValue("draft, regression")
+      await expect(bodyInput).toHaveValue(saved.content)
+
+      await probe.complete(0, { status: 400, json: rejected })
+      await expect(titleInput).toBeEnabled()
+      await expect(tagsInput).toBeEnabled()
+      await expect(bodyInput).toBeEnabled()
+      await expect(save).toBeEnabled()
+      await expect(remove).toBeEnabled()
+      await expect(bodyInput).toHaveValue(saved.content)
+      expect(await bodyInput.evaluate((element, previous) => element === previous, bodyOwner)).toBe(true)
+      await bodyOwner.dispose()
+      await probe.settle("note-editor-failed-mutation-keeps-draft")
+      expect(probe.mutations).toHaveLength(1)
+
+      await trigger.click()
+      await expect.poll(() => probe.mutations.length).toBe(2)
+      expect(probe.mutations[1].path).toBe(path)
+      expect(probe.mutations[1].body).toEqual(probe.mutations[0].body)
+      fixture.replies.set("/kb", action === "save" ? [saved, linked] : [linked])
+      fixture.replies.set(`/kb/${note.id}`, saved)
+      await probe.complete(1, { status: 200, json: action === "save" ? saved : null })
+      await probe.settle("note-editor-explicit-retry-readback")
+      await expect(editor).toHaveCount(0)
+      const kb = panel.locator('[data-component="assistant-kb-tab"]')
+      await expect(kb).toBeVisible()
+      if (action === "save") {
+        await kb.getByRole("button", { name: `${saved.title} ${saved.tags.join(" · ")}`, exact: true }).click()
+        await expect(kb.getByRole("heading", { name: saved.title, exact: true })).toBeVisible()
+        await expect(kb.getByText(saved.content, { exact: true })).toBeVisible()
+      }
+      if (action === "delete") {
+        await expect(sidebar.getByRole("button", { name: note.title, exact: true })).toHaveCount(0)
+        await expect(
+          kb.getByRole("button", { name: `${note.title} ${note.tags.join(" · ")}`, exact: true }),
+        ).toHaveCount(0)
+      }
+      expect(probe.mutations).toHaveLength(2)
+    } finally {
+      await probe.close()
+      await testInfo.attach(`s08-r02-note-editor-${action}-pending`, {
+        body: JSON.stringify(probe.receipt(), null, 2),
+        contentType: "application/json",
+      })
+    }
+  })
 })
 
 test("AI-TDD-S08-R02: a completed reminder mutation stays with its original Session", async ({ page }, testInfo) => {
