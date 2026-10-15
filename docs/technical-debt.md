@@ -871,20 +871,20 @@ Assistant 场景使用两个实际产品后端、各一个 Location、不同 Ses
 
 **API 注册与 drift 分别完成。** `resume-api-coverage` 为 **covered=334 / todo=0 / missing=0 / extra=0、exit 0**；`resume-api-drift` 为 **OpenAPI snapshot is up to date、exit 0**。coverage 是场景注册覆盖，不能替代 Auth 或业务执行。当前完整 effect-mode 业务矩阵未因此关闭。
 
-**已完成的包分组与未完成范围分别计数。** `resume-package-audit-20261013.json` 的 34 个已验证分组均有 exit 0，逐组日志汇总如下；audit 的 `tests` 字段包含 skip，故不能直接写成 pass。本轮定向测试与这些分组有重叠，不相加伪造去重总量，也不宣称后续源码改动已整包重跑。
+**已完成的包分组与未完成范围分别计数。** 下表合并 `resume-package-audit-20261013.json` 与后续补登记的历史分组回执；各次源码与限制见其对应段落。audit 的 `tests` 字段包含 skip，故不能直接写成 pass。本轮定向测试与这些分组有重叠，不相加伪造去重总量，也不宣称后续源码改动已整包重跑。
 
-| 分组范围           | 已完成/计划组数 | 实际日志 tally                                                                           |
-| ------------------ | --------------- | ---------------------------------------------------------------------------------------- |
-| Core               | 15/15           | 2632 pass / 2 skip / 0 fail                                                              |
-| Schema             | 1/1             | 324 pass / 0 fail                                                                        |
-| session-ui         | 1/1             | 121 pass / 0 fail                                                                        |
-| ui                 | 1/1             | 20 pass / 0 fail                                                                         |
-| App unit           | 7/7             | 1433 pass / 0 fail                                                                       |
-| App virtualizer    | 1/1             | 3 pass / 0 fail                                                                          |
-| App E2E contracts  | 1/1             | 56 pass / 0 fail                                                                         |
-| TUI                | 5/5             | 220 pass / 1 skip / 0 fail                                                               |
-| aigcfroge backend  | 3/74            | 已完成历史组236 pass / 0 fail；第3组由六个互斥分片完整替代，原exit124保留；004–074未执行 |
-| desktop 普通包级组 | 1/1             | 11文件 / 60 pass / 0 fail / 0 skip；Linux本地普通包，与packaged smoke分开                |
+| 分组范围           | 已完成/计划组数 | 实际日志 tally                                                                       |
+| ------------------ | --------------- | ------------------------------------------------------------------------------------ |
+| Core               | 15/15           | 2632 pass / 2 skip / 0 fail                                                          |
+| Schema             | 1/1             | 324 pass / 0 fail                                                                    |
+| session-ui         | 1/1             | 121 pass / 0 fail                                                                    |
+| ui                 | 1/1             | 20 pass / 0 fail                                                                     |
+| App unit           | 7/7             | 1433 pass / 0 fail                                                                   |
+| App virtualizer    | 1/1             | 3 pass / 0 fail                                                                      |
+| App E2E contracts  | 1/1             | 56 pass / 0 fail                                                                     |
+| TUI                | 5/5             | 220 pass / 1 skip / 0 fail                                                           |
+| aigcfroge backend  | 10/74           | 历史分组001–010已完成；008保留5条显式skip；原003/009超时及010崩溃保留；011–074未执行 |
+| desktop 普通包级组 | 1/1             | 11文件 / 60 pass / 0 fail / 0 skip；Linux本地普通包，与packaged smoke分开            |
 
 **2026-10-15：后端第 3 组与 Desktop 普通包级组已补齐。** `package-suite-backend-003-split-20261015-LCZvbK` 保留原 90 秒外层边界、90000ms 单测超时和单并发，把原第 3 组分成五个10例分片及一组39例。六份回执均 exit0；JUnit 按 `(file,name)` 精确对齐预先发现的89例，无重复、遗漏或选中 skip，六文件并集与原组一致。五份过滤运行各有40条未选中 skipped，仅用于分片，不计作通过或产品 skip。原 `full-package-aigcfroge-003` 的 exit124 仍保留；当时已有30例持续通过，证据支持累计运行达到边界，未证明单例挂死。六次运行源码/HEAD/index/branch 冻结，日志哈希一致，子进程与私有目录清理通过。原001/002组147例加本组89例只能记为历史发现计划完成3/74组；004–074的71组仍未执行，不能称当前后端整包通过。
 
@@ -994,11 +994,21 @@ hot-1首次正确243.3ms、稳定观察648.3ms。其间一个renderer `RunTask` 
 
 **本次较小修复保留两项协议/SDK技术债。** `cli-request-error-correlation`（owner=Core CLI / SDK / S8）：SSE先到、HTTP后到时仍可能出现两条记录；当前没有共享请求/error关联标识，不能靠来源、错误名或内容推断同一错误并吞掉真实异错。解锁需要明确关联协议和双向到达顺序的真实传输回归，同时保留可恢复错误后的终态错误。`sdk-sse-abort-backoff`（owner=SDK / Core CLI / S8）：生成的SSE客户端在fetch/read取消抛错后仍先等待退避，首次3秒、上限30秒，才检查signal。当前拒绝路径等待消费者退出，不保证立即退出。解锁需在生成器及可再生成来源上统一修复取消唤醒，并直接验证建连/读取/退避各阶段，不能靠更长测试超时验收。健壮关联协议和SDK重试语义没有混入本次CLI生命周期修复；完整SDK/SSE范围保持开放。
 
+**2026-10-15：第010组的静态渲染客户端漏传已修复。** 原 `full-package-aigcfroge-010` 为 **exit132 / 4.074秒**，日志在14条pass后出现Bun SIGSEGV，未生成完整JUnit；不能把这些日志行算作本组验收。`s08-r02-scrollback-native-diagnostic` 先停在SIGPWR，后续 `s08-r02-scrollback-native-segv` 捕获 `Bun Pool 5` 的SIGSEGV，RIP位于Bun主程序；两次GDB退出码0仅表示诊断命令完成，解释文件单独记录了这一限制。缺少函数级调试符号，尚未定位Bun原生缺陷，也未证明与008五个skip共因。
+
+已证实的产品问题在 `packages/aigcfroge/src/cli/cmd/run/scrollback.surface.ts:393`：静态 `entryWriter` 未收到既有客户端。最终代码将该依赖传到 `RunEntryContent`，由 `scrollback.writer.tsx:324` 的构造适配器传入Code/Diff/Markdown构造参数；复用Solid `spread` 保留响应式更新，复用公开 `jsx` 接口返回原生节点。没有新增全局客户端或销毁所有权；客户端按组件构造生命周期固定，不宣称支持客户端热替换。只加JSX属性不足以保证构造期注入，原提案及独立审查保存在 `package-suite-backend-010-diagnostic-20261015-0_gn7ye7` 与 `constructor-adapter-review-20261015-4n_lq6tw`。
+
+新增 `scrollback.client.test.tsx` 的四条回归在原产品代码上分别观察到指定客户端零调用：首轮static write和独立diff/markdown运行在预期断言失败后exit132，独立code为exit1。崩溃回执不是完整四例JUnit；四种预期断言都有各自日志。最终测试仅比RED移除六个无运行语义的非空断言。最终公开JSX接口版本的 `s08-r02-scrollback-client-final-green` 为 **4 pass / 38 assertions / exit0 / 3.773秒**，覆盖静态write/diff实际输出，以及直接code/markdown内容更新后仍使用同一注入客户端。
+
+`s08-r02-scrollback-original010-green` 保持原五文件SHA和精确 `(file,name)` 集合，完整一次执行为 **50 pass / 134 assertions / 0 skip / exit0 / 6.479秒**。不可变计划位于 `backend010-final-20261015-emc_fz2y/plan.json`；原010失败没有被覆盖。相邻 `s08-r02-scrollback-footer-green` 为 **31 pass / 5既有skip / 133 assertions / exit0 / 5.529秒**，覆盖完整footer.view及subagent-data两文件；此范围与008/012重叠，不增加原分组完成数。最终类型检查 `s08-r02-scrollback-final-types` exit0 / 35.776秒。原双重类型转换和六个非空断言导致的lint失败保留；最终采用公开接口，不关闭或绕过lint规则。上述运行源码/HEAD/index/branch冻结；本组通过只确认本次注入路径和相关渲染回归，不证明所有真实worker退出路径无崩溃。未解决范围登记为 `cli-renderer-native-crash`（owner=S8），需真实worker最小复现、生命周期修复及完整相关分组验证后解锁。
+
+**超时清理结论补正。** 续作扫描发现原009留下PID155402，它有独立PGID，cwd为已删除的 `/tmp/aigcfroge-suite-Va3Gms/tmp/oc-cli-QJhElG`；原009的 `environment.json` 精确确认该隔离根。它不来自后来通过的009分片。已验证身份后发送SIGTERM并确认PID消失，随后扫描未发现相同测试隔离前缀的进程。证据为 `s08-r02-orphan-cli-origin-20261015.json`、`s08-r02-orphan-cli-cleanup-20261015.json`、`s08-r02-cli-after-orphan-scan.json`。原回执的“原进程组不存在”不能推出“所有脱离该组的后代均已退出”；登记 `package-supervisor-detached-processes`（owner=S8），需补齐外层监督器的后代所有权，并用真实脱离进程组的子进程验证强制超时清理，保持既有执行时限。本次原生诊断不替代该监督器验证。
+
 当前仍未交付的范围及持有人：
 
 | 范围                                                                                             | Owner                              | Unlock                                                                                                                                                                                                                                                                                                                                                            |
 | ------------------------------------------------------------------------------------------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 完整 S08/package/API/E3/E4/适用展示矩阵                                                          | S8 / Integration QA / Core runtime | 对照发现集合与源码，补齐 backend 010–074剩余组并恢复008五项显式skip、effect-mode业务及适用矩阵；Desktop普通包组仅完成Linux本地范围；有限代表性通过不自动缩减完成定义。                                                                                                                                                                                            |
+| 完整 S08/package/API/E3/E4/适用展示矩阵                                                          | S8 / Integration QA / Core runtime | 对照发现集合与源码，补齐 backend 011–074剩余组并恢复008五项显式skip、effect-mode业务及适用矩阵；Desktop普通包组仅完成Linux本地范围；有限代表性通过不自动缩减完成定义。                                                                                                                                                                                            |
 | E4 未执行文件/large text、PTY stream/exit/delete、not-found/剩余 identity、default/V2 与平台组合 | S10                                | 在既有批准的隔离环境按原 deadline/retries=0 执行，保留真实退出码与进程/端口/workspace 清理证据；不复用用户 HOME、auth、服务。                                                                                                                                                                                                                                     |
 | S08-R02 剩余 effect/状态范围与性能调查                                                           | S8 / S9 / App / QA                 | 已有Plan、Assistant、drawer及八类API投影的选定E3（交集不相加）；继续验证全部SDK/SSE、Assistant读回失败/初次加载错误组合、跨Session草稿、closed drawer在途/共享observer及剩余Mode组合、Custom初次Snapshot pending、迟到Upgrade/异常重试、Start跨Location策略及V1 revision。新负载基线已保存；继续调查空白/旧Session观察、长尾及其它fallback保真性，不冒称完整R02。 |
 | 真实 packaged Codex 新 thread/resume                                                             | S9 / Core CLI / Desktop            | 在实际打包入口验证 transport/CLI 资源解析、持久 ID 与回收；入口 smoke/单测不替代。                                                                                                                                                                                                                                                                                |
