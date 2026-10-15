@@ -677,11 +677,16 @@ export const RunCommand = effectCmd({
         // to stdout/UI. `client` is passed explicitly because attach mode may
         // rebind the SDK to the session's directory after the subscription is
         // created, and replies issued from inside the loop must use that client.
-        async function loop(client: AigcfrogeClient, events: Awaited<ReturnType<typeof sdk.event.subscribe>>) {
+        async function loop(
+          client: AigcfrogeClient,
+          events: Awaited<ReturnType<typeof sdk.event.subscribe>>,
+          signal: AbortSignal,
+        ) {
           const toggles = new Map<string, boolean>()
           let error: string | undefined
 
           for await (const event of events.stream) {
+            if (signal.aborted) break
             if (
               event.type === "message.updated" &&
               event.properties.sessionID === sessionID &&
@@ -809,11 +814,19 @@ export const RunCommand = effectCmd({
         await share(client, sessionID)
 
         if (!interactive) {
-          const events = await client.event.subscribe()
-          const completed = loop(client, events).catch((e) => {
+          const controller = new AbortController()
+          const events = await client.event.subscribe(undefined, { signal: controller.signal })
+          const completed = loop(client, events, controller.signal).catch((e) => {
             console.error(e)
             process.exitCode = 1
           })
+          async function reject(error: unknown) {
+            // A rejected request ends this invocation; its late Session events must not outlive it.
+            controller.abort()
+            if (!emit("error", { error })) UI.error(formatRunError(error))
+            process.exitCode = 1
+            await completed
+          }
           async function finish() {
             if (args.attach) return
             const error = await completed
@@ -830,8 +843,7 @@ export const RunCommand = effectCmd({
               variant: args.variant,
             })
             if (result.error) {
-              if (!emit("error", { error: result.error })) UI.error(formatRunError(result.error))
-              process.exitCode = 1
+              await reject(result.error)
               return
             }
             await finish()
@@ -847,8 +859,7 @@ export const RunCommand = effectCmd({
             parts: [...files, { type: "text", text: message }],
           })
           if (result.error) {
-            if (!emit("error", { error: result.error })) UI.error(formatRunError(result.error))
-            process.exitCode = 1
+            await reject(result.error)
             return
           }
           await finish()
