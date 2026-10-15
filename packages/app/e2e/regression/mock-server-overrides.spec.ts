@@ -18,10 +18,8 @@ import { expectAppVisible, gotoWhenReady } from "../utils/waits"
  *   `files`            — GET /file is no longer pinned to `[]`
  *   `vcs`              — GET /vcs is no longer pinned to `main`
  *
- * The other half of that contract — an absent knob answers byte-for-byte what the
- * mock answered before — is carried by the existing specs that read these routes
- * (home-empty-new-session, session-list-path-loading, session-files-route), whose
- * configs set none of these fields.
+ * Absent read overrides preserve the default projections. Project writes now
+ * update a registration-local projection unless a response override is supplied.
  */
 const directory = "C:/Aigcfroge/MockServerOverrides"
 const projectID = "proj_mock_overrides"
@@ -66,16 +64,7 @@ const listedFile = {
   ignored: false,
 }
 
-test("absent knobs keep the previous answers byte-for-byte", async ({ page }) => {
-  // Registered before the mock, so it only sees what the mock itself falls through
-  // (Playwright runs the last-registered matching handler first). An absent knob
-  // must leave PATCH /project/:id to that fall-through — i.e. unhandled by the mock —
-  // rather than inventing an answer, which is the pre-knob behaviour.
-  await page.route("**/project/*", (route) =>
-    route.request().method() === "PATCH"
-      ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fellThrough: true }) })
-      : route.fallback(),
-  )
+test("absent knobs serve default reads and the updated project", async ({ page }) => {
   await mockAigcfrogeServer(page, {
     directory,
     project,
@@ -96,7 +85,11 @@ test("absent knobs keep the previous answers byte-for-byte", async ({ page }) =>
       vcs: await read("/vcs"),
       path: await read("/path"),
       file: await read("/file?path="),
-      projectUpdate: await read("/project/proj_mock_overrides", { method: "PATCH" }),
+      projectUpdate: await read("/project/proj_mock_overrides", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      }),
       capabilities: await read("/experimental/capabilities"),
     }
   })
@@ -108,7 +101,10 @@ test("absent knobs keep the previous answers byte-for-byte", async ({ page }) =>
     body: { state: directory, config: directory, worktree: directory, directory, home: "C:/Aigcfroge" },
   })
   expect(result.file).toEqual({ status: 200, body: [] })
-  expect(result.projectUpdate).toEqual({ status: 200, body: { fellThrough: true } })
+  expect(result.projectUpdate).toEqual({
+    status: 200,
+    body: { ...project, time: { ...project.time, updated: expect.any(Number) } },
+  })
   expect(result.capabilities).toEqual({
     status: 200,
     body: {
@@ -301,7 +297,7 @@ test("absent knobs keep the previous answers byte-for-byte", async ({ page }) =>
     ])
   })
 
-  test(`an absent project override still answers ${topology} SDK writes`, async ({ page }, testInfo) => {
+  test(`an absent project override returns the project for ${topology} writes`, async ({ page }, testInfo) => {
     const url = new URL(testInfo.project.use.baseURL ?? "http://127.0.0.1:3000")
     if (topology === "separate-origin") url.port = url.port === "4096" ? "4097" : "4096"
     url.pathname = `/project/${projectID}`
@@ -318,10 +314,17 @@ test("absent knobs keep the previous answers byte-for-byte", async ({ page }) =>
     await gotoWhenReady(page, "/")
 
     const result = await page.evaluate(async (url) => {
-      const response = await fetch(url, { method: "PATCH" })
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      })
       return { status: response.status, body: await response.json() }
     }, url.toString())
-    expect(result).toEqual({ status: 200, body: {} })
+    expect(result).toEqual({
+      status: 200,
+      body: { ...project, time: { ...project.time, updated: expect.any(Number) } },
+    })
   })
 })
 

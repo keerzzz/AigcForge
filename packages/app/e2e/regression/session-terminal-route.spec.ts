@@ -5,7 +5,7 @@ import { pinEnglishUI } from "../utils/locale"
 import { pinDesktopViewport } from "../utils/viewport"
 import { expectSessionTitle, gotoWhenReady } from "../utils/waits"
 
-const server = "http://127.0.0.1:4096"
+const server = `http://127.0.0.1:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
 const serverKey = base64Encode(server)
 const directoryA = "C:/Aigcfroge/Terminal-A"
 const directoryB = "C:/Aigcfroge/Terminal-B"
@@ -182,7 +182,7 @@ async function installMocks(page: Page) {
     directory: directoryA,
     project: {
       id: projectID,
-      worktree: directoryA,
+      worktree: "C:/Aigcfroge",
       vcs: "git",
       name: "terminal-route",
       time: { created: 1700000000000, updated: 1700000000000 },
@@ -200,7 +200,7 @@ async function installMocks(page: Page) {
   // Registered after the shared catch-all so PTY traffic reaches this higher-fidelity mock first.
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url())
-    if (url.port !== "4096" || !url.pathname.startsWith("/pty")) return route.fallback()
+    if (url.origin !== server || !url.pathname.startsWith("/pty")) return route.fallback()
 
     const request = route.request()
     const method = request.method()
@@ -341,7 +341,7 @@ test("creates, connects, sends input, resizes, and deletes a PTY from a canonica
 
   await expect.poll(async () => (await socketState(page)).urls.length).toBeGreaterThanOrEqual(1)
   const connected = new URL((await socketState(page)).urls.at(-1) ?? "")
-  expect(connected.origin).toBe("ws://127.0.0.1:4096")
+  expect(connected.origin).toBe(server.replace("http:", "ws:"))
   expect(connected.pathname).toBe("/pty/pty_terminal_1/connect")
   expect(connected.searchParams.get("directory")).toBe(directoryA)
   expect(connected.searchParams.get("cursor")).toBe("0")

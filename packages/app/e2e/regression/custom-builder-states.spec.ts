@@ -1,6 +1,11 @@
 import { expect, test, type Page, type Route } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
-import type { CompositionPlan, CompositionStartInput, CompositionStartResponse } from "@aigcfroge/sdk/v2/client"
+import type {
+  CompositionPlan,
+  CompositionStartInput,
+  CompositionStartResponse,
+  Project,
+} from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
@@ -63,6 +68,7 @@ type Wire = {
   planErrorTag?: boolean
   /** Only cases that change the composition need more than the reviewer asset. */
   agents?: Array<typeof agentAsset>
+  projects?: Project[]
 }
 
 const wire = (over: Partial<Wire> = {}): Wire => ({ armed: false, hits: {}, fail: new Set(), ...over })
@@ -150,6 +156,7 @@ async function openMode(
 ) {
   await mockAigcfrogeServer(page, {
     directory,
+    projects: state.projects,
     project: {
       id: projectID,
       worktree: directory,
@@ -527,7 +534,21 @@ test.describe("regression: Custom Builder request and failure states", () => {
 
   test("switching projects retains the Builder and waits for the new draft's plan", async ({ page }) => {
     const nextDirectory = "C:/Aigcfroge/CustomBuilderOther"
-    await openMode(page, wire(), "custom")
+    await openMode(
+      page,
+      wire({
+        projects: [
+          {
+            id: "proj_custom_builder_other",
+            worktree: nextDirectory,
+            name: "CustomBuilderOther",
+            time: { created: 1700000000000, updated: 1700000000000 },
+            sandboxes: [],
+          },
+        ],
+      }),
+      "custom",
+    )
     await expectAppVisible(assetsTitle(page))
     const sidebar = page.locator('[data-mode-sidebar="custom"]')
     const title = page.getByPlaceholder("Title for custom session (optional)")

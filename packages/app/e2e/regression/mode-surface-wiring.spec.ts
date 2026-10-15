@@ -53,7 +53,7 @@ const mainSlot = (page: Page, mode: Mode) => page.locator(`[data-mode-main="${mo
 async function openWorkspace(
   page: Page,
   sessionMode: Mode = "chat",
-  extra: Pick<Partial<MockServerConfig>, "sessions" | "files" | "onMessages"> = {},
+  extra: Pick<Partial<MockServerConfig>, "sessions" | "projects" | "files" | "onMessages"> = {},
 ) {
   await mockAigcfrogeServer(page, {
     ...extra,
@@ -392,6 +392,15 @@ test.describe("regression: hidden mode slots stay off the wire", () => {
         .replaceAll("\\", "/")
         .replace(/\/+$/, "")
     await openWorkspace(page, "coding", {
+      projects: [
+        {
+          id: "proj_mode_surface_other",
+          worktree: nextDirectory,
+          name: "ModeSurfaceOtherProject",
+          time: { created: 1700000000000, updated: 1700000000000 },
+          sandboxes: [],
+        },
+      ],
       files: [
         { name: "Aigcfroge", path: "Aigcfroge", absolute: "C:/Aigcfroge", type: "directory", ignored: false },
         {

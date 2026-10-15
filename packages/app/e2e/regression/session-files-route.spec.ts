@@ -9,7 +9,7 @@ const directory = "C:/Aigcfroge/SessionFilesRoute"
 const projectID = "proj_session_files_route"
 const sessionID = "ses_session_files_route"
 const title = "Session files route"
-const server = "http://127.0.0.1:4096"
+const server = `http://127.0.0.1:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
 const canonicalPath = `/server/${base64Encode(server)}/session/${sessionID}`
 
 const files = [
@@ -56,7 +56,7 @@ test.beforeEach(async ({ page }) => {
     pageMessages: () => ({ items: [] }),
   })
 
-  await page.route("http://127.0.0.1:4096/file**", async (route) => {
+  await page.route(`${server}/file**`, async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname !== "/file") return route.fallback()
     const path = url.searchParams.get("path")

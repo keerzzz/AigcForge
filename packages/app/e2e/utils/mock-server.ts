@@ -1,12 +1,21 @@
 import type { Page, Route } from "@playwright/test"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import type {
+  AppAgentsResponse,
+  GlobalHealthResponse,
   InvalidCursorError,
   InvalidRequestError,
+  PermissionOverrideGetResponse,
+  ProjectNotFoundError,
   SchedulePendingResponse,
   SessionMessagesResponse,
   SessionNotFoundError,
+  V2PermissionGrantListResponse,
+  V2PermissionRequestListResponse,
+  V2QuestionRequestListResponse,
   V2SessionMessagesData,
 } from "@aigcfroge/sdk/v2/client"
+import { pathKey } from "../../src/utils/path-key"
 
 const isRecordOf = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
 type MockSession = { id: string } & Record<string, unknown>
@@ -65,18 +74,16 @@ export interface MockServerConfig {
   delegations?: unknown[]
   delegationDelay?: number
   delegationStatus?: number
-  /** Optional override for the `/agent` projection. The default is the single
-   * `build` primary the picker needs to render at all; a caller that needs a
-   * long list (the narrow picker's overflow contract) supplies its own. */
+  /** Raw override for `/agent`, including deliberately malformed responses.
+   * Defaults are complete synthetic agents with the real primary-mode policy. */
   agents?: unknown[]
   /** Optional project list served by GET /project. Defaults to `[config.project]`;
    * a second server or a multi-project case supplies its own list. */
   projects?: unknown[]
   /** Optional response for PATCH /project/:id, the write the colour auto-assign
    * (`context/layout.tsx`) and the edit dialog (`dialog-edit-project.tsx`) issue.
-   * Absent, the route stays unmatched and falls through to the same 200 `{}` it
-   * always has; `projectUpdateStatus` defaults to 200, so a rejected write is
-   * expressed as a status plus the typed error shape. */
+   * Absent, valid writes update registration-local projections. Explicit body
+   * or status overrides bypass that state and preserve negative-response cases. */
   projectUpdate?: unknown
   projectUpdateStatus?: number
   /** Optional replacement for GET /path's projection. Absent, the default
@@ -100,6 +107,16 @@ export interface MockServerConfig {
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
   const cursors = new Map<string, string>()
   const canonicalCursors = new Map<string, Set<string>>()
+  const projectSeeds = structuredClone({ current: config.project, list: config.projects ?? [config.project] })
+  const projectUpdates = new Map<string, Record<string, unknown>>()
+  const projectProjection = (seed: unknown) => {
+    if (!isRecordOf(seed) || typeof seed.id !== "string") return seed
+    const updated = projectUpdates.get(seed.id)
+    if (!updated) return seed
+    // Stored empty icon columns must survive, even when fromRow omits the wire icon.
+    const icon = isRecordOf(updated.icon) ? updated.icon : undefined
+    return { ...updated, icon: icon && (icon.url || icon.override || icon.color) ? icon : undefined }
+  }
   let nextCursor = 0
   let nextTaskID = 0
   const pathProjection = {
@@ -120,13 +137,15 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     },
     "/provider": config.provider,
     "/path": pathProjection,
-    "/project": config.projects ?? [config.project],
-    "/project/current": config.project,
-    // `primaryModes` mirrors the real server projection (S6): the picker filters on
-    // it for display, so a mock without it would render an empty agent control.
-    "/agent": config.agents ?? [
-      { name: "build", mode: "primary", primaryModes: ["chat", "coding", "work", "assistant", "custom"] },
-    ],
+    "/agent":
+      config.agents ??
+      (["build", ProductModeAgentPolicy.META, ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR].map((name) => ({
+        name,
+        mode: "primary",
+        permission: [],
+        options: {},
+        primaryModes: [...ProductModeAgentPolicy.primaryModes(name)],
+      })) satisfies AppAgentsResponse),
     "/vcs": config.vcs ?? { branch: "main", default_branch: "main" },
     "/session": config.sessions,
   }
@@ -141,7 +160,9 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
 
     const path = url.pathname
     if (path === "/global/event" || path === "/event") return sse(route, config.events?.(), config.eventRetry)
-    if (path === "/global/health") return json(route, { healthy: true })
+    if (path === "/global/health" && route.request().method() === "GET") {
+      return json(route, { healthy: true, version: "0.0.0-mock" } satisfies GlobalHealthResponse)
+    }
     if (path === "/schedule/pending" && route.request().method() === "GET") {
       return json(route, [] satisfies SchedulePendingResponse)
     }
@@ -156,22 +177,93 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     // route still falls through to that same `[]`.
     if (path === "/file" && config.files !== undefined) return json(route, config.files)
     if (emptyList.has(path)) return json(route, [])
-    if (path === "/api/question/request") return json(route, { location: { directory: config.directory }, data: [] })
+    if (
+      ["/api/question/request", "/api/permission/request", "/api/permission/grant"].includes(path) &&
+      route.request().method() === "GET"
+    ) {
+      const directory = url.searchParams.get("location[directory]") || config.directory
+      const key = pathKey(directory)
+      // This fixture resolves only its seeded project and descendants, not a filesystem.
+      const project = [projectSeeds.current, ...projectSeeds.list]
+        .filter(
+          (seed): seed is Record<string, unknown> & { worktree: string } =>
+            isRecordOf(seed) &&
+            typeof seed.worktree === "string" &&
+            (key === pathKey(seed.worktree) || key.startsWith(`${pathKey(seed.worktree).replace(/\/$/, "")}/`)),
+        )
+        .sort((a, b) => b.worktree.length - a.worktree.length)[0]
+      if (!isRecordOf(project) || typeof project.id !== "string" || typeof project.worktree !== "string") {
+        throw new Error(`Mock Location requires a seeded project for directory: ${directory}`)
+      }
+      const workspaceID = url.searchParams.get("location[workspace]") || undefined
+      return json(route, {
+        location: {
+          directory,
+          project: { id: project.id, directory: project.worktree },
+          ...(workspaceID && { workspaceID }),
+        },
+        data: [],
+      } satisfies V2PermissionRequestListResponse & V2PermissionGrantListResponse & V2QuestionRequestListResponse)
+    }
     // Checked before `staticRoutes` only when the knob asks for it; an absent pair
     // leaves the default projection and status untouched.
     if (path === "/path" && (config.pathResponse !== undefined || config.pathStatus !== undefined)) {
       return json(route, config.pathResponse ?? pathProjection, undefined, config.pathStatus ?? 200)
     }
+    if (path === "/project" && route.request().method() === "GET") {
+      return json(route, projectSeeds.list.map(projectProjection))
+    }
+    if (path === "/project/current" && route.request().method() === "GET") {
+      return json(route, projectProjection(projectSeeds.current))
+    }
     if (path in staticRoutes) return json(route, staticRoutes[path])
-    // Project write (`PATCH /project/:id`). Unmatched before this knob existed, so it
-    // fell through to the blanket 200 `{}` and a rejected write was inexpressible.
-    // Only answer explicit overrides; SDK requests without one use the API fallback below.
-    if (
-      /^\/project\/[^/]+$/.test(path) &&
-      route.request().method() === "PATCH" &&
-      (config.projectUpdate !== undefined || config.projectUpdateStatus !== undefined)
-    ) {
-      return json(route, config.projectUpdate ?? {}, undefined, config.projectUpdateStatus ?? 200)
+    const projectMatch = path.match(/^\/project\/([^/]+)$/)
+    if (projectMatch && route.request().method() === "PATCH") {
+      if (config.projectUpdate !== undefined || config.projectUpdateStatus !== undefined) {
+        return json(route, config.projectUpdate ?? {}, undefined, config.projectUpdateStatus ?? 200)
+      }
+      const projectID = decodeURIComponent(projectMatch[1])
+      const project =
+        projectUpdates.get(projectID) ??
+        [...projectSeeds.list, projectSeeds.current].find((seed) => isRecordOf(seed) && seed.id === projectID)
+      if (!isRecordOf(project)) {
+        return json(
+          route,
+          {
+            _tag: "ProjectNotFoundError",
+            projectID,
+            message: `Project not found: ${projectID}`,
+          } satisfies ProjectNotFoundError,
+          undefined,
+          404,
+        )
+      }
+      const body: unknown = route.request().postDataJSON()
+      if (!isRecordOf(body) || Array.isArray(body) || !isRecordOf(project.time)) {
+        throw new Error("Default mock Project writes require a JSON object and a seeded Project time")
+      }
+      // Match Project.update's independent icon columns and whole commands column.
+      const icon = {
+        ...(isRecordOf(project.icon) ? project.icon : {}),
+        ...Object.fromEntries(
+          isRecordOf(body.icon)
+            ? Object.entries(body.icon).filter(
+                ([key, value]) => ["url", "override", "color"].includes(key) && typeof value === "string",
+              )
+            : [],
+        ),
+      }
+      const updated = {
+        ...project,
+        ...(typeof body.name === "string" && { name: body.name }),
+        icon,
+        ...(isRecordOf(body.commands) && {
+          commands: typeof body.commands.start === "string" ? { start: body.commands.start } : {},
+        }),
+        time: { ...project.time, updated: Date.now() },
+      }
+      projectUpdates.set(projectID, updated)
+      return json(route, projectProjection(updated))
     }
     // M4 Agent Hub cross-session aggregation read (agent-task group).
     if (path === "/agent-task") return json(route, config.tasks ?? [])
@@ -191,6 +283,15 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     }
 
     if (/^\/session\/[^/]+\/(children|diff)$/.test(path)) return json(route, [])
+
+    const sessionProjectionMatch = path.match(/^\/session\/([^/]+)\/(composition|permission-override)$/)
+    if (sessionProjectionMatch && route.request().method() === "GET") {
+      const session = config.sessions.find((s) => s.id === sessionProjectionMatch[1])
+      if (!session) return notFound(route, `Session not found: ${sessionProjectionMatch[1]}`)
+      if (sessionProjectionMatch[2] === "composition")
+        return notFound(route, `Snapshot not found for session ${session.id}`)
+      return json(route, { enabled: false } satisfies PermissionOverrideGetResponse)
+    }
 
     const taskMatch = path.match(/^\/session\/([^/]+)\/task$/)
     if (taskMatch) {
