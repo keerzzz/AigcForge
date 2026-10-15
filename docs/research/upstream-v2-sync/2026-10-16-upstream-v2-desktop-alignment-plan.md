@@ -1,6 +1,7 @@
 # AigcForge 对齐上游 OpenCode v2 完整桌面端架构调研与实施方案
 
-> **状态**：方案定稿 / 待按 R0-R5 窗口推进  
+> **状态**：R0 已闭环（2026-10-16，`v2-dev` @ `9c29234af`，install + typecheck 19/19 全绿）/ R1~R5 待窗口推进  
+> **R0 交付记录**：裁剪 35→20 目录（`ae30e473c`）· 改名桥 `script/rename-bridge.ts` 全量落地（`9c29234af`，含 6 段大小写映射与 5 类哨兵豁免）· 遗留债务 R0.1 见 §9.1 与审批记录 F5/F6  
 > **制定日期**：2026-10-16  
 > **制定者**：AigcForge 高级全栈开发顾问  
 > **最高约束**：[CLAUDE.md](../../CLAUDE.md)（AigcForge 执行宪法）· [AGENTS.md](../../AGENTS.md)（代码与架构规范）· [ARCHITECTURE.md](../../ARCHITECTURE.md) · [docs/technical-debt.md](../../docs/technical-debt.md) §15  
