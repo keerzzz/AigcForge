@@ -422,7 +422,10 @@ describe("WorkReview through production HttpApi (AI-TDD-S06; generated SDK is a 
             ...other,
           })
           expectError(denied, 409, "ConflictError")
-          expect(yield* getReview(directory, session.id)).toEqual({ status: "none" })
+          expect(yield* getReview(directory, session.id)).toEqual({
+            status: "none",
+            artifact: { artifactID: target.artifactID, artifactRevision: target.expectedArtifactRevision },
+          })
         }),
       )
       yield* transition(directory, session.id, { action: "submit", expectedReviewRevision: 0, ...target })
@@ -437,8 +440,14 @@ describe("WorkReview through production HttpApi (AI-TDD-S06; generated SDK is a 
         }),
       )
       expect(yield* getReview(directory, session.id)).toMatchObject({ review: { state: "open", revision: 1 } })
-      expect(yield* getReview(directory, sibling.id)).toEqual({ status: "none" })
-      expect(yield* getReview(elsewhere, foreign.id)).toEqual({ status: "none" })
+      expect(yield* getReview(directory, sibling.id)).toEqual({
+        status: "none",
+        artifact: { artifactID: siblingTarget.artifactID, artifactRevision: siblingTarget.expectedArtifactRevision },
+      })
+      expect(yield* getReview(elsewhere, foreign.id)).toEqual({
+        status: "none",
+        artifact: { artifactID: foreignTarget.artifactID, artifactRevision: foreignTarget.expectedArtifactRevision },
+      })
     }),
   )
 
@@ -513,7 +522,10 @@ describe("WorkReview through production HttpApi (AI-TDD-S06; generated SDK is a 
               ...extra,
             })
             expectError(denied, 400, "InvalidRequestError")
-            expect(yield* getReview(directory, session.id)).toEqual({ status: "none" })
+            expect(yield* getReview(directory, session.id)).toEqual({
+              status: "none",
+              artifact: { artifactID: target.artifactID, artifactRevision: target.expectedArtifactRevision },
+            })
           }),
         )
         yield* transition(directory, session.id, { action: "submit", expectedReviewRevision: 0, ...target })
@@ -559,7 +571,10 @@ describe("WorkReview through production HttpApi (AI-TDD-S06; generated SDK is a 
           expectError(yield* request(directory, reviewPath(session.id), body), 400, "InvalidRequestError")
         }),
       )
-      expect(yield* getReview(directory, session.id)).toEqual({ status: "none" })
+      expect(yield* getReview(directory, session.id)).toEqual({
+        status: "none",
+        artifact: { artifactID: target.artifactID, artifactRevision: target.expectedArtifactRevision },
+      })
       expect((yield* storedSession(session.id)).metadata?.workReview).toBeUndefined()
     }),
   )
@@ -679,7 +694,10 @@ describe("WorkReview through production HttpApi (AI-TDD-S06; generated SDK is a 
           expect(apply.headers["www-authenticate"]).toContain("Basic")
         }),
       )
-      expect(yield* getReview(directory, session.id)).toEqual({ status: "none" })
+      expect(yield* getReview(directory, session.id)).toEqual({
+        status: "none",
+        artifact: { artifactID: target.artifactID, artifactRevision: target.expectedArtifactRevision },
+      })
       expect(yield* (yield* FileSystem.FileSystem).exists(path.join(directory, "denied.md"))).toBe(false)
       expect(yield* transition(directory, session.id, command)).toMatchObject({
         review: { state: "open", revision: 1 },
@@ -1087,7 +1105,10 @@ describe("WorkReview through production HttpApi (AI-TDD-S06; generated SDK is a 
         expect(JSON.stringify(failed.body)).not.toContain("private-storage-body-sentinel")
         expect(JSON.stringify(failed.body)).not.toContain(directory)
         expect((yield* storedSession(session.id)).metadata).toEqual(before.metadata)
-        expect(yield* getReview(directory, session.id)).toEqual({ status: "none" })
+        expect(yield* getReview(directory, session.id)).toEqual({
+          status: "none",
+          artifact: { artifactID: target.artifactID, artifactRevision: target.expectedArtifactRevision },
+        })
         yield* database.db.run("DROP TRIGGER http_work_review_storage_failure")
         expect(yield* transition(directory, session.id, command)).toMatchObject({
           review: { state: "open", revision: 1 },

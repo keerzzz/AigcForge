@@ -1068,3 +1068,16 @@ SDK独立审计见 `sdk-independent-audit-20261015-lvt0udqg/audit.json`；接受
 - **042既有skip开放**：`httpapi-sync-validation-skip`，owner=S8，声明源 `packages/aigcfroge/test/server/httpapi-sync.test.ts:130`，JUnit标题行131。`returns structured validation errors` 的status/content-type/error-envelope断言没有执行，skip处无原因。须追踪当前Sync payload decoder/错误序列化，按受支持合同修正后解除skip并验收完整文件；不能用相邻400状态断言替代。owner/unlock已登记coverage manifest。
 
 本切片不关闭完整后端整包或S08/S09。043–074、037 provider既有skip、新增/extra package tests、API硬门禁、R02剩余状态、E4/性能/packaged thread/resume、历史/平台/外部provider及授权交付仍按§15.21各自owner/unlock开放。
+
+### 15.24 2026-10-16 S08 / 后端043–050续验与WorkReview无评审读回契约
+
+实施目录 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`。本切片延续已授权的验证后本地提交；源码修改限于 `packages/aigcfroge/test/server/httpapi-work-review.test.ts` 的七处精确读回预期，另同步本节和coverage manifest。
+
+- **根因与修正**：`WorkReview.None` 表示未发起评审，允许已有保存产物。该关系由 `packages/core/src/session/work-review-service.ts:91` 的 `get` 决定：无snapshot且无review在`:98`返回仅none；有snapshot且无review在`:105`返回none及真实artifact binding。Schema为 `packages/schema/src/work-review.ts:57`。原046运行出现三条真实失败，测试错误地要求已保存产物消失。七处预期改为精确比较原artifact ID及内容revision，仍验证拒绝跨Session/Location、伪造字段、非法命令、认证失败和存储失败后状态不变；没有放宽为部分匹配或更改生产行为。
+- **接受范围**：043、044原成功结果分别为 **2 pass / 116 assertions**、**7 pass / 35 assertions**。修后045–050六片各5条，完整覆盖WorkReview原30条唯一用例，合计 **30 pass / 843 assertions / 0 selected skip / 0 fail**。本切片共 **39 pass / 994 assertions / 4不同文件**。每份WorkReview JUnit仍含全部30条，25条未选中记录只用于核对集合，不计产品skip或通过。各片保持原90秒工作负载截止、90000ms测试timeout、concurrency1及零重试。
+- **证据与失败保留**：证据根目录沿用§15.21。043/044位于 `backend043-046-final-20261015-ykrqkqjt/batch-043-046`，原队列因045过滤器选中零测试而exit1，不能称整队列通过。过滤器改为字面测试名后缀；原30条名称及分片集合保留。046的真实失败收据为 `checks/s08-r02-backend046-20261016-69e5f30e26.json`（exit1），修后完整六片位于 `backend045-050-contract-20261016-vr6rn7fb/batch-045-046` 与 `batch-047-050`，两队列均exit0。各运行保留源码/HEAD/index/branch冻结、实际owner ECHILD、无后代及注册私有目录删除证据；中间045成功结果不重复计入最终六片。
+- **工程检查**：`backend050-quality-bound-20261016-lw4tjqz3/result.json` 记录后端typecheck **exit0 / 25.822268秒**、增量lint **exit0 / 7.211976秒**；lint实际检查1文件、28新增行。最初质量清单缺少既有owner门禁字段，预检拒绝且未启动工作负载；保留在 `backend050-quality-20261016-8pltp6cq/preflight-failure.json`，不记为测试失败或通过。后续清单仅补齐原门禁配置，执行器、进程监督器和目录清理实现均复用既有字节。
+
+独立审计为 `readonly-audit-043-050-20261016-eyePmQSP/audit.json`，从原始JUnit、冻结记录和owner/目录收据重核上述集合与计数。旧计划的status/final_checkpoint字段沿用旧值，`run-selected.py`未纳入其SHA256SUMS；审计使用六组实际before/after与修后checkpoint.json对账，不把旧计划元数据当成执行证明。
+
+本切片不关闭完整后端整包或S08/S09。原发现清单下一组为051，051–074共24组、新增后端文件、显式skip、其他包/API/E3/E4/展示/性能/平台及授权交付范围仍按§15.21各自owner/unlock开放。以上是各自源码检查点的验收收据，不是同一新提交的全仓重跑。
