@@ -429,6 +429,18 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **余项（mcp 续）**：`connection`（1005 行，unstable/http+process 映射已就绪）/`contributor`（49）/`mcp-v2`（35）——与工具流大窗相邻，可随后续窗口或独立小窗落地。
 
+### 10.12 mcp 叶件收尾与工具域规范发现（2026-10-16，`5ce70388a`）
+
+**交付（3 源件）**：`mcp/contributor.ts`（49 行，MCP server 贡献者注册表）· `mcp/mcp-v2.ts`（35 行，McpV2 最小立面 + noopLayer）· `credential-scanner.ts`（97 行，凭证引用扫描；schema/credential-scan ✓ 已备）。
+
+**窗口关键发现**：
+1. **`tool/AGENTS.md`（base 域规范，权威）**——base tool 域为演化体系：`tool.ts` 承载 Location 级服务/注册/执行，「不得新增第二可执行入口类型/注册表自持执行器/授权回调」；「MCP 拥有单一稳定 tool transform 读取最新发现工具」。**fork 的 `tool/tool.ts`（M，180 行，`@aigcfroge/llm` 契约型）为旧架构**——不整体移植，须在工具流大窗按此规范仲裁。
+2. **chain 归并**：`mcp/connection`（1005 行）→ `tool/mcp-registration` → `tool/tool` →（llm 门）= **工具流大窗成员**；`credential-scanner.test.ts`（147 行）耦合 connection 同挂账。mcp 域仅余此链。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿**（纯增件，全谱无回归）。
+
+**工具流大窗准备度（给正名窗口的交接清单）**：SDK 依赖决策（`@agentclientprotocol/sdk`/`@anthropic-ai/claude-agent-sdk`）· effect 迁移面已预清（㉕）· Job/BackgroundJob 仲裁（prompt/extend 语义）· tool 域 AGENTS.md 规范为仲裁基准 · R4 LLM 收敛决策（llm 包引入面）· 清单：cli 簇 18 件 2600+ 行 + `tool/tool.ts`/`mcp-registration`/`mcp/connection`/`task-driver`(1111)/`judge`/`catalog`/`share-summary` + `delegation/service`(1164)/`execution`(758)/`recovery`(241)。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
