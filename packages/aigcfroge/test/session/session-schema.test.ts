@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
 import { ProjectV2 } from "@aigcfroge/core/project"
+import { SessionV1 } from "@aigcfroge/core/v1/session"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
 import { WorkReview } from "@aigcfroge/schema/work-review"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { WorkReviewUnavailableError } from "@aigcfroge/server/errors"
@@ -33,6 +35,26 @@ const info = {
 } satisfies Session.Info
 
 describe("Session schema", () => {
+  test("preserves optional Work fields through the HTTP JSON codec and V1 session decoder", () => {
+    const encode = Schema.encodeUnknownSync(Schema.toCodecJson(Session.Info))
+    const decode = Schema.decodeUnknownSync(Schema.toCodecJson(SessionV1.SessionInfo))
+    const contract = WorkContract.AdHoc.make({ source: "ad-hoc", contractVersion: 1 })
+
+    for (const session of [info, { ...info, presetCategoryId: undefined, workContract: undefined }]) {
+      const encoded = encode(session)
+      expect(encoded).not.toHaveProperty("presetCategoryId")
+      expect(encoded).not.toHaveProperty("workContract")
+      expect(decode(encoded).workContract).toBeUndefined()
+    }
+
+    const encoded = encode({ ...info, mode: "work", presetCategoryId: "academic", workContract: contract })
+    expect(encoded).toHaveProperty("presetCategoryId", "academic")
+    expect(encoded).toHaveProperty("workContract", contract)
+    expect(decode(encoded).workContract).toEqual(contract)
+    expect(() => encode({ ...info, presetCategoryId: null })).toThrow()
+    expect(() => encode({ ...info, workContract: null })).toThrow()
+  })
+
   test("preserves the workReview omission contract through the HTTP JSON codec and generated SDK", async () => {
     // HttpApi's JSON response normalization uses this public schema codec.
     const encode = Schema.encodeUnknownSync(Schema.toCodecJson(Session.Info))

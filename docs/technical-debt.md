@@ -1090,3 +1090,12 @@ SDK独立审计见 `sdk-independent-audit-20261015-lvt0udqg/audit.json`；接受
 - **复查**：`backend051-quality-20261016-ob1e22d_/result.json` 的后端typecheck、增量lint、两文件format均exit0，分别24.84308/7.071945/0.947230秒。准备阶段独立复审未发现阻断问题；最终子智能体遇到上游400/429，由主智能体完成差分、原始收据和源码散列复核，见 `backend051-parent-review-20261016-9l84qhml/review.json` 与 `source-correspondence.json`。生成子进程复用既有owner监督器；没有新增生成实现或运行时适配。
 
 原发现计划下一组为052，052–074共23组仍待运行。Sync旧错误包裹预期的显式skip已有只读诊断，尚未解除或计为通过；其余包/API/E3/E4/展示/性能/平台及完整S08/S09仍按各自owner/unlock开放。
+
+### 15.26 2026-10-16 S08 / 后端052–054与Session可选字段编码
+
+- **原始收据**：`backend052-054-label-20261016-n9jcx73s/batch-052-054` 的052为 **23 pass / 70 assertions / 5 files**，053为 **3 pass / 33 assertions / 1 file**，均无skip/fail。054在43.103602秒自然exit1，六文件 **25 pass / 1 fail / 78 assertions**；Custom父会话的V1 fork响应含 `workContract: null`，严格V1解码失败。原队列与失败收据保留，不将其中25条通过重复计入修后验收。另一次错误freeze标签导致的启动拒绝发生于测试前，计0条执行。
+- **根因与修复**：HTTP的 `Session.Info` 在 `packages/aigcfroge/src/session/session.ts:251` 对分类和合同使用 `Schema.optional`，而 `Schema.toCodecJson` 会将已有的undefined编码为null。决定省略规则的是 `packages/schema/src/schema.ts:13` 的 `optionalOmitUndefined`；V2 schema与V1 `workContract` 已使用该规则。此次仅让两个HTTP字段复用该owner，不在适配器或fork handler增加清理分支。有效字段保留，显式null仍被拒绝。
+- **RED与回归**：`session-schema-red-prepared-20261016-vk56eyxm/verification.json` 保留新增用例的真实RED：完整文件 **5 pass / 1 fail / 48 assertions**，原实现把缺省分类编码为null。修后 `backend054-accept-20261016-w6qkjxmw` 接受schema完整文件 **6 pass / 55 assertions**、054原始完整六文件 **26 pass / 81 assertions**、适配器与OpenAPI两文件 **4 pass / 8 assertions**；全部无skip/fail。054原/新JUnit的26个 `(file, classname, name)` 身份完全相同，见 `backend054-quality-20261016-ivj39v34/exact-original054-union.json`。052–054合计 **52 pass / 184 assertions / 12 files**，补充回归10项另计，不能当成完整后端重跑。
+- **工程验证**：所有运行保持90秒截止、90000ms timeout、concurrency1及零重试；源码/HEAD/index/branch冻结、owner clean/ECHILD和注册私有目录删除均验证。`backend054-quality-20261016-ivj39v34` 的后端typecheck、增量lint、格式检查均exit0，耗时38.231812/4.590799/1.080208秒；lint实际覆盖2文件24新增行。OpenAPI规范经现有生成器逐字节比对不变，SDK生成产物未修改。原失败与RED均保留，不作为通过收据。
+
+下一原始组为055，055–074共20组仍待继续；其中session-schema文件新增的1项回归必须在后续分组重新绑定时显式登记。Sync错误响应显式skip、新增文件、其他包/API/E3/E4/展示/性能/平台与完整S08/S09仍按§15.21各自owner/unlock开放。本切片未增加临时实现或新增技术债。
