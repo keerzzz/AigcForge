@@ -1099,3 +1099,12 @@ SDK独立审计见 `sdk-independent-audit-20261015-lvt0udqg/audit.json`；接受
 - **工程验证**：所有运行保持90秒截止、90000ms timeout、concurrency1及零重试；源码/HEAD/index/branch冻结、owner clean/ECHILD和注册私有目录删除均验证。`backend054-quality-20261016-ivj39v34` 的后端typecheck、增量lint、格式检查均exit0，耗时38.231812/4.590799/1.080208秒；lint实际覆盖2文件24新增行。OpenAPI规范经现有生成器逐字节比对不变，SDK生成产物未修改。原失败与RED均保留，不作为通过收据。
 
 下一原始组为055，055–074共20组仍待继续；其中session-schema文件新增的1项回归必须在后续分组重新绑定时显式登记。Sync错误响应显式skip、新增文件、其他包/API/E3/E4/展示/性能/平台与完整S08/S09仍按§15.21各自owner/unlock开放。本切片未增加临时实现或新增技术债。
+
+### 15.27 2026-10-16 S08 / 后端055与共享HTTP运行时清理
+
+- **两类失败分别保留**：`checks/s08-r02-backend055-20261016-9p8ud1t8.json` 在55.731057秒自然结束，六文件 **40 pass / 1 fail / 147 assertions**。唯一断言失败要求旧消息 `V2-native`，实际 `v1SyncUnsupported` 已引导canonical admission。另有一个退出后存活的子进程被owner终止并回收；不能将最终ECHILD等同于测试自行完成清理。056–058未启动。
+- **独立清理RED**：`checks/s08-r02-worktree-lifecycle-red-20261016-rrcn6hol.json` 单独运行完整worktree文件，**6 pass / 0 fail / 13 assertions**，Bun自然exit0；但 `required_after_natural_exit:true`，owner终止残留子进程后返回70。它是生命周期门禁失败，不是产品断言失败或超时。进程与注册私有目录最终清理通过，原收据保留。
+- **共享根因**：`HttpApiApp.webHandler` 与 `AppRuntime` 使用同一个memoMap；`Worktree.createFromInfo` 在Worktree层scope中fork后台boot，Ready事件先于start scripts完成。决定scope关闭的是Effect的 `memoMapBuild.finalizer`（`.aigcfroge/references/effect-smol/packages/effect/src/Layer.ts:392`）：观察者数量归零才释放层。旧preload仅dispose AppRuntime，HTTP handler仍持有该层。`packages/aigcfroge/test/preload.ts:29` 现在先关闭已loaded的HTTP handler，再沿用AppRuntime.dispose；guard复用 `src/util/lazy.ts:17`，不创建未使用的handler，不加固定等待。另一个测试仅将消息片段更新为现有canonical admission引导，保留三个入口的400、tag与mode检查。
+- **验收**：`backend055-accept-20261016-hms9u8l4` 的独立worktree文件 **6 pass / 13 assertions / 9.565429秒**，完整055 **41 pass / 151 assertions / 48.240383秒**，均exit0且无skip/fail。两轮自然退出时owner无待清理子进程、无清理信号，ECHILD与私有目录删除通过；完整055的41个JUnit身份与原失败轮完全相同，见 `backend055-quality-20261016-v4kiejrr/exact-original055-union.json`。独立worktree复验不重复计入055的41项。该目录另有schema完整文件 **6 pass / 55 assertions**，以及后端typecheck、2文件4新增行的增量lint和格式检查，均exit0。
+
+该修复改变测试preload配置；后续计划必须显式绑定新的配置SHA256 `ad1041c20199fb09e00a6b35767c358efd389feaac756772afffa9640b325b35`，不能绕过旧hash门禁。原056–074共19组与新增文件、显式skip、其他包/API/E3/E4/展示/性能/平台及完整S08/S09仍按各自owner/unlock开放。既有001–054收据保持各自历史配置与源码身份，不宣称已在本配置上全部重跑。

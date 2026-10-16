@@ -26,6 +26,9 @@ const dir = path.join(os.tmpdir(), "aigcfroge-test-data-" + process.pid)
 await fs.mkdir(dir, { recursive: true })
 afterAll(async () => {
   const { AppRuntime } = await import("../src/effect/app-runtime")
+  const { HttpApiApp } = await import("../src/server/routes/instance/httpapi/server")
+  // Both roots retain the shared memo map; release HTTP before the runtime's last observer.
+  if (HttpApiApp.webHandler.loaded()) await HttpApiApp.webHandler().dispose()
   await AppRuntime.dispose()
 
   const busy = (error: unknown) =>
