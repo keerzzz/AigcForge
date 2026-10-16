@@ -1,8 +1,9 @@
 # AigcForge 对齐上游 OpenCode v2 完整桌面端架构调研与实施方案
 
-> **状态**：R0 已闭环（2026-10-16，`v2-dev` @ `9c29234af`，install + typecheck 19/19 全绿）/ R1a Schema 合同移植已闭环（`fc1714de4`，schema 319/319 测试全绿 + 全仓 19/19 typecheck + generate 零漂移）/ R1b protocol 端点注册待开工 / R2~R5 待窗口推进  
+> **状态**：R0 已闭环（2026-10-16，`v2-dev` @ `9c29234af`，install + typecheck 19/19 全绿）/ R1a Schema 合同移植已闭环（`fc1714de4`，schema 319/319 测试全绿 + 全仓 19/19 typecheck + generate 零漂移）/ R1b 进行中：Slice R1.1 prompt-asset 端到端已闭环（`69ad60b86`：protocol 注册 + client 生成 + server fail-closed stub，全仓 19/19 绿；其余 ~50 组按配方续切片）/ R2~R5 待窗口推进  
 > **R0 交付记录**：裁剪 35→20 目录（`ae30e473c`）· 改名桥 `script/rename-bridge.ts` 全量落地（`9c29234af`，含 6 段大小写映射与 5 类哨兵豁免）· 遗留债务 R0.1 见 §9.1 与审批记录 F5/F6  
 > **R1a 交付记录**（2026-10-16）：58 个 A 文件 + `session-input`/`session-delivery`/`session-message-id` 回植 · 双演化合同（session/session-message/provider）驻 `src/v2/` 过渡位（R2/R3 就位后原子正名切换，见 §5.3 与债务台账）· Effect beta.83→4.0.1 适配六项（`TaggedErrorClass→TaggedError`、`optionalOmitUndefined→optional`、`withStatics 柯里→statics`、`isStartsWith→isStartingWith`、`InvalidValue` 签名、`declareConstructor`+`toCodecJson` 的 codec 预剥离需严格选项随行）· 4.0.1 Record 键细化静默丢条目的 fail-closed 修复（`Composition.strictBindings`）· `agent-asset` 的 `Schema.mutable` 过渡豁免  
+> **R1b Slice R1.1 交付记录**（2026-10-16）：端到端打通「fork 端点 → protocol → client 生成 → server stub」管线并固化配方——① fork instance 级 API 的中间件契约/运行时分离：`WorkspaceRouting`/`InstanceContext` 标签+`WorkspaceRouteContext` 入 protocol，270 行路由实现归 server（R2）；② `ApiNotFoundError`（fork 线形态）入 errors；③ prompt-asset 四端点注册 + api.ts 装配；④ codegen 可移植性配方：品牌标量需 `identifier`、自定义 filter 需 `representation`+`arbitraryConstraint`（base 自有代码零自定义 filter，prompt-asset 四个码点/字节 filter 换内建 check + 登记精确语义 R2 收紧债）；⑤ client `namespaceTypes` 注册 `PromptAsset`；⑥ server fail-closed stub（die / `kind:"not_implemented"`）；门禁：schema 319/319 + 全仓 19/19 + generate 二次零漂移 + server 预存 6 环境败与改动无关（净土对照验证）。
 > **制定日期**：2026-10-16  
 > **制定者**：AigcForge 高级全栈开发顾问  
 > **最高约束**：[CLAUDE.md](../../CLAUDE.md)（AigcForge 执行宪法）· [AGENTS.md](../../AGENTS.md)（代码与架构规范）· [ARCHITECTURE.md](../../ARCHITECTURE.md) · [docs/technical-debt.md](../../docs/technical-debt.md) §15  
