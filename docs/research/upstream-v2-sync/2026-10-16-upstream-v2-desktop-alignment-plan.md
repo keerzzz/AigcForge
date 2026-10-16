@@ -534,6 +534,16 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **11/11** · 回归 **200/200**（12 文件）。
 
+### 10.19 v1 模块与 cache-diagnostics（2026-10-17，`715fe6b9f`）
+
+**交付（3 源件）**：`v1/session.ts`（642 行：V1 会话模块——8 个 durable 事件定义含 `PartUpdated` + 会话/消息 contract）+ `v1/permission.ts`（99 行：V1 权限 contract）+ `session/cache-diagnostics.ts`（162 行：缓存归因诊断——V2 Step.Ended 与 V1 PartUpdated 事件流拼接 + cache-shape 快照比对，**cacheDiagnostics 端点后端就绪**）。
+
+**要点**：fork v1 目录（session+permission）在 base 已被上游整体移除 → 全量移植；`versionedType` 经 `Bus` 再导出（cache-diagnostics 的 V1/V2 事件流拼接实证）；schema 侧 `session-input`/`v1/session` 双件已备，零 schema 工作。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 回归 **99/99**（6 文件）。
+
+**R2 剩余终盘**：`v2-runtime`（依 `location-layer`，LLM 门）· `share-summary`（依 `@aigcfroge/llm`，R4 门）· `composition-resolver`（依 mcp/connection + tool registry）· break-glass 全融合 + 3 permission 测试 → **全部收敛至「工具流大窗」**（与 cli 簇、task-driver 系、workflow 3 件同窗）；除工具流大窗外，**R2 移植面已全部落地**。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
