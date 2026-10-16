@@ -321,6 +321,21 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **Slice 2.3 续篇路线**：第二环 = `skill/composition-catalog.ts` + `skill/guidance.ts`（依 composition✓ + agent）→ `agent/meta` 六件（intent/engine-selector/memory/mention/meta-prompt/prerouter）→ `agent` 编排三件 → `config` 8 → `delegation` 12（待 session/tool）→ `workflow` 6。`composition-resolver.ts`（fork 顶层新件）随 composition 完整切片入列。
 
+### 10.6 Slice 2.3 第二环（2026-10-16，`cd458af70`）
+
+**交付（10 源件 + 3 测试件，全绿）**：
+1. **skill 双件**：`composition-catalog.ts`（43→48 行，适配 base 技能形态）+ 官方测试 **3/3**；`guidance.ts`（105 行，含 Custom Snapshot 作用域目录 + 权限门 + SystemContext 代际更新文本）；
+2. **agent/meta 五件**（纯叶/链式，零外部依赖）：`intent.ts`（正则意图分类器：7 类 3 复杂度）→ `engine-selector.ts`（意图→引擎派发表）→ `mention.ts`（@提及解析+工作流模式）→ `prerouter.ts`（确定性预路由管道：mention 优先/分类/置信度）；`meta-prompt.ts`（{{SUBAGENTS_LIST}}/{{CLI_LIST}}/{{ASSETS_LIST}} 填充器 + 顺序无关性设计）；
+3. **prompt 三编排器**（纯提示词常量）：assistant/chat/work-orchestrator；官方测试双件（meta-prompt + work-orchestrator）**19/19 全绿**。
+
+**新配方**：
+- ⑪ **技能域演化映射**（fork 用户面基线 `{name, location}` → base 演化 `{id, name, path, autoinvoke}`）：catalog `location→path` 机械改；guidance `Skill.available(list, agent)` → `Skill.available(list, agent.permissions)`（**资源语义分歧 name vs id 登记 LEDGER**，正名切换后对账）；`AgentV2.Selection→Agent.Selection`；`SystemContext.SystemContext→SystemContextValue`（2.1 换名连锁）；`PermissionV2.evaluate→Permission.evaluate`（签名逐字同源 ✓）。
+- ⑫ **品牌型断言**：bun:test `toBe/toEqual` 与品牌型（Skill.Name）类型摩擦 → 期望值用品牌构造（`Skill.Name.make(...)`），类型与运行时可证。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · catalog **3/3** · meta-prompt+work-orchestrator **19/19**。
+
+**第三环预告**：agent 交叉件（`asset-bridge`/`file-loader`/`judge`/`meta/memory`）依赖 asset 域（`agent-asset*`/`skill-asset*` 6 件 + `schema/skill-asset`）+ `fs-util`/`gray-matter`/`catalog` 前置；fork `agent.ts`（M）经 Watcher/FileLoader 接线的仲裁随后。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
