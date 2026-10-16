@@ -392,6 +392,26 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **第三环余项**：`judge.ts`（依赖 fork `@aigcfroge/llm`/`catalog`——随 LLM 切面对正名后接线，LEDGER）；delegation/workflow 迁移表（复用生成器流程）；services 余测（list-assets/prompt-asset-v2-smoke 等）。**下一窗口**：进入 Slice 2.4（delegation 12 件——迁移已可走生成器，session/tool 面将自然展开）。
 
+### 10.10 Slice 2.4 首波：delegation 逻辑核 + 投影 + 迁移（2026-10-16，`c56564ab8`）
+
+**依赖探针定界**：delegation 12 件（4289 行）拆两段——**逻辑核段（本波）**与**工具流段（2.4b）**。工具流段依赖链实证：`service` → `tool/cli-adapter` → `acp-client`（需新增 `@agentclientprotocol/sdk` 依赖）→ `tool/acp`（fork 件）；`execution` → `background-job`（**Job/BackgroundJob 双演化**：fork 的 promote/extend 语义 vs base 演化版）→ `tool/task-driver`（1111 行）→ **`agent/judge`** → `catalog` + **`@aigcfroge/llm`（v2 树无此包——R4 LLM 收敛决策门控）**；另 `share-summary` 缺失。判定：工具流段=「fork 工具/元智能体流」正名后切面。
+
+**交付（9 源件 + 4 测试件）**：
+1. **逻辑核**：`digest`（修订摘要计算）+ `review`（评审屏障/撤销）+ `presentation` + `state`（状态机迁移/阶段推进）+ `event`（23 个 durable 定义，⑧ 配方）+ `fold`（1038 行事件折叠，fail-closed）+ `index`；
+2. **投影**：`projector`（253 行——从持久化事件流重建查询投影；tx 适配=base `project` 单参订阅者 + `DatabaseService | Transaction` 联合存储 + `Transaction` 从 `db.transaction` 签名派生 + `Bus.decodeSerializedEvent` 提升导出）；
+3. **`tool/cli-session.sql.ts`**（external_cli_session 表）；
+4. **测试四件**：digest/fold（1159 行）/review/state **30/30 全绿**。
+
+**迁移（生成器复用 ✓）**：`bun run script/migration.ts --name delegation_tables` → `20261016140143_delegation_tables`（**delegation×3 + external_cli_session**）· schema.gen +89 行 · 注册表 51 项 · `--check` **通过**。
+
+**新配方**：
+- ㉒ **投影契约适配**——fork `bus.project(def, (event, tx))` 双参形 → base 单参订阅者 + 直写 db（`ProjectionStore = DatabaseService | Transaction` 联合 + Transaction 类型从 `db.transaction` 的 Parameters 派生，零深导入）；`decodeSerialized` 提升为 `Bus.decodeSerializedEvent` 导出。
+- ㉓ **信封手工构造**——base `Event.Payload` 需要 `created: Finite` + 品牌 `Seq`/`Version`（`Event.Seq.make`/`Event.Version.make`）；缺 durable 的负例用 `as unknown as` 过类型面测运行时守卫。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波测试 **30/30** · 回归 **128/128**（12 文件）· `migration --check` ✓。
+
+**2.4b 入口（工具流段）**：`service`（1164 行）+ `execution`（758 行）+ `recovery`（241 行，依赖 service）+ `cli-adapter`/`acp-client`（含 SDK 依赖决策）+ Job/BackgroundJob 仲裁 + `task-driver`/`judge`/`catalog`/`share-summary`——集中于「fork 工具/元智能体流」正名后切面执行。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
