@@ -491,6 +491,19 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **余量更新**：session 域余 `composition`（381）· `session-identity`（hub）· `cache-diagnostics` · `v2-runtime` · `share-summary` · `task-driver-fill`/`scheduled-job-executor`（工具流窗）· workflow 6 · 工具流大窗。
 
+### 10.16 Composition 与 Workflow 就绪面（2026-10-16，`090e43958`）
+
+**交付（9 源件 + 2 测试件，37/37 全绿）**：
+1. `session/composition.ts`（381 行：会话组合快照服务）+ `workflow/event.ts`（run 事件 + revision 守卫发布——**binding 式 commit 契约**再应用）· `workflow/sql.ts` · `workflow/workflow-run.ts`（workflow_run/step_run 状态机 + 冲突守卫）· `workflow-asset.ts`（registry，js-yaml→**Bun.YAML** ⑨）· `workflow-asset/path.ts`；
+2. 测试：workflow-asset-path + workflow-asset-registry **37/37**；
+3. **迁移** `20261016151845_workflow_runs`（workflow_run/workflow_step_run 表）· `--check` ✓。
+
+**门控移交**：`workflow-runner`（依 `tool/task-driver`）+ `workflow-execution`（依 runner）+ `workflow/execution/local`（依 location-layer）→ 工具流大窗。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **37/37** · 回归 **228/228**（15 文件）· `migration --check` ✓。
+
+**剩余总览**：session 域余 4 件（`session-identity` hub / `cache-diagnostics` / `v2-runtime` / `share-summary`）+ 工具流大窗（含 workflow 3 件、delegation service/execution/recovery、cli 簇、task-driver 系、location-layer）+ `composition-resolver`/`custom-profile` 小簇。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
