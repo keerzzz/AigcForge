@@ -303,6 +303,24 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **下一步（Slice 2.3 入口）**：fork `llm.ts` 闭包前置域（`delegation` 12 · `agent` 12 · composition/skill 目录）优先，或 `session` 主体 54 件接缝分类——入口时按「解锁 fork runner 流」价值排序。
 
+### 10.5 Slice 2.3 叶域首波（2026-10-16，`3f51155d8`）
+
+**依赖探针定界**（fork llm.ts 闭包逐域 grep）：`cache`/`composition`/`installation`/`question` **零内核相对依赖**（叶域，本波落地）；`delegation` 重依 `session/sql`+`tool`（后置）；`workflow` 依 `composition/digest`+`session/task`+`tool/task-driver`（后置）；`skill` 两件依 `agent`（第二环）。
+
+**交付（7 源件 + 5 测试件，26/26 全绿）**：
+- `id/id.ts`（**M 件**＝fork 权威形态：schema/identifier 前缀包装层，13 种前缀含 workflowRun/workflowStep）直 port；
+- `util/hash.ts`（noble→`node:crypto` 等价重写，`Hash.fast`/`Hash.sha256` 输出逐字节同源）+ 官方测试；
+- `cache/cache-shape.ts`（前缀形状快照+诊断，直供 cacheDiagnostics 端点）+ 官方测试；
+- `composition/digest.ts`（规范化字典序 sha256 → `Composition.Digest`，SnapshotDrift 校验桩）+ `consumer-view.ts`（schema 侧纯再导出）+ 官方测试；
+- `installation/version.ts`（AIGCFROGE_VERSION/CHANNEL 全局声明）；
+- `question.ts`（198 行：QuestionV2 服务，ask/reply/reject/list + 三事件 + Location 实例隔离语义）+ 官方测试（生命周期/拒绝/隔离三例）。
+
+**新配方**：⑧ **事件定义转换**——fork `EventV2.define({type, schema})` 无 durable 选项时 → base `Bus.ephemeral({...})`（bus.ts:88-89 再导出工厂）；`EventV2.Service` → `Bus.Service`；测试接线 `AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]))` + `Layer.provide`/`Layer.mergeAll` 引用共享（同一 layer 引用两处出现 = 同实例，fork 测试的隔离语义可直搬）。⑨ **依赖等价重写**——base 缺第三方依赖（@noble/hashes）时以标准库等价实现，且**以 fork 官方测试自身断言背书**（hash.test 断言与 node:crypto 逐字相等）。⑩ **命名碰撞规避**——模块自有导出（question.ts 的 `Event` 注册表）与 schema 工厂撞名时，改用 Bus 再导出而非 rename import（零别名原则）。
+
+**门禁成绩**：core **0 错** · 新旧测试 **26/26** · 分包 **19/19 全绿**。
+
+**Slice 2.3 续篇路线**：第二环 = `skill/composition-catalog.ts` + `skill/guidance.ts`（依 composition✓ + agent）→ `agent/meta` 六件（intent/engine-selector/memory/mention/meta-prompt/prerouter）→ `agent` 编排三件 → `config` 8 → `delegation` 12（待 session/tool）→ `workflow` 6。`composition-resolver.ts`（fork 顶层新件）随 composition 完整切片入列。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
