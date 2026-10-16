@@ -1,6 +1,6 @@
 # AigcForge 对齐上游 OpenCode v2 完整桌面端架构调研与实施方案
 
-> **状态**：R0 已闭环（2026-10-16，`v2-dev` @ `9c29234af`，install + typecheck 19/19 全绿）/ R1a Schema 合同移植已闭环（`fc1714de4`，schema 319/319 测试全绿 + 全仓 19/19 typecheck + generate 零漂移）/ R1b 进行中：**28/35 个 fork instance 组已注册**（……+ `5323b25bd` mcp-instance；server 测试 6 败已三分定界见 §9.2；剩余 `config/provider/workspace/session/tui/experimental/global/instance` 7 组深水专项——`config` 需 ConfigV1 子树 + entry Provider.Info 双提升、`session`(782 行) 与 `provider` 为最大两块）/ R2~R5 待窗口推进  
+> **状态**：R0 已闭环（2026-10-16，`v2-dev` @ `9c29234af`）/ R1a Schema 合同移植已闭环（`fc1714de4`）/ R1b：**30/34 个可注册组已闭环**（tui 经审计裁定跳过；`e31fe6d9c` = batch 10 完成 R1b-config 专项：v1 config 子树 17 文件提升入 `schema/v1/config/` + `config-instance` 组 + mcp-instance 复用归一；剩余 `workspace/provider/session/experimental/global/instance` 6 组按 §9.3 排序续攻）/ R2~R5 待窗口推进  
 > **R0 交付记录**：裁剪 35→20 目录（`ae30e473c`）· 改名桥 `script/rename-bridge.ts` 全量落地（`9c29234af`，含 6 段大小写映射与 5 类哨兵豁免）· 遗留债务 R0.1 见 §9.1 与审批记录 F5/F6  
 > **R1a 交付记录**（2026-10-16）：58 个 A 文件 + `session-input`/`session-delivery`/`session-message-id` 回植 · 双演化合同（session/session-message/provider）驻 `src/v2/` 过渡位（R2/R3 就位后原子正名切换，见 §5.3 与债务台账）· Effect beta.83→4.0.1 适配六项（`TaggedErrorClass→TaggedError`、`optionalOmitUndefined→optional`、`withStatics 柯里→statics`、`isStartsWith→isStartingWith`、`InvalidValue` 签名、`declareConstructor`+`toCodecJson` 的 codec 预剥离需严格选项随行）· 4.0.1 Record 键细化静默丢条目的 fail-closed 修复（`Composition.strictBindings`）· `agent-asset` 的 `Schema.mutable` 过渡豁免  
 > **R1b 交付记录**（2026-10-16）：端到端打通「fork 端点 → protocol → client 生成 → server stub」管线并固化配方——① fork instance 级 API 的中间件契约/运行时分离：`WorkspaceRouting`/`InstanceContext` 标签+`WorkspaceRouteContext` 入 protocol，270 行路由实现归 server（R2）；② `ApiNotFoundError`（fork 线形态）入 errors；③ prompt-asset 四端点注册 + api.ts 装配；④ codegen 可移植性配方（经 Batch 2/3 淬炼成型）：品牌标量需 `identifier`、字符串长度界 filter 一律换内建 `isMinLength/isMaxLength/isPattern`、数组界用 `isMaxLength`、无法内建的自定义 filter 需 `representation`+`arbitraryConstraint`+`toCode`（运行时表达式自包含）；⑤ client `namespaceTypes` 注册对应 schema 命名空间（codec 类导出不得从 schema 模块导出——会与本体撞 identifier）；⑥ server fail-closed stub（die / `kind:"not_implemented"`，集中于 `asset-stubs.ts`/`composition-stubs.ts`，R2 实装时整文件删除）；⑦ **McpBinding 深水裁定**：声明式严格绑定（declareConstructor + 运行时秘密扫描）无法被 4.0.1 representation 发射器表达 → 加 `representation: { id: "effect/schema/Json", payload: null }` 令客户端按 Json 处理该字段（服务端严格性完整保留；客户端精确类型待上游 reviver 插桩后精化，登记 R2 债）；⑧ 4.0.1 `parseOptions` 注解机制查明（`StrictMcpServerBinding` 即此法）——后续边界严格化可优先用 schema 级注解替代调用点选项。**累计 9 组**：prompt/skill/mcp/command/agent/plugin/workflow-asset + custom-profile + custom-composition。门禁恒定：schema 319/319 + 全仓 19/19 + generate 二次零漂移 + server 预存 6 环境败与改动无关（净土对照验证）。
@@ -243,14 +243,16 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 ### 9.2 server 测试 6 败定界报告（2026-10-16，三分定界完成）
 
+基座 `bun --cwd packages/server test` 的 6 个失败已完成根因定界（含 pristine upstream `461721082` 净土对照复现）：
+- **Class A（3 个，OAuth 端口 1455/1457 族）＝ 真实数据污染，我方环境问题，已解决**：codemod 后基座测试与 fork 实际运行共用品牌数据目录 `~/.local/share/aigcfroge`，测试读到用户真实 auth/worktree 状态而碰撞（实证：`WorktreeError: destination already exists … 3a81d2/custom-10` 为 fork 真实 worktree）。**约定（全员遵守）**：本仓运行 server/core 测试一律带 XDG 隔离——`XDG_DATA_HOME/XDG_CACHE_HOME/XDG_CONFIG_HOME/XDG_STATE_HOME` 指向 /tmp 隔离目录后，Class A 三个测试全部转绿；
+- **Class B（3 个：插件夹具 2 + 下载中止 1）＝ 上游自身问题，与本次迁移无关**：在 pristine upstream worktree 上以同样隔离环境复现同样失败（插件 fixture 在测试环境中静默未加载 config 插件；下载中止测试 5s 超时）。登记为上游债务（R5 E2E 前复核上游是否修复/CI 环境差异），**不阻塞 R1b/R2**。
+
 ### 9.3 R1b 剩余攻坚路线图（2026-10-16 中段裁定）
 - **`tui` 组：裁定跳过（已闭环）**。消费面审计：fork 侧零非 TUI 消费者（`app`/`session-ui`/`cli` 全部无 `/tui` HTTP 调用；命中均为 tui 包内部 import 路径）；R0 已退役 tui 包与客户端，按**桌面端闭包原则**不注册该组。若未来桌面端需要终端控制端点，归 R4（ghostty-web 终端）另行设计。
 - **`config` 组：独立专项切片（R1b-config），测绘完成**。关键事实：v1 config 呈三态——① 共享未改动件（`agent/command/error/mcp/permission/plugin/provider` 在 base `core/v1/config/` 原样存在）；② fork 修改件（`config.ts`(Info 聚合根)/`migrate.ts`/`provider-options.ts`）；③ fork 保留而上游新删件（`attachment/formatter/layout/lsp/server/skills/console-state`）。提升需按 base 已建惯例（`schema/v1/permission` 模式）将 v1 config 合同**重定位**入 `schema/v1/config/`，并让 core 侧改 re-export——**触及 core 运行时导入面的架构搬迁**，规模 ~1224 行/17 文件，须以独立窗口执行，含：全量搬迁 + core re-export 改造 + `config-instance` 组（get/update/providers，providers 另需 entry `Provider.Info`+`Model` 内联提升）+ 全门禁。
 - **其余组成本排序**：`workspace`(141 行，control-plane 内部依赖) → `provider`(137 行，entry provider/auth/discover 深耦合) → `session`(782 行，最大单块) → `experimental/global/instance`(入口重提升，注册前需按桌面端闭包做价值裁定)。
 
-基座 `bun --cwd packages/server test` 的 6 个失败已完成根因定界（含 pristine upstream `461721082` 净土对照复现）：
-- **Class A（3 个，OAuth 端口 1455/1457 族）＝ 真实数据污染，我方环境问题，已解决**：codemod 后基座测试与 fork 实际运行共用品牌数据目录 `~/.local/share/aigcfroge`，测试读到用户真实 auth/worktree 状态而碰撞（实证：`WorktreeError: destination already exists … 3a81d2/custom-10` 为 fork 真实 worktree）。**约定（全员遵守）**：本仓运行 server/core 测试一律带 XDG 隔离——`XDG_DATA_HOME/XDG_CACHE_HOME/XDG_CONFIG_HOME/XDG_STATE_HOME` 指向 /tmp 隔离目录后，Class A 三个测试全部转绿；
-- **Class B（3 个：插件夹具 2 + 下载中止 1）＝ 上游自身问题，与本次迁移无关**：在 pristine upstream worktree 上以同样隔离环境复现同样失败（插件 fixture 在测试环境中静默未加载 config 插件；下载中止测试 5s 超时）。登记为上游债务（R5 E2E 前复核上游是否修复/CI 环境差异），**不阻塞 R1b/R2**。
+
 
 ---
 
