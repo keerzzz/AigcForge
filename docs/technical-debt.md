@@ -1056,3 +1056,15 @@ SDK独立审计见 `sdk-independent-audit-20261015-lvt0udqg/audit.json`；接受
 - **037既有skip仍开放**：`httpapi-provider-not-found-skip`，owner=S8，源为 `packages/aigcfroge/test/server/httpapi-provider.test.ts:331` 的 `returns public v2 provider not found errors`。实际为`it.instance.skip`，没有注明原因。需核对当前provider路由/错误合同，修复或纠正该具体测试后解除skip并跑完整文件；本轮七条active provider测试不替代它。unlock已登记coverage manifest。
 
 038测试修正后的后端typecheck、两文件format、增量lint与diff检查均exit0；增量lint实际2文件/6新增行。本节不关闭完整后端整包、R02、E4、其他平台或S08/S09；039–074、剩余包/extra tests、API硬门禁、状态/性能、真实packaged thread/resume、历史/外部provider及受授权远程交付范围仍沿各自owner/unlock开放。上一节的后代回收门禁只证明测试生命周期，不是产品完成条件。
+
+### 15.23 2026-10-16 S08 / 后端039–042续验与admit-only测试前提修正
+
+实施目录 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`。只改 `httpapi-session.test.ts` 的请求前提、本节与coverage manifest；生产源码、Schema、SDK、依赖和主目录 `main` 不变。原授权只允许验证后的本地提交，不包含push、远端CI或发布。
+
+- **041根因与修正**：原单文件组为outer90/exit124，截止前出现真实断言失败：精确重试多出 `promotedSeq: 2`。测试要求零可见消息和 `promoted_seq: null`，请求却省略 `resume: false`。调度规则由 `packages/core/src/session.ts:908` 的新入库且非admit-only条件决定；精确重试是否匹配由 `packages/core/src/session/input.ts:666` 的 `equivalent` 决定，调用位于 `session.ts:904`。公开合同为 `packages/server/src/groups/session.ts:254–280`。两次相同请求与冲突请求显式走既有admit-only；保留完整响应相等、持久化行、零消息及409冲突断言，不修改执行语义或删掉 `promotedSeq` 后比较。原失败日志、原文件SHA和原停止队列均保留。
+- **041完整验收**：TypeScript AST列出39条 `(file, describe, name)` 唯一用例，无既有skip；按原顺序10＋9＋15＋5穷尽分片。每片自然exit0，合计 **39 pass / 0 fail / 0 selected skip / 200 assertions**。每份JUnit仍包含全部39条身份；其余29/30/24/34条filtered rows只用于证明未选集合，不计产品skip或通过。外部90秒、内部90000ms、concurrency1与零重试不变。全文件原执行的partial passes计零，不能与分片相加。
+- **039–042记账**：039完整文件 **21 pass / 56 assertions**；040原三文件 **10 pass / 99 assertions**；042原两文件 **47 pass / 1既有skip / 125 assertions**。与041合计 **117 pass / 1既有skip / 480 assertions / 7不同文件**，由 `backend041-042-suffix-20261016-rzskg5i4/039-042-accounting.json` 从实际queue/audit/JUnit生成，未重复身份。041与042收据、精确分片并集证明见同目录 `acceptance.json`。运行源码、HEAD、index冻结；每次owner实际ECHILD、无后代，注册私有root删除。039/040是已接受的旧成功结果，不把原040–042停止队列称为整批exit0。
+- **启动错误单独保留**：新分片准备曾被缺失owner绑定字段、非法label拒绝；另一次filter实际选中0/39，exit1。它们不是产品RED或通过。相关目录/console/freeze不覆盖；修订只补既有绑定并使用字面用例名后缀，最终JUnit核对每片选中集合及39条完整并集。没有重新验证或替换现有owner。
+- **042既有skip开放**：`httpapi-sync-validation-skip`，owner=S8，声明源 `packages/aigcfroge/test/server/httpapi-sync.test.ts:130`，JUnit标题行131。`returns structured validation errors` 的status/content-type/error-envelope断言没有执行，skip处无原因。须追踪当前Sync payload decoder/错误序列化，按受支持合同修正后解除skip并验收完整文件；不能用相邻400状态断言替代。owner/unlock已登记coverage manifest。
+
+本切片不关闭完整后端整包或S08/S09。043–074、037 provider既有skip、新增/extra package tests、API硬门禁、R02剩余状态、E4/性能/packaged thread/resume、历史/平台/外部provider及授权交付仍按§15.21各自owner/unlock开放。
