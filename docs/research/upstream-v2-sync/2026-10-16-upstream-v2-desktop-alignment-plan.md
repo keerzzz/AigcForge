@@ -241,6 +241,11 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 - **统计快照漂移**：`scan-divergence.sh` 产出对标 upstream @ `55dde88`（2026-10-10），与基线 `461721082`（2026-10-16）存在约 6 天上游漂移；**R1 启动前须重跑扫描刷新移植清单口径**；
 - **`.github` CI 死配置**：引用已剔除包的 workflow 在 R0 不重构（门禁为本地 install+typecheck），登记为 R0.1 债务，随 ADR-26 发布体系改造一并闭环。
 
+### 9.2 server 测试 6 败定界报告（2026-10-16，三分定界完成）
+基座 `bun --cwd packages/server test` 的 6 个失败已完成根因定界（含 pristine upstream `461721082` 净土对照复现）：
+- **Class A（3 个，OAuth 端口 1455/1457 族）＝ 真实数据污染，我方环境问题，已解决**：codemod 后基座测试与 fork 实际运行共用品牌数据目录 `~/.local/share/aigcfroge`，测试读到用户真实 auth/worktree 状态而碰撞（实证：`WorktreeError: destination already exists … 3a81d2/custom-10` 为 fork 真实 worktree）。**约定（全员遵守）**：本仓运行 server/core 测试一律带 XDG 隔离——`XDG_DATA_HOME/XDG_CACHE_HOME/XDG_CONFIG_HOME/XDG_STATE_HOME` 指向 /tmp 隔离目录后，Class A 三个测试全部转绿；
+- **Class B（3 个：插件夹具 2 + 下载中止 1）＝ 上游自身问题，与本次迁移无关**：在 pristine upstream worktree 上以同样隔离环境复现同样失败（插件 fixture 在测试环境中静默未加载 config 插件；下载中止测试 5s 超时）。登记为上游债务（R5 E2E 前复核上游是否修复/CI 环境差异），**不阻塞 R1b/R2**。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
