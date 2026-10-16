@@ -441,6 +441,24 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **工具流大窗准备度（给正名窗口的交接清单）**：SDK 依赖决策（`@agentclientprotocol/sdk`/`@anthropic-ai/claude-agent-sdk`）· effect 迁移面已预清（㉕）· Job/BackgroundJob 仲裁（prompt/extend 语义）· tool 域 AGENTS.md 规范为仲裁基准 · R4 LLM 收敛决策（llm 包引入面）· 清单：cli 簇 18 件 2600+ 行 + `tool/tool.ts`/`mcp-registration`/`mcp/connection`/`task-driver`(1111)/`judge`/`catalog`/`share-summary` + `delegation/service`(1164)/`execution`(758)/`recovery`(241)。
 
+### 10.13 余量权威对账 + 会话摘要组落地（2026-10-16，`c54f0cf11`）
+
+**余量权威对账（修正早期口径）**：以 `delta A 件 − base 实存` 全量重算——剩余 core A 件 **142**：tool **45** · database **35**（≈34 fork 迁移件——**生成器管辖，非 port 目标**）· session **28** · workflow 6 · 小域群 22。**早期小域口径修正**：`plugin`/`v1`/`github-copilot`/`util`/`public` **零缺口**（旧计数混入了退役 `aigcfroge` 包路径）。真实剩余 ≈**107 件**。
+
+**交付（4 源件 + 1 fixture + 1 测试件）**：
+1. `session/tool-summary.ts`（111 行，toolSummary 端点后端）+ 官方测试 **11/11**（fixture 适配：base 工具态四形 `streaming/running/completed(NonEmptyArray Content)/error` + `FinishReason` 归一 `end_turn→stop`）；
+2. `session/summary.ts`（48 行，diff 端点：snapshot 起止读取 `V2Snapshot.diffFull`）；
+3. `session/share-v2.ts`（129 行，跨会话分享：reference/output/full 三态 + Synthetic 注入 + 可选触发；**事件载荷裁剪**——base Synthetic 仅收 `{sessionID, text}`，id/时间戳由基座内部补）；
+4. `session/v2-snapshot.ts`（27 行，快照契约——实现归 `v2-runtime`，门控中）。
+
+**新配方**：
+- ㉖ **活契约优先**——fork 会话消费件（share/summary）的消息类型指向 **base 活契约 `SessionMessage.Info`**（非 v2 驻留合同）：实证 base Info 联合全含所需成员（Shell.command/Assistant.snapshot/content），跨契约转换零成本；v2 驻留合同仅服务 fork 自有服务链。
+- ㉗ **型面差异三连**——`ToolState` 四形（streaming 非 pending/required metadata/content 非空）、`FinishReason` 归一集、Synthetic 事件载荷最小化。
+
+**挂账（本组余）**：`session-identity`（310 行，hub：artifact/composition/schedule-service/plugin-asset/workflow-asset 依赖簇未就绪）· share/summary 测试件（需 base 会话测试脚手架——与 session 主体切片同窗）· `cache-diagnostics`（依 `v1/session` 642 行）· `v2-runtime`（依 `location-layer` 324 行）。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **11/11** · 回归 **127/127**（9 文件）。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
