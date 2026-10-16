@@ -475,6 +475,22 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **81/81**（9 文件）· 回归 **120/120** · `migration --check` ✓。
 
+### 10.15 KB 与 Task/Schedule 簇 + session 表融合（2026-10-16，`ef33ea74d`）
+
+**交付（10 源件 + 6 测试件，114/114 全绿）**：
+1. **KB 簇**：`kb/link.ts`（双链解析）+ `session/kb-service.ts`（820 行：FTS 索引笔记服务）+ `kb.sql.ts` 表；官方测试 **32/32**；
+2. **Task/Schedule 簇**：`session/task.ts`（1176 行：任务 CRUD/乐观并发/事件投影）+ `session/todo.ts`（128 行：todo 投影）+ `schedule`/`schedule-core`/`schedule.sql`/`schedule-service`（714 行：到期投递 at-least-once claim + 退避）；官方测试 **82/82**（session-task-service 单套 1654 行含并发/条件认领/观察者事务化用例）；
+3. **session 表融合（D12 前置落库）**：`session_v2` +3 列（`mode`/`permission_tier`/`attended`，含默认值+索引）· `TaskTable` · `SessionCompositionSnapshotTable`——**迁移三个**（personal_memory/knowledge_base/task_and_schedule）经生成器落地（ALTER+CREATE 全备）。
+
+**新配方**：
+- ㉛ **默认层不捆数据库**——fork 的 `defaultLayer = layer.pipe(provide(Database.defaultLayer))` 常量共享 → base 工厂调用=**每模块独立内存库**（⑳ 源侧再现）——移植规约：defaultLayer **只导出 `layer` 本体**，Database/Bus 由消费侧图层图提供（单库保证）。
+- ㉜ **provideMerge 链修复跨层依赖**——`Layer.mergeAll` 不解析层间依赖；`X.pipe(provideMerge(...), ...)` 链式方可收敛（session-task-service 五层收敛实证）。
+- ㉝ **fork 包↔内建对位**——`effect-drizzle-sqlite` → 内建 `database/drizzle/sqlite-core/effect`；`EffectSQLiteTransaction<Rel>` → 从 `db.transaction` 签名**派生**（零深导入）；`unstable/sql/SqlError` → `sql/SqlError`。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **114/114**（kb 32 + task/schedule 82）· 回归 **222/222**（14 文件）· schema **319/319** · `migration --check` ✓。
+
+**余量更新**：session 域余 `composition`（381）· `session-identity`（hub）· `cache-diagnostics` · `v2-runtime` · `share-summary` · `task-driver-fill`/`scheduled-job-executor`（工具流窗）· workflow 6 · 工具流大窗。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
