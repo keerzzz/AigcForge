@@ -544,6 +544,24 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **R2 剩余终盘**：`v2-runtime`（依 `location-layer`，LLM 门）· `share-summary`（依 `@aigcfroge/llm`，R4 门）· `composition-resolver`（依 mcp/connection + tool registry）· break-glass 全融合 + 3 permission 测试 → **全部收敛至「工具流大窗」**（与 cli 簇、task-driver 系、workflow 3 件同窗）；除工具流大窗外，**R2 移植面已全部落地**。
 
+### 10.20 Schema/Server 侧收尾：grant + path-identity 组全栈落地（2026-10-17，`ccc288552`）
+
+**盘点结论**：schema 侧 **零 A 缺口**（33/33 全落）；server 侧 7 件缺口 = grant/path-identity 的 group+handler + `query-boolean`（R1b 未注册此两组）。
+
+**交付（全栈打通）**：
+1. **协议侧**：`groups/path-identity.ts` + `groups/grant.ts`（3 端点：grant.list / grant.revoke / session.permission.grant）——**经 base 中间件代数装配**；`errors.ts` +`GrantNotFoundError`；
+2. **服务端**：`handlers/path-identity.ts` + `handlers/grant.ts`（含 `issueGrantForRequest` 补偿语义：grant 落地后 reply 失败 → 按 CAS revision 回滚） + `query-boolean.ts` + handlers 聚合接入；
+3. **Core 侧**：instance 图 +3 location 节点（`SessionPermissionOverride`/`ScopedGrantStore`/`PathIdentity`）+ 各 node 导出；permission 的 `effectiveRules` 经此获得运行时供给；
+4. **Codegen**：空段回退（端点尾段撞组名时取全名）+ `McpScope` typeReference 注册 + 客户端重生成；
+5. **实测**：config/fetch/vcs 端到端 **21 测 19 绿**（余 2 = §9.2 既定 Class B 上游插件夹具件，非回归）。
+
+**新配方（架构级，两枚）**：
+- ㊱ **中间件代数装配**——base 的 `makeDefaultApi` 以「类型侧 `LocationGroups<LocationId>` = `HttpApiGroup.AddMiddleware<typeof X, LocationId>` 联合 + 值侧 `X.middleware(locationMiddleware)` 链」两段式注入中间件；**真实 handler 必须走代数**（中间件 `provides: LocationServices` 的型供给才能覆盖 handler 的服务需求）；R1b 的 raw `.middleware(协议侧标记)` 仅 stub 可容（无服务访问故无感）。
+- ㊲ **schema 类引用的 codegen 注册**——未在 build.ts typeReference 注册表登记命名空间的 schema 类会被**深展开**丢失类品牌 → `preserveEffect` 合同守卫失败；注册命名空间 + 重生成即得类引用（`McpScope.ScopedGrantInfo` 直引实证）。
+- ㊳ **codegen 空段回退**（尾段撞组名时取全名段）。
+
+**门禁成绩**：core **0 错** · protocol/client/server **0 错** · 分包 **19/19 全绿** · 服务端端到端 **19/21**（余 2 既定上游件）。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
