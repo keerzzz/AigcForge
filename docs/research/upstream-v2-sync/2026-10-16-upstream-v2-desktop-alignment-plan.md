@@ -242,6 +242,12 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 - **`.github` CI 死配置**：引用已剔除包的 workflow 在 R0 不重构（门禁为本地 install+typecheck），登记为 R0.1 债务，随 ADR-26 发布体系改造一并闭环。
 
 ### 9.2 server 测试 6 败定界报告（2026-10-16，三分定界完成）
+
+### 9.3 R1b 剩余攻坚路线图（2026-10-16 中段裁定）
+- **`tui` 组：裁定跳过（已闭环）**。消费面审计：fork 侧零非 TUI 消费者（`app`/`session-ui`/`cli` 全部无 `/tui` HTTP 调用；命中均为 tui 包内部 import 路径）；R0 已退役 tui 包与客户端，按**桌面端闭包原则**不注册该组。若未来桌面端需要终端控制端点，归 R4（ghostty-web 终端）另行设计。
+- **`config` 组：独立专项切片（R1b-config），测绘完成**。关键事实：v1 config 呈三态——① 共享未改动件（`agent/command/error/mcp/permission/plugin/provider` 在 base `core/v1/config/` 原样存在）；② fork 修改件（`config.ts`(Info 聚合根)/`migrate.ts`/`provider-options.ts`）；③ fork 保留而上游新删件（`attachment/formatter/layout/lsp/server/skills/console-state`）。提升需按 base 已建惯例（`schema/v1/permission` 模式）将 v1 config 合同**重定位**入 `schema/v1/config/`，并让 core 侧改 re-export——**触及 core 运行时导入面的架构搬迁**，规模 ~1224 行/17 文件，须以独立窗口执行，含：全量搬迁 + core re-export 改造 + `config-instance` 组（get/update/providers，providers 另需 entry `Provider.Info`+`Model` 内联提升）+ 全门禁。
+- **其余组成本排序**：`workspace`(141 行，control-plane 内部依赖) → `provider`(137 行，entry provider/auth/discover 深耦合) → `session`(782 行，最大单块) → `experimental/global/instance`(入口重提升，注册前需按桌面端闭包做价值裁定)。
+
 基座 `bun --cwd packages/server test` 的 6 个失败已完成根因定界（含 pristine upstream `461721082` 净土对照复现）：
 - **Class A（3 个，OAuth 端口 1455/1457 族）＝ 真实数据污染，我方环境问题，已解决**：codemod 后基座测试与 fork 实际运行共用品牌数据目录 `~/.local/share/aigcfroge`，测试读到用户真实 auth/worktree 状态而碰撞（实证：`WorktreeError: destination already exists … 3a81d2/custom-10` 为 fork 真实 worktree）。**约定（全员遵守）**：本仓运行 server/core 测试一律带 XDG 隔离——`XDG_DATA_HOME/XDG_CACHE_HOME/XDG_CONFIG_HOME/XDG_STATE_HOME` 指向 /tmp 隔离目录后，Class A 三个测试全部转绿；
 - **Class B（3 个：插件夹具 2 + 下载中止 1）＝ 上游自身问题，与本次迁移无关**：在 pristine upstream worktree 上以同样隔离环境复现同样失败（插件 fixture 在测试环境中静默未加载 config 插件；下载中止测试 5s 超时）。登记为上游债务（R5 E2E 前复核上游是否修复/CI 环境差异），**不阻塞 R1b/R2**。
