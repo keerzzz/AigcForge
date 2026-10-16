@@ -352,6 +352,23 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **第三环续篇**：`schema/agent.ts` 融合（attended/handoffs/origin* + `empty` static，伴 base `default` 并存）→ `config/agent.ts`（27 行，`ConfigProvider.Request→Schema Provider.Request` 映射）→ `agent-asset.ts`/`skill-asset.ts` 模型层 → `asset-bridge`（`Agent.Info.empty`/`registerAgentAssetTransform`）→ services 双件 + `file-loader`；`asset-migration.test.ts`（176 行）随模型层落地。
 
+### 10.8 Slice 2.3 第三环主体（2026-10-16，`929fd069c`）
+
+**交付（12 源件 + 4 测试件，全绿）**：
+1. **schema 双融合**：`schema/agent.ts`（+`attended?`/`handoffs`（只读必填）/`originRelativePath?`/`originRevision?` + `empty` static 与 base `default` 并存，required 字段涟漪＝零——base 唯一构造点即 statics）；`schema/config/agent.ts`（+`handoffs?`）。**base 已备对齐件免 port**：`ConfigAgent` 早已上移 `@aigcfroge/schema/config/agent`（含 `ConfigModel.Selection` 演化）；`ConfigProvider` 同理（`schema/config/provider`）。
+2. **asset 模型层 8 件**：`agent-asset`/`skill-asset`（已在前波）+ `prompt-asset`/`mcp-asset`/`command-asset`（187/197/225 行，三 kind 同构）+ 各自 `path.ts`；`asset-kind`（前波）。
+3. **`agent/asset-bridge.ts`**：`parseAgentAssetConfig`（Bun.YAML 原生）/`agentAssetToAgentInfo`（`ConfigModel.Selection` 直映 `Model.Ref`）/`registerAgentAssetTransform`（防覆盖语义）/watcher 自动刷新层。
+4. **测试四件适配**（15/15）：cross-kind 隔离、状态注入、防覆盖 + 遗留迁移（.claude/.agents 优先级/非法名/首启判定）。
+
+**新配方**：
+- ⑯ **同步 transform 陷阱（重大）**：base `TransformCallback = (editor) => void` **同步回调**——Effect 返回形回调在 void 位置被 TS 放行且**运行时静默吞没**（fork 形 `(draft) => Effect.gen(...)` 注册成功但永不执行）。适配：`Effect.runSync(内存读取)`；测试内 fork 形 `Effect.sync` 包装同样修正。**审计面**：全部 agent transform 消费点。
+- ⑰ **schema 融合契约协议**：遵 schema AGENTS——`Schema.mutable` 禁用（只读 + `Types.DeepMutable` 边界突变）；optional 用 `optional(...)` 助手；required 字段涟漪 = 构造点显式补齐 + fixture 深克隆（`host.ts agentInfo` 增 handoffs 映射）。
+- ⑱ **base 化测试图层接线**：`FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))`（替代 `defaultLayer`）；fixture `location()`（替代 `Location.layer(ref)`）；`AppNodeBuilder.build(LayerNode.group([Agent.node, Bus.node, Location.node]), [Global.node.replace(globalLayer), Location.node.replace(...)])`（替代 `Agent.layer`）；Bus 于资产层为 serviceOption 可选 → 测试可省略。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 新测试 **15/15** · 回归 **90/90**（10 文件含 session-prompt）· schema **319/319**。
+
+**第三环收尾预告**：services 五件（`agent/skill/prompt/mcp/command-asset-service.ts` ≈2000 行，`file-mutation`/`permission/effective` 齐备）→ `file-loader`（gray-matter ✓ base 已备）→ `judge`/`meta/memory` → fork `agent.ts`（M）仲裁。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
