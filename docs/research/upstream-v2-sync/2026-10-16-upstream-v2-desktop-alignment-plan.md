@@ -261,4 +261,24 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 ---
 
+---
+
+## 10. R2 开窗研究（2026-10-16，Slice 2.1 可执行化）
+
+### 10.1 Core 增量分布（权威：fork-delta，544 = 372 A + 171 M + 1 D）
+`src/tool` 62 · `src/session` 54 · `src/database` 38 · `test/plugin` 31 · `src/plugin` 12 · `src/delegation` 12 · `src/agent` 12 · `src/config` 8 · `src/workflow` 6 · `src/util` 6 · `src/mcp` 6 · `src/github-copilot` 6 · `src/v1` 5 · **`src/system-context` 5** · 其余小域。
+
+### 10.2 Core 侧双演化缝地图（R2 每个切片的通用处理规约）
+1. **合同重映射（缝 A）**：fork core 文件 import `@aigcfroge/schema/session|session-message|provider` 期望 fork 形态——移植时**机械重映射至 `@aigcfroge/schema/v2/*`**（与 R1a 过渡位对接；R3 末正名切换时统一回改）。其余 schema 模块（permission-tier/workflow-asset/composition/session-task/session-identity 等）为已融合 canonical，直用无需重映射。
+2. **`session/schema.ts` 解析缝（缝 B）**：双侧该 shim 文本同构（`export * as SessionSchema from "@aigcfroge/schema/session"`），区别仅在**解析目标**——无需文本手术；随缝 A 重映射同步生效（移植文件的 `./schema` import 保持不动，被重映射的是其深层依赖）。
+3. **`../event` 重构缝（缝 C）**：fork `core/src/event.ts`（EventV2 服务，M 文件）在 base 已重构为 `core/src/event/` 目录 + event-logger——**上游演化缝**，需事件系统专项对账（后续切片）；Slice 2.1 内先以最小适配层（fork 调用面映射至 base event/）隔离，登记专项债务。
+4. **fork-only 闭包模块**：`session/correction-store`、`meta-agent/sql`、`permission/effective`、`session/verifier`×2（delta 内）+ `instruction-context`（fork 保留-上游新删，delta 外）——直 port。
+
+### 10.3 Slice 2.1（Core 地基）可执行清单
+**范围**：System Context 代数（5）+ Epoch 持久化（`session/context-epoch.ts`）+ 准入语义闭包（verifier、correction-store、permission/effective、meta-agent/sql、instruction-context）。
+**执行序**：① 闭包模块直 port（按依赖序：util 类→store 类→域类）→ ② `schema/v2/*` 重映射（缝 A 规则）→ ③ event 适配层（缝 C 最小隔离）→ ④ 门禁：`bun --cwd packages/core typecheck`（新文件零错、存量不回归）+ schema 319/319 + 全仓 19/19。
+**闸门后资产**：System Context 代数与 Epoch 语义进入基座 → 解锁 Slice 2.2（SessionExecution 调度/Event Replay/Provider Turn）。
+
+---
+
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
