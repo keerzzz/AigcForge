@@ -459,6 +459,22 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **11/11** · 回归 **127/127**（9 文件）。
 
+### 10.14 会话工具与治理簇落地（2026-10-16，`6c5cb0d19`）
+
+**交付（10 源件 + 9 测试件，81/81 全绿）**：
+1. **治理三件**：`session/artifact.ts`（作品落盘：LocationMutation 越界拦截 + FileMutation 原子写/防覆盖 + 冲突守卫）· `session/doom-loop.ts`（重复调用环检测，权限/配置驱动）· `session/reference-checker.ts`（引用校验：markdown 链接/TS import 悬空检测 + CorrectionStore 写入，**真实 ripgrep 链路实测**）；
+2. **记忆与工作簇**：`session/personal-memory.ts` + `.sql.ts`（assistant 模式记忆三事件 + 表）· `session/work-preset.ts`（预设注册表）· `session/work-review.ts`（评审状态机）；
+3. **杂件**：`session/dag.ts`（任务依赖环检测）· `session/correction-extractor.ts`（纠正提取）· `config/meta.ts`（ConfigMeta 家族服务侧）· `session/work-review` 生命周期测试。
+
+**基础设施补齐**：`FileMutation.create`（防覆盖语义，stat-then-write under lock）+ `TargetExistsError`；`Ripgrep.layer`/`RipgrepBinary.layer` 增导出；`session/personal_memory` 表迁移（生成器）。
+
+**新配方**：
+- ㉘ **decline=defect 语义**——base 权限拒绝走 defect 通道（`Permission.Error = Blocked | Corrected`；tool/AGENTS.md 明示）：mock 用 `Effect.die(DeclinedError)`，断言用 `Cause.findDefect` + `Result`（effect 4 无 `dieOption`）。
+- ㉙ **node-scoped 服务的测试根**——ripgrep 等 location-node 服务在测试中须**按目录构建**（`Location.node.replace(绑定目录)`），共享"/"根会静默空扫描。
+- ㉚ **Config 再导出缺口定式**——`Config.Entry/Document/Info` 消费点统一直连 `@aigcfroge/schema/config`（第三次应用）；Config mock 需补 `changes` 成员。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **81/81**（9 文件）· 回归 **120/120** · `migration --check` ✓。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
