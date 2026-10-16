@@ -1081,3 +1081,12 @@ SDK独立审计见 `sdk-independent-audit-20261015-lvt0udqg/audit.json`；接受
 独立审计为 `readonly-audit-043-050-20261016-eyePmQSP/audit.json`，从原始JUnit、冻结记录和owner/目录收据重核上述集合与计数。旧计划的status/final_checkpoint字段沿用旧值，`run-selected.py`未纳入其SHA256SUMS；审计使用六组实际before/after与修后checkpoint.json对账，不把旧计划元数据当成执行证明。
 
 本切片不关闭完整后端整包或S08/S09。原发现清单下一组为051，051–074共24组、新增后端文件、显式skip、其他包/API/E3/E4/展示/性能/平台及授权交付范围仍按§15.21各自owner/unlock开放。以上是各自源码检查点的验收收据，不是同一新提交的全仓重跑。
+
+### 15.25 2026-10-16 S08 / 后端051与OpenAPI快照归一
+
+- **原失败**：`full-package-aigcfroge-051-owned-20261016-9c3583cce4` 在87.264981秒自然exit1，完整六文件为 **34 pass / 1 fail / 126 assertions**。唯一失败为 `openapi-drift.test.ts` 的独立原始快照过期；未触及90秒截止，owner与私有目录清理通过。原051–054队列停止，052–054没有执行，失败收据与旧快照字节保留在原Git提交/冻结记录中。
+- **根因修正**：SDK构建在 `packages/sdk/js/script/build.ts:14` 调用 `OpenApi.generateOpenApiSpec()`，该唯一生成边界为 `packages/script/src/openapi.ts:18`；正式drift脚本也复用它。测试改在 `packages/aigcfroge/test/server/openapi-drift.test.ts:53` 将同一生成文本与 `packages/sdk/openapi.json` 逐字比较，保留直接检查真实 `Server.openapi()` 的identifier用例及两个原测试名。删除79,254行的独立 `test/server/openapi.snapshot.json`、自动创建缺失快照和UPDATE覆写分支；更新 `docs/testing.md` 的规范生成命令。规范快照、SDK生成文件、依赖和生产源码均未修改。
+- **完整051验收**：原六文件按workflow单文件与其余五文件拆为1＋5，不加名称过滤。`backend051-split-20261016-5cig2rtn/batch-001-002/queue-result.json` 为exit0，两片分别 **11 pass / 29 assertions / 64.438918秒**、**24 pass / 97 assertions / 57.412507秒**；合计 **35 pass / 126 assertions / 0 skip / 0 fail**。同目录上级 `queue.py:271` 对比原失败JUnit的完整 `(file, classname, name)` 集合，35项无漏无重，允许修改后行号移动。每片保持90秒截止、90000ms timeout、concurrency1和零重试；完整源码/HEAD/index/branch冻结、实际ECHILD及注册目录删除均通过。原34条通过不与修后35条相加。
+- **复查**：`backend051-quality-20261016-ob1e22d_/result.json` 的后端typecheck、增量lint、两文件format均exit0，分别24.84308/7.071945/0.947230秒。准备阶段独立复审未发现阻断问题；最终子智能体遇到上游400/429，由主智能体完成差分、原始收据和源码散列复核，见 `backend051-parent-review-20261016-9l84qhml/review.json` 与 `source-correspondence.json`。生成子进程复用既有owner监督器；没有新增生成实现或运行时适配。
+
+原发现计划下一组为052，052–074共23组仍待运行。Sync旧错误包裹预期的显式skip已有只读诊断，尚未解除或计为通过；其余包/API/E3/E4/展示/性能/平台及完整S08/S09仍按各自owner/unlock开放。

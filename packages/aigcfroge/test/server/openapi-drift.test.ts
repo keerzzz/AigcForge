@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, test } from "bun:test"
-import { openapi } from "../../src/server/server"
+import { OpenApi } from "@aigcfroge/script/openapi"
+import { Server } from "../../src/server/server"
 
 /**
  * The OpenAPI contract gate (S6 CI wiring).
@@ -13,12 +13,9 @@ import { openapi } from "../../src/server/server"
  *  2. silent drift between the checked-in snapshot and the live spec, which is how
  *     a response shape changes without anyone reviewing the contract diff.
  *
- * Update the snapshot deliberately: `UPDATE_OPENAPI_SNAPSHOT=1 bun test ./test/server/openapi-drift.test.ts`
+ * Reuse the SDK generation boundary and its committed snapshot. Regenerate with
+ * `./packages/sdk/js/script/build.ts` from the repository root.
  */
-const SNAPSHOT_PATH = path.join(import.meta.dir, "openapi.snapshot.json")
-const UPDATE = process.env.UPDATE_OPENAPI_SNAPSHOT === "1"
-const normalizeLineEndings = (input: string) => input.replaceAll("\r\n", "\n")
-
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
 
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete", "head", "options"])
@@ -40,7 +37,7 @@ function operations(spec: unknown): Array<{ name: string; operationId?: unknown 
 
 describe("OpenAPI contract", () => {
   test("every operation carries an identifier", async () => {
-    const spec = await openapi()
+    const spec = await Server.openapi()
     const all = operations(spec)
     expect(all.length).toBeGreaterThan(0)
 
@@ -54,15 +51,9 @@ describe("OpenAPI contract", () => {
   })
 
   test("matches the checked-in snapshot", async () => {
-    const serialized = `${JSON.stringify(await openapi(), null, 2)}\n`
-
-    if (UPDATE || !existsSync(SNAPSHOT_PATH)) {
-      writeFileSync(SNAPSHOT_PATH, serialized)
-      return
-    }
-
-    expect(normalizeLineEndings(readFileSync(SNAPSHOT_PATH, "utf8")), "live OpenAPI vs checked-in snapshot").toBe(
-      normalizeLineEndings(serialized),
-    )
+    expect(
+      await Bun.file(path.resolve(import.meta.dir, "../../../sdk/openapi.json")).text(),
+      "live OpenAPI vs checked-in SDK snapshot",
+    ).toBe(await OpenApi.generateOpenApiSpec())
   })
 })
