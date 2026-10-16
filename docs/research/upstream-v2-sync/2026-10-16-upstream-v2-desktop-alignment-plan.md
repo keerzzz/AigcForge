@@ -562,6 +562,22 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **门禁成绩**：core **0 错** · protocol/client/server **0 错** · 分包 **19/19 全绿** · 服务端端到端 **19/21**（余 2 既定上游件）。
 
+### 10.21 工具流大窗开篇：依赖考古 + SDK 决策执行（2026-10-17，待提交）
+
+**依赖考古（fork core deps ×base 全量对拍）**：缺口 40+ 条，三大类：
+1. **CLI/ACP SDK ×3**（`@agentclientprotocol/sdk@0.21.0` · `@anthropic-ai/claude-agent-sdk@0.3.220` · `@openai/codex-sdk@0.146.0`）——**本窗执行**：入根 catalog + core 依赖 + `bun install`（112 包装入 92s，`import("@agentclientprotocol/sdk")` 实测 8 exports ✓）——npm 可达性与依赖决策**全清**；
+2. **AI 栈**（`@aigcfroge/llm` 55 件/484K + `@ai-sdk/*` ×15 + openrouter/venice/gateway/aws/google-auth）——**base 为全面自建 LLM 栈**（`packages/ai` 零 ai-sdk 依赖）：按 §9「底层以 ai 适配为主，llm 原生路由为实验备选」方针，fork 消费者（tool 契约型/judge/share-summary/location-layer）**优先适配 base ai**（`ToolFailure/ToolOutput` 等已有对位实证）；
+3. **基建包**（`@aigcfroge/effect-drizzle-sqlite` + `effect-sqlite-node`（fork DB 栈）· `@npmcli/arborist`/`config`/`semver`/`package-arg`（插件包管理）· OTel 全家 · js-yaml/turndown/ignore/minimatch/glob/xdg-basedir）。
+
+**工作令（五相）**：
+| 相 | 内容 | 关键点 |
+| :--- | :--- | :--- |
+| **A 工具契约** | `tool/tool.ts` + `tool/registry`(M) + `mcp-registration` + `delegation-parser` + cli 叶件 | 契约型映射 base ai；tool 域 AGENTS.md 规范为仲裁基准 |
+| **B ACP/CLI 客户端** | `acp-client`×3 + `tool/acp` + `claude-code`/`codex` 系（含 SDK 消费） | ㉕ 迁移面已预清；与 base `tool/mcp.ts` 对位 |
+| **C Delegation 服务面** | `delegation/service`+`execution`+`recovery` + `task-driver` 系 + `workflow` 3 件 | **Job/BackgroundJob 仲裁**（fork promote/extend 语义 vs base 演化版） |
+| **D AI 收敛面** | `judge`/`catalog`/`share-summary`/`location-layer`/`v2-runtime`/`composition-resolver` | R4 决策落点：ai 适配 or llm 引入 |
+| **E Break-glass** | permission 全融合 + 3 测试 + 会话服务测试脚手架 | `issueGrantForRequest` 已就位（10.20） |
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
