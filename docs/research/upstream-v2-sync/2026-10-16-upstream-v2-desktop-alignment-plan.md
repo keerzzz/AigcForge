@@ -369,6 +369,29 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **第三环收尾预告**：services 五件（`agent/skill/prompt/mcp/command-asset-service.ts` ≈2000 行，`file-mutation`/`permission/effective` 齐备）→ `file-loader`（gray-matter ✓ base 已备）→ `judge`/`meta/memory` → fork `agent.ts`（M）仲裁。
 
+### 10.9 Slice 2.3 第三环收尾 + 迁移切片实质落地（2026-10-16，`982c60ac4`）
+
+**交付（18 源件 + 8 测试件）**：
+1. **asset services 五件**（≈2100 行）：agent/skill/prompt/mcp/command-asset-service（apply/delete/remove/rollback/并发修订守卫/临时文件原子写）+ 测试四件（agent-service、prompt-service 21 例含 M2 telemetry mock、command/mcp 模型件）；
+2. **FileMutation 融合**：base 三法 + fork 增量 `remove`/`writeAtomic`（全 base 风格——`environment.files` 的 `read/write/stat/remove/move/mkdir` 面齐备，无需 fs-util）；`layer` 导出；**Target 统一**（`LocationMutation.Target.canonical:string` → `absolute:AbsolutePath`，与 base `FileAccess.Target` 逐字同构，55 处机械改名后服务零适配直传）；
+3. **meta-agent 域**：`meta-agent/service.ts`（301 行）+ `agent/meta/memory.ts` + `agent/file-loader.ts` + `agent.ts` **fileLayer 仲裁落地**（Watcher+AgentFileLoader 接线，⑯ 同步 transform 适配）；
+4. **测试八件**：asset-service×2 + command/mcp + meta-agent×2 + file-loader + 迁移后全谱。
+
+**迁移切片实质落地（重磅）**：实证 fresh DB 走 `schema.up()`（schema.gen 全量 DDL）；迁移文件仅服务存量升级（`applyOnly` 按 journal 补差）。正确路径＝表注册于 `src/**/sql.ts`（drizzle.config 通配）→ 官方生成器 `bun run script/migration.ts`：
+- 生成 `20261016135025_meta_agent_and_context_epoch`（`meta_agent`/`meta_agent_session`/`meta_agent_step`/`meta_agent_memory` + **`session_context_epoch`**——2.1 债务同步闭环）；
+- `schema.gen.ts` +69 行（五表 DDL）、快照更新、注册表 **50 项**；
+- `migration --check` **通过**（无未生成漂移 + 注册表新鲜）；
+- 手工移植的 fork 迁移双件**撤回**（与生成件重复双源）。
+
+**新配方**：
+- ⑲ **fresh-DB 语义**——新表必须注册进 schema 源走生成器；严禁手工复制 fork 迁移文件（存量升级≠全量 DDL，双源必炸）。
+- ⑳ **单实例共享层陷阱**——fork 的模块级常量层（`Database.defaultLayer`）映射为 base 工厂调用（`Database.layer()`）后，双次调用＝双库（内存库尤甚）→ 测试须提升为单值引用（`const database = Database.layer()`）。
+- ㉑ **Target 同构归一**——`LocationMutation.Target` 与 `FileAccess.Target` 本为同一概念（字段名/品牌分歧）→ 归一后跨模块零适配。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本环回归 **156/156**（22 文件）· schema **319/319** · `migration --check` ✓。
+
+**第三环余项**：`judge.ts`（依赖 fork `@aigcfroge/llm`/`catalog`——随 LLM 切面对正名后接线，LEDGER）；delegation/workflow 迁移表（复用生成器流程）；services 余测（list-assets/prompt-asset-v2-smoke 等）。**下一窗口**：进入 Slice 2.4（delegation 12 件——迁移已可走生成器，session/tool 面将自然展开）。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
