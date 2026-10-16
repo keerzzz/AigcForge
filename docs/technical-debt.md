@@ -1132,3 +1132,14 @@ SDK独立审计见 `sdk-independent-audit-20261015-lvt0udqg/audit.json`；接受
 Sync validation的既有skip也继续开放：静态评审已发现legacy middleware声明与实际NamedError响应不一致，SDK静态清单涉及142个legacy operation，不是142个已观察到的运行失败。应修声明/序列化owner并通过规范脚本生成SDK，保留合法的handler tagged错误及canonical `/api`契约，不能仅改skip测试或手改生成类型。
 
 原发现计划下一组为069，069–074共6组仍待执行。原297个后端文件仍全部在场，后来新增的 `run-error-process.test.ts`、`scrollback.client.test.tsx`、`httpapi-exercise-auth.test.ts` 三个文件继续独立对账。所有显式skip/TODO、其他包/API/E3/E4/展示/性能/平台、真实打包Codex及完整S08/S09仍按各自owner/unlock开放；本批没有缩减完成定义。
+
+### 15.29 2026-10-16 S08 / 后端069–074与Assistant投影覆盖恢复
+
+本批接受 **387 pass / 0 skip / 0 fail / 772 assertions / 30个唯一文件**。完整文件并集与原069–074清单相同，387个 `(file, classname, name)` 身份无重复。汇总由执行收据生成，见 `backend069-074-accounting-20261016-c5faed56/accounting.json` 与 `universe.json`。各组分别为069 **107/164**、070 **82/216**、071 **75/197**、072 **86/97**、073 **33/84**、074 **4/14**（pass/assertions），与本批总量重叠。
+
+- **069累计截止与环境干扰**：原六文件90秒截止exit124，未生成JUnit，不接受中途pass。日志中edit文件29条pass合计78.77秒，后续仍有LSP与parameters；改为完整1+5文件。首次edit单文件仍超时，期间另一个v2-dev工作区的并行类型检查造成主机资源压力，多条用例增至14–18秒；该失败也保留。确认那批进程结束后，新完整edit文件29pass/58assertions，79.05秒；其余五文件78pass/106assertions，19.49秒。两个超时的owner均ECHILD且私有目录已删除。新结果不改写旧失败。
+- **070/071完整文件拆分**：070为1+1+1+2文件，071为1+5文件；文件顺序和并集保持，均无名称过滤。072/073保留原完整文件组。所有接受执行维持串行、concurrency1、零重试、90秒外限和90000ms测试timeout；source/HEAD/index/branch冻结、owner与私有目录清理均有通过收据。
+- **074三项skip恢复**：首次原文件1pass/3skip/3assertions，通用verifier的exit1保留。只解除skip后得到2pass/2fail/10assertions：`step.started`已立即建立Assistant，工具成功保留调用metadata并另存resultMetadata。决定这些行为的是 `packages/core/src/session/message-updater.ts:193` 与`:299` 的两个事件分支。测试的空消息和覆盖metadata预期过期；修正这两处断言，保留snapshot结束值、文本内容、完成时间和compaction断言，生产代码未改。完整四身份与原文件相同，修后4pass/14assertions，零skip/fail，证据为 `backend074-unskip-red-20261016-ec088a18` 与 `backend074-green-20261016-5d83f5fc`。
+- **工程检查**：`backend074-quality-20261016-57d495c1` 的后端typecheck、显式基线增量lint和源码格式检查均exit0。069–073对应未修改投影测试前的冻结源码，074对应修后源码；这是逐切片证据，不是最终修订的全仓重跑。
+
+原069–074不再待执行。后来新增的 `run-error-process.test.ts`、`scrollback.client.test.tsx`、`httpapi-exercise-auth.test.ts` 继续独立对账。此前显式skip/TODO、其他包/API/E3/E4/展示/性能/平台、真实打包Codex及完整S08/S09仍按原owner/unlock开放；远程指令正文截止与Sync错误合同的建议补丁尚未执行，不能以本批通过关闭。

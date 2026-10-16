@@ -9,7 +9,7 @@ import { SessionEvent } from "@aigcfroge/core/session/event"
 import { SessionMessageUpdater } from "@aigcfroge/core/session/message-updater"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 
-test.skip("step snapshots carry over to assistant messages", () => {
+test("step snapshots carry over to assistant messages", () => {
   const state: SessionMessageUpdater.MemoryState = { messages: [] }
   const sessionID = SessionID.make("session")
   const assistantMessageID = SessionMessage.ID.create()
@@ -33,7 +33,13 @@ test.skip("step snapshots carry over to assistant messages", () => {
     } satisfies SessionEvent.Event),
   )
 
-  expect(state.messages).toEqual([])
+  expect(state.messages).toHaveLength(1)
+  expect(state.messages[0]).toMatchObject({
+    id: assistantMessageID,
+    type: "assistant",
+    snapshot: { start: "before" },
+    time: { created: DateTime.makeUnsafe(1) },
+  })
 
   Effect.runSync(
     SessionMessageUpdater.update(SessionMessageUpdater.memory(state), {
@@ -62,7 +68,7 @@ test.skip("step snapshots carry over to assistant messages", () => {
   expect(state.messages[0].finish).toBe("stop")
 })
 
-test.skip("text ended populates assistant text content", () => {
+test("text ended populates assistant text content", () => {
   const state: SessionMessageUpdater.MemoryState = { messages: [] }
   const sessionID = SessionID.make("session")
   const assistantMessageID = SessionMessage.ID.create()
@@ -117,7 +123,7 @@ test.skip("text ended populates assistant text content", () => {
   expect(state.messages[0].content).toEqual([{ type: "text", id: "text-1", text: "hello assistant" }])
 })
 
-test.skip("tool completion stores completed timestamp", () => {
+test("tool completion stores completed timestamp", () => {
   const state: SessionMessageUpdater.MemoryState = { messages: [] }
   const sessionID = SessionID.make("session")
   const callID = "call"
@@ -192,7 +198,11 @@ test.skip("tool completion stores completed timestamp", () => {
   expect(state.messages[0].content[0]?.type).toBe("tool")
   if (state.messages[0].content[0]?.type !== "tool") return
   expect(state.messages[0].content[0].time.completed).toEqual(DateTime.makeUnsafe(4))
-  expect(state.messages[0].content[0].provider).toEqual({ executed: true, metadata: { fake: { status: "done" } } })
+  expect(state.messages[0].content[0].provider).toEqual({
+    executed: true,
+    metadata: { fake: { source: "provider" } },
+    resultMetadata: { fake: { status: "done" } },
+  })
 })
 
 test("compaction events reduce to compaction message only when completed", () => {
