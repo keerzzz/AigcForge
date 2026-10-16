@@ -598,8 +598,7 @@ it.instance(
   "git info exclude changes",
   withTrackedSnapshot(({ tmp, snapshot, before }) =>
     Effect.gen(function* () {
-      const file = `${tmp.path}/.git/info/exclude`
-      yield* write(file, `${(yield* Effect.promise(() => Bun.file(file).text())).trimEnd()}\nignored.txt\n`)
+      yield* write(`${tmp.path}/.git/info/exclude`, "ignored.txt\n")
       yield* write(`${tmp.path}/ignored.txt`, "ignored content")
       yield* write(`${tmp.path}/normal.txt`, "normal content")
       const patch = yield* snapshot.patch(before)
@@ -628,8 +627,7 @@ it.instance(
         const snapshot = yield* Snapshot.Service
         const before = yield* snapshot.track()
         expect(before).toBeTruthy()
-        const file = `${tmp.path}/.git/info/exclude`
-        yield* write(file, `${(yield* Effect.promise(() => Bun.file(file).text())).trimEnd()}\ninfo.tmp\n`)
+        yield* write(`${tmp.path}/.git/info/exclude`, "info.tmp\n")
         yield* write(`${tmp.path}/global.tmp`, "global content")
         yield* write(`${tmp.path}/info.tmp`, "info content")
         yield* write(`${tmp.path}/normal.txt`, "normal content")
