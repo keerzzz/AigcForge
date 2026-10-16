@@ -519,6 +519,21 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **116/116** · 回归 **267/267**（15 文件）· schema **319/319** · `migration --check` ✓。
 
+### 10.18 SessionIdentity Hub 收口（2026-10-16，`9767283db`）
+
+**交付（1 源件 + 1 测试件，11/11 全绿）**：`session/session-identity.ts`（310 行 hub——按模式投影会话身份：coding=Git 分支/worktree、chat=组合快照 digest、work=预设契约）+ 官方测试 **11/11**（含模式矩阵/缺失字段/快照不可得）。
+
+**配套落地**：
+1. **`Permission.effectiveRules`**（Interface + 实现 + node 依赖）——⑤ 模式感知规则集出口（effectiveV2 全输入：mode/agent/tier/parentID/attended/override/savedApprovals）；**全 break-glass 融合**（ask/grant/presence 链）仍挂专窗；
+2. **session schema 二波融合**：`permissionTier`（双默认）+ `presetCategoryId` + `workContract`——D12 门禁 schema 侧全备；
+3. **环修复（根因）**：`permission → session-override → session → session/context → tool/mcp → permission` 环——session-override 改直连 `session/error`（错误类归属模块，零环）。
+
+**新配方**：
+- ㉞ **git 域形映射**——fork `git.find/branch(repo.directory)` → base `git.repo.discover`/`git.history.branch(repo)`/`Repository.worktree`（同名域的双演化对位）；`Layer.mock` 嵌套对象须全形（仅顶层偏序）→ `Layer.succeed + Service.of({...} as unknown as Interface)` 断言式。
+- ㉟ **TMZ 环诊断法**——运行时 "Cannot access X before initialization" = ESM 环：沿新增 import 边回溯（本次：permission 新增 session-override 边 + session 链回 tool/mcp），以「错误类直连归属模块」断环。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **11/11** · 回归 **200/200**（12 文件）。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
