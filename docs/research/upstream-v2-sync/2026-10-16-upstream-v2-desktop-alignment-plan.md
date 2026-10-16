@@ -278,7 +278,31 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 **首波交付**（17 文件：15 port + 2 件合并）：`system-context/`×6（代数/内置/修正事实/权限态/反向引用/注册表）· `session/context-epoch.ts`（Epoch 持久化）· `session/verifier.ts`+`verifier-prose.ts`（防幻觉验证器）· `session/correction-store.ts` · `session/verification-router.ts` · `session/history` 复用（base 演化版 `latestCompaction(db, id, "latest")` 直接适配 ✓）· `session/message-id.ts` · `permission/effective.ts`（模式感知权限重写，只读归一）· `meta-agent/sql.ts` · `instruction-context.ts` · `flag/flag.ts`（fork 保留件）· `util/record.ts`；合并增量：`session/error.ts`（+ContextSnapshotDecodeError）、`session/sql.ts`（+SessionContextEpochTable，迁移债随 R2 迁移切片）、`schema/session-event.ts`（+Verify 三事件、+ContextUpdated）、`schema/config.ts`（+meta 字段）、`schema/config/meta.ts`（新：ConfigMeta 家族）。
 **首波淬炼的 R2 配方**（实证新增）：① **EventV2 即 Bus**（机械改名，`latestSequence` 逐字同源——事件缝去风险）；② `Event.durable` 投影器 = `commit: (seq) => 闭包直写 db`（无 tx 句柄）；③ 事件载荷**无 timestamp 字段**（base 内部计时）；④ declaration-emit 下**禁止自命名空间+同名 interface**（`composite+emitDeclarationOnly` 触发 private-name）→ 换名 `SystemContextValue`（namespace 保留、消费点机械改名）；⑤ v1 合同只读化波纹=局部数组改 `T[]` 可变（输出仍收口 Ruleset）；⑥ `Config.Info.meta` 为 fork 保留字段（ConfigMeta 家族已入 schema）。
 **门禁成绩**：core 0 错 · schema 0 错 + **319/319** · 分包 19/19 全绿（storybook 假阴性已排除——本无 typecheck 脚本）· server 测试 **3 败**（XDG 隔离下 Class A 三败转绿实证 ✓，余 3=Class B 上游件）。
-**下一步（Slice 2.2 开篇已动手）**：`execution` 域裁决完成——**base 的 execution.ts 是大幅演化版（write-ahead claim/生命周期事件/Job 集成，即 AGENTS 记载的现行架构），fork 版为旧基线**；方向反转为「base 为真值 + 回植 fork 语义增量」。已回植：`product-mode-policy.ts` + `product-mode-agent-policy.ts` + 官方测试**10/10 全绿**（`5adfa94ad`，5 模式治理核心 D12 实测于基座）。**D12 门禁接线**（`assertRuntimeSupported(session.mode)` 入 base drain）依赖 fork 合同正名切换（base 会话暂无 mode 字段）——登记为 R3 切换后的回接线任务。**runner 五件 M 文件裁决**（index/llm/model/publish-llm-event/to-llm-message，fork 净增量提取）为 Slice 2.2 续篇。
+**下一步（Slice 2.2 开篇已动手）**：`execution` 域裁决完成——**base 的 execution.ts 是大幅演化版（write-ahead claim/生命周期事件/Job 集成，即 AGENTS 记载的现行架构），fork 版为旧基线**；方向反转为「base 为真值 + 回植 fork 语义增量」。已回植：`product-mode-policy.ts` + `product-mode-agent-policy.ts` + 官方测试**10/10 全绿**（`5adfa94ad`，5 模式治理核心 D12 实测于基座）。**D12 门禁接线**（`assertRuntimeSupported(session.mode)` 入 base drain）依赖 fork 合同正名切换（base 会话暂无 mode 字段）——登记为 R3 切换后的回接线任务。**runner 五件 M 文件裁决**（index/llm/model/publish-llm-event/to-llm-message，fork 净增量提取）→ **已闭环，见下**。
+
+### 10.4 Slice 2.2 主体落地（2026-10-16，`21336fcd3`，承接 `5adfa94ad`）
+
+**交付**：
+1. `session/runner/attachment-resolver.ts`（95 行，D2(b) 延迟附件解析——客户端 `file://` 于 provider turn 前在会话 Location 内解析，`realPath` 双侧比对，越界/穿越/符号链接逃逸一律**拒读**转显式文本标记）+ `session/runner/auth-seam.ts`（28 行，模块级凭证缝，resolver 继承调用方 Effect 上下文）；
+2. **官方测试双件移植**（`attachment-resolver.test.ts` 6 例安全验证 + `session-runner-auth-seam.test.ts` 3 例上下文传播）**9/9 全绿**；
+3. **驻留补全（根正）**：实证 fork **从未修改** `schema/prompt`（delta 零增量）——fork 的 hybrid `FileAttachment{uri, mime, name?, description?, source?}` 即**基线形态**，base 已演化为 data 型。新驻留 `schema/src/v2/prompt.ts`（基线内容 + `.js` 后缀规范 + `withStatics→statics` 配方）+ `v2/session-message.ts` 重接 `./prompt.js` —— 驻留合同集修复为 **{session, session-message, provider, prompt}**，resolver 直连真合同（`SessionMessage.Message`/hybrid `FileAttachment` 全恢复原形）。
+
+**runner 五件 M 裁决（证据链）**：
+
+| 文件 | 裁决 | 证据 |
+| :--- | :--- | :--- |
+| `publish-llm-event.ts` | **SKIP（base 超越）** | base `StepRecord{outputStarted, providerFailed, failure, finish, needsContinuation}` 记录协议 + `step.ts:120/161/190/200/204` 重试分类（fork `textStarted/aborted` 启发被覆盖）；`Step.Ended` 经 `step.ts:255` 发布、`projector.ts:700/796` 投影计费（fork `onStepFinish` 被覆盖） |
+| `to-llm-message.ts` | **SKIP（结构不可达）** | base schema 强制 `FileAttachment{data(Base64), mime, source}`——裸 URI 无法存在于 base 消息形态（schema 级保证）；base 已有 uri→text 回退（`attachmentLocation`/`textAttachment`）。fork 非 data 守卫在 base 架构下结构不可能 |
+| `model.ts` | **LEDGER（fork 流库存）** | base 为 ModelResolver 目录流（`resolve(session, available)` + capabilities/cost/compaction/transport）；fork 为路由直构流（`@aigcfroge/llm` protocols + auth-seam 凭证 + `resolve(session, intent?)`）。两架构各自成立，fork 版随 fork runner 流正名后接线 |
+| `index.ts` | **LEDGER（随 D12 接线）** | 增量 = 治理双错误 `SnapshotDriftError`（MEDIUM-3 自定义模式快照漂移防工具集宽化）+ `AgentProvenanceError`（资产溯源）+ RunError 联合扩展 ProductMode 三错误；thrower 均在 fork `llm.ts`——与 D12 门禁同批接线 |
+| `llm.ts` | **LEDGER（专用切面，闭包门控）** | fork 单体 1219 行 vs base 分解式 375 + `step.ts`(325) + `retry.ts`(115)。fork 导入闭包实证依赖：composition digest/catalog、`agent/meta/intent` 分类器、skill guidance、AppProcess/InstallationVersion/Shell/Question 等域——**必须先落闭包前置域**（delegation/agent/composition/skill），属正名切换后专用子切片 |
+
+**新配方**：⑦ **驻留补全判据**——fork-delta 零增量的 M 文件，其 fork 形态即基线形态；驻留层须复制**该文件本身**（连同其依赖链的基线形态），禁止依赖 base 演化版（R1a 驻留不完整的根因）。
+
+**门禁成绩**：core **0 错** · schema **0 错 + 319/319** · 分包 **19/19 全绿** · 治理测试 **10/10** · resolver+seam 测试 **9/9**。
+
+**下一步（Slice 2.3 入口）**：fork `llm.ts` 闭包前置域（`delegation` 12 · `agent` 12 · composition/skill 目录）优先，或 `session` 主体 54 件接缝分类——入口时按「解锁 fork runner 流」价值排序。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
