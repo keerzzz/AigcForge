@@ -578,6 +578,20 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 | **D AI 收敛面** | `judge`/`catalog`/`share-summary`/`location-layer`/`v2-runtime`/`composition-resolver` | R4 决策落点：ai 适配 or llm 引入 |
 | **E Break-glass** | permission 全融合 + 3 测试 + 会话服务测试脚手架 | `issueGrantForRequest` 已就位（10.20） |
 
+### 10.22 Phase A 首战：CLI 适配器叶簇（2026-10-17，`8a9228bdb`）
+
+**交付（12 源件 + 5 测试件，40/40 全绿）**：
+1. **适配器四件**：`cli-adapter`（155 行：注册表/getCliAdapter/BuiltInCliTransports + `CliAdapterValue` 换名——配方④再应用）+ `claude-code`（62：jsonl 解析）+ `codex`（63）+ `gemini`/`opencode`（同构叶件）；
+2. **配置驱动**：`cli-config-adapter`（52：`fromConfig` 物化 cli_agents 条目）+ **`ConfigCliAgent` schema 落位**——实证 fork 将其定义在 **core**（M 件）而 base 的配置 Info 在 schema → **架构正解**：`schema/config/cli-agent.ts` 新驻 + base `schema/config.ts` 融合 `cli_agents` + `subagent_attended_default` 双字段（与 `agents` 字段同构先例）；core 件转**门面再导出**（schema AGENTS 合规）；
+3. **执行与解析**：`cli-executable`（32：fs/module 解析 PATH 外可执行）+ `cli-discovery`（31）+ `cli-timeout`（85：超时执行 + `effect/unstable→promoted` ㉕）+ `delegation-parser`（134：review 信封解析，`fromJsonString` 配方）+ `acp-client/update`（69：SDK 类型）+ **`process.ts`**（242：AppProcess 上移对位 `@aigcfroge/util/cross-spawn-spawner`）；
+4. **实测**：clli 五套 **40/40** ✓（adapters/config-adapter/discovery/executable/timeout）。
+
+**新配方**：
+- ㊴ **契约层归属仲裁**（`ConfigCliAgent` 先例）——fork 定义在 core 的 **配置类 schema** 遇 base 的「配置 Info 在 schema」架构时：schema 新驻 + Info 融合 + core 门面再导出（schema AGENTS「facade 必须再导出精确 canonical 值」）。
+- ㊵ **声明发射换名连锁**（`CliAdapter`→`CliAdapterValue`，含 `CliAdapter.CliAdapterValue` 命名空间访问形）——配方④的完整操作序列。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **40/40** · 回归 **127/127**（10 文件）· schema **319/319**。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
