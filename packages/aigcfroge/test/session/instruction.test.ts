@@ -1,9 +1,9 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect } from "bun:test"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
 import path from "path"
-import { Effect, FileSystem, Layer } from "effect"
-import { FetchHttpClient } from "effect/unstable/http"
-import { NodeFileSystem } from "@effect/platform-node"
+import { Deferred, Effect, Fiber, FileSystem, Layer, Ref, Stream } from "effect"
+import { FetchHttpClient, HttpClient, HttpRouter, HttpServer, HttpServerResponse } from "effect/unstable/http"
+import { NodeFileSystem, NodeHttpServer, NodeServices } from "@effect/platform-node"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { FSUtil } from "@aigcfroge/core/fs-util"
 
@@ -12,28 +12,39 @@ import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { Global } from "@aigcfroge/core/global"
 import { RuntimeFlags } from "../../src/effect/runtime-flags"
 import { provideInstance, provideTmpdirInstance, testInstanceStoreLayer, tmpdirScoped } from "../fixture/fixture"
-import { testEffect } from "../lib/effect"
+import { awaitWithTimeout, testEffect } from "../lib/effect"
 import { TestConfig } from "../fixture/config"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 
 const it = testEffect(Layer.mergeAll(CrossSpawnSpawner.defaultLayer, NodeFileSystem.layer, testInstanceStoreLayer))
+const httpIt = testEffect(Layer.mergeAll(NodeHttpServer.layerTest, NodeServices.layer, testInstanceStoreLayer))
 
 const configLayer = TestConfig.layer()
 
-const instructionLayer = (global: Partial<Global.Interface>, flags: Partial<RuntimeFlags.Info> = {}) =>
+const instructionLayer = (
+  global: Partial<Global.Interface>,
+  flags: Partial<RuntimeFlags.Info> = {},
+  config = configLayer,
+  client = FetchHttpClient.layer,
+) =>
   Instruction.layer.pipe(
-    Layer.provide(configLayer),
+    Layer.provide(config),
     Layer.provide(FSUtil.defaultLayer),
-    Layer.provide(FetchHttpClient.layer),
+    Layer.provide(client),
     Layer.provide(Global.layerWith(global)),
     Layer.provide(RuntimeFlags.layer(flags)),
   )
 
 const provideInstruction =
-  (global: Partial<Global.Interface>, flags?: Partial<RuntimeFlags.Info>) =>
+  (
+    global: Partial<Global.Interface>,
+    flags?: Partial<RuntimeFlags.Info>,
+    config = configLayer,
+    client = FetchHttpClient.layer,
+  ) =>
   <A, E, R>(self: Effect.Effect<A, E, R>) =>
-    self.pipe(Effect.provide(instructionLayer(global, flags)))
+    self.pipe(Effect.provide(instructionLayer(global, flags, config, client)))
 
 const write = (filepath: string, content: string) =>
   Effect.gen(function* () {
@@ -196,11 +207,149 @@ describe("Instruction.resolve", () => {
       }),
     ),
   )
-
-  test.todo("fetches remote instructions from config URLs via HttpClient", () => {})
 })
 
 describe("Instruction.system", () => {
+  httpIt.live("fetches remote instructions from config URLs via HttpClient", () =>
+    Effect.gen(function* () {
+      const requests = yield* Ref.make<string[]>([])
+      const first = "# Remote α\n请先阅读项目约定。"
+      const second = "# Remote β\nCafé et outils 🛠️"
+      yield* Layer.mergeAll(
+        HttpRouter.add(
+          "GET",
+          "/first.md",
+          Ref.update(requests, (hits) => [...hits, "/first.md"]).pipe(Effect.as(HttpServerResponse.text(first))),
+        ),
+        HttpRouter.add(
+          "GET",
+          "/second.md",
+          Ref.update(requests, (hits) => [...hits, "/second.md"]).pipe(Effect.as(HttpServerResponse.text(second))),
+        ),
+      ).pipe(HttpRouter.serve, Layer.build)
+
+      const server = yield* HttpServer.HttpServer
+      if (server.address._tag !== "TcpAddress") return yield* Effect.die(new Error("expected TCP test server"))
+      const urls = [
+        `http://127.0.0.1:${server.address.port}/first.md`,
+        `http://127.0.0.1:${server.address.port}/second.md`,
+      ]
+      const globalTmp = yield* tmpdirScoped()
+      const projectTmp = yield* tmpWithFiles({ "AGENTS.md": "# Project Instructions" })
+
+      return yield* Effect.gen(function* () {
+        const svc = yield* Instruction.Service
+        expect(Array.from(yield* svc.systemPaths())).toEqual([path.join(projectTmp, "AGENTS.md")])
+        expect(yield* svc.system()).toEqual([
+          `Instructions from: ${path.join(projectTmp, "AGENTS.md")}\n# Project Instructions`,
+          `Instructions from: ${urls[0]}\n${first}`,
+          `Instructions from: ${urls[1]}\n${second}`,
+        ])
+        expect((yield* Ref.get(requests)).toSorted()).toEqual(["/first.md", "/second.md"])
+      }).pipe(
+        provideInstance(projectTmp),
+        provideInstruction(
+          { home: globalTmp, config: globalTmp },
+          {},
+          TestConfig.layer({ get: () => Effect.succeed({ instructions: urls }) }),
+        ),
+      )
+    }),
+  )
+
+  httpIt.live("omits failed and empty remote instructions while retaining local instructions", () =>
+    Effect.gen(function* () {
+      const requests = yield* Ref.make<string[]>([])
+      yield* Layer.mergeAll(
+        HttpRouter.add(
+          "GET",
+          "/missing.md",
+          Ref.update(requests, (hits) => [...hits, "/missing.md"]).pipe(
+            Effect.as(HttpServerResponse.text("# Rejected Instructions", { status: 404 })),
+          ),
+        ),
+        HttpRouter.add(
+          "GET",
+          "/empty.md",
+          Ref.update(requests, (hits) => [...hits, "/empty.md"]).pipe(Effect.as(HttpServerResponse.text(""))),
+        ),
+      ).pipe(HttpRouter.serve, Layer.build)
+
+      const server = yield* HttpServer.HttpServer
+      if (server.address._tag !== "TcpAddress") return yield* Effect.die(new Error("expected TCP test server"))
+      const urls = [
+        `http://127.0.0.1:${server.address.port}/missing.md`,
+        `http://127.0.0.1:${server.address.port}/empty.md`,
+      ]
+      const globalTmp = yield* tmpdirScoped()
+      const projectTmp = yield* tmpWithFiles({ "AGENTS.md": "# Project Instructions" })
+
+      return yield* Effect.gen(function* () {
+        const svc = yield* Instruction.Service
+        expect(yield* svc.system()).toEqual([
+          `Instructions from: ${path.join(projectTmp, "AGENTS.md")}\n# Project Instructions`,
+        ])
+        expect((yield* Ref.get(requests)).toSorted()).toEqual(["/empty.md", "/missing.md"])
+      }).pipe(
+        provideInstance(projectTmp),
+        provideInstruction(
+          { home: globalTmp, config: globalTmp },
+          {},
+          TestConfig.layer({ get: () => Effect.succeed({ instructions: urls }) }),
+        ),
+      )
+    }),
+  )
+
+  httpIt.live(
+    "omits a remote body stalled after headers within the instruction deadline",
+    () =>
+      Effect.gen(function* () {
+        const headersReceived = yield* Deferred.make<number>()
+        yield* HttpRouter.add(
+          "GET",
+          "/stalled.md",
+          HttpServerResponse.stream(
+            Stream.concat(Stream.make(new TextEncoder().encode("partial instructions")), Stream.never),
+            { contentType: "text/plain; charset=utf-8" },
+          ),
+        ).pipe(HttpRouter.serve, Layer.build)
+
+        const server = yield* HttpServer.HttpServer
+        if (server.address._tag !== "TcpAddress") return yield* Effect.die(new Error("expected TCP test server"))
+        const url = `http://127.0.0.1:${server.address.port}/stalled.md`
+        const globalTmp = yield* tmpdirScoped()
+        const projectTmp = yield* tmpWithFiles({ "AGENTS.md": "# Project Instructions" })
+        // layerTest's relative client prepends its base URL even to absolute config URLs.
+        const client = (yield* HttpClient.HttpClient.pipe(Effect.provide(FetchHttpClient.layer))).pipe(
+          HttpClient.tap((response) => Deferred.succeed(headersReceived, response.status)),
+        )
+
+        return yield* Effect.gen(function* () {
+          const svc = yield* Instruction.Service
+          const fiber = yield* svc.system().pipe(Effect.forkIn(yield* Effect.scope))
+          expect(
+            yield* awaitWithTimeout(Deferred.await(headersReceived), "instruction response never arrived", "2 seconds"),
+          ).toBe(200)
+          const rules = yield* awaitWithTimeout(
+            Fiber.join(fiber),
+            "instruction body exceeded its deadline",
+            "8 seconds",
+          )
+          expect(rules).toEqual([`Instructions from: ${path.join(projectTmp, "AGENTS.md")}\n# Project Instructions`])
+        }).pipe(
+          provideInstance(projectTmp),
+          provideInstruction(
+            { home: globalTmp, config: globalTmp },
+            {},
+            TestConfig.layer({ get: () => Effect.succeed({ instructions: [url] }) }),
+            Layer.succeed(HttpClient.HttpClient, client),
+          ),
+        )
+      }),
+    15000,
+  )
+
   it.live("loads both project and global AGENTS.md when both exist", () =>
     Effect.gen(function* () {
       const globalTmp = yield* tmpWithFiles({ "AGENTS.md": "# Global Instructions" })

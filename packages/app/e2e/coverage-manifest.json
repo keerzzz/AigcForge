@@ -183,11 +183,6 @@
       "scope": "Original056 skips projects a compaction message to v2 (v2 projector disabled) at test/session/compaction.test.ts:587. The old assertion expects an empty canonical summary at create time. SessionMessageUpdater.update at packages/core/src/session/message-updater.ts:375 ignores Started/Delta and appends only Ended. Coding dual-write and Assistant legacy-history adoption have distinct rules. A replacement patch is proposed but unexecuted.",
       "unlock": "Replace the retired empty-summary expectation with real create/process coverage for the supported canonical boundary, explicitly choose the intended mode, and run the complete affected file with source-corresponding JUnit and bounded owner/root cleanup. Keep incomplete and failed summary adoption coverage separate."
     },
-    "instruction-config-url-tests": {
-      "owner": "S8",
-      "scope": "Original056 has an empty TODO under Instruction.resolve: fetches remote instructions from config URLs via HttpClient. The actual owner is Instruction.system. Static review finds that the existing5000ms fetch timeout covers response acquisition but not arrayBuffer consumption. The real-HTTP test and owner correction patches are unapplied.",
-      "unlock": "Exercise URL instructions through Instruction.system with injected TestConfig and a real local HTTP client/server. Prove UTF-8/source/order, failure preserving local rules, and a body that stalls after response headers. Obtain the deadline RED, cover the whole request/body with the existing deadline, and verify the complete file, types and cleanup without external credentials."
-    },
     "llm-native-openai-recording": {
       "owner": "S8",
       "scope": "Original058 executes3 recorded cases/24assertions and skips OpenAI API key: drives a tool loop to a final text answer at llm-native-recorded.test.ts:427. canRun at:225–228 in non-RECORD mode checks the cassette path; session/native-openai-tool-loop is absent. This is not evidence of missing recording credentials or of any external provider execution.",

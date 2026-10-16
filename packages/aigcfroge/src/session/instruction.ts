@@ -91,15 +91,15 @@ export const layer: Layer.Layer<
       return yield* fs.readFileString(filepath).pipe(Effect.catch(() => Effect.succeed("")))
     })
 
-    const fetch = Effect.fnUntraced(function* (url: string) {
-      const res = yield* http.execute(HttpClientRequest.get(url)).pipe(
-        Effect.timeout(5000),
-        Effect.catch(() => Effect.succeed(null)),
-      )
-      if (!res) return ""
-      const body = yield* res.arrayBuffer.pipe(Effect.catch(() => Effect.succeed(new ArrayBuffer(0))))
-      return new TextDecoder().decode(body)
-    })
+    const fetch = Effect.fnUntraced(
+      function* (url: string) {
+        const res = yield* http.execute(HttpClientRequest.get(url))
+        const body = yield* res.arrayBuffer
+        return new TextDecoder().decode(body)
+      },
+      Effect.timeout(5000),
+      Effect.catch(() => Effect.succeed("")),
+    )
 
     const clear = Effect.fn("Instruction.clear")(function* (messageID: MessageID) {
       const s = yield* InstanceState.get(state)

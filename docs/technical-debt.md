@@ -1143,3 +1143,12 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 - **工程检查**：`backend074-quality-20261016-57d495c1` 的后端typecheck、显式基线增量lint和源码格式检查均exit0。069–073对应未修改投影测试前的冻结源码，074对应修后源码；这是逐切片证据，不是最终修订的全仓重跑。
 
 原069–074不再待执行。后来新增的 `run-error-process.test.ts`、`scrollback.client.test.tsx`、`httpapi-exercise-auth.test.ts` 继续独立对账。此前显式skip/TODO、其他包/API/E3/E4/展示/性能/平台、真实打包Codex及完整S08/S09仍按原owner/unlock开放；远程指令正文截止与Sync错误合同的建议补丁尚未执行，不能以本批通过关闭。
+
+### 15.30 2026-10-16 S08 / 远程指令正文截止与新增后端文件
+
+- **新增文件已独立对账**：原发现清单后的 `run-error-process.test.ts`、`scrollback.client.test.tsx`、`httpapi-exercise-auth.test.ts` 三个完整文件一次执行为 **10 pass / 0 skip / 0 fail / 58 assertions**。`backend-additions-20261016-371fb541/prepared/verification.json` 确认完整身份集合、冻结源码与owner/root清理。其用例与此前各自定向回归重叠，不重复相加；本轮也不是全部后端文件在最终源码上的重跑。
+- **正文stall的真实RED**：`remote-instruction-red-20261016-e561a50c` 的完整instruction文件为 **11 pass / 1 fail / 29 assertions / exit1**，唯一失败为 `instruction body exceeded its deadline`。真实loopback HTTP先返回200 headers与部分正文，后续流不结束；Deferred确认已收到headers，监督fiber等待正文完成。原5000ms timeout只覆盖响应到达，遗漏正文读取，因而Session可被挂起。没有外部provider或凭据。
+- **复用原期限修根因**：`packages/aigcfroge/src/session/instruction.ts:94` 的内部fetch将execute与arrayBuffer一起置于原5000ms截止，再沿原空字符串失败策略返回。测试移到真正的 `Instruction.system` owner，验证UTF-8、来源与本地优先/config URL顺序，404和空正文仍保留本地规则，以及200后stall在期限内被省略；没有延长期限或新增网络服务。
+- **最终验收**：`remote-instruction-quality-fixed-20261016-h8lveege/green/verification.json` 为 **12 pass / 0 skip / 0 fail / 30 assertions**，完整文件替代旧空TODO。此前首次GREEN同为12/30，与最终轮重叠。最终后端typecheck、显式基线增量lint、源码format均exit0；源码/HEAD/index/branch冻结，owner实际ECHILD及私有目录删除通过。首次lint的三个consistent-return错误及exit1保留在 `remote-instruction-quality-20261016-5789c112`；仅令三个外层generator返回内层Effect结果，保留TCP地址guard，未关闭规则。所有负载仍串行、concurrency1、零重试、90秒截止与90000ms测试timeout。
+
+`instruction-config-url-tests` 已关闭并从开放coverage项移除，历史TODO/失败收据不改写。Sync声明/线形错误合同、compaction/Prompted投影skip、Unicode还原、录制与StructuredOutput、其他包/API/E3/E4/展示/性能/平台及真实打包Codex继续按各owner/unlock开放；完整S08/S09未关闭。本切片没有新增临时实现或技术债。
