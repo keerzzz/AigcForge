@@ -412,6 +412,23 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **2.4b 入口（工具流段）**：`service`（1164 行）+ `execution`（758 行）+ `recovery`（241 行，依赖 service）+ `cli-adapter`/`acp-client`（含 SDK 依赖决策）+ Job/BackgroundJob 仲裁 + `task-driver`/`judge`/`catalog`/`share-summary`——集中于「fork 工具/元智能体流」正名后切面执行。
 
+### 10.11 2.4b 重定界与 mcp binding 落地（2026-10-16，`ed1b66178`）
+
+**2.4b 重定界（窗口勘察发现）**：cli 簇真实规模 **2600+ 行**（`codex-app-server` 单件 898 + `claude-code-sdk` 196 + `codex-sdk` 134 + …15 件）· **两个新依赖**（`@agentclientprotocol/sdk@0.21.0`、`@anthropic-ai/claude-agent-sdk`）· effect **beta.83→4.0.1 的 `unstable/process` API 漂移面**——**超单窗容量，定界为「工具/元智能体流」独立大窗**（与 R4 LLM 收敛、Job/BackgroundJob 仲裁同窗）。
+
+**本窗改道交付——mcp binding 三件（534 行）**：
+1. `mcp/binding/store.ts`（451 行：McpCredentialBindingStore——bind/rebind/revoke/get/resolve + 唯一约束/sentinel workspace_id/跨位置引用守卫）+ `sql.ts`（表）+ `event.ts`（durable 定义 + revision 守卫发布）；
+2. 官方测试 **14/14 全绿**（commit 原子性、sentinel、跨 Location 拒绝、吊销流）；
+3. **迁移**：`20261016143353_mcp_credential_binding` · schema.gen 同步 · 注册表 **52 项** · `--check` ✓。
+
+**新配方**：
+- ㉔ **publish commit 契约适配**——fork `commit: (seq, tx) => Effect<boolean>` → base `commit: (seq) => Effect<void>`（闭包**直写捕获 db**；原子性由 base `PublishOptions.commit`「随事件追加提交」保证——与 2.1 配方②同源）；store 内 3 处 `(tx) => tx.insert/update` 闭包机械改 db（含换行断链的 `yield* tx\n` 模式）。
+- ㉕ **effect unstable→promoted 路径**——`effect/unstable/process`→`effect/process`（4.0.1 已提升，base `environment` 同款导入为证）；`unstable/http`→`http`；工具流大窗的 API 迁移面就地预清。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **14/14** · 回归 **136/136**（12 文件）· `migration --check` ✓。
+
+**余项（mcp 续）**：`connection`（1005 行，unstable/http+process 映射已就绪）/`contributor`（49）/`mcp-v2`（35）——与工具流大窗相邻，可随后续窗口或独立小窗落地。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
