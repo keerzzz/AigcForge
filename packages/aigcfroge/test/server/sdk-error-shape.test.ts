@@ -9,6 +9,7 @@
  */
 import { afterEach, describe, expect, test } from "bun:test"
 import { createAigcfrogeClient } from "@aigcfroge/sdk/v2"
+import type { SyncHistoryListErrors, SyncReplayErrors, SyncStealErrors } from "@aigcfroge/sdk/v2/types"
 import { Server } from "../../src/server/server"
 import { disposeAllInstances, tmpdir } from "../fixture/fixture"
 import { resetDatabase } from "../fixture/db"
@@ -77,5 +78,23 @@ describe("v2 SDK error shape", () => {
     expect(cause.body.data.message.length).toBeGreaterThan(0)
     // Whatever the server put in data.message must be what the user sees.
     expect(err.message).toBe(cause.body.data.message)
+  })
+  test("tuple mode returns the validation body through the generated Sync error unions", async () => {
+    await using tmp = await tmpdir({ config: { formatter: false, lsp: false } })
+    const result = await client(tmp.path).sync.history.list({ body: { aggregate: -1 } }, { throwOnError: false })
+    expect(result.response.status).toBe(400)
+    expect(result.error).toMatchObject({ name: "BadRequest", data: { kind: "Payload" } })
+    if (!result.error || !("name" in result.error) || result.error.name !== "BadRequest") {
+      throw new Error("Expected a typed legacy validation error")
+    }
+    // These assignments intentionally fail until canonical SDK regeneration adds the middleware arm.
+    const history: SyncHistoryListErrors[400] = result.error
+    const replay: SyncReplayErrors[400] = result.error
+    const steal: SyncStealErrors[400] = result.error
+    expect(history).toBe(result.error)
+    expect(replay).toBe(result.error)
+    expect(steal).toBe(result.error)
+    expect(result.error.data.kind).toBe("Payload")
+    expect(result.error.data.message).toContain("aggregate")
   })
 })

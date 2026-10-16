@@ -1828,7 +1828,15 @@ describe("session permission tier update guards (M6)", () => {
           body: JSON.stringify({ permissionTier: "full" }),
         })
         expect(response.status).toBe(400)
-        expect(yield* responseJson(response)).toMatchObject({ _tag: "InvalidRequestError" })
+        expect(response.headers["content-type"] ?? "").toContain("application/json")
+        expect(yield* responseJson(response)).toMatchObject({
+          _tag: "InvalidRequestError",
+          kind: "permission-tier",
+          message:
+            session.id === child.id
+              ? "Permission tier is only available for root sessions"
+              : "Permission tier is not available for unattended sessions",
+        })
       }
 
       const ok = yield* requestJson<Session.Info>(pathFor(SessionPaths.update, { sessionID: parent.id }), {

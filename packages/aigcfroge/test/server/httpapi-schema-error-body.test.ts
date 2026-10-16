@@ -1,5 +1,5 @@
 import { afterEach, describe, expect } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
 import { HttpClientResponse } from "effect/unstable/http"
 import { eq } from "drizzle-orm"
 import { Database } from "@aigcfroge/core/database/database"
@@ -15,6 +15,7 @@ import { testEffect } from "../lib/effect"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { httpApiLayer, requestInDirectory } from "./httpapi-layer"
+import { SchemaErrorMiddleware } from "../../src/server/routes/instance/httpapi/middleware/schema-error"
 
 const it = testEffect(Layer.mergeAll(Session.defaultLayer, Database.defaultLayer, httpApiLayer))
 
@@ -80,12 +81,15 @@ describe("schema-rejection wire shape", () => {
         expect(res.status).toBe(400)
         expect(res.headers["content-type"] ?? "").toContain("application/json")
         const parsed = JSON.parse(body)
+        // Decode the untouched response before Bun's partial matcher handles it.
+        const declared = Schema.decodeUnknownSync(
+          Schema.toEncoded(Schema.toCodecJson(Schema.Union(Array.from(SchemaErrorMiddleware.error)))),
+        )(parsed)
         expect(parsed).toMatchObject({
           name: "BadRequest",
-          data: { kind: expect.stringMatching(/^(Body|Payload)$/) },
+          data: { kind: "Payload", message: expect.stringContaining("aggregate") },
         })
-        expect(parsed.data.message).toEqual(expect.any(String))
-        expect(parsed.data.message.length).toBeGreaterThan(0)
+        expect(declared).toMatchObject({ name: "BadRequest", data: { kind: "Payload" } })
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )

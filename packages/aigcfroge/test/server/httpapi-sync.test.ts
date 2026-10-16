@@ -10,12 +10,14 @@ import { testEffect } from "../lib/effect"
 import { httpApiLayer, requestInDirectory } from "./httpapi-layer"
 
 const originalWorkspaces = Flag.AIGCFROGE_EXPERIMENTAL_WORKSPACES
+const originalWorkspaceID = Flag.AIGCFROGE_WORKSPACE_ID
 const context = Context.empty() as Context.Context<unknown>
 const it = testEffect(Layer.mergeAll(Session.defaultLayer, httpApiLayer))
 
 afterEach(async () => {
   mock.restore()
   Flag.AIGCFROGE_EXPERIMENTAL_WORKSPACES = originalWorkspaces
+  Flag.AIGCFROGE_WORKSPACE_ID = originalWorkspaceID
   await disposeAllInstances()
   await resetDatabase()
 })
@@ -127,7 +129,7 @@ describe("sync HttpApi", () => {
     { git: true, config: { formatter: false, lsp: false } },
   )
 
-  it.instance.skip(
+  it.instance(
     "returns structured validation errors",
     () =>
       Effect.gen(function* () {
@@ -148,9 +150,54 @@ describe("sync HttpApi", () => {
 
         expect(response.status).toBe(400)
         expect(response.headers.get("content-type") ?? "").toContain("application/json")
-        const body = (yield* Effect.promise(() => response.json())) as Record<string, unknown>
-        expect(body.success).toBe(false)
-        expect(Array.isArray(body.error) || Array.isArray(body.errors)).toBe(true)
+        const body: unknown = yield* Effect.tryPromise(() => response.json())
+        expect(body).toMatchObject({
+          name: "BadRequest",
+          data: { kind: "Payload", message: expect.stringContaining("aggregate") },
+        })
+      }),
+    { git: true, config: { formatter: false, lsp: false } },
+  )
+  it.instance(
+    "rejects a malformed steal session ID with the validation envelope",
+    () =>
+      Effect.gen(function* () {
+        const tmp = yield* TestInstance
+        const response = yield* requestInDirectory(SyncPaths.steal, tmp.directory, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ sessionID: "invalid" }),
+        })
+        expect(response.status).toBe(400)
+        expect(response.headers["content-type"] ?? "").toContain("application/json")
+        expect(yield* response.json).toMatchObject({
+          name: "BadRequest",
+          data: { kind: "Payload", message: expect.stringContaining("sessionID") },
+        })
+      }),
+    { git: true, config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
+    "preserves the built-in BadRequest response when steal has no workspace",
+    () =>
+      Effect.gen(function* () {
+        const previous = Flag.AIGCFROGE_WORKSPACE_ID
+        Flag.AIGCFROGE_WORKSPACE_ID = undefined
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            Flag.AIGCFROGE_WORKSPACE_ID = previous
+          }),
+        )
+        const tmp = yield* TestInstance
+        const response = yield* requestInDirectory(SyncPaths.steal, tmp.directory, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ sessionID: "ses_no_workspace" }),
+        })
+        expect(response.status).toBe(400)
+        expect(response.headers["content-type"] ?? "").toContain("application/json")
+        expect(yield* response.json).toEqual({ _tag: "BadRequest" })
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )
