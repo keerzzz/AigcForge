@@ -504,6 +504,21 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **剩余总览**：session 域余 4 件（`session-identity` hub / `cache-diagnostics` / `v2-runtime` / `share-summary`）+ 工具流大窗（含 workflow 3 件、delegation service/execution/recovery、cli 簇、task-driver 系、location-layer）+ `composition-resolver`/`custom-profile` 小簇。
 
+### 10.17 Grant/Permission/CustomProfile/PluginAsset 小簇（2026-10-16，`fde20c9c1`）
+
+**交付（14 源件 + 12 测试件，其中 9 套 **116/116** 全绿 + 3 套挂账）**：
+1. **grant 簇**：`grant/{event,sql,store}`（scoped grant 生命周期 + revision 守卫发布——**binding 式 commit 契约**三应用）；
+2. **permission 增件**：`approval-presence`（在场审批）+ `session-override`（会话级权限覆写）；
+3. **custom-profile 簇**：`custom-profile`（解析/编码）+ `custom-profile-service`（524 行：落盘/补偿/回滚）+ `custom-profile/path`——测试 **3 套全绿**（含注入式回滚验证）；
+4. **plugin-asset 簇**：`plugin-asset`（registry）+ `bridge`（`~/.claude` 桥）+ `path`——测试 **2 套全绿**；
+5. **杂件**：`path-identity`（168 行路径归一）+ `import-parser`（3 套测试全绿）——`FileSystem.Size`→**`ByteSize.bytes`**（4.0.1 改名）。
+
+**基建补齐**：`FileMutation.writeIfUnchanged` + `StaleContentError`（防陈旧写）；**session schema 融合**——`Session.Info` +`mode`（解码/构造双默认）+`attended`（D12 门禁的 schema 侧对位）；迁移 `20261016152635_grants_and_profiles`（scoped_grant 表）。
+
+**挂账**：`permission-grants`/`permission-session-override`/`scoped-grant-store` 测试件——需 base 会话服务完整测试脚手架（`Session.layer`/`SessionStore.defaultLayer` 对位，随测试脚手架切片）；`composition-resolver`（依 mcp/connection + tool registry）随工具流窗。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **116/116** · 回归 **267/267**（15 文件）· schema **319/319** · `migration --check` ✓。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
