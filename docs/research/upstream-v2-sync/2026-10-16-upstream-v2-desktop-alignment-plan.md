@@ -592,6 +592,24 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本波 **40/40** · 回归 **127/127**（10 文件）· schema **319/319**。
 
+### 10.23 Phase A 收官：工具契约仲裁 + MCP connection 链全量落地（2026-10-17，`fc51db11b`）
+
+**工具契约终审裁决（tool 域 AGENTS.md 为基准，五相工作令 Phase A 核心）**：
+1. **不移植清单**：fork `tool/tool.ts`（DSL+WeakMap 运行时）、`tool/registry.ts`（307）、`tool/tools.ts`、`tool/application-tools.ts`、`tool/lifecycle-hooks.ts`（全局可变钩子数组）——base AGENTS 明令「不得新增第二可执行入口类型/注册表自持执行器/授权回调」，base `Tool.Service`（transform 重放 + snapshot）为唯一正典；fork 工具文件一律**重写为 base `Plugin {id, effect}` + `ctx.tool.transform(editor.add)` 形**。
+2. **ADR-19 session 放置语义裁决**：base AGENTS 自认「Session-scoped registrations 属未来设计」；实证 v2 无消费者（connection 全 Location 级、composition-resolver `materialize()` 无 sessionID）→ **不回植**，待真实需求出现再做 base 正典设计（防臆测性扩张）。
+3. **`mcp-registration` 重生**：保留 `canonicalToolName`（mcp_ 前缀 + 64 界 + sha256 紧缩）+ fail-closed 冲突（对 `Tool.Service.list()` 占用集预检、全有或全无）+ `Tool.RegistrationError` 语法闸；Service 间接层删除（plain 函数 effect over `Tool.Interface`）。
+4. **`mcp/connection.ts`（1005 行）全量移植**：stdio wire（JSON-RPC 泵 + stderr 扫描后截断 ADR-21 §2.4）+ remote HTTP wire（分类学：DNS/TLS/拒连/不可用）+ 健康机（六态迁移）+ 凭据解析（binding store + Credential 服务 + 过期/吊销分型）+ kill switch + 每服务器连接锁（防 ADR-19 §4.5 孤儿）；注册段改 base 形：`McpRegistration.registerServer(tools, …)` + **connScope 上的 transform**（连接死→注册自动除名 = base「scoped transform 释放即重放」语义精确对位）；MCP 工具 `codemode: false`（组合筛选读直述 definitions 面，`mcp_*` 名为组合/授权键）。
+5. **装配**：`McpCredentialBindingStore.node` 新立（grant/store 同构）+ `McpConnection.node`（deps: Tool/bindingStore/CrossSpawnSpawner/httpClient/Credential，CredentialScanner 内联 provide）双双入 `instance.ts` 位置图。
+
+**测试（4 套 52 用例全绿）**：`tool-mcp-registration`（5：命名/语法/碰撞/scope 除名/settle，session 放置 2 例按裁决丢弃）· `mcp-connection`（**44**：typed stdio owner 全生命周期——spawn/握手超时/协议垃圾/中断杀子/scope 孤儿/断连/凭据吊销/过期/kill switch/碰撞不漏子进程/`__proto__` 防污染/SIGKILL 升级/Location 隔离/remote 401 分类/并发 connect 串行化/stderr 秘密扫序）· `mcp-location-isolation`（2：**真实 LayerMap 双 Location 全图启动**——工具与连接双向隔离 + invalidate 卸载子进程回收）· `s2-connection-guard`（1：源级唯一 Database.Service 构造守卫）。
+
+**语义增量裁决记录**：
+- ㊶ **凭据创建语义差**：fork create=替换制（旧 ID 悬挂），v2=多凭据+激活制（base 演化更深者胜）→ 测试改 `credential.remove` 显式制造悬挂，保「悬挂分型 + 重绑恢复」产品保证。
+- ㊷ **s2 运行时半部不移植**：fork `EventV2.publishBatch` 管道形在 v2 无对位（v2=Bus+commit 契约，`bus.test.ts`/`bus-session-routing.test.ts` 已覆盖运行时）→ 只移植源级守卫半部。
+- **基线挂账（非本批引入，HEAD 同败复核）**：`location-layer.test.ts`「normalizes equivalent refs」+ `mcp.test.ts`「exposes every connection operation」（5s 超时）——二者源均属 base 自有件（R2 与本批未触碰），定性为上游存量，随上游同步窗口处理。
+
+**门禁**：core **0 错** · 分包 **19/19** · 新四套 **52/52** · 回归（mcp/tool-registry/instance/location 10 套）**211/213**（余 2=上基线挂账）。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
