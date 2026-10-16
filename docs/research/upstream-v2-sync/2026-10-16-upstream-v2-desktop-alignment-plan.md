@@ -336,6 +336,22 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 **第三环预告**：agent 交叉件（`asset-bridge`/`file-loader`/`judge`/`meta/memory`）依赖 asset 域（`agent-asset*`/`skill-asset*` 6 件 + `schema/skill-asset`）+ `fs-util`/`gray-matter`/`catalog` 前置；fork `agent.ts`（M）经 Watcher/FileLoader 接线的仲裁随后。
 
+### 10.7 Slice 2.3 第三环首波（2026-10-16，`196cc95bf`）
+
+**交付（9 源件 + 2 测试件，全绿）**：
+1. **Hash 并轨（自查重复即修）**：实证 base 已有 `@aigcfroge/util/hash`（upstream 自 core 上移）——删除早前 core 侧 port（`util/hash.ts`），`composition/digest` 直连 util 包；官方奇偶性测试迁并（Uint8Array→Buffer 断言）；
+2. **基建叶件**：`constants.ts`（8 目录常量，浏览器安全）· `util/yaml-escape.ts`（双引号 YAML 转义）· `location-mutation.ts`（161 行 Location 受限变更服务）· `asset-migration.ts`（256 行 `.claude`/`.agents` 遗留资产首启导入，三处演化映射）· `asset-kind.ts`（97 行资产类别路由）+ 官方测试 **2/2**；
+3. **路径双件**：`agent-asset/path.ts` + `skill-asset/path.ts`（101×2，段校验/相对路径/归属根）。
+
+**新配方**：
+- ⑬ **base 上移基建映射**——fork 依赖的 `core/fs-util`/`core/effect/layer-node` 已由 upstream 上移 `@aigcfroge/util/*`：映射导入而非重复移植；且 **`fs.glob(pattern, {cwd, absolute, include, dot})` → `fs.scan(...)` 选项逐字同构**（base `skill.ts:59` 同调用为证）。
+- ⑭ **schema 再导出缺口**——fork `Config.Entry/Document` 实为 `@aigcfroge/schema/config` 直出、core config 未再导出：消费点直连 schema，不改 core config 面。
+- ⑮ **枚举型演化序列化**——`command.model` 由 fork 字符串演化为 base `ConfigModel.Selection`（Short 字符串/Explicit 结构 双形解码）：迁移输出短形 `providerID/model` + variant 内嵌，与下游解码回路兼容。
+
+**门禁成绩**：core **0 错** · 分包 **19/19 全绿** · 本轮测试 **6/6**（asset-kind 2 + hash 1 + digest 3）。
+
+**第三环续篇**：`schema/agent.ts` 融合（attended/handoffs/origin* + `empty` static，伴 base `default` 并存）→ `config/agent.ts`（27 行，`ConfigProvider.Request→Schema Provider.Request` 映射）→ `agent-asset.ts`/`skill-asset.ts` 模型层 → `asset-bridge`（`Agent.Info.empty`/`registerAgentAssetTransform`）→ services 双件 + `file-loader`；`asset-migration.test.ts`（176 行）随模型层落地。
+
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
