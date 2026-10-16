@@ -274,19 +274,11 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 3. **`../event` 重构缝（缝 C）**：fork `core/src/event.ts`（EventV2 服务，M 文件）在 base 已重构为 `core/src/event/` 目录 + event-logger——**上游演化缝**，需事件系统专项对账（后续切片）；Slice 2.1 内先以最小适配层（fork 调用面映射至 base event/）隔离，登记专项债务。
 4. **fork-only 闭包模块**：`session/correction-store`、`meta-agent/sql`、`permission/effective`、`session/verifier`×2（delta 内）+ `instruction-context`（fork 保留-上游新删，delta 外）——直 port。
 
-### 10.3 Slice 2.1（Core 地基）可执行清单（2026-10-16 首轮实操修订）
-**范围**：System Context 代数（6：builtins/correction-facts/index/permission-state/reverse-refs/registry）+ Epoch 持久化（`session/context-epoch.ts`）+ 准入语义闭包（verifier×2、correction-store、permission/effective、meta-agent/sql、instruction-context、flag/flag）。
-**执行序（首轮实操修正：event 适配层从第③步提升为第①步）**：
-1. **event 适配层**（前置硬依赖）：`context-epoch`/`verifier`/`correction-store` 均 import `../event`（fork EventV2 服务）；先建最小适配（fork 调用面 → base `core/src/event/` + event-logger），或作为独立「事件系统对账」子切片先行；
-2. 闭包模块直 port（含 `flag/flag.ts`——fork 保留件、44 消费面）；
-3. 合同重映射（缝 A：`schema/v2/*`）与模块路径重映射（`@aigcfroge/util/{fs-util,global}`、`effect/unstable/process→effect/process`）；
-4. 存量 API 适配（base config 的 `Config.Entry/Document` 面与 fork 形态差异——correction-store 消费点）；
-5. 只读化波纹修复（fork 核心中就地 `push` 变异点 → 不可变重建改写，与 base 只读合同归一）；
-6. 门禁：`packages/core` typecheck 0 + schema 319/319 + 全仓 19/19。
-
-**首轮实操分类账（2026-10-16，13 文件试port → 81→75 错全类目已驯服，为保恒绿已回退，按上序重执行）**：TS2307 模块缝 8 · TS2694 存量 API 差异 8 · TS2339 只读波纹 18 · TS2551/4112/2554/2322 杂类 19 · TS4078 4。**结论：每类均有既定制服路径，无未知风险；等待按修正序执行**。
-**闸门后资产**：System Context 代数与 Epoch 语义进入基座 → 解锁 Slice 2.2（SessionExecution 调度/Event Replay/Provider Turn）。
-
+### 10.3 Slice 2.1（Core 地基）执行记录（2026-10-16，首波已落地 `c36e0a0d0`）
+**首波交付**（17 文件：15 port + 2 件合并）：`system-context/`×6（代数/内置/修正事实/权限态/反向引用/注册表）· `session/context-epoch.ts`（Epoch 持久化）· `session/verifier.ts`+`verifier-prose.ts`（防幻觉验证器）· `session/correction-store.ts` · `session/verification-router.ts` · `session/history` 复用（base 演化版 `latestCompaction(db, id, "latest")` 直接适配 ✓）· `session/message-id.ts` · `permission/effective.ts`（模式感知权限重写，只读归一）· `meta-agent/sql.ts` · `instruction-context.ts` · `flag/flag.ts`（fork 保留件）· `util/record.ts`；合并增量：`session/error.ts`（+ContextSnapshotDecodeError）、`session/sql.ts`（+SessionContextEpochTable，迁移债随 R2 迁移切片）、`schema/session-event.ts`（+Verify 三事件、+ContextUpdated）、`schema/config.ts`（+meta 字段）、`schema/config/meta.ts`（新：ConfigMeta 家族）。
+**首波淬炼的 R2 配方**（实证新增）：① **EventV2 即 Bus**（机械改名，`latestSequence` 逐字同源——事件缝去风险）；② `Event.durable` 投影器 = `commit: (seq) => 闭包直写 db`（无 tx 句柄）；③ 事件载荷**无 timestamp 字段**（base 内部计时）；④ declaration-emit 下**禁止自命名空间+同名 interface**（`composite+emitDeclarationOnly` 触发 private-name）→ 换名 `SystemContextValue`（namespace 保留、消费点机械改名）；⑤ v1 合同只读化波纹=局部数组改 `T[]` 可变（输出仍收口 Ruleset）；⑥ `Config.Info.meta` 为 fork 保留字段（ConfigMeta 家族已入 schema）。
+**门禁成绩**：core 0 错 · schema 0 错 + **319/319** · 分包 19/19 全绿（storybook 假阴性已排除——本无 typecheck 脚本）· server 测试 **3 败**（XDG 隔离下 Class A 三败转绿实证 ✓，余 3=Class B 上游件）。
+**下一步（Slice 2.1 收尾）**：context/runner 预热件（`session/context.ts` 已存在靠 base 版？按需）、`SessionExecution` 预热（归 Slice 2.2）→ 然后进入 Slice 2.2（SessionExecution 调度/Event Replay/Provider Turn）。
 ---
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
