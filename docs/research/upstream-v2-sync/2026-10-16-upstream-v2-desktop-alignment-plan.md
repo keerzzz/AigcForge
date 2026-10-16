@@ -274,9 +274,17 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 3. **`../event` 重构缝（缝 C）**：fork `core/src/event.ts`（EventV2 服务，M 文件）在 base 已重构为 `core/src/event/` 目录 + event-logger——**上游演化缝**，需事件系统专项对账（后续切片）；Slice 2.1 内先以最小适配层（fork 调用面映射至 base event/）隔离，登记专项债务。
 4. **fork-only 闭包模块**：`session/correction-store`、`meta-agent/sql`、`permission/effective`、`session/verifier`×2（delta 内）+ `instruction-context`（fork 保留-上游新删，delta 外）——直 port。
 
-### 10.3 Slice 2.1（Core 地基）可执行清单
-**范围**：System Context 代数（5）+ Epoch 持久化（`session/context-epoch.ts`）+ 准入语义闭包（verifier、correction-store、permission/effective、meta-agent/sql、instruction-context）。
-**执行序**：① 闭包模块直 port（按依赖序：util 类→store 类→域类）→ ② `schema/v2/*` 重映射（缝 A 规则）→ ③ event 适配层（缝 C 最小隔离）→ ④ 门禁：`bun --cwd packages/core typecheck`（新文件零错、存量不回归）+ schema 319/319 + 全仓 19/19。
+### 10.3 Slice 2.1（Core 地基）可执行清单（2026-10-16 首轮实操修订）
+**范围**：System Context 代数（6：builtins/correction-facts/index/permission-state/reverse-refs/registry）+ Epoch 持久化（`session/context-epoch.ts`）+ 准入语义闭包（verifier×2、correction-store、permission/effective、meta-agent/sql、instruction-context、flag/flag）。
+**执行序（首轮实操修正：event 适配层从第③步提升为第①步）**：
+1. **event 适配层**（前置硬依赖）：`context-epoch`/`verifier`/`correction-store` 均 import `../event`（fork EventV2 服务）；先建最小适配（fork 调用面 → base `core/src/event/` + event-logger），或作为独立「事件系统对账」子切片先行；
+2. 闭包模块直 port（含 `flag/flag.ts`——fork 保留件、44 消费面）；
+3. 合同重映射（缝 A：`schema/v2/*`）与模块路径重映射（`@aigcfroge/util/{fs-util,global}`、`effect/unstable/process→effect/process`）；
+4. 存量 API 适配（base config 的 `Config.Entry/Document` 面与 fork 形态差异——correction-store 消费点）；
+5. 只读化波纹修复（fork 核心中就地 `push` 变异点 → 不可变重建改写，与 base 只读合同归一）；
+6. 门禁：`packages/core` typecheck 0 + schema 319/319 + 全仓 19/19。
+
+**首轮实操分类账（2026-10-16，13 文件试port → 81→75 错全类目已驯服，为保恒绿已回退，按上序重执行）**：TS2307 模块缝 8 · TS2694 存量 API 差异 8 · TS2339 只读波纹 18 · TS2551/4112/2554/2322 杂类 19 · TS4078 4。**结论：每类均有既定制服路径，无未知风险；等待按修正序执行**。
 **闸门后资产**：System Context 代数与 Epoch 语义进入基座 → 解锁 Slice 2.2（SessionExecution 调度/Event Replay/Provider Turn）。
 
 ---
