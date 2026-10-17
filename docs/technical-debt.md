@@ -1422,3 +1422,13 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **相邻回归**：dashboard 首屏 + memory 失败 + reminder 失败 + session list 失败 + memory confirm/reject **5 pass / 1.1m / exit0**（`-012749`）。
 - **单测/门禁**：`server-sync.test.ts` + `assistant-dashboard-model.test.ts` **34 pass / 59 assertions / exit0**；App typecheck exit0；prettier、`LINT_BASE_REF=HEAD` 增量 lint（3 文件 / 103 新增行）、`git diff --check` 均 exit0。
 - **未关闭**：citation 直接 E3（§15.49）、closed-panel 在途/共享 observer（§15.43）、initial-load 的其他 scope/呈现组合、剩余呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-session-list-read-20261018/`。
+
+### 15.53 2026-10-18 S09 / post-c5 可恢复快照在 `473943815` 上重跑通过 + 执行位漂移修复
+
+按 `final-recovery-README.md` 的既定程序，在 `473943815`（§15.52 之后）用原 `run.py` 记录器（outer 180s、串行、`source_changed_during_run=[]`、`process_group_exists_after=false`）执行 `prepare-final-recovery.py --expected-head 473943815…`。
+
+- **首次失败，原因是真实的本地状态漂移，不是脚本缺陷**：`final-recovery-20261018-post-session-list` **exit1 / 3.471s**，`code-comparison.mismatches=["packages/sdk/js/script/build.ts"]`。字节哈希一致（`bc23388…`），差异在文件模式：索引为 `100755`，实施工作树丢失执行位；由于该 worktree 的 `core.fileMode=false`，`git status` 与 `git diff` 都不报告，属于“不可见漂移”。
+- **修复**：`chmod +x packages/sdk/js/script/build.ts`；随后 `git ls-files -s` 中全部 `100755` 条目均带执行位、`100644` 条目均不带，`git status` 干净。
+- **重跑通过**：`final-recovery-20261018-post-session-list-b` **exit0 / 4.237s / RECOVERY.json=passed**；`tracked_entries=5513`、`present_files=5499`、`symlinks=14`、`mismatches=[]`、`extra_paths=[]`、`source_unchanged=true`；`base.tar` 69,376,000 bytes / sha256 `d597678c…`；`index.patch` 与 `worktree.patch` 均为 0 字节（干净树）。两份 WorkReview fixture SQLite 副本 `integrity=ok`、外键错误 0，Review 身份/状态/revision 与已保存 artifact revision 对应。
+- **边界（沿用原口径，不扩大）**：只证明该提交的本地字节/执行位/symlink 重建与两份已完成合成 fixture 的副本；不证明生产灾备、旧版本 migration、Location 物理迁移或崩溃后自动续跑。忽略依赖与构建产物。
+- **未关闭**：Windows/macOS 打包与签名、真实外部 provider/OAuth、真实 packaged Codex、release/灰度授权仍为外部阻塞；完整 S08/S09 未关闭。
