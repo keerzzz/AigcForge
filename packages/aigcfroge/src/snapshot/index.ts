@@ -472,7 +472,10 @@ export const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Serv
                 }
 
                 const tree = yield* git(
-                  [...core, ...args(["ls-tree", "--name-only", first.hash, "--", ...run.map((item) => item.rel)])],
+                  [
+                    ...core,
+                    ...args(["ls-tree", "--name-only", "-z", first.hash, "--", ...run.map((item) => item.rel)]),
+                  ],
                   {
                     cwd: state.worktree,
                   },
@@ -490,13 +493,7 @@ export const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Serv
                   continue
                 }
 
-                const have = new Set(
-                  tree.text
-                    .trim()
-                    .split("\n")
-                    .map((item) => item.trim())
-                    .filter(Boolean),
-                )
+                const have = new Set(tree.text.split("\0").filter(Boolean))
                 const list = run.filter((item) => have.has(item.rel))
                 if (list.length) {
                   yield* Effect.logInfo("reverting", { hash: first.hash, files: list.length })

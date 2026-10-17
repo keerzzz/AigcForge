@@ -168,11 +168,6 @@
       "scope": "Provider/GitLab maintainers under S8. packages/aigcfroge/test/provider/gitlab-duo.test.ts at SHA256 e3404b94a0fdce2db9af4221b139833cef316c0031b961596bcdf3f0e68854c0 contains only export {} plus commented TODO material. TypeScript AST proves zero executable statements and zero active test calls. Original group027 still passed this file in its four-file argv, but JUnit has only the three active files. The placeholder contributes zero passes and zero executed skips; the 96 active cases do not validate the commented GitLab Duo behavior. The original post-run queue audit exit1 is retained separately.",
       "unlock": "Confirm the supported GitLab Duo contract, replace the stale commented TODO material with active tests against the current implementation, then execute the complete file and affected provider cases using the validated bounded owner and registered-root cleanup. Require source-corresponding JUnit and real assertions before closing this debt. Any source-hash change invalidates this one-file empty-export exception; do not generalize missing JUnit files or delete the placeholder merely to count absent behavior as covered."
     },
-    "httpapi-provider-not-found-skip": {
-      "owner": "S8",
-      "scope": "The complete original backend037 file partition run on 2026-10-15 records 42 passes and one existing it.instance.skip in packages/aigcfroge/test/server/httpapi-provider.test.ts:331: returns public v2 provider not found errors. The seven active provider tests do not execute this missing-provider response assertion. No reason is stated at the skip, and its root cause has not been verified. The 42 passes are accepted separately from this one unverified contract.",
-      "unlock": "Confirm the current public provider route and declared missing-provider error contract, identify why this exact case was skipped, remove the skip after a supported fix or contract correction, then execute it and the complete affected provider file under the existing isolated bounded single-concurrency protocol. Require actual assertions, source-corresponding JUnit and clean teardown. A schema-only test or unrelated discovery/OAuth pass does not replace this HTTP contract."
-    },
     "session-compaction-canonical-boundary-skip": {
       "owner": "S8",
       "scope": "Original056 skips projects a compaction message to v2 (v2 projector disabled) at test/session/compaction.test.ts:587. The old assertion expects an empty canonical summary at create time. SessionMessageUpdater.update at packages/core/src/session/message-updater.ts:375 ignores Started/Delta and appends only Ended. Coding dual-write and Assistant legacy-history adoption have distinct rules. A replacement patch is proposed but unexecuted.",
@@ -192,11 +187,6 @@
       "owner": "S8",
       "scope": "Original067 has4 explicit skips in structured-output-integration.test.ts at lines21/71/136/174: simple schema, nested objects, default text outputFormat, and stored outputFormat on user message. hasApiKey at:11 and live selection at:17 require ANTHROPIC_API_KEY; the isolated environment does not pass provider credentials. The remaining34 passes/101assertions do not cover these four real Session/provider paths.",
       "unlock": "Verify the actual Session chain through controlled real local HTTP or trusted recordings, or an explicitly authorized provider environment. Execute all four cases and their complete file/group with current budgets, source-corresponding JUnit, clean process ownership and registered-root cleanup. Do not silently read credentials or treat schema-only checks as provider integration."
-    },
-    "snapshot-unicode-revert-skip": {
-      "owner": "S8",
-      "scope": "Original068 and its repaired full-file run each retain unicode filenames modification and restore at snapshot.test.ts:311. The active Unicode new-file cases do not prove restoration of modified existing files. The Git exclude fixture repair leaves this skip untouched.",
-      "unlock": "Trace the production revert Git path parser and test its supported filename contract, fix any shared quoting/delimiter cause, then restore this case and run the complete Snapshot file under the existing isolated bounded protocol. Preserve original skipped evidence and verify actual original content restoration."
     }
   },
   "entries": [

@@ -327,7 +327,7 @@ describe("provider HttpApi", () => {
     30000,
   )
 
-  it.instance.skip(
+  it.instance(
     "returns public v2 provider not found errors",
     Effect.gen(function* () {
       const directory = (yield* TestInstance).directory
