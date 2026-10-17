@@ -1213,3 +1213,15 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 五项缺失行为覆盖已恢复，移除 `cli-footer-opentui-skips`；该项原unlock中尚未完成的原生生命周期根因调查归并到现有 `cli-renderer-native-crash`，owner仍为S8。本次测试通过不代表历史SIGSEGV已修复，也未证明Footer与backend010共因；后者的原始失败与真实worker诊断条件继续保留。可信录制、GitLab占位、Windows、其他包/API/E3/E4/展示/性能/打包Codex仍开放，完整S08/S09继续执行。
 
 后端typecheck、显式基线增量lint与账本校验均exit0；账本11pass/26assertions。首次三文件格式检查仅因本文多余空行exit1，Footer测试格式已通过；失败收据保留，空行已移除。最终三文件格式门禁与独立哈希/源码/JUnit审计见同目录 `format-final` 和 `audit.json`。每轮负载串行、concurrency1、零重试，90秒外限及90000ms测试timeout不变；源码/HEAD/branch/index冻结，实际ECHILD与私有目录inode删除均核对。
+
+### 15.36 2026-10-17 S08 / 文件与 PTY 真实后端验收
+
+本节关闭默认 Linux 环境下的 `session-files.spec.ts` 与 `session-pty.spec.ts` 两个完整文件验收，未修改生产实现。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/e4-io-contract-20261017`。
+
+- **完整执行**：最终同一轮 **6 pass / 0 fail / 0 skip / 0 retry / exit0**，包含生产构建，负载用时 **48.446940秒**。Playwright报告、六份trace、E4 manifest及teardown、源码冻结与owner/root收据由 `audit.py` / `audit.json` 核验。最初文件3例及旧PTY3例各自通过，作为原始证据保留，不与最终6例重复相加；旧PTY对象存在断言不能证明退出状态。
+- **文件合同**：实际HTTP验证搜索、文本与二进制、越界拒绝、missing-file404及完整2MiB文本。原“两会话读文件”用例实际上仅发出两次并行文件请求，名称已修正；本轮不声称证明Session隔离。
+- **终端合同**：先收到实际命令输出，再由DELETE触发服务端WebSocket正常关闭；另一个立即退出的进程通过canonicalGET明确读取 `status=exited / exitCode=7`，验证active-only接口隐藏、canonical列表保留、显式删除及后续404。不存在的命令实际500，并检查两种列表均无残留。边界由 `packages/core/src/pty.ts:253` 的退出回调、`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/pty.ts:95` 的get过滤及 `packages/server/src/handlers/pty.ts:58` 的canonical读取决定；未新增兼容实现或错误类型。
+
+全部运行使用既有封印owner，串行、concurrency1、零重试、90秒外限；最终Playwright用例timeout为90000ms。E4 gate确认端口释放、进程组消失、工作区无残留，且未强制SIGKILL；owner实际取得ECHILD并删除注册私有目录。外部命令适配器只将既有E4框架映射到注册目录并保存证据，没有新增进程监督器。类型、增量lint、格式和账本门禁结果见同目录最终审计。
+
+只收窄 `e4-isolated-runtime-revalidation` 中已验证的文件/PTY范围。not-found、其余identity/lifeline及default/V2组合、平台、界面状态和S09门禁仍开放；完整S08/S09未关闭。此次未新增产品实现或技术债。

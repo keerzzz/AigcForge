@@ -93,7 +93,7 @@ test("searches, reads, and isolates files in a real workspace", async ({ request
   expect(JSON.stringify(missingBody)).toContain("does-not-exist.md")
 })
 
-test("two sessions read different files without cross-contamination", async ({ request }) => {
+test("parallel requests read different files without cross-contamination", async ({ request }) => {
   const e4m = e4()
   const root = seedFiles()
   const first = path.relative(e4m.workspaceDir, path.join(root, "alpha.md"))
