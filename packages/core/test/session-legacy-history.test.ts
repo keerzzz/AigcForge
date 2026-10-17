@@ -332,11 +332,11 @@ describe("Assistant legacy history adoption", () => {
     }),
   )
 
-  it.effect("only completed summaries establish a canonical compaction boundary", () =>
+  it.effect("only successful completed summaries establish a canonical compaction boundary", () =>
     Effect.gen(function* () {
-      yield* Effect.forEach([true, false], (completed) =>
+      yield* Effect.forEach(["done", "incomplete", "error"], (status) =>
         Effect.gen(function* () {
-          const seeded = yield* seed(completed ? "summary_done" : "summary_incomplete")
+          const seeded = yield* seed(`summary_${status}`)
           const db = (yield* Database.Service).db
           const assistant = yield* db
             .select()
@@ -344,10 +344,22 @@ describe("Assistant legacy history adoption", () => {
             .where(eq(MessageTable.id, seeded.assistant))
             .get()
             .pipe(Effect.orDie)
-          if (!assistant) throw new Error("missing fixture assistant")
+          if (!assistant || assistant.data.role !== "assistant") throw new Error("missing fixture assistant")
           yield* db
             .update(MessageTable)
-            .set({ data: { ...assistant.data, ...{ summary: true, finish: completed ? "stop" : undefined } } })
+            .set({
+              data: {
+                ...assistant.data,
+                ...({
+                  summary: true,
+                  finish: status === "incomplete" ? undefined : "stop",
+                  error:
+                    status === "error"
+                      ? new SessionV1.APIError({ message: "Summary failed", isRetryable: false }).toObject()
+                      : undefined,
+                } satisfies Pick<SessionV1.Assistant, "summary" | "finish" | "error">),
+              },
+            })
             .where(eq(MessageTable.id, seeded.assistant))
             .run()
             .pipe(Effect.orDie)
@@ -369,8 +381,22 @@ describe("Assistant legacy history adoption", () => {
             .run()
             .pipe(Effect.orDie)
           const context = yield* (yield* SessionV2.Service).context(seeded.sessionID)
-          expect(context.map((message) => message.type)).toEqual(completed ? ["compaction"] : ["user", "assistant"])
-          if (completed) expect(context[0]).toMatchObject({ summary: "Old answer", reason: "manual" })
+          expect(context.map((message) => message.type)).toEqual(
+            status === "done" ? ["compaction"] : ["user", "assistant"],
+          )
+          if (status === "done") expect(context[0]).toMatchObject({ summary: "Old answer", reason: "manual" })
+          if (status === "error") {
+            expect(context[1]).toMatchObject({
+              type: "assistant",
+              id: SessionMessage.ID.make(seeded.assistant),
+              finish: "stop",
+              error: { type: "unknown", message: "APIError" },
+              content: [{ type: "text", text: "Old answer" }],
+            })
+            const messages = yield* (yield* SessionV2.Service).messages({ sessionID: seeded.sessionID, order: "asc" })
+            expect(messages.map((message) => message.type)).toEqual(["user", "assistant"])
+            expect(messages[1]).toMatchObject({ error: { type: "unknown", message: "APIError" } })
+          }
         }),
       )
     }),

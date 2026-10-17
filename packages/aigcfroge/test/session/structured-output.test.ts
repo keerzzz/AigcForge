@@ -107,12 +107,20 @@ describe("structured-output.UserMessage", () => {
       time: { created: Date.now() },
       agent: "default",
       model: { providerID: "anthropic", modelID: "claude-3" },
-      outputFormat: {
+      format: {
         type: "json_schema",
         schema: { type: "object" },
       },
     })
     expect(Exit.isSuccess(result)).toBe(true)
+    if (Exit.isSuccess(result)) {
+      expect(result.value.format).toMatchObject({ type: "json_schema", retryCount: 2 })
+      expect(Schema.encodeSync(SessionV1.User)(result.value).format).toEqual({
+        type: "json_schema",
+        schema: { type: "object" },
+        retryCount: 2,
+      })
+    }
   })
 
   test("user message works without outputFormat (optional)", () => {

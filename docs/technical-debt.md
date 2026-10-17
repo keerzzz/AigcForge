@@ -1188,3 +1188,16 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 最终coverage/manifest完整11项为 **11pass/26assertions/exit0**，格式检查及const修复的Bun转译字节比较均exit0，见 `session-projection-ledger-final-20261017-p3id0mxw`。`session-projection-closure-20261017/runtime-equivalence.ts:14` 比较旧/新转译结果；const修复前114项行为证据可复用，不声称行为已重跑。最终源码对应及引用证据复核见同目录 `audit-final.py` 与 `audit-final.json`。
 
 关闭 `session-compaction-canonical-boundary-skip` 和 `prompt-canonical-projection-skip`。Assistant adoption的成功/未完成规则与coding双写入口分开；带error的已完成summary尚未覆盖，登记 `assistant-legacy-history-error-summary`（owner=S8 / Core Session），unlock为真实adoption负例及完整Core文件验收。StructuredOutput本地HTTP草稿未实施；录制、其他包/API/E3/E4/展示/性能/平台与打包Codex边界继续开放，完整S08/S09未关闭。
+
+### 15.34 2026-10-17 S08 / StructuredOutput HTTP 链与 Assistant 失败摘要
+
+- **四项 StructuredOutput 路径恢复**：`packages/aigcfroge/test/session/structured-output-integration.test.ts:282` 复用现有TestLLMServer与隔离临时配置，固定coding/build、本地模型和标题。四例通过实际HTTP/SSE、SessionPrompt、SessionProcessor、StructuredOutput工具和数据库，分别检查简单/嵌套结构、普通文本和format持久化；每例恰好一次provider请求且回复队列耗尽。简单结构还检查请求模型、required工具选择及工具schema，文本例检查没有StructuredOutput工具。未接入外部模型服务；这些结果不代表Anthropic或OpenAI线上行为。
+- **保留失败并修正输入边界**：原完整两文件实际为 **23pass/4fail/54assertions/exit1/27.982485秒**，见 `structured-output-local-20261017/behavior`；四例均在MessageUpdated编码format时失败。`packages/aigcfroge/src/server/routes/instance/httpapi/groups/session.ts:86` 定义从PromptInput派生的已解码payload，`handlers/session.ts:834` 的handler再交给服务；直接服务测试必须提供同一解码形态。现于测试`:15` 复用 `Schema.decodeUnknownSync(SessionPrompt.PromptInput)`。没有放宽生产schema或为普通对象增加兼容分支。相邻单测原用未知outputFormat字段且只断言解码成功；现用真实format，并在 `structured-output.test.ts:117` 检查默认retryCount与编码结果。
+- **StructuredOutput 完整验收**：同一27个用例名称在修后为 **27pass/91assertions/0fail/0skip/exit0/21.774823秒**，见 `structured-output-local-20261017/decoded-behavior/prepared/verification.json`。后端typecheck实际exit0/24.693139秒，见同目录 `decoded-types`。失败轮与通过轮不重复相加；失败是旧测试输入与当前Schema.Class契约不符，不宣称修复了生产provider缺陷。
+- **Assistant 失败摘要保持普通历史**：`packages/core/test/session-legacy-history.test.ts:335` 在原完成/未完成场景中增加finish=stop且含APIError的摘要，实际触发旧记录adoption并核验context和持久化messages仍是user/assistant，保留正文、完成状态与错误身份。生产边界仍由 `packages/core/src/session/legacy-history.ts:202` 的summary、finish、无error与compaction条件决定；`:234` 保留错误映射。完整Core文件最终 **7pass/36assertions/0fail/0skip/exit0**，见 `assistant-error-summary-20261017/behavior-typed`。原首次7pass/36assertions不重复计数；其后Core types exit2源于SQL列的Omit联合类型只保留共同字段，收据在 `types`。测试复用本文件的类型化字段展开，用Pick约束实际Assistant字段，未更改SQL声明或数据。修后Core types exit0，见 `types-typed`。
+
+本切片仅变更三份测试与两份账本，复用原服务、Schema、HTTP及数据库夹具；没有新增产品实现。最终34个唯一行为用例共127断言。显式基线增量lint、五文件格式与coverage/manifest的最终门禁收据位于 `session-coverage-close-20261017`，其 `audit.py` 复核源码差异、JUnit身份及证据哈希；两包types对应各自冻结切片，后端types早于Core测试编辑，不声称两者全树快照相同。全部负载串行、concurrency1、零重试，保留90秒外限与90000ms测试timeout；实际owner ECHILD及私有目录删除均单独核验。
+
+最终增量lint、五文件格式及coverage/manifest均exit0；账本11pass/26assertions。首次格式门禁的两文件exit1、随后原始JS字节比较的exit1均保留：Bun转译仍保留对象排版，不能把字节差异直接判为语义变化。`format-copy-v2.ts` 复用先前TypeScript AST节点种类/文本/有序子节点比较，并独立比较规范化JS；两文件AST一致，规范化JS一致，原始JS仅Core文件相同。排版后的源码与行为/类型检查分别绑定，不声称重跑行为。
+
+关闭 `structured-output-provider-integration-skips` 与 `assistant-legacy-history-error-summary`。可信OpenAI录制、CLI Footer及原生renderer、GitLab占位、Windows与其他包/API/E3/E4/展示/性能/打包Codex边界继续按原owner/unlock开放；完整S08/S09未关闭。
