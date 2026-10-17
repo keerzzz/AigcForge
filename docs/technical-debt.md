@@ -1344,3 +1344,21 @@ Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败
 **保留失败**：三 project 合并在一个 90s 命令中 `exit124`；首次 zh 运行也因选择器仍用英文 “Dangling links” 而超时，改用本地化 “悬空链接” 后通过。两份 receipt 均保留。
 
 **边界**：目前只有 KB 与 delivery-history 两个错误态的呈现证据；其他 Assistant 错误态、closed-panel 在途/共享 observer 及完整 S08/S09 仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-presentation-20261017/`。
+
+### 15.47 2026-10-17 S08-B / E4 provider turn、interrupt、V2 与双后端
+
+在隔离 E4 harness（真实后端、真实 SQLite/workspace、确定性 loopback provider、production build、workers=1、retries=0）逐例运行，所有成功轮次的 `teardown-gate.json` 均 passed（端口释放、进程组退出、无残留、SIGTERM 报告 clean）。证据根目录 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/e4-provider-turn-20261017/`。
+
+| 用例                                                           | 结果                                                                                  |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| default `browser submit` → provider turn → reload              | **1 pass / exit0 / 90000ms**                                                          |
+| default interrupted SSE → retry → later turn                   | **1 pass / exit0 / 90000ms**；测试内 provider completion 2→3                          |
+| default streamed tool call → continuation → durable            | **1 pass / exit0 / 90000ms**                                                          |
+| default two transient 500s → retry                             | **1 pass / exit0 / 90000ms**；provider completion delta=3                             |
+| V2 coding canonical admission → provider turn → reload/restart | **1 pass / exit0 / 90000ms**；provider delta=1、admission row 1、重试不增调用         |
+| dual-backend shared Session ID identity/review                 | **1 pass / exit0 / 90000ms**；peer 独立 DB/workspace，teardown passed                 |
+| Assistant reminder → daemon → inbox/reload                     | **90s fail**：到期时 reminder 仍 `pending`；**120s 诊断 pass**（spec 既有预算为120s） |
+
+**预算冲突**：`assistant-scheduler.spec.ts` 自身注释写明既有 E4 预算为 120s；90s 运行是预算截断，不记作产品通过，也不据此改生产代码或缩短真实 45s 到期语义。其余 E4 用例均在 90000ms 内完成。
+
+**未关闭**：default completed-turn restart 的 90s 运行、V2 Custom 变体、其余 identity/lifeline、真实外部 provider/OAuth、Windows/macOS 打包、签名/发布与完整 S08/S09。完整 S08-B/S09 仍开放。
