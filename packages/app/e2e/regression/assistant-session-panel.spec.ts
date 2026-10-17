@@ -981,6 +981,85 @@ for (const outcome of ["success", "failure"] as const) {
   })
 }
 
+for (const operation of ["update", "remove"] as const) {
+  test(`AI-TDD-S08-R02: NoteEditor ${operation} refresh failure retries reads without repeating the write`, async ({
+    page,
+  }, testInfo) => {
+    const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session
+    const note = {
+      id: "note_refresh_failure",
+      title: "Readback panel note",
+      content: "Readback panel content",
+      scope: "global",
+      tags: [],
+      format: "note",
+      createdAt: 1700000000000,
+      updatedAt: 1700000000000,
+    } satisfies KbNoteNote
+    const fixture = await mockAssistantMutationPanel(page, [assistant])
+    fixture.replies.set("/kb", [note])
+    fixture.replies.set(`/kb/${note.id}`, note)
+    fixture.replies.set(`/kb/${note.id}/backlinks`, [])
+    const readReplies = new Map<string, { status: number; json: unknown }>()
+    const path = `/kb/${note.id}${operation === "remove" ? "/remove" : ""}`
+    const probe = await AssistantMutationProbe.track(page, fixture.replies, [path], { readReplies })
+    const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+    const sidebar = page.locator('[data-component="assistant-session-sidebar"]')
+    const editor = panel.locator('[data-component="assistant-note-editor"]')
+    const titleInput = editor.getByRole("textbox", { name: "Title", exact: true })
+    const bodyInput = editor.getByRole("textbox", { name: "Markdown body, may contain [[wikilinks]]", exact: true })
+    const save = editor.getByRole("button", { name: "Save", exact: true })
+    const remove = editor.getByRole("button", { name: "Delete", exact: true })
+    try {
+      await page.goto(fixture.url)
+      await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+      const toggle = page.locator("#secondary-sidebar-toggle")
+      if ((await toggle.getAttribute("aria-label")) !== "Hide sidebar") await toggle.click()
+      await sidebar.locator('[data-nav-section="kb"] > button').click()
+      await sidebar.getByRole("button", { name: note.title, exact: true }).click()
+      await panel.getByRole("button", { name: "Edit note", exact: true }).click()
+      await expect(bodyInput).toHaveValue(note.content)
+      await probe.settle("readback-editor-ready")
+      await (operation === "remove" ? remove : save).click()
+      await expect.poll(() => probe.mutations.length).toBe(1)
+      readReplies.set("/kb", {
+        status: 400,
+        json: { _tag: "InvalidRequestError", message: "Synthetic post-write read failure" },
+      })
+      fixture.replies.set("/kb", operation === "remove" ? [] : [note])
+      await probe.complete(0, { status: 200, json: operation === "remove" ? true : note })
+
+      const error = editor.getByRole("alert")
+      await expect(error).toContainText("Changes applied. Could not refresh the notes.")
+      await expect(titleInput).toHaveValue(note.title)
+      await expect(bodyInput).toHaveValue(note.content)
+      await expect(titleInput).toBeDisabled()
+      await expect(bodyInput).toBeDisabled()
+      await expect(save).toBeDisabled()
+      await expect(remove).toBeDisabled()
+      expect(probe.mutations).toHaveLength(1)
+      const failedReads = probe.count("/kb")
+      expect(failedReads).toBeGreaterThan(1)
+      readReplies.delete("/kb")
+      await error.getByRole("button", { name: "Refresh", exact: true }).click()
+      await expect(editor).toHaveCount(0)
+      await expect.poll(() => probe.count("/kb")).toBe(failedReads + 1)
+      const kb = panel.locator('[data-component="assistant-kb-tab"]')
+      await expect(kb).toBeVisible()
+      await expect(kb.getByRole("button", { name: note.title, exact: true })).toHaveCount(
+        operation === "remove" ? 0 : 1,
+      )
+      expect(probe.mutations).toHaveLength(1)
+    } finally {
+      await probe.close()
+      await testInfo.attach(`note-editor-${operation}-readback`, {
+        body: JSON.stringify(probe.receipt()),
+        contentType: "application/json",
+      })
+    }
+  })
+}
+
 async function mockAssistantMutationPanel(page: Page, sessions: Session[]) {
   const server = `http://127.0.0.1:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
   const snapshot = {

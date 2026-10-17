@@ -977,6 +977,7 @@ export const dict = {
   "assistant.editor.edit": "Edit",
   "assistant.editor.preview": "Preview",
   "assistant.editor.dangling": "{{count}} dangling links:",
+  "assistant.editor.refreshError": "Changes applied. Could not refresh the notes.",
   "assistant.citation.dismiss": "Dismiss citation",
   "assistant.citation.loading": "Loading note…",
   "assistant.citation.error": "Could not load this note.",

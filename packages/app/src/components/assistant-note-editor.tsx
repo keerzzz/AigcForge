@@ -9,12 +9,8 @@ import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
-import {
-  assistantKbQueryKeys,
-  assistantQueryKey,
-  assistantQueryOptions,
-  invalidateAssistantQueries,
-} from "@/utils/assistant-query"
+import { assistantKbQueryKeys, assistantQueryKey, assistantQueryOptions } from "@/utils/assistant-query"
+import { AssistantMutation } from "@/utils/assistant-mutation"
 import { ScopedKey } from "@/utils/server-scope"
 import { useModeQueryActivity } from "@/pages/mode-slot-active"
 import {
@@ -31,19 +27,15 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   const queryClient = useQueryClient()
   const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
   const owner = createMemo(() => ({ scope: serverSDK().scope, noteID: props.noteId }))
-  let disposed = false
-  onCleanup(() => {
-    disposed = true
-  })
 
   const [title, setTitle] = createSignal("")
   const [tags, setTags] = createSignal("")
   const [content, setContent] = createSignal("")
   const [load, setLoad] = createStore({ pending: false, failed: false, attempt: 0 })
   const unavailable = () => load.pending || load.failed
-  const [mutation, setMutation] = createStore({ saving: false, deleting: false })
-  createEffect(on(owner, () => setMutation({ saving: false, deleting: false })))
-  const pending = () => mutation.saving || mutation.deleting
+  const mutation = AssistantMutation.create({ client: queryClient, onComplete: () => props.onSaved() })
+  createEffect(on(owner, () => mutation.reset()))
+  const pending = mutation.blocked
   const [completion, setCompletion] = createSignal<string[] | undefined>()
   const [completionIndex, setCompletionIndex] = createSignal(0)
 
@@ -198,7 +190,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
     const origin = owner()
     const id = origin.noteID
     const keys = assistantKbQueryKeys(sdk.scope)
-    const current = () => !disposed && owner() === origin
+    const current = () => owner() === origin
     const currentTitle = title().trim()
     const tagList = tags()
       .split(",")
@@ -206,30 +198,16 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
       .filter((tag) => tag.length > 0)
     if (!currentTitle) return
     setCompletion(undefined)
-    setMutation("saving", true)
-    const request = id
-      ? sdk.client.kb.update({
-          id,
-          title: currentTitle,
-          content: content(),
-          tags: tagList,
-        })
-      : sdk.client.kb.create({
-          title: currentTitle,
-          content: content(),
-          scope: "global",
-          tags: tagList,
-        })
-    void request
-      .then(async () => {
-        // The write still belongs to its original server even after this editor is replaced.
-        await invalidateAssistantQueries(queryClient, keys)
-        if (current()) props.onSaved()
-      })
+    void mutation
+      .run(
+        () =>
+          id
+            ? sdk.client.kb.update({ id, title: currentTitle, content: content(), tags: tagList })
+            : sdk.client.kb.create({ title: currentTitle, content: content(), scope: "global", tags: tagList }),
+        keys,
+        current,
+      )
       .catch(console.error)
-      .finally(() => {
-        if (current()) setMutation("saving", false)
-      })
   }
 
   const remove = () => {
@@ -239,19 +217,9 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
     const id = origin.noteID
     if (!id) return
     const keys = assistantKbQueryKeys(sdk.scope)
-    const current = () => !disposed && owner() === origin
+    const current = () => owner() === origin
     setCompletion(undefined)
-    setMutation("deleting", true)
-    const request = sdk.client.kb.remove({ id })
-    void request
-      .then(async () => {
-        await invalidateAssistantQueries(queryClient, keys)
-        if (current()) props.onSaved()
-      })
-      .catch(console.error)
-      .finally(() => {
-        if (current()) setMutation("deleting", false)
-      })
+    void mutation.run(() => sdk.client.kb.remove({ id }), keys, current).catch(console.error)
   }
 
   return (
@@ -299,6 +267,23 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           <ButtonV2 variant="neutral" size="small" onClick={() => setLoad("attempt", (attempt) => attempt + 1)}>
             {language.t("assistant.citation.retry")}
           </ButtonV2>
+        </div>
+      </Show>
+
+      <Show when={mutation.state.phase === "write-failed" || mutation.state.phase === "refresh-failed"}>
+        <div role="alert" class="flex min-w-0 items-center gap-2">
+          <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
+            {language.t(
+              mutation.state.phase === "refresh-failed"
+                ? "assistant.editor.refreshError"
+                : "assistant.dashboard.actionError",
+            )}
+          </p>
+          <Show when={mutation.state.phase === "refresh-failed"}>
+            <ButtonV2 variant="neutral" size="small" onClick={() => void mutation.retry().catch(console.error)}>
+              {language.t("common.refresh")}
+            </ButtonV2>
+          </Show>
         </div>
       </Show>
 

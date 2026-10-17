@@ -125,6 +125,55 @@ describe("assistantQueryOptions", () => {
 })
 
 describe("invalidateAssistantQueries", () => {
+  test("propagates an explicitly requested refetch failure while preserving cached data", async () => {
+    const client = createQueryClient()
+    const failure = new Error("readback rejected")
+    const options = {
+      ...assistantQueryOptions(ServerScope.local, "kb"),
+      queryFn: async () => {
+        throw failure
+      },
+    }
+    client.setQueryData(options.queryKey, "previous")
+    disposers.push(new QueryObserver(client, options).subscribe(() => {}))
+    await expect(invalidateAssistantQueries(client, [options.queryKey], { throwOnError: true })).rejects.toBe(failure)
+    expect(client.getQueryData<string>(options.queryKey)).toBe("previous")
+    expect(client.getQueryState(options.queryKey)?.isInvalidated).toBe(true)
+  })
+
+  test("waits for neighboring refetches to settle before exposing a strict refresh failure", async () => {
+    const client = createQueryClient()
+    const failure = new Error("first readback rejected")
+    const second = Promise.withResolvers<string>()
+    const firstOptions = {
+      ...assistantQueryOptions(ServerScope.local, "kb"),
+      queryFn: async () => {
+        throw failure
+      },
+    }
+    const secondOptions = {
+      ...assistantQueryOptions(ServerScope.local, "dangling"),
+      queryFn: () => second.promise,
+    }
+    client.setQueryData(firstOptions.queryKey, "old note")
+    client.setQueryData(secondOptions.queryKey, "old links")
+    disposers.push(new QueryObserver(client, firstOptions).subscribe(() => {}))
+    disposers.push(new QueryObserver(client, secondOptions).subscribe(() => {}))
+    const state = { settled: false }
+    const result = invalidateAssistantQueries(client, [firstOptions.queryKey, secondOptions.queryKey], {
+      throwOnError: true,
+    })
+    void result.catch(() => {
+      state.settled = true
+    })
+    await expect(client.getQueryCache().find({ queryKey: firstOptions.queryKey })?.promise).rejects.toBe(failure)
+    expect(state.settled).toBe(false)
+    second.resolve("new links")
+    await expect(result).rejects.toBe(failure)
+    expect(client.getQueryData<string>(secondOptions.queryKey)).toBe("new links")
+    expect(state.settled).toBe(true)
+  })
+
   test("invalidates only the supplied resources and their descendants in the captured server scope", async () => {
     const client = createQueryClient()
     const remote = ServerScope.fromServerKey(ServerConnection.Key.make("https://remote.example"))

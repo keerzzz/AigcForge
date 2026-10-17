@@ -848,6 +848,7 @@ export const dict = {
   "assistant.editor.edit": "编辑",
   "assistant.editor.preview": "预览",
   "assistant.editor.dangling": "{{count}} 个悬空链接：",
+  "assistant.editor.refreshError": "更改已生效，但无法刷新笔记。",
   "assistant.citation.dismiss": "关闭引文",
   "assistant.citation.loading": "正在加载笔记…",
   "assistant.citation.error": "无法加载该笔记。",

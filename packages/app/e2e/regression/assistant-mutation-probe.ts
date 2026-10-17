@@ -17,11 +17,11 @@ export async function track(
   page: Page,
   replies: Map<string, unknown>,
   mutationPaths: string[],
-  options?: { origin: string },
+  options?: { origin?: string; readReplies?: Map<string, AssistantMutationReply> },
 ) {
   const apiPort = process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"
   const origins = new Set(
-    options
+    options?.origin
       ? [new URL(options.origin).origin]
       : [
           `http://127.0.0.1:${apiPort}`,
@@ -76,11 +76,12 @@ export async function track(
     const request = route.request()
     const path = new URL(request.url()).pathname
     if (request.method() === "GET" && replies.has(path)) {
+      const reply = options?.readReplies?.get(path)
       return route.fulfill({
-        status: 200,
+        status: reply?.status ?? 200,
         contentType: "application/json",
         headers: { "access-control-allow-origin": "*" },
-        body: JSON.stringify(replies.get(path)),
+        body: JSON.stringify(reply ? reply.json : replies.get(path)),
       })
     }
     if (request.method() !== "POST" || !writes.has(path)) return route.fallback()

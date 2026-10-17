@@ -1,4 +1,4 @@
-import type { QueryClient, QueryKey } from "@tanstack/solid-query"
+import type { InvalidateOptions, QueryClient, QueryKey } from "@tanstack/solid-query"
 import type { ServerScope } from "@/utils/server-scope"
 
 export function assistantQueryKey<const Parts extends readonly unknown[]>(scope: ServerScope, ...parts: Parts) {
@@ -22,6 +22,12 @@ export function assistantKbQueryKeys(scope: ServerScope) {
   ] as const
 }
 
-export async function invalidateAssistantQueries(client: QueryClient, keys: ReadonlyArray<QueryKey>): Promise<void> {
-  await Promise.all(keys.map((queryKey) => client.invalidateQueries({ queryKey })))
+export async function invalidateAssistantQueries(
+  client: QueryClient,
+  keys: ReadonlyArray<QueryKey>,
+  options?: InvalidateOptions,
+): Promise<void> {
+  const results = await Promise.allSettled(keys.map((queryKey) => client.invalidateQueries({ queryKey }, options)))
+  const failure = results.find((result) => result.status === "rejected")
+  if (failure?.status === "rejected") throw failure.reason
 }

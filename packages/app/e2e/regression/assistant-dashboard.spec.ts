@@ -63,7 +63,7 @@ const kbNote = {
   format: "note",
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
-}
+} satisfies KbNoteNote
 
 test.describe("regression: assistant dashboard", () => {
   // The dev server cold-compiles the dashboard route on first navigation;
@@ -373,6 +373,75 @@ test.describe("regression: assistant dashboard", () => {
   })
 })
 
+for (const operation of ["create", "update", "remove"] as const) {
+  test(`AI-TDD-S08-R02: Dashboard ${operation} refresh failure retries reads without repeating the write`, async ({
+    page,
+  }, testInfo) => {
+    const note = {
+      ...kbNote,
+      id: operation === "create" ? "kb_readback_created" : kbNote.id,
+      title: operation === "remove" ? kbNote.title : "Applied dashboard note",
+      content: operation === "remove" ? kbNote.content : "Applied dashboard content",
+    } satisfies KbNoteNote
+    const replies = new Map<string, unknown>([["/kb", [kbNote]]])
+    const readReplies = new Map<string, { status: number; json: unknown }>()
+    await mockServer(page, {
+      state: {},
+      provider: { all: [], connected: [], default: {} } satisfies ProviderListResponse,
+    })
+    await configurePage(page)
+    const path = operation === "create" ? "/kb" : `/kb/${note.id}${operation === "remove" ? "/remove" : ""}`
+    const probe = await AssistantMutationProbe.track(page, replies, [path], { readReplies })
+    const dashboard = page.locator('[data-mode-main="assistant"]')
+    const titleInput = dashboard.getByRole("textbox", { name: "Title", exact: true })
+    const bodyInput = dashboard.getByRole("textbox", { name: "Markdown body, may contain [[wikilinks]]", exact: true })
+    const save = dashboard.getByRole("button", { name: "Save", exact: true })
+    const remove = dashboard.getByRole("button", { name: "Delete", exact: true })
+    try {
+      await page.goto("/mode/assistant")
+      if (operation === "create") await dashboard.getByRole("button", { name: "New note", exact: true }).click()
+      if (operation !== "create") await dashboard.getByText(kbNote.title, { exact: true }).click()
+      await titleInput.fill(note.title)
+      await bodyInput.fill(note.content)
+      await probe.settle("readback-draft-ready")
+      await (operation === "remove" ? remove : save).click()
+      await expect.poll(() => probe.mutations.length).toBe(1)
+      readReplies.set("/kb", {
+        status: 400,
+        json: { _tag: "InvalidRequestError", message: "Synthetic post-write read failure" },
+      })
+      replies.set("/kb", operation === "remove" ? [] : [note])
+      await probe.complete(0, { status: 200, json: operation === "remove" ? true : note })
+
+      const error = dashboard.getByRole("alert")
+      await expect(error).toContainText("Changes applied. Could not refresh the notes.")
+      await expect(titleInput).toHaveValue(note.title)
+      await expect(bodyInput).toHaveValue(note.content)
+      await expect(titleInput).toBeDisabled()
+      await expect(bodyInput).toBeDisabled()
+      await expect(save).toBeDisabled()
+      if (operation !== "create") await expect(remove).toBeDisabled()
+      expect(probe.mutations).toHaveLength(1)
+      const failedReads = probe.count("/kb")
+      expect(failedReads).toBeGreaterThan(1)
+      readReplies.delete("/kb")
+      await error.getByRole("button", { name: "Refresh", exact: true }).click()
+      await expect(titleInput).toHaveCount(0)
+      await expect(bodyInput).toHaveCount(0)
+      await expect(error).toHaveCount(0)
+      await expect.poll(() => probe.count("/kb")).toBe(failedReads + 1)
+      await expect(dashboard.getByText(note.title, { exact: true })).toHaveCount(operation === "remove" ? 0 : 1)
+      expect(probe.mutations).toHaveLength(1)
+    } finally {
+      await probe.close()
+      await testInfo.attach(`dashboard-${operation}-readback`, {
+        body: JSON.stringify(probe.receipt()),
+        contentType: "application/json",
+      })
+    }
+  })
+}
+
 // Hooks consumed by this spec's own page.route handlers below; the shared
 // mock server (utils/mock-server.ts) does not implement them.
 type DashboardHooks = {
@@ -398,6 +467,7 @@ async function mockServer(page: Page, extra: { state: object } & Partial<MockSer
   await page.route("**/delivery/recent**", (route) => route.fulfill({ json: [delivered] }))
   await page.route("**/memory", (route) => route.fulfill({ json: [pendingMemory] }))
   await page.route("**/kb", (route) => route.fulfill({ json: [kbNote] }))
+  await page.route("**/kb/dangling", (route) => route.fulfill({ json: [] }))
   await page.route("**/schedule/*/cancel", (route) => {
     if (extra.onScheduleCancel) extra.onScheduleCancel()
     return route.fulfill({ json: { ...pendingReminder, status: "cancelled" } })

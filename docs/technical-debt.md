@@ -1258,3 +1258,28 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/note-read-boundary-20261017`。`audit.py` / `audit.json` 对应实际Playwright结果、源码冻结、旧/新bundle源码映射、原有trial实现对应、Chrome traces、实际ECHILD及注册私有目录删除；并记录App类型、增量lint、格式与账本检查结果。通用runner的verify0只证明命令/源码/生命周期，浏览器结论另查实际Playwright结果；两次超时与行为RED不改记为绿色测试。
 
 `session-hidden-mode-effects` 仅收窄初次笔记读取200/400与显式重试范围。失败的保存后刷新、初次加载的其他scope/空响应/呈现组合、跨Session草稿、剩余隐藏observer及Custom状态继续开放；完整S08/S09未关闭。
+
+### 15.39 2026-10-17 S08 / 笔记写入成功后的读取恢复
+
+两处笔记编辑器现在区分写入失败和写入成功后的刷新失败。后者保留草稿、禁用再次写入，并提供本地化 Refresh 按钮；重试只读取，不重复 POST。`packages/app/src/utils/assistant-query.ts:25` 复用现有查询失效入口，接收库已有的严格错误选项并等待全部失效请求结束。共享控制器 `assistant-mutation.ts:20` 以操作身份、原编辑 owner 和 disposal 判断当前归属；`:23` 仍为已完成的旧写入刷新原始 keys，`:58` 只重试刷新。既有非笔记 mutation 没有自动切换到严格恢复，其剩余范围继续登记。
+
+- **行为 RED**：Dashboard 新建/更新/删除三例、侧栏更新/删除两例在旧生产构建上分别实际3fail和2fail，均缺少刷新恢复提示。修正下述夹具后，Dashboard同三例再次实际3fail。共五个唯一失败场景，重复验证不另计覆盖。
+- **保留失败与根因**：首次新构建的Dashboard完整运行在90秒外限退出124，留下四个已报告失败，无完整Playwright JSON。trace证明私有 `mockServer` 遗漏 `/kb/dangling`，收到200 HTML而非JSON；严格失效正确传播了读取错误。只在 `packages/app/e2e/regression/assistant-dashboard.spec.ts:470` 补充空列表响应，未改变生产实现或放宽错误处理。原始trace、日志及诊断保留。
+- **完整 E3**：最终侧栏12pass、Dashboard10pass、跨服务器3pass，共25次执行，零fail/skip/retry。覆盖一次写入后的失败读取、显式刷新、禁用字段、取消/新建归属、同ID跨服务器旧请求完成，以及完整文件内原有场景。侧栏和修正后Dashboard各自的RED/GREEN测试字节相同。实际QueryClient与控制器单测16pass/1626assertions；其中含相邻刷新等待、重复刷新失败、写入失败重试、替换/dispose及隐藏observer恢复。
+
+复用§15.38的after冷/热两组作为本轮before：切片开始的生产输入、bundle、测量代码及夹具对应，并重新核对原始证据哈希。新构建冷/热各5次均通过，同样串行、worker1、零重试、90秒owner与CLI90000ms设置。
+
+| 构建/组             | trials | 负载秒数 | first-correct median ms | stable median ms |
+| ------------------- | ------ | -------- | ----------------------- | ---------------- |
+| before cold（复用） | 5      | 64.970   | 223.1                   | 242.4            |
+| before hot（复用）  | 5      | 68.805   | 216.9                   | 239.5            |
+| after cold          | 5      | 63.629   | 217.7                   | 242.4            |
+| after hot           | 5      | 69.907   | 209.5                   | 236.2            |
+
+这是描述性样本；新冷/热组分别仍有3/1次blank观察，不作因果、统计显著性或完整性能无回退声明。错误画面仅检查默认English/light/desktop，不计作完整呈现矩阵。
+
+证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/note-readback-20261017`。最终检查与 `audit.json` 核对实际Playwright/JUnit、生产源码映射、前后基准、各轮源码冻结、owner实际ECHILD及注册私有目录删除；通用verify不能替代浏览器结果。App类型、增量lint、格式与账本结果以各自收据为准。
+
+首次App类型检查exit1：三个新缓存断言的 `getQueryData` 泛型未指定，产生TS2769。沿用相邻测试的 `getQueryData<string>` 后，完整三文件单测仍为16pass/1626assertions。下一轮App源码类型通过，随后E3类型阶段exit2：原Dashboard基础笔记夹具的scope被推断为string。给该夹具补充 `satisfies KbNoteNote`，保留全部测试逻辑；Bun转译前后JavaScript完全相同，见 `type-equivalence`。原失败保留在 `types` / `types-final`，最终单测及类型结果见 `unit-final` / `types-checked`。生产源码未变，最终E3对应经过转译等价验证，不声称类型注解修改后重跑浏览器。
+
+本节只收窄 `session-hidden-mode-effects` 的两处笔记写后读取恢复。owner仍为S8；其他Assistant操作的读取失败、初始加载scope/空响应/呈现、跨Session草稿、剩余隐藏observer与Custom状态的直接验收是其unlock。其他真实运行配置与S09交付门禁继续开放；未关闭完整S08/S09。

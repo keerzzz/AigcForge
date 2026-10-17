@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store"
 import { useQuery, useQueryClient, type QueryKey } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { useLanguage } from "@/context/language"
 import { useGlobal } from "@/context/global"
@@ -33,6 +34,7 @@ import {
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 import { useModeQueryActivity } from "@/pages/mode-slot-active"
 import { mutationErrorMessage } from "./assistant-dashboard-model"
+import { AssistantMutation } from "@/utils/assistant-mutation"
 
 /** Assistant dashboard for reminders, deliveries, memory, notes, and Sessions. */
 export function AssistantDashboardMain() {
@@ -139,59 +141,57 @@ export function AssistantDashboardMain() {
     title: "",
     content: "",
     creating: false,
-    pending: false,
   })
   let editorVersion = 0
+  const noteMutation = AssistantMutation.create({ client: queryClient, onComplete: closeEditor })
 
   function openEditor(note: KbNoteNote) {
     editorVersion += 1
+    noteMutation.reset()
     setEditor({
       scope: serverSDK().scope,
       note,
       title: note.title,
       content: note.content,
       creating: false,
-      pending: false,
     })
   }
   function startCreate() {
     editorVersion += 1
-    setEditor({ scope: serverSDK().scope, note: undefined, title: "", content: "", creating: true, pending: false })
+    noteMutation.reset()
+    setEditor({ scope: serverSDK().scope, note: undefined, title: "", content: "", creating: true })
   }
   function closeEditor() {
     // A cancelled draft and a new draft can both have no note ID; their instances still differ.
     editorVersion += 1
-    setEditor({ note: undefined, creating: false, pending: false })
+    noteMutation.reset()
+    setEditor({ note: undefined, creating: false })
   }
   function saveNote() {
     const sdk = serverSDK()
-    if (editor.pending || editor.scope !== sdk.scope || (!editor.creating && !editor.note)) return
+    if (noteMutation.blocked() || editor.scope !== sdk.scope || (!editor.creating && !editor.note)) return
     const version = editorVersion
     const id = editor.note?.id
     const input = { title: editor.title, content: editor.content }
     const current = () => !disposed && editorVersion === version
-    setEditor("pending", true)
-    void runMutation(
-      () => (id ? sdk.client.kb.update({ id, ...input }) : sdk.client.kb.create({ ...input, scope: "global" })),
-      assistantKbQueryKeys(sdk.scope),
-      current,
-    ).then((saved) => {
-      if (!current()) return
-      setEditor("pending", false)
-      if (saved) closeEditor()
-    })
+    setMutationError(undefined)
+    void noteMutation
+      .run(
+        () => (id ? sdk.client.kb.update({ id, ...input }) : sdk.client.kb.create({ ...input, scope: "global" })),
+        assistantKbQueryKeys(sdk.scope),
+        current,
+      )
+      .catch(console.error)
   }
   function deleteNote(id: string) {
     const sdk = serverSDK()
-    if (editor.pending || editor.scope !== sdk.scope || editor.note?.id !== id) return
+    if (noteMutation.blocked() || editor.scope !== sdk.scope || editor.note?.id !== id) return
     const version = editorVersion
     const current = () => !disposed && editorVersion === version
-    setEditor("pending", true)
-    void runMutation(() => sdk.client.kb.remove({ id }), assistantKbQueryKeys(sdk.scope), current).then((removed) => {
-      if (!current()) return
-      setEditor("pending", false)
-      if (removed) closeEditor()
-    })
+    setMutationError(undefined)
+    void noteMutation
+      .run(() => sdk.client.kb.remove({ id }), assistantKbQueryKeys(sdk.scope), current)
+      .catch(console.error)
   }
 
   const projects = createMemo(() => ctx()?.projects.list() ?? layout.projects.list())
@@ -368,12 +368,30 @@ export function AssistantDashboardMain() {
 
           <Show when={editor.scope === serverSDK().scope && (editor.creating || editor.note !== undefined)}>
             <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
+              <Show when={noteMutation.state.phase === "write-failed" || noteMutation.state.phase === "refresh-failed"}>
+                <div data-component="assistant-mutation-error" role="alert" class="flex min-w-0 items-center gap-2">
+                  <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
+                    {noteMutation.state.phase === "refresh-failed"
+                      ? language.t("assistant.editor.refreshError")
+                      : mutationErrorMessage(noteMutation.state.error, language.t("assistant.dashboard.actionError"))}
+                  </p>
+                  <Show when={noteMutation.state.phase === "refresh-failed"}>
+                    <ButtonV2
+                      variant="neutral"
+                      size="small"
+                      onClick={() => void noteMutation.retry().catch(console.error)}
+                    >
+                      {language.t("common.refresh")}
+                    </ButtonV2>
+                  </Show>
+                </div>
+              </Show>
               <input
                 class="w-full rounded-md border border-v2-border-border-base bg-v2-background-bg-base px-2 py-1 text-v2-text-text-base text-13-regular focus:outline-none"
                 aria-label={language.t("assistant.kb.titlePlaceholder")}
                 placeholder={language.t("assistant.kb.titlePlaceholder")}
                 value={editor.title}
-                disabled={editor.pending}
+                disabled={noteMutation.blocked()}
                 onInput={(event) => setEditor("title", event.currentTarget.value)}
               />
               <textarea
@@ -381,7 +399,7 @@ export function AssistantDashboardMain() {
                 aria-label={language.t("assistant.kb.contentPlaceholder")}
                 placeholder={language.t("assistant.kb.contentPlaceholder")}
                 value={editor.content}
-                disabled={editor.pending}
+                disabled={noteMutation.blocked()}
                 onInput={(event) => setEditor("content", event.currentTarget.value)}
               />
               <div class="flex items-center gap-2">
@@ -390,7 +408,7 @@ export function AssistantDashboardMain() {
                   size="small"
                   icon={<Icon name="status-active" />}
                   aria-label={language.t("assistant.kb.save")}
-                  disabled={editor.pending}
+                  disabled={noteMutation.blocked()}
                   onClick={saveNote}
                 />
                 <IconButtonV2
@@ -406,7 +424,7 @@ export function AssistantDashboardMain() {
                     size="small"
                     icon={<Icon name="xmark-small" />}
                     aria-label={language.t("assistant.kb.delete")}
-                    disabled={editor.pending}
+                    disabled={noteMutation.blocked()}
                     onClick={() => {
                       const editingNote = editor.note
                       if (editingNote) deleteNote(editingNote.id)
