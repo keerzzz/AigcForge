@@ -1173,3 +1173,18 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 本轮五文件格式、显式基线增量lint及coverage/manifest测试均实际exit0，check/execute/verify全部通过，见 `snapshot-provider-quality-20261017-b186_xq6`。账本编辑与已验证源码的对应由 `snapshot-provider-closure-20261017/audit-final.py:11` 单独比较；只允许两份账本变化，不把旧源码快照称为编辑后的全树。独立复跑的节点树比较见同目录 `format-equivalence-final.cjs`，最初比较器误把SourceFile完整正文当作语义字段而拒绝，修正仅排除这一容器字段；没有重跑行为测试或改变生产文件。
 
 关闭 `snapshot-unicode-revert-skip` 与 `httpapi-provider-not-found-skip`，只移除这两个开放coverage项。原skip、失败、格式失败和超时收据保持不变；compaction/Prompted投影、录制、StructuredOutput、其余包/API/E3/E4/展示/性能/平台与真实打包Codex仍按原owner/unlock开放。完整S08/S09继续执行，未缩减为后端测试范围；本切片未新增临时产品实现或技术债。
+
+### 15.33 2026-10-17 S08 / Compaction 完成边界与 Prompted/Synthetic 投影
+
+- **修正测试契约，生产实现未变**：`packages/aigcfroge/test/session/compaction.test.ts:585` 用明确coding模式执行真实create→process，复用既有LLM流夹具和SessionProcessor。请求保存后canonical为空；完成后必须恰好一条边界，包含请求ID、manual原因、实际summary和recent。开始/完成的判定由 `packages/core/src/session/message-updater.ts:375` 与 `:379` 决定，非空成功摘要由 `packages/aigcfroge/src/session/compaction.ts:524` 与 `:535` 决定。旧Started→空摘要断言已退役，不能为恢复旧断言修改投影。
+- **Prompt真实文件展开与持久化**：`packages/aigcfroge/test/session/prompt.test.ts:589` 恢复noReply调用，显式coding与asc读取，检查用户文本/文件及两个Synthetic顺序，并验证三行data时间和数据库列时间等于实际prompt返回的created时间。仅排除合法agent/model switch行。发布顺序由 `prompt.ts:1230` 与 `:1242` 决定，`packages/core/src/session.ts:722` 按seq排序，`projector.ts:198` 编码持久化；没有手造投影事件、睡眠等待或provider调用。
+- **完整集合验收**：Compaction完整53项为 **53 pass / 153 assertions / 0 fail / 0 skip / exit0 / 63.073250秒**，见 `compaction-boundary-20261017-go5mmytr/prepared`。Prompt六个互斥分片为 **61 unique pass / 225 assertions / 0 fail / 0 selected skip**，305行未选补集均为0断言，不计活动skip或通过；见 `prompt-projection-final-20261017-vwxlx_7z/independent-union-verification.json`。六片源码完全相同，旧→新名称映射明确，原60pass＋1未执行skip不重复相加。并集判定由同目录 `verify-union.py:26` 的identity与 `:184` 的集合检查决定。两文件合计 **114 unique pass / 378 assertions**，112个引用证据重哈希一致，见 `session-projection-closure-20261017/accounting.json`。直接验证现有行为，未制造或声称产品RED。
+- **准备拒绝单列**：原 `prompt-six-partition-adapter-20261016-_8uep5u2` 在启动测试前被封印检查拒绝；父调用把stdout放入准备目录，封印记录后日志增长。该目录与exit1原样保留，未执行其中的测试。新准备目录逐字节复用finalizer、adapter和verifier，日志放到外部兄弟目录 `prompt-projection-logs-20261017-8ayqy_u8`；新check、六次execute/verify及最终union verify均exit0。全部负载保持90秒截止、90000ms测试timeout、concurrency1、零重试，均自然退出，owner取得ECHILD、无后代且私有root删除。
+
+首次完整后端typecheck实际exit2（23.489021秒），失败仅为 `prompt.test.ts:639` 的预期数组被推断为string[]；收据 `session-projection-quality-20261017-1n1m6p1o` 保留。修复为const字面量元组，运行时断言保持原值；该轮owner取得ECHILD且私有root已删除，不计为通过。
+
+修后后端typecheck（23.041618秒）、显式基线增量lint和四文件格式均实际exit0，证据 `session-projection-final-quality-20261017-ot1b1_nj`。该轮coverage/manifest为10pass/1fail/26assertions：新增deferred owner写成描述文字，未满足 `packages/app/e2e/real/coverage.ts:184` 的S编号规则；现修为S8，原exit1保留。
+
+最终coverage/manifest完整11项为 **11pass/26assertions/exit0**，格式检查及const修复的Bun转译字节比较均exit0，见 `session-projection-ledger-final-20261017-p3id0mxw`。`session-projection-closure-20261017/runtime-equivalence.ts:14` 比较旧/新转译结果；const修复前114项行为证据可复用，不声称行为已重跑。最终源码对应及引用证据复核见同目录 `audit-final.py` 与 `audit-final.json`。
+
+关闭 `session-compaction-canonical-boundary-skip` 和 `prompt-canonical-projection-skip`。Assistant adoption的成功/未完成规则与coding双写入口分开；带error的已完成summary尚未覆盖，登记 `assistant-legacy-history-error-summary`（owner=S8 / Core Session），unlock为真实adoption负例及完整Core文件验收。StructuredOutput本地HTTP草稿未实施；录制、其他包/API/E3/E4/展示/性能/平台与打包Codex边界继续开放，完整S08/S09未关闭。

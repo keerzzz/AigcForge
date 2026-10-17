@@ -21,7 +21,6 @@ import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
 import { SessionSummary } from "../../src/session/summary"
 import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
 
 import type { Provider } from "@/provider/provider"
 import * as SessionProcessorModule from "../../src/session/processor"
@@ -583,33 +582,52 @@ describe("session.compaction.create", () => {
     ),
   )
 
-  it.live.skip(
-    "projects a compaction message to v2 (v2 projector disabled)",
-    provideTmpdirInstance(() =>
-      Effect.gen(function* () {
-        const compact = yield* SessionCompaction.Service
+  itCompaction.instance(
+    "projects a compaction boundary only after a completed summary",
+    () => {
+      const stub = llm()
+      stub.push(reply("summary"))
+      return Effect.gen(function* () {
         const ssn = yield* SessionNs.Service
-        const info = yield* ssn.create({})
-
-        yield* compact.create({
+        const canonical = yield* SessionV2.Service
+        const info = yield* ssn.create({ mode: "coding" })
+        yield* createUserMessage(info.id, "older context")
+        yield* SessionCompaction.use.create({
           sessionID: info.id,
           agent: "build",
           model: ref,
-          auto: true,
-          overflow: true,
+          auto: false,
         })
 
-        const v2 = yield* SessionV2.Service.use((svc) => svc.messages({ sessionID: info.id })).pipe(
-          Effect.provide(SessionExecution.noopLayer),
-          Effect.provide(SessionV2.defaultLayer),
-        )
-        expect(v2.at(-1)).toMatchObject({
+        const messages = yield* ssn.messages({ sessionID: info.id })
+        const request = messages.at(-1)
+        if (!request || request.info.role !== "user") throw new Error("missing compaction request")
+        expect(request.parts).toEqual([expect.objectContaining({ type: "compaction", auto: false })])
+        expect(yield* canonical.messages({ sessionID: info.id })).toEqual([])
+
+        expect(
+          yield* SessionCompaction.use.process({
+            parentID: request.info.id,
+            messages,
+            sessionID: info.id,
+            auto: false,
+          }),
+        ).toBe("continue")
+        const projected = yield* canonical.messages({ sessionID: info.id, order: "asc" })
+        expect(projected).toHaveLength(1)
+        expect(projected[0]).toMatchObject({
+          id: request.info.id,
           type: "compaction",
-          reason: "auto",
-          summary: "",
+          reason: "manual",
+          summary: "summary",
+          recent: "",
         })
-      }),
-    ),
+      }).pipe(
+        withCompaction({ llm: stub.layer, config: cfg({ tail_turns: 0 }) }),
+        Effect.provide(SessionV2.defaultLayer),
+      )
+    },
+    { git: true },
   )
 })
 
