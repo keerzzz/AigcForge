@@ -858,6 +858,129 @@ test("AI-TDD-S08-R02: a closed drawer pauses diagnostics polling without replaci
   }
 })
 
+for (const outcome of ["success", "failure"] as const) {
+  test(`AI-TDD-S08-R02: initial note ${outcome} keeps edits blocked until authoritative content loads`, async ({
+    page,
+  }, testInfo) => {
+    const assistant = {
+      ...session(),
+      mode: "assistant",
+      agent: "assistant-orchestrator",
+    } satisfies Session
+    const note = {
+      id: "note_initial_read",
+      title: "Initial read note",
+      content: "Authoritative initial content",
+      scope: "global",
+      tags: ["initial"],
+      format: "note",
+      createdAt: 1700000000000,
+      updatedAt: 1700000000000,
+    } satisfies KbNoteNote
+    const fixture = await mockAssistantMutationPanel(page, [assistant])
+    fixture.replies.set("/kb", [note])
+    fixture.replies.set(`/kb/${note.id}`, note)
+    fixture.replies.set(`/kb/${note.id}/backlinks`, [])
+    const probe = await AssistantMutationProbe.track(page, fixture.replies, [`/kb/${note.id}`, `/kb/${note.id}/remove`])
+    const initial = Promise.withResolvers<{ status: number; json: unknown } | undefined>()
+    const requests: Request[] = []
+    const completed: Promise<void>[] = []
+    await page.route(
+      (url) => ["127.0.0.1", "localhost"].includes(url.hostname) && url.pathname === `/kb/${note.id}`,
+      async (route) => {
+        if (route.request().method() !== "GET") return route.fallback()
+        requests.push(route.request())
+        const done = Promise.withResolvers<void>()
+        completed.push(done.promise)
+        try {
+          const reply = requests.length === 1 ? await initial.promise : { status: 200, json: note }
+          if (!reply) return await route.abort("aborted")
+          return await route.fulfill({
+            status: reply.status,
+            contentType: "application/json",
+            headers: { "access-control-allow-origin": "*" },
+            body: JSON.stringify(reply.json),
+          })
+        } finally {
+          done.resolve()
+        }
+      },
+    )
+    const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+    const sidebar = page.locator('[data-component="assistant-session-sidebar"]')
+    const editor = panel.locator('[data-component="assistant-note-editor"]')
+    const titleInput = editor.getByRole("textbox", { name: "Title", exact: true })
+    const bodyInput = editor.getByRole("textbox", { name: "Markdown body, may contain [[wikilinks]]", exact: true })
+    const save = editor.getByRole("button", { name: "Save", exact: true })
+    const remove = editor.getByRole("button", { name: "Delete", exact: true })
+    try {
+      await page.goto(fixture.url)
+      await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+      const toggle = page.locator("#secondary-sidebar-toggle")
+      if ((await toggle.getAttribute("aria-label")) !== "Hide sidebar") await toggle.click()
+      await sidebar.locator('[data-nav-section="kb"] > button').click()
+      await sidebar.getByRole("button", { name: note.title, exact: true }).click()
+      await panel.getByRole("button", { name: "Edit note", exact: true }).click()
+      await expect.poll(() => requests.length).toBe(1)
+      await expect(titleInput).toBeDisabled()
+      await expect(bodyInput).toBeDisabled()
+      await expect(save).toBeDisabled()
+      await expect(remove).toBeDisabled()
+      await expect(titleInput).toHaveValue("")
+      await expect(bodyInput).toHaveValue("")
+      expect(probe.mutations).toHaveLength(0)
+
+      initial.resolve(
+        outcome === "success"
+          ? { status: 200, json: note }
+          : {
+              status: 400,
+              json: { _tag: "InvalidRequestError", message: "Synthetic initial read failure" },
+            },
+      )
+      if (outcome === "failure") {
+        await expect(editor.getByRole("alert")).toContainText("Could not load this note.")
+        await expect(titleInput).toBeDisabled()
+        await expect(bodyInput).toBeDisabled()
+        await expect(save).toBeDisabled()
+        await expect(remove).toBeDisabled()
+        expect(probe.mutations).toHaveLength(0)
+        expect(requests).toHaveLength(1)
+        await editor.getByRole("button", { name: "Retry", exact: true }).click()
+        await expect.poll(() => requests.length).toBe(2)
+      }
+      await expect(titleInput).toHaveValue(note.title)
+      await expect(bodyInput).toHaveValue(note.content)
+      await expect(titleInput).toBeEnabled()
+      await expect(bodyInput).toBeEnabled()
+      await expect(save).toBeEnabled()
+      await expect(remove).toBeEnabled()
+      await expect(editor.getByRole("alert")).toHaveCount(0)
+      expect(probe.mutations).toHaveLength(0)
+      await bodyInput.fill("Draft after authoritative load")
+      await save.click()
+      await expect.poll(() => probe.mutations.length).toBe(1)
+      expect(probe.mutations[0].body).toEqual({
+        title: note.title,
+        content: "Draft after authoritative load",
+        tags: note.tags,
+      })
+      fixture.replies.set("/kb", [{ ...note, content: "Draft after authoritative load" }])
+      await probe.complete(0, { status: 200, json: { ...note, content: "Draft after authoritative load" } })
+      await expect(editor).toHaveCount(0)
+      expect(probe.mutations).toHaveLength(1)
+    } finally {
+      initial.resolve(undefined)
+      await Promise.all(completed)
+      await probe.close()
+      await testInfo.attach(`initial-note-${outcome}`, {
+        body: JSON.stringify({ reads: requests.length, mutations: probe.receipt() }),
+        contentType: "application/json",
+      })
+    }
+  })
+}
+
 async function mockAssistantMutationPanel(page: Page, sessions: Session[]) {
   const server = `http://127.0.0.1:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
   const snapshot = {

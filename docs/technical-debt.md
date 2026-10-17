@@ -1235,3 +1235,26 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 证据目录 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/e4-session-acceptance-20261017`，`audit.py` / `audit.json` 核验两份实际Playwright结果、12份trace、唯一拓扑skip、default/V2 manifest、命令/源码/owner及最终格式和账本收据。两轮均在既有90秒owner下串行执行，90000ms用例timeout、worker1、零重试；E4端口/进程组/工作区清理通过，无强制SIGKILL，owner取得实际ECHILD并移除注册私有目录。
 
 本节只收窄已验证的公共链与单后端identity范围，其他default/V2/provider/跨后端组合、平台、界面状态及S09门禁继续开放。未修改产品实现，未增加兼容逻辑；完整S08/S09未关闭。
+
+### 15.38 2026-10-17 S08 / 笔记初次读取失败与串行基准
+
+`AssistantNoteEditor` 原先在 GET 失败后仅记录控制台错误，并解除编辑限制。现在由既有加载 owner 保留失败状态、显示本地化错误和共享 Retry 按钮；只有读取成功才允许编辑、保存和删除。重试只重新读取。既有取消回调和已加载笔记草稿规则保留；没有新增接口、Schema 或查询 owner。
+
+- RED 使用旧生产构建，实际 **1 pass / 1 fail / exit1**；失败为缺少 “Could not load this note.” alert。GREEN 保持这两个测试字节不变，用新生产构建运行完整 `assistant-session-panel.spec.ts`：**10 pass / 0 skip / 0 retry / exit0**，55.066秒。覆盖初次请求挂起、200成功、400失败、显式读取重试、权威内容加载后一次保存，以及原有隐藏面板、旧笔记完成、保存/删除排他、提醒Session归属和关闭抽屉行为。
+- 从通过的失败场景 trace 中提取 Retry 前画面并检查：默认 light/English/desktop 错误文案、禁用字段和 Retry 控件正常。未将此画面计作新错误态的 dark/Chinese/narrow/keyboard 验证。
+- 原有完整 tab benchmark 的 before 和 after 均 **exit124**，由90秒外限中止；原始输出和不完整 traces 保留。现将冷、热两组注册为独立测试，每组仍为原来的5次独立 context trial，测量步骤和统计运算未变；移除用例内600秒覆盖，使调用方90000ms设置生效。两组均需执行才覆盖原范围。
+
+分组后的四轮均实际通过，worker1、零重试，仍使用既有90秒owner。下表由实际结果生成；它们构成新的分组负载基线，不能和先前中止的整组结果混算。
+
+| 构建/组     | trials | 负载秒数 | first-correct median ms | stable median ms |
+| ----------- | ------ | -------- | ----------------------- | ---------------- |
+| before cold | 5      | 62.954   | 234.3                   | 245.7            |
+| before hot  | 5      | 73.149   | 222.4                   | 248.2            |
+| after cold  | 5      | 64.970   | 223.1                   | 242.4            |
+| after hot   | 5      | 68.805   | 216.9                   | 239.5            |
+
+每组5次仅供描述性比较，不声称因果、统计显著性、无闪烁或完整性能无回退。现有 flash 和其他S09要求继续保留。本节没有重跑 packaged Electron 或平台矩阵。
+
+证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/note-read-boundary-20261017`。`audit.py` / `audit.json` 对应实际Playwright结果、源码冻结、旧/新bundle源码映射、原有trial实现对应、Chrome traces、实际ECHILD及注册私有目录删除；并记录App类型、增量lint、格式与账本检查结果。通用runner的verify0只证明命令/源码/生命周期，浏览器结论另查实际Playwright结果；两次超时与行为RED不改记为绿色测试。
+
+`session-hidden-mode-effects` 仅收窄初次笔记读取200/400与显式重试范围。失败的保存后刷新、初次加载的其他scope/空响应/呈现组合、跨Session草稿、剩余隐藏observer及Custom状态继续开放；完整S08/S09未关闭。

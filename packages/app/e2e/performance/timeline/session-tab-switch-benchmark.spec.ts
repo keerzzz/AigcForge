@@ -9,18 +9,17 @@ const messages: Record<string, (typeof fixture.messages)[keyof typeof fixture.me
 
 type Result = Awaited<ReturnType<typeof measureSessionSwitch>>
 
-benchmark("benchmarks cold and hot session tab switching", async ({ browser, report }, testInfo) => {
-  benchmark.setTimeout(600_000)
-  const results = { cold: [] as Result[], hot: [] as Result[] }
-  for (const mode of ["cold", "hot"] as const) {
+for (const mode of ["cold", "hot"] as const) {
+  benchmark(`benchmarks ${mode} session tab switching`, async ({ browser, report }, testInfo) => {
+    const results: Result[] = []
     for (let run = 0; run < 5; run++) {
-      results[mode].push(
+      results.push(
         await withBenchmarkPage(browser, `session-tab-switch-${mode}-${run}`, (page) => trial(page, mode), testInfo),
       )
     }
-  }
-  report({ results, summary: summarize(results) })
-})
+    report({ results: { [mode]: results }, summary: summarize({ [mode]: results }) })
+  })
+}
 
 async function trial(page: Page, mode: "cold" | "hot") {
   await mockStressTimeline(page)
@@ -50,7 +49,7 @@ async function trial(page: Page, mode: "cold" | "hot") {
   return result
 }
 
-function summarize(results: Record<"cold" | "hot", Result[]>) {
+function summarize(results: Record<string, Result[]>) {
   const stats = (values: (number | null)[]) => {
     const sorted = values.filter((value): value is number => value !== null).sort((a, b) => a - b)
     return {

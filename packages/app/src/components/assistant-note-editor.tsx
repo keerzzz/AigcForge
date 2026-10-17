@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store"
 import { useQuery, useQueryClient } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { useLanguage } from "@/context/language"
@@ -22,7 +23,6 @@ import {
   insertCompletion,
   wikilinkCandidates,
 } from "@/components/assistant-note-editor-model"
-import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
 /** Markdown note editor with wikilink completion, preview, and dangling-link feedback. */
 export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => void }) {
@@ -39,7 +39,8 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   const [title, setTitle] = createSignal("")
   const [tags, setTags] = createSignal("")
   const [content, setContent] = createSignal("")
-  const [loading, setLoading] = createSignal(false)
+  const [load, setLoad] = createStore({ pending: false, failed: false, attempt: 0 })
+  const unavailable = () => load.pending || load.failed
   const [mutation, setMutation] = createStore({ saving: false, deleting: false })
   createEffect(on(owner, () => setMutation({ saving: false, deleting: false })))
   const pending = () => mutation.saving || mutation.deleting
@@ -60,38 +61,53 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   // Reactivating a mounted editor may resume a pending read, but must not hydrate
   // an already loaded note over its unsaved draft.
   let loadedNote: string | undefined
-  createEffect(() => {
-    const id = props.noteId
-    if (!id || !slotActive()) return
-    const sdk = serverSDK()
-    const key = ScopedKey.from(sdk.scope, "kb", id)
-    if (loadedNote === key) return
-    let cancelled = false
-    setLoading(true)
-    void sdk.client.kb
-      .get({ id })
-      .then((res) => {
-        if (cancelled) return
-        const note = res.data as KbNoteNote | undefined
-        if (!note) return
-        setTitle(note.title ?? "")
-        setTags((note.tags ?? []).join(", "))
-        setContent(note.content ?? "")
-        loadedNote = key
-      })
-      .catch(console.error)
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    onCleanup(() => {
-      cancelled = true
-      setLoading(false)
-    })
-  })
+  createEffect(
+    on(
+      () => [owner(), slotActive(), load.attempt] as const,
+      ([origin, active]) => {
+        const id = origin.noteID
+        if (!id || !active) return
+        const sdk = serverSDK()
+        const key = ScopedKey.from(origin.scope, "kb", id)
+        if (loadedNote === key) return
+        let cancelled = false
+        loadedNote = undefined
+        setTitle("")
+        setTags("")
+        setContent("")
+        setCompletion(undefined)
+        setLoad({ pending: true, failed: false })
+        void sdk.client.kb
+          .get({ id })
+          .then((res) => {
+            if (cancelled) return
+            const note = res.data
+            if (!note) {
+              setLoad("failed", true)
+              return
+            }
+            setTitle(note.title ?? "")
+            setTags((note.tags ?? []).join(", "))
+            setContent(note.content ?? "")
+            loadedNote = key
+          })
+          .catch(() => {
+            if (!cancelled) setLoad("failed", true)
+          })
+          .finally(() => {
+            if (!cancelled) setLoad("pending", false)
+          })
+        onCleanup(() => {
+          cancelled = true
+        })
+      },
+    ),
+  )
 
   createEffect(() => {
     if (props.noteId) return
     loadedNote = undefined
+    setLoad({ pending: false, failed: false })
     setTitle("")
     setTags("")
     setContent("")
@@ -127,7 +143,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   }
 
   const acceptCompletion = (index: number) => {
-    if (loading() || pending()) return
+    if (unavailable() || pending()) return
     const candidates = completion()
     const match = completionMatch()
     const title = candidates?.[index]
@@ -177,7 +193,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   })
 
   const save = () => {
-    if (loading() || pending()) return
+    if (unavailable() || pending()) return
     const sdk = serverSDK()
     const origin = owner()
     const id = origin.noteID
@@ -217,7 +233,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   }
 
   const remove = () => {
-    if (loading() || pending()) return
+    if (unavailable() || pending()) return
     const sdk = serverSDK()
     const origin = owner()
     const id = origin.noteID
@@ -246,7 +262,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           aria-label={language.t("assistant.kb.titlePlaceholder")}
           placeholder={language.t("assistant.kb.titlePlaceholder")}
           value={title()}
-          disabled={loading() || pending()}
+          disabled={unavailable() || pending()}
           onInput={(event) => setTitle(event.currentTarget.value)}
         />
         <input
@@ -254,7 +270,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           aria-label={language.t("assistant.editor.tagsPlaceholder")}
           placeholder={language.t("assistant.editor.tagsPlaceholder")}
           value={tags()}
-          disabled={loading() || pending()}
+          disabled={unavailable() || pending()}
           onInput={(event) => setTags(event.currentTarget.value)}
         />
         <IconButtonV2
@@ -262,7 +278,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           size="small"
           icon={<Icon name="status-active" />}
           aria-label={language.t("assistant.kb.save")}
-          disabled={loading() || pending() || !title().trim()}
+          disabled={unavailable() || pending() || !title().trim()}
           onClick={save}
         />
         <Show when={props.noteId}>
@@ -271,11 +287,20 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
             size="small"
             icon={<Icon name="xmark-small" />}
             aria-label={language.t("assistant.kb.delete")}
-            disabled={loading() || pending()}
+            disabled={unavailable() || pending()}
             onClick={remove}
           />
         </Show>
       </div>
+
+      <Show when={load.failed}>
+        <div role="alert" class="flex min-w-0 items-center gap-2">
+          <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">{language.t("assistant.citation.error")}</p>
+          <ButtonV2 variant="neutral" size="small" onClick={() => setLoad("attempt", (attempt) => attempt + 1)}>
+            {language.t("assistant.citation.retry")}
+          </ButtonV2>
+        </div>
+      </Show>
 
       <Show when={completion()?.length}>
         <div
@@ -314,7 +339,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
             aria-label={language.t("assistant.kb.contentPlaceholder")}
             placeholder={language.t("assistant.kb.contentPlaceholder")}
             value={content()}
-            disabled={loading() || pending()}
+            disabled={unavailable() || pending()}
             onInput={(event) => {
               setContent(event.currentTarget.value)
               updateCompletion()
