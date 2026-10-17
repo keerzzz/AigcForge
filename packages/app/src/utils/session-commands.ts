@@ -41,11 +41,16 @@ export function useSessionSnapshotCommands(session: () => SessionLike | undefine
         return undefined
       }
     },
+    // `latest` only stops suspending after the first settle. The session route
+    // must stay visible while an initial composition read is pending, so seed the
+    // resource instead of letting the first `latest` read enter the route
+    // transition. See `custom-snapshot-states.spec.ts` (pending state).
+    { initialValue: undefined },
   )
 
   const commands = createMemo(() => {
     const current = session()
-    const snap = snapshot()
+    const snap = snapshot.latest
     if (!current || !snap) return undefined
     if (current.mode !== "custom") return undefined
     const scope = CompositionConsumerView.resolveScope(snap, current)

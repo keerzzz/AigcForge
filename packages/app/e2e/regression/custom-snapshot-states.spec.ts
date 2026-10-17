@@ -16,6 +16,7 @@ const serverA = "http://127.0.0.1:4097"
 const serverB = "http://127.0.0.1:4098"
 const sessionID = "ses_custom_snapshot_states"
 const upgradedID = "ses_custom_snapshot_upgraded"
+const otherID = "ses_custom_snapshot_other"
 const snapshot = {
   version: 2,
   digest: "a".repeat(64),
@@ -78,7 +79,12 @@ function session(id = sessionID): Session {
     directory,
     mode: "custom",
     agent: "meta",
-    title: id === sessionID ? "Custom snapshot source" : "Custom snapshot upgraded",
+    title:
+      id === sessionID
+        ? "Custom snapshot source"
+        : id === upgradedID
+          ? "Custom snapshot upgraded"
+          : "Custom snapshot other",
     version: "dev",
     time: { created: 1700000000000, updated: 1700000000000 },
   }
@@ -87,8 +93,12 @@ function session(id = sessionID): Session {
 type Wire = {
   snapshot: { status: number; body: unknown }
   snapshotReads: number
+  snapshotGate?: Promise<void>
   plan: CompositionPlan
   planGate?: Promise<void>
+  planStatus?: number
+  upgradeGate?: Promise<void>
+  upgradeStatus?: number
   posts: Array<{ origin: string; path: string; directory: string | null; body: unknown }>
 }
 
@@ -99,7 +109,7 @@ function wire(): Wire {
 async function openSnapshot(page: Page, state: Wire) {
   for (const [port, sessions] of [
     ["4097", []],
-    ["4098", [session(), session(upgradedID)]],
+    ["4098", [session(), session(upgradedID), session(otherID)]],
   ] as const) {
     await mockAigcfrogeServer(page, {
       port,
@@ -136,6 +146,7 @@ async function openSnapshot(page: Page, state: Wire) {
       }
       if (request.method() === "GET" && url.pathname.endsWith("/composition")) {
         state.snapshotReads += 1
+        await state.snapshotGate
         const response =
           url.pathname === `/session/${upgradedID}/composition` ? { status: 200, body: nextSnapshot } : state.snapshot
         return route.fulfill({
@@ -155,13 +166,24 @@ async function openSnapshot(page: Page, state: Wire) {
       if (url.pathname === "/custom-composition/plan") {
         await state.planGate
         return route.fulfill({
-          status: 200,
+          status: state.planStatus ?? 200,
           headers: cors,
           contentType: "application/json",
-          body: JSON.stringify(state.plan),
+          body: JSON.stringify(state.planStatus ? { message: "Snapshot plan rejected" } : state.plan),
         })
       }
       if (url.pathname !== "/custom-composition/upgrade") return route.fallback()
+      await state.upgradeGate
+      if (state.upgradeStatus) {
+        return route.fulfill({
+          status: state.upgradeStatus,
+          headers: cors,
+          contentType: "application/json",
+          body: JSON.stringify({
+            message: state.upgradeStatus === 409 ? "SessionBusyError" : "Snapshot upgrade failed",
+          }),
+        })
+      }
       const info = session(upgradedID)
       const response = {
         session: {
@@ -188,8 +210,14 @@ async function openSnapshot(page: Page, state: Wire) {
     },
   )
   await page.addInitScript(
-    ({ serverA, serverB }) => {
+    ({ serverA, serverB, directory, sessionIDs }) => {
       localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true } }))
+      localStorage.setItem(
+        "aigcfroge.global.dat:tabs",
+        JSON.stringify(
+          sessionIDs.map((sessionId) => ({ type: "session", server: serverB, dirBase64: directory, sessionId })),
+        ),
+      )
       localStorage.setItem(
         "aigcfroge.global.dat:server",
         JSON.stringify({
@@ -202,7 +230,7 @@ async function openSnapshot(page: Page, state: Wire) {
         }),
       )
     },
-    { serverA, serverB },
+    { serverA, serverB, directory: base64Encode(directory), sessionIDs: [sessionID, otherID] },
   )
   await page.goto(`/server/${base64Encode(serverB)}/session/${sessionID}`)
   await expect(page.getByRole("heading", { name: "Custom snapshot source", exact: true })).toBeVisible()
@@ -279,3 +307,134 @@ test("AI-TDD-S08-R02: an invalid Upgrade plan remains retryable without creating
     .toEqual(["/custom-composition/plan", "/custom-composition/plan", "/custom-composition/upgrade"])
   await expect(page).toHaveURL(new RegExp(`/server/${base64Encode(serverB)}/session/${upgradedID}$`))
 })
+
+test("AI-TDD-S08-R02: snapshot pending keeps the session visible and Upgrade disabled", async ({ page }) => {
+  const state = wire()
+  const pending = Promise.withResolvers<void>()
+  state.snapshotGate = pending.promise
+  try {
+    await openSnapshot(page, state)
+    const panel = page.locator('[data-component="session-mode-panel"][data-mode="custom"]')
+    const upgrade = panel.getByRole("button", { name: "Upgrade / Edit", exact: true })
+    await expect(upgrade).toBeVisible()
+    await expect(upgrade).toBeDisabled()
+    await expect(panel.getByText(snapshot.digest, { exact: true })).toHaveCount(0)
+    expect(state.posts).toEqual([])
+    pending.resolve()
+    await expect(panel.getByText(snapshot.digest, { exact: true })).toBeVisible()
+    await expect(upgrade).toBeEnabled()
+    expect(state.posts).toEqual([])
+  } finally {
+    pending.resolve()
+  }
+})
+
+test("AI-TDD-S08-R02: pending Upgrade keeps one request and opens the source server on completion", async ({
+  page,
+}) => {
+  const state = wire()
+  const pending = Promise.withResolvers<void>()
+  state.upgradeGate = pending.promise
+  try {
+    await openSnapshot(page, state)
+    const upgrade = page
+      .locator("#session-mode-panel-custom")
+      .getByRole("button", { name: "Upgrade / Edit", exact: true })
+    await expect(upgrade).toBeEnabled()
+    await upgrade.click()
+    await expect
+      .poll(() => state.posts.map((item) => item.path))
+      .toEqual(["/custom-composition/plan", "/custom-composition/upgrade"])
+    await expect(upgrade).toBeDisabled()
+    await expect(page).toHaveURL(new RegExp(`/session/${sessionID}$`))
+    expect(state.posts.every((post) => post.origin === serverB && post.directory === directory)).toBe(true)
+    pending.resolve()
+    await expect(page).toHaveURL(new RegExp(`/server/${base64Encode(serverB)}/session/${upgradedID}$`))
+    expect(state.posts).toHaveLength(2)
+  } finally {
+    pending.resolve()
+  }
+})
+
+for (const failure of [
+  { stage: "plan", status: 400, message: "Snapshot plan rejected" },
+  { stage: "upgrade", status: 500, message: "Snapshot upgrade failed" },
+  { stage: "upgrade", status: 409, message: "Session is running, cannot upgrade" },
+] as const) {
+  test(`AI-TDD-S08-R02: Upgrade ${failure.stage} HTTP ${failure.status} preserves the source and permits explicit retry`, async ({
+    page,
+  }) => {
+    const state = wire()
+    if (failure.stage === "plan") state.planStatus = failure.status
+    if (failure.stage === "upgrade") state.upgradeStatus = failure.status
+    await openSnapshot(page, state)
+    const panel = page.locator("#session-mode-panel-custom")
+    const upgrade = panel.getByRole("button", { name: "Upgrade / Edit", exact: true })
+    await expect(upgrade).toBeEnabled()
+    await upgrade.click()
+    await expect(panel.getByText(new RegExp(failure.message, "i"))).toBeVisible()
+    await expect(upgrade).toBeEnabled()
+    await expect(page).toHaveURL(new RegExp(`/session/${sessionID}$`))
+    await expect(panel.getByText(snapshot.digest, { exact: true })).toBeVisible()
+    const failed =
+      failure.stage === "plan"
+        ? ["/custom-composition/plan"]
+        : ["/custom-composition/plan", "/custom-composition/upgrade"]
+    expect(state.posts.map((post) => post.path)).toEqual(failed)
+    state.planStatus = undefined
+    state.upgradeStatus = undefined
+    await upgrade.click()
+    await expect(page).toHaveURL(new RegExp(`/server/${base64Encode(serverB)}/session/${upgradedID}$`))
+    expect(state.posts.map((post) => post.path)).toEqual([
+      ...failed,
+      "/custom-composition/plan",
+      "/custom-composition/upgrade",
+    ])
+    expect(state.posts.at(-1)?.body).toEqual({ sessionID, composition, expectedPlanDigest: plan.digest })
+  })
+}
+
+for (const stage of ["plan", "upgrade"] as const) {
+  test(`AI-TDD-S08-R02: a late Upgrade ${stage} completion cannot take over another session`, async ({
+    page,
+  }, testInfo) => {
+    const state = wire()
+    const pending = Promise.withResolvers<void>()
+    if (stage === "plan") state.planGate = pending.promise
+    if (stage === "upgrade") state.upgradeGate = pending.promise
+    try {
+      await openSnapshot(page, state)
+      const panel = page.locator("#session-mode-panel-custom")
+      const upgrade = panel.getByRole("button", { name: "Upgrade / Edit", exact: true })
+      await expect(upgrade).toBeEnabled()
+      await upgrade.click()
+      await expect.poll(() => state.posts.at(-1)?.path).toBe(`/custom-composition/${stage}`)
+      await expect(upgrade).toBeDisabled()
+      await page.locator(`[data-slot="titlebar-tabs"] a[href$="/session/${otherID}"]`).first().click()
+      await expect(page).toHaveURL(new RegExp(`/session/${otherID}$`))
+      await expect(page.getByRole("heading", { name: "Custom snapshot other", exact: true })).toBeVisible()
+      await expect(upgrade).toBeEnabled()
+      const current = await panel.elementHandle()
+      if (!current) throw new Error("The replacement session panel must be mounted")
+      const response = page.waitForResponse((item) => new URL(item.url()).pathname === `/custom-composition/${stage}`)
+      pending.resolve()
+      await (await response).finished()
+      await page.evaluate(
+        () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+      )
+      await expect(page).toHaveURL(new RegExp(`/session/${otherID}$`))
+      await expect(page.getByRole("heading", { name: "Custom snapshot other", exact: true })).toBeVisible()
+      expect(await panel.evaluate((node, original) => node === original, current)).toBe(true)
+      expect(state.posts.map((post) => post.path)).toEqual(
+        stage === "plan" ? ["/custom-composition/plan"] : ["/custom-composition/plan", "/custom-composition/upgrade"],
+      )
+      await current.dispose()
+    } finally {
+      pending.resolve()
+      await testInfo.attach(`snapshot-late-${stage}`, {
+        body: JSON.stringify(state.posts, null, 2),
+        contentType: "application/json",
+      })
+    }
+  })
+}

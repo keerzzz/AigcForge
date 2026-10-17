@@ -855,7 +855,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const custom = session?.mode === "custom"
     if (props.controls.session.id && !session) return []
     if (custom && sessionCommands.snapshot.loading) return []
-    const snapshot = custom ? sessionCommands.snapshot() : undefined
+    const snapshot = custom ? sessionCommands.snapshot.latest : undefined
     // A Custom session must not borrow the live catalog or a previous session's snapshot.
     if (custom && (!snapshot || (snapshot.sessionID !== undefined && snapshot.sessionID !== session?.id))) return []
 

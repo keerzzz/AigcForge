@@ -8,6 +8,8 @@ import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
 import { openSessionByID } from "@/pages/layout/helpers"
 import { useCustomDraft } from "@/context/custom-draft"
+import { useLayout } from "@/context/layout"
+import { currentRoute } from "@/context/layout-helpers"
 import { useMode } from "@/context/mode"
 import { showToast } from "@/utils/toast"
 import type { Snapshot } from "@aigcfroge/schema/composition"
@@ -31,6 +33,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   const global = useGlobal()
   const server = useServer()
   const draft = useCustomDraft()
+  const layout = useLayout()
   const mode = useMode()
   const size = createSizing()
 
@@ -69,6 +72,12 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         return { source, ...classifySnapshotFailure(err) }
       }
     },
+    // `latest` only avoids suspending after the first settle. Without an initial
+    // value the first read is a real `read()` and the whole route body is replaced
+    // by the route-level `surface-pending` fallback until the snapshot arrives —
+    // the session must stay visible while this panel waits. See the pending-state
+    // E3 in `custom-snapshot-states.spec.ts`.
+    { initialValue: undefined },
   )
 
   const result = createMemo(() => {
@@ -109,6 +118,23 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
 
   const canUpgrade = () => !upgrading() && !snapshotFetch.loading && snapshot() !== undefined
 
+  // A completion belongs to the Session the user is still looking at. The old
+  // component can be unmounted or kept for another tab while its request settles,
+  // so `source()` alone cannot see the route move; compare the live route owner.
+  const onSameSession = (sessionID: string, serverKey: ServerConnection.Key) => {
+    // The router's committed route can lag behind the address bar while a route
+    // transition is waiting on another request. The user has already left this
+    // Session at that point, so read the live URL instead of the transition view.
+    const route = globalThis.location
+      ? currentRoute(globalThis.location.pathname, globalThis.location.search)
+      : layout.route()
+    return (
+      route.type === "session" &&
+      route.sessionId === sessionID &&
+      (!route.server || ServerConnection.sameKey(route.server, serverKey))
+    )
+  }
+
   async function handleUpgrade() {
     if (!canUpgrade()) return
     const currentSource = source()
@@ -119,6 +145,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
     const dir = currentSource.directory ?? s.directory
     const currentServer = server.list.find((connection) => server.scope(ServerConnection.key(connection)) === s.scope)
     if (!dir || !currentServer) return
+    const currentServerKey = ServerConnection.key(currentServer)
     const currentDraft = draft()
     currentDraft.loadFromSnapshot(currentSnapshot)
     const composition = currentDraft.composition
@@ -134,6 +161,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         { throwOnError: true },
       )
       if (source() !== currentSource || draft() !== currentDraft) return
+      if (!onSameSession(currentSessionID, currentServerKey)) return
       const gate = evaluateStartGate({
         starting: false,
         hasSdk: true,
@@ -160,6 +188,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       )
 
       if (source() !== currentSource || draft() !== currentDraft) return
+      if (!onSameSession(currentSessionID, currentServerKey)) return
       // Upgrade creates a new Session on the source server. Open the returned ID
       // through that same owner, even when the global server selection differs.
       const upgraded = res.data?.session
@@ -169,7 +198,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           sessionID: upgraded.id,
           sessionDirectory: upgraded.location.directory,
           projectDirectory: dir,
-          server: ServerConnection.key(currentServer),
+          server: currentServerKey,
           global,
           tabs,
           projects: ctx.projects,
@@ -177,7 +206,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         showToast(language.t("custom.snapshot.upgradeSuccess"))
       }
     } catch (err: unknown) {
-      if (draft() !== currentDraft || props.sessionID !== currentSessionID || sdk() !== s) return
+      if (draft() !== currentDraft || !onSameSession(currentSessionID, currentServerKey) || sdk() !== s) return
       const { status, message } = parseErrorDetails(err)
       const msg = message ?? String(err)
       if (status === 409 || msg.includes("busy") || msg.includes("SessionBusyError")) {
@@ -186,7 +215,8 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
       }
       setUpgradeError(msg)
     } finally {
-      if (draft() === currentDraft && props.sessionID === currentSessionID && sdk() === s) setUpgrading(false)
+      if (draft() === currentDraft && onSameSession(currentSessionID, currentServerKey) && sdk() === s)
+        setUpgrading(false)
     }
   }
 

@@ -1283,3 +1283,11 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 首次App类型检查exit1：三个新缓存断言的 `getQueryData` 泛型未指定，产生TS2769。沿用相邻测试的 `getQueryData<string>` 后，完整三文件单测仍为16pass/1626assertions。下一轮App源码类型通过，随后E3类型阶段exit2：原Dashboard基础笔记夹具的scope被推断为string。给该夹具补充 `satisfies KbNoteNote`，保留全部测试逻辑；Bun转译前后JavaScript完全相同，见 `type-equivalence`。原失败保留在 `types` / `types-final`，最终单测及类型结果见 `unit-final` / `types-checked`。生产源码未变，最终E3对应经过转译等价验证，不声称类型注解修改后重跑浏览器。
 
 本节只收窄 `session-hidden-mode-effects` 的两处笔记写后读取恢复。owner仍为S8；其他Assistant操作的读取失败、初始加载scope/空响应/呈现、跨Session草稿、剩余隐藏observer与Custom状态的直接验收是其unlock。其他真实运行配置与S09交付门禁继续开放；未关闭完整S08/S09。
+
+### 15.40 2026-10-17 S08 / Custom 初次 Snapshot pending 与迟到 Upgrade 归属
+
+**已实现并验证。** 初次 `/session/:id/composition` 读取原会经 `useSessionSnapshotCommands` 的 `snapshot()` 进入 Session 路由 transition，整页被 `surface-pending` 替换。`packages/app/src/utils/session-commands.ts` 现在给资源 `initialValue` 并读 `.latest`；`components/custom/custom-snapshot-panel.tsx` 同样 seed 资源；`components/prompt-input.tsx` 的 Custom agent 列表改读 `.latest`。`handleUpgrade` 的每次 await 后用实时 URL（`currentRoute(location.pathname, location.search)`）核对 Session + server，迟到完成不再导航到 upgraded Session；组件内 `source()/draft()` 检查保留。
+
+**RED 与 GREEN 分开记账。** 首次整文件 13 例在 90s 外限 `exit124`：观察到 2 个失败，第 13 例开始时被中止，未产生完整 tally；保留 `s08-custom-snapshot-20261017-194807`。定向 RED `s08-custom-snapshot-red-20261017-195042` 为 2 fail（pending 路由被替换、late plan 仍发 upgrade）。修复后拆成两个不相交的 90s 运行覆盖全部 13 例：`s08-custom-snapshot-fullA-20261017-200342` **6 pass / 48.7s**，`s08-custom-snapshot-fullB-20261017-200433` **7 pass / 54.8s**，均 0 fail / 0 skip / 0 retry。相邻回归：`composer-submit.spec.ts` **5 pass / 1.0m**（含跨 Session 草稿+附件不串），`custom-builder-states.spec.ts -g Start` **7 pass / 1.1m**，custom 组件单测 **65 pass / 0 fail / 150 assertions**；App typecheck、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 均 exit0。
+
+**未关闭。** V1 snapshot revision 正向 Upgrade、Start 跨 Location 完成策略、这些 Custom 错误态的 dark/Chinese/narrow/keyboard 呈现矩阵仍未验收。Codex CLI 的安装后错误已由 §15.21 分别覆盖：`Unable to locate Codex CLI binaries`（SDK 提前构造）与 app-server 握手版本门禁均已修复并有独立证据；真实 packaged Codex 新 thread/resume 仍需真实 CLI 环境，本轮未重跑，不能据此宣称通过。证据根目录 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/custom-snapshot-pending-20261017`，`README.md`/`SOURCE.txt` 记录实际命令、退出码、源码哈希与未完成项。本轮没有新增接口、Schema 或数据库迁移。
