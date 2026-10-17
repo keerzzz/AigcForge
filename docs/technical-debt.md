@@ -1225,3 +1225,13 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 全部运行使用既有封印owner，串行、concurrency1、零重试、90秒外限；最终Playwright用例timeout为90000ms。E4 gate确认端口释放、进程组消失、工作区无残留，且未强制SIGKILL；owner实际取得ECHILD并删除注册私有目录。外部命令适配器只将既有E4框架映射到注册目录并保存证据，没有新增进程监督器。类型、增量lint、格式和账本门禁结果见同目录最终审计。
 
 只收窄 `e4-isolated-runtime-revalidation` 中已验证的文件/PTY范围。not-found、其余identity/lifeline及default/V2组合、平台、界面状态和S09门禁仍开放；完整S08/S09未关闭。此次未新增产品实现或技术债。
+
+### 15.37 2026-10-17 S08 / Session 公共链 default 与 V2 验收
+
+- **default实际7pass/1skip/0fail/0retry**，负载74.896208秒：完整 `session-not-found.spec.ts` 两例、`session-lifeline.spec.ts` 三轮，以及 `session-identity-consumers.spec.ts` 的两个单后端用例。唯一skip为历史身份/Review双后端场景，原test第127行以 `!peer` 判断并要求 `E4_DUAL_BACKEND=1`；本轮没有peer，该项计零通过，不替代此前双后端证据。
+- **V2实际5pass/0skip/0fail/0retry**，负载67.706599秒：完整not-found与lifeline文件，运行manifest确认V2开关。两轮均有真实HTTP404与错误body、生产页面错误态/reload、health版本核对及三轮创建/reload；default另外核对权限/身份Header和Agent picker可见性。Picker用例未检查全部选项或执行Agent切换，不作额外覆盖声明。
+- **边界明确**：合计12次通过是两个配置的执行数，不是12种不同业务。两轮provider请求数均为0；没有验证provider turn、提示入箱或中断后自动恢复。lifeline第30行注释已纠正：创建Session不等于写入session_input，测试代码与断言未改。审计以测试时HEAD原文的精确两行注释替换证明源码对应；不声称注释修改后又重跑行为。
+
+证据目录 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/e4-session-acceptance-20261017`，`audit.py` / `audit.json` 核验两份实际Playwright结果、12份trace、唯一拓扑skip、default/V2 manifest、命令/源码/owner及最终格式和账本收据。两轮均在既有90秒owner下串行执行，90000ms用例timeout、worker1、零重试；E4端口/进程组/工作区清理通过，无强制SIGKILL，owner取得实际ECHILD并移除注册私有目录。
+
+本节只收窄已验证的公共链与单后端identity范围，其他default/V2/provider/跨后端组合、平台、界面状态及S09门禁继续开放。未修改产品实现，未增加兼容逻辑；完整S08/S09未关闭。

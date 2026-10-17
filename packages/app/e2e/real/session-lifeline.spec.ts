@@ -27,8 +27,8 @@ for (const round of [1, 2, 3]) {
     expect(healthBody.healthy).toBe(true)
     expect(healthBody.version).toBe(e4m.backendVersion)
 
-    // 2. Create a session through the real API — a durable session_input row in
-    //    the run's own SQLite DB, not browser state.
+    // 2. Create a session through the real API in the run's own SQLite DB.
+    //    Creating a Session does not admit a prompt into session_input.
     const created = await request.post(`${e4m.backendUrl}/session?directory=${encodeURIComponent(e4m.workspaceDir)}`, {
       headers: { "x-aigcfroge-directory": e4m.workspaceDir },
       data: { location: { directory: e4m.workspaceDir }, title: `E4 lifeline round ${round}` },
