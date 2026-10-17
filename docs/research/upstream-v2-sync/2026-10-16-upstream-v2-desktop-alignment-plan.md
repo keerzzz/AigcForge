@@ -632,6 +632,21 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 - Phase D：`judge/catalog/share-summary/v2-runtime/composition-resolver`；
 - runner 融合本体：fork `session/runner/llm.ts` 的 ToolRegistry.materialize/MCP 审计/附件面 → base runner（`@aigcfroge/ai` 适配方针 §9）+ `@aigcfroge/llm` 引入面终审。
 
+### 10.25 全代码族测试验证（2026-10-17，`a6106abfd`）
+
+**范围与方法**：20 包 ×（typecheck + 全量 test）逐包运行（XDG 隔离）；以两个对照树定性归属——`06a42de9c`（会前基线 worktree）与 `461721082`（纯上游基点，预置 `/tmp/opencode-v2`）；`bun run check --force`（0 缓存 19/19，61s）真验。
+
+**验证发现并修复（迁移期遗留，均由改名桥 `9c29234af` 半改/误改引起）**：
+1. **ai 7 红 → 0**：录制夹具三形未同步——(a) SSE 跨行 deltas（`Open`+`Code` 分块，openai streams-text-deltas：跨块改名重分块）；(b) 字符级对齐数组（elevenlabs speech `characters[]` + 时序数组，20→21 字符重建线性插值）；(c) 空格形 `"Open Code."`（assemblyai/google）；(d) `TRANSCRIPT` 正则仍匹配 `open ?code` → `aigc ?forge`；(e) 期望拼写 `aigcfroge` → `aigcforge`。
+2. **client 4 红 → 0（超越上游基线）**：`promise.test.ts` 群组全表（64 组，含 R2 全部镜像/资产组）+ `*` 键三处（file.write/vcs.init-branch/shell.timeout 移除）+ interrupt 契约 `continue→resume`；`import-boundaries` 删除与上游实况相悖的 protocol eager 断言（基点实测 0 protocol 模块）；`effect.test.ts` view 载荷改 `DateTime.makeUnsafe`（`DateTimeUtcFromMillis` 编解码契约）。经基点复核：此 4 红上游自身同红（220/4），本修后 **224/224**。
+3. **app 4 红 → 0**：settings-search 查询串被桥误改为 slug 拼写（`aigcfroge`）→ 画像名 lowercase 对齐（`aigcforge`×7）；**另揭出 turbo 缓存掩盖的真实类型错**：`utils.test.ts` agent 夹具缺 R2 融合后必填的 `handoffs`（修 + `check --force` 全量复验）。
+4. **tsgo 增量缓存损坏**（SIGSEGV）：清 `*.tsbuildinfo` 后复验；此后一律以 `--force` 全量检查为准。
+
+**终态**：`check --force` **19/19 ✓** · ai **1793/1793** · client **224/224** · app unit **741/742**+browser **168/168** · core **6927/7326**（34 败与会前基线逐名同集）· server **79/3**（=基线）· schema **319/319** · 其余包绿或与基点同集。
+
+**存量挂账（基点复核同败，非迁移引入）**：core 34（GitLab OAuth 网络×11 / PluginSupervisor-watcher×10 / Config×4 / Worktree-Git×3（其一 git-locale，建议 `LC_ALL=C`）/ 单点×5 / mcp modern-protocol×1）· server 3（HEAD download、canonical plugins×2）· util 1（网络）· plugin 8（Host.resolve）· plugin-browser 2 · codemode 1 · ui 1（性能抖动）· app 1（bootstrap 断连恢复）· desktop 1（esbuild service 环境性）；theme 抖动 0/1 已归零。
+
 ---
+
 
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！
