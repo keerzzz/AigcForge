@@ -1355,10 +1355,15 @@ Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败
 | default interrupted SSE → retry → later turn                   | **1 pass / exit0 / 90000ms**；测试内 provider completion 2→3                  |
 | default streamed tool call → continuation → durable            | **1 pass / exit0 / 90000ms**                                                  |
 | default two transient 500s → retry                             | **1 pass / exit0 / 90000ms**；provider completion delta=3                     |
+| default chat-mode provider turn → mode readback                | **1 pass / exit0 / 90000ms**                                                  |
+| default slow provider → waited, not failed                     | **1 pass / exit0 / 90000ms**                                                  |
+| default duplicated delta → one assistant message               | **1 pass / exit0 / 90000ms**；测试只断言 message 数与 completion 数           |
 | V2 coding canonical admission → provider turn → reload/restart | **1 pass / exit0 / 90000ms**；provider delta=1、admission row 1、重试不增调用 |
 | dual-backend shared Session ID identity/review                 | **1 pass / exit0 / 90000ms**；peer 独立 DB/workspace，teardown passed         |
 | Assistant reminder → daemon → inbox/reload                     | **120s approved pass**；90s receipt 保留为预算截断                            |
 
 **预算裁定（2026-10-17，用户批准）**：`assistant-scheduler.spec.ts` 自身注释写明既有 E4 预算为 120s；该用例使用 120s，120s 运行 **1 pass / exit0 / teardown passed**，现计入通过。90s 运行仍保留为预算截断 receipt，不记作 90s 通过，也不据此改生产代码或缩短真实 45s 到期语义。其余 E4 用例均在 90000ms 内完成。
+
+**Duplicate-delta 观察**：该用例按其标题只证明“一条 assistant message / 一次 completion”；probe 仍打印持久化文本为 `E4 deterministic responseE4 deterministic response`。因此不声称文本级去重，保留为 open observation。
 
 **未关闭**：default completed-turn restart 的 90s 运行、V2 Custom 变体、其余 identity/lifeline、真实外部 provider/OAuth、Windows/macOS 打包、签名/发布与完整 S08/S09。完整 S08-B/S09 仍开放。
