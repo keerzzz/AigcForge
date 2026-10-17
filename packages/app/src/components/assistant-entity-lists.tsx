@@ -55,29 +55,33 @@ export function ReminderList(props: {
             <For each={props.pending}>
               {(reminder: ScheduleInfo) => (
                 <div
-                  class="flex min-w-0 items-center gap-2 rounded-sm py-1"
+                  class="flex min-w-0 flex-col gap-1 rounded-sm py-1 sm:flex-row sm:items-center sm:gap-2"
                   data-targeted={reminder.id === props.targetId ? "" : undefined}
                   classList={{ "bg-v2-background-bg-layer-03": reminder.id === props.targetId }}
                 >
-                  <Icon name="mode-assistant" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-                  <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
-                    {reminder.content ?? ""}
-                  </span>
-                  <span class="shrink-0 text-v2-text-text-muted text-11-regular">
-                    {formatDueAt(reminder.dueAt)} · {reminder.timezone ?? ""}
-                  </span>
-                  <Show when={props.showStatus}>
-                    <span class="shrink-0 rounded-[3px] border border-v2-border-border-base px-1 py-0.5 text-10-regular text-v2-text-text-muted">
-                      {language.t(STATUS_LABEL[reminder.status])}
+                  <div class="flex min-w-0 items-center gap-2">
+                    <Icon name="mode-assistant" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                    <span class="min-w-0 flex-1 truncate text-v2-text-text-base text-13-regular">
+                      {reminder.content ?? ""}
                     </span>
-                  </Show>
-                  <IconButtonV2
-                    variant="ghost-muted"
-                    size="small"
-                    icon={<Icon name="xmark-small" />}
-                    aria-label={language.t("assistant.dashboard.cancelReminder")}
-                    onClick={() => props.onCancel(reminder.id)}
-                  />
+                  </div>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <span class="text-v2-text-text-muted text-11-regular">
+                      {formatDueAt(reminder.dueAt)} · {reminder.timezone ?? ""}
+                    </span>
+                    <Show when={props.showStatus}>
+                      <span class="shrink-0 rounded-[3px] border border-v2-border-border-base px-1 py-0.5 text-10-regular text-v2-text-text-muted">
+                        {language.t(STATUS_LABEL[reminder.status])}
+                      </span>
+                    </Show>
+                    <IconButtonV2
+                      variant="ghost-muted"
+                      size="small"
+                      icon={<Icon name="xmark-small" />}
+                      aria-label={language.t("assistant.dashboard.cancelReminder")}
+                      onClick={() => props.onCancel(reminder.id)}
+                    />
+                  </div>
                 </div>
               )}
             </For>

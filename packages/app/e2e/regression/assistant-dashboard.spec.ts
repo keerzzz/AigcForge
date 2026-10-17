@@ -11,7 +11,10 @@ import { pinEnglishUI } from "../utils/locale"
 import { AssistantMutationProbe } from "./assistant-mutation-probe"
 
 // English-label spec — pin the UI language so the zh projects stay green (see utils/locale.ts).
-test.beforeEach(({ page }) => pinEnglishUI(page))
+// Tagged presentation cases must observe the project's real theme/locale/viewport instead.
+test.beforeEach(async ({ page }, testInfo) => {
+  if (!testInfo.tags.includes("@presentation")) await pinEnglishUI(page)
+})
 
 const directory = "C:/Aigcfroge/AssistantDashboardRegression"
 const projectID = "proj_assistant_dashboard_regression"
@@ -147,6 +150,124 @@ test.describe("regression: assistant dashboard", () => {
     await expect(page.getByText("Follow up with customer", { exact: true })).toBeVisible()
     await expect(alert).toHaveCount(0)
   })
+
+  test(
+    "AI-TDD-S08-R02: reminder error is visible and retryable in dark, Chinese and 390px",
+    { tag: "@presentation" },
+    async ({ page }, testInfo) => {
+      const expected = {
+        chromium: { scheme: "light", lang: "en" },
+        "chromium-dark": { scheme: "dark", lang: "en" },
+        "chromium-zh": { scheme: "light", lang: "zh" },
+        "chromium-narrow": { scheme: "light", lang: "en" },
+      }[testInfo.project.name]
+      if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+      const narrow = testInfo.project.name === "chromium-narrow"
+      await mockServer(page, { state: {} })
+      let fail = true
+      await page.route("**/schedule/pending", (route) => {
+        if (!fail) return route.fulfill({ json: [pendingReminder] })
+        return route.fulfill({ status: 400, json: { message: "reminder read failed" } })
+      })
+      if (narrow) await page.setViewportSize({ width: 390, height: 844 })
+
+      await page.goto("/mode/assistant")
+      await expect(
+        page.getByRole("heading", { name: expected.lang === "zh" ? "助手仪表盘" : "Assistant Dashboard" }),
+      ).toBeVisible({ timeout: 15_000 })
+      await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.scheme)
+      expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+      if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+      const alert = page.getByRole("alert")
+      const label = expected.lang === "zh" ? "加载失败，请重试" : "Couldn't load. Try again."
+      await expect(alert).toContainText(label, { timeout: 20_000 })
+      const retry = alert.getByRole("button", { name: expected.lang === "zh" ? "重试" : "Retry", exact: true })
+      await expect(retry).toBeVisible()
+      const box = await alert.boundingBox()
+      if (!box) throw new Error("the reminder error must have a box")
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+      let focused = false
+      for (let index = 0; index < 80 && !focused; index += 1) {
+        await page.keyboard.press("Tab")
+        focused = await retry.evaluate((node) => node === document.activeElement)
+      }
+      expect(focused, "the retry must be keyboard reachable").toBe(true)
+      await expect(retry).toBeFocused()
+      const outline = await retry.evaluate((node) => {
+        const style = getComputedStyle(node)
+        return { style: style.outlineStyle, width: style.outlineWidth }
+      })
+      expect(outline.style).not.toBe("none")
+      expect(Number.parseFloat(outline.width)).toBeGreaterThan(0)
+
+      fail = false
+      await page.keyboard.press("Enter")
+      await expect(page.getByText("Follow up with customer", { exact: true })).toBeVisible()
+      await expect(alert).toHaveCount(0)
+    },
+  )
+
+  test(
+    "AI-TDD-S08-R02: memory error is visible and retryable in dark, Chinese and 390px",
+    { tag: "@presentation" },
+    async ({ page }, testInfo) => {
+      const expected = {
+        chromium: { scheme: "light", lang: "en" },
+        "chromium-dark": { scheme: "dark", lang: "en" },
+        "chromium-zh": { scheme: "light", lang: "zh" },
+        "chromium-narrow": { scheme: "light", lang: "en" },
+      }[testInfo.project.name]
+      if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+      const narrow = testInfo.project.name === "chromium-narrow"
+      await mockServer(page, { state: {} })
+      let fail = true
+      await page.route("**/memory", (route) => {
+        if (!fail) return route.fulfill({ json: [pendingMemory] })
+        return route.fulfill({ status: 400, json: { message: "memory read failed" } })
+      })
+      if (narrow) await page.setViewportSize({ width: 390, height: 844 })
+
+      await page.goto("/mode/assistant")
+      await expect(
+        page.getByRole("heading", { name: expected.lang === "zh" ? "助手仪表盘" : "Assistant Dashboard" }),
+      ).toBeVisible({ timeout: 15_000 })
+      await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.scheme)
+      expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+      if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+      const alert = page.getByRole("alert")
+      const label = expected.lang === "zh" ? "加载失败，请重试" : "Couldn't load. Try again."
+      await expect(alert).toContainText(label, { timeout: 20_000 })
+      const retry = alert.getByRole("button", { name: expected.lang === "zh" ? "重试" : "Retry", exact: true })
+      await expect(retry).toBeVisible()
+      const box = await alert.boundingBox()
+      if (!box) throw new Error("the memory error must have a box")
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+      let focused = false
+      for (let index = 0; index < 80 && !focused; index += 1) {
+        await page.keyboard.press("Tab")
+        focused = await retry.evaluate((node) => node === document.activeElement)
+      }
+      expect(focused, "the retry must be keyboard reachable").toBe(true)
+      await expect(retry).toBeFocused()
+      const outline = await retry.evaluate((node) => {
+        const style = getComputedStyle(node)
+        return { style: style.outlineStyle, width: style.outlineWidth }
+      })
+      expect(outline.style).not.toBe("none")
+      expect(Number.parseFloat(outline.width)).toBeGreaterThan(0)
+
+      fail = false
+      await page.keyboard.press("Enter")
+      await expect(page.getByText("User prefers concise answers", { exact: true })).toBeVisible()
+      await expect(alert).toHaveCount(0)
+    },
+  )
 
   test("cancels a pending reminder from the dashboard", async ({ page }) => {
     let cancelled = false

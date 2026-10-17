@@ -1399,3 +1399,12 @@ Assistant dashboard 的 memory 区块原先只显示错误文案、没有 Retry�
 - **RED**：旧共享组件无 alert，**1 fail**（`s08-reminder-read-red-20261017-220520`）。
 - **GREEN**：同测试 **1 pass / 43.5s**；新增用例 + dashboard 首屏 + memory 失败 + memory confirm/reject **4 pass / 1.0m**，0 fail/skip/retry。Assistant entity/panel/kb 单测 **32 pass / 0 fail / 90 assertions**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
 - **未关闭**：citation 直接 E3（§15.49）、dashboard session list（toast 兜底）、initial-load scope/empty-response、closed-panel 在途/共享 observer、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-reminder-read-20261017/`。
+
+### 15.51 2026-10-17 S08 / memory 与 reminder 错误态呈现矩阵 + narrow 布局修复
+
+在 `assistant-dashboard.spec.ts` 新增两条 `@presentation` 用例，分别让 `/memory` 或 `/schedule/pending` 返回 400，断言真实 theme/lang/viewport、本地化错误文案、alert 在 390px 内不溢出、真实 Tab 到达 Retry、focus outline，以及 Enter 重试后读回数据。
+
+- **桌面三 project**：`chromium` + `chromium-dark` + `chromium-zh` **6 pass / 1.7m**。
+- **narrow**：首次 **1 pass / 1 fail**——390px 下 reminder 行被日期/操作挤到内容不可见，`Follow up with customer` 解析为 hidden。修 `ReminderList` 为窄屏 `flex-col`、`sm:flex-row` 的响应式布局后，narrow **2 pass / 57.6s**。
+- **相邻回归**：dashboard 首屏 + memory/reminder 失败 + memory confirm/reject **4 pass / 1.1m**；Assistant entity/panel/kb 单测 **32 pass / 90 assertions**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
+- **边界**：目前覆盖 KB、delivery-history、memory、reminder 四个错误态的呈现；citation 仍缺直接 E3（§15.49），closed-panel observer、initial-load 组合与完整矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-dashboard-presentation-20261017/`。
