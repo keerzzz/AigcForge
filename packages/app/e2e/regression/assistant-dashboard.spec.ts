@@ -151,6 +151,66 @@ test.describe("regression: assistant dashboard", () => {
     await expect(alert).toHaveCount(0)
   })
 
+  test("AI-TDD-S08-R02: a failed session list read is retryable, not an empty dashboard", async ({ page }) => {
+    // `loadSessions` used to swallow the failure into a toast, so the dashboard could not
+    // tell "no assistant sessions" from "the list never loaded". The list only loads once a
+    // project is open, so seed the client-side opened-project list this case needs.
+    await mockServer(page, { state: {}, sessions: [{ ...session(), mode: "assistant" }] })
+    await page.addInitScript((worktree) => {
+      localStorage.setItem(
+        "aigcfroge.global.dat:server",
+        JSON.stringify({ list: [], projects: { local: [{ worktree, expanded: true }] }, lastProject: {} }),
+      )
+    }, directory)
+    let fail = true
+    await page.route("**/session**", (route) => {
+      const url = new URL(route.request().url())
+      if (route.request().method() !== "GET" || !/^\/(?:api\/)?session$/.test(url.pathname)) return route.fallback()
+      if (!fail) return route.fallback()
+      return route.fulfill({
+        status: 400,
+        json: { message: "session list failed" },
+        headers: { "access-control-allow-origin": "*" },
+      })
+    })
+    await configurePage(page)
+
+    await page.goto("/mode/assistant")
+    await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible({ timeout: 15_000 })
+    const alert = page.getByRole("alert").filter({ hasText: "Couldn't load. Try again." })
+    await expect(alert).toBeVisible({ timeout: 30_000 })
+
+    fail = false
+    await alert.getByRole("button", { name: "Retry", exact: true }).click()
+    await expect(
+      page.locator('[data-mode-main="assistant"]').locator('[data-component="home-session-row"]'),
+    ).toHaveCount(1, { timeout: 20_000 })
+    await expect(
+      page.locator('[data-mode-main="assistant"]').locator('[data-component="home-session-row"]'),
+    ).toContainText(title)
+    await expect(alert).toHaveCount(0)
+  })
+
+  test("AI-TDD-S08-R02: an empty session list stays an empty list, not an error", async ({ page }) => {
+    // Polarity control for the case above: the new alert must key on the read failing, not
+    // on the dashboard having nothing to render.
+    await mockServer(page, { state: {}, sessions: [] })
+    await page.addInitScript((worktree) => {
+      localStorage.setItem(
+        "aigcfroge.global.dat:server",
+        JSON.stringify({ list: [], projects: { local: [{ worktree, expanded: true }] }, lastProject: {} }),
+      )
+    }, directory)
+    await configurePage(page)
+
+    await page.goto("/mode/assistant")
+    await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible({ timeout: 15_000 })
+    // The reminder fixture proves the dashboard finished its first load.
+    await expect(page.getByText("Follow up with customer")).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole("alert")).toHaveCount(0)
+    await expect(page.locator('[data-component="home-session-row"]')).toHaveCount(0)
+  })
+
   test(
     "AI-TDD-S08-R02: reminder error is visible and retryable in dark, Chinese and 390px",
     { tag: "@presentation" },

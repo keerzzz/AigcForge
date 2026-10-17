@@ -206,7 +206,11 @@ export function AssistantDashboardMain() {
     enabled: slotActive(),
     queryKey: [serverSDK().scope, "home", "assistant-sessions", ...projectDirectories()] as const,
     queryFn: async () => {
-      await Promise.all(projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT })))
+      // `rethrow` keeps the failure here instead of only a toast: without it the dashboard
+      // rendered "no assistant sessions" for a list that never loaded.
+      await Promise.all(
+        projectDirectories().map((d) => sync().project.loadSessions(d, { limit: HOME_SESSION_LIMIT, rethrow: true })),
+      )
       return null
     },
   }))
@@ -471,11 +475,21 @@ export function AssistantDashboardMain() {
         </section>
 
         <section class="flex min-w-0 flex-col gap-3">
+          <Show when={sessionLoad.isError}>
+            <div role="alert" class="flex min-w-0 items-center gap-2">
+              <p class="min-w-0 flex-1 text-v2-text-text-muted text-13-regular">
+                {language.t("assistant.dashboard.loadError")}
+              </p>
+              <ButtonV2 variant="neutral" size="small" onClick={() => void sessionLoad.refetch()}>
+                {language.t("assistant.citation.retry")}
+              </ButtonV2>
+            </div>
+          </Show>
           <Show
             when={!sessionLoad.isLoading}
             fallback={<HomeSessionSkeleton label={language.t("assistant.dashboard.title")} />}
           >
-            <Show when={groups().length > 0}>
+            <Show when={!sessionLoad.isError && groups().length > 0}>
               <div class="flex min-w-0 flex-col gap-px">
                 <For each={groups()}>
                   {(group) => (

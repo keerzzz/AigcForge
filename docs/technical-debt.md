@@ -1408,3 +1408,17 @@ Assistant dashboard 的 memory 区块原先只显示错误文案、没有 Retry�
 - **narrow**：首次 **1 pass / 1 fail**——390px 下 reminder 行被日期/操作挤到内容不可见，`Follow up with customer` 解析为 hidden。修 `ReminderList` 为窄屏 `flex-col`、`sm:flex-row` 的响应式布局后，narrow **2 pass / 57.6s**。
 - **相邻回归**：dashboard 首屏 + memory/reminder 失败 + memory confirm/reject **4 pass / 1.1m**；Assistant entity/panel/kb 单测 **32 pass / 90 assertions**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
 - **边界**：目前覆盖 KB、delivery-history、memory、reminder 四个错误态的呈现；citation 仍缺直接 E3（§15.49），closed-panel observer、initial-load 组合与完整矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-dashboard-presentation-20261017/`。
+
+### 15.52 2026-10-18 S08 / Assistant dashboard session list 读取失败与 inline Retry
+
+`ServerSync.loadSessions` 原先把 `GET /session` 的失败折叠进 `toast.session.listFailed`，所以 dashboard 的 `sessionLoad` query 永远成功，无法区分“该用户没有 Assistant Session”与“列表根本没读回来”。现在 `loadSessions` 增加 opt-in `rethrow`：带上它时 fetch 拒绝会传到调用方，默认（bootstrap 及其他所有调用点）仍是 toast-only。合并分支不再在共享 promise 失败后重取（否则每个并发调用方各触发一次重试），清理链改为 `.catch(() => {}).finally(...)`，保证 `sessionLoads` 删除与 `children.unpin` 仍然执行。
+
+dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.retry`，在 `role="alert"` 内提供 Retry 调 `sessionLoad.refetch()`，错误态下不再渲染行列表。没有新增接口、Schema、迁移或 i18n key。
+
+- **RED（最终测试 + 旧生产代码，stash 后运行）**：无 alert，**1 fail / exit1**（`s08-session-list-red-final-20261018-012222`）；首轮 RED 同样 1 fail（`-003416`）。
+- **中间失败保留**：`-005710` 修复后 alert 已出现但行断言用 `getByText` 触发 strict-mode 重复匹配；`-011304` 重试已读回行、仅选择器未收窄。
+- **GREEN**：失败 → Retry → 行读回 **1 pass / 44.9s / exit0**（`-011948`）。
+- **极性对照**：空 session 列表仍是空列表、无 alert **1 pass**；与失败用例合跑 **2 pass / 46.8s / exit0**（`-014214`）。
+- **相邻回归**：dashboard 首屏 + memory 失败 + reminder 失败 + session list 失败 + memory confirm/reject **5 pass / 1.1m / exit0**（`-012749`）。
+- **单测/门禁**：`server-sync.test.ts` + `assistant-dashboard-model.test.ts` **34 pass / 59 assertions / exit0**；App typecheck exit0；prettier、`LINT_BASE_REF=HEAD` 增量 lint（3 文件 / 103 新增行）、`git diff --check` 均 exit0。
+- **未关闭**：citation 直接 E3（§15.49）、closed-panel 在途/共享 observer（§15.43）、initial-load 的其他 scope/呈现组合、剩余呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-session-list-read-20261018/`。

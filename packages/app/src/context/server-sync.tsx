@@ -356,12 +356,29 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     },
   })
 
-  async function loadSessions(directory: string, options?: { limit?: number; mode?: ProductMode.ID }) {
+  async function loadSessions(
+    directory: string,
+    options?: {
+      limit?: number
+      mode?: ProductMode.ID
+      /** Surface the failure to the caller instead of only a toast. Callers that render an
+       * inline retry need the rejection; bootstrap keeps the toast-only default so a failed
+       * list does not also mark the worktree failed. */
+      rethrow?: boolean
+    },
+  ) {
     const key = directoryKey(directory)
     const bucket = options?.mode ? `${key}\0${options.mode}` : key
     const pending = sessionLoads.get(bucket)
     if (pending) {
-      await pending
+      try {
+        await pending
+      } catch (err) {
+        // A caller that renders an inline retry must see the failure; re-fetching here
+        // would turn one failed load into a retry storm per concurrent caller.
+        if (options?.rethrow) throw err
+        return
+      }
       return loadSessions(directory, options)
     }
 
@@ -437,6 +454,8 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
             })
             .catch((err) => {
               console.error("Failed to load sessions", err)
+              // Inline surfaces own the user-facing message; the toast would duplicate it.
+              if (options?.rethrow) throw err
               const project = getFilename(directory)
               showToast({
                 title: language.t("toast.session.listFailed.title", { project }),
@@ -448,10 +467,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       .then(() => {})
 
     sessionLoads.set(bucket, promise)
-    void promise.finally(() => {
-      sessionLoads.delete(bucket)
-      children.unpin(key)
-    })
+    void promise
+      .catch(() => {})
+      .finally(() => {
+        sessionLoads.delete(bucket)
+        children.unpin(key)
+      })
     return promise
   }
 
