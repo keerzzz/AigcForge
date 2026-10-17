@@ -93,6 +93,35 @@ test.describe("regression: assistant dashboard", () => {
     await expect(page.getByText("Q3 goals")).toBeVisible()
   })
 
+  test("AI-TDD-S08-R02: a failed memory read is retryable, not an empty dashboard", async ({ page }) => {
+    await mockServer(page, { state: {} })
+    let fail = true
+    await page.route("**/memory", (route) => {
+      if (!fail) {
+        return route.fulfill({
+          json: [pendingMemory],
+          headers: { "access-control-allow-origin": "*" },
+        })
+      }
+      return route.fulfill({
+        status: 400,
+        json: { message: "memory read failed" },
+        headers: { "access-control-allow-origin": "*" },
+      })
+    })
+    await configurePage(page)
+
+    await page.goto("/mode/assistant")
+    await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible({ timeout: 15_000 })
+    const alert = page.getByRole("alert").filter({ hasText: "Couldn't load. Try again." })
+    await expect(alert).toBeVisible({ timeout: 20_000 })
+
+    fail = false
+    await alert.getByRole("button", { name: "Retry", exact: true }).click()
+    await expect(page.getByText("User prefers concise answers", { exact: true })).toBeVisible()
+    await expect(alert).toHaveCount(0)
+  })
+
   test("cancels a pending reminder from the dashboard", async ({ page }) => {
     let cancelled = false
     await mockServer(page, {

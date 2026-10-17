@@ -1375,3 +1375,12 @@ Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败
 **协议与预算归一化（2026-10-17 核对）**：`CLAUDE.md:71` 与 `AGENTS.md:204` 规定单测 `--timeout 30000`；`docs/testing.md:140` 规定 `packages/aigcfroge` 包预算 90000ms（与 30s 就绪窗口耦合）；`packages/app/playwright.config.ts:47` 的 E3 预算是 180000ms；`packages/app/e2e/real/playwright.config.ts:62` 的 E4 预算是 **120000ms**，`assistant-scheduler.spec.ts:224` 也明确写“existing 120s E4 test budget”。**90s 不是仓库 E4 协议**，只是本轮早期执行提示的 harness 上限。按协议统一 E4 到 120s：`session-turn.spec.ts` 的 restart 用例移除 `test.setTimeout(360_000)`，由 config 的 120s 生效，实测 **1 pass**。此前在 90s 内完成的 E4 用例仍是更严格上限下的有效 receipt，不重跑。
 
 **未关闭**：S07 单后端 lifecycle/restart（不属本轮 dual-backend 矩阵）、真实外部 provider/OAuth、Windows/macOS 打包、签名/发布与完整 S08/S09。完整 S08-B/S09 仍开放。
+
+### 15.48 2026-10-17 S08 / Assistant dashboard memory 读取失败与显式重试
+
+Assistant dashboard 的 memory 区块原先只显示错误文案、没有 Retry。现在失败时在既有 `role="alert"` 内提供 Retry，调用 `memoryQuery.refetch()`；成功行与 pending 提案保持原 owner。复用 `assistant.dashboard.loadError` / `assistant.citation.retry`，没有新增接口、Schema、迁移或 i18n key。
+
+- **RED**：旧 dashboard 无 alert，**1 fail**（`s08-dashboard-memory-red-20261017-215018`）。
+- **GREEN**：同测试 **1 pass / 43.4s**；新增用例 + 首屏渲染 + memory confirm/reject 相邻集合 **3 pass / 48.3s**，0 fail/skip/retry。App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
+- **可达性观察**：Assistant session panel 的 memory tab 只能由 nav tree 的 memory 条目打开；memory 列表为空或读取失败时没有条目，section header 只展开/折叠，因此 panel memory tab 在该状态下不可达。本轮未改该入口，也未声称 panel memory error 已覆盖；dashboard 是当前可达的读取失败表面。Owner S8；若需要 section-level 入口，另开切片。
+- **未关闭**：citation、dashboard session list（现有 toast 兜底）、reminders 非 mutation 读取、initial-load scope/empty-response 组合、closed-panel 在途/共享 observer、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-dashboard-memory-20261017/`。

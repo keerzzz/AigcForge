@@ -338,7 +338,14 @@ export function AssistantDashboardMain() {
         <Show when={memoryQuery.isError}>
           <section class="flex min-w-0 flex-col gap-3">
             <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.memory.title")}</h2>
-            <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.dashboard.loadError")}</p>
+            <div role="alert" class="flex min-w-0 items-center gap-2">
+              <p class="min-w-0 flex-1 text-v2-text-text-muted text-13-regular">
+                {language.t("assistant.dashboard.loadError")}
+              </p>
+              <ButtonV2 variant="neutral" size="small" onClick={() => void memoryQuery.refetch()}>
+                {language.t("assistant.citation.retry")}
+              </ButtonV2>
+            </div>
           </section>
         </Show>
         <Show when={!memoryQuery.isError && memories().length > 0}>
