@@ -317,6 +317,7 @@ export function AssistantDashboardMain() {
             error={pendingQuery.isError}
             loading={pendingQuery.isLoading}
             onCancel={cancelReminder}
+            onRetry={() => void pendingQuery.refetch()}
             emptyLabel={language.t("assistant.dashboard.reminders.empty")}
             errorLabel={language.t("assistant.dashboard.loadError")}
           />

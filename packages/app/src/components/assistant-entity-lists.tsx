@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { useLanguage } from "@/context/language"
 import type { PersonalMemoryInfo, ScheduleDelivery, ScheduleInfo } from "@aigcfroge/sdk/v2/client"
 
@@ -22,6 +23,7 @@ export function ReminderList(props: {
   error?: boolean
   loading?: boolean
   onCancel: (id: string) => void
+  onRetry?: () => void
   emptyLabel: string
   errorLabel: string
   showStatus?: boolean
@@ -32,7 +34,14 @@ export function ReminderList(props: {
   return (
     <div class="flex min-w-0 flex-col gap-2 rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-3">
       <Show when={props.error}>
-        <p class="text-v2-text-text-muted text-13-regular">{props.errorLabel}</p>
+        <div role="alert" class="flex min-w-0 items-center gap-2">
+          <p class="min-w-0 flex-1 text-v2-text-text-muted text-13-regular">{props.errorLabel}</p>
+          <Show when={props.onRetry}>
+            <ButtonV2 variant="neutral" size="small" onClick={() => props.onRetry?.()}>
+              {language.t("assistant.citation.retry")}
+            </ButtonV2>
+          </Show>
+        </div>
       </Show>
       <Show when={!props.error}>
         <Show

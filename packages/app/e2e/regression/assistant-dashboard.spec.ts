@@ -122,6 +122,32 @@ test.describe("regression: assistant dashboard", () => {
     await expect(alert).toHaveCount(0)
   })
 
+  test("AI-TDD-S08-R02: a failed reminder read is retryable, not an empty dashboard", async ({ page }) => {
+    await mockServer(page, { state: {} })
+    let fail = true
+    await page.route("**/schedule/pending", (route) => {
+      if (!fail) {
+        return route.fulfill({ json: [pendingReminder], headers: { "access-control-allow-origin": "*" } })
+      }
+      return route.fulfill({
+        status: 400,
+        json: { message: "reminder read failed" },
+        headers: { "access-control-allow-origin": "*" },
+      })
+    })
+    await configurePage(page)
+
+    await page.goto("/mode/assistant")
+    await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible({ timeout: 15_000 })
+    const alert = page.getByRole("alert").filter({ hasText: "Couldn't load. Try again." })
+    await expect(alert).toBeVisible({ timeout: 20_000 })
+
+    fail = false
+    await alert.getByRole("button", { name: "Retry", exact: true }).click()
+    await expect(page.getByText("Follow up with customer", { exact: true })).toBeVisible()
+    await expect(alert).toHaveCount(0)
+  })
+
   test("cancels a pending reminder from the dashboard", async ({ page }) => {
     let cancelled = false
     await mockServer(page, {

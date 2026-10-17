@@ -1391,3 +1391,11 @@ Assistant dashboard 的 memory 区块原先只显示错误文案、没有 Retry�
 
 - **保留 receipt**：`s08-citation-read-20261017-215508`、`-215637`、`-215751`、`-215853`、`-215949`，证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-citation-e3-20261017/`。
 - **Owner S8；Unlock**：需要能稳定渲染 canonical/legacy assistant citation 的 fixture（或直接驱动 `kb://` link 的 DOM 合约），再断言 400 → error → Retry → 200 note。当前只保留生产实现与单测，不声称 citation error 已直接 E2E 覆盖。
+
+### 15.50 2026-10-17 S08 / Assistant reminder 读取失败与共享 Retry
+
+`ReminderList` 原先在 `error` 时只显示错误文案。现在共享组件增加可选 `onRetry`，错误行显示既有本地化 Retry；dashboard 传 `pendingQuery.refetch()`，session panel 传 `remindersQuery.refetch()`。没有新增接口、Schema、迁移或 i18n key。
+
+- **RED**：旧共享组件无 alert，**1 fail**（`s08-reminder-read-red-20261017-220520`）。
+- **GREEN**：同测试 **1 pass / 43.5s**；新增用例 + dashboard 首屏 + memory 失败 + memory confirm/reject **4 pass / 1.0m**，0 fail/skip/retry。Assistant entity/panel/kb 单测 **32 pass / 0 fail / 90 assertions**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
+- **未关闭**：citation 直接 E3（§15.49）、dashboard session list（toast 兜底）、initial-load scope/empty-response、closed-panel 在途/共享 observer、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-reminder-read-20261017/`。

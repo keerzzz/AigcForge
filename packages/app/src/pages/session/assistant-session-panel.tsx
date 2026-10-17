@@ -209,6 +209,7 @@ export function AssistantSessionPanel() {
                     error={remindersQuery.isError}
                     loading={remindersQuery.isLoading}
                     onCancel={cancelReminder}
+                    onRetry={() => void remindersQuery.refetch()}
                     emptyLabel={language.t("assistant.dashboard.reminders.empty")}
                     errorLabel={language.t("assistant.dashboard.loadError")}
                     showStatus
