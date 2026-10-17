@@ -202,9 +202,7 @@ test("browser submit runs a real provider turn that survives reload", async ({ p
 
 test("a completed turn's projection survives a backend restart", async ({ page, request }) => {
   // The harness stops the real backend and waits for its own health endpoint
-  // (up to 240s) instead of sleeping, so this case needs more than the config's
-  // default budget for a single-request test.
-  test.setTimeout(360_000)
+  // instead of sleeping. The E4 config's 120s budget is the normalized ceiling.
   const e4m = e4()
   const sessionID = await createSession(request, "S5 restart durability")
 

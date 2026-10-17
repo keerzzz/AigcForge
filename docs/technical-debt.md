@@ -1358,6 +1358,7 @@ Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败
 | default chat-mode provider turn → mode readback                | **1 pass / exit0 / 90000ms**                                                  |
 | default slow provider → waited, not failed                     | **1 pass / exit0 / 90000ms**                                                  |
 | default duplicated delta → one assistant message               | **1 pass / exit0 / 90000ms**；测试只断言 message 数与 completion 数           |
+| default completed-turn restart                                 | **1 pass / exit0 / 120000ms**；config 默认，移除 spec 的 360s 覆盖            |
 | V2 coding canonical admission → provider turn → reload/restart | **1 pass / exit0 / 90000ms**；provider delta=1、admission row 1、重试不增调用 |
 | dual-backend shared Session ID identity/review                 | **1 pass / exit0 / 90000ms**；peer 独立 DB/workspace，teardown passed         |
 | Assistant reminder → daemon → inbox/reload                     | **120s approved pass**；90s receipt 保留为预算截断                            |
@@ -1366,4 +1367,6 @@ Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败
 
 **Duplicate-delta 观察**：该用例按其标题只证明“一条 assistant message / 一次 completion”；probe 仍打印持久化文本为 `E4 deterministic responseE4 deterministic response`。因此不声称文本级去重，保留为 open observation。
 
-**未关闭**：default completed-turn restart 的 90s 运行、V2 Custom 变体、其余 identity/lifeline、真实外部 provider/OAuth、Windows/macOS 打包、签名/发布与完整 S08/S09。完整 S08-B/S09 仍开放。
+**协议与预算归一化（2026-10-17 核对）**：`CLAUDE.md:71` 与 `AGENTS.md:204` 规定单测 `--timeout 30000`；`docs/testing.md:140` 规定 `packages/aigcfroge` 包预算 90000ms（与 30s 就绪窗口耦合）；`packages/app/playwright.config.ts:47` 的 E3 预算是 180000ms；`packages/app/e2e/real/playwright.config.ts:62` 的 E4 预算是 **120000ms**，`assistant-scheduler.spec.ts:224` 也明确写“existing 120s E4 test budget”。**90s 不是仓库 E4 协议**，只是本轮早期执行提示的 harness 上限。按协议统一 E4 到 120s：`session-turn.spec.ts` 的 restart 用例移除 `test.setTimeout(360_000)`，由 config 的 120s 生效，实测 **1 pass**。此前在 90s 内完成的 E4 用例仍是更严格上限下的有效 receipt，不重跑。
+
+**未关闭**：V2 Custom 变体、其余 identity/lifeline、真实外部 provider/OAuth、Windows/macOS 打包、签名/发布与完整 S08/S09。完整 S08-B/S09 仍开放。
