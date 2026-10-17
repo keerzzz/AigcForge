@@ -1201,3 +1201,15 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 最终增量lint、五文件格式及coverage/manifest均exit0；账本11pass/26assertions。首次格式门禁的两文件exit1、随后原始JS字节比较的exit1均保留：Bun转译仍保留对象排版，不能把字节差异直接判为语义变化。`format-copy-v2.ts` 复用先前TypeScript AST节点种类/文本/有序子节点比较，并独立比较规范化JS；两文件AST一致，规范化JS一致，原始JS仅Core文件相同。排版后的源码与行为/类型检查分别绑定，不声称重跑行为。
 
 关闭 `structured-output-provider-integration-skips` 与 `assistant-legacy-history-error-summary`。可信OpenAI录制、CLI Footer及原生renderer、GitLab占位、Windows与其他包/API/E3/E4/展示/性能/打包Codex边界继续按原owner/unlock开放；完整S08/S09未关闭。
+
+### 15.35 2026-10-17 S08 / CLI Footer 五项覆盖恢复
+
+工作区仍为 `aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`，冻结HEAD为 `aa5df6d9b74d2339d60ec31c86fddbaa43cbc824`。本节仅修改Footer测试与两份账本，无生产renderer/keymap修改。证据目录为 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/footer-unskip-20261017`。
+
+- **保留初次失败**：直接移除五处skip后，完整Footer文件为 **28pass/1fail/127assertions/exit1/6.729825秒**，见 `run`。失败是打开Commands面板后仍调用 `footerComposerFrame`，得到 `TypeError: undefined is not an object`；此次没有原生崩溃。GREEN验证器如实拒绝本轮，原日志、JUnit、失败回执不覆盖。
+- **修正测试阶段**：`packages/aigcfroge/src/cli/cmd/run/footer.view.tsx:279` 的 `promptView` 按route选择身份，`:641` 的 `For` 重建对应frame；`:667` 的 `Switch` 只在composer路由挂载 `RunPromptBody`，command路由挂载 `RunCommandMenuBody`。因此旧断言不能在command面板内查找Textarea。测试现先验证面板期间Textarea不存在，再在关闭后验证frame身份改变；三次往返均保留draft，最后继续编辑并提交恰好一次。`footerComposerFrame` 对缺失frame给出明确错误，移除旧非空断言。
+- **五条真实交互恢复**：命令面板往返、leader variant绑定、skill绑定编辑、关闭skill面板清理合成草稿、自定义Question Return提交均已执行。完整文件 **29pass/148assertions/0skip/exit0/6.020703秒**，见 `contract/prepared/verification.json`；原第008组六个完整文件为 **46pass/234assertions/0skip/exit0/6.021636秒**，见 `complete008/prepared/verification.json`。后者与历史第008组的46个JUnit身份一一对应，前者是其中子集，不重复相加。复用实际OpenTUI renderer、keymap与原清理流程，没有替换成mock renderer或缩减测试名称集合。
+
+五项缺失行为覆盖已恢复，移除 `cli-footer-opentui-skips`；该项原unlock中尚未完成的原生生命周期根因调查归并到现有 `cli-renderer-native-crash`，owner仍为S8。本次测试通过不代表历史SIGSEGV已修复，也未证明Footer与backend010共因；后者的原始失败与真实worker诊断条件继续保留。可信录制、GitLab占位、Windows、其他包/API/E3/E4/展示/性能/打包Codex仍开放，完整S08/S09继续执行。
+
+后端typecheck、显式基线增量lint与账本校验均exit0；账本11pass/26assertions。首次三文件格式检查仅因本文多余空行exit1，Footer测试格式已通过；失败收据保留，空行已移除。最终三文件格式门禁与独立哈希/源码/JUnit审计见同目录 `format-final` 和 `audit.json`。每轮负载串行、concurrency1、零重试，90秒外限及90000ms测试timeout不变；源码/HEAD/branch/index冻结，实际ECHILD与私有目录inode删除均核对。
