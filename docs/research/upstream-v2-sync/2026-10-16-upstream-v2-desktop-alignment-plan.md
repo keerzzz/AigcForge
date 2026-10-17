@@ -612,4 +612,26 @@ AigcForge 全量自研业务与技术资产 (1,707 Files)
 
 ---
 
+### 10.24 会话终盘：permission 融合 + 工具文件三批 + T3 零回植判决（2026-10-17，`9e9a93f36`→`c33ac20d1`）
+
+**本窗口交付（六提交）**：
+1. **T1 工具批（`9e9a93f36`）**：kb-tools(6 工具)/memory(2)/propose-memory/propose-note/propose-asset×7/reminder×3/work-preset/list-assets 共 **15 源件** 以 ㊸ 配方（fork `Tool.make+Tools.Service` → v2 `Plugin{id,effect}+ctx.tool.transform(editor.add)`，`toModelOutput`→本地 content 助手、上下文换名、permission source `id` 形、codemode:false、internal.ts `pre` 注册）落地 + 5 测试件；附带 14 模块补 node 导出 + internal Requirements 扩展（KBService/ScheduleService/PersonalMemory/MetaAgentMemory/资产服务五件/PluginAsset/WorkflowAsset）。
+2. **T2 任务批（`9b0455b4a`）**：task-create/delete/reorder/update/taskwrite/todowrite/taskschedule/taskspawn **8 源件** + 5 测试件（SessionTask/SessionTodo 首次作为 plugin-host 服务入 Requirements）；`task.ts`（依 delegation/service）与 task-driver 系明确划入 Phase C。
+3. **permission 全融合（`a251db78a`）**：`consultGrant`（serviceOption ScopedGrantStore + findValid + once 消费竞态回落）+ `requireResponder`（ApprovalPresence 硬依赖，ADR-20 §2.7）+ `AskExpiredError`/`RejectedError` 新型 + assert TTL 界 + `configured` 改走 `PermissionEffective.effectiveV2` 包络（saved approvals 经包络入列，H1 防自动放行）+ session `fromRow` 三列映射（mode/attended/permission_tier）+ projector attended 写入语义（root 默认 NULL）+ close 改 RejectedError；**7 测试件 161/161**（fork 版 permission.test.ts 整体换血替换 base 版）。
+4. **T3 M 件判决（`04464540f` 附带）**：bash/edit/read/glob/grep/write/question/skill/websearch/webfetch/apply-patch **11 件逐一仲裁 = 零回植**——v2 版全面更深（fork 差异全被 v2 既有测试钉死为已超越：advisory→真 external_directory 执法、路径硬围栏→FileAccess 授权模型、fork 中断续跑→v2 中断存活原则）；skill 的 Custom-Mode 组合面 + per-settlement 文案划入 Phase C/D；附带修复本会话 `a251db78a` 遗漏的 tool-shell permission 测试悬挂（12 例，responder 绑定）。
+5. **asset-migration 修复（`c33ac20d1`）**：T1 接线暴露真缺陷——空条目集仍写 marker（`writeWithDirs` 物化缺失目录树）→ Location 图对缺失目录的 local 引导假成功（净增 2 例 location-layer 失败）；修复 = 无条目即不动文件系统（同时纠正「空 marker 永久抑制未来合法迁移」的隐性错误）。
+6. **CommitRejected 仲裁（㊸')**：fork 在 ask/assert 通道透传 grant 消费提交冲突 → v2 判为「竞态输家」与 consultGrant 既有回落语义同族 → catch 回落 ask 流（免动协议面）。
+
+**T3 判决的方法论意义**：M 件「fork 增量」的识别必须测试驱动（v2 既有测试套件为仲裁权威），本批 11 件经逐断言比对全部判「已超越」，避免了对 base 演化件的破坏性回写。
+
+**门禁终态**：root check ✓（19 任务）· core **7326 测 6927 过 34 败=与会前基线完全同集**（净回归 0；基线 34 = GitLab OAuth×11 + PluginSupervisor/watcher×10 + Config×4 + Worktree/Git×3 + SSE×1 + ModelsDev×1 + Bus Session routing×1 + location-layer normalizes×1 + mcp modern-protocol×1 + git-locale 环境×1——全部会前存量，git-locale 一项建议 worktreeRun 加 `LC_ALL=C`）· server 79/3（=基线）· schema 319/319 · migration --check ✓。
+
+**剩余（Phase C/D——R4 runner/LLM 收敛窗，交接下窗）**：
+- `delegation/{service(1164),execution(758),recovery(241)}` + `tool/task-driver`(1111) + `session/task-driver-fill`(624) + `tool/task`(依 service) + `tool/share-tool`(依 share-v2)；
+- `workflow/{workflow-runner(738),workflow-execution(67)}` + skill Custom-Mode 组合面；
+- Phase D：`judge/catalog/share-summary/v2-runtime/composition-resolver`；
+- runner 融合本体：fork `session/runner/llm.ts` 的 ToolRegistry.materialize/MCP 审计/附件面 → base runner（`@aigcfroge/ai` 适配方针 §9）+ `@aigcfroge/llm` 引入面终审。
+
+---
+
 > **结语**：本方案以工程宪法为准绳，以树级事实为依据，彻底规避了盲目合并的灾难。新基座 `/home/keer/workspace/aigcfroge-v2` 已经正式建立并准备就绪，后续将严格遵照本路线图稳健推进！

@@ -1,0 +1,866 @@
+{
+  "auditDate": "2026-09-30",
+  "scope": "Read-only evidence review and implementation plan; no production implementation",
+  "baseline": {
+    "root": "/home/keer/workspace/aigcfroge",
+    "branch": "local-cli-discovery",
+    "head": "260e8275b9b0af9d0b445e5acfb6f4d3545eac7b",
+    "workingTreeStatus": "M ARCHITECTURE.md\n M docs/technical-debt.md\n M packages/aigcfroge/src/server/routes/instance/httpapi/middleware/instance-context.ts\nA  packages/aigcfroge/test/server/httpapi-agent-cli.test.ts\n M packages/aigcfroge/test/server/httpapi-instance-context.test.ts\n M packages/aigcfroge/test/server/httpapi-v2-location.test.ts\n M packages/aigcfroge/test/server/openapi.snapshot.json\n M packages/app/e2e/regression/mode-detail-personas.spec.ts\n M packages/app/e2e/regression/settings-dialog.spec.ts\nA  packages/app/src/components/settings-v2/cli-agents.css\nA  packages/app/src/components/settings-v2/cli-agents.tsx\n M packages/app/src/components/settings-v2/dialog-settings-v2.tsx\n M packages/app/src/i18n/en.ts\n M packages/app/src/i18n/zh.ts\n M packages/core/src/filesystem.ts\n M packages/core/src/filesystem/search.ts\n M packages/core/src/location-mutation.ts\n M packages/core/src/tool/claude-code-sdk.ts\nA  packages/core/src/tool/cli-discovery.ts\nA  packages/core/src/tool/cli-executable.ts\n M packages/core/src/tool/codex-sdk.ts\nA  packages/core/test/cli-discovery.test.ts\nA  packages/core/test/cli-executable.test.ts\nA  packages/core/test/cli-sdk-lifecycle.test.ts\nA  packages/core/test/cli-sdk-startup.test.ts\n M packages/core/test/location-filesystem.test.ts\n M packages/core/test/location-mutation.test.ts\n M packages/sdk/js/src/v2/gen/sdk.gen.ts\n M packages/sdk/js/src/v2/gen/types.gen.ts\n M packages/sdk/openapi.json\n M packages/server/src/errors.ts\n M packages/server/src/groups/agent.ts\n M packages/server/src/groups/location.ts\n M packages/server/src/handlers/agent.ts\n?? \"docs/research/agent/ZCode-Antigravity-DeepSeekHarness\\346\\231\\272\\350\\203\\275\\344\\275\\223\\344\\272\\244\\344\\272\\222\\344\\270\\216UI\\344\\275\\223\\347\\263\\273\\346\\267\\261\\345\\272\\246\\350\\260\\203\\347\\240\\224.md\"\n?? docs/review/dependency-hygiene-audit-2026-09-25.md",
+    "comparisonRoot": "/media/win_data/aigcfroge",
+    "comparisonHead": "06872530fa13c17a14fbc60160df27a03f3646be"
+  },
+  "original": {
+    "path": "/home/keer/workspace/aigcfroge/docs/research/agent/ZCode-Antigravity-DeepSeekHarness智能体交互与UI体系深度调研.md",
+    "sha256": "cbd3af39724ec1682eeb9bb29c1f355b1b3c18457a7a37cf016084a6d80ec3a4"
+  },
+  "transcript": {
+    "path": "/home/keer/.gemini/antigravity/brain/fae43dc4-d3b6-4804-b938-b81f2f6cdb01/.system_generated/logs/transcript_full.jsonl",
+    "sha256": "fe2a31b24493947f27a9b38192326bce4659561ac083e8398958d1935471f994",
+    "records": 1186,
+    "firstCreatedAt": "2026-09-29T13:27:34Z",
+    "lastCreatedAt": "2026-09-30T03:05:18Z",
+    "readBoundary": "Content and tool provenance examined; no credential values or full prompts copied"
+  },
+  "reference": {
+    "root": "/home/keer/Documents/web/deepseek-harness-master",
+    "head": "639ed015397290b3745d163aafe02ffee4aa3f84",
+    "branch": "master",
+    "dirtyEntries": 5
+  },
+  "sourceHashes": {
+    "/home/keer/.gemini/antigravity/builtin/skills/antigravity_guide/references/app.md": "5adba0e3ca6dbf08d7ad1c2b136f88c067e175b454f0179fc7aa3c4783d9f5ab",
+    "/home/keer/Documents/web/deepseek-harness-master/README.md": "0f5516be2acde776f05572cbc8c3093c90549afe04ce118e11157d073d5d15f4",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.module.css": "4177256462b4cde12c43eabc6433216bf2747cefcf911a93b4d1f1a2568011cc",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.tsx": "8be70f4479c1984ca7e58ea089d0121b42855bb8dc5f16b05b2e643c4bbe3d55",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-input-trigger/src/types.ts": "02a37e5a80517253681791ccfc5e5f08c927fbc15a6db5e8cb1726aa4e269237",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-plan/src/client/index.ts": "6bec502a2c800cf01b2c7ee2515dfd539b37d810ff03e542b1cea7c697d72dc3",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-subagent/src/client/index.ts": "cfdc9e6275d7f21e970238eeaa8f2cce4662cabe1817ac684050fdde8f720f73",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-tool/src/client/tool/components/QuestionToolRow.tsx": "89882e7c1fd7e3abc8f2d967d3e125c29ed19ffd3ab59084a82fd14f06b62149",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-tool/src/client/tool/components/ToolRow.tsx": "718c89ef9ec70728372b490215c28987d12d8f74aeea38741dd628008d04eba6",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/subagent/subagent-claude-code/package.json": "3d1cde9922f9424cc7987e40e5ffb435ae2e4742c51d6c8d2788df76eff62f30",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/subagent/subagent-codex/package.json": "e8c5a4ca84e929638c19ba119473b358dc620794089ab1bafad05dc098be6a15",
+    "/home/keer/workspace/aigcfroge/AGENTS.md": "f98021eade27c4afd79ada77f2e249623dc88aaaec88d974642e3e070ec7a0ba",
+    "/home/keer/workspace/aigcfroge/ARCHITECTURE.md": "523decbf3b91ddec59e5411475315acaad603aafddd453263164d32f9f357bd3",
+    "/home/keer/workspace/aigcfroge/CLAUDE.md": "5d33b236f497dbdff64c96a965f30129bd176095cfa2118313aa4d8cfc062318",
+    "/home/keer/workspace/aigcfroge/CONTEXT.md": "fb514fc469991e11e351f34806b9a603029331776b964f4429254021405dc9fc",
+    "/home/keer/workspace/aigcfroge/DESIGN.md": "8c1dd8fc5e0a18b8d5bf1805e7363f4d329be839c094f2c6d2fd509ac5de7d3f",
+    "/home/keer/workspace/aigcfroge/docs/plan/s9a-work-review-lifecycle-contract.md": "f223a96054c50647d595cfe15b75a78a4b112948fb41c5c5f856879c3c653553",
+    "/home/keer/workspace/aigcfroge/docs/plan/todo-task-system-upgrade.md": "e37ae9970a64236c0d08044f7c3d4f77f0b8331e9bec872e1207f530fcb19c30",
+    "/home/keer/workspace/aigcfroge/docs/research/agent/ZCode-Antigravity-DeepSeekHarness智能体交互与UI体系深度调研.md": "cbd3af39724ec1682eeb9bb29c1f355b1b3c18457a7a37cf016084a6d80ec3a4",
+    "/home/keer/workspace/aigcfroge/packages/app/src/components/prompt-input.tsx": "ff40787c4a33ec6e836266c63a2443e6f7e1405185a40cb72cf365753accd539",
+    "/home/keer/workspace/aigcfroge/packages/app/src/components/prompt-input/build-request-parts.ts": "c145e165af909d3e446f8144cc3d919cd2bbf8fe9e6a5bf3282ab639d961ea32",
+    "/home/keer/workspace/aigcfroge/packages/app/src/context/global-sync/permission-pending.ts": "3d0f4d0ad3d1fc78a998e3d3e950bac09ac9ae92612e64aac887d921cf7c4067",
+    "/home/keer/workspace/aigcfroge/packages/app/src/context/mode.tsx": "d7f80ac3182edf00752697bf081665351add80d2ce9534c6f3809ac6d5a148f8",
+    "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-region.tsx": "336ab18c788d8f6d25b8b377be00ca6c52d459930bc40a5785e289e0c6284ee0",
+    "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-state.ts": "812a02cad383933c212324cc641a09b718e4c5b33462a05ef4c10e4b3cd53fb0",
+    "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.test.ts": "ebbd3a045c3bea4c597da0b7d13a426af3568ad5c6f4425df1336be86ca6aea7",
+    "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.ts": "9b3f078c0cf829d7b5f5f722eb8fe6c38c2c792e07976a7a125b2291120b1275",
+    "/home/keer/workspace/aigcfroge/packages/core/src/permission.ts": "55b10850feb3598e6d27c3959451f9a96b1c37516e2088f04020de4aa60ea805",
+    "/home/keer/workspace/aigcfroge/packages/core/src/question.ts": "823a916b3921270e651ec3948d33e8e6233eaefbe7cef33319087f15184144e5",
+    "/home/keer/workspace/aigcfroge/packages/core/src/session/task.ts": "f24097e76b8018c5c697fe4aa390b37780222bcc4a71b5f9ca04a37ff8a63e46",
+    "/home/keer/workspace/aigcfroge/packages/core/src/session/todo.ts": "818983696fd20479d952702b7eb7f51d64c2e6fbb77d41f617d4a63f095ec303",
+    "/home/keer/workspace/aigcfroge/packages/core/src/session/work-review.ts": "2964f8b386ebf36422026a0a209e6a3b3edfb81e710214e6eeb839fc54090af7",
+    "/home/keer/workspace/aigcfroge/packages/core/src/tool/task.ts": "f7d510fb4feb1851320220d6a90c44a61ecf0edce10264309762dc21c081080b",
+    "/home/keer/workspace/aigcfroge/packages/schema/src/product-mode.ts": "5c21c1d8b5a30bb5351f27853e0d3e800490bce1063502fbea79b349d8caed36",
+    "/home/keer/workspace/aigcfroge/packages/schema/src/session-task.ts": "784fe591c006f6abbcd8609698be83a9a9255ef834ad269fc9d57e06f599c1e3",
+    "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/basic-tool.tsx": "f49140b459cc1e4d58077d50a6267a1542fc28eff5d6f681e9567360b45694c6",
+    "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/message-part.tsx": "9196e2c2930c51100dd13efac51dee16c2bfa45bc553a3376c02e144470e8979",
+    "/home/keer/workspace/aigcfroge/packages/session-ui/src/v2/components/basic-tool-v2.tsx": "c52623c036812ffc246bd551fc33054117508855344df4ad39291417cbb13105",
+    "/home/keer/workspace/aigcfroge/packages/ui/src/v2/components/icon.tsx": "66a73a4c353c2deecc9119a70425d9c27632031a4ea0ce4c90f3faced42a6809"
+  },
+  "claims": [
+    {
+      "id": "F01",
+      "title": "DeepSeek-Harness 的来源、Cordis 与“首创”",
+      "status": "部分成立",
+      "originalLine": 15,
+      "conclusion": "本地 README 明确自述 DeepSeek AI、Cordis 和 developer preview；它支持项目自述及本地技术栈，不构成“首创”的比较证明，也不能证明安装中的产品正运行这份源码。",
+      "sources": [
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/README.md",
+          "line": 5,
+          "label": "README.md"
+        }
+      ],
+      "auditedOriginalLine": 14
+    },
+    {
+      "id": "F02",
+      "title": "ToolRow / DisclosureRow 单行展开组件",
+      "status": "成立",
+      "originalLine": 54,
+      "conclusion": "组件确实存在并组合 DisclosureRow，可借鉴呈现机制；不能把 React/Cordis 组件直接复制到 SolidJS/Kobalte。",
+      "sources": [
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-tool/src/client/tool/components/ToolRow.tsx",
+          "line": 121,
+          "label": "ToolRow.tsx"
+        },
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-tool/src/client/tool/components/QuestionToolRow.tsx",
+          "line": 20,
+          "label": "QuestionToolRow.tsx"
+        }
+      ],
+      "auditedOriginalLine": 50
+    },
+    {
+      "id": "F03",
+      "title": "Plan 使用右侧资源面板",
+      "status": "成立",
+      "originalLine": 57,
+      "conclusion": "ui-plan 明确依赖 sidebarRight 与 sidebarRightTabs，打开计划资源的接线存在。",
+      "sources": [
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-plan/src/client/index.ts",
+          "line": 52,
+          "label": "index.ts"
+        },
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-plan/src/client/index.ts",
+          "line": 74,
+          "label": "index.ts"
+        }
+      ],
+      "auditedOriginalLine": 52
+    },
+    {
+      "id": "F04",
+      "title": "Todo 单一 projection、空列表隐藏、默认折叠",
+      "status": "成立",
+      "originalLine": 58,
+      "conclusion": "TodoPanel 默认 collapsed=true、空数组返回 null；TodoDock 从 todos projection 取值。这里是展示投影，不等于所有任务域只有一类实体。",
+      "sources": [
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.tsx",
+          "line": 65,
+          "label": "TodoPanel.tsx"
+        },
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.tsx",
+          "line": 106,
+          "label": "TodoPanel.tsx"
+        }
+      ],
+      "auditedOriginalLine": 53
+    },
+    {
+      "id": "F05",
+      "title": "DeepSeek-Harness 固定 28px Todo 条",
+      "status": "不成立",
+      "originalLine": 61,
+      "conclusion": "该快照 CSS 使用上下 6px padding 与标题 24px line-height，并非固定 28px。注册位置是 conversation.input.dock；顶部吸顶是本文作者的新方案，不能借竞品位置为其背书。",
+      "sources": [
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.module.css",
+          "line": 35,
+          "label": "TodoPanel.module.css"
+        },
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.module.css",
+          "line": 61,
+          "label": "TodoPanel.module.css"
+        },
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.tsx",
+          "line": 113,
+          "label": "TodoPanel.tsx"
+        }
+      ],
+      "auditedOriginalLine": 56
+    },
+    {
+      "id": "F06",
+      "title": "DeepSeek-Harness 的 # 触发器",
+      "status": "不成立",
+      "originalLine": 42,
+      "conclusion": "当前 TriggerChar 仅为 / 和 @，没有 #。把 PR/Issue 关联写成已实现能力缺少源码支持。",
+      "sources": [
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-input-trigger/src/types.ts",
+          "line": 34,
+          "label": "types.ts"
+        }
+      ],
+      "auditedOriginalLine": 39
+    },
+    {
+      "id": "F07",
+      "title": "多引擎子代理、血缘与 task_result 摘要",
+      "status": "部分成立",
+      "originalLine": 79,
+      "conclusion": "claude-code、codex、dsh-sdk 包及 SubagentHeaderLineage 注册存在；所检索的 subagent/UI 源码未提供文中 task_result XML 摘要规则的证据。包存在也不等于全部运行通路已验收。",
+      "sources": [
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/subagent/subagent-claude-code/package.json",
+          "line": 1,
+          "label": "package.json"
+        },
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/subagent/subagent-codex/package.json",
+          "line": 1,
+          "label": "package.json"
+        },
+        {
+          "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-subagent/src/client/index.ts",
+          "line": 80,
+          "label": "index.ts"
+        }
+      ],
+      "auditedOriginalLine": 72
+    },
+    {
+      "id": "F08",
+      "title": "Claude Code 原生 Agent Map、textarea 无失焦、Pierre Diff",
+      "status": "未证实",
+      "originalLine": 22,
+      "conclusion": "历史主要读取本地 settings 和 teams 配置。实验开关及团队成员不能证明某个原生 GUI 的拓扑、焦点行为或 Diff 实现。必须补具体产品/版本/界面证据；不能直接称该能力不存在。",
+      "sources": [
+        {
+          "path": "/home/keer/.gemini/antigravity/brain/fae43dc4-d3b6-4804-b938-b81f2f6cdb01/.system_generated/logs/transcript_full.jsonl",
+          "line": 1065,
+          "label": "对话 L1065–L1075"
+        }
+      ],
+      "auditedOriginalLine": 21
+    },
+    {
+      "id": "F09",
+      "title": "Antigravity 2.0、@ 上下文与拖拽",
+      "status": "部分成立",
+      "originalLine": 45,
+      "conclusion": "随安装提供的指南支持独立桌面应用、文件/文件夹/会话/终端/MCP mentions 和媒体上传；Git 提交类别、全部面板布局和工具行为未在本次真实运行复现。",
+      "sources": [
+        {
+          "path": "/home/keer/.gemini/antigravity/builtin/skills/antigravity_guide/references/app.md",
+          "line": 1,
+          "label": "Antigravity 安装指南"
+        },
+        {
+          "path": "/home/keer/.gemini/antigravity/builtin/skills/antigravity_guide/references/app.md",
+          "line": 28,
+          "label": "@ 与媒体指南"
+        }
+      ],
+      "auditedOriginalLine": 42
+    },
+    {
+      "id": "F10",
+      "title": "Antigravity 内部 Deferred/Fiber 及 Enter 推荐项",
+      "status": "未证实",
+      "originalLine": 216,
+      "conclusion": "公开的本地使用指南和原对话没有足够证据证明内部挂起实现、默认回车语义或“零 token”成本。UI 表现不能推出专有后端架构。",
+      "sources": [
+        {
+          "path": "/home/keer/.gemini/antigravity/brain/fae43dc4-d3b6-4804-b938-b81f2f6cdb01/.system_generated/logs/transcript_full.jsonl",
+          "line": 1091,
+          "label": "Ask 调研起点"
+        },
+        {
+          "path": "/home/keer/.gemini/antigravity/builtin/skills/antigravity_guide/references/app.md",
+          "line": 35,
+          "label": "权限指南"
+        }
+      ],
+      "auditedOriginalLine": 204
+    },
+    {
+      "id": "F11",
+      "title": "ZCode tasks / task_groups / automations 表",
+      "status": "成立",
+      "originalLine": 72,
+      "conclusion": "对 tasks-index.sqlite 以 mode=ro 查询 sqlite_master，三表及其他相关表存在。只验证 schema；tasks 的会话级元数据不能自动等同会话内 Todo 步骤树。",
+      "sources": [
+        {
+          "path": "/home/keer/.zcode/v2/tasks-index.sqlite",
+          "line": null,
+          "label": "只读 SQLite schema"
+        }
+      ],
+      "auditedOriginalLine": 65
+    },
+    {
+      "id": "F12",
+      "title": "messageStreamShowTodos 自动静默",
+      "status": "未证实",
+      "originalLine": 73,
+      "conclusion": "未独立验证该配置读取链和完成后的真实渲染行为。即便键存在，键名或布尔值也不能证明折叠时机和自动静默。",
+      "sources": [
+        {
+          "path": "/home/keer/.gemini/antigravity/brain/fae43dc4-d3b6-4804-b938-b81f2f6cdb01/.system_generated/logs/transcript_full.jsonl",
+          "line": 899,
+          "label": "历史配置读取"
+        }
+      ],
+      "auditedOriginalLine": 66
+    },
+    {
+      "id": "F13",
+      "title": "后端存在 Todo / Task 两套可信源",
+      "status": "不成立",
+      "originalLine": 100,
+      "conclusion": "SessionTodo.update/get 委托 SessionTask；publishBoth 从同一 tasks 结果派生 todo.updated。现状是一个持久化任务域加兼容投影，不是两个独立任务数据库。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/todo.ts",
+          "line": 92,
+          "label": "SessionTodo.update"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/todo.ts",
+          "line": 118,
+          "label": "SessionTodo.get"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/task.ts",
+          "line": 426,
+          "label": "publishBoth"
+        }
+      ],
+      "auditedOriginalLine": 91
+    },
+    {
+      "id": "F14",
+      "title": "pickProgressTodos 每次只靠时间戳猜",
+      "status": "部分成立",
+      "originalLine": 101,
+      "conclusion": "不同内容确实按客户端接收时间仲裁；但先比较 sameTodoList，相同投影优先保留带 id/revision 的 Task。旧流清空列表等兼容行为已有测试，不可无替代删除。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.ts",
+          "line": 266,
+          "label": "sameTodoList"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.ts",
+          "line": 293,
+          "label": "pickProgressTodos"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.test.ts",
+          "line": 246,
+          "label": "兼容测试"
+        }
+      ],
+      "auditedOriginalLine": 92
+    },
+    {
+      "id": "F15",
+      "title": "顶部、底部 TodoDock、流内三处正在同时显示",
+      "status": "不成立",
+      "originalLine": 95,
+      "conclusion": "SessionTodoDock 在 app 源码只剩定义，无导入或挂载；旧升级计划已记录删除挂载。当前可核验的是顶部任务进度与流内 todowrite 历史清单并存，不是三处。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-region.tsx",
+          "line": 220,
+          "label": "实际挂载"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/docs/plan/todo-task-system-upgrade.md",
+          "line": 242,
+          "label": "既有升级记录"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/message-part.tsx",
+          "line": 2467,
+          "label": "todowrite renderer"
+        }
+      ],
+      "auditedOriginalLine": 86
+    },
+    {
+      "id": "F16",
+      "title": "Agent 与 Todo 在数据上完全脱节",
+      "status": "不成立",
+      "originalLine": 102,
+      "conclusion": "任务 schema 已有 agentID、parentID、spawnedFrom、dependsOn；task 工具有 parent_task_id 及自动创建/结算回写。UI 可改善，但不能把已有关系当作待新建。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/schema/src/session-task.ts",
+          "line": 39,
+          "label": "SessionTask.Info"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/tool/task.ts",
+          "line": 666,
+          "label": "任务链接与结算"
+        }
+      ],
+      "auditedOriginalLine": 93
+    },
+    {
+      "id": "F17",
+      "title": "Agent Map 必须从零建设输入指派通道",
+      "status": "部分成立",
+      "originalLine": 204,
+      "conclusion": "没有证据支持完整可视化 Map 已存在，但 @ 候选、agent pill、结构化 agent request part 都已存在。地图应扩展选择与观察，不另建发送/执行路径。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/prompt-input.tsx",
+          "line": 675,
+          "label": "agentList / handleAtSelect"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/prompt-input/build-request-parts.ts",
+          "line": 120,
+          "label": "agent request part"
+        }
+      ],
+      "auditedOriginalLine": 192
+    },
+    {
+      "id": "F18",
+      "title": "question 的旧 bubble-5 参数就是页面气泡图标",
+      "status": "部分成立",
+      "originalLine": 257,
+      "conclusion": "参数确实在 question renderer 与 getToolInfo 存在；当前 BasicTool 的 trigger 不消费 icon prop。不能由参数字面量断言该卡片正在显示旧图标，也不能据此断言所有其他路径都不显示它。厚重程度需真实 DOM/截图证据。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/message-part.tsx",
+          "line": 2541,
+          "label": "question 参数"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/basic-tool.tsx",
+          "line": 182,
+          "label": "真实 trigger"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/message-part.tsx",
+          "line": 496,
+          "label": "另一图标映射"
+        }
+      ],
+      "auditedOriginalLine": 243
+    },
+    {
+      "id": "F19",
+      "title": "五层 Dock 同堆并吞噬 50% 视口",
+      "status": "不成立",
+      "originalLine": 262,
+      "conclusion": "TodoDock 不挂载；blocked 时普通 Composer 不渲染，Revert/Followup 位于其分支内。Question 与 Permission 两个 Show 独立，二者可同现才是可检查的协调缺口；50% 未测量。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-state.ts",
+          "line": 34,
+          "label": "blocked"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-region.tsx",
+          "line": 167,
+          "label": "showComposer"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-region.tsx",
+          "line": 220,
+          "label": "两个请求 Show"
+        }
+      ],
+      "auditedOriginalLine": 248
+    },
+    {
+      "id": "F20",
+      "title": "QuestionV2 使用 Deferred 挂起",
+      "status": "成立",
+      "originalLine": 219,
+      "conclusion": "ask/reply/reject 的 Deferred 机制可核验；pending 是 Location 服务内 Map，不是重启可恢复的 durable workflow。Scope finalizer 会拒绝等待者。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/question.ts",
+          "line": 122,
+          "label": "QuestionV2.layer"
+        }
+      ],
+      "auditedOriginalLine": 207
+    },
+    {
+      "id": "F21",
+      "title": "改 BasicToolV2 就能改变生产消息流",
+      "status": "落地缺口",
+      "originalLine": 198,
+      "conclusion": "生产 message-part 导入 BasicTool；BasicToolV2 的源码消费者仅故事展示。必须明确真实渲染 owner 的接线及契约迁移，否则只完成预览。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/message-part.tsx",
+          "line": 37,
+          "label": "生产导入"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/v2/components/basic-tool-v2.tsx",
+          "line": 47,
+          "label": "展示组件"
+        }
+      ],
+      "auditedOriginalLine": 186
+    },
+    {
+      "id": "F22",
+      "title": "四模式就是全模式",
+      "status": "不成立",
+      "originalLine": 4,
+      "conclusion": "ProductMode 和 UI registry 有 chat/coding/work/assistant/custom 五种；不得遗漏 Assistant，也不得在 Custom 自动开放后台委派。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/schema/src/product-mode.ts",
+          "line": 5,
+          "label": "ProductMode.ID"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/context/mode.tsx",
+          "line": 7,
+          "label": "MODE_DEFINITIONS"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/tool/task.ts",
+          "line": 321,
+          "label": "Custom gate"
+        }
+      ],
+      "auditedOriginalLine": 4
+    },
+    {
+      "id": "F23",
+      "title": "v2 help / shield / lock / checklist 可以直接引用",
+      "status": "落地缺口",
+      "originalLine": 311,
+      "conclusion": "help 已有；当前字典没有其余三个名称，未知名会回退 plus。应补字典与实际消费接线，不能仅写 name 字符串或新增 npm 图标库。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/ui/src/v2/components/icon.tsx",
+          "line": 16,
+          "label": "help"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/ui/src/v2/components/icon.tsx",
+          "line": 126,
+          "label": "未知图标回退"
+        }
+      ],
+      "auditedOriginalLine": 293
+    },
+    {
+      "id": "F24",
+      "title": "新建四态 SessionPlan 并废除现有任务协议",
+      "status": "不接受",
+      "originalLine": 133,
+      "conclusion": "新增平行聚合遗漏 cancelled/scheduled、DAG、调度、已有 agentID/revision/写回和兼容消费链。UI 层收敛不能以丢失持久化语义为代价。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/schema/src/session-task.ts",
+          "line": 14,
+          "label": "六态"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/schema/src/session-task.ts",
+          "line": 39,
+          "label": "完整任务契约"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/task.ts",
+          "line": 833,
+          "label": "replaceLegacy"
+        }
+      ],
+      "auditedOriginalLine": 124
+    },
+    {
+      "id": "F25",
+      "title": "权限一律并入 question.v2.*",
+      "status": "不接受",
+      "originalLine": 273,
+      "conclusion": "PermissionV2 包含动作/资源、规则、作用域授权、单次消费、持久化 always 和拒绝传播。Question 的字符串答案不能替代授权。可以统一展示仲裁，不可统一吞掉领域协议。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/permission.ts",
+          "line": 173,
+          "label": "consultGrant"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/permission.ts",
+          "line": 338,
+          "label": "PermissionV2.reply"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/context/global-sync/permission-pending.ts",
+          "line": 175,
+          "label": "replyPermission"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/app/src/context/global-sync/permission-pending.ts",
+          "line": 191,
+          "label": "decidePermission"
+        }
+      ],
+      "auditedOriginalLine": 259
+    },
+    {
+      "id": "F26",
+      "title": "计划审批只缺一张 UI 卡",
+      "status": "落地缺口",
+      "originalLine": 296,
+      "conclusion": "仓库已有获批 WorkReview schema、纯状态机与 revision 校验；producer、metadata 写入/读回和 E4 生命线仍待接通。不能再造 Gate 后绕过它，也不能把纯函数测试算作生产闭环。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/work-review.ts",
+          "line": 8,
+          "label": "仍待 producer"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/work-review.ts",
+          "line": 59,
+          "label": "transition"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/work-review.ts",
+          "line": 97,
+          "label": "isVerdictCurrent"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/docs/plan/s9a-work-review-lifecycle-contract.md",
+          "line": 85,
+          "label": "已批准与未交付边界"
+        }
+      ],
+      "auditedOriginalLine": 279
+    },
+    {
+      "id": "F27",
+      "title": "80% 快速单选、Enter 默认批准、Esc 默认拒绝",
+      "status": "未证实",
+      "originalLine": 289,
+      "conclusion": "80% 无埋点依据；快捷键是待评审交互，不是可靠的竞品事实。自动批准尤其不能套用敏感权限/计划；IME、编辑、弹层关闭与显式拒绝必须分开。",
+      "sources": [
+        {
+          "path": "/home/keer/workspace/aigcfroge/DESIGN.md",
+          "line": 89,
+          "label": "键盘与可访问性约束"
+        },
+        {
+          "path": "/home/keer/workspace/aigcfroge/packages/core/src/permission.ts",
+          "line": 338,
+          "label": "授权结果的真实影响"
+        }
+      ],
+      "auditedOriginalLine": 272
+    }
+  ],
+  "stages": [
+    {
+      "id": "P0",
+      "title": "冻结证据与确认契约",
+      "owner": "技术负责人 + 产品/设计 + QA",
+      "depends": "无",
+      "scope": "修正文档主张；确认 Plan Review 语义、Map 是目录还是运行拓扑、V1 支持窗口；记录生产性能基线。",
+      "acceptance": "版本/原文/证据绑定；需求逐条关联验收；五模式范围与禁止操作明确。",
+      "rollback": "纯文档与基线，不改生产行为。"
+    },
+    {
+      "id": "P1",
+      "title": "保住 Task 真源，收敛任务呈现",
+      "owner": "Core + App",
+      "depends": "P0",
+      "scope": "沿用 SessionTask 六态与兼容投影；保留已测仲裁；清理无挂载 TodoDock；顶部为当前任务视图，流内为只读历史。",
+      "acceptance": "身份、revision、调度、取消/失败、旧流清空、重载 seed、任务结算均无丢失。",
+      "rollback": "恢复 UI slice；没有新增任务表或破坏性迁移。"
+    },
+    {
+      "id": "P2",
+      "title": "统一待决事项展示，不合并授权协议",
+      "owner": "App + Permission/Core",
+      "depends": "P0；与 P1 无重叠时可并行",
+      "scope": "扩展现有 composer state/request-tree 和 ApprovalCenter；按请求身份仲裁单一可操作 surface；回复仍回各自 owner。",
+      "acceptance": "父子会话并发、权限/问题同现、重复提交、失败重试、草稿和焦点均可恢复。",
+      "rollback": "回退呈现层，保留原权限与问题服务/端点。"
+    },
+    {
+      "id": "P3",
+      "title": "复用 @ 与 Agent Hub 展示执行关系",
+      "owner": "Agent/Core + App",
+      "depends": "P1、P2",
+      "scope": "目录与运行实例分离；选择仅插入已有 agent part；拓扑读取真实 child Session / Delegation / Task 关系。",
+      "acceptance": "未知/禁止 Agent 不能启动；Custom snapshot 不绕过；多实例、多模式状态不误并。",
+      "rollback": "回到原 @ 列表和 Hub，持久化关系不变。"
+    },
+    {
+      "id": "P4",
+      "title": "在生产渲染链完成 Icon / ToolRow / 布局",
+      "owner": "Session UI + UI + App + 设计",
+      "depends": "P1、P2、P3 的行为契约",
+      "scope": "优先扩展生产 BasicTool；统一字典及状态映射；压缩历史 Todo/Question 记录；使用 token 和现有面板。",
+      "acceptance": "真实 message-part 路径改变；空/运行/失败/中断/展开完整；主题、语言、键盘与窄屏通过。",
+      "rollback": "回退 renderer/style slice，不回滚或删除用户任务数据。"
+    },
+    {
+      "id": "P5",
+      "title": "补齐获批 WorkReview 生产闭环",
+      "owner": "Schema + Core/Server + App + QA",
+      "depends": "P0 的审批语义确认；P2、P4",
+      "scope": "复用纯状态机与获批 metadata JSON 方案；实现 producer、读回、revision gate、右侧 artifact 与 E4 恢复链。",
+      "acceptance": "提交→修改→回应→复审→批准→重开；旧 revision 不生效；刷新/重启恢复真实持久化状态。",
+      "rollback": "回退入口、保留兼容 metadata；不自动重试模型或副作用；旧数据仍可读取。"
+    },
+    {
+      "id": "P6",
+      "title": "跨层回归、性能、灰度与交付",
+      "owner": "QA + 全栈负责人",
+      "depends": "P1–P5",
+      "scope": "API/SDK、五模式、E3/E4、桌面/TUI兼容、基准；核验 CI 实际运行而非跳过；债务与版本回退演练。",
+      "acceptance": "验收项逐项有命令/trace/截图；必要门禁无 skip；提交列表机器生成；用户批准后交付。",
+      "rollback": "按已验证的 slice/tag 回退；不可用未审计 down migration 或 reset 用户工作区。"
+    }
+  ],
+  "tests": [
+    {
+      "name": "core-final",
+      "cwd": "/home/keer/workspace/aigcfroge/packages/core",
+      "command": "bun test --timeout 30000 --only-failures test/session-task-service.test.ts test/session-todo.test.ts test/tool-todowrite.test.ts test/task-progress.test.ts test/question.test.ts test/permission.test.ts test/permission-grants.test.ts test/tool-question.test.ts test/delegation-service.test.ts test/delegation-recovery.test.ts",
+      "passed": 112,
+      "failed": 0,
+      "assertions": 382,
+      "files": 10,
+      "duration": "7.32s",
+      "exitCode": 0
+    },
+    {
+      "name": "app-final",
+      "cwd": "/home/keer/workspace/aigcfroge/packages/app",
+      "command": "bun run test:unit:file --timeout 30000 src/pages/session/timeline/session-todo-progress-model.test.ts src/pages/session/timeline/session-todo-progress.test.tsx src/context/global-sync/session-todo.test.ts src/context/global-sync/permission-pending.test.ts src/pages/session/composer/session-permission-dock.test.tsx src/pages/session/timeline/agent-task-hub-model.test.ts src/pages/session/timeline/agent-task-hub.test.tsx",
+      "passed": 99,
+      "failed": 0,
+      "assertions": 228,
+      "files": 7,
+      "duration": "590.00ms",
+      "exitCode": 0
+    },
+    {
+      "name": "prompt",
+      "cwd": "/home/keer/workspace/aigcfroge/packages/app",
+      "command": "bun run test:unit:file --timeout 30000 src/components/prompt-input/build-request-parts.test.ts src/components/prompt-input/submit.test.ts src/components/prompt-input/history.test.ts",
+      "passed": 35,
+      "failed": 0,
+      "assertions": 134,
+      "files": 3,
+      "duration": "803.00ms",
+      "exitCode": 0
+    },
+    {
+      "name": "session-ui",
+      "cwd": "/home/keer/workspace/aigcfroge/packages/session-ui",
+      "command": "bun test --timeout 30000 --only-failures src/components/task-tool-card-model.test.ts src/components/delegation-tool-card-model.test.ts",
+      "passed": 13,
+      "failed": 0,
+      "assertions": 32,
+      "files": 2,
+      "duration": "240.00ms",
+      "exitCode": 0
+    },
+    {
+      "name": "work-review",
+      "cwd": "/home/keer/workspace/aigcfroge/packages/core",
+      "command": "bun test --timeout 30000 --only-failures test/work-review-lifecycle.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "assertions": 20,
+      "files": 1,
+      "duration": "197.00ms",
+      "exitCode": 0
+    },
+    {
+      "name": "approval-center",
+      "cwd": "/home/keer/workspace/aigcfroge/packages/app",
+      "command": "bun run test:unit:file --timeout 30000 src/components/approval-center.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "assertions": 5,
+      "files": 1,
+      "duration": "1239.00ms",
+      "exitCode": 0
+    }
+  ],
+  "testTotals": {
+    "passed": 274,
+    "failed": 0,
+    "files": 24
+  },
+  "notVerified": [
+    "Full repository typecheck/lint/test",
+    "HTTP exerciser coverage/auth/effect",
+    "Actual app E3/E4 and packaged desktop/TUI runtime",
+    "Production performance and accessibility measurements",
+    "Native Claude Code Agent Map and proprietary Antigravity internals",
+    "New implementation behavior and deployment rollback"
+  ],
+  "changesDuringAudit": [
+    {
+      "path": "/home/keer/workspace/aigcfroge/docs/research/agent/ZCode-Antigravity-DeepSeekHarness智能体交互与UI体系深度调研.md",
+      "oldSha256": "cbd3af39724ec1682eeb9bb29c1f355b1b3c18457a7a37cf016084a6d80ec3a4",
+      "newSha256": "3ac362c8e8290c033825d464ede7b8a1a84e26ea0ef7f5b127e16b74012a1579",
+      "classification": "Formatting only: whitespace and Markdown table delimiter widths; normalized content identical"
+    }
+  ],
+  "deliveryBaseline": {
+    "head": "e23b4561cb96162d352e1093b719894d11333686",
+    "branch": "local-cli-discovery",
+    "workingTreeStatus": "M packages/aigcfroge/src/server/routes/instance/httpapi/middleware/instance-context.ts\n?? \"docs/research/agent/ZCode-Antigravity-DeepSeekHarness-\\346\\240\\270\\351\\252\\214\\344\\270\\216\\351\\227\\255\\347\\216\\257\\345\\256\\236\\346\\226\\275\\350\\256\\241\\345\\210\\222.md\"\n?? \"docs/research/agent/ZCode-Antigravity-DeepSeekHarness\\346\\231\\272\\350\\203\\275\\344\\275\\223\\344\\272\\244\\344\\272\\222\\344\\270\\216UI\\344\\275\\223\\347\\263\\273\\346\\267\\261\\345\\272\\246\\350\\260\\203\\347\\240\\224.md\"\n?? docs/research/agent/agent-ui-audit-evidence-2026-09-30.json\n?? docs/review/dependency-hygiene-audit-2026-09-25.md",
+    "note": "Other workspace activity committed pre-existing changes during this audit; this audit did not stage or commit them."
+  },
+  "deliveryOriginal": {
+    "path": "/home/keer/workspace/aigcfroge/docs/research/agent/ZCode-Antigravity-DeepSeekHarness智能体交互与UI体系深度调研.md",
+    "sha256": "3ac362c8e8290c033825d464ede7b8a1a84e26ea0ef7f5b127e16b74012a1579",
+    "lineCount": 323
+  },
+  "deliverySourceHashes": {
+    "/home/keer/.gemini/antigravity/builtin/skills/antigravity_guide/references/app.md": "5adba0e3ca6dbf08d7ad1c2b136f88c067e175b454f0179fc7aa3c4783d9f5ab",
+    "/home/keer/Documents/web/deepseek-harness-master/README.md": "0f5516be2acde776f05572cbc8c3093c90549afe04ce118e11157d073d5d15f4",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.module.css": "4177256462b4cde12c43eabc6433216bf2747cefcf911a93b4d1f1a2568011cc",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.tsx": "8be70f4479c1984ca7e58ea089d0121b42855bb8dc5f16b05b2e643c4bbe3d55",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-input-trigger/src/types.ts": "02a37e5a80517253681791ccfc5e5f08c927fbc15a6db5e8cb1726aa4e269237",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-plan/src/client/index.ts": "6bec502a2c800cf01b2c7ee2515dfd539b37d810ff03e542b1cea7c697d72dc3",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-subagent/src/client/index.ts": "cfdc9e6275d7f21e970238eeaa8f2cce4662cabe1817ac684050fdde8f720f73",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-tool/src/client/tool/components/QuestionToolRow.tsx": "89882e7c1fd7e3abc8f2d967d3e125c29ed19ffd3ab59084a82fd14f06b62149",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-tool/src/client/tool/components/ToolRow.tsx": "718c89ef9ec70728372b490215c28987d12d8f74aeea38741dd628008d04eba6",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/subagent/subagent-claude-code/package.json": "3d1cde9922f9424cc7987e40e5ffb435ae2e4742c51d6c8d2788df76eff62f30",
+    "/home/keer/Documents/web/deepseek-harness-master/packages/subagent/subagent-codex/package.json": "e8c5a4ca84e929638c19ba119473b358dc620794089ab1bafad05dc098be6a15",
+    "/home/keer/workspace/aigcfroge/AGENTS.md": "f98021eade27c4afd79ada77f2e249623dc88aaaec88d974642e3e070ec7a0ba",
+    "/home/keer/workspace/aigcfroge/ARCHITECTURE.md": "523decbf3b91ddec59e5411475315acaad603aafddd453263164d32f9f357bd3",
+    "/home/keer/workspace/aigcfroge/CLAUDE.md": "5d33b236f497dbdff64c96a965f30129bd176095cfa2118313aa4d8cfc062318",
+    "/home/keer/workspace/aigcfroge/CONTEXT.md": "fb514fc469991e11e351f34806b9a603029331776b964f4429254021405dc9fc",
+    "/home/keer/workspace/aigcfroge/DESIGN.md": "8c1dd8fc5e0a18b8d5bf1805e7363f4d329be839c094f2c6d2fd509ac5de7d3f",
+    "/home/keer/workspace/aigcfroge/docs/plan/s9a-work-review-lifecycle-contract.md": "f223a96054c50647d595cfe15b75a78a4b112948fb41c5c5f856879c3c653553",
+    "/home/keer/workspace/aigcfroge/docs/plan/todo-task-system-upgrade.md": "e37ae9970a64236c0d08044f7c3d4f77f0b8331e9bec872e1207f530fcb19c30",
+    "/home/keer/workspace/aigcfroge/docs/research/agent/ZCode-Antigravity-DeepSeekHarness智能体交互与UI体系深度调研.md": "3ac362c8e8290c033825d464ede7b8a1a84e26ea0ef7f5b127e16b74012a1579",
+    "/home/keer/workspace/aigcfroge/packages/app/src/components/prompt-input.tsx": "ff40787c4a33ec6e836266c63a2443e6f7e1405185a40cb72cf365753accd539",
+    "/home/keer/workspace/aigcfroge/packages/app/src/components/prompt-input/build-request-parts.ts": "c145e165af909d3e446f8144cc3d919cd2bbf8fe9e6a5bf3282ab639d961ea32",
+    "/home/keer/workspace/aigcfroge/packages/app/src/context/global-sync/permission-pending.ts": "3d0f4d0ad3d1fc78a998e3d3e950bac09ac9ae92612e64aac887d921cf7c4067",
+    "/home/keer/workspace/aigcfroge/packages/app/src/context/mode.tsx": "d7f80ac3182edf00752697bf081665351add80d2ce9534c6f3809ac6d5a148f8",
+    "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-region.tsx": "336ab18c788d8f6d25b8b377be00ca6c52d459930bc40a5785e289e0c6284ee0",
+    "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-state.ts": "812a02cad383933c212324cc641a09b718e4c5b33462a05ef4c10e4b3cd53fb0",
+    "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.test.ts": "ebbd3a045c3bea4c597da0b7d13a426af3568ad5c6f4425df1336be86ca6aea7",
+    "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.ts": "9b3f078c0cf829d7b5f5f722eb8fe6c38c2c792e07976a7a125b2291120b1275",
+    "/home/keer/workspace/aigcfroge/packages/core/src/permission.ts": "55b10850feb3598e6d27c3959451f9a96b1c37516e2088f04020de4aa60ea805",
+    "/home/keer/workspace/aigcfroge/packages/core/src/question.ts": "823a916b3921270e651ec3948d33e8e6233eaefbe7cef33319087f15184144e5",
+    "/home/keer/workspace/aigcfroge/packages/core/src/session/task.ts": "f24097e76b8018c5c697fe4aa390b37780222bcc4a71b5f9ca04a37ff8a63e46",
+    "/home/keer/workspace/aigcfroge/packages/core/src/session/todo.ts": "818983696fd20479d952702b7eb7f51d64c2e6fbb77d41f617d4a63f095ec303",
+    "/home/keer/workspace/aigcfroge/packages/core/src/session/work-review.ts": "2964f8b386ebf36422026a0a209e6a3b3edfb81e710214e6eeb839fc54090af7",
+    "/home/keer/workspace/aigcfroge/packages/core/src/tool/task.ts": "f7d510fb4feb1851320220d6a90c44a61ecf0edce10264309762dc21c081080b",
+    "/home/keer/workspace/aigcfroge/packages/schema/src/product-mode.ts": "5c21c1d8b5a30bb5351f27853e0d3e800490bce1063502fbea79b349d8caed36",
+    "/home/keer/workspace/aigcfroge/packages/schema/src/session-task.ts": "784fe591c006f6abbcd8609698be83a9a9255ef834ad269fc9d57e06f599c1e3",
+    "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/basic-tool.tsx": "f49140b459cc1e4d58077d50a6267a1542fc28eff5d6f681e9567360b45694c6",
+    "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/message-part.tsx": "9196e2c2930c51100dd13efac51dee16c2bfa45bc553a3376c02e144470e8979",
+    "/home/keer/workspace/aigcfroge/packages/session-ui/src/v2/components/basic-tool-v2.tsx": "c52623c036812ffc246bd551fc33054117508855344df4ad39291417cbb13105",
+    "/home/keer/workspace/aigcfroge/packages/ui/src/v2/components/icon.tsx": "66a73a4c353c2deecc9119a70425d9c27632031a4ea0ce4c90f3faced42a6809"
+  },
+  "artifactValidation": {
+    "localLinks": 110,
+    "sourceHashesVerified": 39,
+    "onlySourceDrift": "Original research whitespace/table formatting; all other hashed code/protocol sources unchanged",
+    "trailingWhitespaceCheck": "Python validator exited 0",
+    "canvasTypecheck": {
+      "command": "/home/keer/workspace/aigcfroge/node_modules/.bin/tsgo -p /tmp/aigcfroge-agent-ui-canvas-tsconfig.json",
+      "exitCode": 0
+    },
+    "canvasHostRendering": "not verified",
+    "gitNoIndexCheckNote": "No diagnostics after whitespace repair; exit 1 denotes added content and is not counted as an exit-0 command."
+  }
+}

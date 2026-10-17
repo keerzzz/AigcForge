@@ -22,6 +22,7 @@
 | §9 远程 Issue 对账                     | #40/#41/#42/#44                                                                                                        | 证据已核对；远程处置待 Owner 授权                                                                                                                             |
 | §12 桌面发布工作流                     | 版本回写、PR label、分发拆分、签名/升级验证                                                                            | desktop-draft 首个切片已实现；真实 Actions 发布待验证                                                                                                         |
 | §14 OpenAPI schema 跨文件污染（09-30） | `httpapi-public-openapi.test.ts` + `openapi-drift.test.ts` 同进程运行时 schema 注册表污染                              | 已在 `main` 复现，既有缺陷；待定位 `effect/unstable/httpapi` 侧根因                                                                                           |
+| §15 上游 v2 同步规划债（10-10） | 双轨维护税、改名桥税、ai/llm 并存、TUI 宿主剥离、DB migration 重排、包退役集 | 方案已确认待执行；随 `docs/research/upstream-v2-sync/` R0-R5 各阶段解锁 |
 
 ---
 
@@ -407,3 +408,14 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 来源：`local-cli-discovery` 分支给 `InstanceContextMiddleware` 加 `error: ApiNotFoundError` 后的提交前复审。触发条件：`bun --cwd packages/aigcfroge test test/server/httpapi-public-openapi.test.ts test/server/openapi-drift.test.ts`（两个文件在同一 `bun test` 进程内一起跑）。
 
 - **`PublicApi`（`packages/aigcfroge/src/server/routes/instance/httpapi/public.ts`）与 `Api`（`packages/server/src/api.ts` → `openapi()`）通过 `effect/unstable/httpapi` 的 `OpenApi.fromApi` 共享同一个全局组件 schema 注册表 — Owner: aigcfroge / server。** `httpapi-public-openapi.test.ts` 先导入并调用 `OpenApi.fromApi(PublicApi)`，这会把 `installation.update-available`/`installation.updated` 等事件 schema（`EventInstallationUpdate-available`、`EventInstallationUpdated`、`V2EventInstallationUpdate-available`、`V2EventInstallationUpdated`）注册进共享的 `effect/unstable/httpapi` schema 缓存；随后同进程内的 `openapi-drift.test.ts` 调用 `server/server.ts` 的 `openapi()` 构建独立的 `Api` spec 时，这些泄漏的 schema 一并混入其 `components.schemas` 与相关事件联合类型的 `anyOf`，导致其与已提交的 `packages/aigcfroge/test/server/openapi.snapshot.json` 产生 262 行差异，`OpenAPI contract > matches the checked-in snapshot` 失败。单独运行任一文件、或调换两者的导入顺序后先跑 `openapi-drift.test.ts` 均不复现；已用 `git stash` 对照 `main`（无本次改动）验证同样复现，确认是既有缺陷，与 `InstanceContextMiddleware`/`LocationMiddleware` 的本次改动无关。**未闭环：** 尚未定位 `effect/unstable/httpapi` 侧具体的全局可变状态（怀疑是 `OpenApi.annotations`/`Schema` 装饰在模块级完成、多次 `OpenApi.fromApi` 调用间未隔离）；也未评估是否需要在 vendor 的 `effect` 依赖之外自行加隔离，还是等上游修复。解锁条件：定位污染点后，要么给两个 API 的 schema 命名空间加前缀隔离，要么在 `bunfig.toml`/CI 里把这两个测试文件强制拆到不同的 `bun test` 进程（`--isolate` 未必覆盖模块级单例，需先验证），并补一条"两个 OpenApi 测试文件同进程运行不冲突"的回归用例。
+
+## 15. 上游 v2 同步（re-fork）规划性债务（2026-10-10）
+
+来源：[docs/research/upstream-v2-sync/2026-10-10-upstream-v2-baseline-and-sync-plan.md](research/upstream-v2-sync/2026-10-10-upstream-v2-baseline-and-sync-plan.md)（策略 A 全量 re-fork + 双周窗口 + 桌面端闭包，用户 2026-10-10 确认）。以下为该方案显式声明的债务，闭环动作与方案 R0-R5 阶段绑定；每项解锁时按更新规则移入「已闭环」。
+
+- **双轨维护税 — Owner: 全体。** cutover 前 `main`（旧血统，继续发版）与 `v2-sync`（新基座，在建）双轨并存，`main` 每个新增自研都要补进 `v2-sync`。触发条件：R0 建 `v2-sync` 分支起。解锁条件：R5 cutover 合一 + 存量 DB 升级演练全绿。
+- **改名桥长期税 — Owner: tooling。** 每个同步窗口对上游内容跑 opencode→aigcfroge 三段 codemod（方案 §7 规格含已知例外）。触发条件：每个双周窗口 `fetch upstream` 之后，长期存在。解锁条件：品牌策略改判为收敛回上游品牌（当前已确认不收敛，故本项为持续性成本而非待修缺陷）。
+- **双 AI 抽象并存 — Owner: core / llm。** 新基座的上游 `ai`（core 硬依赖，默认 AI SDK 路径）与决策保留的 fork `llm`（native 实验路径）并存，组合方式未定。触发条件：R4 移植 aigcfroge/llm 时。解锁条件：R4 裁定"包装复用 vs 平行双轨"并落地验证。
+- **TUI 宿主剥离 — Owner: aigcfroge。** 桌面端闭包不含 `tui`，但 `aigcfroge` 硬依赖 `@aigcfroge/tui`（`package.json` + 20 个源文件引用，集中在 `src/cli/`），交互式 TUI 模式需剥离；开发者 `bun run dev`（TUI）路径消失。触发条件：R4 移植 aigcfroge 时。解锁条件：剥离完成，冒烟改走 `dev:desktop`/`dev:web` + sidecar（sidecar 入口 `src/node.ts` 已验证 tui-free）。
+- **DB migration 序列重排 — Owner: core。** fork 基线（上游 `116ac93`）后双侧各自新增的 migration 需追加进上游序列尾部并重排时间戳，做错破坏存量用户库。触发条件：R2 core 移植时。解锁条件：双侧 migration 对照表评审通过 + R5 存量库升级演练全绿。
+- **包退役集 — Owner: infra。** fork 侧 `tui`/`sdk`/`enterprise`/`effect-sqlite-node`/`effect-drizzle-sqlite` 随 cutover 退役（约 76 个 delta 文件不移植；上游 `effect-drizzle-sqlite` 已无依赖方，适配器内联进 `core/src/database/drizzle/`）。触发条件：R5 cutover。解锁条件：退役 PR 合并 + `packages/app/e2e/coverage-manifest.json` 登记处置结果。
