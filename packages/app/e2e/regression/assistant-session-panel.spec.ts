@@ -15,7 +15,10 @@ import { pinEnglishUI } from "../utils/locale"
 import { AssistantMutationProbe } from "./assistant-mutation-probe"
 
 // English-label spec — pin the UI language so the zh projects stay green (see utils/locale.ts).
-test.beforeEach(({ page }) => pinEnglishUI(page))
+// Tagged presentation cases must observe the project's real theme/locale/viewport instead.
+test.beforeEach(async ({ page }, testInfo) => {
+  if (!testInfo.tags.includes("@presentation")) await pinEnglishUI(page)
+})
 
 const directory = "C:/Aigcfroge/AssistantPanelRegression"
 const projectID = "proj_assistant_panel_regression"
@@ -504,6 +507,99 @@ test("AI-TDD-S08-R02: a failed delivery history is retryable, not empty", async 
     })
   }
 })
+
+test(
+  "AI-TDD-S08-R02: delivery-history error is visible and retryable in dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = {
+      chromium: { scheme: "light", lang: "en" },
+      "chromium-dark": { scheme: "dark", lang: "en" },
+      "chromium-zh": { scheme: "light", lang: "zh" },
+      "chromium-narrow": { scheme: "light", lang: "en" },
+    }[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const assistant = {
+      ...session(),
+      id: "ses_delivery_history_presentation",
+      title: "Delivery history presentation",
+      mode: "assistant",
+      agent: "assistant-orchestrator",
+    } satisfies Session
+    const delivery = {
+      deliveryKey: "delivery:presentation:1",
+      scheduleID: "sch_delivery_presentation",
+      sessionID: assistant.id,
+      kind: "reminder",
+      content: "Recovered delivery",
+      deliveredAt: 1700000000000,
+      caughtUp: false,
+      createdAt: 1700000000000,
+    }
+    const fixture = await mockAssistantMutationPanel(page, [assistant])
+    if (narrow) await page.setViewportSize({ width: 390, height: 844 })
+    const path = `/delivery/${assistant.id}`
+    const reads = new Map<string, { status: number; json: unknown }>([
+      [path, { status: 400, json: { message: "delivery history failed" } }],
+    ])
+    const probe = await AssistantMutationProbe.track(page, fixture.replies, [], { readReplies: reads })
+    const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+
+    try {
+      await page.goto(fixture.url)
+      await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+      await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.scheme)
+      expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+      if (narrow) {
+        expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+        await page.locator("#session-mode-panel-toggle").click()
+      }
+      await expect(panel).toBeVisible()
+
+      const alert = panel.getByRole("alert")
+      const label = expected.lang === "zh" ? "加载失败，请重试" : "Couldn't load. Try again."
+      await expect(alert).toContainText(label, { timeout: 20_000 })
+      const retry = alert.getByRole("button", { name: expected.lang === "zh" ? "重试" : "Retry", exact: true })
+      await expect(retry).toBeVisible()
+      const color = await alert.locator("p").evaluate((node) => getComputedStyle(node).color)
+      expect(color).not.toBe("rgba(0, 0, 0, 0)")
+      const box = await alert.boundingBox()
+      if (!box) throw new Error("the delivery-history error must have a box")
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+      let focused = false
+      for (let index = 0; index < 80 && !focused; index += 1) {
+        await page.keyboard.press("Tab")
+        focused = await retry.evaluate((node) => node === document.activeElement)
+      }
+      expect(focused, "the retry must be keyboard reachable").toBe(true)
+      await expect(retry).toBeFocused()
+      const outline = await retry.evaluate((node) => {
+        const style = getComputedStyle(node)
+        return { style: style.outlineStyle, width: style.outlineWidth }
+      })
+      expect(outline.style).not.toBe("none")
+      expect(Number.parseFloat(outline.width)).toBeGreaterThan(0)
+
+      reads.set(path, { status: 200, json: [delivery] })
+      await page.keyboard.press("Enter")
+      await expect(panel.getByText("Recovered delivery", { exact: true })).toBeVisible()
+      await expect(alert).toHaveCount(0)
+    } finally {
+      await probe.close()
+      await testInfo.attach("s08-r02-delivery-history-presentation", {
+        body: JSON.stringify(
+          { project: testInfo.project.name, reads: probe.receipt(), viewport: page.viewportSize() },
+          null,
+          2,
+        ),
+        contentType: "application/json",
+      })
+    }
+  },
+)
 
 test("AI-TDD-S08-R02: an old note save does not close the current note draft", async ({ page }, testInfo) => {
   const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session

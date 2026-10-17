@@ -1321,3 +1321,16 @@ Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败
 - **RED**：旧 `assistant-session-panel.tsx` 上无 alert，**1 fail**，保留 `s08-delivery-history-red-20261017-203242`。
 - **GREEN**：修复后同一测试 **1 pass / 44.7s**；新增用例 + KB 读取失败 + completed reminder ownership 的相邻集合 **3 pass / 57.9s**，0 fail / 0 skip / 0 retry。Assistant panel/kb/entity 单测 **32 pass / 0 fail / 90 assertions**；App typecheck、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 均 exit0。
 - **未关闭**：其他 Assistant 读取（dashboard session list 已由 `loadSessions` 的 toast 兜底、memory/citation、reminders 非 mutation 读取）、closed drawer 在途/共享 observer（§15.43）、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-delivery-history-20261017/`。
+
+### 15.45 2026-10-17 S08 / delivery-history 错误态呈现矩阵（base + dark + zh + 390px + 键盘）
+
+在 `assistant-session-panel.spec.ts` 新增 `@presentation` 直接 E3，复用 delivery-history 读取失败 fixture；该用例跳过全局英文 pin，按 project 断言：
+
+- `html[data-color-scheme]` = light/dark；`documentElement.lang` = en/zh；narrow = 390×844；
+- 本地化错误文案 “Couldn't load. Try again.” / “加载失败，请重试”；
+- alert 的 bounding box 在 390px 视口内，无横向溢出；
+- 通过真实 Tab 顺序到达 Retry，断言 focus outline，再按 Enter 触发重试并读回 delivery。
+
+**实际运行**：base `chromium` **1 pass / 43.8s**；`chromium-dark` + `chromium-zh` + `chromium-narrow` **3 pass / 1.3m**；相邻 KB/delivery E3 **2 pass / 55.9s**；presentation tagging contract **5 pass / 37.4s**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。没有改生产代码。
+
+**边界**：只覆盖 delivery-history 一个错误态；KB 错误态、memory/citation、closed-panel 在途/共享 observer、所有 Assistant 呈现排列仍未验收，不能称完整呈现矩阵。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-delivery-presentation-20261017/`。
