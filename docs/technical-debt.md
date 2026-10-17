@@ -1306,3 +1306,10 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 - **GREEN**：修复后同一测试 **1 pass / 43.6s**；新增用例 + 既有 “old note save does not close the current note draft” **2 pass / 48.9s**；prettier 格式化后的最终源码再跑 **2 pass / 53.9s**，均 0 fail / 0 skip / 0 retry。
 - **单测/门禁**：Assistant KB/panel/entity/nav **50 pass / 0 fail / 138 assertions**；App typecheck、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 均 exit0。
 - **未关闭**：其他 Assistant 读取（dashboard list、memory/citation、reminders/inbox 的非 mutation 读取）、closed drawer 在途/共享 observer、呈现矩阵与完整 S08/S09 仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-read-20261017/`。
+
+### 15.43 2026-10-17 S08 / closed drawer 在途与共享 observer：未成立的验收尝试
+
+尝试补一条直接 E3：把 `/kb` 请求用 gate 持有，左导航保持打开作为共享 observer，点击 “Dangling links” 打开 KB tab，再关闭 Assistant review panel，断言请求不被取消且不重放。实际运行中，**review panel/KB tab 在 gate 未释放前没有出现**；释放 gate 后才出现。该轮不能证明“共享 observer 保留请求”或“无 observer 时取消请求”，因此没有把用例留在 spec，也没有据此修改生产代码。
+
+- **保留失败**：`s08-drawer-shared-kb-*` 三份 receipt；首次窄屏尝试还遇到 `#session-mode-panel-toggle`/viewport 顺序问题，单独保留。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-read-20261017/` 的 `s08-drawer-shared-kb*`。
+- **Owner S8；Unlock**：需要一个能在共享读取仍 pending 时先打开 KB tab 的 fixture，或直接对 query observer/cancel 路径做可观测断言；在得到该证据前，保持 `session-hidden-mode-effects` 的 “closed-panel in-flight/shared-observer” 为 open，不声称已覆盖。本轮没有新增生产代码。
