@@ -193,7 +193,7 @@ test("AI-TDD-S08: a stale review command stays on its real backend when two serv
   const peer = e4().peer
   test.skip(!peer, "Requires E4_DUAL_BACKEND=1")
   if (!peer) throw new Error("The dual-backend manifest is missing its peer")
-  test.setTimeout(240_000)
+  test.setTimeout(120_000)
   expect(peer.backendUrl).not.toBe(e4().backendUrl)
   expect(peer.dbPath).not.toBe(e4().dbPath)
 
