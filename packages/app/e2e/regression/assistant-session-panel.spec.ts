@@ -601,6 +601,106 @@ test(
   },
 )
 
+test(
+  "AI-TDD-S08-R02: knowledge-base error is visible and retryable in dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = {
+      chromium: { scheme: "light", lang: "en" },
+      "chromium-dark": { scheme: "dark", lang: "en" },
+      "chromium-zh": { scheme: "light", lang: "zh" },
+      "chromium-narrow": { scheme: "light", lang: "en" },
+    }[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const assistant = {
+      ...session(),
+      id: "ses_kb_error_presentation",
+      title: "Knowledge-base error presentation",
+      mode: "assistant",
+      agent: "assistant-orchestrator",
+    } satisfies Session
+    const note = {
+      id: "kb_error_presentation_note",
+      title: "Recovered knowledge-base note",
+      content: "Recovered body",
+      scope: "global",
+      tags: ["regression"],
+      format: "note",
+      createdAt: 1700000000000,
+      updatedAt: 1700000000000,
+    } satisfies KbNoteNote
+    const fixture = await mockAssistantMutationPanel(page, [assistant])
+    if (narrow) await page.setViewportSize({ width: 390, height: 844 })
+    const reads = new Map<string, { status: number; json: unknown }>([
+      ["/kb", { status: 400, json: { message: "kb list failed" } }],
+    ])
+    const probe = await AssistantMutationProbe.track(page, fixture.replies, [], { readReplies: reads })
+    const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+    const sidebar = page.locator('[data-component="assistant-session-sidebar"]')
+
+    try {
+      await page.goto(fixture.url)
+      await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+      await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.scheme)
+      expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+      if (narrow) {
+        expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+        await page.locator("#session-mode-panel-toggle").click()
+      }
+      await page.locator("#secondary-sidebar-toggle").click()
+      await expect(sidebar).toBeVisible()
+      await sidebar.getByRole("button", { name: expected.lang === "zh" ? "悬空链接" : "Dangling links" }).click()
+      await expect(
+        panel.getByRole("textbox", { name: expected.lang === "zh" ? "搜索笔记" : "Search notes" }),
+      ).toBeVisible()
+
+      const alert = panel.getByRole("alert")
+      const label = expected.lang === "zh" ? "加载失败，请重试" : "Couldn't load. Try again."
+      await expect(alert).toContainText(label, { timeout: 20_000 })
+      const retry = alert.getByRole("button", { name: expected.lang === "zh" ? "重试" : "Retry", exact: true })
+      await expect(retry).toBeVisible()
+      const color = await alert.locator("p").evaluate((node) => getComputedStyle(node).color)
+      expect(color).not.toBe("rgba(0, 0, 0, 0)")
+      const box = await alert.boundingBox()
+      if (!box) throw new Error("the knowledge-base error must have a box")
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+      let focused = false
+      for (let index = 0; index < 80 && !focused; index += 1) {
+        await page.keyboard.press("Tab")
+        focused = await retry.evaluate((node) => node === document.activeElement)
+      }
+      expect(focused, "the retry must be keyboard reachable").toBe(true)
+      await expect(retry).toBeFocused()
+      const outline = await retry.evaluate((node) => {
+        const style = getComputedStyle(node)
+        return { style: style.outlineStyle, width: style.outlineWidth }
+      })
+      expect(outline.style).not.toBe("none")
+      expect(Number.parseFloat(outline.width)).toBeGreaterThan(0)
+
+      reads.set("/kb", { status: 200, json: [note] })
+      await page.keyboard.press("Enter")
+      await expect(
+        panel.getByRole("button", { name: `${note.title} ${note.tags.join(" · ")}`, exact: true }),
+      ).toBeVisible()
+      await expect(alert).toHaveCount(0)
+    } finally {
+      await probe.close()
+      await testInfo.attach("s08-r02-kb-error-presentation", {
+        body: JSON.stringify(
+          { project: testInfo.project.name, reads: probe.receipt(), viewport: page.viewportSize() },
+          null,
+          2,
+        ),
+        contentType: "application/json",
+      })
+    }
+  },
+)
+
 test("AI-TDD-S08-R02: an old note save does not close the current note draft", async ({ page }, testInfo) => {
   const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session
   const noteA = {

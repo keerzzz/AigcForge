@@ -1334,3 +1334,13 @@ Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败
 **实际运行**：base `chromium` **1 pass / 43.8s**；`chromium-dark` + `chromium-zh` + `chromium-narrow` **3 pass / 1.3m**；相邻 KB/delivery E3 **2 pass / 55.9s**；presentation tagging contract **5 pass / 37.4s**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。没有改生产代码。
 
 **边界**：只覆盖 delivery-history 一个错误态；KB 错误态、memory/citation、closed-panel 在途/共享 observer、所有 Assistant 呈现排列仍未验收，不能称完整呈现矩阵。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-delivery-presentation-20261017/`。
+
+### 15.46 2026-10-17 S08 / KB 错误态呈现矩阵（base + dark + zh + 390px + 键盘）
+
+复用 KB 读取失败 fixture，在 `assistant-session-panel.spec.ts` 新增 `@presentation` 直接 E3，断言真实 theme/lang/viewport、本地化 KB 错误文案、390px alert 不溢出、真实 Tab 到达 Retry、focus outline，以及 Enter 重试后读回 note。没有新增生产代码。
+
+**实际运行（最终源码，逐 project 运行以守住 90s）**：base `chromium` **1 pass / 46.0s**；`chromium-dark` **1 pass / 43.2s**；`chromium-zh` **1 pass / 44.7s**；`chromium-narrow` **1 pass / 41.9s**。相邻 KB/delivery E3 **2 pass / 56.8s**；presentation tagging contract **5 pass / 33.0s**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
+
+**保留失败**：三 project 合并在一个 90s 命令中 `exit124`；首次 zh 运行也因选择器仍用英文 “Dangling links” 而超时，改用本地化 “悬空链接” 后通过。两份 receipt 均保留。
+
+**边界**：目前只有 KB 与 delivery-history 两个错误态的呈现证据；其他 Assistant 错误态、closed-panel 在途/共享 observer 及完整 S08/S09 仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-presentation-20261017/`。
