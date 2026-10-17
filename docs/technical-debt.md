@@ -1313,3 +1313,11 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 
 - **保留失败**：`s08-drawer-shared-kb-*` 三份 receipt；首次窄屏尝试还遇到 `#session-mode-panel-toggle`/viewport 顺序问题，单独保留。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-read-20261017/` 的 `s08-drawer-shared-kb*`。
 - **Owner S8；Unlock**：需要一个能在共享读取仍 pending 时先打开 KB tab 的 fixture，或直接对 query observer/cancel 路径做可观测断言；在得到该证据前，保持 `session-hidden-mode-effects` 的 “closed-panel in-flight/shared-observer” 为 open，不声称已覆盖。本轮没有新增生产代码。
+
+### 15.44 2026-10-17 S08 / Assistant delivery history 读取失败与显式重试
+
+Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败折叠成 “No deliveries for this session yet.”。现在 `inboxQuery.isError` 显示既有本地化错误 + Retry，失败时不再显示空历史；重试只重取该 query。复用 `assistant.dashboard.loadError` / `assistant.citation.retry`，没有新增接口、Schema、迁移或 i18n key。
+
+- **RED**：旧 `assistant-session-panel.tsx` 上无 alert，**1 fail**，保留 `s08-delivery-history-red-20261017-203242`。
+- **GREEN**：修复后同一测试 **1 pass / 44.7s**；新增用例 + KB 读取失败 + completed reminder ownership 的相邻集合 **3 pass / 57.9s**，0 fail / 0 skip / 0 retry。Assistant panel/kb/entity 单测 **32 pass / 0 fail / 90 assertions**；App typecheck、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 均 exit0。
+- **未关闭**：其他 Assistant 读取（dashboard session list 已由 `loadSessions` 的 toast 兜底、memory/citation、reminders 非 mutation 读取）、closed drawer 在途/共享 observer（§15.43）、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-delivery-history-20261017/`。

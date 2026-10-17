@@ -457,6 +457,54 @@ test("AI-TDD-S08-R02: a failed knowledge-base list is retryable, not an empty kn
   }
 })
 
+test("AI-TDD-S08-R02: a failed delivery history is retryable, not empty", async ({ page }, testInfo) => {
+  const assistant = {
+    ...session(),
+    id: "ses_delivery_history_read",
+    title: "Delivery history read",
+    mode: "assistant",
+    agent: "assistant-orchestrator",
+  } satisfies Session
+  const delivery = {
+    deliveryKey: "delivery:read:1",
+    scheduleID: "sch_delivery_read",
+    sessionID: assistant.id,
+    kind: "reminder",
+    content: "Recovered delivery",
+    deliveredAt: 1700000000000,
+    caughtUp: false,
+    createdAt: 1700000000000,
+  }
+  const fixture = await mockAssistantMutationPanel(page, [assistant])
+  const path = `/delivery/${assistant.id}`
+  const reads = new Map<string, { status: number; json: unknown }>([
+    [path, { status: 400, json: { message: "delivery history failed" } }],
+  ])
+  const probe = await AssistantMutationProbe.track(page, fixture.replies, [], { readReplies: reads })
+  const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+
+  try {
+    await page.goto(fixture.url)
+    await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+    await expect(panel).toBeVisible()
+    const alert = panel.getByRole("alert")
+    await expect(alert).toContainText("Couldn't load. Try again.", { timeout: 20_000 })
+    await expect(panel.getByText("No deliveries for this session yet.", { exact: true })).toHaveCount(0)
+    await expect.poll(() => probe.count(path)).toBeGreaterThan(0)
+
+    reads.set(path, { status: 200, json: [delivery] })
+    await panel.getByRole("button", { name: "Retry", exact: true }).click()
+    await expect(panel.getByText("Recovered delivery", { exact: true })).toBeVisible()
+    await expect(alert).toHaveCount(0)
+  } finally {
+    await probe.close()
+    await testInfo.attach("s08-r02-delivery-history-read-retry", {
+      body: JSON.stringify(probe.receipt(), null, 2),
+      contentType: "application/json",
+    })
+  }
+})
+
 test("AI-TDD-S08-R02: an old note save does not close the current note draft", async ({ page }, testInfo) => {
   const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session
   const noteA = {

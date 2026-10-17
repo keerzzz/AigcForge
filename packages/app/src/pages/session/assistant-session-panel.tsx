@@ -2,6 +2,7 @@ import { For, Show, createEffect, createMemo, on } from "solid-js"
 import { useQuery, useQueryClient } from "@tanstack/solid-query"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { TooltipKeybind } from "@/components/tooltip-keybind"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
@@ -218,12 +219,24 @@ export function AssistantSessionPanel() {
                   <h2 class="text-v2-text-text-base text-13-medium">
                     {language.t("assistant.panel.reminders.history")}
                   </h2>
-                  <Show
-                    when={inbox().length > 0}
-                    fallback={
-                      <p class="text-v2-text-text-muted text-13-regular">
-                        {language.t("assistant.panel.reminders.historyEmpty")}
+                  <Show when={inboxQuery.isError}>
+                    <div role="alert" class="flex min-w-0 items-center gap-2">
+                      <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
+                        {language.t("assistant.dashboard.loadError")}
                       </p>
+                      <ButtonV2 variant="neutral" size="small" onClick={() => void inboxQuery.refetch()}>
+                        {language.t("assistant.citation.retry")}
+                      </ButtonV2>
+                    </div>
+                  </Show>
+                  <Show
+                    when={!inboxQuery.isError && inbox().length > 0}
+                    fallback={
+                      <Show when={!inboxQuery.isError}>
+                        <p class="text-v2-text-text-muted text-13-regular">
+                          {language.t("assistant.panel.reminders.historyEmpty")}
+                        </p>
+                      </Show>
                     }
                   >
                     <DeliveryList records={inbox()} onMarkRead={markRead} />
