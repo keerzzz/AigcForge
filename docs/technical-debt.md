@@ -1384,3 +1384,10 @@ Assistant dashboard 的 memory 区块原先只显示错误文案、没有 Retry�
 - **GREEN**：同测试 **1 pass / 43.4s**；新增用例 + 首屏渲染 + memory confirm/reject 相邻集合 **3 pass / 48.3s**，0 fail/skip/retry。App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
 - **可达性观察**：Assistant session panel 的 memory tab 只能由 nav tree 的 memory 条目打开；memory 列表为空或读取失败时没有条目，section header 只展开/折叠，因此 panel memory tab 在该状态下不可达。本轮未改该入口，也未声称 panel memory error 已覆盖；dashboard 是当前可达的读取失败表面。Owner S8；若需要 section-level 入口，另开切片。
 - **未关闭**：citation、dashboard session list（现有 toast 兜底）、reminders 非 mutation 读取、initial-load scope/empty-response 组合、closed-panel 在途/共享 observer、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-dashboard-memory-20261017/`。
+
+### 15.49 2026-10-17 S08 / citation 读取失败直接 E3：未成立的覆盖尝试
+
+生产代码 `message-timeline.tsx` 已有 citation 错误 UI（`data-component="assistant-citation-error"`）和 `refetchCitation` Retry，但缺少直接 E3。尝试复用 Assistant panel fixture 预置含 `[Citation note](kb://...)` 的 assistant 消息：legacy `pageMessages` 只渲染 user 行；改用 canonical `SessionMessagesResponse` 的 user+assistant 对仍不出现 assistant citation 行/链接。多次调整 message/parent/shape 后仍未成立，失败用例已从 spec 移除，未改生产代码。
+
+- **保留 receipt**：`s08-citation-read-20261017-215508`、`-215637`、`-215751`、`-215853`、`-215949`，证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-citation-e3-20261017/`。
+- **Owner S8；Unlock**：需要能稳定渲染 canonical/legacy assistant citation 的 fixture（或直接驱动 `kb://` link 的 DOM 合约），再断言 400 → error → Retry → 200 note。当前只保留生产实现与单测，不声称 citation error 已直接 E2E 覆盖。
