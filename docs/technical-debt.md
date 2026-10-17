@@ -1297,3 +1297,12 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 复用既有 `packages/app/e2e/regression/composer-submit.spec.ts:177` 的“recovers an unsubmitted draft and attachment without leaking either into another session”，不新增测试或生产代码。该用例在 Session A 输入文本并附加图片，切到 Session B 断言输入为空且无附件，返回 A 断言文本+附件恢复，移除附件后再切 B 仍为空、返回 A 文本保留，并断言整个来回零 `/prompt_async` 写入。
 
 **实际运行**：`bun --cwd packages/app test:e2e --project=chromium e2e/regression/composer-submit.spec.ts --workers=1 --retries=0 --timeout=90000 -g "without leaking either into another session"`，**1 pass / 0 fail / 0 skip / 0 retry / exit0 / 45.2s**。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/custom-snapshot-pending-20261017/s08-cross-session-draft-focused-20261017-201109/`。更广的 Assistant/Custom 跨 Session 草稿仍按 `session-hidden-mode-effects` 的 unlock 保持开放；本切片只关闭 composer 文本+附件这一条直接验收，不关闭完整 S08。
+
+### 15.42 2026-10-17 S08 / Assistant KB 读取失败与显式重试
+
+`AssistantKbTab` 原先把 notes/search/backlinks/dangling 的读取失败折叠成空列表，用户只看到 “No notes yet”。现在 `readFailed` 汇总四类查询错误，显示既有本地化 “Couldn't load. Try again.” + Retry；`retryReads` 只重取实际失败的查询，已缓存行保留，失败时不再显示空状态。复用 `assistant.dashboard.loadError` 与 `assistant.citation.retry`，没有新增接口、Schema、数据库迁移或 i18n key。
+
+- **RED**：旧 `assistant-kb-tab.tsx` 上 KB tab 可见但无 alert，**1 fail**。首次尝试先因测试入口错误失败：点击 KB 分组标题只展开分组、不打开 tab；改为既有 “Dangling links” 导航项后到达缺失 alert 的真实断言。两份失败均保留。
+- **GREEN**：修复后同一测试 **1 pass / 43.6s**；新增用例 + 既有 “old note save does not close the current note draft” **2 pass / 48.9s**；prettier 格式化后的最终源码再跑 **2 pass / 53.9s**，均 0 fail / 0 skip / 0 retry。
+- **单测/门禁**：Assistant KB/panel/entity/nav **50 pass / 0 fail / 138 assertions**；App typecheck、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 均 exit0。
+- **未关闭**：其他 Assistant 读取（dashboard list、memory/citation、reminders/inbox 的非 mutation 读取）、closed drawer 在途/共享 observer、呈现矩阵与完整 S08/S09 仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-read-20261017/`。

@@ -407,6 +407,56 @@ test("AI-TDD-S08-R02: hidden session panels skip reads and preserve the visible 
   }
 })
 
+test("AI-TDD-S08-R02: a failed knowledge-base list is retryable, not an empty knowledge base", async ({
+  page,
+}, testInfo) => {
+  const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session
+  const note = {
+    id: "kb_read_failure_note",
+    title: "Recovered knowledge-base note",
+    content: "Recovered body",
+    scope: "global",
+    tags: ["regression"],
+    format: "note",
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+  } satisfies KbNoteNote
+  const fixture = await mockAssistantMutationPanel(page, [assistant])
+  const reads = new Map<string, { status: number; json: unknown }>([
+    ["/kb", { status: 400, json: { message: "kb list failed" } }],
+  ])
+  const probe = await AssistantMutationProbe.track(page, fixture.replies, [], { readReplies: reads })
+  const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+  const sidebar = page.locator('[data-component="assistant-session-sidebar"]')
+
+  try {
+    await page.goto(fixture.url)
+    await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+    await page.locator("#secondary-sidebar-toggle").click()
+    await expect(sidebar).toBeVisible()
+    await sidebar.getByRole("button", { name: /Dangling links/ }).click()
+    const kb = panel.locator('[data-component="assistant-kb-tab"]')
+    await expect(kb).toBeVisible()
+    const alert = kb.getByRole("alert")
+    await expect(alert).toContainText("Couldn't load. Try again.", { timeout: 20_000 })
+    await expect(
+      kb.getByText("No notes yet. Ask the assistant to save notes into the knowledge base.", { exact: true }),
+    ).toHaveCount(0)
+    await expect.poll(() => probe.count("/kb")).toBeGreaterThan(0)
+
+    reads.set("/kb", { status: 200, json: [note] })
+    await kb.getByRole("button", { name: "Retry", exact: true }).click()
+    await expect(kb.getByRole("button", { name: `${note.title} ${note.tags.join(" · ")}`, exact: true })).toBeVisible()
+    await expect(alert).toHaveCount(0)
+  } finally {
+    await probe.close()
+    await testInfo.attach("s08-r02-kb-read-retry", {
+      body: JSON.stringify(probe.receipt(), null, 2),
+      contentType: "application/json",
+    })
+  }
+})
+
 test("AI-TDD-S08-R02: an old note save does not close the current note draft", async ({ page }, testInfo) => {
   const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session
   const noteA = {

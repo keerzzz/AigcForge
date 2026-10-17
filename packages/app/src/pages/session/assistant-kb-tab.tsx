@@ -2,6 +2,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import { useQuery } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { useLanguage } from "@/context/language"
@@ -94,6 +95,18 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
   }))
   const dangling = createMemo(() => danglingQuery.data ?? [])
 
+  // A failed read is not an empty knowledge base. Keep the error visible and
+  // retry only the queries that actually failed; cached rows stay on screen.
+  const readFailed = createMemo(
+    () => notesQuery.isError || searchQuery.isError || backlinksQuery.isError || danglingQuery.isError,
+  )
+  const retryReads = () => {
+    if (notesQuery.isError) void notesQuery.refetch()
+    if (searchQuery.isError) void searchQuery.refetch()
+    if (backlinksQuery.isError) void backlinksQuery.refetch()
+    if (danglingQuery.isError) void danglingQuery.refetch()
+  }
+
   const titleIndex = createMemo(() => new Set(notes().map((note) => note.title)))
 
   // Decorate rendered wikilinks after Markdown updates the DOM.
@@ -142,6 +155,17 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
         </select>
       </div>
 
+      <Show when={readFailed()}>
+        <div role="alert" class="flex min-w-0 items-center gap-2">
+          <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
+            {language.t("assistant.dashboard.loadError")}
+          </p>
+          <ButtonV2 variant="neutral" size="small" onClick={retryReads}>
+            {language.t("assistant.citation.retry")}
+          </ButtonV2>
+        </div>
+      </Show>
+
       <ScrollView class="min-h-0 flex-1">
         <div class="flex min-w-0 flex-col gap-4">
           <Show
@@ -150,7 +174,11 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
           >
             <Show
               when={filtered().length > 0}
-              fallback={<p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.kb.empty")}</p>}
+              fallback={
+                <Show when={!readFailed()}>
+                  <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.kb.empty")}</p>
+                </Show>
+              }
             >
               <div class="flex min-w-0 flex-col gap-px">
                 <For each={filtered()}>
