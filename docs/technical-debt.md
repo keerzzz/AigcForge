@@ -1657,3 +1657,14 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **回归/门禁**：dashboard 全文件 **21 passed / 2.7m**（17 既有 + 4 新增）；presentation tagging **5 passed / 34.7s**；App typecheck（含 e2e tsconfig）exit0；增量 lint（1 文件 / 73 新增行）、prettier、`git diff --check` 全绿。
 - **残余 in-scope**：cross-Session draft breadth、§7 剩余可跑 E4、Custom Start cross-Location / V1 revision 领域策略（需产品确认）；外部/QA-CI 项不变。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/polarity-dashboard-20261018/`。
+
+### 15.69 2026-10-18 S08 / cross-Session draft breadth 清点（含 note editor 行为探针与 followup queue 退役发现）
+
+按用户「先补 in-scope 证据」决定，清点剩余 draft 面并区分「已有覆盖 / 需产品决策 / 已退役」：
+
+1. **Composer prompt + attachment draft**：已有 E3 `composer-submit.spec.ts`「recovers an unsubmitted draft and attachment without leaking either into another session」——跨 Session 不泄漏、回到原 Session 保留；本轮不重复改动。
+2. **Custom builder draft**：`custom-builder-states.spec.ts` 的「Recalculate retains the Builder」「switching projects retains the Builder and waits for the new draft's plan」以及 `custom-draft.test.ts` 单测覆盖 draft 按项目/草稿保留；custom draft 是 tab/project 作用域，不是 per-Session，因此无新增 cross-Session 用例。
+3. **Assistant note editor 未保存草稿（探针）**：临时 E3（两 assistant Session，A 打开 KB note editor 并输入未保存文本 → 切到 B → 切回 A，记录值与会话写请求；探针已从仓库移除，receipt 保留）得到：切到 B 时 **B 的 editor 显示其自身持久化内容（`Persisted probe body`），未泄漏 A 的未保存文本**；切回 A 时 editor 再次显示持久化内容（**未保存文本被丢弃**）；整个过程 **0 条 PATCH/PUT/POST 写请求**（没有静默保存）。即「隔离 + 不静默提交」已成立；**是否要求跨 Session 保留未保存草稿是产品语义，待用户确认**。
+4. **Followup queue drafts（发现，未关闭）**：`settings.tsx` 把 `general.followup` 的 `"queue"` 在读取与写入两端都强制映射为 `"steer"`（`withFallback(<queue ? steer>)`、`setFollowup(queue→steer)`），而 `session.tsx` 的 `queueEnabled` 仅当 `settings.general.followup() === "queue"` 时才为真 → **新建队列 follow-up 的 UI 路径不可达**；`SessionFollowupDock` 只在持久化 store 仍有旧 queued items 时渲染（legacy 读取）。全仓无 followup 相关 E2E。Owner：App/Composer；Unlock：确认旧持久化队列数据的迁移/丢弃策略后，删除 `SessionFollowupDock`/`queueFollowup`/`editingFollowup` 死路或明确保留为 legacy 只读，并补一条极性测试。
+
+- **本轮不改产品代码**；两个待决问题将按用户回答在后续切片处理。证据（探针日志与结果 JSON）在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/draft-inventory-20261018/`。
