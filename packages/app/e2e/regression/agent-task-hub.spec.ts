@@ -329,9 +329,6 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
 
 test("delegation panel remains usable at a narrow viewport", async ({ page }) => {
   const errors = trackPageErrors(page)
-  page.on("response", (response) => {
-    if (response.status() >= 400) console.log("HUB404", response.status(), response.url())
-  })
   const events: EventPayload[] = []
   await mockServer(page, events, {
     delegations: [
