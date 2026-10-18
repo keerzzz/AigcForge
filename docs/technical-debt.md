@@ -1550,7 +1550,7 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **呈现矩阵（新增 @presentation E3）**：断言真实 theme/lang/viewport、`custom.snapshot.busyError` 本地化文案（en `Session is running, cannot upgrade` / zh `会话正在运行中，无法升级`）、390px alert 不溢出、真实 Tab 到 Dismiss 且 `:focus-visible` + focus ring、Enter 关闭 alert，随后主按钮重试成功跳到 upgraded session。
   - **保留两次失败**：第一次假设 `upgrade.click()` 后按钮保持 focused，4 project 全 fail；第二次改为 Tab 遍历到达 Dismiss 后仍断言 CSS `outline`，4 project 全 fail——该控件用 `focus-visible:ring-2`（box-shadow）而非 outline。第三次改为断言 `:focus-visible` + `boxShadow !== none`，**4/4 pass / 38.9、43.3、44.8、45.7s**。失败 receipts 均保留。
 - **相邻回归**：`custom-snapshot-states.spec.ts` 全文件 **17 passed / 1.8m**（15 既有 + 2 新增）；presentation tagging **5 passed / 46.0s**；`custom-plan-state` 单测 **25 pass / 35 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 78 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。
-- **未关闭**：非 busy 的 Upgrade 失败仍直接展示服务端原始 message（未本地化；需要先确定产品文案再新增 i18n key）；Custom 错误态矩阵仍只覆盖 snapshot 读取失败与 Upgrade busy 两个状态；完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列未验收。Owner：App / Custom；Unlock：确定非 busy 失败文案后复用 `custom.snapshot.loadFailed` 的「本地化前缀 + 原始 detail」模式。
+- **已收口（2026-10-18，`5c3d5352c`，详见 §15.64）**：非 busy 的 Upgrade 失败改为「本地化前缀 + 原始 detail」（`custom.snapshot.upgradeFailed`），en/zh 两个 locale；Custom 错误态矩阵覆盖 snapshot 读取失败、Upgrade busy 与非 busy 三种状态。完整 light/dark/en/zh/narrow/keyboard/reduced-motion 组合穷举按用户 2026-10-18 决定不做（代表性覆盖已在 §15.61–§15.63 收口）。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/custom-error-20261018/`。
 
 ### 15.61 2026-10-18 S08-R04 / 展示矩阵代表面补齐（decision surface + citation overlay）
@@ -1587,3 +1587,14 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **R04 代表覆盖收口（按用户 2026-10-18 决定）**：已完成 matrix/shell 契约、五模式可见性、global shell、session tool row、WorkReview、assistant dashboard、assistant session panel、custom snapshot/Upgrade 错误态、citation overlay、decision surface、session-todo-progress、agent-task-hub、prompt-agent-directory；reduced-motion 由 todo-progress `@a11y` + WorkReview 覆盖；closed-panel 呈现维度与组合穷举不在收口范围。
 - **仍未关闭（不属于 R04 代表覆盖）**：S08 其他 R 项的残余（如 initial-load scope/empty-response 组合、cross-Session draft breadth、Custom Start cross-Location/V1 revision 领域策略）、§7 的其余 E4 矩阵、S08-R05 家族验证、外部/QA-CI 项（aigcfroge 后端完整套件、Windows/macOS、真实 provider/OAuth、packaged Codex、release/灰度授权），以及已获批但未实现的 Upgrade 非 busy en/zh 文案。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap3-20261018/`。
+
+### 15.64 2026-10-18 S08 / Custom Upgrade 非 busy 失败文案本地化（RED→GREEN）
+
+**背景**：§15.60 的 open 项——非 busy 的 Upgrade 失败（如 HTTP 500）把服务端原始英文 message 直接显示给用户；用户 2026-10-18 已批准建议文案，并确认当前只需 en + zh（`parity.test.ts` 只强制 en↔zh，其余 locale 文件为冻结快照、运行时不注册）。
+
+- **RED**：新增功能 E3（`upgradeStatus=500` → alert 应含本地化前缀 + 原始 detail），旧实现只显示 `Snapshot upgrade failed`，**1 fail / 38.9s**（receipt `red.log`，失败文本与期望差异完整保留）。
+- **GREEN**：新增 `custom.snapshot.upgradeFailed`（en `Could not upgrade this session's composition: {{message}}` / zh `无法升级该会话的组合：{{message}}`，只改 en/zh，未触碰其他 locale）；`custom-snapshot-panel.tsx` 的非 busy catch 改为 `language.t("custom.snapshot.upgradeFailed", { message: msg })`。功能 E3 **1 pass / 38.9s**。
+- **呈现矩阵（新增 @presentation E3）**：断言 en/zh 本地化前缀 + 原始 detail 保留、真实 theme/lang/viewport、390px alert 不溢出。base **39.6s**、dark **37.5s**、zh **39.3s**、narrow **37.1s**，**4/4 pass**。
+- **回归/门禁**：`custom-snapshot-states.spec.ts` 全文件 **19 passed / 1.3m**（17 既有 + 2 新增）；i18n parity 测试 **1 test / 0 fail / 1539 expect**；presentation tagging **5 passed / 31.9s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（4 文件 / 45 新增行）、prettier、`git diff --check` 全绿。
+- **边界**：只本地化非 busy Upgrade 失败的前缀；服务端 detail 保持英文原文（诊断信息，符合既有 `custom.snapshot.loadFailed` 模式）；409 busy 既有本地化文案不变。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/upgrade-copy-20261018/`。
