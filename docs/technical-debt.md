@@ -1668,3 +1668,23 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 4. **Followup queue drafts（发现，未关闭）**：`settings.tsx` 把 `general.followup` 的 `"queue"` 在读取与写入两端都强制映射为 `"steer"`（`withFallback(<queue ? steer>)`、`setFollowup(queue→steer)`），而 `session.tsx` 的 `queueEnabled` 仅当 `settings.general.followup() === "queue"` 时才为真 → **新建队列 follow-up 的 UI 路径不可达**；`SessionFollowupDock` 只在持久化 store 仍有旧 queued items 时渲染（legacy 读取）。全仓无 followup 相关 E2E。Owner：App/Composer；Unlock：确认旧持久化队列数据的迁移/丢弃策略后，删除 `SessionFollowupDock`/`queueFollowup`/`editingFollowup` 死路或明确保留为 legacy 只读，并补一条极性测试。
 
 - **本轮不改产品代码**；两个待决问题将按用户回答在后续切片处理。证据（探针日志与结果 JSON）在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/draft-inventory-20261018/`。
+
+### 15.70 2026-10-18 S08 / 两个 draft 语义问题的中间契约（待用户确认，未改代码）
+
+§15.69 清点出的两个产品语义问题在询问时被中断；为不阻塞进度，按“不臆定、不改代码、不删代码”的风险最小口径先登记中间契约，待用户确认后再落实现：
+
+1. **Assistant note editor 未保存草稿**：现行行为 = 不跨 Session 泄漏、不静默保存、切走即丢弃（§15.69 探针）。中间契约按“接受丢弃”记录，但**未新增任何行为断言测试**（避免把未确认语义写成验收），owner App/Assistant；unlock：用户确认保留语义后，再决定是否补「跨 Session 保留」实现与 E3。
+2. **Followup queue 退役路径**：settings 两端强制 queue→steer，queue UI 对新输入不可达，`SessionFollowupDock` 仅为 legacy 读取。中间契约 = **保留 legacy 只读、不删除**，owner App/Composer；unlock：确认旧持久化 queued 数据的迁移/丢弃策略后，再删除 `SessionFollowupDock`/`queueFollowup`/`editingFollowup` 死路并调整引用。
+
+- 本切片不动产品/测试代码，只登记语义与 unlock；证据见 §15.69。
+
+### 15.71 2026-10-18 S08 / E4 `E4_CUSTOM_MODE=1` 真实后端拓扑（新增配置）
+
+§7.5 命令矩阵此前已跑 lifeline / 默认链 / V2 / 双后端，但 `E4_CUSTOM_MODE=1`（真实后端启用 Custom runtime、预置 `.aigcfroge/agents` custom-runtime agent）**从未单独跑过**。本轮补跑：
+
+- **命令**：`E4_CUSTOM_MODE=1 bun --cwd packages/app test:e2e --config=e2e/real/playwright.config.ts --project=chromium-real`，隔离 `E4_RUN_DIR=/tmp/aigcfroge-e4-custom-203047`；runtime manifest 记录 `customMode: true`、`v2Runtime: false`、`backendVersion: local`。
+- **结果**：**30 passed / 2 failed / 4 skipped / 4.3m**；teardown gate **passed**（`leakedPorts: []`、`groupAlive: false`、`residue: []`、`forcedKill: false`）。两条失败与此前默认链的 flaky 对完全一致：`assistant-scheduler.spec.ts`（new chat first send…persist across reload）与 `session-files.spec.ts`（searches, reads, and isolates files）。
+- **flaky 归因**：自定义模式单独复跑上述两条 → scheduler **1 passed / 2.2m**、session-files **3 passed / 1.1m**，teardown gate 均 passed。与 §15.58 默认链的「29 pass / 2 flake（复跑绿）」同源，判定为已知 flaky 对，**不是 Custom mode 回归**；无确定性失败。
+- **仍未覆盖的组合拓扑**（登记 manifest，owner S8/S10）：`E4_CUSTOM_MODE=1` 与 `E4_V2_RUNTIME=1` 同时开启、`E4_CUSTOM_MODE=1` 与 `E4_DUAL_BACKEND=1` 同时开启；单独 V2 / 单独 dual 已分别在 §15.56 取证。默认链的 `--repeat-each=2` 亦未在 Custom 模式复跑。
+- §7.5 命令矩阵现状：lifeline ✅、默认链 ✅、V2 ✅、**Custom ✅（本条）**、双后端 ✅；presentation 代表覆盖已按用户决定收口，组合穷举不做。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/e4-custom-mode-20261018/`（含 manifest、teardown gate、两条 rerun 日志）。
