@@ -4,6 +4,7 @@ import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { expectAppVisible, expectSessionTitle } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
+import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 
 const directory = "C:/Aigcfroge/DecisionSurfaceRegression"
 const projectID = "proj_decision_surface_regression"
@@ -928,3 +929,55 @@ for (const presentation of [
     },
   )
 }
+
+test(
+  "R04/presentation: a pending question stays reachable by keyboard at dark, Chinese and 390px",
+  { tag: ["@presentation", "@localized"] },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const wire = decisionWire([session("ses_presentation_question")])
+    await page.setViewportSize(expected.viewport)
+    await install(page, wire)
+    await open(page, wire, "ses_presentation_question")
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    asked(wire, { questions: [question("que_presentation", "ses_presentation_question")] })
+    await delivered(page, wire, "ses_presentation_question")
+    const dock = questionDock(page)
+    await expect(dock).toBeVisible()
+    const box = await dock.boundingBox()
+    if (!box) throw new Error("the question dock must have a box")
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+    const submit = dock.getByRole("button", { name: expected.lang === "zh" ? "提交" : "Submit", exact: true })
+    await expect(submit).toBeVisible()
+    const idleBackground = await submit.evaluate((node) => getComputedStyle(node).backgroundColor)
+    await dock.getByRole("radio", { name: /^Yes/ }).click()
+    let focused = false
+    for (let index = 0; index < 100 && !focused; index += 1) {
+      await page.keyboard.press("Tab")
+      focused = await submit.evaluate((node) => node === document.activeElement)
+    }
+    expect(focused, "the question Submit must be keyboard reachable").toBe(true)
+    await expect(submit).toBeFocused()
+    // This legacy primary Button marks keyboard focus with a tokenized background change
+    // rather than an outline/ring, so the matrix asserts the reachable, visible focus state
+    // it actually provides instead of a CSS property this control never sets.
+    const focus = await submit.evaluate((node) => getComputedStyle(node).backgroundColor)
+    expect(focus).not.toBe(idleBackground)
+
+    await page.keyboard.press("Enter")
+    await expect(questionDock(page)).toHaveCount(0)
+    expect(wire.questionReplies).toEqual([
+      {
+        path: "/api/session/ses_presentation_question/question/que_presentation/reply",
+        body: { answers: [["Yes"]] },
+      },
+    ])
+  },
+)

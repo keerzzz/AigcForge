@@ -3,6 +3,7 @@ import { base64Encode } from "@aigcfroge/core/util/encode"
 import type { SessionMessage, SessionMessagesResponse } from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
+import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 
 /**
  * Direct E3 for the Assistant timeline citation overlay (S5/S8).
@@ -122,7 +123,9 @@ async function mount(page: Page) {
   }
 }
 
-test.beforeEach(({ page }) => pinEnglishUI(page))
+test.beforeEach(async ({ page }, testInfo) => {
+  if (!testInfo.tags.includes("@presentation")) await pinEnglishUI(page)
+})
 
 test("a failing citation read shows the error overlay and Retry reads the note", async ({ page }) => {
   const fixture = await mount(page)
@@ -165,3 +168,53 @@ test("dismissing a failed citation closes the overlay without a second read", as
   await expect(error).toHaveCount(0)
   await expect(page.locator('[data-component="assistant-citation"]')).toHaveCount(0)
 })
+
+test(
+  "AI-TDD-S08-R04: the citation error and retry are visible in dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    await page.setViewportSize(expected.viewport)
+    const fixture = await mount(page)
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    const citation = page.locator('[data-message-id="msg_citation_user"] a[href="kb://kb_citation_note"]')
+    await expect(citation).toBeVisible({ timeout: 20_000 })
+    await citation.click()
+    const error = page.locator('[data-component="assistant-citation-error"]')
+    await expect(error).toContainText(expected.lang === "zh" ? "无法加载该笔记。" : "Could not load this note.", {
+      timeout: 20_000,
+    })
+    const retry = error.getByRole("button", { name: expected.lang === "zh" ? "重试" : "Retry", exact: true })
+    await expect(retry).toBeVisible()
+    const box = await error.boundingBox()
+    if (!box) throw new Error("the citation error must have a box")
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+    let focused = false
+    for (let index = 0; index < 80 && !focused; index += 1) {
+      await page.keyboard.press("Tab")
+      focused = await retry.evaluate((node) => node === document.activeElement)
+    }
+    expect(focused, "the citation retry must be keyboard reachable").toBe(true)
+    await expect(retry).toBeFocused()
+    const focus = await retry.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return { visible: node.matches(":focus-visible"), outline: style.outlineStyle, ring: style.boxShadow }
+    })
+    expect(focus.visible).toBe(true)
+    expect(focus.outline !== "none" || focus.ring !== "none").toBe(true)
+
+    fixture.fail(false)
+    await page.keyboard.press("Enter")
+    const overlay = page.locator('[data-component="assistant-citation"]')
+    await expect(overlay).toBeVisible({ timeout: 15_000 })
+    await expect(overlay).toContainText(note.title)
+    await expect(error).toHaveCount(0)
+  },
+)
