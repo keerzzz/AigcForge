@@ -1392,13 +1392,15 @@ Assistant dashboard 的 memory 区块原先只显示错误文案、没有 Retry�
 - **保留 receipt**：`s08-citation-read-20261017-215508`、`-215637`、`-215751`、`-215853`、`-215949`，证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-citation-e3-20261017/`。
 - **Owner S8；Unlock**：需要能稳定渲染 canonical/legacy assistant citation 的 fixture（或直接驱动 `kb://` link 的 DOM 合约），再断言 400 → error → Retry → 200 note。当前只保留生产实现与单测，不声称 citation error 已直接 E2E 覆盖。
 
+**已收口（2026-10-18，S08-R01 伞形矩阵）**：fixture 缺口实际由三件事叠加造成——① Assistant Session 的对话读的是 canonical 投影 `/api/session/:id/message`，旧尝试只喂 legacy `pageMessages`；② canonical 读按 newest-first 返回，fixture 必须给 `[assistant, user]` 顺序，`project()` 会反转；③ Work 产物预览会在隐藏的 `session-mode-panel[data-mode="work"]` 里再渲染同一段 assistant markdown，因此 `a[href="kb://…"]` 必须按时间线 turn（`[data-message-id="<userMessageID>"]`）收窄，且 kb 覆盖路由必须注册在 `mockAigcfrogeServer` **之后**（Playwright 后注册先匹配）。新增 `packages/app/e2e/regression/assistant-citation.spec.ts` 两条直接 E3：a) 400 → `assistant-citation-error`（本地化文案 + Retry + Dismiss）→ Retry（覆盖为 200）→ `assistant-citation` 读回 note 标题与正文；b) Dismiss 关闭失败 overlay、不产生第二次读取。**实际运行**：`2 pass / 37.3s、37.5s / exit0`；presentation tagging 契约 **5 pass / 31.4s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（1 文件 / 168 新增行；先按 no-unsafe-type-assertion 改成 `SessionMessage` 类型标注后通过）、prettier、`git diff --check` 均 exit0。**边界**：只覆盖点击 `kb://` 后的失败/重试/关闭；不覆盖 loading gate、并发切换 note 与真实后端。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/citation-e3/`。
+
 ### 15.50 2026-10-17 S08 / Assistant reminder 读取失败与共享 Retry
 
 `ReminderList` 原先在 `error` 时只显示错误文案。现在共享组件增加可选 `onRetry`，错误行显示既有本地化 Retry；dashboard 传 `pendingQuery.refetch()`，session panel 传 `remindersQuery.refetch()`。没有新增接口、Schema、迁移或 i18n key。
 
 - **RED**：旧共享组件无 alert，**1 fail**（`s08-reminder-read-red-20261017-220520`）。
 - **GREEN**：同测试 **1 pass / 43.5s**；新增用例 + dashboard 首屏 + memory 失败 + memory confirm/reject **4 pass / 1.0m**，0 fail/skip/retry。Assistant entity/panel/kb 单测 **32 pass / 0 fail / 90 assertions**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
-- **未关闭**：citation 直接 E3（§15.49）、dashboard session list（toast 兜底）、initial-load scope/empty-response、closed-panel 在途/共享 observer、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-reminder-read-20261017/`。
+- **未关闭**：dashboard session list（toast 兜底）、initial-load scope/empty-response、closed-panel 在途/共享 observer、呈现矩阵与完整 S08/S09（citation 直接 E3 已于 2026-10-18 由 §15.49 收口）。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-reminder-read-20261017/`。
 
 ### 15.51 2026-10-17 S08 / memory 与 reminder 错误态呈现矩阵 + narrow 布局修复
 
@@ -1407,7 +1409,7 @@ Assistant dashboard 的 memory 区块原先只显示错误文案、没有 Retry�
 - **桌面三 project**：`chromium` + `chromium-dark` + `chromium-zh` **6 pass / 1.7m**。
 - **narrow**：首次 **1 pass / 1 fail**——390px 下 reminder 行被日期/操作挤到内容不可见，`Follow up with customer` 解析为 hidden。修 `ReminderList` 为窄屏 `flex-col`、`sm:flex-row` 的响应式布局后，narrow **2 pass / 57.6s**。
 - **相邻回归**：dashboard 首屏 + memory/reminder 失败 + memory confirm/reject **4 pass / 1.1m**；Assistant entity/panel/kb 单测 **32 pass / 90 assertions**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
-- **边界**：目前覆盖 KB、delivery-history、memory、reminder 四个错误态的呈现；citation 仍缺直接 E3（§15.49），closed-panel observer、initial-load 组合与完整矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-dashboard-presentation-20261017/`。
+- **边界**：目前覆盖 KB、delivery-history、memory、reminder 四个错误态的呈现；citation 直接 E3 已由 §15.49 收口，closed-panel observer、initial-load 组合与完整矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-dashboard-presentation-20261017/`。
 
 ### 15.52 2026-10-18 S08 / Assistant dashboard session list 读取失败与 inline Retry
 
@@ -1421,7 +1423,7 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **极性对照**：空 session 列表仍是空列表、无 alert **1 pass**；与失败用例合跑 **2 pass / 46.8s / exit0**（`-014214`）。
 - **相邻回归**：dashboard 首屏 + memory 失败 + reminder 失败 + session list 失败 + memory confirm/reject **5 pass / 1.1m / exit0**（`-012749`）。
 - **单测/门禁**：`server-sync.test.ts` + `assistant-dashboard-model.test.ts` **34 pass / 59 assertions / exit0**；App typecheck exit0；prettier、`LINT_BASE_REF=HEAD` 增量 lint（3 文件 / 103 新增行）、`git diff --check` 均 exit0。
-- **未关闭**：citation 直接 E3（§15.49）、closed-panel 在途/共享 observer（§15.43）、initial-load 的其他 scope/呈现组合、剩余呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-session-list-read-20261018/`。
+- **未关闭**：closed-panel 在途/共享 observer（§15.43）、initial-load 的其他 scope/呈现组合、剩余呈现矩阵与完整 S08/S09（citation 直接 E3 已由 §15.49 收口）。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-session-list-read-20261018/`。
 
 ### 15.53 2026-10-18 S09 / post-c5 可恢复快照在 `473943815` 上重跑通过 + 执行位漂移修复
 
@@ -1454,7 +1456,7 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **逐 project 运行**：`chromium` **1 pass / 42.0s**；`chromium-dark` **1 pass / 41.6s**；`chromium-zh` **1 pass / 43.1s**；`chromium-narrow` **1 pass / 42.4s**。
 - **相邻回归**：session-list 读取失败重试 + 空列表极性对照 **2 pass / 48.1s**。
 - **门禁**：App typecheck（含 e2e tsconfig）exit0；prettier；`LINT_BASE_REF=HEAD` 增量 lint（1 文件 / 69 新增行）；`git diff --check` 均 exit0。
-- **边界**：这是第 5 个错误态的呈现证据（KB、delivery-history、memory、reminder、session-list）；citation 仍缺直接 E3（§15.49），closed-panel 在途/共享 observer（§15.43）、Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/session-list-presentation-20261018/`。
+- **边界**：这是第 5 个错误态的呈现证据（KB、delivery-history、memory、reminder、session-list）；citation 直接 E3 已由 §15.49 收口，closed-panel 在途/共享 observer（§15.43）、Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/session-list-presentation-20261018/`。
 
 ### 15.56 2026-10-18 S08-R01 / 伞形矩阵第一轮：S01–S07 单元·API·E3 实际运行
 
@@ -1473,4 +1475,4 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **新登记的 flake（owner：QA / CI；unlock：拿到重复触发条件或稳定化后复查）**：① `assistant-scheduler` 首轮真实后端偶发两次 provider 调用（expected 1）；② `session-files` 首轮 `find/file` 偶发 `[]`（可能存在工作区索引/ripgrep 二进制就绪竞态）。两者在独立复跑均通过，故当前不判为产品缺陷，但不能计入确定性绿。
 - **§7.5 展示矩阵（本轮实际执行）**：计划点名的共享 `agent-interaction-presentation.spec.ts` 并未创建；仓库已有等价契约实现——`e2e/regression/presentation-matrix.spec.ts`（矩阵定义唯一真源 `e2e/presentation-matrix.ts` 的消费方）+ `presentation-tagging.spec.ts`（tag/项目不变式）+ 各 spec 的 `@presentation`/`@a11y` 标签，matrix project 只跑带标签用例。按此等价口径实跑：矩阵契约 **8 pass / 1.6m**（2 用例 × 4 project，断言真实 theme/lang/viewport、五模式可见性与基础键盘焦点）；tagging 契约 **5 pass / 31.5s**；matrix 三 project（dark/zh/narrow）上：`session-tool-row` **3 pass / 49.2s**、`global-shell-presentation` **3 pass / 46.9s**、`assistant-dashboard` **9 pass / 2.3m**、`assistant-session-panel` **6 pass / 1.7m**、`permission-tier` **3 pass / 46.6s**、`mode-slot-fallback-a11y` **47 pass / 1 flaky fail / 3.2m**（`chromium-zh` 的 `Escape follows the breakpoint in both directions @a11y` 首跑失败，随后复跑 zh ×2 + base ×1 **3 pass / 38.7、38.3、37.2s**，判为 flake 并登记）；`work-review-lifecycle` 的 `@presentation @a11y` 四 project **4/4 pass**（§15.56 前段）。合计 **84 pass + 1 flake（复跑绿）**。
 - **新登记的 flake（owner：App / A11y；unlock：复现重复触发条件后修时序）**：`mode-slot-fallback-a11y.spec.ts` 的 `Escape follows the breakpoint in both directions @a11y` 在 `chromium-zh` 偶发「shrinking back must re-arm Escape」失效（期望 0 实得 1），独立复跑三次均通过。
-- **本轮未执行（因此不能宣称 S08-R01 闭环）**：受影响包「全套」测试（core/app/session-ui/aigcfroge 完整文件集）、S08-R04 的 Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列、S08-R05 家族、P3 citation/closed-drawer fixture、P5 外部项。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/`。
+- **本轮未执行（因此不能宣称 S08-R01 闭环）**：受影响包「全套」测试（core/app/session-ui/aigcfroge 完整文件集）、S08-R04 的 Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列、S08-R05 家族、P3 closed-drawer fixture、P5 外部项。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/`。
