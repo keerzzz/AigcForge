@@ -1,4 +1,4 @@
-import { createMemo, createResource } from "solid-js"
+import { createMemo, createResource, untrack } from "solid-js"
 import type { Composition } from "@aigcfroge/schema/composition"
 import { CompositionConsumerView } from "@aigcfroge/schema/composition-consumer-view"
 import { useSDK } from "@/context/sdk"
@@ -41,22 +41,41 @@ export function useSessionSnapshotCommands(session: () => SessionLike | undefine
         return undefined
       }
     },
-    // `latest` only stops suspending after the first settle. The session route
-    // must stay visible while an initial composition read is pending, so seed the
-    // resource instead of letting the first `latest` read enter the route
-    // transition. See `custom-snapshot-states.spec.ts` (pending state).
-    { initialValue: undefined },
   )
+
+  // Reading the resource itself (`snapshot()` / `snapshot.latest` before the first
+  // settle) registers the composition read as route-transition work: the session
+  // route then waits for it, and the Custom pending acceptance requires the opposite
+  // — the Session must stay visible while that read is pending. Do not re-add
+  // `initialValue` to sidestep that: seeding pins `resolved` at creation, the
+  // promise settles outside the transition, and revisiting a Session then resets
+  // its timeline scroll to the top (`session-tab-switch-benchmark` hot case).
+  // Subscribe to the state signal for reactivity and read the value untracked.
+  const latest = () => {
+    snapshot.state
+    return untrack(() => snapshot.latest)
+  }
 
   const commands = createMemo(() => {
     const current = session()
-    const snap = snapshot.latest
-    if (!current || !snap) return undefined
-    if (current.mode !== "custom") return undefined
+    if (!current) return undefined
+    if (current.mode !== "custom") {
+      // Keep the historical *suspending* read for non-Custom sessions. It registers
+      // the composition request with the session route transition, and the timeline
+      // scroll anchor relies on the route committing after that read settles: with a
+      // non-suspending read, revisiting a Session commits first and its timeline
+      // scroll stays at the top (`session-tab-switch-benchmark` hot case). This is
+      // existing timing, not a new dependency; Custom sessions use `latest()` below
+      // so their pending acceptance keeps the Session visible.
+      void snapshot()
+      return undefined
+    }
+    const snap = latest()
+    if (!snap) return undefined
     const scope = CompositionConsumerView.resolveScope(snap, current)
     if (!CompositionConsumerView.isBindingSatisfied(snap, scope)) return []
     return CompositionConsumerView.getCommands(snap, scope)
   })
 
-  return { commands, snapshot }
+  return { commands, snapshot, latest }
 }
