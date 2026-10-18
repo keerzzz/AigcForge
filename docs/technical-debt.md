@@ -1688,3 +1688,22 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **仍未覆盖的组合拓扑**（登记 manifest，owner S8/S10）：`E4_CUSTOM_MODE=1` 与 `E4_V2_RUNTIME=1` 同时开启、`E4_CUSTOM_MODE=1` 与 `E4_DUAL_BACKEND=1` 同时开启；单独 V2 / 单独 dual 已分别在 §15.56 取证。默认链的 `--repeat-each=2` 亦未在 Custom 模式复跑。
 - §7.5 命令矩阵现状：lifeline ✅、默认链 ✅、V2 ✅、**Custom ✅（本条）**、双后端 ✅；presentation 代表覆盖已按用户决定收口，组合穷举不做。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/e4-custom-mode-20261018/`（含 manifest、teardown gate、两条 rerun 日志）。
+
+### 15.72 2026-10-18 S08 / E4 组合拓扑（custom+V2、custom+dual、V2+dual、triple）与 decision-scope 的 V2 guard
+
+§15.71 后继续补组合拓扑；第一轮把 `E4_CUSTOM_MODE` 与 `E4_V2_RUNTIME`/`E4_DUAL_BACKEND` 叠加，结果按拓扑拆开：
+
+| 拓扑                               | 结果                                                                                |
+| ---------------------------------- | ----------------------------------------------------------------------------------- |
+| A. `CUSTOM+V2` 全链                | **11 passed / 25 skipped / 0 failed / 1.9m**，teardown gate passed                  |
+| B. `CUSTOM+V2+DUAL`（首跑）        | **4 passed / 5 failed / 7 skipped / 2.6m**，gate passed                             |
+| C. `CUSTOM+DUAL`（无 V2）          | **12 passed / 4 skipped / 0 failed / 3.4m**，gate passed（与 §15.56 dual 基线一致） |
+| D. `V2+DUAL`（无 custom）          | **4 passed / 5 failed / 7 skipped / 2.6m**，gate passed                             |
+| E. `V2+DUAL`（加 guard 后）        | **4 passed / 12 skipped / 0 failed / 1.1m**，gate passed                            |
+| F. `CUSTOM+V2+DUAL`（加 guard 后） | **4 passed / 12 skipped / 0 failed / 58.7s**，gate passed                           |
+
+- **B/D 的 5 条失败全部相同**：`session-decision-scope.spec.ts` 的 `admit()`（spec:56）轮询 `questions/permissions` 数量期望 1、实得 0（15s 超时），分布在 R06 abort 与 R03 scope 用例。C 为绿证明 **Custom mode 不参与该失败**；D 无 custom 仍复现，**归因 V2 runtime**。
+- **根因**：该 spec 用默认后端的 isolated E4 decision tool 建立 waiting question/permission；V2 runtime 不挂载该 tool 链。兄弟矩阵 spec 已有 guard（`session-identity-consumers.spec.ts:27`、`work-review-lifeline.spec.ts:39` 的 `test.skip(() => e4().v2Runtime, …)`），仅 decision-scope 缺 guard。按 reuse-first 复用同一 guard 模式新增 `b0c1554e5`，E/F 变为 0 failed（skip 计入 12）。
+- **边界（不许含糊）**：guard 只是**不把未支持组合当回归**，不代表 V2 下 dual decision 有正证据；该正证据登记为残余（owner S8/S10；unlock：在 V2 runtime 下补一套 dual decision 正向执行证据，或明确该组合不受支持）。Custom-mode 的 `--repeat-each=2` 亦未跑。
+- **门禁**：App typecheck（含 e2e tsconfig）exit0；增量 lint（1 文件 / 5 行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿；所有 E4 run 的 teardown gate passed（ports free/group gone/workspace clean/backend local/report clean）。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/e4-combined-20261018/`（各拓扑日志、manifest、teardown gate）。
