@@ -405,6 +405,16 @@ for (const failure of [
   })
 }
 
+test("AI-TDD-S08-R02: an absent snapshot is not a read failure, and Upgrade stays disabled", async ({ page }) => {
+  const state = wire()
+  state.snapshot = { status: 404, body: { message: "fixture snapshot absent" } }
+  await openSnapshot(page, state)
+  const panel = page.locator("#session-mode-panel-custom")
+  await expect(panel.getByRole("alert")).toHaveCount(0)
+  await expect(panel.getByRole("button", { name: "Upgrade / Edit", exact: true })).toBeDisabled()
+  await expect.poll(() => state.snapshotReads).toBeGreaterThan(0)
+})
+
 for (const stage of ["plan", "upgrade"] as const) {
   test(`AI-TDD-S08-R02: a late Upgrade ${stage} completion cannot take over another session`, async ({
     page,

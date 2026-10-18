@@ -460,6 +460,109 @@ test("AI-TDD-S08-R02: a failed knowledge-base list is retryable, not an empty kn
   }
 })
 
+test("AI-TDD-S08-R02: a successful empty knowledge-base list stays empty, not an error", async ({ page }) => {
+  const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session
+  const fixture = await mockAssistantMutationPanel(page, [assistant])
+  const reads = new Map<string, { status: number; json: unknown }>([["/kb", { status: 200, json: [] }]])
+  const probe = await AssistantMutationProbe.track(page, fixture.replies, [], { readReplies: reads })
+  const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+  const sidebar = page.locator('[data-component="assistant-session-sidebar"]')
+
+  try {
+    await page.goto(fixture.url)
+    await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+    await page.locator("#secondary-sidebar-toggle").click()
+    await expect(sidebar).toBeVisible()
+    await sidebar.getByRole("button", { name: /Dangling links/ }).click()
+    const kb = panel.locator('[data-component="assistant-kb-tab"]')
+    await expect(kb).toBeVisible()
+    await expect(
+      kb.getByText("No notes yet. Ask the assistant to save notes into the knowledge base.", { exact: true }),
+    ).toBeVisible({ timeout: 20_000 })
+    await expect(kb.getByRole("alert")).toHaveCount(0)
+    await expect.poll(() => probe.count("/kb")).toBeGreaterThan(0)
+  } finally {
+    await probe.close()
+  }
+})
+
+test("AI-TDD-S08-R02: an initial pending KB list shows loading, not empty and not an error", async ({
+  page,
+}, testInfo) => {
+  const assistant = { ...session(), mode: "assistant", agent: "assistant-orchestrator" } satisfies Session
+  const fixture = await mockAssistantMutationPanel(page, [assistant])
+  const gate = Promise.withResolvers<void>()
+  // Registered after the fixture's own routes: Playwright runs the most recently registered
+  // matching route first, so this holds the first /kb read until the test releases it.
+  await page.route(/\/kb(?:\?.*)?$/, async (route) => {
+    if (route.request().method() !== "GET") return route.fallback()
+    await gate.promise
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: "[]",
+    })
+  })
+  const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+  const sidebar = page.locator('[data-component="assistant-session-sidebar"]')
+
+  try {
+    await page.goto(fixture.url)
+    await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+    await page.locator("#secondary-sidebar-toggle").click()
+    await expect(sidebar).toBeVisible()
+    await sidebar.getByRole("button", { name: /Dangling links/ }).click()
+
+    // While the shared read is pending the panel owns the wait (slot fallback): no route
+    // fallback, no "empty" claim and no error alert.
+    await expect(page.locator('[data-surface-pending="route"]')).toHaveCount(0)
+    await expect(panel).toBeVisible()
+    await expect(panel.locator('[data-surface-pending="slot"]')).toBeVisible()
+    await expect(
+      panel.getByText("No notes yet. Ask the assistant to save notes into the knowledge base.", { exact: true }),
+    ).toHaveCount(0)
+    await expect(panel.getByRole("alert")).toHaveCount(0)
+
+    gate.resolve()
+    const kb = panel.locator('[data-component="assistant-kb-tab"]')
+    await expect(kb).toBeVisible({ timeout: 20_000 })
+    await expect(
+      kb.getByText("No notes yet. Ask the assistant to save notes into the knowledge base.", { exact: true }),
+    ).toBeVisible({ timeout: 20_000 })
+    await expect(kb.getByRole("alert")).toHaveCount(0)
+  } finally {
+    gate.resolve()
+    await testInfo.attach("s08-r02-kb-initial-pending", { body: "gated /kb until released", contentType: "text/plain" })
+  }
+})
+
+test("AI-TDD-S08-R02: a successful empty delivery history stays empty, not an error", async ({ page }) => {
+  const assistant = {
+    ...session(),
+    id: "ses_delivery_history_empty",
+    title: "Delivery history empty",
+    mode: "assistant",
+    agent: "assistant-orchestrator",
+  } satisfies Session
+  const fixture = await mockAssistantMutationPanel(page, [assistant])
+  const probe = await AssistantMutationProbe.track(page, fixture.replies, [], {
+    readReplies: new Map([[`/delivery/${assistant.id}`, { status: 200, json: [] }]]),
+  })
+  const panel = page.locator('[data-component="session-mode-panel"][data-mode="assistant"]')
+  try {
+    await page.goto(fixture.url)
+    await expect(page.getByRole("heading", { name: assistant.title, exact: true })).toBeVisible()
+    await expect(panel.getByText("No deliveries for this session yet.", { exact: true })).toBeVisible({
+      timeout: 20_000,
+    })
+    await expect(panel.getByRole("alert")).toHaveCount(0)
+    await expect.poll(() => probe.count(`/delivery/${assistant.id}`)).toBeGreaterThan(0)
+  } finally {
+    await probe.close()
+  }
+})
+
 test("AI-TDD-S08-R02: a failed delivery history is retryable, not empty", async ({ page }, testInfo) => {
   const assistant = {
     ...session(),
