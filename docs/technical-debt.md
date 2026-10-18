@@ -1325,7 +1325,7 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 
 **已收口（2026-10-18，S08-R01 伞形矩阵）**：新增 `packages/app/e2e/regression/assistant-closed-panel.spec.ts` 一条直接 E3，按上述 unlock 路径落地：`/kb` 首次读取立即 200 载入数据 → 导航树打开 KB tab 并 hydrate note → 通过 note-editor 的真实保存动作触发 `assistantKbQueryKeys` invalidation → 第二次 `/kb` 读取被 route gate 持有 → 关闭 drawer（`aria-hidden="true"`、KB tab 卸载）→ 断言无 `requestfailed`、nav tree 在 drawer 关闭期间收到结果（`[data-nav-section="kb"]` 计数 1）→ 释放 gate 后正好 `[200, 200]`、`/kb` 请求数仍为 2 → 重开 drawer 切回 KB tab 仍显示 note、请求数不增（无重放）。**实际运行：1 pass / 38.8s、1 pass / 38.6s（2/2）**；presentation tagging 契约 **5 pass / 35.2s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（1 文件 / 217 新增行）、prettier、`git diff --check` 均 exit0。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/closed-panel-e3/`。
 
-**同轮登记的产品行为风险（owner：App / Assistant；unlock：给 Assistant mode 内容加 panel 局部 Suspense fallback，或避免在首个共享读取 pending 时打开 drawer）**：两次“首次打开即 gate”的尝试都证明，当某个 Assistant 查询**尚无 data 且正在 fetch**时打开 drawer，`useQuery().data` 读的是 TanStack Solid Query 内部的 `createResource`（`@tanstack/solid-query/src/useBaseQuery.ts:380-382`：`queryResource()?.data`，resource 无 initialValue）；该读取会把路由级 Suspense 边界拖入 `surface-pending owner="route"`，整个 Session 主区消失直到读取完成。`/kb` 与 `/kb/dangling` 两个不同查询都能复现，因此不是单个 fixture 问题；本切片不改产品行为，只登记并给出 unlock。
+**同轮登记的产品行为风险（owner：App / Assistant；unlock：给 Assistant mode 内容加 panel 局部 Suspense fallback，或避免在首个共享读取 pending 时打开 drawer）**：两次“首次打开即 gate”的尝试都证明，当某个 Assistant 查询**尚无 data 且正在 fetch**时打开 drawer，`useQuery().data` 读的是 TanStack Solid Query 内部的 `createResource`（`@tanstack/solid-query/src/useBaseQuery.ts:380-382`：`queryResource()?.data`，resource 无 initialValue）；该读取会把路由级 Suspense 边界拖入 `surface-pending owner="route"`，整个 Session 主区消失直到读取完成。`/kb` 与 `/kb/dangling` 两个不同查询都能复现，因此不是单个 fixture 问题；本切片不改产品行为，只登记并给出 unlock。**已修复（2026-10-18，`10e830bb9`，详见 §15.57）**：Assistant panel 的 tab 内容区现在有自己的 Suspense 边界，路由不再被单个面板读取拖入 `surface-pending`；新增直接 E3 `assistant-session-panel-pending.spec.ts` 锁定该行为。
 
 ### 15.44 2026-10-17 S08 / Assistant delivery history 读取失败与显式重试
 
@@ -1489,3 +1489,21 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **§7.5 展示矩阵（本轮实际执行）**：计划点名的共享 `agent-interaction-presentation.spec.ts` 并未创建；仓库已有等价契约实现——`e2e/regression/presentation-matrix.spec.ts`（矩阵定义唯一真源 `e2e/presentation-matrix.ts` 的消费方）+ `presentation-tagging.spec.ts`（tag/项目不变式）+ 各 spec 的 `@presentation`/`@a11y` 标签，matrix project 只跑带标签用例。按此等价口径实跑：矩阵契约 **8 pass / 1.6m**（2 用例 × 4 project，断言真实 theme/lang/viewport、五模式可见性与基础键盘焦点）；tagging 契约 **5 pass / 31.5s**；matrix 三 project（dark/zh/narrow）上：`session-tool-row` **3 pass / 49.2s**、`global-shell-presentation` **3 pass / 46.9s**、`assistant-dashboard` **9 pass / 2.3m**、`assistant-session-panel` **6 pass / 1.7m**、`permission-tier` **3 pass / 46.6s**、`mode-slot-fallback-a11y` **47 pass / 1 flaky fail / 3.2m**（`chromium-zh` 的 `Escape follows the breakpoint in both directions @a11y` 首跑失败，随后复跑 zh ×2 + base ×1 **3 pass / 38.7、38.3、37.2s**，判为 flake 并登记）；`work-review-lifecycle` 的 `@presentation @a11y` 四 project **4/4 pass**（§15.56 前段）。合计 **84 pass + 1 flake（复跑绿）**。
 - **新登记的 flake（owner：App / A11y；unlock：复现重复触发条件后修时序）**：`mode-slot-fallback-a11y.spec.ts` 的 `Escape follows the breakpoint in both directions @a11y` 在 `chromium-zh` 偶发「shrinking back must re-arm Escape」失效（期望 0 实得 1），独立复跑三次均通过。
 - **本轮未执行（因此不能宣称 S08-R01 闭环）**：受影响包「全套」测试（core/app/session-ui/aigcfroge 完整文件集）、S08-R04 的 Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列、S08-R05 家族、P3 closed-drawer fixture、P5 外部项。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/`。
+
+### 15.57 2026-10-18 S08 / Assistant panel 加载边界：路由 Suspense 爆炸半径修复（RED→GREEN）
+
+**根因**：TanStack Solid Query 的 `data` 访问器由 `createResource` 支撑（`@tanstack/solid-query/src/useBaseQuery.ts:378-382`，resource 无 initialValue）。某个 Assistant 查询**尚无 data 且正在 fetch** 时打开 drawer，`useQuery().data` 的读取会 suspend；session mode panel 当时没有任何本地 Suspense 边界，suspension 逃逸到 `layout.tsx` 的路由边界，整个 Session 主区被 `surface-pending owner="route"` 替换直到读取完成。先用 `/kb` 与 `/kb/dangling` 两个不同查询确认不是单 fixture 问题。
+
+**RED**：新增 `packages/app/e2e/regression/assistant-session-panel-pending.spec.ts`（gate `GET /kb`、导航树打开 drawer，断言 Session heading 仍可见、无 route fallback、panel 有 slot fallback，释放后 KB tab 显示 note 且共享读取只有 1 次）。未改代码时 **1 fail**：heading 找不到（路由 fallback 已替换主区）。保留 `red-no-boundary.log`。
+
+**方案对冲与取舍**：
+
+- 先试**共享边界**（`session-side-panel.tsx` 的 `modePanel` 统一加 Suspense，对齐 `mode-workspace.tsx` 的 per-slot 边界）：新 E3 通过，但 `assistant-session-panel.spec.ts` 全文件 **13 passed / 3 failed**——整面板挂起导致 tab list/default-tab 注册丢失，错误态用例只看到空 tablist（snapshot 证实）。该方案回退，证据 `attempt1-wide-boundary-*`。
+- 采用**窄边界**：只在 `assistant-session-panel.tsx` 的 `TabsV2` 区域加 `<Suspense fallback={<SurfacePending owner="slot" class="flex-1 py-6" />}>`，保留 `SessionRightPanel` shell 与 default-tab effect 在边界外。复用既有 `SurfacePending`（`owner="slot"`），没有新增 UI 组件或 i18n key。
+
+**实际运行（最终实现）**：新 E3 **1 pass / 34.7s、1 pass / 36.0s**；先失败的 delivery-history 错误态用例单跑 **1 pass / 42.7s**；`assistant-session-panel.spec.ts` 全文件 **16 passed / 2.2m**；closed-drawer 共享 observer **1 pass / 35.9s**；WorkReview presentation **1 pass / 36.7s**；presentation matrix contract（chromium）**2 passed / 45.1s**；受影响单测 **19 pass / 41 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 290 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/panel-boundary-20261018/`。
+
+**未关闭**：
+
+- Chat / Work / Custom 三个 session mode panel 仍无本地 Suspense 边界，同一失败类仍存在。Owner：App / Modes；Unlock：按本切片先例在各自 panel 的**内容区**（不包住 shell/default-tab 注册）加边界，并各补一条 gate 读取的直接 E3。
+- 无 per-panel ErrorBoundary parity（`mode-workspace.tsx` 的 `SlotError`）；session mode panel 的读取拒绝仍可能到达 app 级 boundary。Owner：App / Modes；Unlock：复用 `SlotError` 模式并补拒绝态 E3。
