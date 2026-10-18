@@ -1540,3 +1540,15 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **相邻回归**：`custom-snapshot-states.spec.ts` 全文件 **15 passed / 1.3m**（13 既有 + 2 新增）；presentation tagging 契约 **5 passed / 34.9s**；`custom-plan-state` 单测 **25 pass / 35 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 90 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。
 - **未关闭**：Upgrade 失败的 rose 错误行仍无 `role="alert"`、也未进入呈现矩阵（现有 Upgrade 用例只验证请求与状态流转）；Custom 的 404-absent 与 pending 已由既有用例覆盖但不属于本呈现矩阵；完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列仍未验收。Owner：App / Custom；Unlock：按本切片补 Upgrade 错误态的 alert 语义 + 4-project E3。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/custom-error-20261018/`。
+
+### 15.60 2026-10-18 S08 / Custom Upgrade 失败：alert 语义与呈现矩阵（RED→GREEN）
+
+**背景**：`custom-snapshot-panel.tsx` 的 Upgrade 失败行一直是普通 rose 容器（无 `role="alert"`），且未进入呈现矩阵；§15.59 把它登记为 Custom 错误态矩阵的剩余项。Upgrade 的显式重试路径本身已存在（失败后主按钮重新可用），本次只补 a11y 语义与呈现证据，不新增重试控件。
+
+- **RED**：新增功能 E3（`upgradeStatus=409` → `role="alert"` 显示本地化 busy 文案 → Dismiss 清空 → 主按钮重试成功并跳到 upgraded session）。旧代码 **1 fail / 34.2s**（alert not found），receipt `red-upgrade.log`。
+- **GREEN**：Upgrade 错误容器加 `role="alert"`（1 行产品改动）；功能 E3 **1 pass / 34.2s**。
+- **呈现矩阵（新增 @presentation E3）**：断言真实 theme/lang/viewport、`custom.snapshot.busyError` 本地化文案（en `Session is running, cannot upgrade` / zh `会话正在运行中，无法升级`）、390px alert 不溢出、真实 Tab 到 Dismiss 且 `:focus-visible` + focus ring、Enter 关闭 alert，随后主按钮重试成功跳到 upgraded session。
+  - **保留两次失败**：第一次假设 `upgrade.click()` 后按钮保持 focused，4 project 全 fail；第二次改为 Tab 遍历到达 Dismiss 后仍断言 CSS `outline`，4 project 全 fail——该控件用 `focus-visible:ring-2`（box-shadow）而非 outline。第三次改为断言 `:focus-visible` + `boxShadow !== none`，**4/4 pass / 38.9、43.3、44.8、45.7s**。失败 receipts 均保留。
+- **相邻回归**：`custom-snapshot-states.spec.ts` 全文件 **17 passed / 1.8m**（15 既有 + 2 新增）；presentation tagging **5 passed / 46.0s**；`custom-plan-state` 单测 **25 pass / 35 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 78 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。
+- **未关闭**：非 busy 的 Upgrade 失败仍直接展示服务端原始 message（未本地化；需要先确定产品文案再新增 i18n key）；Custom 错误态矩阵仍只覆盖 snapshot 读取失败与 Upgrade busy 两个状态；完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列未验收。Owner：App / Custom；Unlock：确定非 busy 失败文案后复用 `custom.snapshot.loadFailed` 的「本地化前缀 + 原始 detail」模式。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/custom-error-20261018/`。
