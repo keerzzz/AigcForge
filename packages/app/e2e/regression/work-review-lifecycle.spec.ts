@@ -420,6 +420,13 @@ test(
     await expect(page.locator("html")).toHaveAttribute("data-color-scheme", presentation.colorScheme)
     await expect(page.locator("html")).toHaveAttribute("lang", presentation.lang)
     expect(page.viewportSize()).toEqual(presentation.viewport)
+    // E3 runs on the dev server, where layout.tsx mounts the dev-only performance debug
+    // bar (`import.meta.env.DEV`). It is `fixed bottom-right md:block`, so at 1280x720 it
+    // covers the composer's "Review artifact" control and the real `elementFromPoint`
+    // hit test below (correctly) rejects the focused control. Production builds never
+    // render it (`global-shell-production.test.ts` asserts count 0), so hide the dev
+    // overlay before measuring the keyboard surface.
+    await page.addStyleTag({ content: '[data-component="debug-bar"] { display: none !important }' })
 
     const toggle = page.locator("#session-mode-panel-toggle")
     if (testInfo.project.name === "chromium-narrow") {
