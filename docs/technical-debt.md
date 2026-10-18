@@ -1468,6 +1468,6 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **§7.5 E4（真实后端，本轮实际执行）**：
   - `work-review-lifeline.spec.ts`：**2 pass + 1 expected skip（双后端 topology 缺席）+ 0 fail / 1.8m**，teardown gate passed（`leakedPorts: []`、`groupAlive: false`、`residue: []`、SIGTERM 报告 clean），`providerRequestCount: 27`。
   - 默认全量 `test:e2e:real`（12 spec / 36 用例）：**29 pass / 2 fail / 5 skip / 4.1m**，teardown gate passed。两例失败逐条复跑均通过：`assistant-scheduler` **1 pass / 2.2m**（首跑 expected 1 收到 2 次 provider 调用）、`session-files` **3 pass / 1.0m**（首跑 `find/file` 返回 `[]`）→ **属 flaky，不是确定性产品失败**；两次复跑 teardown gate 均 passed。已将两例登记为 E4 flake（见下），不把首跑 2 fail 冒充产品回归，也不把复跑绿冒充全量绿。
-  - V2 变体（`E4_V2_RUNTIME=1`）本轮**未执行**。
+  - V2 变体（`E4_V2_RUNTIME=1`）单独运行：**10 pass / 26 expected skip / 0 fail / 1.4m**，teardown gate passed。该绿只代表既有 V2 现状的独立运行结果；按 §7.5 不以其绿宣称 Custom 完整 provider 正向缺口已修。
 - **新登记的 flake（owner：QA / CI；unlock：拿到重复触发条件或稳定化后复查）**：① `assistant-scheduler` 首轮真实后端偶发两次 provider 调用（expected 1）；② `session-files` 首轮 `find/file` 偶发 `[]`（可能存在工作区索引/ripgrep 二进制就绪竞态）。两者在独立复跑均通过，故当前不判为产品缺陷，但不能计入确定性绿。
 - **本轮未执行（因此不能宣称 S08-R01 闭环）**：受影响包「全套」测试（core/app/session-ui/aigcfroge 完整文件集）、§7.5 V2 E4 变体、`agent-interaction-presentation.spec.ts`（计划点名但仓库中不存在，改用按 spec 打 `@presentation` 标签的偏差仍未登记为正式 scope-cut）、S08-R04 完整矩阵、S08-R05 家族。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/`。
