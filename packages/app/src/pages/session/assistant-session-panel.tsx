@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createMemo, on } from "solid-js"
+import { For, Show, Suspense, createEffect, createMemo, on } from "solid-js"
 import { useQuery, useQueryClient } from "@tanstack/solid-query"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { Icon } from "@aigcfroge/ui/v2/icon"
@@ -20,6 +20,7 @@ import { AssistantNoteEditor } from "@/components/assistant-note-editor"
 import { AssistantKbTab } from "@/pages/session/assistant-kb-tab"
 import { assistantQueryKey, assistantQueryOptions, invalidateAssistantQueries } from "@/utils/assistant-query"
 import { openEntityPanel, type AssistantPanelTab } from "./assistant-session-panel-open"
+import { SurfacePending } from "@/pages/surface-pending"
 
 const ENTITY_TABS: ReadonlyArray<{ id: AssistantPanelTab; label: string }> = [
   { id: "reminders", label: "assistant.panel.tab.reminders" },
@@ -172,141 +173,150 @@ export function AssistantSessionPanel() {
 
   return (
     <SessionRightPanel modeID="assistant" size={size} ariaLabel={language.t("assistant.panel.title")}>
-      <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
-        <TabsV2.List
-          class="no-scrollbar flex gap-0.5 overflow-x-auto border-b border-v2-border-border-base px-1"
-          aria-label={language.t("assistant.panel.title")}
-        >
-          <For each={ENTITY_TABS}>
-            {(item) => (
-              // Keep the finite trigger collection registered. Kobalte otherwise
-              // falls back to the first tab before a newly opened trigger registers.
-              <span style={{ display: openTabs().includes(item.id) ? "contents" : "none" }}>
-                <TabsV2.Trigger
-                  value={item.id}
-                  class="shrink-0"
-                  disabled={!openTabs().includes(item.id)}
-                  closeButton={closeButton(item.id)}
-                  hideCloseButton
-                  onMiddleClick={() => closeTab(item.id)}
-                >
-                  <span class="whitespace-nowrap">{language.t(item.label)}</span>
-                </TabsV2.Trigger>
-              </span>
-            )}
-          </For>
-          <SessionContextTabTrigger contextOpen={contextOpen} onClose={() => closeTab("context")} forceMount />
-        </TabsV2.List>
-
-        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Show when={activeTab() === "reminders"}>
-            <ScrollView class="min-h-0 flex-1">
-              <div class="flex min-w-0 flex-col gap-6 px-3 py-4">
-                <section class="flex min-w-0 flex-col gap-3">
-                  <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.tab.reminders")}</h2>
-                  <ReminderList
-                    pending={reminders()}
-                    error={remindersQuery.isError}
-                    loading={remindersQuery.isLoading}
-                    onCancel={cancelReminder}
-                    onRetry={() => void remindersQuery.refetch()}
-                    emptyLabel={language.t("assistant.dashboard.reminders.empty")}
-                    errorLabel={language.t("assistant.dashboard.loadError")}
-                    showStatus
-                    targetId={target()}
-                  />
-                </section>
-                <section class="flex min-w-0 flex-col gap-3">
-                  <h2 class="text-v2-text-text-base text-13-medium">
-                    {language.t("assistant.panel.reminders.history")}
-                  </h2>
-                  <Show when={inboxQuery.isError}>
-                    <div role="alert" class="flex min-w-0 items-center gap-2">
-                      <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
-                        {language.t("assistant.dashboard.loadError")}
-                      </p>
-                      <ButtonV2 variant="neutral" size="small" onClick={() => void inboxQuery.refetch()}>
-                        {language.t("assistant.citation.retry")}
-                      </ButtonV2>
-                    </div>
-                  </Show>
-                  <Show
-                    when={!inboxQuery.isError && inbox().length > 0}
-                    fallback={
-                      <Show when={!inboxQuery.isError}>
-                        <p class="text-v2-text-text-muted text-13-regular">
-                          {language.t("assistant.panel.reminders.historyEmpty")}
-                        </p>
-                      </Show>
-                    }
+      {/*
+       * The tab bodies read TanStack Solid Query `.data`, which is a `createResource`: a query
+       * with no data yet that is still fetching suspends its reader. Without a boundary here that
+       * suspension escapes to the route boundary in `layout.tsx` and the whole routed Session is
+       * replaced while one panel waits. Keep the shell and the default-tab effect outside this
+       * boundary so only the tab area waits; `Suspense` keeps the mounted subtree alive.
+       */}
+      <Suspense fallback={<SurfacePending owner="slot" class="flex-1 py-6" />}>
+        <TabsV2 value={activeTab()} onChange={selectTab} class="flex min-h-0 flex-1 flex-col">
+          <TabsV2.List
+            class="no-scrollbar flex gap-0.5 overflow-x-auto border-b border-v2-border-border-base px-1"
+            aria-label={language.t("assistant.panel.title")}
+          >
+            <For each={ENTITY_TABS}>
+              {(item) => (
+                // Keep the finite trigger collection registered. Kobalte otherwise
+                // falls back to the first tab before a newly opened trigger registers.
+                <span style={{ display: openTabs().includes(item.id) ? "contents" : "none" }}>
+                  <TabsV2.Trigger
+                    value={item.id}
+                    class="shrink-0"
+                    disabled={!openTabs().includes(item.id)}
+                    closeButton={closeButton(item.id)}
+                    hideCloseButton
+                    onMiddleClick={() => closeTab(item.id)}
                   >
-                    <DeliveryList records={inbox()} onMarkRead={markRead} />
-                  </Show>
-                </section>
-              </div>
-            </ScrollView>
-          </Show>
+                    <span class="whitespace-nowrap">{language.t(item.label)}</span>
+                  </TabsV2.Trigger>
+                </span>
+              )}
+            </For>
+            <SessionContextTabTrigger contextOpen={contextOpen} onClose={() => closeTab("context")} forceMount />
+          </TabsV2.List>
 
-          <Show when={activeTab() === "memory"}>
-            <ScrollView class="min-h-0 flex-1">
-              <div class="flex min-w-0 flex-col gap-6 px-3 py-4">
-                <section class="flex min-w-0 flex-col gap-3">
-                  <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.tab.memory")}</h2>
-                  <Show
-                    when={pendingMemories().length > 0 || confirmedMemories().length > 0}
-                    fallback={
-                      <p class="text-v2-text-text-muted text-13-regular">
-                        {language.t("assistant.panel.memory.empty")}
-                      </p>
-                    }
-                  >
-                    <MemoryInspector
-                      pending={pendingMemories()}
-                      confirmed={confirmedMemories()}
-                      onConfirm={confirmMemory}
-                      onReject={rejectMemory}
-                      onRemove={removeMemory}
+          <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <Show when={activeTab() === "reminders"}>
+              <ScrollView class="min-h-0 flex-1">
+                <div class="flex min-w-0 flex-col gap-6 px-3 py-4">
+                  <section class="flex min-w-0 flex-col gap-3">
+                    <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.tab.reminders")}</h2>
+                    <ReminderList
+                      pending={reminders()}
+                      error={remindersQuery.isError}
+                      loading={remindersQuery.isLoading}
+                      onCancel={cancelReminder}
+                      onRetry={() => void remindersQuery.refetch()}
+                      emptyLabel={language.t("assistant.dashboard.reminders.empty")}
+                      errorLabel={language.t("assistant.dashboard.loadError")}
+                      showStatus
                       targetId={target()}
                     />
-                  </Show>
-                </section>
+                  </section>
+                  <section class="flex min-w-0 flex-col gap-3">
+                    <h2 class="text-v2-text-text-base text-13-medium">
+                      {language.t("assistant.panel.reminders.history")}
+                    </h2>
+                    <Show when={inboxQuery.isError}>
+                      <div role="alert" class="flex min-w-0 items-center gap-2">
+                        <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
+                          {language.t("assistant.dashboard.loadError")}
+                        </p>
+                        <ButtonV2 variant="neutral" size="small" onClick={() => void inboxQuery.refetch()}>
+                          {language.t("assistant.citation.retry")}
+                        </ButtonV2>
+                      </div>
+                    </Show>
+                    <Show
+                      when={!inboxQuery.isError && inbox().length > 0}
+                      fallback={
+                        <Show when={!inboxQuery.isError}>
+                          <p class="text-v2-text-text-muted text-13-regular">
+                            {language.t("assistant.panel.reminders.historyEmpty")}
+                          </p>
+                        </Show>
+                      }
+                    >
+                      <DeliveryList records={inbox()} onMarkRead={markRead} />
+                    </Show>
+                  </section>
+                </div>
+              </ScrollView>
+            </Show>
+
+            <Show when={activeTab() === "memory"}>
+              <ScrollView class="min-h-0 flex-1">
+                <div class="flex min-w-0 flex-col gap-6 px-3 py-4">
+                  <section class="flex min-w-0 flex-col gap-3">
+                    <h2 class="text-v2-text-text-base text-13-medium">{language.t("assistant.panel.tab.memory")}</h2>
+                    <Show
+                      when={pendingMemories().length > 0 || confirmedMemories().length > 0}
+                      fallback={
+                        <p class="text-v2-text-text-muted text-13-regular">
+                          {language.t("assistant.panel.memory.empty")}
+                        </p>
+                      }
+                    >
+                      <MemoryInspector
+                        pending={pendingMemories()}
+                        confirmed={confirmedMemories()}
+                        onConfirm={confirmMemory}
+                        onReject={rejectMemory}
+                        onRemove={removeMemory}
+                        targetId={target()}
+                      />
+                    </Show>
+                  </section>
+                </div>
+              </ScrollView>
+            </Show>
+
+            <Show when={activeTab() === "kb"}>
+              <div class="flex min-h-0 flex-1 flex-col px-3 py-4">
+                <AssistantKbTab
+                  target={target()}
+                  onEditNote={(note) =>
+                    openEntityPanel({
+                      view: view(),
+                      tabs: tabs(),
+                      assistant: assistant(),
+                      kind: "editor",
+                      itemId: note.id,
+                    })
+                  }
+                />
               </div>
-            </ScrollView>
-          </Show>
+            </Show>
 
-          <Show when={activeTab() === "kb"}>
-            <div class="flex min-h-0 flex-1 flex-col px-3 py-4">
-              <AssistantKbTab
-                target={target()}
-                onEditNote={(note) =>
-                  openEntityPanel({
-                    view: view(),
-                    tabs: tabs(),
-                    assistant: assistant(),
-                    kind: "editor",
-                    itemId: note.id,
-                  })
-                }
-              />
-            </div>
-          </Show>
+            <Show when={activeTab() === "editor"}>
+              <div class="flex min-h-0 flex-1 flex-col px-3 py-4">
+                <AssistantNoteEditor
+                  noteId={target()}
+                  onSaved={() => openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: "kb" })}
+                />
+              </div>
+            </Show>
 
-          <Show when={activeTab() === "editor"}>
-            <div class="flex min-h-0 flex-1 flex-col px-3 py-4">
-              <AssistantNoteEditor
-                noteId={target()}
-                onSaved={() => openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant(), kind: "kb" })}
-              />
-            </div>
-          </Show>
-
-          <Show when={activeTab() === "context"}>
-            <div class="relative min-h-0 flex-1 overflow-hidden">
-              <SessionContextTab />
-            </div>
-          </Show>
-        </div>
-      </TabsV2>
+            <Show when={activeTab() === "context"}>
+              <div class="relative min-h-0 flex-1 overflow-hidden">
+                <SessionContextTab />
+              </div>
+            </Show>
+          </div>
+        </TabsV2>
+      </Suspense>
     </SessionRightPanel>
   )
 }
