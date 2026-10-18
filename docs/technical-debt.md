@@ -1323,6 +1323,10 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 - **保留证据**：`assistant-closed-panel.spec.ts` 尝试稿与两次运行日志（gated / no-gate probe）在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/closed-panel-attempt-20261018/`；失败 spec 未留在仓库。
 - **Owner S8；Unlock（更新）**：先打开 Assistant drawer 并加载 KB，再用 note-editor 保存等既有 invalidation 触发共享 `/kb` refetch（在浏览器侧 gate 第二次请求），refetch pending 时关闭 drawer；断言请求不取消、不重放，且 nav tree（共享 observer）收到结果。若走首次打开路径，则需要先移除“打开 drawer 时被 pending 共享读取拖入路由 Suspense”的行为，这属于产品行为变更，不能只改 fixture。
 
+**已收口（2026-10-18，S08-R01 伞形矩阵）**：新增 `packages/app/e2e/regression/assistant-closed-panel.spec.ts` 一条直接 E3，按上述 unlock 路径落地：`/kb` 首次读取立即 200 载入数据 → 导航树打开 KB tab 并 hydrate note → 通过 note-editor 的真实保存动作触发 `assistantKbQueryKeys` invalidation → 第二次 `/kb` 读取被 route gate 持有 → 关闭 drawer（`aria-hidden="true"`、KB tab 卸载）→ 断言无 `requestfailed`、nav tree 在 drawer 关闭期间收到结果（`[data-nav-section="kb"]` 计数 1）→ 释放 gate 后正好 `[200, 200]`、`/kb` 请求数仍为 2 → 重开 drawer 切回 KB tab 仍显示 note、请求数不增（无重放）。**实际运行：1 pass / 38.8s、1 pass / 38.6s（2/2）**；presentation tagging 契约 **5 pass / 35.2s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（1 文件 / 217 新增行）、prettier、`git diff --check` 均 exit0。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/closed-panel-e3/`。
+
+**同轮登记的产品行为风险（owner：App / Assistant；unlock：给 Assistant mode 内容加 panel 局部 Suspense fallback，或避免在首个共享读取 pending 时打开 drawer）**：两次“首次打开即 gate”的尝试都证明，当某个 Assistant 查询**尚无 data 且正在 fetch**时打开 drawer，`useQuery().data` 读的是 TanStack Solid Query 内部的 `createResource`（`@tanstack/solid-query/src/useBaseQuery.ts:380-382`：`queryResource()?.data`，resource 无 initialValue）；该读取会把路由级 Suspense 边界拖入 `surface-pending owner="route"`，整个 Session 主区消失直到读取完成。`/kb` 与 `/kb/dangling` 两个不同查询都能复现，因此不是单个 fixture 问题；本切片不改产品行为，只登记并给出 unlock。
+
 ### 15.44 2026-10-17 S08 / Assistant delivery history 读取失败与显式重试
 
 Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败折叠成 “No deliveries for this session yet.”。现在 `inboxQuery.isError` 显示既有本地化错误 + Retry，失败时不再显示空历史；重试只重取该 query。复用 `assistant.dashboard.loadError` / `assistant.citation.retry`，没有新增接口、Schema、迁移或 i18n key。
