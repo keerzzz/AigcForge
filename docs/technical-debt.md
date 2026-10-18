@@ -1440,6 +1440,10 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **cold tab switch：通过**。5 trials，firstCorrect 中位 **230.0ms**（min 224.5 / max 242.2），stable 中位 **260.3ms**。
 - **cached repaint flash：通过**。1000ms 窗口 53 次观察：blank 51、source 1、wrongDestination 0、unknown 0，末样本 `maxBottomErrorPx=24299.5`。
 - **hot tab switch：本轮未取得**。4 次运行（180s×2、360s、45s probe）全部超时且 0 trace；失败时目标 timeline 为空，`waitForStableSessionSwitch` 永远等不到稳定 destination。保留全部 `playwright.json` 与失败截图。
-- **归因对照（同机、同 launcher、交错执行）**：10-13 bundle hot **通过**（中位 222.1ms）；10-17 中午 bundle hot **两次通过**（中位 211.5 / 224.6ms）；把 §15.52 两个文件回退后按当前源码构建的 bundle hot **同样超时**；当前 bundle hot **超时**。因此该 hot 行为**不是 §15.52 引入**，出现在 10-17 中午 bundle 与 `cfc09090d` 之间；未做逐提交 bisect。
+- **归因对照（同机、同 launcher、交错执行）**：10-13 bundle hot **通过**（中位 222.1ms）；10-17 中午 bundle hot **两次通过**（中位 211.5 / 224.6ms）；把 §15.52 两个文件回退后按当前源码构建的 bundle hot **同样超时**；当前 bundle hot **超时**。因此该 hot 行为**不是 §15.52 引入**。
+- **bisect 结果（三种受控构建，各自构建后运行 hot）**：`nosnapshotseed`（回退 `bef26213a` 的三个文件）hot **1 pass**；`noseed-commands-only`（只回退 `packages/app/src/utils/session-commands.ts`，保留 `prompt-input.tsx` / `custom-snapshot-panel.tsx` 的 HEAD 版本）hot **两次 1 pass**；`preretry-b`（只回退 §15.52 两个文件）hot **超时**。三者的唯一共同差异是 `session-commands.ts`，因此根因锁定在该文件的 `{ initialValue: undefined }` + `snapshot.latest`：Hot 路径第二次进入已访问过的 Session 时目标 timeline 为空。**规格待定**：该 seeding 是为满足 S08 Custom「初始 Snapshot pending 时 Session 仍可见」而加（§15.40），直接回退会破坏那条验收；需要换一种不把读取放进 session route transition 的写法，属新缺陷、不是性能阈值问题。
+- **产品层可见性**：本结论来自 production bundle + stress fixture 的 hot 路径（第二次进入已访问过的 Session tab）；尚未用 dev-server E3 独立复现用户可见性，因此只登记为 hot 样本阻塞项与回归候选，不宣称普通用户路径必然复现。
 - **同一特征的 flash 观察**：flash 末样本也出现空 timeline 与巨大 bottomError，记为同一 open observation，不当作性能数字。
-- **未关闭**：hot 样本、根因 bisect、任何无回归结论。Owner：App/QA（S09 performance）。Unlock：先取得“第二次进入同一 Session 后 timeline 为空”的确定性 trace，再在 `2469dc98a..cfc09090d` 内 bisect。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s09-perf-descriptive-20261018/`。
+- **未关闭**：hot 样本与任何无回归结论；以及上面锁定的 timeline 空态回归本身（未改代码、未做产品层 E3 复现）。
+- **新缺陷登记（不是历史债，属本轮发现）**：`s09-hot-timeline-empty-after-session-revisit`。Owner：App / Session（S08 Custom snapshot 切片）。Unlock：在不把 composition 读取放进 session route transition 的前提下，重新实现 §15.40 的「初始 Snapshot pending 时 Session 可见」；`custom-snapshot-states.spec.ts` 的 pending 用例与 hot benchmark 必须同时通过，再补一条 dev-server E3 直接验收「切回已访问过的 Session 时 timeline 非空」。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s09-perf-descriptive-20261018/`。
