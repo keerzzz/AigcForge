@@ -10,6 +10,7 @@ import type {
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
+import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 
 const directory = "C:/Aigcfroge/CustomSnapshotStates"
 const serverA = "http://127.0.0.1:4097"
@@ -66,8 +67,8 @@ const cors = {
   "access-control-allow-methods": "GET,POST,OPTIONS",
 }
 
-test.beforeEach(async ({ page }) => {
-  await pinEnglishUI(page)
+test.beforeEach(async ({ page }, testInfo) => {
+  if (!testInfo.tags.includes("@presentation")) await pinEnglishUI(page)
   await page.setViewportSize({ width: 1400, height: 900 })
 })
 
@@ -234,7 +235,17 @@ async function openSnapshot(page: Page, state: Wire) {
   )
   await page.goto(`/server/${base64Encode(serverB)}/session/${sessionID}`)
   await expect(page.getByRole("heading", { name: "Custom snapshot source", exact: true })).toBeVisible()
-  await expect(page.locator('[data-component="session-mode-panel"][data-mode="custom"]')).toBeVisible()
+  const panel = page.locator('[data-component="session-mode-panel"][data-mode="custom"]')
+  // The narrow project renders mode panels as a content-panel overlay; open it so the
+  // panel (and its gated read) becomes active, mirroring the user's narrow-mode entry.
+  if (!(await panel.isVisible())) {
+    const toggle = page.locator("#session-mode-panel-toggle")
+    if (await toggle.isVisible()) {
+      await toggle.click()
+      await expect(toggle).toHaveAttribute("aria-expanded", "true")
+    }
+  }
+  await expect(panel).toBeVisible()
   await expect.poll(() => state.snapshotReads).toBeGreaterThan(0)
 }
 
@@ -438,3 +449,68 @@ for (const stage of ["plan", "upgrade"] as const) {
     }
   })
 }
+
+test("AI-TDD-S08-R02: a failed snapshot read is an alert with Retry and reads back", async ({ page }) => {
+  const state = wire()
+  state.snapshot = { status: 500, body: { message: "fixture snapshot failed" } }
+  await openSnapshot(page, state)
+  const panel = page.locator('[data-component="session-mode-panel"][data-mode="custom"]')
+  const alert = panel.getByRole("alert")
+  await expect(alert).toContainText("Could not load this session's composition: fixture snapshot failed")
+  const retry = alert.getByRole("button", { name: "Retry", exact: true })
+  await expect(retry).toBeVisible()
+
+  state.snapshot = { status: 200, body: snapshot }
+  await retry.click()
+  await expect(alert).toHaveCount(0)
+  await expect(panel).toContainText("Snapshot Digest")
+  await expect(panel).toContainText("a".repeat(64))
+  expect(state.snapshotReads).toBeGreaterThan(1)
+})
+
+test(
+  "AI-TDD-S08-R02: a failed snapshot read is visible and retryable in dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const state = wire()
+    state.snapshot = { status: 500, body: { message: "fixture snapshot failed" } }
+    await page.setViewportSize(expected.viewport)
+    await openSnapshot(page, state)
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    const panel = page.locator('[data-component="session-mode-panel"][data-mode="custom"]')
+    const alert = panel.getByRole("alert")
+    const label = expected.lang === "zh" ? "无法加载该会话的组合：" : "Could not load this session's composition:"
+    await expect(alert).toContainText(label, { timeout: 20_000 })
+    const retry = alert.getByRole("button", { name: expected.lang === "zh" ? "重试" : "Retry", exact: true })
+    await expect(retry).toBeVisible()
+    const box = await alert.boundingBox()
+    if (!box) throw new Error("the snapshot error must have a box")
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+    let focused = false
+    for (let index = 0; index < 80 && !focused; index += 1) {
+      await page.keyboard.press("Tab")
+      focused = await retry.evaluate((node) => node === document.activeElement)
+    }
+    expect(focused, "the retry must be keyboard reachable").toBe(true)
+    await expect(retry).toBeFocused()
+    const outline = await retry.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return { style: style.outlineStyle, width: style.outlineWidth }
+    })
+    expect(outline.style).not.toBe("none")
+    expect(Number.parseFloat(outline.width)).toBeGreaterThan(0)
+
+    state.snapshot = { status: 200, body: snapshot }
+    await page.keyboard.press("Enter")
+    await expect(alert).toHaveCount(0)
+    await expect(panel).toContainText("a".repeat(64))
+  },
+)

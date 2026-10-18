@@ -55,7 +55,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
   const source = createMemo(() =>
     whenActive(slotActive(), () => ({ sessionID: props.sessionID, directory: props.directory, sdk: sdk() })),
   )
-  const [snapshotFetch] = createResource(
+  const [snapshotFetch, { refetch: refetchSnapshot }] = createResource(
     source,
     async (source): Promise<SnapshotFetch<Snapshot> & { source: typeof source }> => {
       if (!source.sessionID) return { source, state: "absent" }
@@ -255,12 +255,20 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           </div>
         </Show>
 
-        {/* A failed composition read is reported; only a 404 renders as "no snapshot" */}
+        {/* A failed composition read is reported; only a 404 renders as "no snapshot". The
+            read is retryable in place: a server error is not the same as an absent snapshot,
+            so the panel keeps the failure visible as an alert and re-reads the same session. */}
         <Show when={snapshotError()}>
           {(message) => (
-            <div class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-3 text-12-regular text-v2-state-fg-danger">
+            <div
+              role="alert"
+              class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-3 text-12-regular text-v2-state-fg-danger"
+            >
               <Icon name="warning" size="small" class="shrink-0" />
               <span class="min-w-0 flex-1">{language.t("custom.snapshot.loadFailed", { message: message() })}</span>
+              <ButtonV2 variant="neutral" size="small" onClick={() => void refetchSnapshot()}>
+                {language.t("assistant.citation.retry")}
+              </ButtonV2>
             </div>
           )}
         </Show>
