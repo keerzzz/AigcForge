@@ -213,7 +213,9 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         setUpgradeError(language.t("custom.snapshot.busyError"))
         return
       }
-      setUpgradeError(msg)
+      // Same policy as the failed snapshot read: a localized prefix plus the verbatim
+      // server detail, never a raw English message from the wire.
+      setUpgradeError(language.t("custom.snapshot.upgradeFailed", { message: msg }))
     } finally {
       if (draft() === currentDraft && onSameSession(currentSessionID, currentServerKey) && sdk() === s)
         setUpgrading(false)

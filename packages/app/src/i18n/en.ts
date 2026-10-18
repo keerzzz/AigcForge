@@ -813,6 +813,7 @@ export const dict = {
   "custom.snapshot.upgradeButton": "Upgrade / Edit",
   "custom.snapshot.upgradeSuccess": "Custom composition upgraded successfully",
   "custom.snapshot.busyError": "Session is running, cannot upgrade",
+  "custom.snapshot.upgradeFailed": "Could not upgrade this session's composition: {{message}}",
   "custom.snapshot.digest": "Snapshot Digest",
   "custom.snapshot.rootAgent": "Root Agent",
   "custom.snapshot.undecodable": "The server returned a composition this client cannot read",

@@ -588,3 +588,43 @@ test(
     await expect(page).toHaveURL(new RegExp(`/server/${base64Encode(serverB)}/session/${upgradedID}$`))
   },
 )
+
+test("AI-TDD-S08-R02: a non-busy Upgrade failure is a localized alert with the server detail", async ({ page }) => {
+  const state = wire()
+  state.upgradeStatus = 500
+  await openSnapshot(page, state)
+  const panel = page.locator("#session-mode-panel-custom")
+  await panel.getByRole("button", { name: "Upgrade / Edit", exact: true }).click()
+  const alert = panel.getByRole("alert")
+  await expect(alert).toContainText("Could not upgrade this session's composition: Snapshot upgrade failed")
+})
+
+test(
+  "AI-TDD-S08-R04: a non-busy Upgrade failure is localized at dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const state = wire()
+    state.upgradeStatus = 500
+    await page.setViewportSize(expected.viewport)
+    await openSnapshot(page, state)
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    const panel = page.locator("#session-mode-panel-custom")
+    const upgradeName = expected.lang === "zh" ? "升级 / 编辑" : "Upgrade / Edit"
+    await panel.getByRole("button", { name: upgradeName, exact: true }).click()
+    const alert = panel.getByRole("alert")
+    const prefix = expected.lang === "zh" ? "无法升级该会话的组合：" : "Could not upgrade this session's composition:"
+    await expect(alert).toContainText(prefix)
+    // The server detail stays verbatim after the localized prefix.
+    await expect(alert).toContainText("Snapshot upgrade failed")
+    const box = await alert.boundingBox()
+    if (!box) throw new Error("the Upgrade error must have a box")
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+  },
+)

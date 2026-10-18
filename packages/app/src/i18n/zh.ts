@@ -690,6 +690,7 @@ export const dict = {
   "custom.snapshot.upgradeButton": "升级 / 编辑",
   "custom.snapshot.upgradeSuccess": "自定义组合升级成功",
   "custom.snapshot.busyError": "会话正在运行中，无法升级",
+  "custom.snapshot.upgradeFailed": "无法升级该会话的组合：{{message}}",
   "custom.snapshot.digest": "快照摘要",
   "custom.snapshot.rootAgent": "根智能体",
   "custom.snapshot.undecodable": "服务端返回的组合本客户端无法解析",
