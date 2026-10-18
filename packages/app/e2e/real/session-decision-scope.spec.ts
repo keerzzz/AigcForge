@@ -5,6 +5,11 @@ import { e4, seedRealBackend } from "./fixture"
 import { pinEnglishUI } from "../utils/locale"
 import { expectSessionTitle } from "../utils/waits"
 
+// The dual decision-scope chain exercises the default backend's isolated decision tool;
+// under the V2 runtime that tool chain is not mounted, so this spec requires separate
+// positive dual-backend decision evidence (mirrors the identity-consumers guard).
+test.skip(() => e4().v2Runtime, "Dual decision scope chain runs against the default backend")
+
 const questionDock = (page: Page) => page.locator('[data-component="dock-prompt"][data-kind="question"]')
 const permissionDock = (page: Page) => page.locator('[data-component="dock-prompt"][data-kind="permission"]')
 const customInput = (page: Page) => questionDock(page).locator('[data-slot="question-custom-input"]')
