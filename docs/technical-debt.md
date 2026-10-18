@@ -1630,3 +1630,16 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **同 HEAD 新增复跑**：OpenAPI drift、SDK typecheck、TUI typecheck、TUI 全量（见上表）。
 - **边界**：本条是**验证清单**，不是新的产品行为；不覆盖 initial-load scope/empty-response 组合、cross-Session draft breadth、Custom Start cross-Location/V1 revision 领域策略与其余 E4 矩阵——这些仍按用户决定继续补。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/r05-inventory-20261018/`。
+
+### 15.67 2026-10-18 S08 / initial-load 与 empty-response 极性组合（Assistant panel + Custom absent）
+
+按用户「先补 in-scope 证据」决定，本轮补最容易误判的三类极性：**初始 pending 不等于空、空结果不等于错误、404 absent 不等于读失败**。
+
+- **新增 `assistant-session-panel.spec.ts` 三条**：
+  1. `successful empty knowledge-base list stays empty, not an error`：`/kb` 返回 200 `[]` → 空态文案可见、无 `role=alert`（**1 pass / 39.8s**）。
+  2. `initial pending KB list shows loading, not empty and not an error`：用后注册的 route 持有 `/kb`，打开 KB tab 时断言 **无 route 级 `surface-pending`**、panel 可见、只有 slot 级 fallback、无空态文案、无 alert；释放后 KB tab 出现并显示空态（**1 pass / 39.5s**）。该用例同时锁住 §15.57 的 panel 边界在“初始 pending”组合下的行为。
+  3. `successful empty delivery history stays empty, not an error`：`/delivery/:id` 返回 200 `[]` → 空历史文案可见、无 alert（**1 pass / 38.0s**）。
+- **新增 `custom-snapshot-states.spec.ts` 一条**：`an absent snapshot is not a read failure, and Upgrade stays disabled`：404 absent → `role=alert` count 0、Upgrade 禁用（与 400/500/malformed 的错误态形成极性对照）（**1 pass / 39.2s**）。
+- **回归/门禁**：`assistant-session-panel.spec.ts` 全文件 **19 passed / 2.4m**；`custom-snapshot-states.spec.ts` 全文件 **20 passed / 1.4m**；presentation tagging **5 passed / 31.0s**；App typecheck（含 e2e tsconfig）exit0；增量 lint 修正一次新增用例的 unused `testInfo` 参数后通过（2 文件 / 113 新增行）；prettier、`git diff --check` 全绿。
+- **边界**：覆盖 Assistant panel 的 KB/delivery 与 Custom absent；**dashboard memory/reminders 的空态极性、cross-Session draft breadth、Custom Start cross-Location/V1 revision 领域策略、§7 剩余 E4 矩阵**仍未覆盖，继续按用户决定补。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/polarity-20261018/`。
