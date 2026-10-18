@@ -1527,3 +1527,16 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **边界**：`packages/aigcfroge` 后端完整套件（历史 074 组，按既有 receipt 为多轮数小时量级）**未执行**；desktop/storybook 不在「受影响包」内且未跑；本轮不重跑 E4（§15.47/§15.48 已有 receipts，且本轮无后端改动）。因此不能宣称 S08-R01 全量闭环。
 - **owner / unlock（aigcfroge 完整套件）**：QA/CI；unlock 为按既有 backend group 脚本分批执行并保留每批 JUnit/manifest 证据（参见 §15.22–§15.29 的 001–074 组 receipts），不把本轮的 core/app/session-ui/tui/schema 全绿外推到后端包。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/package-wide-20261018/`（各包完整 stdout：`app-unit.log`、`app-virtualizer.log`、`app-contracts.log`、`session-ui-full.log`、`tui-full.log`、`schema-full.log`、`core-full.log`）。
+
+### 15.59 2026-10-18 S08 / Custom snapshot 读取失败：alert + Retry 与呈现矩阵（RED→GREEN）
+
+**背景**：`custom-snapshot-panel.tsx` 对非 404 的 composition 读取失败只渲染一个 danger 行（无 `role="alert"`、无 Retry），与 §15.44–§15.52 已建立的「读取失败 = 本地化 alert + 显式 Retry」策略不一致；「Custom 错误态矩阵」在 §15.55/§15.57 的边界里仍是 open。
+
+- **RED**：在 `custom-snapshot-states.spec.ts` 新增功能 E3（`state.snapshot=500` → 断言 `role=alert` 文案 + Retry → 切 200 → 点击读回 digest），旧代码 **1 fail / 38.6s**（alert not found），receipt `red.log`。
+- **GREEN**：`custom-snapshot-panel.tsx` 解构 `refetch`，错误行加 `role="alert"` + `ButtonV2` Retry（复用既有 `assistant.citation.retry` i18n；无新 key、无新接口/Schema/迁移）。功能 E3 **1 pass / 38.6s**，helper 修正后复跑 **1 pass / 39.5s**。
+- **呈现矩阵（新增 @presentation E3）**：断言真实 theme/lang/viewport、本地化 `custom.snapshot.loadFailed` 文案、390px alert 不溢出、真实 Tab 到 Retry + focus outline、Enter 重试读回 digest。
+  - 首次运行 `chromium-narrow` **1 fail**：不是产品缺陷——narrow 下 mode panel 是 content-panel overlay，shared helper `openSnapshot` 没有打开浮层，panel 处于 hidden；修正 helper：panel 不可见时点击 `#session-mode-panel-toggle` 并断言 `aria-expanded="true"`（用户的 narrow 入口），无产品改动。修正后 narrow **1 pass / 37.6s**。
+  - base / dark / zh 修正后各 **1 pass / 39.2s、37.7s、39.5s**。
+- **相邻回归**：`custom-snapshot-states.spec.ts` 全文件 **15 passed / 1.3m**（13 既有 + 2 新增）；presentation tagging 契约 **5 passed / 34.9s**；`custom-plan-state` 单测 **25 pass / 35 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 90 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。
+- **未关闭**：Upgrade 失败的 rose 错误行仍无 `role="alert"`、也未进入呈现矩阵（现有 Upgrade 用例只验证请求与状态流转）；Custom 的 404-absent 与 pending 已由既有用例覆盖但不属于本呈现矩阵；完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列仍未验收。Owner：App / Custom；Unlock：按本切片补 Upgrade 错误态的 alert 语义 + 4-project E3。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/custom-error-20261018/`。
