@@ -1488,7 +1488,7 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **新登记的 flake（owner：QA / CI；unlock：拿到重复触发条件或稳定化后复查）**：① `assistant-scheduler` 首轮真实后端偶发两次 provider 调用（expected 1）；② `session-files` 首轮 `find/file` 偶发 `[]`（可能存在工作区索引/ripgrep 二进制就绪竞态）。两者在独立复跑均通过，故当前不判为产品缺陷，但不能计入确定性绿。
 - **§7.5 展示矩阵（本轮实际执行）**：计划点名的共享 `agent-interaction-presentation.spec.ts` 并未创建；仓库已有等价契约实现——`e2e/regression/presentation-matrix.spec.ts`（矩阵定义唯一真源 `e2e/presentation-matrix.ts` 的消费方）+ `presentation-tagging.spec.ts`（tag/项目不变式）+ 各 spec 的 `@presentation`/`@a11y` 标签，matrix project 只跑带标签用例。按此等价口径实跑：矩阵契约 **8 pass / 1.6m**（2 用例 × 4 project，断言真实 theme/lang/viewport、五模式可见性与基础键盘焦点）；tagging 契约 **5 pass / 31.5s**；matrix 三 project（dark/zh/narrow）上：`session-tool-row` **3 pass / 49.2s**、`global-shell-presentation` **3 pass / 46.9s**、`assistant-dashboard` **9 pass / 2.3m**、`assistant-session-panel` **6 pass / 1.7m**、`permission-tier` **3 pass / 46.6s**、`mode-slot-fallback-a11y` **47 pass / 1 flaky fail / 3.2m**（`chromium-zh` 的 `Escape follows the breakpoint in both directions @a11y` 首跑失败，随后复跑 zh ×2 + base ×1 **3 pass / 38.7、38.3、37.2s**，判为 flake 并登记）；`work-review-lifecycle` 的 `@presentation @a11y` 四 project **4/4 pass**（§15.56 前段）。合计 **84 pass + 1 flake（复跑绿）**。
 - **新登记的 flake（owner：App / A11y；unlock：复现重复触发条件后修时序）**：`mode-slot-fallback-a11y.spec.ts` 的 `Escape follows the breakpoint in both directions @a11y` 在 `chromium-zh` 偶发「shrinking back must re-arm Escape」失效（期望 0 实得 1），独立复跑三次均通过。
-- **本轮未执行（因此不能宣称 S08-R01 闭环）**：受影响包「全套」测试（core/app/session-ui/aigcfroge 完整文件集）、S08-R04 的 Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列、S08-R05 家族、P3 closed-drawer fixture、P5 外部项。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/`。
+- **本轮未执行（因此不能宣称 S08-R01 闭环）**：受影响包「全套」测试（core/app/session-ui/aigcfroge 完整文件集；2026-10-18 已补 core/app/session-ui/tui/schema 全量，见 §15.58，aigcfroge 后端完整套件仍未跑）、S08-R04 的 Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列、S08-R05 家族、P3 closed-drawer fixture（已由 §15.43 收口）、P5 外部项。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/`。
 
 ### 15.57 2026-10-18 S08 / Assistant panel 加载边界：路由 Suspense 爆炸半径修复（RED→GREEN）
 
@@ -1507,3 +1507,23 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 
 - Chat / Work / Custom 三个 session mode panel 仍无本地 Suspense 边界，同一失败类仍存在。Owner：App / Modes；Unlock：按本切片先例在各自 panel 的**内容区**（不包住 shell/default-tab 注册）加边界，并各补一条 gate 读取的直接 E3。
 - 无 per-panel ErrorBoundary parity（`mode-workspace.tsx` 的 `SlotError`）；session mode panel 的读取拒绝仍可能到达 app 级 boundary。Owner：App / Modes；Unlock：复用 `SlotError` 模式并补拒绝态 E3。
+
+### 15.58 2026-10-18 S08-R01 / 受影响包全线套件实跑（package-wide）
+
+按 R2 §6/§7「仅跑 -g 新用例不足以关闭本阶段」的要求，在 `f2f5e5252` 上用各包自己的 test 脚本跑**完整文件集**（串行、包内运行，未指定单文件/`-g`）。目的有两个：关闭 S08-R01 的「受影响包全套」缺口，并给本会话的生产改动（`63ac91c2d` 的 session-commands 时序修复、`10e830bb9` 的 assistant panel 边界）提供全包检测网。
+
+| 包                   | 命令                                           | 结果                                                                         |
+| -------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| app（单测）          | `bun --cwd packages/app test:unit`             | **1469 pass / 0 fail / 5462 expect / 157 文件 / 98.70s**                     |
+| app（virtualizer）   | `bun --cwd packages/app test:virtualizer`      | **3 pass / 0 fail / 9 expect / 1 文件 / 1.38s**                              |
+| app（e2e contracts） | `bun --cwd packages/app test:e2e:contracts`    | **56 pass / 0 fail / 190 expect / 7 文件 / 2.73s**                           |
+| session-ui           | `bun --cwd packages/session-ui test`           | **121 pass / 0 fail / 263 expect / 19 文件 / 2.06s**                         |
+| tui                  | `bun --cwd packages/tui test --timeout 30000`  | **221 tests / 1 skip / 0 fail / 8 snapshots / 542 expect / 50 文件 / 9.19s** |
+| schema               | `bun --cwd packages/schema test`               | **324 pass / 0 fail / 876 expect / 28 文件 / 0.43s**                         |
+| core                 | `bun --cwd packages/core test --timeout 30000` | **2640 pass / 3 skip / 0 fail / 8127 expect / 295 文件 / 145.24s**           |
+
+合计 **4834 pass / 4 skip / 0 fail / 17587 expect / 557 文件**，所有包 exit0。日志中出现的 WARN/SQLite lock 探测输出是该测试自身的预期打印（例如 `s2-atomic-batch-deadlock-probe` 的 P1–P4 断言与 asset registry 的 invalid-entry WARN），不是失败。4 个 skip 是各包既有的平台/环境守卫用例；因为包脚本使用 `--only-failures`，本 receipt 未逐一枚举 skip 名称——这是记录口径的缺口，不是新增 skip。
+
+- **边界**：`packages/aigcfroge` 后端完整套件（历史 074 组，按既有 receipt 为多轮数小时量级）**未执行**；desktop/storybook 不在「受影响包」内且未跑；本轮不重跑 E4（§15.47/§15.48 已有 receipts，且本轮无后端改动）。因此不能宣称 S08-R01 全量闭环。
+- **owner / unlock（aigcfroge 完整套件）**：QA/CI；unlock 为按既有 backend group 脚本分批执行并保留每批 JUnit/manifest 证据（参见 §15.22–§15.29 的 001–074 组 receipts），不把本轮的 core/app/session-ui/tui/schema 全绿外推到后端包。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/package-wide-20261018/`（各包完整 stdout：`app-unit.log`、`app-virtualizer.log`、`app-contracts.log`、`session-ui-full.log`、`tui-full.log`、`schema-full.log`、`core-full.log`）。
