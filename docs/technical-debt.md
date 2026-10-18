@@ -1314,6 +1314,15 @@ Sync validation的既有skip也继续开放：静态评审已发现legacy middle
 - **保留失败**：`s08-drawer-shared-kb-*` 三份 receipt；首次窄屏尝试还遇到 `#session-mode-panel-toggle`/viewport 顺序问题，单独保留。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-read-20261017/` 的 `s08-drawer-shared-kb*`。
 - **Owner S8；Unlock**：需要一个能在共享读取仍 pending 时先打开 KB tab 的 fixture，或直接对 query observer/cancel 路径做可观测断言；在得到该证据前，保持 `session-hidden-mode-effects` 的 “closed-panel in-flight/shared-observer” 为 open，不声称已覆盖。本轮没有新增生产代码。
 
+**2026-10-18 复试（S08-R01 伞形矩阵，仍未成立但定位更精确）**：新 fixture 复用 Assistant 会话 + canonical 空历史 + 左侧 AssistantSessionSidebar，把 `/kb` 用 `page.route` gate 住（覆盖路由注册在 `mockAigcfrogeServer` 之后），再点击导航 “Dangling links”。三次观察：
+
+1. **gate 未释放时，路由 Suspense 边界进入 pending**：`main` 内容被替换为 `<div data-component="surface-pending" data-surface-pending="route" role="status" aria-label="Loading">`，`#review-panel[aria-label="Assistant panel"]`、`[data-component="assistant-kb-tab"]`、`session-mode-panel` 全部不存在（body 只剩侧栏与 DebugBar）。这精确解释了 2026-10-17 的“panel/KB tab 不出现”，不是选择器问题。等待 2.5s 仍 pending，只有释放 gate 才恢复。
+2. **同一流程在 `/kb` 不 pending 时可正常工作**（probe：无 gate 打开 KB tab，`surface-pending` 0 个、`#review-panel` 1、KB tab 1、`main` 文本 292 字符）——说明 panel 打开本身没问题，问题与“打开时存在被 gate 的共享读取”相关。
+3. **共享 observer 的代码事实成立**：`AssistantNavTree` 与 `AssistantKbTab`/`AssistantNoteEditor` 都用 `assistantQueryOptions(scope,"kb")`（同一 queryKey）；`useModeQueryActivity` 只在 slot inactive 时 `client.cancelQueries({ queryKey, type: "inactive" })`，即“还有可见 observer 的共享读取不会被取消”。因此验证只需要一条**先打开 drawer、再制造共享 refetch** 的路径，而不是在 pending 时首次打开 drawer。
+
+- **保留证据**：`assistant-closed-panel.spec.ts` 尝试稿与两次运行日志（gated / no-gate probe）在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/closed-panel-attempt-20261018/`；失败 spec 未留在仓库。
+- **Owner S8；Unlock（更新）**：先打开 Assistant drawer 并加载 KB，再用 note-editor 保存等既有 invalidation 触发共享 `/kb` refetch（在浏览器侧 gate 第二次请求），refetch pending 时关闭 drawer；断言请求不取消、不重放，且 nav tree（共享 observer）收到结果。若走首次打开路径，则需要先移除“打开 drawer 时被 pending 共享读取拖入路由 Suspense”的行为，这属于产品行为变更，不能只改 fixture。
+
 ### 15.44 2026-10-17 S08 / Assistant delivery history 读取失败与显式重试
 
 Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败折叠成 “No deliveries for this session yet.”。现在 `inboxQuery.isError` 显示既有本地化错误 + Retry，失败时不再显示空历史；重试只重取该 query。复用 `assistant.dashboard.loadError` / `assistant.citation.retry`，没有新增接口、Schema、迁移或 i18n key。
