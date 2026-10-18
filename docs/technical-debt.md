@@ -1643,3 +1643,17 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **回归/门禁**：`assistant-session-panel.spec.ts` 全文件 **19 passed / 2.4m**；`custom-snapshot-states.spec.ts` 全文件 **20 passed / 1.4m**；presentation tagging **5 passed / 31.0s**；App typecheck（含 e2e tsconfig）exit0；增量 lint 修正一次新增用例的 unused `testInfo` 参数后通过（2 文件 / 113 新增行）；prettier、`git diff --check` 全绿。
 - **边界**：覆盖 Assistant panel 的 KB/delivery 与 Custom absent；**dashboard memory/reminders 的空态极性、cross-Session draft breadth、Custom Start cross-Location/V1 revision 领域策略、§7 剩余 E4 矩阵**仍未覆盖，继续按用户决定补。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/polarity-20261018/`。
+
+### 15.68 2026-10-18 S08 / dashboard initial-load 与 empty-response 极性（reminders / memory / KB）
+
+按用户「先补 in-scope 证据」决定，补齐 §15.67 留下的 dashboard 空态极性。新增 `assistant-dashboard.spec.ts` 独立 describe（180s 预算）4 条 E3：
+
+1. **空 reminder 列表不是错误**：`/schedule/pending` 200 `[]` → 空文案可见、无 `role=alert`（**1 pass / 37.1s**）。
+2. **初始 pending reminder 只等待、不空也不报错**：后注册 route 持有 `/schedule/pending` → 断言 **slot 级** loading 面（`[data-surface-pending="slot"]`，mode-workspace 的 per-slot 边界）出现、空文案 count 0、无 alert；释放后 dashboard heading 与空文案出现、无 alert（**1 pass / 38.8s**）。观察：gated 读取期间 shell 保持挂载，assistant mode slot 显示 loading（本次采样 2 个 slot pending），不是 route 级整页 blanking——属既有边界设计，不登记为缺陷。
+3. **空 memory 列表不是错误**：`/memory` 200 `[]` → 无 alert、`Personal memory` section 不渲染（**1 pass / 41.8s**）。
+4. **空 KB 列表不是错误**：`/kb` 200 `[]` → 空文案可见、无 alert（**1 pass / 38.7s**）。
+
+- **保留失败**：初始 pending 用例迭代 4 次才通过——① 首版断言 heading 可见（gated 时应为 loading 面）→ fail；② 改断言 route 级 `surface-pending`（实际是 slot 级）→ fail；③ 编辑时误删 `page.goto` 导致 poll 超时 → fail；④ 恢复 goto 并断言 slot 级 loading 后通过。四份失败 receipt 均保留。
+- **回归/门禁**：dashboard 全文件 **21 passed / 2.7m**（17 既有 + 4 新增）；presentation tagging **5 passed / 34.7s**；App typecheck（含 e2e tsconfig）exit0；增量 lint（1 文件 / 73 新增行）、prettier、`git diff --check` 全绿。
+- **残余 in-scope**：cross-Session draft breadth、§7 剩余可跑 E4、Custom Start cross-Location / V1 revision 领域策略（需产品确认）；外部/QA-CI 项不变。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/polarity-dashboard-20261018/`。
