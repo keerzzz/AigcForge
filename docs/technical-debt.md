@@ -1775,3 +1775,27 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 #### 结论
 
 计划**未全部闭环**。按计划自己的口径：S00 基线闭环；S01–S07 切片实现与证据基本完成但批次验收/放行记录缺失；S08 仅“本地证据部分”按用户批准收口且仍有未批准的 R02/R06 残项；S09 与最终交付门禁未完成。任何“本期完整交付/全部闭环”的表述都不成立。建议下一步二选一（待用户决定）：① 补齐 S08 三项未批准残项（panel 边界/ErrorBoundary parity 可先测后修，composition 404 需先评估 suspending 读取时序；X01 需 S9C 授权与真实环境）；② 承认上述残项登记，进入 S09 本地交付包（生成逐 R 对账表 + 最终 diff/证据清单 + PR 描述草稿，仍不 push）。
+
+### 15.76 2026-10-18 S08 残项最终处理：用户确认全部接受为登记余量（S08 本地收口最终化）
+
+用户 2026-10-18 对上轮对账（§15.75）中「未列入批准清单」的 SaaS 残项作出决定：**全部接受为登记余量**，并指示下一步进入 S09。据此：
+
+- **接受为余量（不再继续修，保留 owner/unlock）**：
+  1. Chat/Work/Custom 三个 session mode panel 仍无本地 Suspense 边界（§15.57；同失败类在 Assistant 已修，其余面板未修）；
+  2. 无 per-panel ErrorBoundary parity（`mode-workspace.tsx` 的 `SlotError` 未在 session mode panel 复用）；
+  3. 非 custom Session 仍会请求 `/session/:id/composition`（404）且保留 suspending 读取（§15.56 debt）；
+  4. S08-R06 / X01 的 Custom/V2 完整 provider 正向 E4 仍未取得（真实外部 provider 仅一次限定 Flash 正向回合；V2 runtime 下 dual decision 仅 guard、无正证据）。
+- **口径**：接受为余量 ≠ 已修复。§15.73 的 A/B/C + 本条的 1–4 共同构成 S08 的**用户批准收口范围**；S08 仍不能表述为“全量闭环”，但本地证据部分已按用户批准最终收口。manifest 对应条目（`agent-interaction-s08-full-matrix`、`session-hidden-mode-effects`、`v2-runtime-execution-gap`）已同步追加接受记录。
+- 下一步按用户指示进入 S09 本地交付包（§15.77）。
+
+### 15.77 2026-10-18 S09 / 本地交付包（PR stack + 证据索引，未 push/PR）
+
+按用户指示进入 S09，并先了解仓库 Git 工作流与 PR 约定，再在**不 push、不建 PR**的前提下生成本地交付包：
+
+- **Git 事实（命令生成）**：仓库 `origin` = `keerzzz/AigcForge`（PR 目标），`upstream` = `anomalyco/opencode`（fork 父仓，非 PR 目标）；冻结基线 `260e8275b` 是 `origin/main`（`d5376379f`）的祖先，**origin/main 领先 2 个提交**；分支 `agent-ui-tdd` 线性（0 merge commits）、相对冻结基线 107 commits（记录本包后 108）、487 文件 / +46,715 / −99,149。本地 `main` worktree 有未推送提交与 dirty/untracked 文档，不纳入交付。
+- **PR 约定（已核对）**：CONTRIBUTING 要求 **issue-first**（`Closes #`）、PR 标题 conventional（`feat|fix|docs|chore|refactor|test` + 可选 scope）、模板必填（类型/变更/验证/截图/清单）、禁止长 AI 生成描述墙、UI 变更需截图/录屏、PR 尽量小而聚焦；`pr-standards.yml` 会打 `needs:title`/`needs:issue`；CI 由 `ci.yml`（lint + turbo typecheck + turbo test + OpenAPI drift）与 `test.yml`（linux/windows 单测、e2e、HttpApi coverage/auth）+ storybook/pr-standards 组成；E4 **不在 PR 必跑集合**；`.husky/pre-push` 跑 `bun typecheck`。
+- **交付包内容**（`/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s09-delivery-20261018/`）：`README.md`、`commits.txt`、`diffstat.txt`、`changed-files.tsv`、`pr-stack-stats.txt`、`pr-stack.md`、`pr-drafts.md`、`gates.md`、`risks.md`、`evidence-index.md`、`head.txt` 与 gate 日志（含一次 format 命令因含已删除文件 exit2 的失败收据与修正后的通过收据）。
+- **PR stack 建议（按计划批次）**：①`260e8275b..c0426b444` B1+B2（S01–S03，247 文件）；②`c0426b444..70aa2ecec` B3（S04–S05，41 文件）；③`70aa2ecec..173eddb4f` B4（S06，54 文件）；④`173eddb4f..a8d2490a1` B5（S07，68 文件）；⑤`a8d2490a1..HEAD` B6（S08/S09，104 commits，190 文件，35 test / 34 docs / 33 fix / 1 chore）。**不自动拆分**：squash 批次内无内部提交边界，进一步拆分需显式重建提交而非切范围。
+- **本轮新跑门禁（HEAD `7bfedb98b`）**：App typecheck（含 e2e tsconfig）exit0；`LINT_BASE_REF=260e8275b` 增量 lint exit0（413 文件 / 46,715 新增行）；`git diff --check` exit0；修正后的格式检查 exit0（444 个仍存在的改动文件）；ledger 契约 11 pass；**未跑**全仓 `bun turbo typecheck`/`bun turbo test`/全量 lint/CI e2e/Windows/macOS/packaged/real provider（原因与归属见 `gates.md`）。
+- **风险（详见 `risks.md`）**：分支落后 origin/main 2 提交且 `#127` 与 agent/history 面相交，需 rebase/merge 后重跑门禁；无 linked issue；无 UI 截图/录屏；PR 体量大但按批次交审；本地 main 不得作为 PR 基础。
+- **授权状态**：全部提交仍为本地，**未 push、未建 PR、未发布/灰度**；S09 退出要求“最终 diff 获批 + 用户授权 commit/push/PR”，当前在等待用户审阅。下一步只能：用户审阅 diff/证据 → 批准后再执行 rebase、建 issue、push/PR（或继续本地补证）。
