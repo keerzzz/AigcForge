@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 import type { DelegationParticipantInfo, DelegationState, SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { trackPageErrors } from "../utils/errors"
 import { pinEnglishUI } from "../utils/locale"
@@ -131,6 +132,18 @@ async function mockServer(page: Page, events: EventPayload[], config?: Partial<M
     provider: provider(),
     sessions: [session()],
     pageMessages: () => ({ items: [userMessage, assistantMessage] }),
+    // The hub lists every directory agent plus the unassigned bucket. The shared mock now
+    // also exposes meta/assistant-orchestrator (2026-10-15 projection alignment), so pin this
+    // spec's directory to the one agent its assertions are about.
+    agents: [
+      {
+        name: "build",
+        mode: "primary",
+        permission: [],
+        options: {},
+        primaryModes: [...ProductModeAgentPolicy.primaryModes("build")],
+      },
+    ],
     events: () => [
       { directory, payload: { type: "session.status", properties: { sessionID, status: { type: "busy" } } } },
       ...events.splice(0, 1),
@@ -316,6 +329,9 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
 
 test("delegation panel remains usable at a narrow viewport", async ({ page }) => {
   const errors = trackPageErrors(page)
+  page.on("response", (response) => {
+    if (response.status() >= 400) console.log("HUB404", response.status(), response.url())
+  })
   const events: EventPayload[] = []
   await mockServer(page, events, {
     delegations: [
@@ -336,6 +352,9 @@ test("delegation panel remains usable at a narrow viewport", async ({ page }) =>
       },
     ],
   })
+  // Coding sessions never consume the Custom snapshot; the fixture's fidelity 404 for
+  // that request is expected here and unrelated to the delegation panel under test.
+  await page.route("**/session/*/composition*", (route) => route.fulfill({ status: 200, json: {} }))
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
   await expectSessionTitle(page, title)
