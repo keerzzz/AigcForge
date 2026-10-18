@@ -1564,3 +1564,15 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **R04 代表面现状清单**（供后续补面）：已覆盖 shell/matrix 契约、五模式可见性、global shell、session tool row、WorkReview、assistant dashboard（memory/reminder/session-list）、assistant session panel（KB/delivery）、custom snapshot 读取失败与 Upgrade busy、assistant citation overlay、decision surface。**仍未覆盖的代表面**：S01 session-todo-progress、S04 agent-task-hub / prompt-agent-directory（hub 仅有 untagged narrow 用例）、assistant closed-panel 的呈现维度、以及 reduced-motion 目前只在 WorkReview 用例中覆盖。Owner：S8；Unlock：按同一配方为上述每个面各补一条四 project 用例；不要求组合穷举。
 - **记录其他范围决策**：`packages/aigcfroge` 后端完整套件（074 组）登记为 QA/CI 外部项（沿用历史 receipts，本会话不跑）；Custom Upgrade 非 busy 文案只要 en+zh（`parity.test.ts` 只强制 en↔zh；其余 locale 文件为冻结快照，运行时不再注册），后续补 key 时不要求其他语言。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap-20261018/`。
+
+### 15.62 2026-10-18 S08-R04 / S01 todo-progress 呈现与 reduced-motion 矩阵 + 调试残留清理
+
+按用户 2026-10-18 的 R04 收口决定（**补 todo-progress + agent-task-hub 两个面即视为代表覆盖完成**；closed-panel 呈现维度不列入 R04 收口），本轮补 S01 面并把既有 reduced-motion 用例真正带进矩阵：
+
+- **新增 `session-todo-progress.spec.ts` `@presentation` 用例**：真实 theme/lang/viewport（四 project）、本地化 progressbar aria-label（en `1 of 2 todos completed` / zh `已完成 1 个任务（共 2 个）`）、390px track 不溢出、真实 Tab 到 stats 按钮（`:focus-visible`，取 outline 或 ring）、Enter 打开 fold-over 并断言 2 行 checkbox。结果：base **38.0s**、dark **37.2s**、zh **37.8s**、narrow **37.7s**，**4/4 pass**。
+- **reduced-motion 用例加 `@a11y` 标签**（`stops progress animations when reduced motion is requested`）：该 spec 的 beforeEach 改为对 `@presentation`/`@a11y` 用例保留 project locale；矩阵三 project **dark 39.0s / zh 37.2s / narrow 36.9s，3/3 pass**，使 reduced-motion 从「仅 WorkReview 一处」扩展为 S01 track + WorkReview 两处。
+- **清理调试残留**：清点 agent hub 面时发现 2026-10-18 早前对齐 fixture 的提交（`f104a93d3`）误留下 `HUB404` 响应日志（`page.on("response") console.log`）。本轮删除（单独 commit `158aafaf4`），并把「新增测试辅助日志必须随切片清理」记入交付前检查项。
+- **相邻回归/门禁**：todo 全文件 **17 passed / 1.3m**；agent hub 全文件 **8 passed / 1.0m**；presentation tagging **5 passed / 31.5s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 全绿。
+- **R04 代表面剩余（按用户收口决定）**：仅 S04 `agent-task-hub` / `prompt-agent-directory`；closed-panel 呈现维度与组合穷举不在收口范围。Owner：S8；Unlock：按同一配方补一个四 project 用例即可判定 R04 代表覆盖完成。
+- **待办决策**：Custom Upgrade 非 busy 文案已获用户确认采用建议的 en/zh 文案（`Could not upgrade this session's composition: {{message}}` / `无法升级该会话的组合：{{message}}`；`parity.test.ts` 只强制 en↔zh，其余 locale 冻结），作为下一小切片的 ready unlock。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap2-20261018/`。
