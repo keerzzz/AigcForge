@@ -3,9 +3,14 @@ import type { SessionTaskInfo } from "@aigcfroge/sdk/v2"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
+import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 
 // English-label spec — pin the UI language so the zh projects stay green (see utils/locale.ts).
-test.beforeEach(({ page }) => pinEnglishUI(page))
+// Presentation/a11y-tagged cases keep their project locale so the matrix measures real wiring.
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.tags.includes("@presentation") || testInfo.tags.includes("@a11y")) return
+  await pinEnglishUI(page)
+})
 
 const directory = "C:/Aigcfroge/TodoProgressRegression"
 const projectID = "proj_todo_progress_regression"
@@ -431,7 +436,7 @@ test.describe("regression: session todo progress M7 unified track", () => {
     expect(Math.abs(fillBox!.x + fillBox!.width - (nodeBox!.x + nodeBox!.width / 2))).toBeLessThan(1)
   })
 
-  test("stops progress animations when reduced motion is requested", async ({ page }) => {
+  test("stops progress animations when reduced motion is requested", { tag: "@a11y" }, async ({ page }) => {
     const events: EventPayload[] = []
     await page.emulateMedia({ reducedMotion: "reduce" })
     await mockServer(page, events, { tasks: [] })
@@ -444,6 +449,59 @@ test.describe("regression: session todo progress M7 unified track", () => {
     await expect(pulse).toHaveCSS("animation-name", "none")
   })
 })
+
+test(
+  "R04/presentation: the task progress track stays readable and keyboard operable at dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const events: EventPayload[] = []
+    await page.setViewportSize(expected.viewport)
+    await mockServer(page, events)
+    events.push({
+      directory,
+      payload: { type: "task.updated", properties: { sessionID, tasks: [taskA, taskB] } },
+    })
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    const track = page.locator('[data-component="session-todo-progress"]')
+    await expect(track).toBeVisible({ timeout: 15_000 })
+    const label = expected.lang === "zh" ? "已完成 1 个任务（共 2 个）" : "1 of 2 todos completed"
+    await expect(track).toHaveAttribute("aria-label", label)
+    const box = await track.boundingBox()
+    if (!box) throw new Error("the todo progress track must have a box")
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+    const stats = page.locator('[data-component="session-todo-progress-stats"]')
+    await expect(stats).toHaveText("1/2")
+    let focused = false
+    for (let index = 0; index < 100 && !focused; index += 1) {
+      await page.keyboard.press("Tab")
+      focused = await stats.evaluate((node) => node === document.activeElement)
+    }
+    expect(focused, "the task stats control must be keyboard reachable").toBe(true)
+    await expect(stats).toBeFocused()
+    const focus = await stats.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return { visible: node.matches(":focus-visible"), outline: style.outlineStyle, ring: style.boxShadow }
+    })
+    expect(focus.visible).toBe(true)
+    expect(focus.outline !== "none" || focus.ring !== "none").toBe(true)
+
+    await page.keyboard.press("Enter")
+    await expect(stats).toHaveAttribute("aria-expanded", "true")
+    const panel = page.locator('[data-component="session-todo-progress-panel"]')
+    await expect(panel).toBeVisible()
+    await expect(panel.getByRole("checkbox")).toHaveCount(2)
+  },
+)
 
 test.describe("regression: work resume ledger (M1.5)", () => {
   // An interrupted Work run: step 1 completed (with digest), step 2 in_progress.
