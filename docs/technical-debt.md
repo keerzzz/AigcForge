@@ -1598,3 +1598,16 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **回归/门禁**：`custom-snapshot-states.spec.ts` 全文件 **19 passed / 1.3m**（17 既有 + 2 新增）；i18n parity 测试 **1 test / 0 fail / 1539 expect**；presentation tagging **5 passed / 31.9s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（4 文件 / 45 新增行）、prettier、`git diff --check` 全绿。
 - **边界**：只本地化非 busy Upgrade 失败的前缀；服务端 detail 保持英文原文（诊断信息，符合既有 `custom.snapshot.loadFailed` 模式）；409 busy 既有本地化文案不变。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/upgrade-copy-20261018/`。
+
+### 15.65 2026-10-18 S08 交付对账（delivery checkpoint）
+
+**范围**：对 `agent-ui-tdd` 分支在 S08 相关的已交付证据、残余 scope 与外部阻塞做一次人工对账，供用户按计划要求批准/拒绝 scope cut；本切片不改产品代码，只做验证与账本。
+
+- **分支/提交（命令生成）**：分支 `agent-ui-tdd`，HEAD `7405d8317`；相对 `main` merge-base `260e8275b` 共 **95 个提交**；本会话（`47602cc18..HEAD`）**27 个提交**（`fix` 8 / `test` 6 / `docs` 11 / `chore` 1，其余为会话前既有）。工作树干净，无监听/残留进程；`main` 工作树只有既有未触碰改动。
+- **证据目录**：`/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/` 共 **17 个证据目录、19MB**（E3 矩阵、E4 四拓扑、包级全套、custom 错误态、citation/closed-panel、panel boundary、delivery-checkpoint 等）。
+- **检查点复跑（HEAD 上）**：app 单测 **1469 pass / 0 fail / 5463 expect / 157 文件 / 90.57s**；app virtualizer **3 pass**；app contracts **56 pass / 190 expect**；presentation matrix contract **2 passed / 45.8s**；presentation tagging **5 passed / 32.1s**；App typecheck（含 e2e tsconfig）exit0；增量 lint 无改动文件；prettier、`git diff --check`、ledger 契约 11 pass 全绿。
+- **本轮会话已交付**（均有 §15.43–§15.64 与证据）：hot timeline 回归根因修复（dev 2/2 + prod cold/hot/flash）；E4 lifeline **2 pass + 1 expected skip**、默认链 **29 pass / 2 flake(复跑绿) / 5 skip**、V2 **10 pass**、双后端 **12 pass**（teardown gate 全部 passed）；包级全套 **4834 pass / 4 platform skip / 0 fail / 557 文件**；R04 代表覆盖按用户标准收口（matrix/shell、五模式、tool row、WorkReview、dashboard/panel、Custom 错误态、citation、decision、todo、hub、directory；reduced-motion 两处）；citation 直接 E3；closed-drawer 共享 observer；Assistant panel 加载边界；Custom snapshot/Upgrade 错误态 alert+Retry+en/zh 文案；agent hub fixture 对齐与调试残留清理。
+- **用户已明确的范围决定**：R04 采用代表性覆盖、不做组合穷举；closed-panel 呈现维度不列入 R04 收口；`packages/aigcfroge` 后端完整套件为 QA/CI 外部项；Custom 文案只要求 en+zh（`parity.test.ts` 只强制 en↔zh）；所有提交本地、未 push/PR。
+- **残余 scope（S08 内、可继续做）**：① initial-load scope/empty-response 呈现组合；② cross-Session draft breadth（composer draft 已复验，其余 draft 面未覆盖）；③ Custom Start cross-Location completion policy 与 V1 snapshot revision resolution（领域/产品决策）；④ §7 的其余 E4 矩阵（desktop/packaged 等）；⑤ S08-R05 家族验证清单（Task 事件、Question/Permission owner、TUI 投影、生成 SDK 同版本可用性）；⑥ `session-hidden-mode-effects` 剩余组合。以上均需继续投入，部分（③）需产品确认。
+- **外部/QA-CI 残余（无法在本会话闭环）**：`aigcfroge` 后端完整套件；`windows-tui-config-tests`、`windows-worktree-fsmonitor`、真实 packaged Codex/Windows-macOS 打包签名；`sdk-sse-generator-template-maintenance`；`gitlab-duo-placeholder-tests`；`llm-native-openai-recording`；`cli-request-error-correlation`；`cli-renderer-native-crash`；`filesystem-fff-process-isolation`；`assistant-native-provider-coverage`、`assistant-reminder-provider-lifeline`；真实外部 provider/OAuth；release/灰度授权。owner/unlock 均在 manifest 中。
+- **结论口径**：本轮**不能宣称 S08 全量闭环**。按计划「未获批准不能缩减完成定义」，是否把上述残余视为本轮接受的余量、并入 S09 交付检查，需要用户明确批准；本切片只提供对账事实与建议。
