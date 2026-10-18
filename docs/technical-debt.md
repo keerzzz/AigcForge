@@ -1707,3 +1707,35 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **边界（不许含糊）**：guard 只是**不把未支持组合当回归**，不代表 V2 下 dual decision 有正证据；该正证据登记为残余（owner S8/S10；unlock：在 V2 runtime 下补一套 dual decision 正向执行证据，或明确该组合不受支持）。Custom-mode 的 `--repeat-each=2` 亦未跑。
 - **门禁**：App typecheck（含 e2e tsconfig）exit0；增量 lint（1 文件 / 5 行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿；所有 E4 run 的 teardown gate passed（ports free/group gone/workspace clean/backend local/report clean）。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/e4-combined-20261018/`（各拓扑日志、manifest、teardown gate）。
+
+### 15.73 2026-10-18 S08 本地收口决定与接受余量清单（用户批准）
+
+按用户 2026-10-18 对三项清单的明确答复，S08 的**本地可跑证据部分据此收口**；这不是 S08 全量闭环，产品语义、残余验证与外部/QA-CI 项按下表登记为接受余量。清单由 `packages/app/e2e/coverage-manifest.json`（25 条 deferred）与 §15.40–§15.72 的 receipt 生成，不是手写。
+
+**A. 产品语义 3 项 —— 用户选择「接受为余量」**
+
+1. **Assistant note editor 未保存草稿**：接受现行契约（不跨 Session 泄漏、不静默保存、切走丢弃；§15.69 探针）。未写成行为断言，避免把未定产品语义固化为验收。Owner：App/Assistant；Unlock：产品确认需要保留后，新增按 Session 的 draft 存储 + 恢复/清理语义 + E3。
+2. **Followup queue 退役路径**：接受「保留 legacy 只读、不删除」的中间契约（settings 两端把 queue 映射为 steer，`SessionFollowupDock` 仅读旧持久化数据；§15.69）。Owner：App/Composer；Unlock：确认旧 queued 数据的迁移/丢弃策略后，再删除 `SessionFollowupDock`/`queueFollowup`/`editingFollowup` 死路并调整引用。
+3. **Custom Start cross-Location 完成策略 / V1 snapshot revision 领域规则**：接受为需产品口径的余量；未臆定规则、未加行为断言。Owner：Custom/Product；Unlock：Owner 给出跨 Location completion 与 V1 revision 解析口径后，实现 + E3/E4。
+
+**B. 残余验证 2 项 —— 用户选择「跑 repeat-each，V2 证据登记」**
+
+1. **V2 runtime 下 dual decision 正向执行证据**：接受为余量。当前只有 `b0c1554e5` 的 V2 guard（不再把未支持组合当回归），**没有** V2 dual decision 正证据。Owner：S8/S10；Unlock：为 V2 runtime 设计并执行一套 dual decision 正向矩阵，或明确该组合不受支持。
+2. **Custom-mode E4 `--repeat-each=2`**：本轮执行（结果见 §15.74）。
+
+**C. 外部/QA-CI —— 用户确认「全部为外部余量」**
+aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windows-tui-config-tests`、`windows-worktree-fsmonitor`；真实 provider/OAuth（`assistant-native-provider-coverage`、`assistant-reminder-provider-lifeline`）；packaged Codex；`sdk-sse-generator-template-maintenance`；`gitlab-duo-placeholder-tests`；`llm-native-openai-recording`；`cli-request-error-correlation`、`cli-renderer-native-crash`；`filesystem-fff-process-isolation`；release/灰度授权。owner/unlock 均在 manifest 对应条目，本收口不包含。
+
+**结论口径**：S08 本地证据（R01 包级/API/E3/E4、R02 直接测试与错误态/极性、R03 四拓扑 + 组合拓扑 + V2 guard、R04 代表覆盖、R05 验证清单、R06 有限 Flash 路径）按用户决定收口；上述 A/B/C 为接受余量或外部项，**不得表述为已闭环**。S09 本地交付包待本条落账后开始。
+
+### 15.74 2026-10-18 S08 / Custom-mode E4 `--repeat-each=2` 结果与归因（repeat 安全性缺口，非产品回归）
+
+用户决定「跑 repeat-each，V2 证据登记」后的执行结果：
+
+- **全链**：`E4_CUSTOM_MODE=1` + `--repeat-each=2`（72 次执行）→ **60 passed / 4 failed / 8 skipped / 7.1m**，teardown gate passed。4 条失败全部是已知 flaky 对：`assistant-scheduler.spec.ts` 与 `session-files.spec.ts` 各失败两次。
+- **失败迭代归因（命令证据）**：全部失败目录都带 `-repeat1` 后缀（`results` 中 5 个 repeat1 目录；pair 复跑中 scheduler 1 failed 也只在 `-repeat1`，session-files 同）。**repeat0 全部通过**，即失败只出现在同一 run dir 的第二轮。
+- **单独复跑 pair（仍 `--repeat-each=2`）**：scheduler **1 passed / 1 failed / 2.6m**；session-files **5 passed / 1 failed / 1.0m**；两次 teardown gate passed。scheduler 失败断言 `Expected 1, Received 4`（cumulative deliveries = 两轮各 2），session-files 失败为 workspace 内容断言（repeat0 遗留状态）；与「共享 run dir 的 backend DB/workspace 被两轮复用」一致。
+- **结论**：这是 **E4 状态型 spec 的 repeat 安全性缺口**（同一 orchestrator run dir 的 DB/workspace 跨 repeat 复用，而 spec 假设 fresh delivery/workspace），**不是 Custom mode 回归、也不是新增产品缺陷**；默认链 non-repeat 下的偶发 flaky（§15.58/§15.71）是另一层时序问题。两者都需在 spec 侧处理。
+- **登记**：owner S8/S10；unlock：给 `assistant-scheduler` 与 `session-files` 增加 per-repeat 状态隔离（fresh deliveries/workspace 或 spec 级 reset），之后重跑 `--repeat-each=2` 期望 72/0，再作为门禁。**不得把本条写成 repeat-each 通过。**
+- **V2 dual decision 正向证据**：按用户决定登记为接受余量（§15.73 B1），本条不补。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/e4-custom-repeat-20261018/`（全链日志、pair 复跑日志、manifest、teardown gate、repeat1 失败目录）。
