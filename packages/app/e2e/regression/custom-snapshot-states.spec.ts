@@ -514,3 +514,77 @@ test(
     await expect(panel).toContainText("a".repeat(64))
   },
 )
+
+test("AI-TDD-S08-R02: an Upgrade busy failure is a dismissible alert and the button retries", async ({ page }) => {
+  const state = wire()
+  state.upgradeStatus = 409
+  await openSnapshot(page, state)
+  const panel = page.locator("#session-mode-panel-custom")
+  const upgrade = panel.getByRole("button", { name: "Upgrade / Edit", exact: true })
+  await upgrade.click()
+  const alert = panel.getByRole("alert")
+  await expect(alert).toContainText("Session is running, cannot upgrade")
+  await expect(upgrade).toBeEnabled()
+  await alert.getByRole("button", { name: "Dismiss", exact: true }).click()
+  await expect(alert).toHaveCount(0)
+
+  state.upgradeStatus = undefined
+  await upgrade.click()
+  await expect(page).toHaveURL(new RegExp(`/server/${base64Encode(serverB)}/session/${upgradedID}$`))
+})
+
+test(
+  "AI-TDD-S08-R02: an Upgrade busy failure is visible and dismissible in dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const state = wire()
+    state.upgradeStatus = 409
+    await page.setViewportSize(expected.viewport)
+    await openSnapshot(page, state)
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    const panel = page.locator("#session-mode-panel-custom")
+    const upgradeName = expected.lang === "zh" ? "升级 / 编辑" : "Upgrade / Edit"
+    const upgrade = panel.getByRole("button", { name: upgradeName, exact: true })
+    await upgrade.click()
+    const alert = panel.getByRole("alert")
+    const busyLabel = expected.lang === "zh" ? "会话正在运行中，无法升级" : "Session is running, cannot upgrade"
+    await expect(alert).toContainText(busyLabel)
+    const dismiss = alert.getByRole("button", {
+      name: expected.lang === "zh" ? "忽略" : "Dismiss",
+      exact: true,
+    })
+    await expect(dismiss).toBeVisible()
+    const box = await alert.boundingBox()
+    if (!box) throw new Error("the Upgrade error must have a box")
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+    // The alert owns a real keyboard path: real Tab order reaches its Dismiss control.
+    let focused = false
+    for (let index = 0; index < 80 && !focused; index += 1) {
+      await page.keyboard.press("Tab")
+      focused = await dismiss.evaluate((node) => node === document.activeElement)
+    }
+    expect(focused, "the alert dismiss control must be keyboard reachable").toBe(true)
+    await expect(dismiss).toBeFocused()
+    // This control renders its focus affordance as a ring (box-shadow), not an outline.
+    const focus = await dismiss.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return { ring: style.boxShadow, visible: node.matches(":focus-visible") }
+    })
+    expect(focus.visible).toBe(true)
+    expect(focus.ring).not.toBe("none")
+    await page.keyboard.press("Enter")
+    await expect(alert).toHaveCount(0)
+
+    state.upgradeStatus = undefined
+    await upgrade.click()
+    await expect(page).toHaveURL(new RegExp(`/server/${base64Encode(serverB)}/session/${upgradedID}$`))
+  },
+)

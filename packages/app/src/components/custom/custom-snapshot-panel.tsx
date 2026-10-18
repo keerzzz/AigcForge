@@ -242,7 +242,10 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         </div>
 
         <Show when={upgradeError()}>
-          <div class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center justify-between">
+          <div
+            role="alert"
+            class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center justify-between"
+          >
             <span>{upgradeError()}</span>
             <button
               type="button"
