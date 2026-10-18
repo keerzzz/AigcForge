@@ -1576,3 +1576,14 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **R04 代表面剩余（按用户收口决定）**：仅 S04 `agent-task-hub` / `prompt-agent-directory`；closed-panel 呈现维度与组合穷举不在收口范围。Owner：S8；Unlock：按同一配方补一个四 project 用例即可判定 R04 代表覆盖完成。
 - **待办决策**：Custom Upgrade 非 busy 文案已获用户确认采用建议的 en/zh 文案（`Could not upgrade this session's composition: {{message}}` / `无法升级该会话的组合：{{message}}`；`parity.test.ts` 只强制 en↔zh，其余 locale 冻结），作为下一小切片的 ready unlock。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap2-20261018/`。
+
+### 15.63 2026-10-18 S08-R04 / S04 hub + agent directory 呈现补齐 → R04 代表覆盖收口
+
+按用户 2026-10-18 的收口标准（todo-progress + agent-task-hub/prompt-agent-directory 补完即判定 R04 代表覆盖完成；组合穷举不做），本轮补 S04 两个面：
+
+- **agent-task-hub `@presentation` 用例**：真实 theme/lang/viewport（四 project）、本地化入口文案（`common.moreOptions` / `session.agentHub.agents`：en `More options`/`My agents`，zh `更多选项`/`我的智能体`）、真实 Tab 到 More options（`:focus-visible`；该 ghost 图标按钮以 tokenized 背景色表达焦点，断言接受 outline/ring/背景变化之一）、Enter 打开菜单、delegation panel 与 card 可见、panel 在 390px 内不溢出且页面无横向滚动。结果：base **36.3s**、dark **36.2s**、zh **36.1s**、narrow **35.1s**，**4/4 pass**；全文件 **9 passed / 1.1m**。首次 base 失败已保留：仍按 outline/ring 断言 icon button 的焦点，实测仅背景色变化，改为真实可观察 affordance 后通过。
+- **prompt-agent-directory `@presentation` 用例**：键盘输入 `@` 打开目录（输入路径真实键盘）、复用既有鼠标选择路径插入一个 agent part、断言 theme/lang/viewport、390px 无横向滚动、选中后 composer 保持 focused。结果：base **34.5s**、dark **34.9s**、zh **35.5s**、narrow **35.6s**，**4/4 pass**；全文件 **8 passed / 59.3s**。
+- **相邻回归/门禁**：presentation tagging **5 passed / 35.0s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 120 新增行）、prettier、`git diff --check` 全绿。
+- **R04 代表覆盖收口（按用户 2026-10-18 决定）**：已完成 matrix/shell 契约、五模式可见性、global shell、session tool row、WorkReview、assistant dashboard、assistant session panel、custom snapshot/Upgrade 错误态、citation overlay、decision surface、session-todo-progress、agent-task-hub、prompt-agent-directory；reduced-motion 由 todo-progress `@a11y` + WorkReview 覆盖；closed-panel 呈现维度与组合穷举不在收口范围。
+- **仍未关闭（不属于 R04 代表覆盖）**：S08 其他 R 项的残余（如 initial-load scope/empty-response 组合、cross-Session draft breadth、Custom Start cross-Location/V1 revision 领域策略）、§7 的其余 E4 矩阵、S08-R05 家族验证、外部/QA-CI 项（aigcfroge 后端完整套件、Windows/macOS、真实 provider/OAuth、packaged Codex、release/灰度授权），以及已获批但未实现的 Upgrade 非 busy en/zh 文案。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap3-20261018/`。
