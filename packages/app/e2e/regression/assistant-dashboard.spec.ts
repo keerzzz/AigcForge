@@ -828,3 +828,76 @@ function provider() {
     default: { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" },
   }
 }
+
+test.describe("regression: assistant dashboard initial-load and empty polarity", () => {
+  test.describe.configure({ timeout: 180_000 })
+
+  test("AI-TDD-S08-R02: an empty reminder list stays empty, not an error", async ({ page }) => {
+    await mockServer(page, { state: {} })
+    await page.route("**/schedule/pending", (route) => route.fulfill({ json: [] }))
+    await configurePage(page)
+    await page.goto("/mode/assistant")
+    await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible({ timeout: 15_000 })
+    await expect(
+      page.getByText('No pending reminders. Try "remind me to follow up tomorrow at 9am".', { exact: true }),
+    ).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole("alert")).toHaveCount(0)
+  })
+
+  test("AI-TDD-S08-R02: an initial pending reminder read shows loading, not empty and not an error", async ({
+    page,
+  }) => {
+    const gate = Promise.withResolvers<void>()
+    await mockServer(page, { state: {} })
+    // Registered after the fixture route: the most recently registered matching route runs first.
+    await page.route("**/schedule/pending", async (route) => {
+      await gate.promise
+      return route.fulfill({ json: [] })
+    })
+    await configurePage(page)
+    try {
+      await page.goto("/mode/assistant")
+      // The assistant mode slot legitimately stays on its own loading surface until the first
+      // reads settle (the shell stays mounted); the polarity under test is that nothing claims
+      // "empty" or "error" yet.
+      await expect
+        .poll(async () => page.locator('[data-surface-pending="slot"]').count(), { timeout: 15_000 })
+        .toBeGreaterThan(0)
+      await expect(
+        page.getByText('No pending reminders. Try "remind me to follow up tomorrow at 9am".', { exact: true }),
+      ).toHaveCount(0)
+      await expect(page.getByRole("alert")).toHaveCount(0)
+
+      gate.resolve()
+      await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible({ timeout: 15_000 })
+      await expect(
+        page.getByText('No pending reminders. Try "remind me to follow up tomorrow at 9am".', { exact: true }),
+      ).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByRole("alert")).toHaveCount(0)
+    } finally {
+      gate.resolve()
+    }
+  })
+
+  test("AI-TDD-S08-R02: an empty memory list stays empty, not an error", async ({ page }) => {
+    await mockServer(page, { state: {} })
+    await page.route("**/memory", (route) => route.fulfill({ json: [] }))
+    await configurePage(page)
+    await page.goto("/mode/assistant")
+    await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole("alert")).toHaveCount(0)
+    await expect(page.getByRole("heading", { name: "Personal memory", exact: true })).toHaveCount(0)
+  })
+
+  test("AI-TDD-S08-R02: an empty knowledge-base list stays empty, not an error", async ({ page }) => {
+    await mockServer(page, { state: {} })
+    await page.route("**/kb", (route) => route.fulfill({ json: [] }))
+    await configurePage(page)
+    await page.goto("/mode/assistant")
+    await expect(page.getByRole("heading", { name: "Assistant Dashboard" })).toBeVisible({ timeout: 15_000 })
+    await expect(
+      page.getByText("No notes yet. Ask the assistant to save notes into the knowledge base.", { exact: true }),
+    ).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole("alert")).toHaveCount(0)
+  })
+})
