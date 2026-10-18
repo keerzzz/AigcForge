@@ -1432,3 +1432,14 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **重跑通过**：`final-recovery-20261018-post-session-list-b` **exit0 / 4.237s / RECOVERY.json=passed**；`tracked_entries=5513`、`present_files=5499`、`symlinks=14`、`mismatches=[]`、`extra_paths=[]`、`source_unchanged=true`；`base.tar` 69,376,000 bytes / sha256 `d597678c…`；`index.patch` 与 `worktree.patch` 均为 0 字节（干净树）。两份 WorkReview fixture SQLite 副本 `integrity=ok`、外键错误 0，Review 身份/状态/revision 与已保存 artifact revision 对应。
 - **边界（沿用原口径，不扩大）**：只证明该提交的本地字节/执行位/symlink 重建与两份已完成合成 fixture 的副本；不证明生产灾备、旧版本 migration、Location 物理迁移或崩溃后自动续跑。忽略依赖与构建产物。
 - **未关闭**：Windows/macOS 打包与签名、真实外部 provider/OAuth、真实 packaged Codex、release/灰度授权仍为外部阻塞；完整 S08/S09 未关闭。
+
+### 15.54 2026-10-18 S09 / 性能描述性收据（cold 通过、flash 通过、hot 未取得）
+
+在 `473943815` 的生产构建（`s08-r02-app-session-list-final`，1507 文件）上按既有 launcher 串行跑 `e2e/performance` 的 tab/flash 两例，`workers=1`、`retries=0`、隔离 `HOME`/XDG、端口 44786–44797（44785 被外部 `language_server` 占用，因此新增只改端口的 `s08-r02-execute-perf.ts` + `s08-r02.playwright.config.perf.mts`，未改动原 launcher）。**全部为描述性样本，不设阈值，不声称无回归或因果。**
+
+- **cold tab switch：通过**。5 trials，firstCorrect 中位 **230.0ms**（min 224.5 / max 242.2），stable 中位 **260.3ms**。
+- **cached repaint flash：通过**。1000ms 窗口 53 次观察：blank 51、source 1、wrongDestination 0、unknown 0，末样本 `maxBottomErrorPx=24299.5`。
+- **hot tab switch：本轮未取得**。4 次运行（180s×2、360s、45s probe）全部超时且 0 trace；失败时目标 timeline 为空，`waitForStableSessionSwitch` 永远等不到稳定 destination。保留全部 `playwright.json` 与失败截图。
+- **归因对照（同机、同 launcher、交错执行）**：10-13 bundle hot **通过**（中位 222.1ms）；10-17 中午 bundle hot **两次通过**（中位 211.5 / 224.6ms）；把 §15.52 两个文件回退后按当前源码构建的 bundle hot **同样超时**；当前 bundle hot **超时**。因此该 hot 行为**不是 §15.52 引入**，出现在 10-17 中午 bundle 与 `cfc09090d` 之间；未做逐提交 bisect。
+- **同一特征的 flash 观察**：flash 末样本也出现空 timeline 与巨大 bottomError，记为同一 open observation，不当作性能数字。
+- **未关闭**：hot 样本、根因 bisect、任何无回归结论。Owner：App/QA（S09 performance）。Unlock：先取得“第二次进入同一 Session 后 timeline 为空”的确定性 trace，再在 `2469dc98a..cfc09090d` 内 bisect。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s09-perf-descriptive-20261018/`。
