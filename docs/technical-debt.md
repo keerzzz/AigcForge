@@ -1552,3 +1552,15 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **相邻回归**：`custom-snapshot-states.spec.ts` 全文件 **17 passed / 1.8m**（15 既有 + 2 新增）；presentation tagging **5 passed / 46.0s**；`custom-plan-state` 单测 **25 pass / 35 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 78 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。
 - **未关闭**：非 busy 的 Upgrade 失败仍直接展示服务端原始 message（未本地化；需要先确定产品文案再新增 i18n key）；Custom 错误态矩阵仍只覆盖 snapshot 读取失败与 Upgrade busy 两个状态；完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列未验收。Owner：App / Custom；Unlock：确定非 busy 失败文案后复用 `custom.snapshot.loadFailed` 的「本地化前缀 + 原始 detail」模式。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/custom-error-20261018/`。
+
+### 15.61 2026-10-18 S08-R04 / 展示矩阵代表面补齐（decision surface + citation overlay）
+
+**范围决策（用户 2026-10-18 确认）**：R04 按「代表性覆盖」验收——每个新增交互面至少一条四 project `@presentation` 用例（真实 theme/lang/viewport + keyboard 抽检），不做状态 × theme × lang × viewport × keyboard × reduced-motion 的组合穷举。下个任务选为补齐矩阵代表面。
+
+- **新增 citation overlay 四 project 用例**（`assistant-citation.spec.ts`，tag `@presentation`）：错误 overlay 本地化文案、390px 不溢出、真实 Tab 到 Retry（`:focus-visible`、outline 或 ring）、Enter 重试读回 note。base **37.9s**、dark **35.9s**、zh **36.2s**、narrow **35.9s**，4/4 pass；全文件 **3 passed / 44.4s**。
+- **新增 decision surface 四 project 用例**（`session-decision-surface.spec.ts`，tag `["@presentation","@localized"]`，复用该 spec 既有的 `@localized` 跳过英文 pin 的约定）：pending question dock 的本地化 Submit、390px dock 不溢出、真实 Tab 到 Submit、Enter 提交并断言 `questionReplies` 的 path/body。base **36.2s**、dark **36.7s**、zh **35.8s**、narrow **37.1s**，4/4 pass；全文件 **21 passed / 1.9m**。
+  - **保留失败**：首次 base 断言 Submit 的 CSS `outline/ring` 失败——该控件是 legacy primary Button（`data-component="button"`），键盘焦点用 tokenized 背景色变化表示，不设置 outline/ring。改为「focus-visible 可达 + 构图背景色在聚焦后变化」后通过；未用程序化 focus 绕过 Tab 顺序。
+- **相邻回归/门禁**：presentation tagging 契约 **5 passed / 32.6s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 107 新增行）、prettier、`git diff --check` 全绿。
+- **R04 代表面现状清单**（供后续补面）：已覆盖 shell/matrix 契约、五模式可见性、global shell、session tool row、WorkReview、assistant dashboard（memory/reminder/session-list）、assistant session panel（KB/delivery）、custom snapshot 读取失败与 Upgrade busy、assistant citation overlay、decision surface。**仍未覆盖的代表面**：S01 session-todo-progress、S04 agent-task-hub / prompt-agent-directory（hub 仅有 untagged narrow 用例）、assistant closed-panel 的呈现维度、以及 reduced-motion 目前只在 WorkReview 用例中覆盖。Owner：S8；Unlock：按同一配方为上述每个面各补一条四 project 用例；不要求组合穷举。
+- **记录其他范围决策**：`packages/aigcfroge` 后端完整套件（074 组）登记为 QA/CI 外部项（沿用历史 receipts，本会话不跑）；Custom Upgrade 非 busy 文案只要 en+zh（`parity.test.ts` 只强制 en↔zh；其余 locale 文件为冻结快照，运行时不再注册），后续补 key 时不要求其他语言。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap-20261018/`。
