@@ -4,10 +4,14 @@ import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-polic
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { trackPageErrors } from "../utils/errors"
 import { pinEnglishUI } from "../utils/locale"
+import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 import { expectSessionTitle } from "../utils/waits"
 
 // English-label spec — pin the UI language so the zh projects stay green (see utils/locale.ts).
-test.beforeEach(({ page }) => pinEnglishUI(page))
+// Presentation-tagged cases keep the project locale so the matrix measures real wiring.
+test.beforeEach(async ({ page }, testInfo) => {
+  if (!testInfo.tags.includes("@presentation")) await pinEnglishUI(page)
+})
 
 const directory = "C:/Aigcfroge/AgentHubRegression"
 const projectID = "proj_agent_hub_regression"
@@ -628,3 +632,83 @@ async function openS04Hub(page: Page) {
   await expect(hub).toBeVisible()
   return hub
 }
+
+test(
+  "R04/presentation: the delegation panel stays visible and keyboard reachable at dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const events: EventPayload[] = []
+    await page.setViewportSize(expected.viewport)
+    await mockServer(page, events, {
+      delegations: [
+        {
+          delegation: {
+            id: "dlg_presentation",
+            parentSessionID: sessionID,
+            title: "A very long delegation title that must wrap without losing controls",
+            status: "running",
+            rejectionBlocked: false,
+            lastActivityAt: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+          participants: [],
+          turns: [],
+          softExpired: false,
+        },
+      ],
+    })
+    // Coding sessions never consume the Custom snapshot; the fixture's fidelity 404 for
+    // that request is expected here and unrelated to the delegation panel under test.
+    await page.route("**/session/*/composition*", (route) => route.fulfill({ status: 200, json: {} }))
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    const moreOptions = page.locator(
+      `[data-session-title] [aria-label="${expected.lang === "zh" ? "更多选项" : "More options"}"]`,
+    )
+    await expect(moreOptions).toBeVisible()
+    const idleBackground = await moreOptions.evaluate((node) => getComputedStyle(node).backgroundColor)
+    let focused = false
+    for (let index = 0; index < 120 && !focused; index += 1) {
+      await page.keyboard.press("Tab")
+      focused = await moreOptions.evaluate((node) => node === document.activeElement)
+    }
+    expect(focused, "the session options trigger must be keyboard reachable").toBe(true)
+    await expect(moreOptions).toBeFocused()
+    // Ghost icon buttons mark keyboard focus with a tokenized background change rather than
+    // always setting an outline/ring, so accept the visible affordance this control provides.
+    const focus = await moreOptions.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return {
+        visible: node.matches(":focus-visible"),
+        outline: style.outlineStyle,
+        ring: style.boxShadow,
+        background: style.backgroundColor,
+      }
+    })
+    expect(focus.visible).toBe(true)
+    expect(focus.outline !== "none" || focus.ring !== "none" || focus.background !== idleBackground).toBe(true)
+    await page.keyboard.press("Enter")
+
+    await page.getByText(expected.lang === "zh" ? "我的智能体" : "My agents", { exact: true }).click()
+    const panel = page.locator('[data-component="delegation-panel"]')
+    await expect(panel).toBeVisible()
+    const card = panel.locator('[data-component="delegation-card"]')
+    await expect(card).toBeVisible()
+    await expect(card).toContainText("running")
+    const box = await panel.boundingBox()
+    if (!box) throw new Error("the delegation panel must have a box")
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    ).toBe(true)
+  },
+)

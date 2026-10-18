@@ -3,6 +3,7 @@ import { base64Encode } from "@aigcfroge/core/util/encode"
 import type { Agent, CompositionSnapshotV2, Session, SessionMessagesResponse } from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
+import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 import { pinDesktopViewport } from "../utils/viewport"
 import { expectAppVisible, expectSessionTitle, gotoWhenReady } from "../utils/waits"
 
@@ -116,7 +117,8 @@ function sessionWrites(page: Page) {
   return writes
 }
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.tags.includes("@presentation")) return
   await pinEnglishUI(page)
   await pinDesktopViewport(page)
 })
@@ -311,3 +313,35 @@ test("AI-TDD-S04-R06 switching mode entries does not create, reclassify, or disp
   await expect(navigation.getByRole("button", { name: "Coding", exact: true })).toHaveAttribute("aria-pressed", "true")
   expect(writes).toEqual([])
 })
+
+test(
+  "R04/presentation: the @ agent directory opens from the keyboard and fits dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    await page.setViewportSize(expected.viewport)
+    await installMock(page, { agents: [agent("reviewer", { source: "native" })] })
+    await openComposer(page)
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    // The directory is opened from the keyboard; selection keeps the established mouse path.
+    await input(page).click()
+    await input(page).pressSequentially("@")
+    const reviewer = option(page, "reviewer")
+    await expect(reviewer).toBeVisible()
+    const directoryBounds = await reviewer.boundingBox()
+    if (!directoryBounds) throw new Error("the @ directory option must have a box")
+    expect(directoryBounds.x).toBeGreaterThanOrEqual(0)
+    await expect
+      .poll(async () => (await page.locator("body").evaluate((node) => node.scrollWidth)) <= page.viewportSize()!.width)
+      .toBe(true)
+
+    await reviewer.click()
+    await expect(input(page).locator('[data-type="agent"][data-name="reviewer"]')).toHaveCount(1)
+    await expect(input(page)).toBeFocused()
+  },
+)
