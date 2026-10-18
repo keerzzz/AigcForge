@@ -212,6 +212,75 @@ test.describe("regression: assistant dashboard", () => {
   })
 
   test(
+    "AI-TDD-S08-R02: session-list error is visible and retryable in dark, Chinese and 390px",
+    { tag: "@presentation" },
+    async ({ page }, testInfo) => {
+      const expected = {
+        chromium: { scheme: "light", lang: "en" },
+        "chromium-dark": { scheme: "dark", lang: "en" },
+        "chromium-zh": { scheme: "light", lang: "zh" },
+        "chromium-narrow": { scheme: "light", lang: "en" },
+      }[testInfo.project.name]
+      if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+      const narrow = testInfo.project.name === "chromium-narrow"
+      await mockServer(page, { state: {}, sessions: [{ ...session(), mode: "assistant" }] })
+      await page.addInitScript((worktree) => {
+        localStorage.setItem(
+          "aigcfroge.global.dat:server",
+          JSON.stringify({ list: [], projects: { local: [{ worktree, expanded: true }] }, lastProject: {} }),
+        )
+      }, directory)
+      let fail = true
+      await page.route("**/session**", (route) => {
+        const url = new URL(route.request().url())
+        if (route.request().method() !== "GET" || !/^\/(?:api\/)?session$/.test(url.pathname)) return route.fallback()
+        if (!fail) return route.fallback()
+        return route.fulfill({ status: 400, json: { message: "session list failed" } })
+      })
+      if (narrow) await page.setViewportSize({ width: 390, height: 844 })
+
+      await page.goto("/mode/assistant")
+      await expect(
+        page.getByRole("heading", { name: expected.lang === "zh" ? "助手仪表盘" : "Assistant Dashboard" }),
+      ).toBeVisible({ timeout: 15_000 })
+      await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.scheme)
+      expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+      if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+      const alert = page.getByRole("alert")
+      const label = expected.lang === "zh" ? "加载失败，请重试" : "Couldn't load. Try again."
+      await expect(alert).toContainText(label, { timeout: 30_000 })
+      const retry = alert.getByRole("button", { name: expected.lang === "zh" ? "重试" : "Retry", exact: true })
+      await expect(retry).toBeVisible()
+      const box = await alert.boundingBox()
+      if (!box) throw new Error("the session-list error must have a box")
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+      let focused = false
+      for (let index = 0; index < 80 && !focused; index += 1) {
+        await page.keyboard.press("Tab")
+        focused = await retry.evaluate((node) => node === document.activeElement)
+      }
+      expect(focused, "the retry must be keyboard reachable").toBe(true)
+      await expect(retry).toBeFocused()
+      const outline = await retry.evaluate((node) => {
+        const style = getComputedStyle(node)
+        return { style: style.outlineStyle, width: style.outlineWidth }
+      })
+      expect(outline.style).not.toBe("none")
+      expect(Number.parseFloat(outline.width)).toBeGreaterThan(0)
+
+      fail = false
+      await page.keyboard.press("Enter")
+      const row = page.locator('[data-mode-main="assistant"]').locator('[data-component="home-session-row"]')
+      await expect(row).toHaveCount(1, { timeout: 20_000 })
+      await expect(row).toContainText(title)
+      await expect(alert).toHaveCount(0)
+    },
+  )
+
+  test(
     "AI-TDD-S08-R02: reminder error is visible and retryable in dark, Chinese and 390px",
     { tag: "@presentation" },
     async ({ page }, testInfo) => {

@@ -1446,3 +1446,12 @@ dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.
 - **修复后实际运行**：dev-server hot **2 pass / 48.7s、49.5s**（firstCorrect 中位 194.0 / 209.9ms，0 blank、0 wrongDestination）；production bundle `s08-r02-app-session-commands-fix`（1507 文件）cold **1 pass**（中位 303.1ms）、hot **1 pass**（中位 216.4ms，0 blank）、flash **1 pass**（50 观察：blank 1 / source 4 / wrongDestination 0）；Custom pending 及相邻 4 例 **4 pass / 43.5s**；App typecheck exit0；相关单测 **32 pass / 113 assertions**；prettier、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 30 新增行）、`git diff --check` 均 exit0。
 - **未关闭**：hot/flash 仍是描述性样本，统计性无回归裁决仍开放；Windows/macOS 打包、真实外部 provider/OAuth、真实 packaged Codex、release/灰度授权仍为外部阻塞。
 - 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s09-perf-descriptive-20261018/`。
+
+### 15.55 2026-10-18 S08 / session-list 错误态呈现矩阵（base + dark + zh + 390px + 键盘）
+
+在 `assistant-dashboard.spec.ts` 新增 `@presentation` 直接 E3，复用 §15.52 的 `/session` 列表读取失败 fixture 与项目 seed，按 project 断言：`html[data-color-scheme]` = light/dark；`documentElement.lang` = en/zh；narrow = 390×844；本地化错误文案；alert 的 bounding box 在 390px 内无横向溢出；通过真实 Tab 到达 Retry 并断言 focus outline；Enter 重试后读回 assistant Session 行且 alert 消失。
+
+- **逐 project 运行**：`chromium` **1 pass / 42.0s**；`chromium-dark` **1 pass / 41.6s**；`chromium-zh` **1 pass / 43.1s**；`chromium-narrow` **1 pass / 42.4s**。
+- **相邻回归**：session-list 读取失败重试 + 空列表极性对照 **2 pass / 48.1s**。
+- **门禁**：App typecheck（含 e2e tsconfig）exit0；prettier；`LINT_BASE_REF=HEAD` 增量 lint（1 文件 / 69 新增行）；`git diff --check` 均 exit0。
+- **边界**：这是第 5 个错误态的呈现证据（KB、delivery-history、memory、reminder、session-list）；citation 仍缺直接 E3（§15.49），closed-panel 在途/共享 observer（§15.43）、Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/session-list-presentation-20261018/`。
