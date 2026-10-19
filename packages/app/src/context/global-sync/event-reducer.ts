@@ -1,3 +1,5 @@
+import { Equal, Schema } from "effect"
+import { Question } from "@aigcfroge/schema/question"
 import { Binary } from "@aigcfroge/core/util/binary"
 import { produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type {
@@ -5,45 +7,21 @@ import type {
   Part,
   PermissionRequest,
   Project,
-  QuestionRequest,
   Session,
   SessionStatus,
   SessionTaskInfo,
   SnapshotFileDiff,
-  Todo,
 } from "@aigcfroge/sdk/v2/client"
 import { PermissionPendingModel } from "./permission-pending"
+import { PendingEvents } from "./pending-events"
 import type { State, VcsCache } from "./types"
 import type { TaskProgressSnapshot } from "../server-sync"
 import { trimSessions } from "./session-trim"
 import { dropSessionCaches } from "./session-cache"
+import { mergeSessionReview } from "./utils"
 import { diffs as list, message as clean } from "@/utils/diffs"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
-
-/**
- * The V2 permission event buffer exists only to replay events that land while a
- * pending bootstrap is in flight; `loadV2PermissionPending` clears it whenever a
- * load completes. Nothing else clears it, so a Location whose bootstrap stops
- * completing (offline, or a directory the app never re-bootstraps) would grow it
- * for the life of the tab.
- *
- * Dropping the oldest is the safe direction: a load only reads events *newer*
- * than the revision it captured at start, so the entries it needs are always at
- * the tail. Declared tradeoff (CLAUDE.md 方案对冲): a load that stays in flight
- * across more than this many events could lose one and under-report a pending
- * request until the next event or load. The cap is set far above one load window
- * rather than tracking a per-load floor, which would need new store state.
- */
-const PERMISSION_V2_EVENT_CAP = 500
-
-const appendPermissionV2Event = (
-  events: PermissionPendingModel.PermissionV2Event[],
-  event: PermissionPendingModel.PermissionV2Event,
-) => {
-  const next = [...events, event]
-  return next.length > PERMISSION_V2_EVENT_CAP ? next.slice(next.length - PERMISSION_V2_EVENT_CAP) : next
-}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
@@ -80,12 +58,10 @@ export function applyGlobalEvent(input: {
 function cleanupSessionCaches(
   setStore: SetStoreFunction<State>,
   sessionID: string,
-  setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void,
   setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void,
   setSessionTaskProgress?: (sessionID: string, progress: TaskProgressSnapshot | undefined) => void,
 ) {
   if (!sessionID) return
-  setSessionTodo?.(sessionID, undefined)
   setSessionTask?.(sessionID, undefined)
   setSessionTaskProgress?.(sessionID, undefined)
   setStore(
@@ -99,7 +75,6 @@ export function cleanupDroppedSessionCaches(
   store: Store<State>,
   setStore: SetStoreFunction<State>,
   next: Session[],
-  setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void,
   setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void,
   setSessionTaskProgress?: (sessionID: string, progress: TaskProgressSnapshot | undefined) => void,
 ) {
@@ -107,7 +82,6 @@ export function cleanupDroppedSessionCaches(
   const stale = [
     ...Object.keys(store.message),
     ...Object.keys(store.session_diff),
-    ...Object.keys(store.todo),
     ...Object.keys(store.permission),
     ...Object.keys(store.permission_v2),
     ...Object.keys(store.question),
@@ -118,7 +92,6 @@ export function cleanupDroppedSessionCaches(
   ].filter((sessionID, index, list) => !keep.has(sessionID) && list.indexOf(sessionID) === index)
   if (stale.length === 0) return
   for (const sessionID of stale) {
-    setSessionTodo?.(sessionID, undefined)
     setSessionTask?.(sessionID, undefined)
     setSessionTaskProgress?.(sessionID, undefined)
   }
@@ -137,8 +110,8 @@ export function applyDirectoryEvent(input: {
   directory: string
   loadLsp: () => void
   vcsCache?: VcsCache
-  setSessionTodo?: (sessionID: string, todos: Todo[] | undefined) => void
   setSessionTask?: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void
+  invalidateSessionTask?: (sessionID: string) => void
   /** P2: ephemeral progress snapshot for the session's active task. */
   setSessionTaskProgress?: (
     sessionID: string,
@@ -166,11 +139,11 @@ export function applyDirectoryEvent(input: {
       const info = (event.properties as { info: Session }).info
       const result = Binary.search(input.store.session, info.id, (s) => s.id)
       if (result.found) {
-        input.setStore("session", result.index, reconcile(info))
+        input.setStore("session", result.index, reconcile(mergeSessionReview(input.store.session[result.index], info)))
         break
       }
       const next = input.store.session.slice()
-      next.splice(result.index, 0, info)
+      next.splice(result.index, 0, mergeSessionReview(undefined, info))
       const trimmed = trimSessions(next, {
         limit,
         permission: input.store.permission,
@@ -181,7 +154,6 @@ export function applyDirectoryEvent(input: {
         input.store,
         input.setStore,
         trimmed,
-        input.setSessionTodo,
         input.setSessionTask,
         input.setSessionTaskProgress,
       )
@@ -202,23 +174,17 @@ export function applyDirectoryEvent(input: {
             }),
           )
         }
-        cleanupSessionCaches(
-          input.setStore,
-          info.id,
-          input.setSessionTodo,
-          input.setSessionTask,
-          input.setSessionTaskProgress,
-        )
+        cleanupSessionCaches(input.setStore, info.id, input.setSessionTask, input.setSessionTaskProgress)
         if (info.parentID) break
         if (result.found) input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
         break
       }
       if (result.found) {
-        input.setStore("session", result.index, reconcile(info))
+        input.setStore("session", result.index, reconcile(mergeSessionReview(input.store.session[result.index], info)))
         break
       }
       const next = input.store.session.slice()
-      next.splice(result.index, 0, info)
+      next.splice(result.index, 0, mergeSessionReview(undefined, info))
       const trimmed = trimSessions(next, {
         limit,
         permission: input.store.permission,
@@ -229,7 +195,6 @@ export function applyDirectoryEvent(input: {
         input.store,
         input.setStore,
         trimmed,
-        input.setSessionTodo,
         input.setSessionTask,
         input.setSessionTaskProgress,
       )
@@ -246,15 +211,22 @@ export function applyDirectoryEvent(input: {
           }),
         )
       }
-      cleanupSessionCaches(
-        input.setStore,
-        info.id,
-        input.setSessionTodo,
-        input.setSessionTask,
-        input.setSessionTaskProgress,
-      )
+      cleanupSessionCaches(input.setStore, info.id, input.setSessionTask, input.setSessionTaskProgress)
       if (info.parentID) break
       if (result.found) input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
+      break
+    }
+    case "work.review.updated": {
+      const props = event.properties
+      if (!isRecord(props) || typeof props.sessionID !== "string" || !props.sessionID) break
+      if (!isRecord(props.review) || props.revision !== props.review.revision) break
+      const result = Binary.search(input.store.session, props.sessionID, (session) => session.id)
+      if (!result.found) break
+      const current: Parameters<typeof mergeSessionReview>[1] = input.store.session[result.index]
+      const next = mergeSessionReview(current, { ...current, workReview: props.review })
+      // Class decoding creates new instances; duplicates must not republish an unchanged review.
+      if (!next.workReview || Equal.equals(current.workReview, next.workReview)) break
+      input.setStore("session", result.index, reconcile(next))
       break
     }
     case "session.diff": {
@@ -262,23 +234,13 @@ export function applyDirectoryEvent(input: {
       input.setStore("session_diff", props.sessionID, reconcile(list(props.diff), { key: "file" }))
       break
     }
-    case "todo.updated": {
-      const props = event.properties as { sessionID: string; todos: Todo[] }
-      input.setStore("todo", props.sessionID, props.todos)
-      input.setSessionTodo?.(props.sessionID, props.todos)
-      break
-    }
     case "task.updated": {
-      // Narrow the untrusted event payload with predicates (the incremental
-      // lint gate rejects unsafe type assertions on added lines).
       if (!isRecord(event.properties)) break
       const sessionID = event.properties.sessionID
-      const raw = event.properties.tasks
-      if (typeof sessionID !== "string" || !Array.isArray(raw)) break
-      input.setSessionTask?.(
-        sessionID,
-        raw.filter((item): item is SessionTaskInfo => isRecord(item) && typeof item.id === "string"),
-      )
+      if (typeof sessionID !== "string" || !Array.isArray(event.properties.tasks)) break
+      // The transport has no full-list version. Treat every data event as an
+      // invalidation, including clears and delayed events from an older write.
+      input.invalidateSessionTask?.(sessionID)
       break
     }
     case "task.progress": {
@@ -489,7 +451,7 @@ export function applyDirectoryEvent(input: {
       const revision = input.store.permission_v2_revision + 1
       input.setStore("permission_v2_revision", revision)
       input.setStore("permission_v2_events", (events) =>
-        appendPermissionV2Event(events, { revision, type: "asked" as const, request: permission }),
+        PendingEvents.append(events, { revision, type: "asked" as const, request: permission }),
       )
       const permissions = input.store.permission_v2[permission.sessionID]
       if (!permissions) {
@@ -516,7 +478,7 @@ export function applyDirectoryEvent(input: {
       const revision = input.store.permission_v2_revision + 1
       input.setStore("permission_v2_revision", revision)
       input.setStore("permission_v2_events", (events) =>
-        appendPermissionV2Event(events, {
+        PendingEvents.append(events, {
           revision,
           type: "replied" as const,
           sessionID: props.sessionID,
@@ -536,8 +498,16 @@ export function applyDirectoryEvent(input: {
       )
       break
     }
-    case "question.asked": {
-      const question = event.properties as QuestionRequest
+    case "question.v2.asked": {
+      const props = event.properties
+      if (!Schema.is(Question.Request)(props)) break
+      // The wire schema is readonly; the Solid store owns mutable array copies.
+      const question = { ...props, questions: props.questions.map((item) => ({ ...item, options: [...item.options] })) }
+      const revision = input.store.question_revision + 1
+      input.setStore("question_revision", revision)
+      input.setStore("question_events", (events) =>
+        PendingEvents.append(events, { revision, type: "asked", request: question }),
+      )
       const questions = input.store.question[question.sessionID]
       if (!questions) {
         input.setStore("question", question.sessionID, [question])
@@ -557,9 +527,19 @@ export function applyDirectoryEvent(input: {
       )
       break
     }
-    case "question.replied":
-    case "question.rejected": {
+    case "question.v2.replied":
+    case "question.v2.rejected": {
       const props = event.properties as { sessionID: string; requestID: string }
+      const revision = input.store.question_revision + 1
+      input.setStore("question_revision", revision)
+      input.setStore("question_events", (events) =>
+        PendingEvents.append(events, {
+          revision,
+          type: "replied",
+          sessionID: props.sessionID,
+          requestID: props.requestID,
+        }),
+      )
       const questions = input.store.question[props.sessionID]
       if (!questions) break
       const result = Binary.search(questions, props.requestID, (q) => q.id)

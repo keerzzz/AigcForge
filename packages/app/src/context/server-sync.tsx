@@ -2,12 +2,11 @@ import type {
   AigcfrogeClient,
   Config,
   Path,
-  ProductMode,
   Project,
   ProviderAuthResponse,
   SessionTaskInfo,
-  Todo,
 } from "@aigcfroge/sdk/v2/client"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@aigcfroge/core/util/path"
 
@@ -46,15 +45,21 @@ import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } fr
 import { clearSessionPrefetchDirectory } from "./global-sync/session-prefetch"
 import { estimateRootSessionTotal, loadRootSessionsWithFallback, mergeModeSessions } from "./global-sync/session-load"
 import { trimSessions } from "./global-sync/session-trim"
-import { sessionTodoStoreValue } from "./global-sync/session-todo"
 import type { ProjectMeta } from "./global-sync/types"
 import { SESSION_RECENT_LIMIT } from "./global-sync/types"
 import { formatServerError } from "@/utils/server-errors"
-import { queryOptions, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/solid-query"
+import {
+  isCancelledError,
+  queryOptions,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/solid-query"
 import { createRefreshQueue } from "./global-sync/queue"
-import { directoryKey } from "./global-sync/utils"
+import { directoryKey, mergeSessionReview } from "./global-sync/utils"
 import { PathKey } from "@/utils/path-key"
-import { createDirSyncContext } from "./directory-sync"
+import { createDirSyncContext, createTaskReadback } from "./directory-sync"
 import { createSimpleContext } from "@aigcfroge/ui/context"
 import { NormalizedProviderListResponse } from "@aigcfroge/session-ui/context"
 import { createRefCountMap } from "@/utils/refcount"
@@ -71,19 +76,8 @@ type GlobalStore = {
   error?: InitError
   path: Path
   project: Project[]
-  session_todo: {
-    [sessionID: string]: Todo[]
-  }
   session_task: {
     [sessionID: string]: SessionTaskInfo[]
-  }
-  /** Last write recency per session for the todo.updated source (M7 ⑦ freshness). */
-  session_todo_updated_at: {
-    [sessionID: string]: number
-  }
-  /** Last write recency per session for the task.updated source (M7 ⑦ freshness). */
-  session_task_updated_at: {
-    [sessionID: string]: number
   }
   /** P2: ephemeral per-session task progress (latest snapshot for the active task). */
   session_task_progress: {
@@ -111,8 +105,25 @@ function makeQueryOptionsApi(
   scope: ServerScope,
   serverSDK: () => AigcfrogeClient,
   sdkFor: (dir: PathKey) => AigcfrogeClient,
+  unsupportedHistory: () => string,
 ) {
   return {
+    capabilities: () =>
+      queryOptions({
+        queryKey: [scope, "capabilities"] as const,
+        staleTime: Infinity,
+        queryFn: async ({ signal }) => {
+          const response = await serverSDK().experimental.capabilities.get(undefined, { signal, throwOnError: true })
+          const capabilities = response.data
+          if (
+            !capabilities ||
+            !Array.isArray(capabilities.canonicalSessionModes) ||
+            !capabilities.canonicalSessionModes.every(ProductMode.isID)
+          )
+            throw new Error(unsupportedHistory())
+          return capabilities
+        },
+      }),
     globalConfig: () => loadGlobalConfigQuery(scope, serverSDK()),
     projects: () => loadProjectsQuery(scope, serverSDK()),
     providers: (directory: PathKey | null) =>
@@ -122,7 +133,7 @@ function makeQueryOptionsApi(
     agents: (directory: PathKey) => loadAgentsQuery(scope, directory, sdkFor(directory)),
     mcp: (directory: PathKey) => loadMcpQuery(scope, directory, sdkFor(directory)),
     lsp: (directory: PathKey) => loadLspQuery(scope, directory, sdkFor(directory)),
-    sessions: (directory: PathKey, mode?: ProductMode) => ({
+    sessions: (directory: PathKey, mode?: ProductMode.ID) => ({
       queryKey: [scope, directory, "loadSessions", mode] as const,
     }),
   }
@@ -151,7 +162,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     return sdk
   }
 
-  const queryOptionsApi = makeQueryOptionsApi(serverSDK.scope, () => serverSDK.client, sdkFor)
+  const queryOptionsApi = makeQueryOptionsApi(
+    serverSDK.scope,
+    () => serverSDK.client,
+    sdkFor,
+    () => language.t("error.serverSync.sessionHistoryUnsupported"),
+  )
 
   const [configQuery, providerQuery, pathQuery] = useQueries(() => ({
     queries: [queryOptionsApi.globalConfig(), queryOptionsApi.providers(null), queryOptionsApi.path(null)],
@@ -162,10 +178,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       return !bootstrap.isPending
     },
     project: [],
-    session_todo: {},
     session_task: {},
-    session_todo_updated_at: {},
-    session_task_updated_at: {},
     session_task_progress: {},
     provider_auth: {},
     get path() {
@@ -188,6 +201,17 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
   })
 
   const queryClient = useQueryClient()
+  let disposed = false
+  const capabilities = async () => {
+    for (;;) {
+      try {
+        return await queryClient.fetchQuery(queryOptionsApi.capabilities())
+      } catch (error) {
+        // Reconnect cancels the previous process's decision before a fresh read.
+        if (disposed || !isCancelledError(error)) throw error
+      }
+    }
+  }
 
   let bootedAt = 0
   let bootingRoot = false
@@ -195,6 +219,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
   let eventTimer: ReturnType<typeof setTimeout> | undefined
 
   onCleanup(() => {
+    disposed = true
     if (eventFrame !== undefined) cancelAnimationFrame(eventFrame)
     if (eventTimer !== undefined) clearTimeout(eventTimer)
   })
@@ -236,49 +261,31 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     return (setGlobalStore as (...args: unknown[]) => unknown)(...input)
   }) as typeof setGlobalStore
 
-  const setSessionTodo = (sessionID: string, todos: Todo[] | undefined) => {
-    if (!sessionID) return
-    if (!todos) {
-      setGlobalStore(
-        "session_todo",
-        produce((draft) => {
-          delete draft[sessionID]
-        }),
-      )
-      setGlobalStore(
-        "session_todo_updated_at",
-        produce((draft) => {
-          delete draft[sessionID]
-        }),
-      )
-      return
-    }
-    // Id-less V1 projections take direct replacement so subscribers get a fresh
-    // reference (M7 Bug 1-B); id-bearing lists keep fine-grained reconcile.
-    setGlobalStore("session_todo", sessionID, sessionTodoStoreValue(todos))
-    setGlobalStore("session_todo_updated_at", sessionID, Date.now())
-  }
-
-  const setSessionTask = (sessionID: string, tasks: SessionTaskInfo[] | undefined) => {
-    if (!sessionID) return
-    if (!tasks) {
-      setGlobalStore(
-        "session_task",
-        produce((draft) => {
-          delete draft[sessionID]
-        }),
-      )
-      setGlobalStore(
-        "session_task_updated_at",
-        produce((draft) => {
-          delete draft[sessionID]
-        }),
-      )
-      return
-    }
-    setGlobalStore("session_task", sessionID, reconcile(tasks, { key: "id" }))
-    setGlobalStore("session_task_updated_at", sessionID, Date.now())
-  }
+  const task = createTaskReadback({
+    get: ({ directory, sessionID, signal }) =>
+      sdkFor(directory)
+        .session.task.get({ directory, sessionID }, { signal })
+        .then((response) => response.data ?? []),
+    list: ({ directory, signal }) =>
+      sdkFor(directory)
+        .agentTask.list({ directory }, { signal })
+        .then((response) => response.data ?? []),
+    keys: () => Object.keys(globalStore.session_task),
+    write: (sessionID, tasks) => {
+      if (tasks === undefined) {
+        setGlobalStore(
+          "session_task",
+          produce((draft) => {
+            delete draft[sessionID]
+          }),
+        )
+        return
+      }
+      setGlobalStore("session_task", sessionID, reconcile(tasks, { key: "id" }))
+    },
+  })
+  const setSessionTask = task.set
+  onCleanup(() => task.dispose())
 
   // P2: store the latest ephemeral progress snapshot for a session's active task.
   // Keyed by session (not task) for simplicity; the UI checks taskID match before
@@ -337,6 +344,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       for (const bucket of sessionLoads.keys()) {
         if (bucket === key || bucket.startsWith(`${key}\0`)) sessionLoads.delete(bucket)
       }
+      task.disposeDirectory(key)
       sdkCache.delete(key)
       clearProviderRev(serverSDK.scope, key)
       clearSessionPrefetchDirectory(serverSDK.scope, key)
@@ -348,12 +356,29 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     },
   })
 
-  async function loadSessions(directory: string, options?: { limit?: number; mode?: ProductMode }) {
+  async function loadSessions(
+    directory: string,
+    options?: {
+      limit?: number
+      mode?: ProductMode.ID
+      /** Surface the failure to the caller instead of only a toast. Callers that render an
+       * inline retry need the rejection; bootstrap keeps the toast-only default so a failed
+       * list does not also mark the worktree failed. */
+      rethrow?: boolean
+    },
+  ) {
     const key = directoryKey(directory)
     const bucket = options?.mode ? `${key}\0${options.mode}` : key
     const pending = sessionLoads.get(bucket)
     if (pending) {
-      await pending
+      try {
+        await pending
+      } catch (err) {
+        // A caller that renders an inline retry must see the failure; re-fetching here
+        // would turn one failed load into a retry storm per concurrent caller.
+        if (options?.rethrow) throw err
+        return
+      }
       return loadSessions(directory, options)
     }
 
@@ -373,7 +398,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       })
       if (next.length !== store.session.length) {
         setStore("session", reconcile(next, { key: "id" }))
-        cleanupDroppedSessionCaches(store, setStore, next, setSessionTodo, setSessionTask, setSessionTaskProgress)
+        cleanupDroppedSessionCaches(store, setStore, next, setSessionTask, setSessionTaskProgress)
       }
       children.unpin(key)
       return
@@ -391,10 +416,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
             list: (query) => serverSDK.client.session.list(query),
           })
             .then((x) => {
+              const current = new Map(store.session.map((session) => [session.id, session]))
               const nonArchived = (x.data ?? [])
                 .filter((s) => !!s?.id)
                 .filter((s) => !s.time?.archived)
                 .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+                .map((session) => mergeSessionReview(current.get(session.id), session))
               const retained = Math.max(store.limit, options?.limit ?? 0, sessionMeta.get(bucket)?.limit ?? 0)
               if (options?.mode) {
                 const retainedSessions = store.session.filter(
@@ -421,19 +448,14 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
                   }),
                 )
                 setStore("session", reconcile(sessions, { key: "id" }))
-                cleanupDroppedSessionCaches(
-                  store,
-                  setStore,
-                  sessions,
-                  setSessionTodo,
-                  setSessionTask,
-                  setSessionTaskProgress,
-                )
+                cleanupDroppedSessionCaches(store, setStore, sessions, setSessionTask, setSessionTaskProgress)
               })
               sessionMeta.set(bucket, { limit: retained })
             })
             .catch((err) => {
               console.error("Failed to load sessions", err)
+              // Inline surfaces own the user-facing message; the toast would duplicate it.
+              if (options?.rethrow) throw err
               const project = getFilename(directory)
               showToast({
                 title: language.t("toast.session.listFailed.title", { project }),
@@ -445,10 +467,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       .then(() => {})
 
     sessionLoads.set(bucket, promise)
-    void promise.finally(() => {
-      sessionLoads.delete(bucket)
-      children.unpin(key)
-    })
+    void promise
+      .catch(() => {})
+      .finally(() => {
+        sessionLoads.delete(bucket)
+        children.unpin(key)
+      })
     return promise
   }
 
@@ -522,6 +546,20 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
         setGlobalProject: setProjects,
       })
       if (event.type === "server.connected" || event.type === "global.disposed") {
+        // Reverting a cancelled refetch would resolve it with the old cached data.
+        // Reject that decision instead, then let waiting message reads retry.
+        void queryClient.cancelQueries(
+          { queryKey: queryOptionsApi.capabilities().queryKey, exact: true },
+          { revert: false },
+        )
+        void queryClient.invalidateQueries({ queryKey: queryOptionsApi.capabilities().queryKey, refetchType: "none" })
+        const active = task.reset()
+        const directory = Object.keys(children.children)[0]
+        if (active && directory) {
+          void task.loadAll({ directory }).catch((error: unknown) => {
+            console.warn("Task reconnect recovery failed", formatServerError(error, language.t))
+          })
+        }
         if (recent) return
         for (const directory of Object.keys(children.children)) {
           queue.push(directory)
@@ -541,8 +579,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
         store,
         setStore,
         push: queue.push,
-        setSessionTodo,
         setSessionTask,
+        invalidateSessionTask: (sessionID) => {
+          void task.refresh(directory, sessionID).catch((error: unknown) => {
+            console.warn("Task event recovery failed", formatServerError(error, language.t))
+          })
+        },
         setSessionTaskProgress,
         retainedLimit: sessionMeta.get(key)?.limit,
         vcsCache: children.vcsCache.get(key),
@@ -616,15 +658,11 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     peek: children.peek,
     disableMcp: children.disableMcp,
     queryOptions: queryOptionsApi,
+    capabilities,
     // bootstrap,
     updateConfig: updateConfigMutation.mutateAsync,
     project: projectApi,
-    todo: {
-      set: setSessionTodo,
-    },
-    task: {
-      set: setSessionTask,
-    },
+    task,
     mcp: {
       toggle: async (directory: string, name: string) => {
         const key = directoryKey(directory)
@@ -655,7 +693,10 @@ export function createServerSyncContext(serverSDK: ServerSDK) {
   return Object.assign(inner, {
     ensureDirSyncContext: createRefCountMap(
       (dir) => createDirSyncContext(dir, inner, serverSDK),
-      (dir) => inner.disableMcp(dir),
+      (dir) => {
+        inner.task.disposeDirectory(dir)
+        inner.disableMcp(dir)
+      },
       directoryKey,
     ),
   })

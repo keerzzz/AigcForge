@@ -1,5 +1,64 @@
 # V2 Schema Changelog
 
+## 2026-10-19: Assistant Interruption Classification
+
+- Canonical assistant errors and `session.next.step.failed.1` accept `{ type: "interrupted", message }` alongside the existing `unknown` variant. The runner records typed interruption after flushing partial content; ordinary provider failures retain `unknown`.
+- Legacy Assistant history adoption preserves actionable error messages and maps only `MessageAbortedError` to `interrupted`. Existing `unknown` records remain readable and are not reclassified by message text.
+- The experimental event family retains its version; no table or migration changes. SDK and OpenAPI follow the canonical Schema generator.
+
+## 2026-10-12: Custom Session Identity and Delegation Gates
+
+- Existing Custom Session IDs are adopted under the runtime kill switch; the generic creation ban still applies to new Custom roots.
+- Generic HTTP creation checks client capability against stored adopted or parent identity before a create write, including payloads with omitted mode. This identity preflight does not import legacy Assistant history.
+- V2 delegation uses the shared process-scoped Core BackgroundJob registry. Custom permission rewriting keeps the leading fallback deny before declared ask rules, with explicit denies and the unattended ceiling preserved.
+- No public payload/response fields, events, tables or migrations change. Production HttpApi plus actual Node provider HTTP verifies frozen child dispatch/reuse, denial/recovery, and capability checks; the full integration and release matrix remains tracked separately.
+
+## 2026-10-12: Server-Owned Session History Selection
+
+- `GET /experimental/capabilities` adds required `canonicalSessionModes`, derived by the same `ProductModePolicy.shouldUseV2Runtime` rule that selects async prompt execution. The field describes the serving process, not durable Session identity.
+- App message reads await this server-scoped capability before choosing the existing canonical or legacy message API. Reconnect invalidates the selection, including a capability response already in flight.
+- Older servers without this field produce an explicit unsupported-read error. A missing or failed capability response cannot silently select legacy history or replace already rendered messages with an empty result.
+- No Session schema, event, storage migration, legacy `WithParts` response, or conversation double write is introduced. SDK and OpenAPI are regenerated from the existing capabilities endpoint.
+
+## 2026-10-11: Lazy Assistant Legacy History Adoption
+
+- Add the durable `session.next.history.imported.1` event carrying an immutable legacy transcript snapshot. No new table or destructive migration is introduced.
+- Assistant `SessionV2.get` adopts V1 history before canonical reads/admission. Atomic `EventV2.publishBatch` preserves message IDs and ordering; exact retries do not duplicate adoption.
+- Canonical projection and provider lowering consume the imported user/assistant/tool history without executing historical tools or replaying billing. V1 source rows remain available.
+- Mixed V1/canonical conversation history, legacy per-prompt system instructions, reordered compaction tails and unmaterialized remote/tool media fail explicitly pending defined reconciliation rules. Deletion remains available for rejected sessions.
+- On 2026-10-12, actual native loopback HTTP and the production HttpApi web handler verify imported history ordering, continuation, unchanged source/billing and no historical tool replay. Node HTTP/generated SDK tests verify explicit unsupported-history rejection. Browser/restart and broader provider acceptance remain separately tracked in `docs/technical-debt.md` and `packages/app/e2e/coverage-manifest.json`.
+
+## 2026-10-08: WorkReview optional JSON fields (AI-TDD-S07/S09)
+
+- `WorkReview.None.artifact` exposes the current saved binding before a first review, including reload; `WorkArtifact` remains the owner of that binding. No artifact body or second review store is added.
+- Public optional fields are omittable, not nullable. V1 `Session.Info.workReview`, `Review.reopenedFrom`, `None.artifact`, `Unavailable.review`, and the public failure's `committedRevision` now reuse `optionalOmitUndefined`. An explicit domain `undefined` is omitted from JSON instead of becoming an undocumented `null`; defined values retain their existing meaning.
+- The regression covers the actual HTTP JSON codec plus generated SDK parser, read-result codecs and the typed error codec. Empty or mismatched Session bodies cannot pass the no-review assertion. Real E4 asserts the value **and** property presence, without null normalization.
+- This restores the already-published contract; it adds no API, lifecycle state, migration, automatic approval or old-format fallback. The official generator may inline transformed class structures instead of retaining `$ref` names; generated files are not hand-edited. Execution and remaining gates are tracked in `docs/technical-debt.md` §15.10.
+
+## 2026-10-06: Durable WorkReview Binding and Producer (AI-TDD-S06)
+
+> **Status: IMPLEMENTED / LOCAL S06 EVIDENCE COMPLETE (2026-10-07), AWAITING REVIEW — the original lint failure and performance observations remain historical in `docs/technical-debt.md` §15.7; the format repair, passing full lint, and counterbalanced descriptive recheck are recorded in §15.8. No statistical performance or release approval is implied.**
+
+- `WorkReview.Review` is a schema class with required `artifactID` and positive `revision`; the four lifecycle states remain unchanged. The only new transition is explicit stale-open `re_review`, validated against the real current artifact. Approval validity compares both artifact identity and content revision.
+- `WorkReview.Command` rejects unknown fields at its shared class/JSON codec boundary. `None`, `Ready`, and `Unavailable` distinguish read availability from lifecycle state; corrupt/missing required metadata is never treated as initial revision zero.
+- The Location-scoped producer uses SQLite conditional updates of the sole `metadata.workReview` key, preserving unrelated metadata. `WorkArtifact` persists its current reference to `metadata.workArtifact` after its file mutation and revalidates paths/content on subsequent reads; no table migration or old-format fallback is introduced.
+- Both current Session read schemas expose the same optional `workReview`. Generic Session writes and stale projection events cannot overwrite Work-owned keys; forks do not transfer a review's artifact identity.
+- Existing `server.session` gains `/api/session/:sessionID/work-review` GET and POST with `v2.session.workReview.get` and `v2.session.workReview.transition`. EventV2 gains `work.review.updated`; generated SDK/OpenAPI follow the generator, not hand-written client methods.
+- `optionalOmitUndefined` now targets the type-only schema after decoding. This fixes applying a class codec twice when an optional class value is serialized; a real encode failure and schema regression tests cover the boundary.
+- S07 user-facing review controls, broad E4/provider matrices, and release authorization are not part of this API slice.
+
+## 2026-10-03: One Current Question Contract (AI-TDD-S03)
+
+> **Status: IMPLEMENTED — package, HTTP, browser, and transport gates are recorded in `docs/technical-debt.md` §15.**
+
+- `QuestionV2` in `packages/core/src/question.ts` is the sole pending-request owner. `LocationServiceMap` materializes it per complete `Location.Ref` (directory plus optional workspace identity). Both registered execution runtimes and the default `plan_exit` producer use this owner; default tools no longer own an independent pending map. The default question tool also reuses the canonical tool input, description, and model-output formatter.
+- The current event family is `question.v2.asked/replied/rejected`. App, TUI, and CLI consume it directly, not through event renaming or a second pending store. Historical tool-part content is unchanged.
+- Wire schemas are shared from the pure `packages/schema/src/question.ts` module; Core retains the service and ID generation. Browser consumers and historical tool rendering use the same decoders without importing Core runtime services or rewriting durable history. This relocation leaves generated v2 SDK types/methods byte-identical; the live OpenAPI drift check remains green.
+- Pending snapshot loading replays Question and Permission events by revision and rejects superseded load epochs. The bounded 500-event window is synchronization metadata, not a second pending owner; if required events have been evicted, the loader fetches a fresh snapshot rather than resurrecting settled requests or dropping newly asked ones.
+- The current listing endpoints are `GET /api/question/request` (Location envelope) and `GET /api/session/:sessionID/question`. Decisions use `POST /api/session/:sessionID/question/:requestID/reply|reject` and return 204. They resolve the Session's persisted Location and verify request ownership; missing, settled, and foreign-owner requests return 404 without settling another request.
+- The independent application Question service, `QuestionID` newtype, and `/question`, `/question/:requestID/reply`, `/question/:requestID/reject` routes are retired. The generated v2 SDK and OpenAPI snapshot follow the current contract. Callers capture the request's actual Session ID and original scoped client before sending; there is no write fallback to the removed routes.
+- No durable schema or data migration, no permission-tier change, and no historical transcript conversion. This is an atomic current-client/server switch, not an old-client compatibility window. Release and rollout remain separately gated by the implementation plan.
+
 ## 2026-08-28: MCP Binding Admission Boundary Correction
 
 > **Status: IMPLEMENTED (JSON-path strict decode + excess-key redaction + widened secret patterns)**

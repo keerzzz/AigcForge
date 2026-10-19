@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
-import { AigcfrogeClient, type GlobalEvent } from "@aigcfroge/sdk/v2"
+import {
+  AigcfrogeClient,
+  createAigcfrogeClient,
+  type GlobalEvent,
+  type QuestionV2Request,
+  type SessionV2Info,
+} from "@aigcfroge/sdk/v2"
 import { createSessionTransport } from "@/cli/cmd/run/stream.transport"
 import type { FooterApi, FooterEvent, LocalReplayRow, RunFilePart, StreamCommit } from "@/cli/cmd/run/types"
 
@@ -415,6 +421,24 @@ function footer(fn?: (commit: StreamCommit) => void) {
   }
 }
 
+function nativeSession(sessionID: string, location: SessionV2Info["location"] = { directory: "/tmp" }): SessionV2Info {
+  return {
+    id: sessionID,
+    slug: sessionID,
+    version: "test",
+    projectID: "project-1",
+    title: sessionID,
+    location,
+    cost: 0,
+    tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+    time: { created: 1, updated: 1 },
+  }
+}
+
+function questionResponse(data: QuestionV2Request[]) {
+  return ok({ location: { directory: "/tmp", project: { id: "project-1", directory: "/tmp" } }, data })
+}
+
 function sdk(
   input: {
     stream?: EventStream
@@ -426,10 +450,17 @@ function sdk(
     messages?: AigcfrogeClient["session"]["messages"]
     children?: AigcfrogeClient["session"]["children"]
     permissions?: AigcfrogeClient["permission"]["list"]
-    questions?: AigcfrogeClient["question"]["list"]
+    questions?: AigcfrogeClient["v2"]["question"]["request"]["list"]
+    fetch?: typeof fetch
+    location?: SessionV2Info["location"]
   } = {},
 ) {
-  const client = new AigcfrogeClient()
+  const client = createAigcfrogeClient({
+    baseUrl: "https://aigcfroge.test",
+    directory: input.location?.directory,
+    experimental_workspaceID: input.location?.workspaceID,
+    fetch: input.fetch ?? Object.assign(async () => new Response(null, { status: 404 }), { preconnect() {} }),
+  })
 
   const subscribe: AigcfrogeClient["event"]["subscribe"] = input.subscribe ?? (() => sse(input.stream ?? emptyStream()))
   const globalEvent: AigcfrogeClient["global"]["event"] =
@@ -439,7 +470,8 @@ function sdk(
   const messages: AigcfrogeClient["session"]["messages"] = input.messages ?? (() => ok([]))
   const children: AigcfrogeClient["session"]["children"] = input.children ?? (() => ok([]))
   const permissions: AigcfrogeClient["permission"]["list"] = input.permissions ?? (() => ok([]))
-  const questions: AigcfrogeClient["question"]["list"] = input.questions ?? (() => ok([]))
+  const questions: AigcfrogeClient["v2"]["question"]["request"]["list"] =
+    input.questions ?? (() => questionResponse([]))
 
   spyOn(client.event, "subscribe").mockImplementation(subscribe)
   spyOn(client.global, "event").mockImplementation(globalEvent)
@@ -448,7 +480,12 @@ function sdk(
   spyOn(client.session, "messages").mockImplementation(messages)
   spyOn(client.session, "children").mockImplementation(children)
   spyOn(client.permission, "list").mockImplementation(permissions)
-  spyOn(client.question, "list").mockImplementation(questions)
+  if (!input.fetch) {
+    spyOn(client.v2.question.request, "list").mockImplementation(questions)
+    spyOn(client.v2.session, "get").mockImplementation((parameters) =>
+      ok({ data: nativeSession(parameters.sessionID) }),
+    )
+  }
 
   return client
 }
@@ -1761,7 +1798,7 @@ describe("run stream transport", () => {
     }
   })
 
-  test("recovers pending questions from question.list when question.asked is missed", async () => {
+  test("recovers pending questions from native request.list when question.v2.asked is missed", async () => {
     const src = eventFeed()
     const ui = footer()
     let questionCalls = 0
@@ -1786,7 +1823,7 @@ describe("run stream transport", () => {
         stream: src.stream,
         questions: async () => {
           questionCalls += 1
-          return ok(questionCalls > 1 ? [request] : [])
+          return questionResponse(questionCalls > 1 ? [request] : [])
         },
         promptAsync: async () => {
           queueMicrotask(() => {
@@ -1884,7 +1921,7 @@ describe("run stream transport", () => {
     }
   })
 
-  test("does not resurrect questions if question.list resolves after tool completion", async () => {
+  test("does not resurrect questions if native request.list resolves after tool completion", async () => {
     const src = eventFeed()
     const ui = footer()
     const started = defer()
@@ -1904,7 +1941,7 @@ describe("run stream transport", () => {
         callID: "call-question-race-1",
       },
     }
-    const pending = defer<Awaited<ReturnType<typeof ok<(typeof request)[]>>>>()
+    const pending = defer<Awaited<ReturnType<typeof questionResponse>>>()
     let questionCalls = 0
     const transport = await createSessionTransport({
       sdk: sdk({
@@ -1912,7 +1949,7 @@ describe("run stream transport", () => {
         questions: async () => {
           questionCalls += 1
           if (questionCalls === 1) {
-            return ok([])
+            return questionResponse([])
           }
 
           if (questionCalls === 2) {
@@ -1920,7 +1957,7 @@ describe("run stream transport", () => {
             return pending.promise
           }
 
-          return ok([])
+          return questionResponse([])
         },
         promptAsync: async () => {
           queueMicrotask(() => {
@@ -1988,7 +2025,7 @@ describe("run stream transport", () => {
         )
         return commit ? true : undefined
       })
-      pending.resolve(ok([request]))
+      pending.resolve(questionResponse([request]))
 
       await Bun.sleep(50)
 
@@ -2363,3 +2400,108 @@ describe("run stream transport", () => {
     }
   })
 })
+
+for (const workspaceID of ["workspace-owner", undefined]) {
+  for (const settled of ["question.v2.replied", "question.v2.rejected"] as const) {
+    test(`native Question transport preserves ${workspaceID ? "workspace" : "implicit-local"} Location, child owners and ${settled} through replay`, async () => {
+      const src = eventFeed()
+      const ui = footer()
+      const location = { directory: "/owner/project", workspaceID }
+      const parent: QuestionV2Request = { id: "question-parent", sessionID: "session-1", questions: [] }
+      const childRequest: QuestionV2Request = { id: "question-child", sessionID: "child-1", questions: [] }
+      const unrelated: QuestionV2Request = { id: "question-other", sessionID: "other-session", questions: [] }
+      const requests: URL[] = []
+      const childTool = runningTool({
+        id: "task-1",
+        sessionID: "session-1",
+        messageID: "msg-1",
+        callID: "task-call-1",
+        tool: "task",
+        body: { description: "Inspect child", subagent_type: "explore" },
+        metadata: { sessionId: "child-1" },
+      })
+      const transport = await createSessionTransport({
+        sdk: sdk({
+          stream: src.stream,
+          location: { directory: "/selected/client-directory", workspaceID: "selected-workspace" },
+          messages: () => ok([assistantMessage({ sessionID: "session-1", id: "msg-1", parts: [childTool] })]),
+          children: () => ok([child("child-1")]),
+          fetch: Object.assign(
+            async (input: RequestInfo | URL) => {
+              const url = new URL(input instanceof Request ? input.url : String(input))
+              requests.push(url)
+              if (url.pathname === "/api/session/session-1")
+                return Response.json({ data: nativeSession("session-1", location) })
+              if (url.pathname === "/api/question/request")
+                return Response.json({
+                  location: { ...location, project: { id: "project-1", directory: "/owner" } },
+                  data: [parent, childRequest, unrelated],
+                })
+              return new Response(null, { status: 404 })
+            },
+            { preconnect() {} },
+          ),
+        }),
+        directory: "/selected/other-directory",
+        sessionID: "session-1",
+        thinking: false,
+        replay: true,
+        limits: () => ({}),
+        footer: ui.api,
+      })
+
+      try {
+        const queries = () => requests.filter((url) => url.pathname === "/api/question/request")
+        expect(queries()).toHaveLength(1)
+        expect(queries()[0].searchParams.get("location[directory]")).toBe(location.directory)
+        expect(queries()[0].searchParams.get("location[workspace]")).toBe(location.workspaceID ?? null)
+        expect(ui.events).toContainEqual({ type: "stream.view", view: { type: "question", request: childRequest } })
+        expect(ui.events.filter((event) => event.type === "stream.view")).not.toContainEqual({
+          type: "stream.view",
+          view: { type: "question", request: unrelated },
+        })
+
+        const result = await transport.replayOnResize({ localRows: () => [], reset: async () => {} })
+        expect(result).toBe(true)
+        expect(queries()).toHaveLength(2)
+        expect(queries()[1].searchParams.get("location[directory]")).toBe(location.directory)
+        expect(queries()[1].searchParams.get("location[workspace]")).toBe(location.workspaceID ?? null)
+
+        const properties = { sessionID: childRequest.sessionID, requestID: childRequest.id }
+        src.push(
+          settled === "question.v2.replied"
+            ? { id: "child-settled", type: settled, properties: { ...properties, answers: [] } }
+            : { id: "child-settled", type: settled, properties },
+        )
+        await waitFor(() => {
+          const event = ui.events.findLast((event) => event.type === "stream.view")
+          return event?.type === "stream.view" && event.view.type === "question" && event.view.request.id === parent.id
+            ? true
+            : undefined
+        })
+        const arriving = { ...childRequest, id: "question-child-next" }
+        src.push({ id: "child-next", type: "question.v2.asked", properties: arriving })
+        src.push({
+          id: "parent-settled",
+          type: "question.v2.rejected",
+          properties: { sessionID: parent.sessionID, requestID: parent.id },
+        })
+        await waitFor(() => {
+          const event = ui.events.findLast((event) => event.type === "stream.view")
+          return event?.type === "stream.view" &&
+            event.view.type === "question" &&
+            event.view.request.id === arriving.id
+            ? true
+            : undefined
+        })
+        expect(ui.events.findLast((event) => event.type === "stream.view")).toEqual({
+          type: "stream.view",
+          view: { type: "question", request: arriving },
+        })
+      } finally {
+        src.close()
+        await transport.close()
+      }
+    })
+  }
+}

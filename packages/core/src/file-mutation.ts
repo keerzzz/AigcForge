@@ -63,7 +63,18 @@ export interface AtomicWriteResult {
   readonly priorBytes: Uint8Array | null
 }
 
+/** Operations for the already-held target; do not acquire its lock again inside the callback. */
+export interface LockedTarget {
+  readonly create: (content: WriteInput["content"]) => Effect.Effect<WriteResult, TargetExistsError | FSUtil.Error>
+  readonly writeAtomic: (content: WriteInput["content"]) => Effect.Effect<AtomicWriteResult, FSUtil.Error>
+}
+
 export interface Interface {
+  /** Keep the target locked through a caller's read/commit boundary. Do not retain the writer. */
+  readonly withTarget: <A, E, R>(
+    target: Target,
+    use: (writer: LockedTarget) => Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>
   /** Create without replacing an existing target. */
   readonly create: (input: WriteInput) => Effect.Effect<WriteResult, TargetExistsError | FSUtil.Error>
   readonly write: (input: WriteInput) => Effect.Effect<WriteResult, FSUtil.Error>
@@ -85,11 +96,13 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
  * write under the same process-local lock so cooperating Aigcfroge mutations do
  * not overwrite changes made from the same stale content.
  */
+// Independently built service scopes must still coordinate mutations of the same real file.
+const locks = KeyedMutex.makeUnsafe<string>()
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    const locks = KeyedMutex.makeUnsafe<string>()
     const withTargetLock =
       (target: Target) =>
       <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -135,24 +148,24 @@ export const layer = Layer.effect(
       ),
     )
 
+    const createUnlocked = Effect.fnUntraced(function* (input: WriteInput) {
+      const write =
+        typeof input.content === "string"
+          ? fs.writeFileString(input.target.canonical, input.content, { flag: "wx" })
+          : fs.writeFile(input.target.canonical, input.content, { flag: "wx" })
+      yield* write.pipe(
+        Effect.catchReason("PlatformError", "NotFound", () =>
+          fs.ensureDir(dirname(input.target.canonical)).pipe(Effect.andThen(write)),
+        ),
+        Effect.catchReason("PlatformError", "AlreadyExists", () =>
+          Effect.fail(new TargetExistsError({ path: input.target.canonical })),
+        ),
+      )
+      return writeResult(input.target, false)
+    })
+
     const create = Effect.fn("FileMutation.create")((input: WriteInput) =>
-      withTargetLock(input.target)(
-        Effect.gen(function* () {
-          const write =
-            typeof input.content === "string"
-              ? fs.writeFileString(input.target.canonical, input.content, { flag: "wx" })
-              : fs.writeFile(input.target.canonical, input.content, { flag: "wx" })
-          yield* write.pipe(
-            Effect.catchReason("PlatformError", "NotFound", () =>
-              fs.ensureDir(dirname(input.target.canonical)).pipe(Effect.andThen(write)),
-            ),
-            Effect.catchReason("PlatformError", "AlreadyExists", () =>
-              Effect.fail(new TargetExistsError({ path: input.target.canonical })),
-            ),
-          )
-          return writeResult(input.target, false)
-        }),
-      ),
+      withTargetLock(input.target)(createUnlocked(input)),
     )
 
     const writeIfUnchanged = Effect.fn("FileMutation.writeIfUnchanged")((input: ConditionalWriteInput) =>
@@ -182,62 +195,74 @@ export const layer = Layer.effect(
       ),
     )
 
-    const writeAtomic = Effect.fn("FileMutation.writeAtomic")((input: AtomicWriteInput) =>
-      withTargetLock(input.target)(
-        Effect.scoped(
-          Effect.gen(function* () {
-            const { canonical } = input.target
-            const tmp = `${canonical}.tmp.${process.pid}.${randomHex()}`
-            const existed = yield* fs.exists(canonical)
-            // Tolerate a TOCTOU delete between exists and read (file removed after
-            // exists=true) by treating the missing file as no prior bytes; any other
-            // read error still propagates.
-            const priorBytes: Uint8Array | null = existed
-              ? yield* fs
-                  .readFile(canonical)
-                  .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)))
-              : null
+    const writeAtomicUnlocked = Effect.fnUntraced(function* (input: AtomicWriteInput) {
+      return yield* Effect.scoped(
+        Effect.gen(function* () {
+          const { canonical } = input.target
+          const tmp = `${canonical}.tmp.${process.pid}.${randomHex()}`
+          const existed = yield* fs.exists(canonical)
+          // Tolerate a TOCTOU delete between exists and read (file removed after
+          // exists=true) by treating the missing file as no prior bytes; any other
+          // read error still propagates.
+          const priorBytes: Uint8Array | null = existed
+            ? yield* fs
+                .readFile(canonical)
+                .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)))
+            : null
 
-            // Register temp cleanup on any failure or interruption
-            yield* Effect.addFinalizer(() =>
-              fs.exists(tmp).pipe(
-                Effect.andThen((exists) => (exists ? fs.remove(tmp) : Effect.void)),
-                Effect.catch(() => Effect.void),
-              ),
-            )
+          // Register temp cleanup on any failure or interruption
+          yield* Effect.addFinalizer(() =>
+            fs.exists(tmp).pipe(
+              Effect.andThen((exists) => (exists ? fs.remove(tmp) : Effect.void)),
+              Effect.catch(() => Effect.void),
+            ),
+          )
 
-            yield* (
-              typeof input.content === "string"
-                ? fs.writeFileString(tmp, input.content)
-                : fs.writeFile(tmp, input.content)
-            ).pipe(
-              Effect.catchReason("PlatformError", "NotFound", () =>
-                fs
-                  .makeDirectory(dirname(tmp), { recursive: true })
-                  .pipe(
-                    Effect.andThen(
-                      typeof input.content === "string"
-                        ? fs.writeFileString(tmp, input.content)
-                        : fs.writeFile(tmp, input.content),
-                    ),
+          yield* (
+            typeof input.content === "string"
+              ? fs.writeFileString(tmp, input.content)
+              : fs.writeFile(tmp, input.content)
+          ).pipe(
+            Effect.catchReason("PlatformError", "NotFound", () =>
+              fs
+                .makeDirectory(dirname(tmp), { recursive: true })
+                .pipe(
+                  Effect.andThen(
+                    typeof input.content === "string"
+                      ? fs.writeFileString(tmp, input.content)
+                      : fs.writeFile(tmp, input.content),
                   ),
-              ),
-            )
-            yield* fs.rename(tmp, canonical)
+                ),
+            ),
+          )
+          yield* fs.rename(tmp, canonical)
 
-            return {
-              operation: "atomic_write" as const,
-              target: canonical,
-              resource: input.target.resource,
-              existed,
-              priorBytes,
-            } satisfies AtomicWriteResult
-          }),
-        ),
-      ),
+          return {
+            operation: "atomic_write" as const,
+            target: canonical,
+            resource: input.target.resource,
+            existed,
+            priorBytes,
+          } satisfies AtomicWriteResult
+        }),
+      )
+    })
+
+    const writeAtomic = Effect.fn("FileMutation.writeAtomic")((input: AtomicWriteInput) =>
+      withTargetLock(input.target)(writeAtomicUnlocked(input)),
     )
 
-    return Service.of({ create, write, writeTextPreservingBom, writeIfUnchanged, remove, writeAtomic })
+    const withTarget: Interface["withTarget"] = (target, use) =>
+      locks.withLock(target.canonical)(
+        Effect.suspend(() =>
+          use({
+            create: (content) => createUnlocked({ target, content }).pipe(Effect.uninterruptible),
+            writeAtomic: (content) => writeAtomicUnlocked({ target, content }).pipe(Effect.uninterruptible),
+          }),
+        ),
+      )
+
+    return Service.of({ create, write, writeTextPreservingBom, writeIfUnchanged, remove, writeAtomic, withTarget })
   }),
 )
 

@@ -359,3 +359,49 @@ describe("buildRequestParts", () => {
     }
   })
 })
+
+describe("AI-TDD-S04-R02 structured agent mentions", () => {
+  test("preserves the selected agent and its actual source range in request and optimistic parts", () => {
+    const result = buildRequestParts({
+      prompt: [
+        { type: "text", content: "Review ", start: 0, end: 7 },
+        { type: "agent", name: "reviewer", content: "@reviewer", start: 7, end: 16 },
+        { type: "text", content: " now", start: 16, end: 20 },
+      ],
+      context: [],
+      images: [],
+      text: "Review @reviewer now",
+      messageID: "msg_s04_mention",
+      sessionID: "ses_s04_mention",
+      sessionDirectory: "/repo",
+    })
+
+    expect(result.requestParts.map((part) => part.type)).toEqual(["text", "agent"])
+    expect(result.requestParts[0]).toMatchObject({ type: "text", text: "Review @reviewer now" })
+    expect(result.requestParts[1]).toMatchObject({
+      type: "agent",
+      name: "reviewer",
+      source: { value: "@reviewer", start: 7, end: 16 },
+    })
+    expect(result.optimisticParts[1]).toEqual({
+      ...result.requestParts[1],
+      messageID: "msg_s04_mention",
+      sessionID: "ses_s04_mention",
+    })
+  })
+
+  test("does not turn plain text that resembles a mention into an agent or task dispatch", () => {
+    const result = buildRequestParts({
+      prompt: [{ type: "text", content: "@reviewer", start: 0, end: 9 }],
+      context: [],
+      images: [],
+      text: "@reviewer",
+      messageID: "msg_s04_plain",
+      sessionID: "ses_s04_plain",
+      sessionDirectory: "/repo",
+    })
+
+    expect(result.requestParts.map((part) => part.type)).toEqual(["text"])
+    expect(result.optimisticParts.map((part) => part.type)).toEqual(["text"])
+  })
+})

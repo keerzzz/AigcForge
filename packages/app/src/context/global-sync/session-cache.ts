@@ -3,10 +3,9 @@ import type {
   Message,
   Part,
   PermissionRequest,
-  QuestionRequest,
+  QuestionV2Request,
   SessionStatus,
   SnapshotFileDiff,
-  Todo,
 } from "@aigcfroge/sdk/v2/client"
 
 export const SESSION_CACHE_LIMIT = 40
@@ -14,12 +13,11 @@ export const SESSION_CACHE_LIMIT = 40
 type SessionCache = {
   session_status: Record<string, SessionStatus | undefined>
   session_diff: Record<string, SnapshotFileDiff[] | undefined>
-  todo: Record<string, Todo[] | undefined>
   message: Record<string, Message[] | undefined>
   part: Record<string, Part[] | undefined>
   permission: Record<string, PermissionRequest[] | undefined>
   permission_v2: Record<string, PermissionPendingModel.PermissionV2Pending[] | undefined>
-  question: Record<string, QuestionRequest[] | undefined>
+  question: Record<string, QuestionV2Request[] | undefined>
   part_text_accum_delta: Record<string, string | undefined>
 }
 
@@ -38,7 +36,6 @@ export function dropSessionCaches(store: SessionCache, sessionIDs: Iterable<stri
 
   for (const sessionID of stale) {
     delete store.message[sessionID]
-    delete store.todo[sessionID]
     delete store.session_diff[sessionID]
     delete store.session_status[sessionID]
     delete store.permission[sessionID]

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { PermissionRequest, QuestionRequest, Session } from "@aigcfroge/sdk/v2/client"
+import type { PermissionRequest, QuestionV2Request, Session } from "@aigcfroge/sdk/v2/client"
 import {
   sessionPendingPermissionRequest,
   sessionPermissionRequest,
@@ -23,7 +23,7 @@ const question = (id: string, sessionID: string) =>
     id,
     sessionID,
     questions: [],
-  }) as QuestionRequest
+  }) as QuestionV2Request
 
 describe("sessionPermissionRequest", () => {
   test("prefers the current session permission", () => {

@@ -3,6 +3,7 @@ import { Agent } from "@/agent/agent"
 import { BackgroundJob } from "@/background/job"
 import { Config } from "@/config/config"
 import { InstanceState } from "@/effect/instance-state"
+import { AIGCFROGE_V2_RUNTIME } from "@/effect/app-runtime"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { MCP } from "@/mcp"
 import { Project } from "@/project/project"
@@ -16,6 +17,7 @@ import { HttpServerRequest } from "effect/unstable/http"
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse"
 import { HttpApiBuilder, HttpApiError } from "effect/unstable/httpapi"
 import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { InstanceHttpApi } from "../api"
 import { ConsoleSwitchPayload, SessionListQuery, ToolListQuery, WorktreeApiError } from "../groups/experimental"
 
@@ -43,8 +45,11 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
         backgroundSubagents: flags.experimentalBackgroundSubagents,
         chatAsset: flags.experimentalChatAsset,
         customMode: ProductModePolicy.isCustomModeEnabled(),
-        productModes: ["chat", "coding", "work", "assistant", "custom"],
+        productModes: ProductMode.ID.literals,
         customCompositionVersion: 1,
+        canonicalSessionModes: ProductMode.ID.literals.filter((mode) =>
+          ProductModePolicy.shouldUseV2Runtime(mode, AIGCFROGE_V2_RUNTIME),
+        ),
       }
     })
 

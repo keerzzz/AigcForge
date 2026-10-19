@@ -12,12 +12,9 @@ import { AbsolutePath } from "@aigcfroge/core/schema"
 import { SessionV2 } from "@aigcfroge/core/session"
 import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
 import { SessionTask } from "@aigcfroge/core/session/task"
-import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { testEffect, awaitWithTimeout } from "./lib/effect"
 
-const it = testEffect(
-  Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer, SessionTodo.defaultLayer),
-)
+const it = testEffect(Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer))
 const sessionID = SessionV2.ID.make("ses_task_test")
 
 const setup = Effect.gen(function* () {
@@ -231,7 +228,12 @@ describe("SessionTask", () => {
     }),
   )
 
-  it.effect("task writes emit a compatible todo.updated projection", () =>
+  // AI-TDD-S01-R04: the canonical Task write path emits ONLY task.updated —
+  // no legacy todo.updated echo, no TodoProjection compatibility shape. This
+  // is the RED for the S01 single-contract cutover: SessionTask.Event must not
+  // expose a TodoUpdated member, and no `todo.updated` type must ever cross
+  // the EventV2 bus from a task write.
+  it.effect("task writes publish ONLY task.updated — no legacy todo.updated echo (AI-TDD-S01-R04)", () =>
     Effect.gen(function* () {
       yield* setup
       const events = yield* EventV2.Service
@@ -239,7 +241,7 @@ describe("SessionTask", () => {
       const published = new Array<EventV2.Payload>()
       const unsubscribe = yield* events.listen((event) =>
         Effect.sync(() => {
-          if (event.type === SessionTask.Event.TodoUpdated.type) published.push(event)
+          published.push(event)
         }),
       )
       yield* Effect.addFinalizer(() => unsubscribe)
@@ -248,41 +250,11 @@ describe("SessionTask", () => {
         sessionID,
         tasks: [{ content: "x", status: "in_progress", priority: "high" }],
       })
-      const data = Schema.decodeUnknownSync(SessionTask.Event.TodoUpdated.data)(published[0]?.data)
-      expect(data.todos).toEqual([{ content: "x", status: "in_progress", priority: "high" }])
-    }),
-  )
-
-  it.effect("legacy todowrite replace preserves the id a background delegation settled", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const tasks = yield* SessionTask.Service
-      const todos = yield* SessionTodo.Service
-
-      // A background delegation creates a linked task (tsk_A).
-      const [linked] = yield* tasks.append({
-        sessionID,
-        tasks: [{ content: "audit", status: "in_progress", priority: "medium" }],
-      })
-
-      // Legacy todowrite replaces the whole list — the linked id must survive,
-      // otherwise the delegation's settle patch would no-op on a rebuilt id.
-      yield* todos.update({
-        sessionID,
-        todos: [{ content: "audit", status: "in_progress", priority: "medium" }],
-      })
-      const afterReplace = yield* tasks.get(sessionID)
-      expect(afterReplace.map((task) => task.id)).toEqual([linked.id])
-
-      // The delegation settle writeback still lands on the linked task.
-      const patched = yield* tasks.patch({
-        sessionID,
-        id: linked.id,
-        status: "completed",
-        outputDigest: "ses_child",
-      })
-      expect(patched?.id).toBe(linked.id)
-      expect((yield* tasks.get(sessionID))[0]?.status).toBe("completed")
+      const types = published.map((event) => event.type)
+      expect(types).toContain("task.updated")
+      expect(types).not.toContain("todo.updated")
+      // The compatibility projection type must not exist on the Event namespace.
+      expect((SessionTask.Event as Record<string, unknown>).TodoUpdated).toBeUndefined()
     }),
   )
 
@@ -1092,19 +1064,6 @@ describe("SessionTask", () => {
     }),
   )
 
-  it.effect("replaceLegacy rejects a dead scheduled task via the legacy TodoWrite bridge (M-1)", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const tasks = yield* SessionTask.Service
-      // SessionTodo's strict WriteItem can no longer carry "scheduled", so the
-      // guard is exercised through replaceLegacy directly.
-      const error = yield* tasks
-        .replaceLegacy({ sessionID, tasks: [{ content: "legacy sched", status: "scheduled", priority: "medium" }] })
-        .pipe(Effect.flip)
-      expect(error.reason).toBe("invalid_schedule")
-    }),
-  )
-
   // P3-a: revision tracking + expectedRevision optimistic concurrency. Revision is
   // server-managed (never client-supplied): new tasks start at 1, every write
   // increments, and patch accepts expectedRevision to reject stale writes the
@@ -1166,23 +1125,23 @@ describe("SessionTask", () => {
       }),
     )
 
-    it.effect("increments on replaceLegacy", () =>
+    it.effect("increments on update (full-list reconcile of an existing task)", () =>
       Effect.gen(function* () {
         yield* setup
         const tasks = yield* SessionTask.Service
-        yield* tasks.append({
+        const [seed] = yield* tasks.append({
           sessionID,
           tasks: [{ content: "seed", status: "pending", priority: "medium" }],
         })
-        const after = yield* tasks.replaceLegacy({
+        const after = yield* tasks.update({
           sessionID,
-          tasks: [{ content: "seed", status: "in_progress", priority: "medium" }],
+          tasks: [{ id: seed.id, content: "seed", status: "in_progress", priority: "medium" }],
         })
         expect(after[0]?.revision).toBe(2)
       }),
     )
 
-    it.effect("replaceLegacy with stale expectedRevision fails and does not write", () =>
+    it.effect("update with stale expectedRevision (full-list reconcile) fails and does not write", () =>
       Effect.gen(function* () {
         yield* setup
         const tasks = yield* SessionTask.Service
@@ -1197,9 +1156,9 @@ describe("SessionTask", () => {
         // A concurrent write bumped the max revision to 2.
         yield* tasks.patch({ sessionID, id: seed.id, status: "in_progress" })
         const error = yield* tasks
-          .replaceLegacy({
+          .update({
             sessionID,
-            tasks: [{ content: "seed", status: "completed", priority: "medium" }],
+            tasks: [{ id: seed.id, content: "seed", status: "completed", priority: "medium" }],
             expectedRevision: 1,
           })
           .pipe(Effect.flip)

@@ -221,12 +221,26 @@ describe("evaluateStartGate", () => {
   })
 
   test("blocks on a blocking diagnostic but not on a warning", () => {
-    expect(gate({ result: { plan: plan({ diagnostics: [diagnostic("blocking")] }) } })).toEqual({
+    expect(gate({ result: { plan: plan({ valid: false, diagnostics: [diagnostic("blocking")] }) } })).toEqual({
       canStart: false,
       blocker: "blocking-diagnostics",
     })
-    expect(gate({ result: { plan: plan({ diagnostics: [diagnostic("warning"), diagnostic("error")] }) } })).toEqual({
+    expect(gate({ result: { plan: plan({ diagnostics: [diagnostic("warning")] }) } })).toEqual({
       canStart: true,
+    })
+  })
+
+  test("blocks an invalid plan with an error diagnostic", () => {
+    expect(gate({ result: { plan: plan({ valid: false, diagnostics: [diagnostic("error")] }) } })).toEqual({
+      canStart: false,
+      blocker: "invalid-plan",
+    })
+  })
+
+  test("blocks an invalid plan even when it carries no diagnostics", () => {
+    expect(gate({ result: { plan: plan({ valid: false }) } })).toEqual({
+      canStart: false,
+      blocker: "invalid-plan",
     })
   })
 

@@ -8,6 +8,7 @@ import { LayerNode } from "../effect/layer-node"
 import { SessionEvent } from "./event"
 import { SessionV1 } from "../v1/session"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { WorkReview } from "@aigcfroge/schema/work-review"
 import { WorkspaceTable } from "../control-plane/workspace.sql"
 import { SessionMessage } from "./message"
 import { SessionMessageUpdater } from "./message-updater"
@@ -238,7 +239,15 @@ export const layer = Layer.effectDiscard(
     yield* events.project(SessionV1.Event.Updated, (event, tx) =>
       tx
         .update(SessionTable)
-        .set(sessionRow(event.data.info))
+        .set({
+          ...sessionRow(event.data.info),
+          // Keep domain fields from the transaction row, not a stale full-Session event.
+          metadata: WorkReview.OwnedMetadataKeys.reduce(
+            (metadata, key) =>
+              sql`case when json_type(${SessionTable.metadata}, ${"$." + key}) is null then json_remove(${metadata}, ${"$." + key}) else json_set(${metadata}, ${"$." + key}, json_extract(${SessionTable.metadata}, ${"$." + key})) end`,
+            sql`json(${JSON.stringify(event.data.info.metadata ?? {})})`,
+          ),
+        })
         .where(eq(SessionTable.id, event.data.sessionID))
         .run()
         .pipe(Effect.orDie),
@@ -440,6 +449,7 @@ export const layer = Layer.effectDiscard(
       }),
     )
     yield* events.project(SessionEvent.ContextUpdated, (event, tx) => run(tx, event))
+    yield* events.project(SessionEvent.HistoryImported, (event, tx) => run(tx, event))
     yield* events.project(SessionEvent.Synthetic, (event, tx) =>
       Effect.gen(function* () {
         if (event.durable !== undefined) {

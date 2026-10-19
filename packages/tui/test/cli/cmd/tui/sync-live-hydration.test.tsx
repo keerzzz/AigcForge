@@ -48,7 +48,7 @@ test("stale session hydration does not overwrite live message parts", async () =
       requested = true
       return messages
     }
-    if (url.pathname === `/session/${sessionID}/todo` || url.pathname === `/session/${sessionID}/diff`) return json([])
+    if (url.pathname === `/session/${sessionID}/task` || url.pathname === `/session/${sessionID}/diff`) return json([])
     return undefined
   }, tmp.path)
 
@@ -100,7 +100,7 @@ test("orphan live deltas do not suppress hydrated parts", async () => {
       requested = true
       return messages
     }
-    if (url.pathname === `/session/${sessionID}/todo` || url.pathname === `/session/${sessionID}/diff`) return json([])
+    if (url.pathname === `/session/${sessionID}/task` || url.pathname === `/session/${sessionID}/diff`) return json([])
     return undefined
   }, tmp.path)
 
@@ -140,7 +140,7 @@ test("hydration does not clear text streamed before it starts", async () => {
       requested = true
       return messages
     }
-    if (url.pathname === `/session/${sessionID}/todo` || url.pathname === `/session/${sessionID}/diff`) return json([])
+    if (url.pathname === `/session/${sessionID}/task` || url.pathname === `/session/${sessionID}/diff`) return json([])
     return undefined
   }, tmp.path)
 
@@ -191,7 +191,7 @@ test("live messages merged during hydration retain the 100 message window", asyn
       requested = true
       return messages
     }
-    if (url.pathname === `/session/${sessionID}/todo` || url.pathname === `/session/${sessionID}/diff`) return json([])
+    if (url.pathname === `/session/${sessionID}/task` || url.pathname === `/session/${sessionID}/diff`) return json([])
     return undefined
   }, tmp.path)
 
@@ -238,7 +238,7 @@ test("a message removed during hydration does not regain stale parts", async () 
       requested = true
       return messages
     }
-    if (url.pathname === `/session/${sessionID}/todo` || url.pathname === `/session/${sessionID}/diff`) return json([])
+    if (url.pathname === `/session/${sessionID}/task` || url.pathname === `/session/${sessionID}/diff`) return json([])
     return undefined
   }, tmp.path)
 
@@ -258,5 +258,109 @@ test("a message removed during hydration does not regain stale parts", async () 
     expect(sync.data.part[messageID]).toBeUndefined()
   } finally {
     app.renderer.destroy()
+  }
+})
+
+const taskSnapshot = [
+  {
+    id: "tsk_hydration",
+    sessionID,
+    content: "Before the event",
+    status: "pending" as const,
+    priority: "medium" as const,
+    revision: 1,
+    createdAt: 1,
+    updatedAt: 1,
+  },
+]
+
+test.each([{ tasks: [] }, { tasks: [{ ...taskSnapshot[0], content: "After the event", revision: 2 }] }])(
+  "late Task GET cannot replace a newer task.updated snapshot %j",
+  async (input) => {
+    await using tmp = await tmpdir()
+    await Bun.write(`${tmp.path}/kv.json`, "{}")
+    const requested = Promise.withResolvers<void>()
+    const response = Promise.withResolvers<Response>()
+    const fixture = await mount((url) => {
+      if (url.pathname === `/session/${sessionID}`) return json(session)
+      if (url.pathname === `/session/${sessionID}/message` || url.pathname === `/session/${sessionID}/diff`)
+        return json([])
+      if (url.pathname === `/session/${sessionID}/task`) {
+        requested.resolve()
+        return response.promise
+      }
+      return undefined
+    }, tmp.path)
+    try {
+      const hydrate = fixture.sync.session.sync(sessionID)
+      await requested.promise
+      fixture.emit(
+        global({ id: "evt_task_newer", type: "task.updated", properties: { sessionID, tasks: [...input.tasks] } }),
+      )
+      await wait(() => fixture.sync.data.task[sessionID] !== undefined)
+      response.resolve(json(taskSnapshot))
+      await hydrate
+      await fixture.sync.session.sync(sessionID)
+      expect(fixture.sync.data.task[sessionID]).toEqual([...input.tasks])
+    } finally {
+      fixture.app.renderer.destroy()
+    }
+  },
+)
+
+test("a failed Task GET stays retryable instead of caching an empty snapshot", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(`${tmp.path}/kv.json`, "{}")
+  let reads = 0
+  const fixture = await mount((url) => {
+    if (url.pathname === `/session/${sessionID}`) return json(session)
+    if (url.pathname === `/session/${sessionID}/message` || url.pathname === `/session/${sessionID}/diff`)
+      return json([])
+    if (url.pathname === `/session/${sessionID}/task`) {
+      reads++
+      return reads === 1 ? json({ message: "Unavailable" }, { status: 500 }) : json(taskSnapshot)
+    }
+    return undefined
+  }, tmp.path)
+  try {
+    await expect(fixture.sync.session.sync(sessionID)).rejects.toBeDefined()
+    expect(fixture.sync.data.task[sessionID]).toBeUndefined()
+    await fixture.sync.session.sync(sessionID)
+    expect(reads).toBe(2)
+    expect(fixture.sync.data.task[sessionID]).toEqual(taskSnapshot)
+  } finally {
+    fixture.app.renderer.destroy()
+  }
+})
+
+test("bootstrap invalidates an old hydration without consuming the new request tracker", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(`${tmp.path}/kv.json`, "{}")
+  const responses = [Promise.withResolvers<Response>(), Promise.withResolvers<Response>()]
+  let reads = 0
+  const fixture = await mount((url) => {
+    if (url.pathname === `/session/${sessionID}`) return json(session)
+    if (url.pathname === `/session/${sessionID}/message` || url.pathname === `/session/${sessionID}/diff`)
+      return json([])
+    if (url.pathname === `/session/${sessionID}/task`) return responses[reads++].promise
+    return undefined
+  }, tmp.path)
+  try {
+    const old = fixture.sync.session.sync(sessionID)
+    await wait(() => reads === 1)
+    await fixture.sync.bootstrap()
+    const current = fixture.sync.session.sync(sessionID)
+    await wait(() => reads === 2)
+    responses[0].resolve(json(taskSnapshot))
+    await old
+    expect(fixture.sync.data.task[sessionID]).toBeUndefined()
+    fixture.emit(global({ id: "evt_task_clear", type: "task.updated", properties: { sessionID, tasks: [] } }))
+    await wait(() => fixture.sync.data.task[sessionID]?.length === 0)
+    responses[1].resolve(json(taskSnapshot))
+    await current
+    expect(fixture.sync.data.task[sessionID]).toEqual([])
+  } finally {
+    responses.forEach((response) => response.resolve(json([])))
+    fixture.app.renderer.destroy()
   }
 })

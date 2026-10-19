@@ -27,6 +27,7 @@ import { Select } from "@aigcfroge/ui/select"
 import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
 import { createAutoScroll } from "@aigcfroge/ui/hooks"
 import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
+import { DataProvider, useData } from "@aigcfroge/session-ui/context/data"
 import { Button } from "@aigcfroge/ui/button"
 import { showToast } from "@/utils/toast"
 import { base64Encode, checksum } from "@aigcfroge/core/util/encode"
@@ -62,7 +63,7 @@ import { createTimelineModel } from "@/pages/session/timeline/model"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { parseServerKey } from "@/utils/session-route"
-import { syncSessionModel } from "@/pages/session/session-model-helpers"
+import { syncSessionModel, syncSessionSelection } from "@/pages/session/session-model-helpers"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { TerminalPanel } from "@/pages/session/terminal-panel"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
@@ -75,7 +76,10 @@ import { formatServerError } from "@/utils/server-errors"
 import { runInternalNavigation, useChatWorkspace } from "@/context/chat-workspace"
 import { UrlParams } from "@/utils/url-params"
 import { tabKey } from "@/context/tabs"
+import { useNotification } from "@/context/notification"
+import { usePermission } from "@/context/permission"
 import { useRouteContribution } from "@/context/route-contribution"
+import { openEntityPanel } from "@/pages/session/assistant-session-panel-open"
 import { openSessionContext } from "@/components/open-session-context"
 import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
@@ -96,6 +100,8 @@ type VcsMode = "git" | "branch"
 
 export default function Page(props: { rootID: string }) {
   const serverSync = useServerSync()
+  const notification = useNotification()
+  const permission = usePermission()
   const layout = useLayout()
   const productMode = useMode()
   const local = useLocal()
@@ -120,7 +126,7 @@ export default function Page(props: { rootID: string }) {
   const [capturePulse, setCapturePulse] = createSignal(false)
   const location = useLocation()
   const navigate = useNavigate()
-  const { params, sessionKey, workspaceKey, tabs, view } = useSessionLayout()
+  const { params, sessionKey, workspaceKey, tabs, view, assistant } = useSessionLayout()
   const newSessionDesign = createMemo(() => true)
 
   createEffect(() => {
@@ -196,7 +202,7 @@ export default function Page(props: { rootID: string }) {
 
   const topLevelTabKey = createMemo(() => {
     if (!params.id) return undefined
-    return tabKey({ type: "session", server: server.key, sessionId: props.rootID })
+    return tabKey({ type: "session", server: routeServerKey(), sessionId: props.rootID })
   })
 
   createEffect(() => {
@@ -211,6 +217,7 @@ export default function Page(props: { rootID: string }) {
     if (!key || !params.id) return
     const sessionTabs = tabs()
     const sessionView = view()
+    const sessionAssistant = assistant()
     const dispose = routeContribution?.register({
       routeIdentity: `${routeServerKey()}\0${params.id}`,
       activeTopLevelTabKey: key,
@@ -220,6 +227,18 @@ export default function Page(props: { rootID: string }) {
       directory: sdk().directory,
       leafID: params.id,
       openContext: () => openSessionContext({ layout, tabs: sessionTabs, view: sessionView }),
+      sessionStatus: {
+        unseenCount: (id) => notification.session.unseenCount(id),
+        unseenHasError: (id) => notification.session.unseenHasError(id),
+        autoResponds: (request, directory) => permission.autoResponds(request, directory),
+      },
+      assistantPanel: {
+        available: () => info()?.mode === "assistant",
+        active: sessionTabs.active,
+        target: sessionAssistant.target,
+        open: (kind, itemId) =>
+          openEntityPanel({ view: sessionView, tabs: sessionTabs, assistant: sessionAssistant, kind, itemId }),
+      },
     })
     onCleanup(() => dispose?.())
   })
@@ -243,6 +262,7 @@ export default function Page(props: { rootID: string }) {
   })
 
   const composer = createSessionComposerState()
+  const sessionData = useData()
 
   const workspaceTabs = createMemo(() => layout.tabs(workspaceKey))
 
@@ -358,6 +378,18 @@ export default function Page(props: { rootID: string }) {
   const userMessages = timeline.userMessages
   const visibleUserMessages = timeline.visibleUserMessages
 
+  createEffect(
+    on(
+      () => {
+        const session = info()
+        return session ? { id: session.id, agent: session.agent, model: session.model } : undefined
+      },
+      (session) => {
+        if (session) syncSessionSelection(local, session)
+      },
+    ),
+  )
+
   createEffect(() => {
     const tab = activeFileTab()
     if (!tab) return
@@ -430,6 +462,15 @@ export default function Page(props: { rootID: string }) {
       })
     }
     return key
+  })
+
+  const taskRead = createMemo(() => {
+    const owner = serverSync()
+    const directory = sdk().directory
+    const sessionID = params.id
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+    return { owner, directory, sessionID, signal: controller.signal }
   })
 
   let reviewFrame: number | undefined
@@ -649,33 +690,31 @@ export default function Page(props: { rootID: string }) {
   createEffect(
     on(
       () => {
-        const id = params.id
+        const request = taskRead()
         return [
-          sdk().directory,
-          id,
-          id ? (sync().data.session_status[id]?.type ?? "idle") : "idle",
-          id ? composer.blocked() : false,
+          request,
+          request.sessionID ? (sync().data.session_status[request.sessionID]?.type ?? "idle") : "idle",
+          request.sessionID ? composer.blocked() : false,
         ] as const
       },
-      ([dir, id, status, blocked]) => {
+      ([request, status, blocked]) => {
         if (todoFrame !== undefined) cancelAnimationFrame(todoFrame)
         if (todoTimer !== undefined) window.clearTimeout(todoTimer)
         todoFrame = undefined
         todoTimer = undefined
-        if (!id) return
-        if (status === "idle" && !blocked) return
-        const cached = untrack(
-          () => sync().data.todo[id] !== undefined || serverSync().data.session_todo[id] !== undefined,
-        )
+        const sessionID = request.sessionID
+        if (!sessionID || (status === "idle" && !blocked)) return
 
         todoFrame = requestAnimationFrame(() => {
           todoFrame = undefined
           todoTimer = window.setTimeout(() => {
             todoTimer = undefined
-            if (sdk().directory !== dir || params.id !== id) return
-            untrack(() => {
-              void sync().session.todo(id, cached ? { force: true } : undefined)
-            })
+            void request.owner.task
+              .load({ directory: request.directory, sessionID, signal: request.signal })
+              .catch((error: unknown) => {
+                if (request.signal.aborted) return
+                console.warn("Session task recovery failed", error instanceof Error ? error.message : String(error))
+              })
           }, 0)
         })
       },
@@ -2062,54 +2101,62 @@ export default function Page(props: { rootID: string }) {
                 <Match when={params.id}>
                   <Show when={messagesReady() ? params.id : undefined} keyed>
                     {(_id) => (
-                      <MessageTimeline
-                        actions={actions}
-                        capturePulse={capturePulse()}
-                        scroll={ui.scroll}
-                        onResumeScroll={resumeScroll}
-                        setScrollRef={setScrollRef}
-                        onScheduleScrollState={scheduleScrollState}
-                        onAutoScrollHandleScroll={autoScroll.handleScroll}
-                        onMarkScrollGesture={markScrollGesture}
-                        hasScrollGesture={hasScrollGesture}
-                        onUserScroll={markUserScroll}
-                        onHistoryScroll={onHistoryScroll}
-                        onAutoScrollInteraction={autoScroll.handleInteraction}
-                        shouldAnchorBottom={() =>
-                          !location.hash && !store.messageId && !ui.pendingMessage && !autoScroll.userScrolled()
-                        }
-                        centered={centered()}
-                        setContentRef={(el) => {
-                          content = el
-                          autoScroll.contentRef(el)
-
-                          const root = scroller
-                          if (root) scheduleScrollState(root)
-                        }}
-                        userMessages={visibleUserMessages()}
-                        setHistoryAnchor={(handlers, owner) => {
-                          if (!handlers) {
-                            if (historyAnchorOwner !== owner) return
-                            historyAnchorOwner = undefined
-                            historyAnchorReady = false
-                            captureHistoryAnchor = () => {}
-                            restoreHistoryAnchor = () => {}
-                            return
+                      <DataProvider
+                        data={sessionData.store}
+                        directory={sessionData.directory}
+                        onNavigateToSession={sessionData.navigateToSession}
+                        onSessionHref={sessionData.sessionHref}
+                        onQuestionAction={composer.questionAction}
+                      >
+                        <MessageTimeline
+                          actions={actions}
+                          capturePulse={capturePulse()}
+                          scroll={ui.scroll}
+                          onResumeScroll={resumeScroll}
+                          setScrollRef={setScrollRef}
+                          onScheduleScrollState={scheduleScrollState}
+                          onAutoScrollHandleScroll={autoScroll.handleScroll}
+                          onMarkScrollGesture={markScrollGesture}
+                          hasScrollGesture={hasScrollGesture}
+                          onUserScroll={markUserScroll}
+                          onHistoryScroll={onHistoryScroll}
+                          onAutoScrollInteraction={autoScroll.handleInteraction}
+                          shouldAnchorBottom={() =>
+                            !location.hash && !store.messageId && !ui.pendingMessage && !autoScroll.userScrolled()
                           }
-                          historyAnchorOwner = owner
-                          captureHistoryAnchor = handlers.capture
-                          restoreHistoryAnchor = handlers.restore
-                          historyAnchorReady = true
-                          fill()
-                        }}
-                        anchor={anchor}
-                        setRevealMessage={(fn) => {
-                          revealMessage = fn
-                        }}
-                        setScrollToEnd={(fn) => {
-                          scrollToEnd = fn
-                        }}
-                      />
+                          centered={centered()}
+                          setContentRef={(el) => {
+                            content = el
+                            autoScroll.contentRef(el)
+
+                            const root = scroller
+                            if (root) scheduleScrollState(root)
+                          }}
+                          userMessages={visibleUserMessages()}
+                          setHistoryAnchor={(handlers, owner) => {
+                            if (!handlers) {
+                              if (historyAnchorOwner !== owner) return
+                              historyAnchorOwner = undefined
+                              historyAnchorReady = false
+                              captureHistoryAnchor = () => {}
+                              restoreHistoryAnchor = () => {}
+                              return
+                            }
+                            historyAnchorOwner = owner
+                            captureHistoryAnchor = handlers.capture
+                            restoreHistoryAnchor = handlers.restore
+                            historyAnchorReady = true
+                            fill()
+                          }}
+                          anchor={anchor}
+                          setRevealMessage={(fn) => {
+                            revealMessage = fn
+                          }}
+                          setScrollToEnd={(fn) => {
+                            scrollToEnd = fn
+                          }}
+                        />
+                      </DataProvider>
                     )}
                   </Show>
                 </Match>
@@ -2161,6 +2208,7 @@ export default function Page(props: { rootID: string }) {
         </div>
 
         <SessionSidePanel
+          sessionMode={sessionMode}
           canReview={canReview}
           diffs={reviewDiffs}
           diffsReady={reviewReady}

@@ -38,6 +38,11 @@ export function websocketProtocols(input: Request | Record<string, string | unde
     .filter(Boolean)
 }
 
+export function requestURL(url: string) {
+  // Origin-form targets may begin with //; never reinterpret that path as an authority.
+  return new URL(url.startsWith("/") ? `http://localhost${url}` : url, "http://localhost")
+}
+
 export function websocketTargetURL(url: string | URL) {
   const next = new URL(url)
   if (next.protocol === "http:") next.protocol = "ws:"

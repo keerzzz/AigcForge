@@ -168,3 +168,14 @@ describe("custom mode kill switch default (M3 Phase G §7.2)", () => {
     })
   })
 })
+
+describe("session execution owner", () => {
+  test("Assistant and Custom use canonical execution without a global flag", () => {
+    expect(ProductModePolicy.shouldUseV2Runtime("assistant", false)).toBe(true)
+    expect(ProductModePolicy.shouldUseV2Runtime("custom", false)).toBe(true)
+    for (const mode of ["chat", "coding", "work", undefined]) {
+      expect(ProductModePolicy.shouldUseV2Runtime(mode, false)).toBe(false)
+      expect(ProductModePolicy.shouldUseV2Runtime(mode, true)).toBe(true)
+    }
+  })
+})

@@ -8,7 +8,6 @@ import { SessionPrompt } from "@/session/prompt"
 import { SessionRevert } from "@/session/revert"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
-import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { Snapshot } from "@/snapshot"
 import { CacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
@@ -64,7 +63,7 @@ export const MessagesQuery = Schema.Struct({
 export const StatusMap = Schema.Record(Schema.String, SessionStatus.Info)
 export const UpdatePayload = Schema.Struct({
   title: Schema.optional(Schema.String),
-  metadata: Schema.optional(Session.Metadata),
+  metadata: Schema.optional(Session.UpdateMetadata),
   permission: Schema.optional(PermissionV1.Ruleset),
   permissionTier: Schema.optional(PermissionTier.ID),
   time: Schema.optional(
@@ -116,7 +115,6 @@ export const SessionPaths = {
   get: `${root}/:sessionID`,
   children: `${root}/:sessionID/children`,
   identity: `${root}/:sessionID/identity`,
-  todo: `${root}/:sessionID/todo`,
   task: `${root}/:sessionID/task`,
   taskItem: `${root}/:sessionID/task/:taskID`,
   taskReorder: `${root}/:sessionID/task/reorder`,
@@ -205,25 +203,13 @@ export const SessionApi = HttpApi.make("session")
           params: { sessionID: SessionID },
           query: WorkspaceRoutingQuery,
           success: described(SessionIdentity.Identity, "Session product identity projection"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+          error: [HttpApiError.BadRequest, ApiNotFoundError, InvalidRequestError, UnsupportedProductModeError],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.identity",
             summary: "Get session identity",
             description:
               "Read-only SessionProductIdentity projection (ADR-23): common identity, permission posture, and the mode detail the owners can supply today.",
-          }),
-        ),
-        HttpApiEndpoint.get("todo", SessionPaths.todo, {
-          params: { sessionID: SessionID },
-          query: WorkspaceRoutingQuery,
-          success: described(Schema.Array(Todo.Info), "Todo list"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "session.todo",
-            summary: "Get session todos",
-            description: "Retrieve the todo list associated with a specific session, showing tasks and action items.",
           }),
         ),
         HttpApiEndpoint.patch("task", SessionPaths.task, {
@@ -393,7 +379,7 @@ export const SessionApi = HttpApi.make("session")
           query: WorkspaceRoutingQuery,
           payload: UpdatePayload,
           success: described(Session.Info, "Successfully updated session"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError],
+          error: [HttpApiError.BadRequest, ApiNotFoundError, InvalidRequestError, UnsupportedProductModeError],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.update",
@@ -495,7 +481,13 @@ export const SessionApi = HttpApi.make("session")
           query: WorkspaceRoutingQuery,
           payload: PromptPayload,
           success: described(HttpApiSchema.NoContent, "Prompt accepted"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, UnsupportedProductModeError, UnknownError],
+          error: [
+            HttpApiError.BadRequest,
+            ApiNotFoundError,
+            InvalidRequestError,
+            UnsupportedProductModeError,
+            UnknownError,
+          ],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.prompt_async",
@@ -701,7 +693,13 @@ export const SessionApi = HttpApi.make("session")
             WorkflowAsset.WorkflowStatusResponse.pipe(HttpApiSchema.status("Accepted")),
             "Accepted workflow status",
           ),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, ConflictError, UnsupportedProductModeError],
+          error: [
+            HttpApiError.BadRequest,
+            ApiNotFoundError,
+            InvalidRequestError,
+            ConflictError,
+            UnsupportedProductModeError,
+          ],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.workflow.run",
@@ -753,7 +751,13 @@ export const SessionApi = HttpApi.make("session")
             WorkflowAsset.WorkflowStatusResponse.pipe(HttpApiSchema.status("Accepted")),
             "Accepted retry workflow status",
           ),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, ConflictError, UnsupportedProductModeError],
+          error: [
+            HttpApiError.BadRequest,
+            ApiNotFoundError,
+            InvalidRequestError,
+            ConflictError,
+            UnsupportedProductModeError,
+          ],
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.workflow.retryStep",

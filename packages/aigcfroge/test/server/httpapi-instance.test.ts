@@ -10,17 +10,11 @@ import { ControlPaths } from "../../src/server/routes/instance/httpapi/groups/co
 import { InstancePaths } from "../../src/server/routes/instance/httpapi/groups/instance"
 import { SessionPaths } from "../../src/server/routes/instance/httpapi/groups/session"
 import { ProjectV2 } from "@aigcfroge/core/project"
-import { QuestionID } from "../../src/question/schema"
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
 import { HEADER as FenceHeader } from "../../src/server/shared/fence"
 import { resetDatabase } from "../fixture/db"
 import { tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
-
-function unwrapQuestionID(id: QuestionID) {
-  // eslint-disable-next-line no-base-to-string -- QuestionID is a nominal Newtype whose runtime representation is the validated string
-  return String(id)
-}
 
 // Flip the experimental workspaces flag so EventV2.run actually writes to
 // EventSequenceTable (the source of truth the fence middleware reads). Reset
@@ -125,7 +119,7 @@ describe("instance HttpApi", () => {
     }),
   )
 
-  it.live("rejects malformed permission and question request ids", () =>
+  it.live("rejects malformed permission request ids", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped({ git: true })
       const request = (path: string, init?: RequestInit) =>
@@ -137,28 +131,16 @@ describe("instance HttpApi", () => {
             handlerContext,
           )
         })
-      const [permission, questionReply, questionReject] = yield* Effect.all(
-        [
-          request("/permission/invalid-permission-id/reply", {
-            method: "POST",
-            body: JSON.stringify({ reply: "once" }),
-          }),
-          request("/question/invalid-question-id/reply", {
-            method: "POST",
-            body: JSON.stringify({ answers: [["Yes"]] }),
-          }),
-          request("/question/invalid-question-id/reject", { method: "POST" }),
-        ],
-        { concurrency: "unbounded" },
-      )
+      const permission = yield* request("/permission/invalid-permission-id/reply", {
+        method: "POST",
+        body: JSON.stringify({ reply: "once" }),
+      })
 
       expect(permission.status).toBe(400)
-      expect(questionReply.status).toBe(400)
-      expect(questionReject.status).toBe(400)
     }),
   )
 
-  it.live("returns typed not found bodies for missing permission and question requests", () =>
+  it.live("returns a typed not found body for a missing permission request", () =>
     Effect.gen(function* () {
       const dir = yield* tmpdirScoped({ git: true })
       const request = (path: string, init?: RequestInit) =>
@@ -171,40 +153,16 @@ describe("instance HttpApi", () => {
           )
         })
       const permissionID = PermissionV1.ID.ascending()
-      const questionReplyID = QuestionID.ascending()
-      const questionRejectID = QuestionID.ascending()
-      const [permission, questionReply, questionReject] = yield* Effect.all(
-        [
-          request(`/permission/${permissionID}/reply`, {
-            method: "POST",
-            body: JSON.stringify({ reply: "once" }),
-          }),
-          request(`/question/${unwrapQuestionID(questionReplyID)}/reply`, {
-            method: "POST",
-            body: JSON.stringify({ answers: [["Yes"]] }),
-          }),
-          request(`/question/${unwrapQuestionID(questionRejectID)}/reject`, { method: "POST" }),
-        ],
-        { concurrency: "unbounded" },
-      )
+      const permission = yield* request(`/permission/${permissionID}/reply`, {
+        method: "POST",
+        body: JSON.stringify({ reply: "once" }),
+      })
 
       expect(permission.status).toBe(404)
       expect(yield* Effect.promise(() => permission.json())).toEqual({
         _tag: "PermissionNotFoundError",
         requestID: permissionID,
         message: `Permission request not found: ${permissionID}`,
-      })
-      expect(questionReply.status).toBe(404)
-      expect(yield* Effect.promise(() => questionReply.json())).toEqual({
-        _tag: "QuestionNotFoundError",
-        requestID: questionReplyID,
-        message: `Question request not found: ${unwrapQuestionID(questionReplyID)}`,
-      })
-      expect(questionReject.status).toBe(404)
-      expect(yield* Effect.promise(() => questionReject.json())).toEqual({
-        _tag: "QuestionNotFoundError",
-        requestID: questionRejectID,
-        message: `Question request not found: ${unwrapQuestionID(questionRejectID)}`,
       })
     }),
   )

@@ -1,4 +1,22 @@
 import type { Page, Route } from "@playwright/test"
+import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
+import type {
+  AppAgentsResponse,
+  GlobalHealthResponse,
+  InvalidCursorError,
+  InvalidRequestError,
+  PermissionOverrideGetResponse,
+  ProjectNotFoundError,
+  SchedulePendingResponse,
+  SessionCompositionResponse,
+  SessionMessagesResponse,
+  SessionNotFoundError,
+  V2PermissionGrantListResponse,
+  V2PermissionRequestListResponse,
+  V2QuestionRequestListResponse,
+  V2SessionMessagesData,
+} from "@aigcfroge/sdk/v2/client"
+import { pathKey } from "../../src/utils/path-key"
 
 const isRecordOf = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
 type MockSession = { id: string } & Record<string, unknown>
@@ -9,7 +27,6 @@ const emptyList = new Set([
   "/lsp",
   "/formatter",
   "/permission",
-  "/question",
   "/vcs/status",
   "/vcs/diff",
   "/vcs/log",
@@ -17,6 +34,9 @@ const emptyList = new Set([
   "/pty/shells",
 ])
 const emptyObject = new Set(["/global/config", "/config", "/provider/auth", "/mcp", "/session/status"])
+
+export type MockCanonicalMessageQuery = V2SessionMessagesData["path"] &
+  NonNullable<V2SessionMessagesData["query"]> & { limit: number }
 
 export interface MockServerConfig {
   provider: unknown
@@ -29,6 +49,16 @@ export interface MockServerConfig {
   project: unknown
   sessions: MockSession[]
   pageMessages: (sessionId: string, limit: number, before?: string) => { items: unknown[]; cursor?: string }
+  /** GET /api/session/:id/message uses its own canonical message shape and body
+   * cursors. Omitted means empty canonical history for the declared sessions;
+   * populated canonical histories must supply this callback, never `pageMessages`.
+   * It receives limit=50 and first-page order=desc when those parameters are absent.
+   * Returned cursors are opaque fixture tokens. A known token whose anchor belongs
+   * to another session returns an empty page, matching the canonical store. */
+  canonicalMessages?: (input: MockCanonicalMessageQuery) => SessionMessagesResponse
+  /** Frozen snapshots for declared Custom sessions. Unseeded snapshots retain
+   * the real typed 404, including for ordinary non-Custom sessions. */
+  compositions?: Record<string, SessionCompositionResponse>
   vcsDiff?: unknown[]
   messageDelay?: number
   onMessages?: (input: { sessionID: string; before?: string; phase: "start" | "end" }) => void
@@ -38,9 +68,6 @@ export interface MockServerConfig {
    * replaces it and returns the payload so the fold-over writeback round-trips.
    * Structured (not `unknown[]`) so the mock's own find/filter typechecks. */
   tasks?: Array<{ id: string } & Record<string, unknown>>
-  /** Optional three-field todo projection served by GET /session/:id/todo
-   * (reload-recovery source when task.updated is not re-delivered). */
-  todoList?: unknown[]
   /** Optional response for the Agent Asset apply route used by browser regression tests. */
   agentAssetApply?: unknown
   agentAssetApplyStatus?: number
@@ -51,18 +78,16 @@ export interface MockServerConfig {
   delegations?: unknown[]
   delegationDelay?: number
   delegationStatus?: number
-  /** Optional override for the `/agent` projection. The default is the single
-   * `build` primary the picker needs to render at all; a caller that needs a
-   * long list (the narrow picker's overflow contract) supplies its own. */
+  /** Raw override for `/agent`, including deliberately malformed responses.
+   * Defaults are complete synthetic agents with the real primary-mode policy. */
   agents?: unknown[]
   /** Optional project list served by GET /project. Defaults to `[config.project]`;
    * a second server or a multi-project case supplies its own list. */
   projects?: unknown[]
   /** Optional response for PATCH /project/:id, the write the colour auto-assign
    * (`context/layout.tsx`) and the edit dialog (`dialog-edit-project.tsx`) issue.
-   * Absent, the route stays unmatched and falls through to the same 200 `{}` it
-   * always has; `projectUpdateStatus` defaults to 200, so a rejected write is
-   * expressed as a status plus the typed error shape. */
+   * Absent, valid writes update registration-local projections. Explicit body
+   * or status overrides bypass that state and preserve negative-response cases. */
   projectUpdate?: unknown
   projectUpdateStatus?: number
   /** Optional replacement for GET /path's projection. Absent, the default
@@ -85,6 +110,17 @@ export interface MockServerConfig {
 
 export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) {
   const cursors = new Map<string, string>()
+  const canonicalCursors = new Map<string, Set<string>>()
+  const projectSeeds = structuredClone({ current: config.project, list: config.projects ?? [config.project] })
+  const projectUpdates = new Map<string, Record<string, unknown>>()
+  const projectProjection = (seed: unknown) => {
+    if (!isRecordOf(seed) || typeof seed.id !== "string") return seed
+    const updated = projectUpdates.get(seed.id)
+    if (!updated) return seed
+    // Stored empty icon columns must survive, even when fromRow omits the wire icon.
+    const icon = isRecordOf(updated.icon) ? updated.icon : undefined
+    return { ...updated, icon: icon && (icon.url || icon.override || icon.color) ? icon : undefined }
+  }
   let nextCursor = 0
   let nextTaskID = 0
   const pathProjection = {
@@ -95,15 +131,25 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     home: "C:/Aigcfroge",
   }
   const staticRoutes: Record<string, unknown> = {
+    "/experimental/capabilities": {
+      backgroundSubagents: false,
+      chatAsset: false,
+      customMode: false,
+      productModes: ["chat", "coding", "work", "assistant", "custom"],
+      customCompositionVersion: 1,
+      canonicalSessionModes: ["assistant", "custom"],
+    },
     "/provider": config.provider,
     "/path": pathProjection,
-    "/project": config.projects ?? [config.project],
-    "/project/current": config.project,
-    // `primaryModes` mirrors the real server projection (S6): the picker filters on
-    // it for display, so a mock without it would render an empty agent control.
-    "/agent": config.agents ?? [
-      { name: "build", mode: "primary", primaryModes: ["chat", "coding", "work", "assistant", "custom"] },
-    ],
+    "/agent":
+      config.agents ??
+      (["build", ProductModeAgentPolicy.META, ProductModeAgentPolicy.ASSISTANT_ORCHESTRATOR].map((name) => ({
+        name,
+        mode: "primary",
+        permission: [],
+        options: {},
+        primaryModes: [...ProductModeAgentPolicy.primaryModes(name)],
+      })) satisfies AppAgentsResponse),
     "/vcs": config.vcs ?? { branch: "main", default_branch: "main" },
     "/session": config.sessions,
   }
@@ -118,7 +164,12 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
 
     const path = url.pathname
     if (path === "/global/event" || path === "/event") return sse(route, config.events?.(), config.eventRetry)
-    if (path === "/global/health") return json(route, { healthy: true })
+    if (path === "/global/health" && route.request().method() === "GET") {
+      return json(route, { healthy: true, version: "0.0.0-mock" } satisfies GlobalHealthResponse)
+    }
+    if (path === "/schedule/pending" && route.request().method() === "GET") {
+      return json(route, [] satisfies SchedulePendingResponse)
+    }
     if (/^\/session\/[^/]+\/agent-asset\/apply$/.test(path) && route.request().method() === "POST") {
       return json(route, config.agentAssetApply ?? {}, undefined, config.agentAssetApplyStatus ?? 200)
     }
@@ -130,21 +181,93 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     // route still falls through to that same `[]`.
     if (path === "/file" && config.files !== undefined) return json(route, config.files)
     if (emptyList.has(path)) return json(route, [])
+    if (
+      ["/api/question/request", "/api/permission/request", "/api/permission/grant"].includes(path) &&
+      route.request().method() === "GET"
+    ) {
+      const directory = url.searchParams.get("location[directory]") || config.directory
+      const key = pathKey(directory)
+      // This fixture resolves only its seeded project and descendants, not a filesystem.
+      const project = [projectSeeds.current, ...projectSeeds.list]
+        .filter(
+          (seed): seed is Record<string, unknown> & { worktree: string } =>
+            isRecordOf(seed) &&
+            typeof seed.worktree === "string" &&
+            (key === pathKey(seed.worktree) || key.startsWith(`${pathKey(seed.worktree).replace(/\/$/, "")}/`)),
+        )
+        .sort((a, b) => b.worktree.length - a.worktree.length)[0]
+      if (!isRecordOf(project) || typeof project.id !== "string" || typeof project.worktree !== "string") {
+        throw new Error(`Mock Location requires a seeded project for directory: ${directory}`)
+      }
+      const workspaceID = url.searchParams.get("location[workspace]") || undefined
+      return json(route, {
+        location: {
+          directory,
+          project: { id: project.id, directory: project.worktree },
+          ...(workspaceID && { workspaceID }),
+        },
+        data: [],
+      } satisfies V2PermissionRequestListResponse & V2PermissionGrantListResponse & V2QuestionRequestListResponse)
+    }
     // Checked before `staticRoutes` only when the knob asks for it; an absent pair
     // leaves the default projection and status untouched.
     if (path === "/path" && (config.pathResponse !== undefined || config.pathStatus !== undefined)) {
       return json(route, config.pathResponse ?? pathProjection, undefined, config.pathStatus ?? 200)
     }
+    if (path === "/project" && route.request().method() === "GET") {
+      return json(route, projectSeeds.list.map(projectProjection))
+    }
+    if (path === "/project/current" && route.request().method() === "GET") {
+      return json(route, projectProjection(projectSeeds.current))
+    }
     if (path in staticRoutes) return json(route, staticRoutes[path])
-    // Project write (`PATCH /project/:id`). Unmatched before this knob existed, so it
-    // fell through to the blanket 200 `{}` and a rejected write was inexpressible.
-    // Only answer explicit overrides; SDK requests without one use the API fallback below.
-    if (
-      /^\/project\/[^/]+$/.test(path) &&
-      route.request().method() === "PATCH" &&
-      (config.projectUpdate !== undefined || config.projectUpdateStatus !== undefined)
-    ) {
-      return json(route, config.projectUpdate ?? {}, undefined, config.projectUpdateStatus ?? 200)
+    const projectMatch = path.match(/^\/project\/([^/]+)$/)
+    if (projectMatch && route.request().method() === "PATCH") {
+      if (config.projectUpdate !== undefined || config.projectUpdateStatus !== undefined) {
+        return json(route, config.projectUpdate ?? {}, undefined, config.projectUpdateStatus ?? 200)
+      }
+      const projectID = decodeURIComponent(projectMatch[1])
+      const project =
+        projectUpdates.get(projectID) ??
+        [...projectSeeds.list, projectSeeds.current].find((seed) => isRecordOf(seed) && seed.id === projectID)
+      if (!isRecordOf(project)) {
+        return json(
+          route,
+          {
+            _tag: "ProjectNotFoundError",
+            projectID,
+            message: `Project not found: ${projectID}`,
+          } satisfies ProjectNotFoundError,
+          undefined,
+          404,
+        )
+      }
+      const body: unknown = route.request().postDataJSON()
+      if (!isRecordOf(body) || Array.isArray(body) || !isRecordOf(project.time)) {
+        throw new Error("Default mock Project writes require a JSON object and a seeded Project time")
+      }
+      // Match Project.update's independent icon columns and whole commands column.
+      const icon = {
+        ...(isRecordOf(project.icon) ? project.icon : {}),
+        ...Object.fromEntries(
+          isRecordOf(body.icon)
+            ? Object.entries(body.icon).filter(
+                ([key, value]) => ["url", "override", "color"].includes(key) && typeof value === "string",
+              )
+            : [],
+        ),
+      }
+      const updated = {
+        ...project,
+        ...(typeof body.name === "string" && { name: body.name }),
+        icon,
+        ...(isRecordOf(body.commands) && {
+          commands: typeof body.commands.start === "string" ? { start: body.commands.start } : {},
+        }),
+        time: { ...project.time, updated: Date.now() },
+      }
+      projectUpdates.set(projectID, updated)
+      return json(route, projectProjection(updated))
     }
     // M4 Agent Hub cross-session aggregation read (agent-task group).
     if (path === "/agent-task") return json(route, config.tasks ?? [])
@@ -163,9 +286,19 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
       return json(route, session)
     }
 
-    const todoPath = path.match(/^\/session\/([^/]+)\/todo$/)
-    if (todoPath) return json(route, config.todoList ?? [])
     if (/^\/session\/[^/]+\/(children|diff)$/.test(path)) return json(route, [])
+
+    const sessionProjectionMatch = path.match(/^\/session\/([^/]+)\/(composition|permission-override)$/)
+    if (sessionProjectionMatch && route.request().method() === "GET") {
+      const session = config.sessions.find((s) => s.id === sessionProjectionMatch[1])
+      if (!session) return notFound(route, `Session not found: ${sessionProjectionMatch[1]}`)
+      if (sessionProjectionMatch[2] === "composition") {
+        const snapshot = config.compositions?.[session.id]
+        if (snapshot) return json(route, snapshot)
+        return notFound(route, `Snapshot not found for session ${session.id}`)
+      }
+      return json(route, { enabled: false } satisfies PermissionOverrideGetResponse)
+    }
 
     const taskMatch = path.match(/^\/session\/([^/]+)\/task$/)
     if (taskMatch) {
@@ -252,6 +385,73 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
             : { health: "degraded", reasons: [{ code: "mode-detail-not-projected", severity: "info" }] },
         detail: mode === "coding" ? codingDetail : missingDetail,
       })
+    }
+
+    const canonicalMatch = path.match(/^\/api\/session\/([^/]+)\/message$/)
+    if (canonicalMatch && route.request().method() === "GET") {
+      const sessionID = canonicalMatch[1]
+      if (!config.sessions.some((session) => session.id === sessionID)) {
+        return json(
+          route,
+          {
+            _tag: "SessionNotFoundError",
+            sessionID,
+            message: `Session not found: ${sessionID}`,
+          } satisfies SessionNotFoundError,
+          undefined,
+          404,
+        )
+      }
+      const limit = Number(url.searchParams.get("limit") ?? 50)
+      const order = url.searchParams.get("order")
+      const cursor = url.searchParams.get("cursor")
+      if (
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > 200 ||
+        (order !== null && order !== "asc" && order !== "desc")
+      ) {
+        return json(
+          route,
+          {
+            _tag: "InvalidRequestError",
+            message: "Invalid message pagination query",
+            kind: "Query",
+          } satisfies InvalidRequestError,
+          undefined,
+          400,
+        )
+      }
+      if (cursor && order !== null) {
+        return json(
+          route,
+          { _tag: "InvalidCursorError", message: "Cursor cannot be combined with order" } satisfies InvalidCursorError,
+          undefined,
+          400,
+        )
+      }
+      if (cursor && !canonicalCursors.get(sessionID)?.has(cursor)) {
+        if ([...canonicalCursors.values()].some((issued) => issued.has(cursor))) {
+          return json(route, { data: [], cursor: {} } satisfies SessionMessagesResponse)
+        }
+        return json(
+          route,
+          { _tag: "InvalidCursorError", message: "Invalid cursor" } satisfies InvalidCursorError,
+          undefined,
+          400,
+        )
+      }
+      const response: SessionMessagesResponse = config.canonicalMessages?.({
+        sessionID,
+        limit,
+        ...(cursor ? { cursor } : { order: order ?? "desc" }),
+      }) ?? { data: [], cursor: {} }
+      const issued = canonicalCursors.get(sessionID) ?? new Set<string>()
+      Object.values(response.cursor).forEach((token) => {
+        if (token) issued.add(token)
+      })
+      canonicalCursors.set(sessionID, issued)
+      return json(route, response)
     }
 
     const messagesMatch = path.match(/^\/session\/([^/]+)\/message$/)

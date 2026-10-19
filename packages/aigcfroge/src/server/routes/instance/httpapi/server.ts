@@ -27,7 +27,6 @@ import { Project } from "@/project/project"
 import { Vcs } from "@/project/vcs"
 import { ProviderAuth } from "@/provider/auth"
 import { Provider } from "@/provider/provider"
-import { Question } from "@/question"
 import { SessionCompaction } from "@/session/compaction"
 import { Instruction } from "@/session/instruction"
 import { LLM } from "@/session/llm"
@@ -38,7 +37,6 @@ import { SessionRunState } from "@/session/run-state"
 import { Session } from "@/session/session"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
-import { Todo } from "@/session/todo"
 import { SessionShare } from "@/share/session"
 import { ShareNext } from "@/share/share-next"
 import { Skill } from "@/skill"
@@ -73,7 +71,6 @@ import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
 import { ScheduledJob } from "@aigcfroge/core/session/scheduled-job"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionTodo } from "@aigcfroge/core/session/todo"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
 import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
 import { KBService } from "@aigcfroge/core/session/kb-service"
@@ -117,7 +114,6 @@ import { projectHandlers } from "./handlers/project"
 import { projectCopyHandlers } from "./handlers/project-copy"
 import { providerHandlers } from "./handlers/provider"
 import { ptyConnectHandlers, ptyHandlers } from "./handlers/pty"
-import { questionHandlers } from "./handlers/question"
 import { sessionHandlers } from "./handlers/session"
 import { agentTaskHandlers } from "./handlers/agent-task"
 import { delegationHandlers } from "./handlers/delegation"
@@ -191,7 +187,6 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     projectHandlers,
     projectCopyHandlers,
     ptyHandlers,
-    questionHandlers,
     permissionHandlers,
     PromptAssetHandlers.promptAssetHandlers,
     WorkArtifactHandlers.workArtifactHandlers,
@@ -310,9 +305,7 @@ const app = LayerNode.group([
   Agent.node,
   Skill.node,
   Discovery.node,
-  Question.node,
   Permission.node,
-  Todo.node,
   Session.node,
   SessionProjector.node,
   SessionStatus.node,
@@ -352,7 +345,6 @@ const app = LayerNode.group([
   PtyTicket.node,
   SessionTask.node,
   SessionStore.node,
-  SessionTodo.node,
   // M3 scheduler: runner + daemon (startup arm, minute tick, task.updated re-arm).
   ScheduledJob.node,
   ScheduledJob.daemonNode,

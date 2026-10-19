@@ -70,8 +70,6 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
   let assistantActive = false
   let assistantFailed = false
   let providerFailed = false
-  let aborted = false
-  let textStarted = false // Phase 5: track whether any text delta arrived
 
   const startAssistant = Effect.fnUntraced(function* () {
     if (assistantMessageID !== undefined) return assistantMessageID
@@ -197,7 +195,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
     yield* flushFragments()
   })
 
-  const failAssistant = Effect.fnUntraced(function* (message: string) {
+  const failAssistant = Effect.fnUntraced(function* (error: SessionMessage.AssistantError) {
     if (assistantFailed) return
     yield* flush()
     const assistantMessageID = yield* startAssistant()
@@ -207,7 +205,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
       sessionID: input.sessionID,
       timestamp: yield* timestamp,
       assistantMessageID,
-      error: { type: "unknown", message },
+      error,
     })
   })
 
@@ -245,7 +243,6 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
       case "step-start":
         return
       case "text-start":
-        textStarted = true
         yield* text.start(event.id)
         yield* events.publish(SessionEvent.Text.Started, {
           sessionID: input.sessionID,
@@ -412,15 +409,8 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
       case "finish":
         return
       case "provider-error":
-        if (textStarted && !event.classification) {
-          // Text was being streamed and this is a transient (unclassified)
-          // provider error — mark as aborted so the runner can retry.
-          aborted = true
-          providerFailed = true
-          return
-        }
         providerFailed = true
-        yield* failAssistant(event.message)
+        yield* failAssistant({ type: "unknown", message: event.message })
         return
     }
   })
@@ -433,7 +423,6 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
     hasActiveAssistant: () => assistantActive,
     hasAssistantStarted: () => assistantMessageID !== undefined,
     hasProviderError: () => providerFailed,
-    isAborted: () => aborted,
     assistantMessageID: assistantMessageIDForTool,
   }
 }

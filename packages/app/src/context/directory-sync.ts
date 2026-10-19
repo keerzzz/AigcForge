@@ -1,4 +1,5 @@
-import { batch, createMemo } from "solid-js"
+import { CanonicalMessages } from "./global-sync/canonical-messages"
+import { batch, createMemo, onCleanup } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { Binary } from "@aigcfroge/core/util/binary"
 import { retry } from "@aigcfroge/core/util/retry"
@@ -8,11 +9,13 @@ import {
   getSessionPrefetchPromise,
   setSessionPrefetch,
 } from "./global-sync/session-prefetch"
-import type { Message, Part } from "@aigcfroge/sdk/v2/client"
+import type { Message, Part, SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { SESSION_CACHE_LIMIT, dropSessionCaches, pickSessionCacheEvictions } from "./global-sync/session-cache"
 import { diffs as list, message as clean } from "@/utils/diffs"
 import { type createServerSdkContext } from "./server-sdk"
 import { type createServerSyncContextInner } from "./server-sync"
+import { directoryKey, mergeSessionReview } from "./global-sync/utils"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
 
@@ -24,13 +27,137 @@ function runInflight(map: Map<string, Promise<void>>, key: string, task: () => P
   const pending = map.get(key)
   if (pending) return pending
   const promise = task().finally(() => {
-    map.delete(key)
+    if (map.get(key) === promise) map.delete(key)
   })
   map.set(key, promise)
   return promise
 }
 
 const keyFor = (directory: string, id: string) => `${directory}\n${id}`
+
+type TaskReadSource = { directory: string; signal?: AbortSignal }
+
+// Request metadata only; ServerSync's session_task remains the sole data store.
+export function createTaskReadback(input: {
+  get: (source: TaskReadSource & { sessionID: string }) => Promise<SessionTaskInfo[]>
+  list: (source: TaskReadSource) => Promise<SessionTaskInfo[]>
+  keys: () => string[]
+  write: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => void
+}) {
+  const versions = new Map<string, { event: number; read: number }>()
+  const directories = new Map<string, symbol>()
+  const inflight = new Map<string, Promise<void>>()
+  const dirty = new Set<string>()
+  let eventEpoch = 0
+  let readEpoch = 0
+  let fullReadEpoch = 0
+  let disposed = false
+
+  const scope = (source: TaskReadSource) => {
+    const directory = directoryKey(source.directory)
+    const generation = directories.get(directory) ?? Symbol(directory)
+    directories.set(directory, generation)
+    return { ...source, directory, generation }
+  }
+  const begin = (source: TaskReadSource) => ({ ...scope(source), event: eventEpoch, read: ++readEpoch })
+  const current = (request: ReturnType<typeof scope>) =>
+    !disposed && !request.signal?.aborted && directories.get(request.directory) === request.generation
+
+  const commit = (request: ReturnType<typeof begin>, sessionID: string, tasks: SessionTaskInfo[]) => {
+    const version = versions.get(sessionID)
+    if (!current(request) || request.read < fullReadEpoch) return
+    if ((version?.event ?? 0) > request.event || (version?.read ?? 0) > request.read) return
+    // Only successful reads advance the accepted-read epoch. An earlier result
+    // can render while a newer read is pending, but cannot replace its success.
+    versions.set(sessionID, { event: version?.event ?? 0, read: request.read })
+    input.write(sessionID, tasks)
+  }
+  const invalidate = (sessionID: string) => {
+    versions.set(sessionID, { event: ++eventEpoch, read: versions.get(sessionID)?.read ?? 0 })
+  }
+  const load = async (source: TaskReadSource & { sessionID: string }) => {
+    if (disposed || source.signal?.aborted) return
+    // A concurrent all-session snapshot must also clear cold, in-flight sessions.
+    if (!versions.has(source.sessionID)) versions.set(source.sessionID, { event: 0, read: 0 })
+    const request = begin(source)
+    const tasks = await input.get(source)
+    commit(request, source.sessionID, tasks)
+  }
+  const reset = () => {
+    const active = directories.size > 0
+    directories.clear()
+    inflight.clear()
+    dirty.clear()
+    return active
+  }
+
+  return {
+    load,
+    async loadAll(source: TaskReadSource) {
+      if (disposed || source.signal?.aborted) return
+      const request = begin(source)
+      const tasks = await input.list(source)
+      if (!current(request) || request.read < fullReadEpoch) return
+      // An empty global snapshot also excludes sessions not seen by this cache
+      // yet, including rows that an older all-session read may return later.
+      fullReadEpoch = request.read
+      const grouped = new Map<string, SessionTaskInfo[]>()
+      tasks.forEach((task) => {
+        const list = grouped.get(task.sessionID) ?? []
+        list.push(task)
+        grouped.set(task.sessionID, list)
+      })
+      batch(() => {
+        new Set([...input.keys(), ...versions.keys(), ...grouped.keys()]).forEach((sessionID) => {
+          // Keep an empty-list tombstone; absence is a successful snapshot too.
+          commit(request, sessionID, grouped.get(sessionID) ?? [])
+        })
+      })
+    },
+    set: (sessionID: string, tasks: SessionTaskInfo[] | undefined) => {
+      if (disposed || !sessionID) return
+      invalidate(sessionID)
+      dirty.forEach((key) => {
+        if (key.endsWith(`\n${sessionID}`)) dirty.delete(key)
+      })
+      input.write(sessionID, tasks)
+    },
+    refresh(directory: string, sessionID: string) {
+      if (disposed || !sessionID) return Promise.resolve()
+      invalidate(sessionID)
+      const request = scope({ directory })
+      const key = keyFor(request.directory, sessionID)
+      dirty.add(key)
+      return runInflight(inflight, key, () =>
+        // Batch same-turn invalidations; an event during a read owes one more
+        // snapshot, not another parallel request or a row-revision comparison.
+        Promise.resolve().then(async () => {
+          while (current(request) && dirty.delete(key)) {
+            await load({ directory, sessionID }).catch((error: unknown) => {
+              // A superseded failure still owes the already queued refresh.
+              if (current(request) && !dirty.has(key)) throw error
+            })
+          }
+        }),
+      )
+    },
+    disposeDirectory(directory: string) {
+      const key = directoryKey(directory)
+      directories.delete(key)
+      inflight.forEach((_promise, bucket) => {
+        if (!bucket.startsWith(`${key}\n`)) return
+        dirty.delete(bucket)
+        inflight.delete(bucket)
+      })
+    },
+    reset,
+    dispose() {
+      disposed = true
+      reset()
+      versions.clear()
+    },
+  }
+}
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
@@ -68,6 +195,7 @@ type OptimisticItem = {
 }
 
 type MessagePage = {
+  canonical?: boolean
   session: Message[]
   part: { id: string; part: Part[] }[]
   cursor?: string
@@ -106,7 +234,7 @@ export function mergeOptimisticPage(page: MessagePage, items: OptimisticItem[]) 
     if (!found) session.splice(result.index, 0, item.message)
 
     const current = part.get(item.message.id)
-    if (found && hasParts(current, item.parts)) {
+    if (found && (page.canonical || hasParts(current, item.parts))) {
       confirmed.push(item.message.id)
       continue
     }
@@ -196,8 +324,9 @@ export const createDirSyncContext = (
   const initialMessagePageSize = 2
   const historyMessagePageSize = 200
   const inflight = new Map<string, Promise<void>>()
+  const dirty = new Set<string>()
+  const stream = CanonicalMessages.createStream()
   const inflightDiff = new Map<string, Promise<void>>()
-  const inflightTodo = new Map<string, Promise<void>>()
   const optimistic = new Map<string, Map<string, OptimisticItem>>()
   const maxDirs = 30
   const seen = new Map<string, Set<string>>()
@@ -266,6 +395,8 @@ export const createDirSyncContext = (
     if (sessionIDs.length === 0) return
     for (const sessionID of sessionIDs) {
       clearOptimistic(directory, sessionID)
+      stream.clear(sessionID)
+      dirty.delete(keyFor(directory, sessionID))
     }
     setMeta(
       produce((draft) => {
@@ -284,7 +415,7 @@ export const createDirSyncContext = (
     if (sessionIDs.length === 0) return
     clearSessionPrefetch(serverSDK.scope, directory, sessionIDs)
     for (const sessionID of sessionIDs) {
-      serverSync.todo.set(sessionID, undefined)
+      serverSync.task.set(sessionID, undefined)
     }
     setStore(
       produce((draft) => {
@@ -303,7 +434,19 @@ export const createDirSyncContext = (
     evict(directory, setStore, stale)
   }
 
-  const fetchMessages = async (input: { client: typeof client; sessionID: string; limit: number; before?: string }) => {
+  const fetchMessages = async (input: {
+    client: typeof client
+    sessionID: string
+    limit: number
+    before?: string
+    through?: string
+  }) => {
+    const info =
+      current()[0].session.find((item) => item.id === input.sessionID) ??
+      (await input.client.session.get({ sessionID: input.sessionID })).data
+    const capabilities = await serverSync.capabilities()
+    if (info && capabilities.canonicalSessionModes.includes(info.mode ?? ProductMode.Default))
+      return CanonicalMessages.page(input.client, info, input.limit, input.before, input.through)
     const messages = await retry(() =>
       input.client.session.messages({ sessionID: input.sessionID, limit: input.limit, before: input.before }),
     )
@@ -334,7 +477,11 @@ export const createDirSyncContext = (
     if (meta.loading[key]) return
 
     setMeta("loading", key, true)
-    await fetchMessages(input)
+    const [cachedStore] = serverSync.child(input.directory, { bootstrap: false })
+    await fetchMessages({
+      ...input,
+      through: input.mode !== "prepend" ? cachedStore.message[input.sessionID]?.[0]?.id : undefined,
+    })
       .then((page) => {
         if (!tracked(input.directory, input.sessionID)) return
         const next = mergeOptimisticPage(page, getOptimistic(input.directory, input.sessionID))
@@ -348,7 +495,7 @@ export const createDirSyncContext = (
           input.setStore("message", input.sessionID, reconcile(message, { key: "id" }))
           for (const p of next.part) {
             const filtered = p.part.filter((x) => !SKIP_PARTS.has(x.type))
-            if (filtered.length) input.setStore("part", p.id, filtered)
+            input.setStore("part", p.id, "canonical" in page && page.canonical ? stream.snapshot(filtered) : filtered)
           }
           setMeta("limit", key, message.length)
           setMeta("cursor", key, next.cursor)
@@ -380,7 +527,7 @@ export const createDirSyncContext = (
       })
   }
 
-  return {
+  const result = {
     get data() {
       return current()[0]
     },
@@ -455,70 +602,77 @@ export const createDirSyncContext = (
           })
         }
 
-        return runInflight(inflight, key, async () => {
-          const pending = getSessionPrefetchPromise(serverSDK.scope, directory, sessionID)
-          if (pending) {
-            await pending
-            const seeded = getSessionPrefetch(serverSDK.scope, directory, sessionID)
-            if (seeded && store.message[sessionID] !== undefined && meta.limit[key] === undefined) {
-              batch(() => {
-                setMeta("limit", key, seeded.limit)
-                setMeta("cursor", key, seeded.cursor)
-                setMeta("complete", key, seeded.complete)
-                setMeta("loading", key, false)
-              })
-            }
-          }
-
-          const hasSession = Binary.search(store.session, sessionID, (s) => s.id).found
-          const cached = store.message[sessionID] !== undefined && meta.limit[key] !== undefined
-          if (cached && hasSession && !opts?.force) return
-
-          const limit = meta.limit[key] ?? initialMessagePageSize
-          const sessionReq =
-            hasSession && !opts?.force
-              ? Promise.resolve()
-              : retry(() => client.session.get({ sessionID }))
-                  .then((session) => {
-                    if (!tracked(directory, sessionID)) return
-                    const data = session.data
-                    if (!data) return
-                    // Archived sessions stay out of the session list (aligned
-                    // with upstream: the list is driven only by the list API).
-                    // Messages still load below so archived history stays
-                    // readable, but the session must not resurrect into the
-                    // sidebar or drift sessionTotal.
-                    if (data.time?.archived) return
-                    setStore(
-                      "session",
-                      produce((draft) => {
-                        const match = Binary.search(draft, sessionID, (s) => s.id)
-                        if (match.found) {
-                          draft[match.index] = data
-                          return
-                        }
-                        draft.splice(match.index, 0, data)
-                      }),
-                    )
-                  })
-                  .catch((error) => {
-                    if (isNotFound(error) && !tracked(directory, sessionID)) return
-                    throw error
-                  })
-
-          const messagesReq =
-            cached && !opts?.force
-              ? Promise.resolve()
-              : loadMessages({
-                  directory,
-                  client,
-                  setStore,
-                  sessionID,
-                  limit,
+        if (opts?.force) dirty.add(key)
+        do {
+          await runInflight(inflight, key, async () => {
+            const pending = getSessionPrefetchPromise(serverSDK.scope, directory, sessionID)
+            if (pending) {
+              await pending
+              const seeded = getSessionPrefetch(serverSDK.scope, directory, sessionID)
+              if (seeded && store.message[sessionID] !== undefined && meta.limit[key] === undefined) {
+                batch(() => {
+                  setMeta("limit", key, seeded.limit)
+                  setMeta("cursor", key, seeded.cursor)
+                  setMeta("complete", key, seeded.complete)
+                  setMeta("loading", key, false)
                 })
+              }
+            }
 
-          await Promise.all([sessionReq, messagesReq])
-        })
+            const hasSession = Binary.search(store.session, sessionID, (s) => s.id).found
+            const cached = store.message[sessionID] !== undefined && meta.limit[key] !== undefined
+            const force = dirty.delete(key)
+            if (cached && hasSession && !force) return
+
+            const limit = meta.limit[key] ?? initialMessagePageSize
+            const sessionReq =
+              hasSession && !force
+                ? Promise.resolve()
+                : retry(() => client.session.get({ sessionID }))
+                    .then((session) => {
+                      if (!tracked(directory, sessionID)) return
+                      const data = session.data
+                      if (data?.id !== sessionID) return
+                      // Archived sessions stay out of the session list (aligned
+                      // with upstream: the list is driven only by the list API).
+                      // Messages still load below so archived history stays
+                      // readable, but the session must not resurrect into the
+                      // sidebar or drift sessionTotal.
+                      if (data.time?.archived) return
+                      setStore(
+                        "session",
+                        produce((draft) => {
+                          const match = Binary.search(draft, sessionID, (s) => s.id)
+                          if (match.found) {
+                            draft[match.index] = mergeSessionReview(draft[match.index], data)
+                            return
+                          }
+                          draft.splice(match.index, 0, mergeSessionReview(undefined, data))
+                        }),
+                      )
+                    })
+                    .catch((error) => {
+                      if (isNotFound(error) && !tracked(directory, sessionID)) return
+                      throw error
+                    })
+
+            const messagesReq =
+              cached && !force
+                ? Promise.resolve()
+                : loadMessages({
+                    directory,
+                    client,
+                    setStore,
+                    sessionID,
+                    limit,
+                  })
+
+            await Promise.all([sessionReq, messagesReq])
+          }).catch((error: unknown) => {
+            // An event received during a failed read still owes a fresh snapshot.
+            if (!tracked(directory, sessionID) || !dirty.has(key)) throw error
+          })
+        } while (tracked(directory, sessionID) && (dirty.has(key) || inflight.has(key)))
       },
       async diff(sessionID: string, opts?: { force?: boolean }) {
         const [store, setStore] = serverSync.child(directory)
@@ -530,39 +684,6 @@ export const createDirSyncContext = (
           retry(() => client.session.diff({ sessionID })).then((diff) => {
             if (!tracked(directory, sessionID)) return
             setStore("session_diff", sessionID, reconcile(list(diff.data), { key: "file" }))
-          }),
-        )
-      },
-      async todo(sessionID: string, opts?: { force?: boolean }) {
-        const [store, setStore] = serverSync.child(directory)
-        touch(directory, setStore, sessionID)
-        const existing = store.todo[sessionID]
-        const cached = serverSync.data.session_todo[sessionID]
-        if (existing !== undefined) {
-          if (cached === undefined) {
-            serverSync.todo.set(sessionID, existing)
-          }
-          if (!opts?.force) return
-        }
-
-        if (cached !== undefined) {
-          setStore("todo", sessionID, cached)
-        }
-
-        const key = keyFor(directory, sessionID)
-        return runInflight(inflightTodo, key, () =>
-          retry(() => client.session.todo({ sessionID })).then((todo) => {
-            if (!tracked(directory, sessionID)) return
-            const list = todo.data ?? []
-            // An empty pull carries no signal (nothing persisted server-side)
-            // and must NOT bump session_todo_updated_at: a fresh empty todo
-            // would outrank the id-bearing task channel in pickProgressTodos
-            // and hide real tasks (the e2e M7 track regressions). BLOCKER-2's
-            // "user cleared todos" guard targets genuine todo.updated events,
-            // which arrive through the event stream, not this pull.
-            if (list.length === 0) return
-            setStore("todo", sessionID, list)
-            serverSync.todo.set(sessionID, list)
           }),
         )
       },
@@ -589,15 +710,17 @@ export const createDirSyncContext = (
           const before = meta.cursor[key]
           if (!before) return
 
-          await loadMessages({
-            directory,
-            client,
-            setStore,
-            sessionID,
-            limit: step,
-            before,
-            mode: "prepend",
-          })
+          await runInflight(inflight, key, () =>
+            loadMessages({
+              directory,
+              client,
+              setStore,
+              sessionID,
+              limit: step,
+              before,
+              mode: "prepend",
+            }),
+          )
         },
       },
       evict(sessionID: string, _directory = directory) {
@@ -609,10 +732,12 @@ export const createDirSyncContext = (
         const [store, setStore] = serverSync.child(directory)
         setStore("limit", (x) => x + count)
         await client.session.list().then((x) => {
+          const current = new Map(store.session.map((session) => [session.id, session]))
           const sessions = (x.data ?? [])
             .filter((s) => !!s?.id)
             .sort((a, b) => cmp(a.id, b.id))
             .slice(0, store.limit)
+            .map((session) => mergeSessionReview(current.get(session.id), session))
           setStore("session", reconcile(sessions, { key: "id" }))
         })
       },
@@ -636,4 +761,27 @@ export const createDirSyncContext = (
       return current()[0].path.directory
     },
   }
+  onCleanup(() => {
+    seen.forEach((sessions) => sessions.forEach((sessionID) => stream.clear(sessionID)))
+    seen.clear()
+    dirty.clear()
+  })
+  onCleanup(
+    serverSDK.event.listen((event) => {
+      if (directoryKey(event.name) !== directoryKey(directory)) return
+      const details = event.details
+      if (!details.type.startsWith("session.next.") || !details.properties || !("sessionID" in details.properties))
+        return
+      const sessionID = details.properties.sessionID
+      if (typeof sessionID !== "string" || !tracked(directory, sessionID)) return
+      const [store, setStore] = current()
+      const live = stream.update(details, store.part)
+      if (live?.parts) setStore("part", live.messageID, live.parts)
+      if (details.type.endsWith(".delta") && (!live || live.present)) return
+      void result.session
+        .sync(sessionID, { force: true })
+        .catch(() => console.error("Failed to refresh canonical session messages"))
+    }),
+  )
+  return result
 }

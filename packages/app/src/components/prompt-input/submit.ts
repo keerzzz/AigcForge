@@ -196,7 +196,7 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
 
 type PromptSubmitInput = {
   prompt: ReturnType<typeof usePrompt>
-  info: Accessor<{ id: string } | undefined>
+  info: Accessor<{ id: string; mode?: Session["mode"] } | undefined>
   imageAttachments: Accessor<ImageAttachmentPart[]>
   commentCount: Accessor<number>
   autoAccept: Accessor<boolean>
@@ -262,9 +262,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     const sessionID = params.id
     if (!sessionID) return Promise.resolve()
 
-    serverSync().todo.set(sessionID, [])
-    const [, setStore] = serverSync().child(sdk().directory)
-    setStore("todo", sessionID, [])
+    serverSync().task.set(sessionID, [])
 
     input.onAbort?.()
 
@@ -495,20 +493,20 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     if (mode === "shell") {
       clearInput()
-      client.session
-        .shell({
-          sessionID: session.id,
-          agent,
-          model,
-          command: text,
+      try {
+        const capabilities = await serverSync().capabilities()
+        if (capabilities.canonicalSessionModes.includes(session.mode ?? "coding")) {
+          await client.v2.session.shell({ sessionID: session.id, command: text }, { throwOnError: true })
+          return
+        }
+        await client.session.shell({ sessionID: session.id, agent, model, command: text }, { throwOnError: true })
+      } catch (err) {
+        showToast({
+          title: language.t("prompt.toast.shellSendFailed.title"),
+          description: errorMessage(err),
         })
-        .catch((err) => {
-          showToast({
-            title: language.t("prompt.toast.shellSendFailed.title"),
-            description: errorMessage(err),
-          })
-          restoreInput()
-        })
+        restoreInput()
+      }
       return
     }
 

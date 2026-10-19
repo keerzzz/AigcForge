@@ -231,6 +231,13 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 
 | 负债                                                                                           | 闭环日期   | 闭环提交/分支                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | ---------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AI-TDD-S02 指针补全命中与重连 Agent Select 抢焦点                                              | 2026-10-04 | `agent-ui-tdd`（未提交）；两项修复已进入同一冻结生产 E3，46 pass / 0 retry；旧 remount 归因撤回与开放边界见 §13.1、§15.4。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| AI-TDD-S03 默认 Question 可用性、定向取消与单请求撤销通知                                      | 2026-10-04 | `agent-ui-tdd`（未提交）；P1/P2 有界独立复核关闭，后端相关 471 pass / 1 既有 skip，最终四 scope 真实 E4 9 pass / 0 retry；未外推 native provider / 完整交错，见 §15.4。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Bun 超时后的 Effect finalizer 串扰下一测试                                                     | 2026-10-04 | `agent-ui-tdd`（未提交）；共享 runTest 取消并等待作用域清理，确定性 RED/GREEN 与最终 Core 2515 pass / 2 既有 skip；冷 Location 首次耗时归因未关闭，见 §15.4。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| AI-TDD-S03 R01 当前 Question producer/HTTP/SDK/App/TUI/CLI 单契约切换                          | 2026-10-03 | `agent-ui-tdd`（未提交）；Core Location owner 复用，旧应用 Question 链路退役。代码及本轮回归闭环，不代表 B2 整批验收；证据与开放边界见 §15.2。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| AI-TDD-S03 R02 Session permission alias 原生 owner 与终态事件 Location                         | 2026-10-03 | `agent-ui-tdd`（未提交）；真实 HTTP 五模式 25 pass、flag-off Custom 5 pass，两轮 RED/GREEN 与 ambient Location 决策规则见 §15.2。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Codex app-server 握手错误依赖 CLI userAgent 版本字符串                                         | 2026-10-03 | `agent-ui-tdd`（未提交）；保留协议 schema 校验，握手 17 pass、相关委派 57 pass、Core 全量 2508 pass / 2 既有 skip / 0 fail；历史失败与根因见 §15.2。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Question 迟到 snapshot 与 SSE 竞争造成已决请求复活/新请求丢失                                  | 2026-10-03 | `agent-ui-tdd`（未提交）；复用有界 PendingEvents revision replay、latest-load epoch 与窗口缺失重取，4 项反事实 RED 后恢复、App 全量 GREEN；见 §15.2。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | Chat 模式下 meta 默认权限依赖前置拦截（fail-open 信封）                                        | 2026-08-16 | `session-permission-tier`（meta V1/V2 基线 fail-closed + `PermissionEffective`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | meta 非 coding 模式委派 build 死路                                                             | 2026-08-16 | `session-permission-tier`（Phase 5）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Custom M0 de-scope：`createCompositionSkillCatalog` seam 无生产 caller                         | 2026-08-19 | `custom-rollout`（M1 Runner 接线消费：skill tool lookup 与 skill steer 均走 Snapshot-local catalog，缺行/解码失败/漂移 fail-closed）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -388,13 +395,1484 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 - **版本提交回 `main` / 单一版本源（已闭环：ADR-26）。** 自动链路已完成「机器人版本 PR + 只改 version 字段 + 按根 `workspaces.packages` 展开（含嵌套 SDK）+ `bun.lock` workspace 版本同步」。**闭环证据（2026-09-28）：** v0.0.3 先由 run `36341796989` 同源产出并人工转正；#107 修复 Draft 可见性竞态、#110 修复 `bun.lock` 版本滞后后，run `36357776385` 自动创建并合并版本 PR #111（`0.0.4`），run `36362665383` 以 `target_commitish=049eda162` 自动构建 5 平台 / 19 资产并公开 `v0.0.4`；标签、Release target 与构建 SHA 已 API 复核一致。Owner: release。
 - **发布自动化启用契约：`publish` 档已通过显式未签名开关运行，签名仍未闭环 — Owner: release / infra。** ADR-26 §3 前四项已配置并复核（2026-09-28）：Variable `AIGCFROGE_APP_ID=5094780` 与 Secret `AIGCFROGE_APP_SECRET` 均存在、`allow_auto_merge=true`、`main` 分支保护为 `strict=true` + 7 项必需检查、Variable `AIGCFROGE_DESKTOP_AUTOMATION=publish`。**闭环证据（2026-09-28）：** `AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true` 已设置；v0.0.4 由自动 run `36362665383` 公开（19 资产 / 5 平台，`target_commitish=049eda162`），因此“`publish` 档无法产出新版本”的旧判断已失效。**未闭环（外部凭据）：** 构建日志逐平台打印 `Apple signing secrets not configured` / `Azure signing secrets not configured`，产物未签名；仓库 Actions secrets 仍只有 `AIGCFROGE_APP_SECRET` 与 `GOOGLE_GENERATIVE_AI_API_KEY`。解锁条件：注入完整签名凭据并跑通一次签名发布，或明确接受未签名发布的安全影响并同步 ADR-26 §3。
 - **发布说明已移出发布关键路径（2026-09-28 实施，待远程验证）— Owner: release。** `publish.yml` 只使用确定性双语回退，不再启动 AI job或等待 `release-notes` artifact。可选的 [`.github/workflows/release-notes.yml`](../.github/workflows/release-notes.yml) 改为人工触发：只读生成 job 不持有 release token，确定性 apply job 再校验双语标题并更新指定 Release 正文。**待验证：** 合并后需用新 API 凭据实际跑一次生成/应用；在此之前不宣称 AI 双语说明已恢复。
+
+## 13. AI-TDD-S01 Task/Todo 单契约切换（B1，2026-10-01）
+
+来源：`docs/plan/agent-interaction-ui-tdd-implementation.md` S01（分支 `agent-ui-tdd`，冻结基线 `260e8275b`）。**范围**：生产者/工具→Core→HTTP→生成 SDK→App/TUI→事件与回读全链路切换到唯一规范六态 `SessionTask` 契约，退役三字段 `Todo` 投影、`SessionTodo` facade、`GET /session/:id/todo` 端点与 `todo.updated` 事件。owner：Core/Server/SDK/App/TUI。
+
+**已闭环（R01-R08 逐条）**：
+
+| 需求                                                           | 验证证据                                                                                                                                                                                             |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R01 真实 agentID 归属                                          | `agent-task-hub-model.test.ts`：`unassignedTasks` 不回退为 Session agent（既有 GREEN，未受影响）                                                                                                     |
+| R02 task.updated 更新视图不重置折叠/焦点，无 session_todo 旁路 | `session_todo` store 字段已物理删除（`server-sync.tsx`/`bootstrap.ts`/`types.ts`/`child-store.ts`）；`session-todo-progress.tsx` 改为单一 `session_task` 源                                          |
+| R03 六态写回 + revision 冲突                                   | `httpapi-session.test.ts` 39/39（含 `stale_revision` 409 场景）                                                                                                                                      |
+| R04 写入口只产规范 Task，不发 todo.updated                     | `core/session/task.ts` 删除 `Event.TodoUpdated`/`TodoProjection`/`publishBoth`，只保留单一 `publish(Event.Updated)`；新增 RED `session-task-service.test.ts` "task writes publish ONLY task.updated" |
+| R05 HTTP/SDK/App/TUI 同一合同，退役端点不留 alias              | `GET /session/:id/todo` 端点+handler+`SessionPaths.todo` 已删除；OpenAPI 快照/生成 SDK 同步重生成                                                                                                    |
+| R06 清空/迟到 GET/切 Session 不复活旧任务                      | `session.tsx`/`session-todo-progress.tsx` mount-pull 改为"写入前二次检查 session_task 是否已有数据"，复用既有请求代际模式（`agent-task-hub.tsx`）                                                    |
+| R07 默认执行链经注册路径读写 Task                              | `aigcfroge/src/tool/todo.ts`（V1 默认 `todowrite` 工具）内部改为直连 `SessionTask.Service`，不再经 `SessionTodo` 桥；新增 `httpapi-session.test.ts` 三条 R04/R07/R08 用例直接调用真实注册工具验证    |
+| R08 退役 todos 包装不适配，非法状态拒绝，合法创建不受影响      | `tool/parameters.test.ts` 新增六态创建断言（含 scheduled/failed 合法、bogus 非法）                                                                                                                   |
+
+**核心改动文件**（节选，完整见 `git diff --stat`）：`packages/core/src/session/task.ts`、`core/src/session/todo.ts`（删除）、`core/src/tool/todowrite.ts`（删除）、`core/src/tool/builtins.ts`、`core/src/location-layer.ts`；`packages/aigcfroge/src/tool/todo.ts`、`src/session/todo.ts`（删除）、`src/server/routes/instance/httpapi/{groups,handlers}/session.ts`、`src/server/routes/instance/httpapi/server.ts`、`src/tool/registry.ts`；`packages/app/src/context/{server-sync.tsx,directory-sync.ts,global-sync/*}`、`src/pages/session/timeline/{session-todo-progress.tsx,session-todo-progress-model.ts,message-timeline.tsx}`、`src/pages/session.tsx`；`packages/tui/src/plugin/task-todo-project.ts`；`packages/plugin/src/tui.ts`；`packages/sdk/js/src/v2/gen/*`。
+
+**门禁**：`httpapi-exercise` coverage（covered=336/missing=0）与 auth（pass=336/fail=0）均通过；`openapi-drift.test.ts` 2/2 通过；增量 lint（`LINT_BASE_REF=260e8275b`）19 文件 315 行 0 告警；受影响包 typecheck 全绿（core/aigcfroge/app/tui/session-ui/plugin）。
+
+**未在本批修复、已记录为独立发现的既有系统脆弱点**：见下条。
+
+### 13.1 Task timeline 重建观察的复核与剩余边界（2026-10-04）
+
+来源：B1 记录曾报告 `session-todo-progress.spec.ts` 在重连期间重建节点。**撤回旧记录“根因已确证为 loadSessions 清空 message 缓存”的结论**：原 scratch trace 部分未能恢复，旧诊断也未证明当前 Session 真正满足删除条件。旧段落已保存在本轮证据的 `resume-20261004/debt-before-update.md`，没有篡改原始失败日志。
+
+- **决定关系的函数**：`packages/app/src/context/global-sync/event-reducer.ts:73` 的 `cleanupDroppedSessionCaches` 只删除不在保留集合中的 Session 缓存，不能从调用 `loadSessions` 推断 message 被清空。当前 fixture 始终保留所观察 Session。Task 数据由 `packages/app/src/context/server-sync.tsx:245` 按 ID reconcile；`packages/app/src/pages/session/timeline/session-todo-progress.tsx:203` 的 `Index` 复用位置，不等于保证重排后按 ID 复用节点。
+- **已验证子集**：冻结 before production bundle 上，原 B1 checkbox 用例 3 pass；新增 Task 更新稳定性回归按两种 SSE 各重复三次，6 pass。九个 DOM 引用、展开、草稿、光标及 checkbox 焦点保持，观察到滚动偏移 0px；空列表正对照能检测真实节点移除。这里只能说在这些场景未复现 remount。
+- **新确证缺陷已修**：`server.connected` 刷新触发 Agent Select 重复 `build → build` 通知，`prompt-input.tsx` 的 Agent `onSelect` 无条件恢复 Composer 焦点；九个 DOM 引用仍相同，因此这是抢焦点，不是重建。仅给 Agent Select 设置 `allowDuplicateSelectionEvents={false}`，保留真实 `build → plan → build` 用户选择。相同最终 spec 在 before 为 1 fail / 1 pass；修复后新 spec 与既有 Task E3 为 26 pass，重连/显式切换各重复三次为 6 pass，均零 retry。套件重叠，不合计唯一用例数。
+- **仍开放**：当前 Session 真被保留集合淘汰、Task 重排/降采样、原 dev/HMR 条件及缺失历史 raw trace。Owner：App / timeline / E2E。Unlock：独立 fixture 使相应删除或重排条件真实成立，绑定缓存与 DOM 身份证据；恢复原 scratch artifacts 才能复核原观察。不要先给 `messagesReady` 加粘性状态来掩盖未证实的原因。
+
+证据：`/home/keer/.codex/artifacts/aigcfroge-b2-followup-20261003-gi8h_51j/task-timeline/verification.json`；最终统一 after/整合状态见 §15.4。
+
 - **`bun.lock` workspace 版本行滞后（2026-09-28 已闭环）— Owner: tooling。** `bun.lock` 的 workspace 段内嵌每个清单的 `version`；v0.0.2 的版本 PR（#89）只改 `package.json`，锁文件一路滞后（17 条 workspace 版本停在 0.0.1/0.0.2）。后果在自动发布链路上真实暴露：run `36350024868` 的 `prepare-version` 以 `Candidate workspace must be clean` 失败——CI 的 `bun install` 把滞后版本行改写回清单版本，弄脏了发布检出。修复：版本 PR 现在同步这些版本行（`Release.lockfileVersions`，纯文本替换、不重解析依赖），`verifyVersionCommit` 用同一函数重放并要求逐字节相等，任何额外锁改动都会被拒。证据：`bun install --lockfile-only` 在 `main` 上恰好改写 17 行（`git diff --numstat bun.lock` → `17 17`），全部是 `workspaces.*.version`；修复后锁文件与清单一致，`bun install` 不再产生差异。
 - **PR label 语义已实现，待端到端验证 — Owner: release。** `Release.bump` 支持 `release:patch` / `release:minor` / `release:major` / `release:none`，并有冲突与未知标签的失败用例；单元测试覆盖，但尚未在真实 Actions 上跑过一次。解锁条件：启用后观察一次 `release:none` 与一次默认 patch 的真实行为。
 - **npm / Docker / AUR 从桌面必经链拆分 — Owner: release / distribution。** `desktop-draft` 已跳过旧 `script/publish.ts`，但完整发布模式仍把桌面构建与其他分发放在同一个工作流中。解锁条件：确认外部兼容责任后，将非桌面分发拆为独立工作流或明确标注 legacy 退出条件。
 - **签名 / 公证 / 真实安装升级 E2E — Owner: desktop / QA。** `desktop-release`（自动公开）现在**要求** macOS 签名+公证与 Windows Azure 签名凭据齐全，并新增 `codesign --verify` / `xcrun stapler validate` 门禁；同时修正了此前两个真实缺陷：签名探测结果没有写入 `$GITHUB_OUTPUT`（导致 Windows 校验被跳过）、以及 Apple Key ID 误读 `secrets.APPLE_API_KEY` 而非 `APPLE_API_KEY_ID`。**未闭环：** 仍无真实安装、升级、数据保留与迁移的实机证据；也没有签名凭据可在本仓库验证上述路径。解锁条件：在具备真实密钥与目标设备的环境跑通并记录证据；v0.0.2 可作为首个升级基线。
 - **macOS Intel (x64) 桌面构建已恢复（待下一次 desktop-draft 验证）— Owner: release / desktop。** `macos-13` 已退役；2026-09-28 改用 GitHub 标准 `macos-15-intel`（官方标准 public runner，免费不限量）恢复矩阵，`finalize-desktop-draft` 重新要求 `latest-yml-x86_64-apple-darwin/latest-mac.yml`，签名校验按 target 选择 `mac` / `mac-arm64`。**待验证：** 下一次 desktop-draft 需产出 6 平台完整资产并验证 `latest-mac.yml` 同时包含 x64 与 arm64 条目。
 
-## 13. 本机 CLI 发现与惰性初始化验证边界（2026-09-29）
+## 14. AI-TDD-S02 待决仲裁、输入保护与剩余验收（2026-10-01）
+
+**状态（2026-10-04）**：限定实现及 §14.1 第 1/5 条保留原闭环；本轮已补默认 coding 运行链的双后端/双目录 E4、真实鼠标补全回归与 Task 观察复核。**仍不把限定验证等同于 B2 整批验收**：原 dev/HMR、原生 provider、完整五模式/跨 OS 等边界保持显式登记。Owner：App；分支 `agent-ui-tdd`，未 commit/push，未修改冻结 R2。当前收尾状态见 §15.4。
+
+**依据**：原 R2 计划（SHA256 `23ee8ddcc012a76fe72540ccbda0e5178cd2130c4e3c0db4daa8151dcee657c5`）及 Claude Code 对话末尾的 S02 续跑要求。续跑使用原实施工作树，不从已前移的 source `main` 混入代码。
+
+### 已实现及验证
+
+- **R01/R02 仲裁**：`session-request-tree.ts` 合并重复 BFS，先父层、同层 permission 再 question；在全部候选中查找仍 pending 的活跃键，新增请求不抢占。保留实际 legacy/V2 permission owner 判别，不新增 Gate store 或兼容转换。
+- **R03 身份与生命周期**：复用 `ScopedKey`，键含 server、directory、owner Session、domain、requestID，权限另含实际 runtime kind。问题草稿不再串入同 ID 的子会话；权限提交状态转由已有 QueryClient mutation cache 持有，组件卸载/再进入、两条未完成请求及迟到响应互不覆盖。调用时捕获原 SDK client。
+- **R04 草稿与焦点**：复用现有 Prompt/Tab 状态 owner；新增的只是 Tab 生命周期内的临时 DOM 选区快照，组件卸载后恢复文字、图片、file/agent pill 和真实选区。恢复前验证草稿、DOM 连通性与当前焦点；清理事件监听和 RAF。
+- **R05 键盘**：IME native/composition/keyCode 信号统一到 `utils/ime.ts`；问题 Esc 不隐式 reject，Ctrl/Meta+Enter 必须已有显式答案，失败不吞异常也不产生未处理 Promise。普通数字保持普通输入；当前没有新增全局数字拦截器，属于契约保护，不另造快捷键系统。
+- **R06 全局入口**：复用既有 ApprovalCenter，现有真实 DOM 回归覆盖 Session、chat/custom Mode 及 Home 的权限入口；没有改领域授权算法。
+
+**功能门禁（实跑，退出 0）**：
+
+- App `bun run typecheck`（含 E2E 类型检查）。
+- App `bun run test`：`test:unit` **1156 pass / 0 fail**；virtualizer **3 / 0**；E2E contracts **48 / 0**。
+- Chromium E3：`session-decision-surface.spec.ts` + `approval-center.spec.ts` + `composer-submit.spec.ts`，**25 pass / 0 fail**，单 worker、零 retries。
+- 独立 390×844 窄屏复核：相同生产组件与测试，**6 pass / 0 fail**，并非 presentation grep 选中零测试的空绿。
+- 显式冻结基线增量 lint：`LINT_BASE_REF=260e8275b9b0af9d0b445e5acfb6f4d3545eac7b bun run script/lint-changed.ts`，**28 changed files / 1722 added lines**（含继承的 B1 diff，不等同于本轮写集）。
+- 本轮 8 个代码/测试文件 Prettier check 和 `git diff --check` 通过。可独立测试的 selector/IME 已运行 LCOV；最终行数及范围见证据清单，不把纯模块覆盖率外推到全部 UI。
+- 性能：before 生产基准 **12/12**；after 只复核冷/热 Session 切换及流式 timeline 两个相关场景，**2/2 完成，benchmark 单测 15/15**。冷/热切换稳定时间中位数分别为 7182.9→7192.7ms、7195.7→7195.7ms；流式完成时间 **200.3→276.6s（+38.1%）**，见 §14.1 的性能观察项；不把“采集成功”写成“没有退化”。
+
+**RED 真实性**：原对话中两个“模块不存在/导出不存在”的日志不是业务 RED。本轮另取真实断言失败：6 个 selector 行为缺口，以及旧生产构建上的抢焦、提交态丢失、Esc 拒绝、空答案提交、草稿焦点与父子草稿污染。初始 E3 选择器、pending GET/SSE fixture 和本轮测试配置/环境错误单独保留，均不记为产品 RED。没有加 sleep、提高超时或使用 force click 来撞绿。
+
+**证据**：本机持久交付目录 `/home/keer/.codex/artifacts/aigcfroge-s02-20261001-fy_cy39s`（命令、退出码、日志、RED trace/screenshot、LCOV、前后基准与写集指纹）；完整复查结论见该目录 `REPORT.md`。计划/审批只读；`session-composer-region.tsx`、Revert/Followup 和 B1 非本轮文件未修改。
+
+### 14.1 尚未交付 / 必须显式保留的边界
+
+1. **待决清单和用户显式切换入口（2026-10-01 已闭环）— Owner: App。** 用户已批准扩展 Composer 区域写集。交付：复用 `SelectV2` 的紧凑请求选择器挂载于 `session-composer-region.tsx`（wrapper `data-component="session-request-picker"`，>1 条待决时可见，ARIA 命名为 `session.requests.pending` 计数文案，18 个 locale 已同步）；选项以全限定 request key 为身份（非数组下标），组合既有本地化领域标签+真实 question header/permission action+requestID，同 ID 兄弟/父子请求附 owner Session 区分；手动选择只做内存切换、零 API 写入。`session-request-tree.ts` 把原 BFS 提取为有序 pending 枚举供选择器与自动接续共用（单棵树，无第二个 Gate store）；选中键在每次渲染前对当前 scope/tree 校验，被外部解决/拒绝后按既有优先级确定性回退；QuestionDock 的回复/拒绝 mutation 迁入命名 QueryClient mutation cache（沿用权限侧既有模式），切换后返回不重复提交、in-flight 状态互不覆盖。**功能证据**：E3 `session-decision-surface.spec.ts` desktop **29 pass / 0 fail**（含 4 条新 picker 用例：可发现性/零写入、同 ID owner 草稿隔离、in-flight 切换、外部关闭回退+菜单 Esc 不拒绝）；窄屏 390×844 en/light 与 zh/dark 键盘操作 presentation 复核 **6 pass / 0 fail**；对 risk 前不可变构建跑新 picker 用例得到预期 RED（picker 不存在而失败，exit 1），排除空绿。证据目录 `~/.codex/artifacts/aigcfroge-s02-risks-20261001-9ko1gpp7`（`e3-desktop.log`/`e3-narrow.log`/`picker-final-contract-red.log`）。
+2. **默认运行链的跨 server/Location 浏览器矩阵已补齐（2026-10-03），扩展矩阵仍开放 — Owner: App / E2E。** 现有 E4 harness 的 opt-in peer 使用独立 HOME/配置/SQLite，两个真实后端 × 两个目录形成四个 scope；已完成轮次 run-08 为 9 pass、零 retry，含 12 个有向 SPA 草稿切换、延迟真实 POST、错误 scope、重复回复及取消后的 API/DOM 状态。不是五模式/原生 V2 provider/跨 OS 全排列；这些扩展仍由 S08 负责。最终代码快照收尾以 §15.4 为准。
+3. **文件补全鼠标命中已修复（2026-10-03）— Owner: App / timeline。** desktop/narrow × 空/已滚动历史均用真实 `page.mouse.click` 复现箭头子树拦截，RED 0 pass / 4 fail。`message-timeline.tsx:1412` 加局部 stacking context，`:1477` 对隐藏箭头设置 inert；可见箭头也受局部层级约束，不能仅用 inert 修复。修复后的冻结 bundle 为鼠标 4 pass、完整 decision spec 20 pass；此 bundle 不含后来 Agent Select 修复，统一整合门禁见 §15.4。原键盘 R04 与失败 trace 保留。
+4. **B1 Task timeline 观察已复核但不全域关闭。** 旧清缓存因果结论降级，当前 Task/重连场景保留节点；另外确证并修复了重复 Agent Select 通知抢焦点。Owner 与未覆盖条件见 §13.1；不据此声称 Session 淘汰、Task 重排、dev/HMR 或 S08 全矩阵已通过。
+
+5. **流式压力样本变慢（2026-10-01 根因确认并闭环）— Owner: App / performance。** 根因不在产品代码：旧夹具对每个批次投递一个有限 SSE body 后断开，生成 SDK 的 SSE reader 在正常 EOF 返回，app `server-sdk` 外层循环等待 250ms 重连；`TIMELINE_EVENT_BATCH=1` 下 160 deltas 即 160 次正常 EOF 重连，重连成本被计入流式完成时间（before 200.3s / after 276.6s 的差值来自两构建在重连周期内的工作量差异，属测量伪影）。处置：新增 `e2e/performance/timeline/session-timeline-sse.ts` 持久 SSE transport（单一连接、背压感知、幂等清理，`TIMELINE_EVENT_INTERVAL_MS` 为生产者节奏而非测试 sleep），benchmark 断言测量窗口内零新连接；README 已注明旧 finite-body 测量与 persistent-SSE 结果不可直接比较。**最终判定证据**（`~/.codex/artifacts/aigcfroge-s02-risks-20261001-9ko1gpp7/stream-final-ab.log`）：对不可变 before/after 生产构建跑交错 A/B/A/B（cpuThrottle=6、24 deltas、320 轮历史、batch=1、`ASSERT_PERSISTENT_SSE=1`），完成时间 before 2530.9/2371.9ms、after 2438.1/2408.0ms，均值 **2451.4→2423.0ms（-1.16%）**，4/4 通过且 `eventConnections=0`、`deliveredDeltas=24/24`、row/markdown 未替换。结论：在排除夹具重连伪影后，S02 变更对流式 timeline 无可观测性能退化。
+
+## 15. AI-TDD-S03 回复归属与一次终态：已修复子集及 B2 交回门禁（2026-10-02）
+
+来源：R2 `agent-interaction-ui-tdd-implementation.md` 的 S03 / §0.3 / §9-X03；续接两个 Codex 对话及 Claude 原始任务记录。实施目录 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`，冻结 HEAD `260e8275b9b0af9d0b445e5acfb6f4d3545eac7b`。源目录的 main 已前进，未 rebase、切换或复制其修改。保留既有 B1/S02 未提交内容；本轮未 commit/push/PR。
+
+**当前续作状态（2026-10-14）见 §15.21；S08/S09 整体仍开放。** §15.1–§15.20 保留各日期的实施、失败、授权与交审状态，不能把早期的“S04–S09 未实施”“commit 未授权”继续作为当前总状态。后续用户已授权本地剩余任务及通过验证后的本地提交；push、远端 CI、签名、发布与 rollout 仍按各自实际目标和授权处理。
+
+### 15.1 2026-10-02 已实施与复用决定（历史检查点）
+
+以下保留 2026-10-02 的实现范围与当时证据，不覆盖历史失败；其中“生产 App 未改”“旧 Session alias 原生分支未验证”等描述只适用于该检查点。2026-10-03 的历史检查点见 §15.2；2026-10-04 的状态见 §15.4；当前续作状态见 §15.21。
+
+- **一次终态与失败收尾**：Core Question/Permission 和默认执行链各自在现有 pending owner 内处理请求；先提交终态、唤醒 Deferred，再通知订阅者。通知失败仍向调用方报错，不让请求从清单消失却留下永远等待的工具。admission 失败、取消和 finalizer 清理受各自 Scope 约束；Permission 的整个 timeout combinator 放入 interruptible restore，取消不再被外层 mask 拖到 TTL。
+- **授权竞争**：拒绝只在 HTTP handler 加一把独立锁或先发 grant 再补偿的方案。`packages/core/src/permission.ts` 的 `grant` 与 `reply` 共用已有 pending owner 的 decision semaphore；复用 `ScopedGrantStore.issue` 的真实持久化，不增加表、事件、兼容路径或第二个 Gate store。`packages/server/src/handlers/grant.ts` 只调用领域操作并映射错误，原 `issueGrantForRequest` 及其只用 fake owner 的补偿测试已由真实 owner/HTTP 测试替换。25 个完整 Permission 测试替身仅补齐新方法的显式未实现缺陷，不改变其既有用例行为。
+- **通知边界**：`PermissionV2.settle` 提交关联请求的终态，`publishReplies` 在释放 decision lock 后发布。慢订阅者不能阻塞下一条决定；reject/correction 的同 Session 传播、once/always 与 session/location grant 范围保持原规则。已发放且结算的授权遇到通知丢失时，不自动撤销合法决定；HTTP 明确失败，GET/重试用例验证不再重复发放。
+- **错误 Session**：`SessionHttpApi.permissionRespond` 增加请求真实 sessionID 校验。默认 Session 路由以及原生专用 Question/Permission 路由的跨 Session/Location 负例通过真实 NodeHttpServer 执行；未覆盖的旧 Session 路由原生运行时分支见下条，不能混称全矩阵通过。
+- **测试修正而非放宽断言**：多请求 Core fixture 改为按 request ID 等待 asked 信号，避免新监听器在上一事件尚未分发完时拿错请求。既有 S02 E3 beforeEach 改为一致的 async/await 返回形式，修复增量 lint；未改业务断言。生产 App 源码未改，当前源码另行构建并复跑 E3。
+
+**可反证证据**：冻结 owner 的源码与入场 SHA256 匹配；仅在隔离 Bun 进程内用 loader 加载冻结版本，不改工作树。默认 owner 的 5 个失败/收尾用例重新 RED，Core 并发的 2 个用例重新 RED；当前实现 GREEN。另有真实 HTTP 错 Session `200 → 404`、grant 与 reject 竞争 `409 → 200 + 另一请求拒绝`、慢通知锁占用的 RED/GREEN。初版测试夹具或启动配置失败不计产品 RED。
+
+**证据目录**：`/home/keer/.codex/artifacts/aigcfroge-s03-20261002-jDHkDOEi`。`REPORT.md` / `verification.json` 保存最终命令、退出码和实际计数；`s03-only.diff` 从入场内容重建且逐文件校验 SHA256，区分 B1/S02 既有修改；`coverage-changed-lines.json` 只计算本轮改变的可执行行，不代表分支覆盖。未覆盖的默认 Question 错误消息、once 旁支及 Session alias 原生分支明确保留，不用其他包的大量覆盖稀释。
+
+### 15.2 2026-10-03 续跑闭环与当时未完成范围（历史检查点）
+
+**本轮证据根目录**：`/home/keer/.codex/artifacts/aigcfroge-b2-close-20261003-lvkt3lf4`。以下路径均相对于该目录；最终 `verification.json` 汇总命令、退出码、计数和范围；`final-audit/test-inventory.json` 独立核对保存的日志，`command-provenance.json` 从本聊天原始执行记录补齐其中 25 项重点检查缺失的实际命令/cwd（不是重构的复现命令，未重跑测试）；`final-audit/change-accounting.json` 从入场文件哈希生成本轮变化，不能把实施工作树全部 dirty 文件算成本轮新增。冻结 R2 计划 SHA256 仍为 `23ee8ddcc012a76fe72540ccbda0e5178cd2130c4e3c0db4daa8151dcee657c5`，未更改计划、源 main 或既有 B1/S02 工作。
+
+#### 原阻塞的代码闭环
+
+1. **AI-TDD-S03-R01 / X03：当前 Question 链路已原子统一。** Owner：Core / Server / SDK / App / TUI。唯一 pending owner 是 `packages/core/src/question.ts:99` 的 Location-scoped layer；默认 Question 工具与 `plan_exit` 通过既有 `LocationServiceMap` 获取它，不再建立独立服务。当前 App/TUI/CLI 的加载、通知、事件和 mutation 直接使用 `question.v2.asked/replied/rejected` 与 v2 SDK；回复捕获请求的实际 Session 与原 scoped client。归属校验由 `packages/server/src/handlers/question.ts:14` 的 `withOwnedQuestion` 决定。独立应用 Question 服务、旧 `/question` HTTP 家族和相应 schema 退役；不添加双监听、事件改名、write fallback 或临时 adapter。默认工具复用原生输入 schema、描述与 model-output formatter。**历史红证保留**：2026-10-02 的 `native-question-gap.test.ts` 曾出现默认事件 1 pass、原生事件 1 fail，不能抹去。**当前证据**：`question/`、`question-test-migration/migration-evidence.json`、`terminal-question/verification.json`；真实默认工具与 PlanExit、Core owner/HTTP、App E3 及终端消费链均有验证。只重新生成当前 v2 SDK；存量 v1 SDK 根生成目录不是本轮退役范围，不宣称全部 V1 SDK 已删除。
+2. **AI-TDD-S03-R02：旧 Session permission alias 的原生运行时矩阵已补齐，并修复两层根因。** Owner：Core / Server。`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:1020` 不再从缺失服务的环境取 `PermissionV2.Service`，而是进入 Session 持久化 Location；整个 get、归属校验、reply 与错误映射都在同一 Location provide 内执行。只获取 service 后离开 provide 仍是错误方案，因为 `EventV2.publish` 在执行时读取 ambient Location（`packages/core/src/event.ts:482`）。**证据**：`permission-native/REPORT.md` 与 `LOCATION-REPORT.md` 保留两轮 RED/GREEN；`question/native-on-final.log` 为五模式 **25 pass / 0 fail**，`native-off-final.log` 为关闭全局 native flag 后 Custom 仍原生的 **5 pass / 0 fail**。矩阵包含正确 owner、错误 Session/Location、重复终态、失败映射及终态事件 Location 断言；专用 `/api/session/.../permission/...` 的旧负例不再被冒充为 alias 验证。
+3. **Codex app-server 已安装 CLI 握手失败已溯源修复。** Owner：Core / CLI transport。历史 Core **2496 pass / 2 skip / 1 fail** 与单独复现的失败仍保留在前轮证据。实际安装 CLI 为 `0.156.1`，握手响应满足现有协议 schema；失败来自 `negotiateCapabilities`（`packages/core/src/tool/codex-app-server.ts:296`）对 `userAgent` 中 `/0.150.` 的硬编码门禁，而非已证实的协议不兼容。删除版本字符串门禁，保留 initialize/capabilities 解码及既有失败 fallback；未改系统 CLI/用户配置、未降断言、未新增 skip。**证据**：`codex-handshake/verification.json` 记录握手 **17 pass**、相关委派 **57 pass**，本轮 Core 全量最终为 **2508 pass / 2 个既有 skip / 0 fail**。
+4. **继承的 pending snapshot/SSE 竞争已修复。** Owner：App。迟到的 `[Q]` snapshot 曾复活已回复 Q，迟到的空 snapshot 曾删除新 asked Q。Question 与 Permission 复用 `PendingEvents.replay`（`packages/app/src/context/global-sync/pending-events.ts:14`）的 revision 重放，并由 `loadQuestionPending`（`packages/app/src/context/global-sync/bootstrap.ts:241`）的 load epoch 排除较旧加载；最多保留 500 条瞬时事件，所需窗口被淘汰则拒收旧 snapshot 并重新加载，不静默丢事件。仍只有一个 Question store，没有第二个 Gate owner。**证据**：`question/snapshot-counterfactual/` 仅临时移除新防护后得到 **4 个预期失败**，随后恢复逐字节原源码；最终 App 测试绿色。夹具曾因在 resolve 手控响应之前等待 `.rejects` 而死锁，已修测试顺序；相应中止日志不是 GREEN，亦不冒充产品红证。
+5. **Question 纯 schema 复用替代不安全断言。** Owner：Schema / Core / App / session-ui。原 wire 定义原样移至 `packages/schema/src/question.ts`，Core 保留服务与 ID 生成；浏览器与历史工具渲染通过共享 schema 解码，不导入 Core 运行时服务、不另写验证器、不重写持久化历史。Solid store 拥有可变数组副本。**证据**：`question/schema-wire-comparison.json` 验证此次抽取前后 v2 SDK types/methods 逐字节不变，`question/openapi-drift-final.log` 真实 OpenAPI 对照 **2 pass**，`sdk-schema-verification.exit=0`。没有数据库迁移或权限档位变化。
+
+#### 最终验证与性能证据
+
+- **包级回归（分别计数，不跨套件合并去重）**：Core **2508 pass / 2 既有 skip / 0 fail**；App **1171 unit + 3 virtualizer + 48 E2E-contract pass**；Schema **254 pass**；session-ui **116 pass**。证据为 `question/core-full-final.log`、`app-full-validated.log`、`schema-full-final.log`、`session-ui-full.log`，各 exit 为 0；session-ui 的无效 Mermaid 输入测试预期会打印诊断，不能据此将 exit=0 写成失败。
+- **浏览器与终端**：`question/e3-final.log` 为 Chromium **31 pass、零 retry**，含窄屏 en/light 与 zh/dark；终端 Question 迁移 **TUI 42 pass / 8 snapshots、CLI 120 pass / 5 既有 skip**。E3 不等价于两个真实后端的完整 E4/Location 矩阵。
+- **API / 类型 / 生成物**：当前 HttpApi auth **332 pass**，coverage **332 covered / 0 missing / 0 todo / 0 extra**；SDK HTTP **64 pass**、tool parameters **61 pass**、schema consumers **35 pass**、Core schema **13 pass**。`typechecks/final/` 的 schema/core/server/sdk-js/plugin/session-ui/app/tui/aigcfroge 九包退出码均为 0。最终 lint 与 diff 状态以 `final-lint.*`、`final-diff-check.*` 为准；所有文件计数包含继承工作，不能归为本轮独立改动数。
+- **生产 benchmark**：同一 spec、Chromium、单 worker、零 retry、每侧 2 次，CPU throttle=30、320 轮历史、160 deltas、batch=1、interval=16ms、persistent SSE。before **188714.9 / 251298.8ms**，after **149117.0 / 136776.8ms**；均值 **220006.85 → 142946.90ms（样本变化 -35.03%）**。四次均完成 160 deltas、零 pending、测量窗口零新增 SSE 连接、row/markdown 未替换、无 blank/bottom drift。原始日志与两侧生产 bundle 已保留，`performance-comparison.json` 校验 context 完全一致。**只证明场景完成与本次样本结果**：每侧仅 2 次、基线波动明显、不是交错 A/B/A/B、后台机器负载未实验控制，不能推出统计意义的“无回归”或因果性的“提升 35%”，更不能关闭继承的 Task timeline 观察项；未新增机器相关性能阈值。
+
+#### 尚未交付 / 必须交回的边界
+
+1. **鉴权探针首轮超时观察继续保留。** 来源：2026-10-02 HttpApi auth 首轮 **335 pass / 1 fail**，首个 `/global/health` 返回 fixture status=0（1 秒探针计时），同配置重跑 **336 pass / 0 fail**。本轮当前 API 集合 **332 pass** 不证明历史冷启动问题已根治。Owner：QA / HttpApi fixture。Unlock：复现时拆分建图/启动与真实请求耗时后修根因；不抬超时、不改鉴权规则掩盖。
+2. **混合后端测试的时序敏感性未定根因。** 来源：`question-test-migration/aigcfroge-directed-1.log` 的 **4 个 timing failures + 2 个 between-test errors**，涉及 running subtask/task metadata transition、cancel finalizes subtask、cancel with queued callers。后续 focused 重跑通过，详见 `migration-evidence.json` 的 `failure_triage`，但不足以证明混合负载稳定性。另保留 `permission-native/06-postfix-native-on-first.log` 的 **23 pass / 2 fail**（30s timeout 及后续 Custom 开关错误），以及 `20-GREEN-location-native-on.log` 仅记录 3 个 timeout、没有最终 tally/exit 的中止轮；文件名含 GREEN 不代表通过，后续完整 25/5 pass 也不能倒推这些历史故障已根治，尚未证实它们与混合命令失败共享根因。Owner：QA / Session runtime / Native runtime。Unlock：以同一混合命令复现并定位 readiness、共享环境或调度交集，再证明整组失败消失；不得放宽等待或新增 skip。
+3. **S02 与跨域浏览器验收仍开放。** §13.1 的 Task timeline 重建、§14.1 的文件补全鼠标 hit-testing、两个真实 server/Location 的浏览器全矩阵未在本轮交付。Owner/Unlock 沿原条目：App / timeline / E2E，须独立重现命中层级及真实多后端 fixture 或 S08 矩阵；单后端 E3、owner HTTP 负例和本次 benchmark 不能替代。
+4. **B2 整批交审、S04–S09 与发布不在本轮自动授权内。** Owner：技术审查 / 各批次负责人。Unlock：完整交回本轮代码、红绿证据与开放债务后取得明确批次放行。WorkReview 尚无本计划 S06 producer，不能宣称生产授权隔离或 E4 已完成；后续批次逐项见 §15.3。commit/push/PR/发布均未执行。
+
+### 15.3 2026-10-03 后续批次清单（历史检查点）
+
+以下为当时尚未执行的批次与授权边界，保留历史记录；后续实施与授权以各日期续作节及 §15.21 为准，不据此重新要求已获准的本地续作或本地提交。当前未交付范围继续由 `packages/app/e2e/coverage-manifest.json` 的既有 owner/unlock 持有。
+
+- **B3 / S04–S05**：Agent 目录/真实运行关系、生产 Icon/ToolRow 与历史呈现。Owner：App / session-ui / ui；tests：R2 的 S04、S05 施工卡；unlock：B2 完整交审后获得明确放行。
+- **B4 / S06**：WorkReview producer、metadata、HTTP/SDK、并发与授权。Owner：Core / Server / SDK；tests：R2 S06；unlock：前批审查及高风险数据/授权批次的独立批准。
+- **B5 / S07–S08**：WorkReview UI/恢复、五模式与真实 E4/跨层矩阵。Owner：App / QA / Core runtime；tests：R2 S07–S08；unlock：S06 writer 完成、相应批次放行及真实环境就绪。V2/Custom 的 X01 若仍存在，必须闭环或获得明确 scope-cut，不能用缺口现状测试充当正向验收。
+- **B6 / S09**：清理、生产性能、最终差分/灰度与交付准备。Owner：全栈 / QA / 发布负责人；tests：R2 S09；unlock：S01–S08 适用门禁完成和明确放行。commit/push/PR/发布仍须另行授权。
+
+### 15.4 2026-10-03/04 B2 实链验证与交审状态
+
+证据根目录：`/home/keer/.codex/artifacts/aigcfroge-b2-followup-20261003-gi8h_51j`。2026-10-04 恢复后继续使用 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl` 的 `agent-ui-tdd` 工作树，HEAD 未变；未把已前进的原 main 工作树混入实现。时序调查和独立复核子智能体均已完成并关闭；两个 UI 子任务没有重做。以下区分代码修复、实际门禁和开放边界，**不代表 B2 审批通过，也不批准进入 B3**。
+
+#### 已修复与决定规则
+
+- **默认工具权限组合**：build/plan 的内置覆盖在 `Permission.fromConfig` 前合成，保留 plan 外部目录白名单，不修改授权算法。决定冲突关系的是 `packages/aigcfroge/src/permission/index.ts:228` 的扁平 `merge` 与 `packages/core/src/permission/effective.ts:52` 的 `compute`（第 110 行重放显式 deny），而非仅看 `/agent` 的输入列表。真实 provider 的 unavailable question 失败、Agent 50 pass、原 effective 策略 30 pass 均保留。**边界**：非交互 helper 不等于所有 `attended:false` 调用；原非 custom 无人值守规则保留显式 allow，`*/* deny` 只是 fallback。不能宣称这次改变对全部无人值守或 wildcard deny 情况完全无影响。
+- **取消边界与 listener**：仅在 `SessionTools.context.ask`、Question 和 plan_exit 的等待边界使用 `EffectBridge.interruptOnSignal`；原 `EffectBridge.promise` 与 shell/task cooperative cancellation 保留。整段 callback 硬中断的历史 P1 方案已撤回，最终后端回归包含正常 truncated/outputPath 收尾。同步 abort 在 resume 前移除 listener，永久 RED 的 1 个残留 listener 已归零；独立 P1/P2 均有界关闭，最后桥接/context 回归为 8 pass。历史失败没有删除。
+- **单请求撤销通知**：Core Question 的 `question.ts:128`、Core Permission 的 `permission.ts:351`、应用 Permission 的 `permission/index.ts:127` 以 pending 删除成功为条件发已有终态事件；Permission 在释放 decision lock 后发布。没有调用会拒绝同 Session 其它请求的公开 reply，也不发放 grant。API pending=0 而旧表单仍在的 run-07 RED 保留；最终 E4 验证 API 与 DOM 同时清理。
+- **测试生命周期共因**：`packages/core/test/lib/effect.ts:25` 的 `runTest` 将 Bun 测试结束与 Effect 取消、scope finalizers 的完成相接；清理 defect 仍向原测试报告，不靠强制 Custom、sleep 或加 deadline 掩盖串扰。普通/共享 runner、body/build/TestClock/失败/清理 defect 的确定性 RED/GREEN 保留。冷 canonical Location 的首次耗时归因仍开放，不能从串行绿反推已根治。
+- **两项 UI 修复已整合**：Timeline 根的 `isolate` 与隐藏箭头 `inert` 修复实际指针遮挡；仅 Agent Select 关闭重复选择事件，保留显式 build→plan→build 和 Composer focus 行为。§13.1 对“重连即清 message 缓存”的旧归因撤回不变：删除仍由 `cleanupDroppedSessionCaches` 的保留集合差集决定。
+
+#### 实际完成的功能与工程门禁
+
+每条 tally 对应自己的命令，套件重叠，不合计为唯一用例总数。完整 cwd/argv/exit/raw log 见 `final/verification.json`。
+
+- Core 全套：**2515 pass / 2 既有 skip / 0 fail**，289 文件；两个 skip 是真实 Claude/Codex SDK 集成，不冒充已运行。
+- App 完整链：**1171 单测 + 3 virtualizer + 52 E2E contracts pass**，各阶段 0 fail。
+- 应用后端相关整组：**471 pass / 1 既有 skip / 0 fail**，33 文件，包含 Agent、Effect、Permission、Question/plan、prompt/shell、HTTP 与 CLI 消费；skip 为禁用 V2 projector 时的既有事件用例。TUI Question/通知消费：**14 pass / 0 fail**。
+- 恢复子任务的原 mixed 命令：**108 pass / 1 skip / 0 fail**；但 87 运行中发生最后 bridge P2 修复，不记作单一冻结源码验收。native-on 原矩阵 88：**25 pass / 0 fail**，运行中 1,804 项记录范围无变化；至本轮交回没有生产源码变化，仅无关 bridge 测试删了一行空行。最终 471 整组、E3、E4、after 的各自运行期间源码均未变。
+- Core / aigcfroge / App / TUI 包级 typecheck 已实际退出 0；增量 lint 显式以 `260e8275b9b0af9d0b445e5acfb6f4d3545eac7b` 为基线，覆盖继承 diff，不把 lint 文件数当成本轮净写集。最末文档格式/差分及类型复核结果统一记录在 `final/verification.json`。首次格式检查的 3 文件排版失败保留，随后只整理空行、链式调用换行与账本表格对齐；不是产品 RED。
+- **统一生产 E3：46 pass / 0 skip / 0 fail / 0 retry**，5 个 spec。覆盖鼠标 desktop/narrow × empty/scrolled、问题/权限草稿与 submitting、窄屏 en/light 与 zh/dark picker、Task 两种 SSE、重连焦点和显式 Agent 切换。此为真实 DOM + E3 fixture，不冒充真实后端。
+- **最终双后端 E4 run-09：9 pass / 0 retry，exit 0**。其中 4 项是 manifest 合同、5 项是业务场景；两个真实隔离后端 × 两个真实目录共四 scope，覆盖 12 个有向 SPA 草稿切换、提交归属、错误 scope/重复回复及两种等待取消后的 API+DOM。保留实际 HTTP/SSE，只在 CDP 暂停目标 POST（放行 OPTIONS）。teardown 的端口、进程组、目录和报告门禁全过；运行前后源码哈希无变化。run-08 仍保留为 P2 最后清理前的独立历史轮。
+- 生产构建退出 0，仍有大 chunk 告警，未声称无告警或已优化体积。E3 与 after 的全部非 `.map` 产物逐字节一致；362 个 source map 文件不同，两个构建均冻结保留。比较规则见 `/home/keer/.codex/artifacts/aigcfroge-b2-followup-20261003-gi8h_51j/final/compare-evidence.py:14`，原始清单见 `integrated-bundle.json` / `performance-after/bundle-manifest.json`。
+
+#### 性能：采集通过，不等于性能验收
+
+before 于 2026-10-03、after 于 2026-10-04；均为 production、Chromium、CPU 6×、320 轮历史、24 deltas、batch=1、interval=16ms、CPU profile 关闭。after 在所有其它重负载命令和子智能体结束后单 worker、零 retry 串行执行；宿主仍是共享桌面，不是专用基准机。
+
+- 流式完成观测：before **2259.6 / 2052.1 ms**，after **2245.2 / 2003.2 ms**。
+- 首次文本可见断言观测：before **209.5 / 87.1 ms**，after **763.4 / 190.9 ms**，本轮 after 两个样本均上升。计时边界是 `packages/app/e2e/performance/timeline/session-timeline-benchmark.spec.ts:32–36` 的 enqueue 后至可见/文本断言完成，**不是 LCP 或真实 provider TTFT**；不直接归因为生产回归，也不忽略这一观察。
+- 四次均完成全部 24 deltas、pending=0、额外 event connection=0、row/markdown 未替换。仅两样本/侧，不能宣称统计无回归或因果提升，也不与旧 CPU30 / 160delta 结果混比。
+- 原始 JSON、源码快照、冻结 bundle 与差异函数归档于 `final/performance-comparison.json`、`performance-before/`、`performance-after/`。本项未归因部分列入下方 Owner/Unlock，不以采集 exit 0 代替性能裁决。
+
+#### 差分核算与历史保留
+
+本轮净改动 **32 路径**：20 条此前未脏的路径、12 条继承脏路径上的叠加修改；入场 171 条脏路径中的其余 **159 条字节不变**。最终工作树 191 条脏路径不等于本轮改动 191 文件。判定规则是 `/home/keer/.codex/artifacts/aigcfroge-b2-followup-20261003-gi8h_51j/final/accounting.py:25–28` 的入场/当前 SHA-256 比较，清单见 `final/accounting.json`。提交列表由 `git log --oneline 260e8275b9b0af9d0b445e5acfb6f4d3545eac7b..HEAD` 生成，输出为空；未 commit/push/PR/发布。
+
+保留：鼠标真实命中 RED、Task remount 旧归因撤回与新焦点 RED、默认 Question 不可用、API/DOM 清理 RED、P1 被否决方案、P2 listener RED，以及时序的 4 failures + 2 between-test errors、23/2、三次缺最终 tally/exit 的 timeout 中止轮。不能把 harness 的 OPTIONS/选择器错误、外部 timeout 或后来的绿回写成产品业务 RED/历史通过。
+
+#### 仍开放（Owner / Unlock）
+
+1. **cold canonical Location 首超时/初始化性能归因**：QA / Session runtime / Native runtime；在明确的 cold 条件下量化必要建图、重复重放与外部 I/O 贡献，再决定生产修复。runner 生命周期串扰已闭环，但原首超时原因没有量化，也没有生产性能修复。
+2. **首次文本观测时延上升**：App / performance QA（S09）；用已保留的不可变 before/after 做受控、交错 A/B，分离浏览器工作、观察器轮询与传输时序后才能判定是否回归。不得凭本轮流式完成近似值或四次采集通过关闭它。
+3. **原 Task dev/HMR、真实 Session 淘汰、Task 重排/降采样与历史 trace 缺口**：App / timeline / E2E；按 §13.1 使删除/重排条件真实成立并取得缓存与 DOM 身份证据。当前保留 Session 的 SSE 场景不替代这些条件。
+4. **真实 V2 provider、完整五模式 UI/跨 OS/真实终端、Task promotion/后台启动与 abort 的全部交错及通知异常组合**：S08 / 对应 runtime owner；取得相应批次批准与真实环境后验证。本轮默认 coding + loopback provider 以及 native HTTP 用例不外推为这些矩阵。
+5. **B2 整批审查、S04–S09 与远端交付**：技术审查 / 各批次负责人；审阅当前代码、证据与开放项后明确放行，继续遵守 §15.3。执行门禁的通过不是审批，也不自动启动 B3。
+
+### 15.5 2026-10-05 B2 复审修复、当前生产包验证与交审点
+
+**状态：本轮复审修复及下列命令验证已完成，等待 B2 批次审查/明确放行；不把门禁通过当作审批。** S04/S05 只在仓库外准备草稿，未实施、未跑 RED。继续遵守 §15.3，未 commit/push/PR/发布，未更改冻结 R2、分支或用户服务。
+
+证据：`/home/keer/.codex/artifacts/aigcfroge-b2-b3-resume-20261005-i4f0cp12/final/B2-VERIFICATION.json`；每条真实命令、exit、原始日志 SHA-256 见同根 `checks/*.command.json` / `*.result.json`。实现仍在 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，`agent-ui-tdd`，HEAD `260e8275b9b0af9d0b445e5acfb6f4d3545eac7b`。
+
+#### 本轮修复与复用
+
+- 首开 Task 面板的真实鼠标写回失败：旧 document pointerdown 判定使用已脱离 DOM 的 `trackRef`，把仍连接的内部 checkbox 当成外部点击，提前关面板，PATCH 未发生。证据 `checks/b2-checkbox-diagnostic.log` 同时记录 `rootConnected=false`、`targetConnected=true`、`liveRoots=1`。修复复用既有关闭边界，以实际收到事件的原生节点声明该次 pointer 的归属，不停止传播、不靠全局选择器、不更换弹层或接口。决定内外关系的函数是 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/src/pages/session/timeline/session-todo-progress.tsx:115`，声明归属的位置是同文件 `175` 行。
+- 永久回归保留真实鼠标点击、PATCH 200、原任务 ID、`expectedRevision=1`、统计 2/2；补面板保持打开与普通点击 Composer 后关闭。旧统一轮 **59 pass / 1 fail** → 定向 **1 pass** → 最终统一轮 **60 pass**，不抬 timeout、不加 retry/skip、不 force 点击。
+- 两处 `httpapi-ui.test.ts` 的 inconsistent-return 断言改用明确失败；`server-sync.tsx` 仅格式化。没有修改 HTTP/SDK/权限生产语义。
+- 历史 SDK 自有 53-key 观察表不能证明整条消费图未变；本轮重新跑当前 App、SDK、TUI、后端消费者，不把旧精选哈希误写成全树证明。此前 SDK 正式再生复现保留为历史证据；当前最终 bundle 的 12 个 SDK source-map 内容重新与当前源码逐字节核验。
+
+#### 当前验证（全部 exit 0，各自记录边界）
+
+- App 完整包命令：**1245 pass / 0 fail**，包括 **1190 unit + 3 virtualizer + 52 E2E contracts**，不是仅报第一个 tally。
+- SDK 公共入口/委派契约：**17 pass**；TUI 契约/Question/通知：**28 pass**；后端、Plugin、TUI loader、UI/auth/proxy/Session 消费整组：**179 pass**；各自 0 fail。
+- SDK、Plugin、TUI、App（含 E2E）、aigcfroge 共五包 `typecheck` 实际执行 `tsgo` 并退出 0。冻结基线 `260e8275b9b0af9d0b445e5acfb6f4d3545eac7b` 的增量 lint、受影响文件 Prettier、`git diff --check` 均退出 0。文档追加后的检查另见 `checks/b2-ledger-*.result.json`。
+- 最终生产 E3：**60 pass / 0 fail / 0 skip / 0 retry**，六个 spec，补入 Task readback 整组。输入/焦点、待决归属、Task DOM/重连、调度/Hub 与首开鼠标写回在同一个最终 bundle 上执行；这是 fixture E3，不是本轮重新跑了真实 E4/provider 矩阵。
+- 最终包 `/home/keer/.codex/artifacts/aigcfroge-b2-b3-resume-20261005-i4f0cp12/final/dist-pointer` 用于 E3 与 after 基准。验证前后保存的源码/测试与 bundle 哈希一致；比较函数 `/home/keer/.codex/artifacts/aigcfroge-b2-b3-resume-20261005-i4f0cp12/final/finalize-b2.py:8`。独立高级模型复审 `pointer-review.json` 未见确认的新阻断项，仅是静态审查，不替代上述实测。
+- 构建退出 0，但仍有大 chunk 告警；不声称构建无告警或体积已优化。所有本轮测试 preview 端口已按报告核验关闭。
+
+#### 性能与失败历史：不得混称
+
+相同 workload：production / Chromium / CPU 6× / 320 轮历史 / 24 deltas / batch 1 / 16ms / CPU profile 关闭；before、after 各 **2 pass**，均完整交付、pending=0、无额外 event connection、row/markdown 不替换。
+
+- 流式完成观测 before **2213.0 / 2427.7 ms**，after **2336.3 / 2357.3 ms**。
+- 首次文本断言观测 before **520.1 / 285.1 ms**，after **293.7 / 319.4 ms**。这不是 LCP 或真实 provider TTFT。仅两样本/侧，不支持统计无回归、因果提升，也不关闭 §15.4 的首次文本时延观察。比较规则 `/home/keer/.codex/artifacts/aigcfroge-b2-b3-resume-20261005-i4f0cp12/final/finalize-b2.py:19`。
+- 原始 59/1 产品 RED 保留。另保留并分别标为执行器/测试错误：复制的 E3 配置缺 ESM package 上下文；新增 outside-click 目标被浮层遮挡；一次错误 selector import 导致未收集到测试。这些不记作产品 RED，也不倒写成历史通过。临时浏览器诊断已从仓库撤除，保存在树外证据中。
+
+#### 仍开放（Owner / Unlock）
+
+1. **B3 / S04–S05**：Owner App / Session UI / UI；仅有树外 `s04/`、`s05/` 草稿和 `B3-DRAFT-REVIEW.md`，包含未写用例与未验证接口/fixture 假设。Unlock：B2 交审后的明确放行（或用户明确条件放行），再完成真实 RED→GREEN 与生产验证；不能把 dry-run/设计性预期失败算成交付。
+2. **S09 性能裁决**：Owner App / performance QA；Unlock：保留不可变 before/after，在受控主机做交错重复测量并拆分浏览器、观察器和传输时序。当前共享主机的两个样本不能作发布性能结论。
+3. **cold 初始化归因、Task dev/HMR/真实淘汰/重排、真实 provider/五模式/跨 OS/终端及更广 E4 矩阵**：Owner 沿 §13.1、§14.1、§15.4；Unlock 沿原批次、真实条件与真实环境，当前 E3/定向后端 suite 不替代。
+4. **SDK guarded generator 后处理**：Owner SDK generation；Unlock：上游真正产出单 Request fetch handler 契约后删除守卫式后处理。不得手改生成文件或补旧协议兼容壳。
+5. **公开 TUI read-view 的手维护边界**：Owner TUI / Plugin；Unlock：存在已发布的稳定公共 config schema 后归一化，不让外部消费者依赖私有 TUI 包。
+6. **外部 SDK breaking 切换与远端交付**：Owner SDK release / 外部插件维护者；Unlock：发布前迁移到当前契约并获得单独交付授权；不新增旧参数包装、双真源或兼容层。
+
+本轮差分及提交列表由入场/最终哈希比较和真实 Git 命令生成，见 `final/b2-accounting-final.json` 与 `final/commits.txt`；不把整棵继承的脏工作树算成本轮新增。原 §15.1–15.4 保留其日期和证据范围，不回写历史结论。
+
+### 15.6 2026-10-06 B3（S04/S05）交审覆盖与剩余边界（实现与限定验证完成，待用户验收）
+
+**状态：B3 实现、已列动态门禁及限定独立静态复核已完成，停在交审点；人类验收/放行待定，不等于本期全量验收。** 本节定点更新既有 §15.6；§15.1–15.5 的历史日期、失败、范围与 owner/unlock 原样保留。只覆盖 S04-R01–06 / S05-R01–07；B4/S06 及后续批次、commit/push/PR/发布没有因此获批。
+
+实现工作树 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`，入场及当前已读 HEAD `c0426b444c78a84bffc5ac711623eb89c68c0191`；冻结计划 SHA-256 `23ee8ddcc012a76fe72540ccbda0e5178cd2130c4e3c0db4daa8151dcee657c5`。计划与 main 只读，未移动或提交其未跟踪文档。本轮交接附件为 [13 R 最终覆盖记录](/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/final/B3-COVERAGE.json)，包含 13 R 的真实决定函数 `file:line`、断言、执行来源、未验证广度及逐项 owner/unlock；源码与证据文件的读取时点哈希见 [worker 读取指纹](/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/workers/coverage/source-hashes.json)。附件是一次性执行证据，不新增长期债务真源。
+
+#### 已实现与本轮明确闭环的待办
+
+- **S04 目录、实例、能力**：primary 与 @ 共用 `isAgentVisible`（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/src/context/global-sync/utils.ts:30`）；Custom 目录再与本 Session 快照池求交，点击时重核候选，仅插入结构化 part（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/src/components/prompt-input.tsx:853–891`）。`aggregateAgentTasks`/`unassignedTasks` 与 `delegationPanelModel` 按 Session/Participant/child ID 决定关系（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/src/pages/session/timeline/agent-task-hub-model.ts:19–39`；`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/src/pages/session/timeline/delegation-panel-model.ts:28–37`），不从摘要或同名 Agent 合并身份。Hub 不提供猜测式控制，真实拒绝 owner 仍是 `TaskTool` Custom precheck、`SessionComposition.assertAgentAllowed` 与 `DelegationService.resolve`（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/core/src/tool/task.ts:312–350`；`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/core/src/session/composition.ts:253–272`；`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/core/src/delegation/service.ts:845–868`）。
+- **B3-REQ-01 已修复并有生产验证，不再是 in-progress**：`ContextToolGroup` 保留原分组/稳定 part ID，以 pending/errors 决定 Exploring / Explored / Failed / Interrupted，折叠时保留原因；错误 item 复用 `ToolPartDisplay` / `ToolErrorCard` / `isInterruptedError`（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/session-ui/src/components/message-part.tsx:1027–1148`、`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/session-ui/src/components/message-part.tsx:1531–1635`、`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/session-ui/src/components/message-part.tsx:426–429`）。四工具错误、三种中断编码、pending/running × 开/关及 mixed-state 的 DOM/焦点/展开保持均有实际断言（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/e2e/regression/session-tool-row.spec.ts:655–876`），不是用 bash 错误代替 context 入口。
+- **controlled-open / B3-COV-02 已在限定合同范围闭环**：`BasicTool` ready effect 同时观察 open 与 defer（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/session-ui/src/components/basic-tool.tsx:166–181`），解决受控 open 不变时晚到 output 的挂载；真实 Part 两用例检查 close/reopen 与原 wrapper 保持（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/src/components/basic-tool-render.test.tsx:971–1016`）。fresh `basic-api-01` 三组独立生产组件浏览器验证覆盖 animated 的 `height:auto/overflow:visible`、`triggerHref+children`、controlled late output（`/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/workers/basic-browser/browser.spec.mjs:2–70`）。该 bundle **不是主 App bundle**；不得再写“fixture 未运行”，也不把它外推为完整路由/主题/OS 矩阵。
+- **S05 历史与唯一回复 owner**：五种规范 Task writer 共用 `taskWriteSnapshot`（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/session-ui/src/components/task-write-tool-model.ts:16–38`）和 `TaskWriteTool`（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/session-ui/src/components/message-part.tsx:2597–2635`），保持当次调用只读快照，不由后续 live Task 更新重绘历史。Question 定位由 `sessionQuestionToolRequest` 精确且唯一匹配 Session/message/call（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/src/pages/session/composer/session-request-tree.ts:147–159`）；定位回调只选择/聚焦并重核 pending，不提交（`/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/packages/app/src/pages/session/composer/session-composer-state.ts:53–66`）。回复仍由既有 Dock；流内只读等待/答案，不新增提交器。
+- **B3-DOC-01 已集成，不存在待实施 domain patch**：ADR-22 状态块 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/docs/architecture/adr/ADR-22-meta-agent-persistent-delegation.md:341`、Phase 6 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/docs/plan/meta-agent-persistent-delegation-closed-loop.md:989`、Todo/Task 方案 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/docs/plan/todo-task-system-upgrade.md:448` / `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/docs/plan/todo-task-system-upgrade.md:463` 与 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl/specs/v2/todo.md:87` 已在 shared tree。逐文件精确状态块/哈希见附件 `domain_document_sync`；本 worker 不重复追加、不回写 M7 或 runtime/恢复决定。
+
+#### 实际验证（各命令独立核算，不把重叠套件求和）
+
+- **源与产物对应由主线核验**：[/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/final/inherited-e3-verified.json](/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/final/inherited-e3-verified.json) 记录快照键集内 **2377 源文件 / 1507 构建文件均无差异**；决定函数为 `/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/final/verify-evidence.py:35`（`compare_snapshot`），原快照 `/home/keer/.codex/artifacts/aigcfroge-b3-finish-20261006-d2rydkw4/final/before-final-gates.json`。日志/exit/tally 校验由同文件 `read_gate:44`、`browser_gate:65` 决定。本 worker 只引用已保存结果，不重复全树比较；不外推至未记录路径或未来修改。
+- **主 App production E3**：`/home/keer/.codex/artifacts/aigcfroge-b3-finish-20261006-d2rydkw4/checks/b3-b2-timeline-complete.result.json` / `final/b3-b2-timeline-complete.summary.json`：**113 pass，exit 0、0 skip、0 flaky**。包含 36 条 ToolRow 与 S04/B2/timeline 回归。另 `b3-presentation-matrix` **3 pass**（dark、zh、narrow）及 `b3-presentation-zh-narrow` **1 pass**，均 exit 0、0 skip、0 flaky。四代表 project 的 chromium 部分已在 113 中；额外中文窄屏不冒充全部组合。实际项目/用例索引见附件 evidence。
+- **fresh 组件 API 浏览器**：`/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/checks/basic-api-01.result.json` 与 `/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/workers/basic-browser/runs/basic-api-01/result.json`：**animated / triggerHrefChildren / controlledLateOutput 三组 passed，exit 0，pageErrors=[]，sourcesChanged=[]**。这是独立 production component bundle，不与上述主 App E3 混称。
+- **本轮串行包级门禁**（`/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/checks/*.result.json`）：App `app-complete-cold`、`app-complete-warm` **各 1284 + 3 + 56 = 1343 pass，exit 0**（分别为 unit、virtualizer、E2E contracts 子脚本；不是两套互不重叠的用例）；Session UI **121 pass**、UI **20 pass**、Core Custom+delegation 指定子集 **31 pass**，均 exit 0。App / Session UI / UI 三包 typecheck 均 exit 0，不宣称全仓所有包 typecheck。
+- **工程门禁**：冻结基线 `260e8275b9b0af9d0b445e5acfb6f4d3545eac7b` 的增量 lint **203 changed files / 13800 added lines，exit 0**；`b3-format-check` exit 0。命令/cwd、tally、日志 SHA 与 source-state 路径逐项保存在附件，不把差分基线移动到当前 main 自比。
+- **修复链与失败历史分开**：Context `context-error-ordered-red` **4 fail / exit 1** → `context-error-ordered-green` **10 pass / exit 0**，其中 9 个 context 场景与相关 presentation 纳入后续 113；controlled output `deferred-output-red` **2 fail** → `deferred-output-green-observed` **2 pass**，后有当前 App cold/warm 与 fresh browser。其他中间失败及前轮记录保留原 exit/tally；文件名含 green 不代表通过，不能反写为历史绿色。定向 10/2/69 与整批重叠，不汇总成独立通过总量。
+
+#### 有界性能：采集/场景通过，不作统计或发布结论
+
+主线 `/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/checks/b3-performance-after.result.json` / `final/b3-performance-after.summary.json` **2/2 pass，exit 0**。[/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/final/b3-performance-comparison.json](/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/final/b3-performance-comparison.json) 由 `compare_performance`（`/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/final/verify-evidence.py:93`）核验 B2 before、修复前 before、当前 after 三个 bundle **各 2 样本**：同一 production/Chromium/Linux、CPU 6×、320 历史轮、24 deltas、batch 1、16ms、persistent-SSE、profile 关闭；**34 个 benchmark 源文件一致**，每次 24 delivered / 0 pending / 0 额外 event connection / row 与 markdown 不重建。保留的历史 before 不是并发对照实验；这不支持统计“无回归”、因果提升、LCP 或真实 provider TTFT，不关闭 S09 性能裁决。
+
+本次 after 的首内容观察为 **482.7 / 220.5 ms**，B2 before 为 **192.1 / 243.9 ms**，修复前 before 为 **289.1 / 256.6 ms**；这是观察器/导航参与的两次样本，不是 provider TTFT，不能隐去较大值或据此判定因果回归。完整原值及差分规则见 [描述性采样](/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/final/b3-performance-descriptive.json)。
+
+#### 仍开放（用户审批与残余广度分开）
+
+1. **B3-VAL-01 · 技术交审准备完成，用户验收待定**。限定独立 [review](/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/workers/review/review.json) 已返回：0 个新增确认问题、0 个阻断问题；已复核当前文件指纹，无新增生产修复要求。Owner：主线 / 用户审批者。Unlock：用户审查本批差分和证据后明确验收；提交、推送、PR、发布及 B4 均需各自明确授权，不由本记录自动放行。
+2. **B3-COV-01 / COV-03 · 覆盖声明边界，不是新增全笛卡尔门禁**。Owner：Session UI / App QA / Core / Delegation。Unlock：若扩大到独立 renderer 特例、全部控制动作 HTTP、V2 多 Agent 服务/外部引擎链，先给对应决定 owner 和直接证据。本次限定复核未确认冻结 R 下尚需修复的具体缺口；不据此泛称所有可能路径已验证。现有共用 owner 的证据不自动覆盖旁路；Context 旁路本轮已直接补齐。13 R 的每条未验证广度均在附件登记 owner/unlock。
+3. **S09 受控性能裁决**。Owner：App / performance QA。Unlock：不可变产物、受控主机、交错重复测量，并拆分浏览器/观察器/传输时序。本轮各侧两个样本只完成采集与场景核验。
+4. **cold 初始化归因、Task dev/HMR/真实淘汰/重排/降采样**。Owner：沿 §13.1、§14.1、§15.4 的 App / Task / QA owner。Unlock：在原债务指定的真实触发条件下补证。App 测试 cold/warm 不等于产品 cold 初始化归因；history reload 不等于真实淘汰。
+5. **真实 provider、五模式、跨 OS/终端及更广 E4**。Owner：Core runtime / QA/CI / desktop/TUI owner。Unlock：后续批次明确授权，稳定产物及隔离真实存储/文件/PTY/provider 路径的直接证据。本 worker 未重新探测 V2 runtime 现状，不凭历史 gap pin 或 E3 mock 声称正向链完成；不能将一次不可运行推广为所有环境不可行。
+6. **既有 SDK/TUI/远端边界**：§15.5 第 4–6 项保持开放。SDK generation owner 在上游单 Request fetch handler 合同可用后删除守卫后处理；TUI / Plugin owner 在稳定公共 config schema 发布后归一化 read-view；SDK release / 外部插件维护者在发布前迁移当前 breaking 契约并取得单独远端交付授权。不得用本批 green 补旧协议兼容壳、关闭这些债务或擅自 commit/push/PR/发布。
+
+7. **Motion 快速切换/卸载逐帧交错观察（非确认缺陷）**。Owner：Session UI / browser QA。Unlock：未来有可复现失败时保留最小输入与真实帧证据再处理；当前没有确认失败路径，不据猜测新增状态 owner，也不把现有三组 fixture 称为穷举所有交错。
+
+最终静态 review：**已完成，无新增确认问题**（[review](/home/keer/.codex/artifacts/aigcfroge-b3-close-20261006-wknepy95/workers/review/review.json)）。B3 验收/放行：**待用户明确决定**。B4/S06–S09 不在本交接件的实施或验收范围。
+
+### 15.7 2026-10-07 B4 / S06 WorkReview producer（API 切片本地验证完成，待人工审查）
+
+本批于 2026-10-06 开始，2026-10-07 完成 S06/API/data 的本地验收对账。继续使用 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl` 的 `agent-ui-tdd` 分支；B3 后没有新增提交，B4 改动保持未暂存、未提交，没有 push/PR，也没有放行 B5/S07/S08。提交列表由 `/home/keer/.codex/artifacts/aigcfroge-b4-continue-20261007-b1nnove2/final/commits.txt` 的真实 `git log --oneline 70aa2ececf4ed87ba811c480f5f07f959168d406..HEAD` 输出生成，不手写列表。源 main、索引与冻结计划由 `/home/keer/.codex/artifacts/aigcfroge-b4-continue-20261007-b1nnove2/final/B4-ACCOUNTING.json` 核验；此前 §15.1–15.6 的历史状态原样保留。
+
+冻结 R2 SHA-256 为 `23ee8ddcc012a76fe72540ccbda0e5178cd2130c4e3c0db4daa8151dcee657c5`。17 条 S06 需求为 **17 PASS / 0 PARTIAL / 0 FAIL / 0 UNVERIFIED**，逐项函数、测试行号、当前 hash 和实际运行证据见 `/home/keer/.codex/artifacts/aigcfroge-b4-continue-20261007-b1nnove2/final/S06-COVERAGE.json`。这只是 S06 API 切片，不是产品交互闭环、全仓 GREEN 或发布批准。S9A 当前 owner 契约见原文档 §7；没有新增 Review 表、RBAC、permission grant、provider 执行或自动恢复。
+
+- **B4-API · 本地验证通过，未提交**。Owner：Core / Server / SDK。HTTP WorkReview 30 pass；真实生成 SDK 3 pass，既有 SDK 回归 21 pass；生成器与 OpenAPI drift exit 0。最后在当前源码上带覆盖率复跑 HTTP+真实 SDK 共 33 pass，与 30+3 重叠，不累加成新行为数。认证/作用域、JSON 损坏与文本 `null`、存储故障、提交后 `committedRevision` 和权威 GET 恢复均有证据。Unlock：人工审查与提交授权；后续广域矩阵仍见下列开放项。
+- **B4-READBACK · 本地验证通过，未提交**。Owner：App / Session sync。App 完整测试 1368+3+56 pass；读回 owner 覆盖复跑 140 pass，均 0 fail。实际 GET/LIST/bootstrap/event 复用 `mergeSessionReview`，同 Session 的版本合并由 `packages/app/src/context/global-sync/utils.ts:71` 决定，迟到/坏快照不能回退已接受版本。仅接规范数据流，不新增 S07 审批 UI。Unlock：人工审查；界面闭环由 S07 另行验收。
+- **B4-CAS · 本地验证通过，未提交**。Owner：Core / Artifact / DB。Core 全套 2605 pass / 2 skip / 0 fail；五个 owner 文件 113 pass。真实 SQLite scope 的条件写、文件恢复、显式重绑和 apply/approve 竞态均已验证；不是所有调度顺序/跨进程集群保证。批准当前性的关系由 `packages/core/src/session/work-review.ts:84` 的 `isVerdictCurrent` 同时比较 artifactID 与内容 revision。Unlock：人工审查；不把 scope 锁等同数据库 CAS。
+- **B4-DELIVERY · API 切片待人工审查，非全仓 GREEN**。Owner：主线 / 独立 reviewer / 用户。Schema 321 pass；全仓 typecheck 16/16；生产构建 exit 0；生产包 E3 113 pass / 0 fail / 0 skip / 0 retry，临时 preview 端口已关闭。独立有界复查无未处理确认问题，之后仅 `artifact.ts` 成功路径显式 `return undefined` 的样式修正；其差异及修正后测试已对齐，不能把 19 份审查 hash 全写成未变。当前增量 lint/改动文件格式与完整逐命令退出码见 `/home/keer/.codex/artifacts/aigcfroge-b4-continue-20261007-b1nnove2/final/B4-VERIFICATION.json` 和 `/home/keer/.codex/artifacts/aigcfroge-b4-continue-20261007-b1nnove2/final/REPORT.md`。Unlock：人工处理或接受下列明确例外后另行批准提交；没有自动 push/PR。
+- **B4-COVERAGE · 仅对可测新增行作量化结论**。Owner：QA / 各代码 owner。三次已通过的 Core、App、HTTP+SDK owner 运行合并 LCOV 后，B4 相对 B3 的可测新增行 `941/1050`，即 `89.62%`；计算函数与每文件未命中行见 `/home/keer/.codex/artifacts/aigcfroge-b4-continue-20261007-b1nnove2/final/B4-LINE-COVERAGE.json`。这不是每个文件均 ≥85%、分支覆盖或全仓覆盖；types/comments 等非测量行不算已覆盖。Unlock：后续修改继续维护逐 R 的负路径测试；更广度量不能代替真实 E4。
+- **B4-SESSION-READ · 有界技术债**。Owner：Core / Session / Server。通用 `SessionStore.get` 仍将数据库/列解码错误提升为 defect；本批只在两个 Review 端点共享的读取边界选择性转译可识别数据/存储故障，不吞程序错误、不把坏 JSON 修成空记录。R09 当前修复已单独通过，不以债务登记代替验收。Unlock：另行批准通用 Session 读取错误契约变更，盘点并同步 SessionExecution / Workflow / HTTP 消费方后，以全链故障测试替代边界转译；不得仅改 get 签名或新增兼容 getter。
+- **B4-BASELINE-FORMAT · 全仓门禁未绿（入场既有）**。Owner：Config / Tooling。`bun run lint` 在全仓格式阶段退出 1，唯一格式告警为 `packages/aigcfroge/config.json` 缺少末尾换行。该文件入场、HEAD、当前 SHA-256 均为 `b00d21ffa529a73c5cd24b648246484ddf916ecf88e46c6affc5edc34efac6fd`，保持未改；归因比较由 `/home/keer/.codex/artifacts/aigcfroge-b4-continue-20261007-b1nnove2/final/verify-accounting.py:29` 的 `baseline_file` 决定。Unlock：单独确认配置格式/写入约定，修复并重跑全仓 lint；本批增量 lint/改动文件格式通过不覆盖此失败。
+- **B4-PERF-OBS · 观察到耗时上升，尚未作统计或因果判断**。Owner：App / Performance QA（S09）。同 fixture/参数的不可变 B3/B4 生产包各两次观测：首内容观察均值 `351.58→506.32ms`（`+44.0%`），完成均值 `2476.80→2596.35ms`，推进窗口的 run-level 帧间隔 P95 均值 `150.10→199.95ms`。四次结构/资源回收断言通过，不能据此声称性能无回归；run-level P95 均值也不是合并样本 P95。比较规则与原始两组样本见 `/home/keer/.codex/artifacts/aigcfroge-b4-continue-20261007-b1nnove2/final/B4-PERFORMANCE.json`。Unlock：获得 S09 授权后，在受控主机上平衡先后顺序、增加重复样本，分离观察器/浏览器/传输耗时并作统计裁决；不能先归咎环境噪声，也不擅自扩大本批优化范围。
+- **B4-WIDE-EFFECT · 广域 advisory 未复跑**。Owner：API / QA。HttpApi coverage 硬门禁 covered=334 / todo=0 / missing=0 / extra=0；auth 334 pass / fail=0 / skip=0 / missing=0 / extra=0；本批 Review effect 2 pass、WorkArtifact effect 1 pass。未复跑整个 advisory `--mode effect` 矩阵。Unlock：后续集成批次在隔离演练环境串行执行完整 effect 矩阵并归类真实失败；不能用 coverage/auth 或个别 endpoint 通过替代全仓业务行为。
+- **B4-S07-S09 · 本批外边界保持开放**。Owner：App / Integration QA / Performance。审批 UI、真实 provider/E4、更广跨平台/跨后端矩阵、Custom 完整运行时闭环以及统计性能裁决均未在本批交付。Unlock：用户放行对应后续批次并满足真实运行前提；不得以 E3 fixture 或本批 API/data 通过替代 E4。
+
+### 15.8 2026-10-07 B4 门禁续作（本地补证完成，未提交/未进入 B5）
+
+本节记录用户要求继续后的 B4 遗留项复核，不回写 §15.7 的历史失败或旧样本，也不把“继续”当作提交/推送/跨批次批准。本轮唯一非文档文件改动是 `packages/aigcfroge/config.json` 追加一个 LF；原 B4 的 TypeScript 实现、测试、生成 SDK 与冻结 B3/B4 App 产物均未修改。完整源码边界、命令、退出码和对照原始值见 `/home/keer/.codex/artifacts/aigcfroge-b4-followup-20261007-9nun3glz/final/REPORT.md` 与 `/home/keer/.codex/artifacts/aigcfroge-b4-followup-20261007-9nun3glz/final/FOLLOWUP-VERIFICATION.json`。
+
+- **B4-BASELINE-FORMAT · 本地整改通过，未提交**。Owner：Config / Tooling。`.editorconfig:5` 明确 `insert_final_newline = true`；真实 Git 历史显示 B1/B2 的提交只删除了这个配置文件的尾换行。本轮先复现目标文件格式检查 exit 1，再使用现有 Prettier 恢复 LF，目标检查 exit 0；51→52 字节且 JSON 值完全相同，没有更改 `$schema`、运行时配置序列化器或格式忽略规则。完整 `bun run lint` 在冻结 `LINT_BASE_REF=260e8275b9b0af9d0b445e5acfb6f4d3545eac7b` 下 **exit 0**，包含 oxlint（202 warnings / 0 errors）、全仓格式、增量 lint、未等待断言门禁；不是零告警结论。具体结果为 `/home/keer/.codex/artifacts/aigcfroge-b4-followup-20261007-9nun3glz/checks/b4-followup-full-lint.result.json`。Unlock：人工审查后提交；未来写入仓库配置仍须通过现有格式门禁，不扩大本次修改去重写所有用户配置 writer。
+- **B4-PERF-OBS · 本轮复测完成，未确认稳定回归**。Owner：App / Performance QA。先固定 `/home/keer/.codex/artifacts/aigcfroge-b4-followup-20261007-9nun3glz/PERF-RECHECK-PLAN.json`，再串行执行 ABBAABBA（A=原 B3 冻结包，B=原 B4 冻结包），4 次调用/包、2 次观测/调用，共 8 次观测/包，16 次场景完成且 0 retry；所有 preview 端口关闭，fixture 与两组 bundle hash 前后核验一致。首流文本被测试脚本观察到的均值 A `474.13ms` / B `403.34ms`；两个 ABBA 块的变化分别 `-40.82%`、`+23.98%`，方向相反，未稳定复现上轮各 2 观测的 +44%。完成观察均值 `2456.16→2469.06ms`；推进窗口 run-level 帧间隔 P95 均值 `170.86→158.38ms`。没有删除不利样本、改重试/阈值/等待逻辑、修改 App 或宣称“优化成功”。比较规则和全部样本见 `/home/keer/.codex/artifacts/aigcfroge-b4-followup-20261007-9nun3glz/final/PERF-RECHECK.json` 的 `comparison_function`。
+- **计时边界澄清**：`packages/app/e2e/performance/timeline/session-timeline-benchmark.spec.ts:33` 的初始指标使用 Node 计时并包含两个 locator 断言的观测过程，不是浏览器 paint、LCP 或真实 provider TTFT；CPU 节流在同文件 `:40` 才开始，适用于后续 streaming 区间。`eventConnections` 在 `:74` 是区间连接增量，不是所有资源已回收的证明；临时服务退出另由端口检查核实。静态调用链分析与运行时因果判断分开，不能因旧 +44% 就盲目增加缓存/改渲染结构。
+- **统计/广域性能边界仍开放**。Owner：App / Performance QA（S09）。本轮是同一共享主机、预定交错顺序的描述性复核，不是独立随机样本、全模式/跨平台基准或统计等效性试验；同一调用内两次观测存在共享条件，run-level P95 的均值不等于合并样本 P95。Unlock：S09 明确授权、受控环境、预先约定的统计目标与更多跨场景证据。不能将本次未稳定复现转换成普遍“无回归”保证。
+- **其余边界不变**：`B4-SESSION-READ` 通用错误契约迁移、`B4-WIDE-EFFECT` 完整 advisory 矩阵、`B4-S07-S09` 审批 UI/真实 E4/provider/更广运行时矩阵仍按 §15.7 的 owner/unlock 保留。本轮没有重复跑已通过且源码未变的 Core/App/HTTP/SDK 全套，也不将重复 benchmark 观测算成新增独立业务用例。下一步须明确放行 B5；没有新提交、push、PR 或用户服务重启。
+
+### 15.9 2026-10-08 B5 WorkReview UI / S08 verification continuation
+
+本节覆盖 2026 年 10 月 8 日在 `agent-ui-tdd` 暂存差分上的正式最小验收；不把已通过的 Work/展示矩阵外推为 Custom/V2 provider 正向闭环，也不把 B5 当作 B6/S09 完成。所有真实 E4 只操作 harness 自己的临时 workspace、SQLite、backend、preview 和 provider；未重启用户现有服务，未 seed 最终 approved 状态。
+
+- **B5-S07-E3 · 正式生产包 RED/GREEN 已闭环**。Owner：App/Integration QA。旧 B4 生产 bundle 使用相同 WorkReview R01 入口，页面正常进入 Work 会话后在 `data-action="work-review-open"` 断言失败，证明 RED 是真实 UI 缺口而不是 setup/导入/HTML 错误；当前 bundle 串行运行完整 `work-review-lifecycle.spec.ts`，**23 pass / 0 fail / 0 skip / 0 retry**。同一次 frozen runner 保存 trace、截图/报告、bundle 与当前源码快照；runner 使用 `PLAYWRIGHT_BASE_URL` 让 backend mock 正确命中生产 preview。证据：`/home/keer/.codex/artifacts/aigcfroge-b5-continue-20261007-w7e3/checks/b5-r01-production-red-scoped.result.json`、`b5-e3-production-green.result.json` 及对应 `final/*-artifacts`。旧 runner 首轮 HTML 失败（未传 preview base URL）保留为 harness 失败，不计入产品 RED。
+- **B5-S07-E4 · 两条真实 WorkReview lifeline 已通过**。Owner：Work/Integration QA。`work-review-lifeline.spec.ts` 的 provider→UI apply→六动作→权威 GET/SQLite/权限策略/provider-call 不变路径 **1 pass**；reload→unreviewed binding readback→submit/approve→harness-owned backend restart→冷启动 GET/readback **1 pass**。两次 run 均有真实 provider、文件 hash、SQLite backup、GET、manifest/version、trace 与 teardown gate；E4 首次暴露真实的 server-owned agent/model 尚未同步到 Local composer，以及 V1 JSON optional field `undefined`/`null` 断言差异，已分别修复为进入 Session 页面时同步服务端 selection、以及测试边界归一化 JSON optional null。证据：`b5-e4-work-review-lifecycle-final.result.json`、`b5-e4-work-review-recovery-final.result.json`。
+- **B5-S07-UI · 当前最小回归通过**。WorkReview controller 的请求 epoch 已拆分 read/transition/session 生命周期；GET 失败清空旧可操作状态，关闭/重开不并发 GET/写入，迟到结果不能覆盖当前 Session；SDK `cause.status` 与 `UnauthorizedError` 映射保持可恢复提示。新增 session-owned selection sync 使真实 Work 页面首次 provider turn 使用 server-owned `agent/model`，不改 Session owner。最小验证：App WorkReview/Artifact/Error **58 pass / 0 fail**；Core service **18 pass / 0 fail**；Schema **65 pass / 0 fail**；session selection helper **4 pass / 0 fail**；App typecheck（含 e2e tsconfig）exit 0。
+- **B5-S08-R/C · 适用最小矩阵已通过，完整 S08 仍有明确边界**。当前 staged 代码下：五模式槽位/隐藏资源/失败隔离 `mode-surface-wiring` **14 pass**；presentation matrix（light/dark/en/zh/narrow + 五模式 surface 进入矩阵）**8 pass**；tagging/CI project contract **5 pass**；Custom builder E3 negative/typed gate + mocked start **9 pass**。这些是直接行为证据，不替代跨 server/Location、父子/多 Delegation、reduced-motion 全矩阵、Task/TUI/SDK 同版本广域链和真实 Custom/V2 provider 正向 E4。
+- **B5-S08 · 未关闭范围保持登记**。Owner：QA + Core runtime + 各模式负责人。`coverage-manifest.json` 当前仍把 Work/Assistant E4 规划、Custom 真实运行标为 planned/negative-only；V2 admission gap 仍是 X，不能把其绿色 pin 当正向成功；跨 server/Location、多个 Delegation、历史恢复和更广平台/desktop/TUI 组合尚未取得当前 run 证据。Unlock：隔离环境下补齐适用 E4/跨层矩阵，或由 owner/用户明确批准 scope 调整；不得用 skip/fixme 抹平。
+- **B5-S07/B5-S08 交付状态**：S07 的 UI/E3/E4 WorkReview 证据链已满足本批可交审条件；S08 仅完成上述适用最小矩阵，不能标记为完整关闭。B6/S09 的性能、desktop/TUI、drift、最终差分和交付门禁仍未执行。
+
+### 15.10 2026-10-08 WorkReview 契约修复与 S08/S09 本地续作（未提交）
+
+继续使用 `agent-ui-tdd` / `173eddb4f3ac86d578055976525b7f857a4a32ab`，保留入场 18 个 staged 路径及原暂存树；本轮改动在工作区，未提交、推送、建 PR 或重启用户服务。§15.9 的旧结果与 null 归一化是历史记录，不能代替本节的最终源码证据。完整命令/退出码/源码和产物收据位于 `/home/keer/.codex/artifacts/aigcfroge-s08-s09-20261008-p42emamj`；最终索引见其中 `final/VERIFICATION.json`。
+
+- **S07-JSON-OMISSION · 同源违约已修复**。既有 OpenAPI/SDK 的 optional 字段允许省略、不允许 null；HTTP 的 `Schema.toCodecJson` 却把显式 undefined 编为 null。复用 `packages/schema/src/schema.ts:13` 的 `optionalOmitUndefined`，修正 V1 Session.workReview、Review.reopenedFrom、None.artifact、Unavailable.review 与公开错误 committedRevision 五个字段；不重写全站序列化或改 Session runner。初始 V1 codec RED 为 1 个失败；变体 RED 为 3+1 个失败，均实收 null。最终 Schema 68、Session/错误 codec 5、Core review 78 项通过。移除了 E4 中掩盖违约的 null 归一化；缺 body/错误 Session ID 不能假绿。
+- **S07-FINAL-E3/E4 · 本地交审证据齐备**。冻结生产包的完整 WorkReview E3 23/23；最后的 record-guard/lint 收窄后，在最新生产包复验相关错误分支 9/9、完整真实 WorkReview 两例 2/2；保留成功 trace、SQLite backup、GET/文件绑定、manifest/version 和 teardown。UI apply 与六动作、reload、harness-owned backend restart 使用真实产品链；未 seed 最终批准状态。父子/多参与者定向 E3 6/6；四项目 mode/tool-row 展示、键盘/reduced-motion 12/12；双后端/双 Location 5/5 与 Assistant 服务入口提醒链 1/1 是本轮较早源码的独立证据，不外推为完整五模式正向 E4。
+- **S09-LOCAL-GATES · 最小门禁通过项按命令记账**。当前相关八包 typecheck 通过；Core review、TUI Task/Question 11 项、desktop 静态 16 项通过。App 定向单测、coverage ledger、SDK 单测、格式与冻结基线增量 lint 的最终结果以 VERIFICATION.json 为准，不把静态 desktop 测试当 packaged Electron。最初 backend typecheck 抓到测试引用未公开的 HttpApiEndpoint helper 和未 branded revision，已改为公开 JSON codec 与 WorkflowAsset.Revision.make 并通过；保留原失败。最终增量 lint 另抓到 B5 的 unsafe object casts 与隐式空返回；已复用 Core 的 isRecord guard 并显式返回 undefined。补跑独立 coverage ledger 8 项及 SDK 源码 17 项，避免把 Bun root 外未发现的测试、或 dist 重复发现当新覆盖。
+- **S09-SDK · 官方生成同步且稳定**。第一次生成产生正式更新；第二次生成的全部 16 个路径/内容一致，OpenAPI checker 通过。生成器因嵌套 type-only codec 将部分类引用展开为结构定义；`final/compare-openapi-contract.py` 的 `equivalent` 判定 795 个组件的展开结构无合同变化，paths 不变。没有手改 generated 文件。
+- **S09-PERF · 结构断言通过，不声称统计无回归**。同机、相同参数、串行生产 timeline before/after 各 2 次通过；原始观测及比较规则在 `final/TIMELINE-COMPARISON.json`。该轮首内容/完成观测均值有所增加；后续 post-lint 修订保留独立的 `final/TIMELINE-POSTLINT-COMPARISON.json`，不选择性丢弃不利样本，也不预先归咎噪声。这些观测不是 provider TTFT/LCP。Tab/flash before 在 600 秒外层资源上限结束（exit 124），完成样本/Chrome traces 保留，整批及其 before/after 比较未通过；仅终止由精确端口/outDir 识别的本轮遗留 preview，端口关闭收据已保存。
+
+未交付及技术债（不因本节存在而自动关闭 S08/S09）：
+
+- **S08-FULL-MATRIX**。Owner：Integration QA / Core runtime；机器账本 `agent-interaction-s08-full-matrix`、`v2-runtime-execution-gap`。完整 S01–S07/受影响包全套、WorkReview 专项展示组合、更广终端/平台/历史失败矩阵和 Custom/V2 正向链未交付。Unlock：单独批准运行时工作并补齐真实正向矩阵，或明确批准 scope-cut；最小测试要求不是完成定义的自动缩减。
+- **S9B-PROVIDER**。Owner：Assistant / QA；机器账本 `assistant-reminder-provider-lifeline`。服务入口播种的提醒投递证明不覆盖自然语言/工具确认创建。Unlock：真实 provider/reminder_create 的正向入口和后续持久化链，或明确批准限定交付。
+- **S09-PERFORMANCE/PLATFORM**。Owner：Performance QA / Desktop；机器账本 `agent-interaction-s09-release-gates`。Tab/flash 成对完整采样、受控统计裁决及实际 packaged Electron 呈现仍欠缺；没有下载/安装 Electron 或构建缺失 sidecar 来冒充已验证。Unlock：确认目标与资源预算，按现有生产基准和真实桌面入口补证；不得把中断、静态测试或当前少量均值包装成通过。
+- **S09-CODEGEN-NAMES**。Owner：Schema / SDK。本轮选择复用既有 optional codec、接受官方生成的等价结构展开，而不是扩大到全局 helper/生成器重构。Unlock：另行验证 type-only 转换的命名/引用保留与全量生成回归；不手改 SDK、不为本轮造旁路接口。其它领域 optional JSON 约定未在本轮全面审计。
+- **S09-RECOVERY/RELEASE**。Owner：Integration QA / Release。恢复演练只覆盖当前代码字节/执行位及隔离 WorkReview SQLite/产物样本，结果以 `final/recovery/RECOVERY.json` 为准；不保证旧版本读取新格式或全产品灾备。完整 CI、提交/远端/灰度必须获得相应批准。Unlock：按目标补齐未覆盖恢复/平台链与最终审查；不得未经授权清库、reset 用户工作区或发布。
+
+### 15.11 2026-10-10 B5 / S08 定向补验与 Assistant 入口闭环
+
+接续工作区为 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl` / `agent-ui-tdd`，HEAD 仍为 `173eddb4f3ac86d578055976525b7f857a4a32ab`。本轮证据目录是 `/home/keer/.codex/artifacts/aigcfroge-s08-20261010-5sqcauo2`，完整命令和退出码由 `checks/verification.json` 索引；该 10-10 定向补验批次未改冻结计划、暂存区、主工作区或生产实现，后续 Assistant 实现见 §15.12。九段历史只用于确认已授权批次，不重复 B3/B4 全套验收，不将本轮补验称作完整 S08/S09 交付。
+
+- **S08-WORK-REVIEW-PRESENTATION · 定向 C 验收通过**。Owner：App / Integration QA。复用既有 `work-review-lifecycle.spec.ts` 的响应脚本、真实页面/SDK 与 `PRESENTATION_EXPECTED`，新增一个带 `@presentation` / `@a11y` 标签的 C 用例，四个既有项目各执行一次；再验原 S07 入口和 503 存储失败两例，共 **6 pass / 0 fail / 0 skip / 0 retry**。实际验证 light/dark、en/zh、desktop/390px、Tab/Enter 可达性、`:focus-visible`/非透明非零 outline/视口命中、空态、持有响应期间的忙碌/禁用态、503 不产生批准及刷新恢复、64 字符绑定 hash 换行、侧栏 `transition-property` 从 `width` 变为 `none`。测试直接走实际 UI，不设置焦点来绕过 tab order；响应等待用就绪信号，未新增 sleep。`s08-work-review-presentation.summary.json` 记录临时 preview 端口已关闭，成功 trace/截图保留。它是既有四项目的代表性组合，不是全组合、真实 provider E4 或完整 WCAG 审计。
+- **S08-BUNDLE-REUSE · 有依据地复用上轮生产包**。入场 5,484 个仓库文件与 §15.10 的最终源码收据一致，原 `dist-postlint` 的 1,507 个文件也逐一符合产物收据，故未重复构建。当前修改只有测试/文档；映射证据为 `entry/bundle-reuse.json`。后续若生产输入改变，必须重新构建，不能沿用本次匹配结论。
+- **S08-LOCAL-CHECKS · 本次最小门禁通过**。App typecheck（含 e2e tsconfig）、冻结基线增量 lint、四个改动文件的格式检查均 exit 0；既有 presentation-tagging **5 pass**、coverage ledger **8 pass**。未复跑生产代码未变化的单元家族、SDK 生成或全仓测试。浏览器运行期间仅机器账本文字更新，生产输入和测试文件未改变；账本更新后的 8 项校验另行运行，不将它算作浏览器断言。
+- **S9B-PROVIDER-ENTRY · 默认 Assistant 提醒链路通过**。Owner：Assistant / Core runtime / QA，机器账本 `assistant-reminder-provider-lifeline`。2026-10-10 隔离默认 E4（`v2Runtime=false`）由真实页面发起确认对话，两个 canonical admission 均 promoted；provider request 已验证认证状态、`reminder_create` 工具定义和工具结果，生产 daemon 完成投递，HTTP/面板已读及 reload 持久化通过，trace、运行摘要和 teardown gate 已保留在 `/home/keer/.codex/artifacts/aigcfroge-assistant-20261010-z21z6rle/default-integration-4`。
+- **S9B-ENTRY-OWNER · 当前运行路径（2026-10-11 更正）**。`packages/core/src/product-mode-policy.ts:102` 的 `shouldUseV2Runtime` 对 Assistant 和 Custom 均返回 true；`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:857` 的 `promptAsync` 按该规则调用 `SessionPrompt.admitCanonical`（`packages/aigcfroge/src/session/prompt.ts:1730`）。Assistant 即使全局 flag=false 也走 canonical admission/runner。Core 工具定义由 `packages/core/src/tool/registry.ts:247` 的 `materialize` 决定；V1 工具能力端点不能代替对该集合的核验。本行原先的 flag=false→V1 说法已失效。
+
+未交付范围与下一步：
+
+- **Assistant 默认入口**：本轮已按授权复用 canonical admission/runner、reminder leaf、ScheduleService 和 daemon，并完成 provider→确认→创建→投递→已读→reload 闭环。剩余是 provider failure/recovery、跨 server/Location、历史会话和 release/CI 矩阵；这些继续由 `assistant-reminder-provider-lifeline` 的 unlock 管理，不把本地单后端通过外推为完整 S08/S09。
+- **完整 S08**：更广 S01–S07/包级、终端/平台/历史失败与真实 Custom/V2 正向链仍由 Integration QA / Core runtime 负责，按 `agent-interaction-s08-full-matrix` 和 `v2-runtime-execution-gap` 的 unlock 处理。最小测试要求不自动批准缩减完成定义。
+- **S09/交付**：tab/flash、实际 packaged Electron、完整 CI/灰度/远端仍按 §15.10 保留。未自动重跑昂贵基准、安装桌面依赖或提交/推送；这些门禁须在对应批次和资源/目标明确后执行。
+
+### 15.12 2026-10-11 B5 / Assistant 草稿、历史与持久化收尾
+
+工作区 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`，HEAD `173eddb4f3ac86d578055976525b7f857a4a32ab`。证据目录 `/home/keer/.codex/artifacts/aigcfroge-assistant-resume-20261011`；`verification.json` 由原始命令退出码、日志哈希生成，`commits.txt` 由 Git 生成。未 stage、commit、push 或重启用户服务；暂存内容以 cached diff 与 index entries 比对，原始 index 字节含 stat cache，不能据其哈希宣称暂存变更。
+
+- **默认 Assistant 闭环**：真实 dashboard→目录选择→草稿→首次发送，要求打开草稿时零 Session、首次发送恰好创建一条 Session；两个 canonical admission、三个已认证 provider turns、确认后的 reminder_create、生产 daemon、inbox、UI 已读及多次 reload 全部通过。原始证据 `draft-e4-read-fixed`，workers=1、retries=0、teardown gate 通过。单后端、单 Location、确定性 loopback provider；不外推真实服务商或完整 S08/S09。
+- **草稿与共享订阅 owner**：`ResolvedDraftRoute` 将 defaultAgent 传至 LocalProvider，已有显式选择优先。`createRefCountMap` 为每个共享条目建立独立 Solid root，由最后一个消费者或 map owner 释放；初始化失败不能撤销后来成功创建的同键条目。最初两条生命周期红测和初始化红测保留；相关 UI 联合检查 35 pass / 0 fail，最后 refcount 检查 5 pass / 0 fail（重叠复验，不相加）。
+- **历史与认证**：Assistant 的 `SessionV2.get` 惰性采用旧会话；通过原子 EventV2 batch 写入有序不可变历史，不重跑工具或计费，保留 V1 源行。Core 定向检查 28 pass / 0 fail，含历史 7 pass；应用认证桥 3 pass / 0 fail；官方 SDK 再生成成功。Core 配置凭据优先，应用 auth.json、OAuth/plugin transport 补充已有模型和 provider；未验证真实 OAuth 服务。
+- **WAL 根因与明确取舍**：原 E4 在已读 HTTP 200 后仍从独立连接读到 unread=1。`draft-e4-fd-probe` 显示事务不存在、键和主库 inode 正确，但后端持有 `e4.sqlite-wal (deleted)` 与 `e4.sqlite-shm (deleted)`；小探针仅加入 FFF 父目录扫描即可重现。FFF 0.9.4 即使关闭内容索引与 mmap，仍在 post-scan 读取文件识别二进制，关闭同进程额外 SQLite fd 会释放 POSIX 锁。当前 `FileSystemSearch.locationLayer` 按真实目录与当前数据库路径的包含关系选择既有独立进程 ripgrep，并在路径无法解析时保守采用该后端。选择复用已有后端，暂不引入完整 FFF 子进程架构；技术债是这些目录的搜索性能，以及完整进程隔离、同 inode hard-link/bind-mount 别名及额外自定义数据库未验证，Owner：Core Filesystem / QA，unlock 见 `filesystem-fff-process-isolation`。所有临时生产探针已移除。
+- **失败证据单列**：本次多轮 E4 的 agent 选择、订阅生命周期、默认标题断言与 WAL 失败均保留在 `resume-*` 原始结果中，不将名字含 final/red 的文件视作结论。HTTP 小测试证明编码的 reminder key 可写入；生产 listener 诊断初次因各自独立 `:memory:` DB 未共享样本而失败，浏览器探针初次缺少浏览器路径、随后合成 origin 被 Chromium loopback 策略拒绝，FFF 修复的首次 E4 因 realPath 大小写笔误在目录选择超时，这些不算产品回归通过。App 最终类型检查还发现 e2e composite 工程遗漏所复用的 session-title.ts，已补入 include 并以 resume-app-types-delivery-fixed 复验通过。最终通过以 `verification.json` 的 required_successes 为准。
+
+未交付范围：四类历史排除项（混合 V1/canonical、per-prompt system、reordered compaction tail、未物化媒体）、导入历史的真实 provider HTTP 请求、更多 native provider/真实 OAuth、失败恢复与跨 server/Location、Custom/opt-in V2 正向执行、完整 S08/S09、tab/flash、packaged Electron 和 CI/release。每项由 coverage manifest 的 owner/unlock 管理；历史 noop-wake 证据不代表本次共享接线修改后的 Custom 实测结果。Timeline 仅相同 34 文件 harness、同参数、同机串行的一次 before/after 描述性采样，见 `timeline-comparison.json`；不作统计无回归、provider TTFT 或桌面发布结论。
+
+### 15.13 2026-10-11 B6 / 历史 Assistant 原生 HTTP 证据与契约审计
+
+工作区 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`，HEAD `173eddb4f3ac86d578055976525b7f857a4a32ab`。本批保留继承暂存及未暂存改动，未提交；提交清单由 `git log --oneline 173eddb4f3ac86d578055976525b7f857a4a32ab..HEAD` 生成。证据目录 `/home/keer/.codex/artifacts/aigcfroge-history-http-20261011`，入口状态、原始失败及成功命令分别保留。
+
+已闭环：
+
+| 缺口                                     | 当前证据                                                                                                                                                                                                                                                               | 范围                                                                                                                                      |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `assistant-legacy-history-provider-http` | `packages/aigcfroge/test/session/legacy-history-http.test.ts`，`history-http-integration-agent-fixed`：1 pass / 0 fail，42 assertions；实际收到一次 `/v1/chat/completions`，两个 history-imported 事件、一个 admission，exact retry 与冲突重用后仍仅一次 provider 请求 | 默认 runtime、单 Session/Location、合成文本和 completed/pending 历史工具、原生 loopback HTTP；闭环项从 coverage manifest 的 deferred 移出 |
+
+该测试复用 AppLayer、production SessionExecution / LocationServiceMap / SessionRunnerModel / LLMClient、testEffect 和已有 Node TestLLMServer，不替换 LLM 或 fetch。它检查线上的 user → assistant → tool → tool → user 消息结构与参数/结果、旧 canonical 消息与 V1 源行不变、导入不重复累计历史费用、新 assistant 的 7/3 token 用量、零旧 tool lifecycle 事件与零文件副作用。exact retry 使用 advisory wake 后的 idle 信号；`SessionRunCoordinator.wake`（`packages/core/src/session/run-coordinator.ts:101`）先登记 active 再启动，避免用强制 resume 充当等待器。prompt/delivery 冲突使用 `SessionInput.equivalent`（`packages/core/src/session/input.ts:666`）的实际校验。
+
+成功产物 `integration-agent-fixed/history-http.json` 记录实际收到的非 system/developer 合成消息、原 body 的 SHA256、事件/输入、源数据前后哈希与导入前后费用。请求头、认证值、环境 baseline 不落盘。消息解码前即去除 privileged context，计数/模型断言也不接收完整请求对象，减少失败输出泄露上下文的风险。首轮 `history-http-integration-first` 为 0 pass / 1 fail：fixture 误用 `agent="assistant"`，被 `ProductModeAgentPolicy.checkPrimaryAgent` 拒绝；修正为 owner 定义的 `ASSISTANT_ORCHESTRATOR`，没有放宽生产策略。
+
+契约审计已校正四类排除项的 unlock：
+
+- **mixed**：纯 V1 的 `(time_created,id)` 顺序由 `MessageV2.page`（`packages/aigcfroge/src/session/message-v2.ts:453`）决定，canonical 顺序由 `SessionHistory.messageRows`（`packages/core/src/session/history.ts:24`）按 event seq 决定；二者没有跨源对账函数。继续原子拒绝，解除前需明确切换边界、同 ID 冲突和权威记录。
+- **per-prompt system**：`request.prepare`（`packages/aigcfroge/src/session/llm/request.ts:55`）将 latest-user system 加入特权 baseline，V2 协议 `specs/v2/session.md:163` 明确 admission/replay 待设计。不能擅自映射为永久 ContextUpdated；需明确 operator 权限、有效期、撤销与 Context Epoch 优先关系。
+- **retained compaction tail**：V1 `MessageV2.filterCompacted`（`packages/aigcfroge/src/session/message-v2.ts:535`，重排分支 `:578`）已确定 compaction-user → summary → retained tail → later messages，`packages/aigcfroge/test/session/compaction.test.ts:1084` 有非空尾部证据。缺的是在 Core seq 截断下保留角色、message/tool-call 身份的无损映射，不是让用户重新决定旧顺序；不得用经过裁切的 Compaction.recent 文本冒充等价迁移。
+- **remote/tool media**：user `file:` 由 `AttachmentResolver.confine`（`packages/core/src/session/runner/attachment-resolver.ts:33`）限制 Location 并在请求时读取当前字节，不是历史快照；tool 附件由 `requireMaterialized`（`packages/core/src/session/legacy-history.ts:329`）限制为 data URI。远端凭据/权限、快照版本、留存及失效仍待设计。现有媒体负例仅 user HTTPS，未验证非 data 工具附件拒绝。
+
+新增 `assistant-legacy-history-error-surface`（Owner S9B）：已有 Core 负例只证明 Effect 失败、无部分导入和可删除，ImportError 通过 defect/throw 传播；分类型 HTTP 4xx 与生成客户端解码未验证，解锁需先明确公共错误契约再跑生产 read/prompt routes。现有 tail 负例也只证明 `tail_start_id` 字段触发拒绝，没有完成 retained-tail 的实际迁移。
+
+本批没有修改生产代码、SDK 或 schema。该集成不覆盖产品入站 prompt/resume HTTP endpoint、请求头认证、历史 UI/restart、真实 OAuth/外部 provider 或新 V2 turn 的 Session 聚合账单正确性；最后一项与“历史导入不重计费”是不同断言。未实现的代表性 provider error/显式恢复用例仍归 `assistant-reminder-provider-lifeline`，更广失败/cross-Location、四类历史排除、Custom/V2、完整 S08/S09 与 CI/release 继续按各 owner/unlock 管理。按最小测试约束，不重复上一批无生产改动的浏览器 E4、timeline 或全仓检查；最终静态/账本检查结果见本批 `REPORT.md` 与 `verification.json`。
+
+### 15.14 2026-10-11 S08 / Assistant 失败恢复与跨 Location HTTP 补验
+
+工作区 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`，HEAD `173eddb4f3ac86d578055976525b7f857a4a32ab`。本次是 S08 的两条新增 C 验收，复用现有生产实现；不是原计划 B6/S09 已完成。证据目录 `/home/keer/.codex/artifacts/aigcfroge-assistant-failure-location-20261011`，逐命令退出码、日志与源码快照在 `checks/`，最终结论见 `REPORT.md` 和 `verification.json`。
+
+- **非重试型失败与显式恢复**。Owner：Assistant / Core runtime / QA。`legacy-history-http.test.ts` 使用生产 AppLayer、SessionExecution、LocationServiceMap、runner/model/native Fetch HTTP 和既有 Node TestLLMServer。普通 HTTP 400 得到 `LLM.Error / InvalidRequest / retryable=false`，持久化 failed assistant 与 Step.Failed 后释放执行权；exact prompt retry 仅 advisory wake，HTTP 次数仍为 1，输入和 durable events 不变；显式 resume 才发第 2 次请求并成功。旧 V1 源行、导入历史及失败消息保留，历史只导入一次，旧工具零新生命周期/文件副作用。无内容的失败 assistant 在 durable history 保留，但不进入第二次 provider 请求，因此两次非特权 wire history 相同。决定关系由 `SessionRunCoordinator.run/wake`（`packages/core/src/session/run-coordinator.ts:87`、`:101`）、runner 无待提升输入守卫（`packages/core/src/session/runner/llm.ts:1175`）与 `to-llm-message.ts:98` 决定。
+- **同进程双 Location 的端点、历史和并发隔离**。Owner：Core runtime / QA。两个真实临时目录、两个独立 Node HTTP 端口、相同 provider/model ID，共用一个生产 AppLayer/SessionExecution；A 响应保持等待时 B 完成且 A 仍 active，释放 A 后续问 A，共 A 两次/B 一次请求。A 续问只含 A 历史，B 的消息/事件/输入快照保持不变；入站记录与 canonical 结果分别落在各自 Session。生产路由在 `packages/core/src/session/execution/local.ts:32` 读取持久化 Session Location，再由 `LocationServiceMap`（`packages/core/src/location-layer.ts:99`）选择独立配置/catalog/runner。测试复用 `testEffect`、`tmpdirScoped`、Deferred 和 EffectBridge；hold Promise 在所有失败路径先释放，再中断/移除 Session，最后关闭 fixture 服务器与目录。
+- **验证与审查边界**。两条新增用例最初均在生产代码不变时通过，按 C 验收记账，不制造产品 RED。第一次后端类型检查发现跨 Location 断言的 string/AbsolutePath 品牌不一致，已使用现有 `AbsolutePath.make` 修复；独立审查发现 raw hits 数组长度断言在失败时可能打印特权 baseline，已改为只断言数值长度。原始记录保留，最终同文件回归、类型、lint/格式及账本检查以最终证据索引为准。没有修改生产源码、公共契约、SDK、schema 或 UI。
+
+未交付及解锁条件继续登记在 `assistant-reminder-provider-lifeline` 与 `agent-interaction-s08-full-matrix`：本次只覆盖无部分输出、无新工具副作用、无待处理 steer 的非重试型 400；5xx/流中断/部分输出/工具执行后的失败、产品入站 prompt/resume HTTP、历史 UI/restart、两个产品后端、不同模型选择和真实 OAuth/provider 仍待对应隔离环境中的直接验证。跨 Location 的 System Context/Context Source 与凭据隔离也未覆盖：wire 解码刻意过滤 system/developer，两侧使用同一合成 API key。四类历史排除项与公共错误契约、FFF 完整进程隔离、Custom/V2 正向链、完整 S08/S09 和 CI/release 仍沿各自 owner/unlock；最小测试与本地通过不缩减完成定义。保留暂存和未暂存工作，未 stage、commit、push、reset、stash 或重启用户服务。
+
+### 15.15 2026-10-11 S08 / 历史公共错误与产品 HTTP
+
+上一批已验证代码按用户授权提交；提交清单由 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/commits.txt` 的 Git 输出生成。本节继续使用 `agent-ui-tdd` 实施工作区，源 main 保持只读。原计划 S08/S09 的剩余完成定义不变。
+
+- **公共历史错误已闭环**：复用 `packages/server/src/errors.ts` 的 InvalidRequestError，仅将 SessionLegacyHistory.ImportError defect 映射为安全的 HTTP 400、kind=unsupported-history、field=sessionID；无关损坏继续 500。SessionLocationMiddleware 覆盖 canonical reads/prompt，旧 prompt_async 在 canonical admission 边界复用相同映射。契约记录于 `specs/v2/session.md` 的 Legacy Assistant History Adoption。`httpapi-unsupported-history.test.ts` 通过真实 Node HTTP 与生成 SDK 验证 mixed/system/user-remote/tool-media/tail 五种形态、源和canonical状态保留、零input/provider、仍可查看V1和删除；另验证无关损坏保持500。收据 `checks/unsupported-history-http.json`：2 pass / 0 fail / 101 assertions，exit 0。
+- **产品 HTTP 历史继续对话已补证**：`httpapi-assistant-history.test.ts` 复用生产 HttpApi web handler 与真实 Node provider HTTP，验证读取触发一次adoption、prompt_async 204、canonical完成回复、历史wire顺序、旧工具不重放、使用量不重计、精确重试不新增调用。共享fixture提取到 `test/lib/legacy-history.ts`，原3条native HTTP用例保持原语义。`checks/history-http-tests.json`：4 pass / 0 fail / 170 assertions，exit 0。该入口为内存Request/Response，不代替入站TCP/browser/restart证据；负例则独立使用真实入站Node HTTP。
+- **验证边界**：本轮首个backend typecheck发现测试expected值的V1/canonical ID品牌与readonly差异，已用现有ID.make和数组复制修复；`checks/backend-typecheck-fixed.json`、`checks/server-typecheck.json`均exit 0。失败记录保留，不与通过记录混称。
+
+四类历史形态的正向支持继续分别由原manifest owner/unlock持有；公共错误契约完成不代表自动混合、旧system重放、retained-tail迁移或远端媒体解析完成。Custom/V2、完整五模式/跨后端故障、真实DeepSeek/OAuth、性能、平台与CI/release仍需各自证据。用户已授权暂存/提交通过验证的代码；未授权push或发布。
+
+2026-10-12 提交前恢复验证：上次 `history-http-final.log` 虽打印6通过，但连接中断导致退出码收据缺失，未作为green round。重新执行的 `checks/history-http-resumed.json` 记录 **6 pass / 0 fail / 271 assertions、exit 0、53.461秒**，源码未在执行期间变化，测试进程组和临时数据已清理；既有backend/server types和incremental lint的成功收据按相同源码复用。
+
+### 15.16 2026-10-12 S08 / 服务端历史格式协商与正向执行
+
+实施目录及分支保持不变，证据统一保存在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011`。用户已授权继续剩余任务并提交通过验证的部分；不代表 push、远端 CI 或发布授权。
+
+- **Coding/V2 空白历史的根因已修复**：后端执行选择由 `packages/core/src/product-mode-policy.ts:102` 决定，前端过去仅按 Assistant/Custom 选择 canonical API。现在既有 capabilities endpoint 复用此函数提供 `canonicalSessionModes`，前端等待服务器范围的查询缓存后选择已有消息 API。重连取消旧能力请求并失效缓存；失败保留已有消息、显式报错；旧会话缺省 mode 复用 `ProductMode.Default`。没有双写、消息格式猜测或第二转换器。官方 SDK 生成 exit 0；默认后端 3/22、V2 能力 2/10、App 定向 71/167 均通过，App typecheck exit 0。独立审查记录 `runtime-review.md`。
+- **真实正向 E4**：`canonical-coding-e4-final` 为 1 pass，Coding/V2 on；`history-custom-default-e4-final` 为 2 pass，global V2 off/Custom on。分别验证 Coding/Custom 根回合的 admission、一次 provider 调用、canonical UI、精确重试、reload、已完成回合重启读回，以及 Assistant 旧历史导入后的实际浏览器续问和重启。两轮均 exit 0、workers=1、retries=0、teardown gate通过。Coding轮只有schema说明文档在执行期间更新，生产源码及测试不变。
+- **Assistant 工具后失败**：`assistant-post-tool-recovery-fixed` 为 1 pass / 70 assertions、exit 0。真实 reminder_create 后续 provider 400，输入/失败回合持久化；精确重试无新调用，显式 service resume 成功，完整 schedule 和 tool events 保持相同，排除仅靠schedule幂等掩盖工具重放。创建/入场/读回是生产 HttpApi web handler，provider是实际Node HTTP；无公开HTTP resume接口，故不将service恢复称为浏览器恢复。
+- **App全套按脚本三段交账**：`capabilities-app-full` 的 unit 1433 pass、virtualizer 3 pass；整条命令 exit 1，最后E2E contracts有55 pass/1 fail，原因是新增dual WorkReview文件未加入发现列表的期望。仅修改该测试契约后，`capabilities-e2e-contracts-fixed` 为56 pass/187 assertions、exit 0；前两段源码不变，复用其实际通过收据。不得把首条失败命令称为exit 0。
+
+仍开放：Custom frozen-child真实委派、同child再次采用及池外失败恢复（Owner S9C）；WorkReview历史identity与剩余故障类别（Owner S9A）；Assistant剩余流/部分输出及凭据/System Context跨backend（Owner S9B）；完整API/E3/E4/其他包、性能、packaged平台与CI/release（Owner S8/S9）。解锁条件继续在coverage manifest；已通过根回合或局部包不能关闭完整S08/S09。四种历史排除项保留明确拒绝契约，未自行发明正向语义。
+
+本轮后续验证：`capabilities-mock-e3` 6 pass；`canonical-ui-timeline-after` 1 pass，两者 exit 0。相同配置的timeline前后各一描述性样本，首次内容观察215.909→84.547ms，流完成观察76.4→93.6ms；12个增量完整交付、零pending、无message/markdown节点替换。共享mock新增capabilities响应，各一个样本不能声称统计无回归。
+
+WorkReview新增双backend场景 `work-review-dual-e4` **1 pass / exit 0**，既有默认两例 `work-review-default-e4-current` **2 pass / exit 0**，均有完整teardown。新场景在相同Session ID的两个服务端中产生各自真实provider/artifact；B同内容新artifact ID使旧结论过期，旧approve真实返回409时A状态/SQLite不变，B显式re_review、approve、reload恢复。关系由 `packages/core/src/session/work-review.ts:84` 的 `isVerdictCurrent` 比较artifact ID与revision决定，不从同名/同内容推断。上述两次执行期间仅独立Custom测试文件变更，WorkReview生产/测试不变。此处关闭双backend stale-binding冲突恢复子项；历史pre-identity与其它故障类别仍保留manifest owner/unlock。
+
+### 15.17 2026-10-12 S08 / Custom 冻结子委派与运行时根因
+
+工作区 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`。已验证的上一批按授权提交；本批证据继续保存在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/checks`，所有测试串行、原外限不变。
+
+- **权限顺序**：`PermissionEffective.compute`（`packages/core/src/permission/effective.ts:52`）曾将 Custom 的 allow→ask 排到头部 fallback deny 之前；`evaluate`（`:36`）和 ToolRegistry 的 `whollyDisabled` 按最后匹配规则判断，因此 task 从实际工具目录消失。修复保留头部 deny→声明审批的顺序，末尾全局 deny、资源级 deny、未知工具 deny 和无人值守天花板不放宽。新增反例先得30 pass/2 fail，修复后权限三组60 pass/341 assertions。遵循 ADR-20 §2.6 已接受的 ask 契约。
+- **进程级后台任务**：生产 AppLayer 的 V2 TaskDriverFill/DelegationExecution 错接依赖 InstanceRef 的旧 BackgroundJob，真实 task 因 `InstanceRef not provided` 失败。`packages/aigcfroge/src/effect/app-runtime.ts:152`、`:185` 现在共同复用 Core BackgroundJob.defaultLayer，旧实例服务仍由原消费者使用。没有捕获失败伪造成功，也没有在测试中注入 InstanceRef。
+- **已有身份采用**：`SessionV2.create`（`packages/core/src/session.ts:430`）对已存在 Custom ID 错用新建根会话门禁，阻断再次委派；现改用 runtime 门禁，kill switch 仍生效，新建 Custom 根仍必须 composition start。HTTP create（`packages/server/src/handlers/session.ts:151`）在任何创建前读取持久化的已有/父身份并复用能力门禁；无能力头的父继承反例先返回200，修后400且无子行，带能力头则可创建/采用。能力预检只读 SessionStore，不触发 legacy history adoption；新增旧 Assistant反例曾返回500，修后已有身份采用200、历史读取/提示仍按既有400契约拒绝不支持的历史。
+- **真实链证据**：`httpapi-custom-child.test.ts` 通过生产 HttpApi web handler、实际Node provider HTTP、带Custom能力的SSE存活和真实once审批，验证根→冻结child→结果→同child再次委派，pool外失败→模型重新委派，拒绝的messageID可用合法agent恢复，精确重试无新provider/事件/输入，snapshot和provenance保持不变。HTTP decode复用各端点实际schema；child快照与持久化root比较，避免把start响应的workflow:null与存储缺省字段误判为快照变更。
+
+最终定向回归：`custom-runtime-core-regressions` **86 pass/410 assertions、exit0**；`custom-runtime-http-regressions` **21 pass/404 assertions、exit0**，覆盖Custom三例、历史两例、capabilities三例、AppRuntime两例及旧BackgroundJob十一例，均有源码快照与清理回执。它们不代表完整包/浏览器/发布验收。初始fixture的JSON codec、快照传输表示问题与真实产品RED分别保留原始失败回执，不计入通过。
+
+仍开放：完整相关包/API/E3/E4、历史pre-identity与其它跨backend故障/上下文隔离、性能tab/flash、packaged Electron和其它平台、真实DeepSeek/OAuth及CI/release，沿coverage manifest原owner/unlock继续推进。没有以本批通过关闭S08/S09。
+
+类型检查：`custom-runtime-types-core`、`custom-runtime-types-fixed-server`、`custom-runtime-types-fixed-aigcfroge` 均exit0。初次Server类型检查发现共享能力helper的404错误通道不属于create已发布错误集合，现按create已有InvalidRequestError映射；未扩展API错误schema。原失败回执保留。
+
+### 15.18 2026-10-12 S08 / 部分输出失败终态
+
+同一实施工作区和分支继续执行。`createLLMEventPublisher` 曾将没有 classification 的部分文本错误标为 aborted；`SessionRunnerLLM` 仅在有本地工具调用时需要 continuation，因此同一错误会导致纯文本无终态、含工具时额外调用 provider。现在 `packages/core/src/session/runner/publish-llm-event.ts:198` 复用先 flush 再 Step.Failed 的收束路径，`:411` 对所有 provider-error 统一调用；`packages/core/src/session/runner/llm.ts:865` 禁止失败轮自动 continuation。既有新输入投递、已启动工具的等待与结算、legacy 真重试保持原契约。
+
+证据位于 `aigcfroge-remaining-20261011/checks`：`core-provider-terminal-red-refined` 为 2 pass / 2 fail，明确捕获第二次 provider 请求与缺失终态；修复后的 `core-provider-terminal-green` 为 91 pass / 284 assertions、exit 0。文本、reasoning、工具输入的失败收束与持久化重放均验证；未解析工具输入的原文保留于 Input.Ended 事件，失败投影按原契约使用空对象。
+
+`assistant-stream-http-reset` 为 2 pass / 109 assertions、exit 0。生产 HttpApi 与实际 Node provider HTTP 验证部分文本先经产品 SSE 到达，再重置连接；同一消息持久化为失败，精确重试不调用 provider，显式 service resume 保留历史与输入。另一个用例保留 reminder 副作用后的失败恢复证据。没有公开 HTTP resume endpoint，因此不称为浏览器恢复。
+
+保留的非绿证据：`assistant-stream-http-green` 为 1 pass / 1 fail。测试服务的 Stream.fail 实际在已发送响应头后正常 end，没有发生 wire reset；这同时发现 OpenAI Chat 提前 EOF 且无 finish_reason 时未收束终态。该独立缺口仍由 `assistant-reminder-provider-lifeline` 的 S9B owner 管理，解锁需明确失败契约并验证部分输出保留、未完成工具不执行、恢复不重放。其余完整 S08/S09、跨 backend、性能、packaged 平台及外部环境事项继续保留原 owner/unlock。
+
+### 15.19 2026-10-12 S08 / 提前 EOF 收束
+
+上一节登记的 OpenAI Chat 提前 EOF 子项已补实现和直接证据。`packages/llm/src/route/client.ts:284` 仅在成功输入耗尽时追加完成标记并调用可选 `ProtocolStream.onEnd`；原 `onHalt` 仍在失败路径执行，原始传输/解析错误不会被 EOF 诊断覆盖。`packages/llm/src/protocols/openai-chat.ts:485` 根据实际 parser 的 finishReason 与 lifecycle.stepStarted 判定不完整响应；OpenAI-compatible 复用同一 protocol。它只发出非重试 provider-error，不伪造 stop，不将未完成工具输入转为 tool-call。空 role-only 响应的既有行为保留。
+
+同目录收据：`llm-premature-eof-red` 为 34 pass / 6 fail；六处分别为 text/reasoning × EOF/[DONE]、无结束原因的工具输入以及 compatible 输出。修复后 `llm-premature-eof-full` 执行包原 test 脚本，**291 pass / 30 skip / 0 fail、651 assertions，exit 0**；30 个跳过项保留，不计外部服务商验收。测试还直接验证传输错误、坏 JSON 和消费者取消不会误发 EOF provider-error。
+
+`assistant-partial-http-complete` 为 **3 pass / 149 assertions、exit 0**，包含生产 HTTP 的 reminder 后失败、部分输出后真实连接重置、部分输出后收到 [DONE] 但缺少结束原因（无 [DONE] 的 EOF 由 LLM 层覆盖）；都验证持久化失败、精确重试不重复调用和显式恢复。该证据使用隔离 Node loopback provider，不代表真实 OAuth/外部模型服务。其它 S08/S09 缺口和完整交付定义继续沿 coverage manifest 执行。
+
+最终检查：两处测试改用 data-first `Stream.toReadableStreamEffect(stream)` 后，`eof-provider-final` 为 **40 pass / 92 assertions、exit 0**；`eof-types-fixed-{llm,core,aigcfroge,app}` 均 exit 0。保留 `eof-types-llm` 的初次推断失败，不记作通过。`eof-final-lint` 以 `e8c297c83` 为显式基线通过（12 changed files / 780 added lines），`eof-final-ledger` 为 **8 pass / 20 assertions**。只读独立审查未发现阻断项。
+
+### 15.20 2026-10-12 S08 / 跨后端 provider 与历史身份
+
+`assistant-isolation-e4-config-owner` **1 pass / exit 0**，`historical-identity-dual-e4` **1 pass / exit 0**；均 workers=1、retries=0、独立 240 秒外限，两次 teardown gate 均通过（无监听端口、进程组或 workspace 残留）。收据、trace 与布尔化 provider 附件在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011`。此前 `assistant-isolation-e4` 的 model unavailable 失败保留；其根因是 fixture 通过 public global settings 写 XDG，而 native Global 读取固定 configDir。修正复用该配置 owner，在打开 Location 前写入自有 fixture，不改产品运行路径。
+
+Assistant 场景使用两个实际产品后端、各一个 Location、不同 Session ID，四次真实 HTTP 请求验证 endpoint、model、合成凭据、System Context、用户历史与回复均不串台。左侧 provider 被就绪 gate 持有时，右侧仍能完成。临时 provider 在 finally 中关闭。这个结果不代表单后端多 Location、同 ID provider 并发、Settings 热更新或外部模型服务。
+
+历史身份场景使用同一 Session ID：A 保有 full tier、模型和 approved artifact；B 的自有 SQLite seed 去掉 model/workContract 后呈现 missing model、propose 和无 Review，刷新及真实 SPA 切换不会借用 A 的结果。随后去掉 B agent，真实 API 返回 InvalidRequestError/400，Header 与权限转为 unavailable/degraded；A 的 identity/review 保持不变。新 artifact 只在本测试创建，并在 finally 精确清除。该读取兼容性与隔离子项从 deferred `identity-e4-cross-server-and-historical` 移除；实际 migration 执行仍由 `work-review-lifecycle` 的 S9A owner 持有，其它失败/完整矩阵/平台/CI 范围不变。
+
+收尾：`isolation-config-contracts` **14 pass / 44 assertions**；`isolation-final-app-types` 与以 `d0adc5e63` 为基线的 `isolation-final-lint` 均 exit 0。独立只读复核发现的 workspace 残留已在执行前修复，未通过放宽 teardown 规避。
+
+### 15.21 2026-10-13–15 S08/S09 / Session 恢复、Auth 真响应与打包桌面续作
+
+继续使用 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl` / `agent-ui-tdd`；原主目录未混入本轮修改。证据根目录为 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011`，以下收据路径均相对于该目录。用户已授权剩余本地工作与通过验证后的本地提交；本节记录已完成子项，**不关闭完整 S08/S09，不代表远端 CI 或发布通过**。
+
+**默认 Session 补验为七次实际测试执行。** `resume-session-restart` 为 **1 pass / exit 0**；`resume-session-default-turns` 为 **3 pass / exit 0**（chat-mode、实际 streamed read tool dispatch/continuation/durability、重复 delta 不复制 message）；`resume-session-recovery-turns` 为 **3 pass / exit 0**（transient HTTP 500、SSE cut、slow provider）。均为默认 V1 分支、workers=1、retries=0、outer240，elapsed 分别 **93.422 / 70.902 / 79.525 秒**，源码无运行中变更，三个 E4 teardown gate 均通过。D02 restart 的已保存 trace 同时证明普通 browser submit/reload、未显式指定 mode 时为 coding，以及未武装故障时只有一次 provider 请求；这三行是复用 D02 的行为证据，不能写成另跑三例或“十次测试通过”。completed-turn restart 不证明中断 provider 的自动崩溃恢复。V1 恢复不能替代 Assistant/Custom：分支由 `packages/core/src/product-mode-policy.ts:102` 的 `shouldUseV2Runtime` 决定，`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:858` 在 promptAsync 处应用它。
+
+**Assistant 503 重试耗尽后的显式恢复已补证。** `checks/resume-assistant-503.json` 及日志为 **2 pass / 0 fail / 140 assertions、exit 0**；过滤排除的同文件两例未计入本轮。真实 reminder 完成后连续三次 provider HTTP 503，累计请求为 4；exact retry 仍为 4，显式 `SessionV2.Service.resume` 才发第 5 次请求。输入、失败终态与完成工具事件保持，reminder 不重放。入站使用生产 in-memory HttpApi web handler，provider 为实际 Node loopback HTTP；没有公开 HTTP resume endpoint，因此 service resume 不等于 browser recovery 或 automatic post-crash continuation。其它 provider/OAuth 与完整集成范围仍开放。
+
+**可选 Codex 初始化和首次持久 thread ID 的三个出口已修复。** 实际 packaged desktop 曾因 SDK 提前构造而在未选择 Codex transport 时抛出 `Unable to locate Codex CLI binaries`。adapter 现在执行时解析 SDK，构造/start/resume/run 失败进入已有 `provider_error` 通道；首次 thread ID 在结果出口从 live thread 读取，覆盖成功、reject 和 timeout。`codex-first-thread-recovery-red` 的两例失败保留；最终 `codex-first-thread-recovery-green-final` 为 **24 pass / 0 fail / 40 assertions、exit 0**，对应 format/typecheck 均 exit 0。success-only 的中间 22 pass 不再作为最终结论。未复制或下载可选 CLI 资源；这些单测与桌面启动成功仍不证明真实 packaged Codex 新 thread/resume 委派。
+
+**上一轮 Linux 实际打包入口已有完整成功子项。** `resume-recovery-desktop-main`、`resume-recovery-desktop-package`、`resume-recovery-desktop-smoke` 均 **exit 0**，elapsed 分别 **48.009 / 14.307 / 11.506 秒**；smoke 为 **1 pass**，workers=1、retries=0、trace=on，测试断言实际 `app.isPackaged`。main/sidecar 已按当前 Codex 修复重建；`resume-recovery-desktop-cleanup.json` 记录复用的 **1642 个 renderer/preload 文件无变化**、`packaged_processes=[]`、`temporary_directories=[]`，并保存主进程输出哈希与 Electron trace。限定 smoke 覆盖实际入口、窗口恢复、DPI/native zoom、菜单窗口动作、deep link、picker cancel 和 updater 非就绪失败。首轮可选 Codex 初始化失败与随后按旧窗口数误关主窗口的 fixture 失败均保留；fixture 后来按 BrowserWindow ID 精确清理新窗口。此结果仅适用于 Linux x64 unpacked 产物，不证明全部平台、签名、安装包升级、真实 Codex 委派或发布。产品 `stopSidecars` 的异步关闭本身也不等于所有 PID 已退出；本轮退出结论来自独立 cleanup 收据。
+
+**Auth 门禁改为等待真实 Response，当前 334 场景完整通过。** 原 1 秒 `Promise.race` 会合成 `status=0/timedOut`，而 valid probe 曾允许该值通过；修复将 Effect 的取消信号传给实际 Request，沿用既有 **30 秒 scenario deadline**，收到 Response 后取消业务 body，不等待 SSE/长轮询业务结束。需要业务就绪的 TUI probe 只在 valid 请求前准备队列输入。`resume-auth-response-green` 为 **2 pass / 6 assertions、exit 0**，含合法凭据超时必须失败和准备后取得真实响应的两个反例。三次串行 `resume-auth-response-matrix-{1,2,3}` 分别 **100 / 100 / 134 pass、exit 0**，elapsed **44.169 / 42.812 / 50.627 秒**，保持 outer90/internal80。`resume-auth-response-audit.json` 为 passed：**registered=RUN=PASS=334，305 unique routes，fail/skip/duplicates/missing/extra 均为 0**，三组源码哈希一致，进程组与临时目录清理通过。原 `resume-api-auth` 的 **internal80 截断 / exit 124** 和旧 `resume-auth-matrix-{1,2,3}` 合计 **330 pass / 4 fail** 保留为失败历史，不倒推为绿色。Bun 的 directory-mismatch 诊断在本轮日志中仍有记录，但每组真实退出码为 0；不把诊断隐藏，也不将其等同于测试失败。Auth 只证明认证检查取得实际响应，不等价于完整 effect-mode 业务断言或真实外部 provider。
+
+**Auth 测试基础设施仍有明确边界。** 本轮采用独立隔离 exerciser 进程，未为一次探针扩展生产队列契约。旧 TUI AsyncQueue 无撤销/清空接口，prepare 入队后若在消费前失败，同进程重用可能残留队列项；Effect 冷 web handler 建立期间也可能错过已触发的 abort。正常 334 场景均取得真实响应且退出清理通过，但这不证明所有失败/取消清理。Owner：S9；Unlock：复用具备可取消语义的队列或上游 handler 生命周期契约，并补请求实际进入、超时取消及再次使用互不污染的证据；未改动生产队列去扩大本次测试修复范围。
+
+**真实 DeepSeek Flash 产品服务链已通过一次限定回合。** 用户授权复用 OpenCode 配置中的 `deepseek-1/deepseek-v4-flash`。其原 `@ai-sdk/anthropic` 与 `https://api.deepseek.com/v1` 组合实际返回 404；按官方 Anthropic 文档及 SDK `/v1/messages` 路径规则，只在临时配置改为本项目 native adapter 所需的 `https://api.deepseek.com/anthropic/v1`，未改用户 OpenCode 文件。`flash-live-product-4` 为 **exit0 / passed**，outer90、elapsed **8.788 秒**，一个真实外部 POST 返回 **200**；真实 AppRuntime/SessionV2 admit-only 后读得未提升 input，resume 后取得一个成功助手消息（finish=stop、正文302字符），精确重试不增调用且 durable 输入/事件/消息摘要不变。产品退出后 SQLite 只读 integrity=ok，输入和助手正文哈希一致，零工具事件；独立清理记录进程0、转发端口释放、私有目录删除。步骤限制1和权限deny-all复用生产 text-only 分支，该分支带 MAX_STEPS 提示；它不是通常的无约束工具回合、browser/HTTP admission 或全部失败矩阵证明。
+
+`flash-live-product-1` 的404、`-2` 的HTTP200但断言失败、`-3` 的明确 **finish=length / reasoning1 / text0** 全部保留；第三次证实128 token测试上限不足后，第四次仅改1024 token请求预算。四次各一个外部请求，总计由 `flash-live-attempts.json` 对账为 **4**，无自动付费重试；原始输出、正文和凭据仅在0700/0600私有tmp中并已清理。官方文档说明旧 `deepseek-v4-flash` 名称实际由 **V4.1 Flash** 承接，因此本证据只证明当前别名服务链，不宣称旧V4权重仍可用。其余provider、OAuth和适用故障范围仍由S9B持有。
+
+**API 注册与 drift 分别完成。** `resume-api-coverage` 为 **covered=334 / todo=0 / missing=0 / extra=0、exit 0**；`resume-api-drift` 为 **OpenAPI snapshot is up to date、exit 0**。coverage 是场景注册覆盖，不能替代 Auth 或业务执行。当前完整 effect-mode 业务矩阵未因此关闭。
+
+**已完成的包分组与未完成范围分别计数。** 下表合并 `resume-package-audit-20261013.json` 与后续补登记的历史分组回执；各次源码与限制见其对应段落。audit 的 `tests` 字段包含 skip，故不能直接写成 pass。本轮定向测试与这些分组有重叠，不相加伪造去重总量，也不宣称后续源码改动已整包重跑。
+
+| 分组范围           | 已完成/计划组数        | 实际日志 tally                                                                                                                          |
+| ------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Core               | 15/15                  | 2632 pass / 2 skip / 0 fail                                                                                                             |
+| Schema             | 1/1                    | 324 pass / 0 fail                                                                                                                       |
+| session-ui         | 1/1                    | 121 pass / 0 fail                                                                                                                       |
+| ui                 | 1/1                    | 20 pass / 0 fail                                                                                                                        |
+| App unit           | 7/7                    | 1433 pass / 0 fail                                                                                                                      |
+| App virtualizer    | 1/1                    | 3 pass / 0 fail                                                                                                                         |
+| App E2E contracts  | 1/1                    | 56 pass / 0 fail                                                                                                                        |
+| TUI                | 5/5                    | 220 pass / 1 skip / 0 fail                                                                                                              |
+| aigcfroge backend  | 30/74（29完整＋1对账） | 原001–026及028–030共29完整组；027三活动文件经空文件对账接受，原queue exit1及占位0pass保留；008/015/025保留显式或平台skip；031–074余44组 |
+| desktop 普通包级组 | 1/1                    | 11文件 / 60 pass / 0 fail / 0 skip；Linux本地普通包，与packaged smoke分开                                                               |
+
+**2026-10-15：后端第 3 组与 Desktop 普通包级组已补齐。** `package-suite-backend-003-split-20261015-LCZvbK` 保留原 90 秒外层边界、90000ms 单测超时和单并发，把原第 3 组分成五个10例分片及一组39例。六份回执均 exit0；JUnit 按 `(file,name)` 精确对齐预先发现的89例，无重复、遗漏或选中 skip，六文件并集与原组一致。五份过滤运行各有40条未选中 skipped，仅用于分片，不计作通过或产品 skip。原 `full-package-aigcfroge-003` 的 exit124 仍保留；当时已有30例持续通过，证据支持累计运行达到边界，未证明单例挂死。六次运行源码/HEAD/index/branch 冻结，日志哈希一致，子进程与私有目录清理通过。在该历史检查点，原001/002组147例加本组89例只能记为发现计划完成3/74组；当时004–074的71组仍未执行，不能称当前后端整包通过。
+
+**2026-10-15：后端 004–008 回执补登记。** 五批均为 exit0 / outer90，分别为 33、32、45、48、41 pass，合计 **199 pass / 5 skip / 0 fail / 728 assertions**，每批完整六文件与原发现计划相同。JUnit、日志、check 与 freeze 哈希独立核对一致；每次执行前后 source/HEAD/branch/index 不变，冻结 HEAD 为 `b0dd421ae501741fadccda65ebd6080240af42e3`、分支 `agent-ui-tdd`，进程组与私有目录已清理。008 的五条 skip 都来自 `footer.view.test.tsx` 已有的无条件 `test.skip`，分别覆盖命令面板重建、leader variant、skill picker 可编辑绑定、关闭 skill panel 清草稿、自定义 Question Return 提交。源码注释称 OpenTUI 崩溃/teardown segfault；本次审计没有复现或确认该根因。它们不计入通过，登记为 `cli-footer-opentui-skips`，owner=S8；解锁需定位并修复 renderer/keymap 生命周期原因，恢复五例并完成真实 renderer 的完整相关分组与干净退出验证。原 `full-package-aigcfroge-009` 的 outer90 / exit124、无 JUnit 仍保留，不能由本组通过推断第009组或当前后端整包通过。独立审计：`package-suite-backend-004-008-audit-20261015-_ktywgo6/AUDIT.json`。
+
+`s08-r02-package-desktop-local` 为 **11文件 / 60 pass / 0 fail / 0 skip、exit0 / 0.515秒 / outer90**；只计普通包级组，不能替代实际 packaged Electron/Codex、签名或跨平台验收。精确病例和文件集合、源码及复用 Electron 哈希以独立 Desktop 审计为准。
+
+首次 `s08-r02-package-desktop` 仍为 **outer90 / exit124**：WSL测试的静态store导入进入缺少dist的Electron模块并尝试下载。`s08-r02-package-desktop-local` 在隔离环境建立后显式传入 `ELECTRON_OVERRIDE_DIST_PATH`，复用已核验的本地Electron42.3.3；未修改产品、node_modules或安装新依赖。普通包通过不证明真实Windows/WSL执行。
+
+**类型边界修复及当前范围。** `resume-types-aigcfroge` 原 **outer90 / exit124** 保留。构建后的 `dist/node/node.js` 被默认输入发现纳入 typecheck；复用 `outDir: "dist"` 声明产物边界后，`resume-typecheck-scope.json` 记录输入 **780→779**，唯一移除项是该生成文件，无新增输入。`resume-types-aigcfroge-dist` 和 `resume-final-types-{core,app,desktop}`、`resume-final-code-format`、`resume-final-incremental-lint` 均 exit 0，只证明已提交批次的对应源码。Auth 最终 `resume-auth-response-format/types/lint` 均 exit 0；增量 lint 使用冻结基线 `56cac381f75c69a9b3198f3b487708fc645245bf`，覆盖 11 个变更 TS 文件、636 行新增。七个 Auth 文件已独立静态复核并提交；最终差分与账本验证另记。
+
+**性能原八次采样已完整，当前只能作描述性比较。** 页面 real200% zoom 的 `tool-row-real-zoom-short-temp` 为 **1 pass / exit0**，`zoom-control-mode-panels-history-fixed` 为 **2 pass / exit0**。原合并 tab/flash before **outer600 / exit124** 保留。`s09-paired-{before,after}-{tab,flash}-{1,2}` 八次各 **1 pass / exit0**，workers=1、retries=0、outer600；每次 workload、bundle 及清理检查通过。第二次 after-tab 期间变更的是本账本与 coverage manifest；第一次 after-tab 期间变更的是两个 Auth 测试文件，均不在被测 workload 内，完整收据仍保留这些差异。`checks/s09-paired-comparison.json` exit0，`s09-paired-comparison.json/md` 为 `complete-descriptive-only`，保留 44 份 trace 哈希。两组冷切换首次正确观察的 after-minus-before 中位差为 **+22.9 / +3.0 ms**；热切换为 **+7.6 / -0.1 ms**。四个重绘样本在原 1000ms 窗口内分别有 **54/56、51/53、53/55、56/58** 个空白观察，首样本均不正确。计数不是时间占比，采样成功不代表闪烁消失，也不证明统计无回归。before 完整哈希是后来捕获，不能仅凭历史路径证明历史逐字节身份。
+
+**原性能夹具仍有 API 响应形状缺口，隐藏 Mode 请求已按产品 owner 修复。** `s09-repaint-observation.json` 保留原 after-tab trace 中 `/schedule/pending`、Session schedule/delivery、`/memory` 返回 **200 text/html** 及约 1/2/4 秒重试的事实。判定函数仍是 `packages/app/e2e/utils/mock-server.ts:297` 的 `shouldMockApiFallback`；通用 canonical messages 夹具也仍是旧数组形状。本轮没有改通用 mock-server 或原八次样本，新的功能 E3 在局部返回正确 JSON / `{data:[],cursor:{}}`。原约 7.2 秒不能直接视为健康生产性能。
+
+**S08-R02 的活动边界与 Assistant 状态 owner 已补红绿。** `packages/app/src/pages/session/session-side-panel.tsx:210` 的 `modePanel` 保留挂载，由现有 `ModeSlotActiveProvider` 在 children 求值前提供活动状态，且同时核对全局 Mode 与目标 Session Mode，避免切路由期间旧 Mode 对新 Session 发请求。`pages/mode-slot-active.ts:32` 的 `useModeQueryActivity` 停用 observer 并取消 inactive query 的排程重试，保留其他 active observer；未向 SDK 传 signal 的已发 HTTP 不保证传输 abort。Assistant panel/KB/editor/nav/dashboard、Custom snapshot、Chat resources/递归搜索、FileTree 和 Work sidebar 复用活动契约；cache diagnostics 补 server scope 并受 enabled 门控，其 30 秒轮询尚无直接 E3。
+
+Assistant 左右交互现在复用目标 Session 发布的 Layout handle，保留外壳与目标页各自的 LayoutProvider。归属由 `packages/app/src/context/route-contribution.tsx:29` 的 `sessionContributionForRoute` 以 leaf Session ID 与 `ServerConnection.sameKey` 判定；仅持有相同 persist key 不代表内存 store 共享。左侧数据/归档/新 draft 使用目标 server。归档事件携带 server；`context/tabs.tsx:250` 的 `removeSessions` 以事件 server + Session ID 删除，导航只使用当前路由的有效 owner，保留另一 server 同 ID 及 draft；timeline 在 await 前 capture SDK/sync/server，并用 `navigate:false` 保留自己的父/邻居/draft 导航。`s08-r02-owner-stale-red` 的 **2 pass / 1 fail** 与修复后 **3 pass / 43 assertions** 均保留。
+
+动态 KB/editor/context 标签的自动回退来自 Kobalte 在新 trigger 注册前选择首项。Assistant 复用有限 trigger 集合并保持注册，关闭项由外层 `display:none` 与 disabled 隐藏；不靠延时再选择。`s08-r02-e3-owner`（KB出现但回提醒）、`-tabs`（切 Coding 后 schedule/delivery 多发）、`-session-mode`（测试未启 FileTree）、`-file-enabled`（CSS 覆盖 hidden）各 **2 pass / 1 fail** 保留；最终 `-visibility` 为 **3 pass**。Context 关闭遵循既有相邻项选择规则。左导航在外壳关闭时仍会卸载，未承诺其 DOM/折叠状态保留。
+
+**新生产 Web 产物的 E3 为 17 次实际执行，全部无 skip/retry。** `s08-r02-build-visibility` 构建 1,507 文件；`s08-r02-e3-visibility` **3 pass**、`-scope` **1 pass**、`-modes` **5 pass**、`-neighbors` **8 pass**，各 bounded receipt exit0、supervisor passed、source/bundle 不变、owned 进程0、端口释放及私有目录删除。实际覆盖冷/热隐藏 Assistant/Custom/Chat 请求为零、活动读取为正、左 KB→右 KB→editor、同 Session desktop↔390px 抽屉往返的 textarea DOM 与未保存草稿、Session 往返的 editor tab 恢复、Context 开关，以及全局 A/目标 B 同 note ID 的数据和新 draft 归属。Session 往返没有证明草稿或 DOM 保留；可见 Session/composer 的两次 composition 和全局 pending badge 单独归属，不计作隐藏 panel 漏请求。没有直接验完全部 SDK/SSE effect、重复提交、所有状态/展示组合，**不能关闭完整 R02 或 S08**。
+
+**本轮共享 App UI 已重新打包并实际启动 Desktop。** `s08-r02-desktop-renderer`、`-package`、`-smoke` 各 exit0 / supervisor passed，elapsed **44.416 / 11.694 / 13.063 秒**，smoke **1 pass**。新 ASAR 与本轮 output 的 **1,649 文件**逐一匹配，missing/extra/changed 均0；复用的7 main/1 preload有来源连续哈希。旧 workspace/out、旧 package、Electron dist、native均未变，owned进程与私有目录清理通过。仍仅证明 Linux x64 离线预编译 native 的限定 packaged entry/window/zoom/menu/deeplink/picker smoke，不替代实际 packaged Codex、新平台/签名/发布或全部 Mode UI。
+
+**修复后性能另存两次采样。** `s08-r02-after-tab` **1 pass / 135.352 秒**、`s08-r02-after-flash` **1 pass / 22.770 秒**，outer600、单 worker、零 retry，源码与 bundle一致、清理通过。`checks/s08-r02-performance-comparison.json` exit0，比较文件 `s08-r02-performance-comparison.json/md` 为 `complete-descriptive-only`：重新验证原8次证据哈希，加本次11份 trace；每 spec 仅1个新样本，与原4个同类样本逐次比较而不池化。冷/热 firstCorrect 中位数 **234.8 / 225.6 ms**；新1000ms重绘窗口 **51观察、0空白、3旧会话、首观察不正确**。这只表明该次观察改善，不能证明零闪烁、统计无回归或夹具已达到完整 API 保真。
+
+**状态提示补修前的定向门禁已通过。** `s08-r02-final-format` 为29个改动TS/TSX格式检查 exit0；`-unit` **82 pass / 185 assertions**（9文件，含契约检查）、`-tabs` **3 pass / 43 assertions**（独立进程真实Provider）、`-types` App typecheck含e2e、`-lint` 冻结基线增量lint **40 changed files / 2154 added lines**均exit0；运行期间没有源码变更。它们没有替代完整相关包与展示矩阵。账本文档格式与coverage ledger单列收据 `s08-r02-ledger-format` / `s08-r02-ledger-unit`，以实际退出码为准。
+
+**独立复核发现并修复跨服务器状态提示。** 左侧数据已取目标B，但 SessionItem 的 notification/permission 仍继承全局A。`s08-r02-scope-status-red-scoped` 为 **1 fail / 4 failed assertions**：同ID行显示A错误点，并遗漏B错误、未读及待授权点。现在目标 Session 发布已有 Notification/Permission 的只读方法；`packages/app/src/pages/layout/sidebar-items.tsx:155` 与 `:160` 决定使用传入 owner，子行沿既有props传递。没有新增Provider或事件订阅。`s08-r02-status-e3-scope` **1 pass** 同时验证四项状态、KB/editor以及B新draft；只读复核确认原P2已解决，见 `s08-r02-status-review.json`。首轮 `-status-red` 只复现B错误/未读，因A fixture错误使用local scope；更正为注册URL scope后才得到四项完整红证据。E3 fixture曾因导入生产运行时类型图触发TS6307，后改用已知持久化wire格式，未扩张e2e tsconfig。
+
+**状态补修后的最终运行时证据再次通过。** `s08-r02-build-status-final` 为 **55.735秒 / exit0**；其 `s08-r02-app-status` 共1,507文件。`s08-r02-status-e3-{scope,panel,modes,neighbors}` 分别 **1/3/5/8 pass**，仍是17次实际执行，不与前一版17次相加冒充34个去重用例。`s08-r02-desktop-status-{renderer,package,smoke}` elapsed **44.155 / 11.190 / 11.744秒**，均exit0 / supervisor passed；实际packaged smoke **1 pass**，1,649 ASAR文件missing/extra/changed均0。各运行期源码与产物不变，owned进程0、端口/临时目录清理通过。初次build目标已存在和Desktop标签前缀错误均在启动前被监督器拒绝；保留失败记录后使用新目标/合法标签，没有覆盖旧证据。
+
+最终性能 `s08-r02-status-tab` **1 pass / 139.221秒**、`s08-r02-status-flash` **1 pass / 24.628秒**。`s08-r02-status-performance-comparison.json/md` 校验原8次记录及本次11份trace，结果仍为 `complete-descriptive-only`。本次cold/hot firstCorrect中位数 **247.2 / 231.8 ms**；1000ms窗口 **49观察、1空白、2旧会话、首观察不正确、maxBottomErrorPx=7255.5**。上一版0空白不是本版结果，计数也不是时间占比。未修通用API夹具，未关闭重绘残留或完整因果验证。
+
+**提交前检查与产物对应关系。** `s08-r02-status-final-unit` **82 pass / 185 assertions**、`-tabs` **3 pass / 43 assertions**。末次lint发现context层导入page类型的架构违规，保留 `s08-r02-status-final-lint` exit1；类型定义移回已有context owner后，`s08-r02-status-type-final-{format,types,lint}` 全部exit0，格式检查30个TS/TSX，lint **41 changed files / 2255 added lines**。仅 `route-contribution.tsx` / `sidebar-items.tsx` 两个模块在运行时验收后调整类型；`s08-r02-type-equivalence.json` 用安装的 Bun.Transpiler 验证修改前后输出JavaScript完全相同，保存两侧源码与输出哈希，因此复用已验产物与行为测试。此关系不是“最终源码字节与构建时完全相同”。完整汇总以 `s08-r02-status-final-audit.json` 为准；账本格式与8条coverage检查分别归 `s08-r02-ledger-format` / `s08-r02-ledger-unit`。该检查点提交后的代码恢复现已完成，结果及精确版本见下文。
+
+**2026-10-14：继续收敛隐藏 Mode 和 Custom 草稿归属。** Coding 的预取入口及 Markdown preload 完成回调读取既有 `slotActive`。Chat 在隐藏时保留 directory/context/version，恢复后再推进输入；`components/chat/chat-assets.tsx:125` 的 `currentSdk` 同时比较 scope 与 directory，禁止把旧 SDK 配上新版本。系统资产改用目标 context 的 sync；`currentList` 只排除 pending/unresolved，再读 `.latest` 并核对 source，保留异常传播且不挂起外层 Mode。刷新复用 `bumpAssetVersion`，移除 `chatShown` latch。
+
+Custom Provider 原本以 Location key 重建整棵 children，导致其它 Mode 槽也卸载。`context/custom-draft.tsx:393` 现在仅在归一化 key 变化时替换 memo 所持 store；Provider children 保留，旧持久化资源随 owner 清理。四个消费者响应式读取 accessor，Start/Upgrade 的迟到错误和 finally 只更新原 draft。新 E3 又发现浅复制默认草稿会共享 agents/bindings：Solid 写入嵌套原对象，项目 B 继承 A 的选择。`copyDraft`（同文件`:343`）以 `structuredClone(unwrap(state))` 修复自有初始化、持久化初始化与 reset 三个入口；外部 store tuple 的 setter/持久化 owner 不变。`s08-r02-draft-alias-unit-red` **5 fail**、`-e3-red` **1 fail** 保留；最终 `s08-r02-retained-isolated2-unit` **78 pass / 0 fail / 194 assertions / 8 files**，含真实 Provider A→B→A、嵌套隔离、子节点保留、owner 清理和迟到 hydration。此前生命周期 fixture 本身共享 Location 常量，造成 **75 pass / 3 timeout**；复制 fixture 初始和 setter 输入后消除，未据此修改生产行为。不能推断旧保存草稿中的选择是否污染，因此没有清删用户数据。
+
+**通用 E3 夹具补齐两个协议入口。** `/schedule/pending` 明确返回 JSON 数组；canonical `/api/session/:id/message` 使用独立 typed callback、`{data,cursor}`、默认 limit50/order desc，保持 legacy 数组和 header cursor 独立。`e2e/utils/mock-server.ts:325` 的 token 判定令未知 token 返回400、已知其它 Session 的 anchor 返回200空页，与 canonical store 的 absent-anchor 语义一致。同源/异源各有默认分页、五种非法 query、跨 Session cursor、双向 opaque token 与 legacy 隔离的直接断言。token 仅为 fixture 注册值，未复制或验证生产 cursor codec；wire 回调也不等于渲染非空 canonical timeline。permission request/grant、composition、permission override、project update、health、agent、provider 的其余错误投影，以及 provider default-map 仍在 `s08-r02-fixture-audit.md` 登记，未宣称完整保真。
+
+**当前生产 Web 的完整选定 E3 集合为 39 次执行。** `s08-r02-build-retained-isolated` **exit0 / 47.762秒 / 1,507文件**；`s08-r02-retained-isolated-final-e3` **39 pass / 126.763秒**，workers1/retries0，无 skip/flaky/report error。包含原 Mode、Chat 跨 server、mock override、Custom Builder、Home 路由及新增隐藏 Coding、Chat 项目切换、Custom 项目隔离。源码 SHA 为 `4ec83d88f5865dfd209406e2af568750cd44b9353b466efa437fbadc3a641961`，运行时输入与 build 一致，source/index/HEAD 冻结，清理通过。此前 `retained-isolated-e3` **38 pass / 1 fail** 只在新测试的 plan 请求计数失败：SDK header 的 directory 已 URI 编码，改读 URL query 后定向 **1 pass**，再得到最终39通过。`retained-final-e3` outer240、picker 严格定位冲突等 fixture 失败均保留，不冒称产品 RED。39是这次五个 spec 的集合，不与上一版17或单例重跑相加计唯一覆盖。
+
+**性能新配对已完成，样本变慢尚未归因。** 修正 canonical fixture 后，保留同一 fixture 的 `s08-r02-retained-aligned-before-{tab,flash}` 与 `s08-r02-retained-after-{tab,flash}`，四次各1pass，耗时 **134.818 / 22.663 / 167.763 / 25.881秒**。比较脚本 exit0，`s08-r02-retained-performance-comparison.json` 校验四收据、前后 fixture、22份 trace，状态 `complete-descriptive-only`。冷/热 firstCorrect 中位数 **214.4/207.5 → 308.5/249.4 ms**；不能称性能无回归。1000ms重绘观察 **52→48**，空白 **1→0**、旧 Session **4→3**，首观察均不正确，maxBottomError **7255.5→0.5px**。只有该次 after 没捕获空白；次数不是时长，不能称零闪烁或把变化归因于修复。此前配对与失败证据均保留，未选择更快重跑替代。
+
+**当前共享 App 已再次通过实际 Linux packaged smoke。** `s08-r02-desktop-retained-{renderer,package,smoke}` 全部 exit0/supervisor passed，耗时 **59.420 / 15.008 / 12.556秒**，smoke **1 pass**。1,649 ASAR文件与本轮输出一致，复用7 main/1 preload有来源连续性。renderer/smoke 的内层 runner 曾记录尚有 zombie 进程组，随后外层 child-subreaper 回收，最终 owned进程0、临时目录清理完成；不能用内层字段代替最终清理结果。外部 harness、依赖、用户服务及旧产物未修改。此 smoke 不替代实际 packaged Codex、全部 Mode 功能或其它平台。
+
+**冻结代码恢复已完成在 `c5db0dd11ade871981faa19942ad64901f71f604`。** `checks/s08-r02-final-recovery.json` **exit0 / 4.025秒 / outer180**，`s08-r02-final-recovery/RECOVERY.json` passed；5,491个文件、14个symlink的字节/执行位/目标一致，两份自有 WorkReview SQLite 备份 integrity=ok、外键错误0。用户DB未触及。它证明该提交及已保存合成fixture的恢复，不证明本轮后续代码、生产灾备、historical migration、Location迁移或自动崩溃续跑；不为追逐文档HEAD重跑。
+
+本批末次类型/格式/增量lint与账本检查以 `s08-r02-retained-close-{types,format,lint,ledger}` 的实际收据为准；完整对应审计为 `s08-r02-retained-final-audit.json`。独立只读复核未发现本批新增回归，明确保留下一组缺口：同 Location composition 变化或显式重算时 Start 的旧计划使用、`plan.valid=false` gate、Upgrade 的 snapshot 就绪与重建组合的新 digest、Assistant 延迟 mutation 的 query/UI owner、Save 防重、窄屏关闭 diagnostics 轮询。V1 Snapshot 的空 revision 不能用虚构成功 fixture 当正向 Upgrade。
+
+**2026-10-14：Custom Plan 与 Upgrade 输入归属已补红绿。** `components/custom/custom-preview-column.tsx:87` 的结果选择改为完整 source identity；同 Location 选择变化必须等新 Plan，显式 Recalculate 则保留 Builder/MCP 节点及 loading UI，并在 pending 期间禁止 Start。Start 提交同一次已验收结果的 composition/digest；`custom-plan-state.ts:137` 的 evaluateStartGate 复用既有 gate，保留具体 blocking diagnostic 优先级并拒绝 `valid:false`。`context/custom-draft.tsx:132` 复制 requestedCapabilities 数组，阻止已捕获输入随后续 push/splice 改变，并让真实 memo 跟踪能力增删；未发现 UI 调用 toggleCapability，不把这个 store/input 契约缺口描述为可见 UI 回归。
+
+`components/custom/custom-snapshot-panel.tsx:110` 的 Upgrade 门控要求可用 Snapshot、读取已完成且没有在飞升级。重建草稿后先调用既有 Plan，再按同一 gate 校验，以新 digest 发 Upgrade。每次 await 后核对原 source/draft；server connection 由同文件`:120` 的 `server.scope(ServerConnection.key(connection)) === sdk.scope` 决定，成功导航沿原 server。六条新 Snapshot E3 直接验证 404/400/500/畸形200 时禁用、原全局A/目标B下 Plan→Upgrade 顺序、两个 POST 的 B origin/directory/composition/new digest、升级后新 digest 显示，以及 invalid Plan 不创建且显式重试成功。它们未覆盖初次 Snapshot pending 或 V1 空 revision 的正向解锁。
+
+**本批 RED 与 GREEN 分开记账。** `s08-r02-plan-red-unit` 为 **23 pass / 2 fail / 35 assertions**；`s08-r02-plan-red-e3` 为 **8 fail / 123.370秒**，失败到达预期产品断言；`s08-r02-capability-alias-red` 为 **0 pass / 2 fail**。另保留 typed expect 编译 RED 与 i18n exhaustive-list 首次类型失败，不把它们冒称行为 RED。修复后 `s08-r02-plan-final-unit` 为 **50 pass / 115 assertions / 4文件**；`s08-r02-plan-final-types` exit0。Web build `s08-r02-build-plan-final` **exit0 / 55.145秒 / 1,507文件**；`s08-r02-plan-final-e3` **53 pass / 210.733秒**，包含既有39、两条新Builder、六条Snapshot及六条相邻MCP回归，workers1/retries0，无 skip/flaky/report error。它是七个完整选定spec的集合，不能再与前39相加计唯一覆盖。运行 source SHA `7e09e3fe718c3a45c3f76f301ea34b4f6ceb49e90f3c044ac293460d1a5b05e5`，与build对应且source/index/HEAD冻结，清理通过。
+
+**本批性能与桌面证据。** 新 `s08-r02-plan-after-{tab,flash}` 各1pass，耗时 **133.088 / 22.119秒**；before复用 `s08-r02-retained-after-{tab,flash}`，不重新挑样。冷/热 firstCorrect 中位数 **308.5/249.4 → 223.1/232.8 ms**；1000ms重绘观察 **48→51**、空白 **0→0**、旧Session **3→4**、首观察均不正确、maxBottomError均 **0.5px**。样本仅描述观察，不证明性能因果、无回归或零闪烁；剩余八类API投影仍需补齐。`s08-r02-plan-compare` exit0，`s08-r02-plan-performance-comparison.json` 为 complete-descriptive-only，核对686提交的生产输入字节、相同fixture和22份trace，并与旧comparison/audit/post-commit哈希链对应。`s08-r02-desktop-plan-{renderer,package,smoke}` 全部exit0，耗时 **41.382 / 13.266 / 13.047秒**，实际packaged smoke **1pass**；1,649个ASAR文件对应，复用main/preload有来源连续性。外层supervisor回收内层退出后的zombie，最终owned进程0、临时目录清理；仅证明当前Linux x64入口smoke。
+
+本批末次门禁见 `s08-r02-plan-close-{types,format,lint,ledger}`，完整证据对应审计见 `s08-r02-plan-final-audit.json`；只读生产审查 `s08-r02-plan-upgrade-independent-review-20261014T035843Z` 未发现新增可行动缺陷。仍需直接验收初次Snapshot等待、迟到Upgrade完成/异常重试、Start跨Location完成策略、V1 revision；Assistant异步mutation/Save与窄屏轮询、全部SDK/SSE和完整S08/S09保持开放。c5恢复与真实Flash收据沿用已有独立证据，不因本批更新重跑。
+
+**2026-10-14：Assistant 异步 mutation 的归属与保存防重已补红绿。** `src/utils/assistant-query.ts:25` 复用 QueryClient 对捕获的服务器资源键失效，替代完成后调用当前 observer.refetch。查询键是否匹配由安装版本 `node_modules/@tanstack/query-core/src/utils.ts:141` 的 matchQuery/partialMatchKey 决定；是否立即读取由 `query.ts:272` 的活动 observer 判断。隐藏 observer 保留失效标记，重新启用后读取；`assistant-query.ts:8` 仅对失效数据开启重挂载读取，保留普通缓存重挂载的现有策略。全局可见 pending badge 仍是合法活动 owner。KB 的 list/search/backlinks/dangling 共用资源键组；`pages/session/assistant-kb-tab.tsx:45` 的空搜索直接读 notes，不再缓存一份可能过期的列表。
+
+`pages/assistant-dashboard.tsx:166` 在入口捕获 SDK、payload 与编辑版本，同步 pending 防止同草稿重复保存/删除；Cancel、打开、创建改变版本，旧完成不关闭新草稿。`components/assistant-note-editor.tsx:179` 通过 owner 对象身份和 disposed 状态约束完成回调，并在保存/删除期间禁用字段与补全；Session panel 捕获原 Session ID，完成后只失效原 reminders/inbox 及共享 pending/recent 键。本次直接 E3 证明隐藏 Dashboard 完成后不读 memory、返回后读 confirmed；双击只发一次 POST，Mode 往返保留禁用字段及草稿，400 后显式重试；笔记 A 的保存不关闭 B 的原 DOM/未保存内容，B 自己保存后读回；Session A 的取消在 B 当前时不读 A 或 B，返回 A 后读 cancelled。
+
+**RED 与最终 GREEN 独立记账。** `s08-r02-assistant-mutation-red-exact` 为 **4 fail / 29.210秒**，四条分别到达隐藏 memory 多读、重复 POST、B 编辑器被关闭、旧 Session 多读的预期断言；原始请求附件与 trace 保留。此前宽 grep 误选额外邻居产生 **1 pass / 4 fail**，其执行集合错误单独保留。首次 `assistant-green-types` 是测试 getQueryData 缺类型参数的两处编译错误，不计行为 RED；修正后 `assistant-types-fixed` exit0。最终 `s08-r02-assistant-final-unit` 为 **99 pass / 269 assertions / 10文件**；其中保留的旧源码字符串测试不替代行为证据。`s08-r02-build-assistant-mutation` **exit0 / 43.829秒 / 1,507文件**；`s08-r02-assistant-final-e3` **27 pass / 126.205秒**，为 Dashboard、SessionPanel、Session scope 与 Mode surface 四个完整 spec，workers1/retries0，无 skip/flaky/report error。运行 source SHA `81ce348f5038b8dd1067e96933c9e8a243ba9459ee17ee0a24093f02f8bafd62` 与 build 对应，source/index/HEAD 冻结且清理通过。27 与此前53有交集，不相加计唯一覆盖。
+
+**本批性能和桌面验收。** `s08-r02-assistant-after-{tab,flash}` 各1pass，耗时 **127.348 / 20.558秒**；before 复用 `s08-r02-plan-after-{tab,flash}`。`s08-r02-assistant-compare` exit0，比较文件为 complete-descriptive-only，核对 d4 提交生产输入、相同 fixture、旧 comparison/audit/post-commit 链与22份 trace。冷/热 firstCorrect 中位数 **223.1/232.8 → 225.4/211.9 ms**；独立1000ms重绘观察 **51→53**、空白 **0→0**、旧Session **4→4**，首观察均不正确，maxBottomError均 **0.5px**。另在after的hot切换中有一条blank观察，不能以独立重绘窗口未见空白声称零闪烁。无统计、因果或无回归结论，剩余八类API投影仍开放。`s08-r02-desktop-assistant-{renderer,package,smoke}` 全部exit0，耗时 **39.720 / 10.440 / 9.641秒**，实际packaged smoke **1pass**；1,649 ASAR文件对应，复用main/preload有来源连续性。内层renderer/smoke退出后的zombie由外层监督器回收，最终owned进程0、临时目录删除，范围限Linux x64入口。
+
+末次门禁见 `s08-r02-assistant-close-{types,format,lint,ledger}`，完整对应审计见 `s08-r02-assistant-final-audit.json`；独立生产审查 `s08-r02-assistant-independent-review-20261014T114330Z.json` 未发现新增可行动缺陷。仍缺直接浏览器组合验收：NoteEditor自身pending字段/保存删除互斥、Cancel后重建、跨服务器迟到完成及异步读回失败；本次QueryClient单测不替代这些UI状态。所有SDK/SSE effects、跨Session草稿、窄屏closed drawer diagnostics和完整S08/S09仍开放。c5恢复与真实Flash证据不追逐本轮HEAD重跑。
+
+**2026-10-14：关闭窄屏抽屉时暂停诊断轮询。** `packages/app/src/pages/session/session-side-panel.tsx:210` 的 `modePanelVisible` 同时决定 wrapper display 与 `ModeSlotActiveProvider` 活动值，并保留目标 `sessionMode` 条件。查询启停沿既有 `pages/mode-slot-active.ts:32` 传至 `components/session/session-cache-diagnostics.tsx:47` 的 enabled 与30秒轮询。没有新增状态缓存或重挂载面板。直接浏览器用例在390×844、同一Assistant Session验证请求计数 **1→2→2→2→3→4**：可见读取/轮询、关闭跨一个周期零新增、重开读取/轮询；原诊断trigger DOM、Context选择与展开状态保留。重开触发默认陈旧查询读取属于已有Query策略，不承诺所有资源零读取。
+
+**本轮红绿与失败分开记账。** 最终用例的 `s08-r02-drawer-toggle-red-exact` 为 **1 fail / 7.531秒**，旧生产bundle在关闭后仍由2次变3次；RED/GREEN测试字节一致，源码差异仅为生产可见性修复。`s08-r02-drawer-toggle-final-e3` 为 **39 pass / 169.192秒**，完整Assistant SessionPanel、Mode surface、fallback/a11y三个spec，workers1/retries0，无skip/flaky/report error。此前 `drawer-red` **1 fail / 184.900秒** 是寻找空Session不存在入口的夹具失败；改用现有timeline入口后 `drawer-red-header` **1 fail / 8.082秒** 到达多读断言。首次 `drawer-final-e3` **37 pass / 2 fail**：诊断trigger上的Escape先执行Kobalte的clearSelection，另一个旧全局Context选择器匹配两项；最终用例改由drawer toggle关闭，旧选择器限定Work面板，既有Escape与焦点用例继续通过。误用旧bundle的 `drawer-toggle-red` 被preflight拒绝，未启动浏览器。所有失败收据保留，未算作绿色。
+
+复用 `s08-r02-drawer-unit-fixed` 的 **38 pass / 112 assertions / 4文件**；此前单测的38pass/1fail来自旧JSX字符串断言，删除该断言后由上述真实DOM/请求行为承担契约。单测后只改两份E3，审计核对无生产或单测差异。`s08-r02-build-drawer` **exit0 / 41.370秒 / 1,507文件**；该bundle生产输入与最终E3一致，最终E3 source SHA为 `2c40ebdfed638a8ceaa120de5814a1b84bff915068c60b2ab1986345bfb22503`。独立生产/测试静态审查 `s08-r02-drawer-independent-review.json` 无新增可行动缺陷，四文件哈希与最终执行对应。
+
+**性能与桌面范围。** 新 `s08-r02-drawer-after-{tab,flash}` 各1pass，耗时 **135.241 / 26.486秒**；before复用Assistant after样本，`s08-r02-drawer-compare` exit0，对应7548提交生产输入、旧comparison/audit/post-commit链与22份trace。冷/热firstCorrect中位数 **225.4/211.9→231.8/227.0 ms**；独立重绘观察 **53→35**、空白 **0→1**、旧Session **4→4**，首观察均不正确，maxBottomError **0.5→7255.5 px**；after切换采样也有空白。完整保存这些变化，不能宣称无回归、零闪烁或修复因果。八类夹具API投影与性能归因继续开放。`s08-r02-desktop-drawer-{renderer,package,smoke}` 均exit0，耗时 **64.109 / 12.496 / 10.694秒**，实际packaged smoke **1pass**、1,649个ASAR文件对应；复用main/preload来源连续。内层renderer/smoke退出后的zombie由外层回收，最终owned进程0、临时目录清理，范围限Linux x64入口。
+
+最终检查见 `s08-r02-drawer-close-{types,format,lint,ledger}`，证据审计见 `s08-r02-drawer-final-audit.json`。本子项只证明已完成读取后的单Assistant诊断observer；在途传输中止、共享observer与所有Mode/资源/视口组合仍需直接证据。完整S08/S09保持开放，c5恢复和真实Flash收据沿用且未重跑。
+
+**2026-10-15：共享浏览器夹具的八类默认 API 投影收尾。** 本批生产源码未改。`e2e/utils/mock-server.ts:180` 为 Question、Permission request/grant 提供完整 Location 信封；注册项目的最长祖先匹配使用既有 `pathKey`，保留请求 directory 与项目 root 的区别。Project PATCH 保留 registration-local 原始 icon 列，`projectProjection` 只在输出时省略全空 icon；字段独立合并、commands 整列替换及 fromRow 输出规则以生产 `packages/aigcfroge/src/project/project.ts:390` 的 `update` 及同文件 `:63` 的 `fromRow` 为准。缺失 composition 返回404、未启用 permission override 返回 `{enabled:false}`；health 补 version，默认 agents 复用 `ProductModeAgentPolicy.primaryModes`，性能 provider 补齐生成类型及 provider→model 默认映射。已有负向响应 override 保留。
+
+两个跨项目 E3 显式登记目标项目，terminal 夹具的两个同项目目录归入共同 root；files/terminal canonical route 使用实际配置的 server port。没有扩展成文件系统、workspace placement、Project SSE、持久化或权限 lease 模拟器；有效写入投影不等于生产输入校验。未知接口的原 fallback 仍保留，其全部保真性未验收。
+
+本批最终选定 **89 次 E3 执行**：`s08-r02-projection-closed-contracts` 14、`-final-neighbors` 7、`-closed-modes` 16、`-closed-custom` 23、`-final-assistant` 29，均 exit0、零 skip/retry，复用来源可追溯的 `s08-r02-app-drawer` 生产包。早先 `-red` 4条、`-icon-red` 2条、`-boundary-red` 4条行为失败分别保留；这些轮次有交集，不计作10个独立缺陷。`-final-modes` 的240秒外限退出124及 `-final-custom` 的19pass/1fail也保留。最终源码/产物对应、清理、trace和门禁由 `s08-r02-projection-final-audit.json` 汇总，末次检查使用 `s08-r02-projection-close-{types-fixed,format,lint,ledger}`。
+
+最终类型检查先暴露 TS6307：复用的 `src/utils/path-key.ts` 未被 E2E composite 项目显式包含。`e2e/tsconfig.json` 只补该 include，保持 compilerOptions 与全部运行时代码不变；原 exit2 收据保留，已有浏览器结果按源码哈希复用。最终八文件独立审查见 `s08-r02-fixture-independent-eight-file-review-20261015T020943Z-93ca0743.json`，未发现可行动缺陷；它是静态审查，不代替命令验收。
+
+**性能负载已经改变，以下是独立新基线。** `s08-r02-projection-baseline-{tab,flash}` 在2026-10-14各1pass，elapsed **134.501 / 22.570秒**，11份Chrome trace；生产包1507文件沿用且无字节变化。两份共享夹具的改动改变了请求与数据投影，不能与旧drawer样本当作仅产品代码差异的前后比较。cold/hot first-correct中位数 **243.5/243.3ms**，stable中位数 **265.0/277.1ms**，hot稳定观察最大 **648.3ms**。独立1000ms重绘窗口51次观察中空白0、旧Session3、首观察不正确、maxBottomError **0.5px**；tab试验另有cold2/hot2次空白观察。因此没有零闪烁、性能无回归或因果结论。既有Linux打包、c5恢复及真实Flash证据均未重复执行，完整S08/S09保持开放。
+
+**新基线网络与长尾的只读分析已补齐。** `s08-r02-projection-baseline-independent-analysis-20261015-7bb7gcrx.json` 核对两次通过运行及11份trace：771个fetch响应全部同源，MIME为JSON或event-stream，没有fetch HTML、缺失响应或ResourceFinish失败；78个HTTP错误均为显式无snapshot的composition 404 JSON。这只证明本次记录，不关闭任意API保真性。57次 `/global/event` 均正常结束于6字节有限响应；夹具 `mock-server.ts:512` 的 `sse` 返回有限body，`server-sdk.tsx:229` 在EOF后走既有250ms重连，仍构成合成重连负载。composition数量与旧drawer相同；没有证据把它定性为404重试循环。
+
+hot-1首次正确243.3ms、稳定观察648.3ms。其间一个renderer `RunTask` 墙钟378.260ms、线程CPU仅3.522ms，落在接收143字节permission/grant响应的Mojo数据管道watch中，内部没有Layout/Paint。它支持等待/调度延迟线索，不证明378ms JavaScript或渲染工作，也未确定OS、IPC或产品根因。稳定值由 `session-tab-switch-metrics.ts:10` 的 `classifySessionSwitch` 和 `:38` 的 `isStableSessionSwitch` 按连续三个正确样本决定，不能与首次正确视为同一指标。独立flash的0空白不能覆盖tab中四次空白观察；继续保留S9/App/QA的长尾与空白调查owner/unlock。
+
+**2026-10-15：NoteEditor pending 与迟到完成的六条 C 验收。** 本批只改四个 E3 文件，生产输入与 `s08-r02-app-drawer` 的1,507文件继续匹配。`s08-r02-note-c-editor-final`、`s08-r02-note-c-dashboard`、`s08-r02-note-c-scope` 分别 **3/4/3 pass、exit0**，耗时 **20.045/41.459/19.265秒**；最终集合为六条新增及四条相邻回归，零skip/retry。保存/删除pending均验证双击仅一条POST、字段和另一操作禁用、补全关闭、400失败后原DOM/草稿保持及显式重试；Dashboard Cancel→New与同Session/note ID跨server各验证旧成功/失败不接管新的pending草稿。跨server使用真实SPA标签切换，A完成不增加B读取，并分别读回A/B正文。
+
+首轮 `s08-r02-note-c-editor` **2pass/1fail** 是保存后的多标签笔记匹配了两项。`components/assistant-nav-model.ts:30` 的 `buildKbTagTree` 将笔记加入每个标签，符合页面快照；最终用例改在KB列表按标题和标签唯一定位。独立审查还发现删除后的同类选择器会漏检残留项，已一并补强并重新执行三条editor用例。中间绿色不重复计入最终十条。最终源码/产物、清理、准确测试名、十份trace及检查对应见 `s08-r02-note-final-audit.json`；本批没有为既有正确实现制造RED。读回失败与初次加载错误、全部SDK/SSE、剩余Custom及完整S08/S09仍开放。
+
+**2026-10-15：第009组的拒绝请求残留订阅已修复并补齐原集合。** 原 `full-package-aigcfroge-009` 为 outer90 / exit124，且在超时前已有真实断言失败：拒绝prompt期望单条error，实际两条。独立单例 `s08-r02-cli-rejected-red` 为 exit1；原源码诊断 `s08-r02-cli-error-payloads` 显示HTTP先输出脱敏UnknownError，约190ms后遗留SSE消费者又输出模型不存在错误，两个payload没有共享ref。`run.ts` 现在复用订阅signal：请求返回error时取消订阅，消费者每次处理事件前检查signal，并等待消费者结束；保留请求期间全部SSE及原finish退出码语义。没有改变服务端HTTP错误或Session广播契约。
+
+第一版“只报第一个错误”没有提交。实际 `s08-r02-cli-overflow-latch-red` 在自动压缩后终态失败时为 exit1，期望两条错误、实际一条；最终 `s08-r02-cli-lifecycle-green` 为 **4 pass / 14 assertions / exit0 / 27.496秒**，包括命令拒绝后迟到事件、HTTP单独拒绝、单次provider失败、溢出后压缩失败。provider测试通过显式标题排除独立标题请求，继续断言主执行一次；不是把预期次数从1改成2。旧 `s08-r02-cli-error-channels` 的1 pass / 2 fail及早期单例GREEN仍保留，不当作最终验收。
+
+`package-suite-backend-009-batched-20261015` 保持原六文件精确集合，分为三组各5条真实CLI用例及16/20条运行时用例。五组均exit0、outer90，合计 **51 pass / 150 assertions / 0 fail / 0 selected skip**，精确 `(file,name)` 并集无漏无重，原拒绝prompt单例在第二组通过。三份过滤报告各10条未选中skipped仅为选择器产物，不计产品skip。五组源码/HEAD/index/branch冻结、日志/JUnit及清理均通过，仍保留原009失败。后端010–074的65组尚未执行；031须使用当前四例修订计划。008五个显式skip继续开放，因此不能宣称后端整包通过。
+
+**CLI请求错误关联继续独立开放。** `cli-request-error-correlation`（owner=Core CLI / SDK / S8）：SSE先到、HTTP后到时仍可能出现两条记录；当前没有共享请求/error关联标识，不能靠来源、错误名或内容推断同一错误并吞掉真实异错。解锁需要明确关联协议和双向到达顺序的真实传输回归，同时保留可恢复错误后的终态错误。本次SDK取消与资源回收修复不提供错误关联协议。
+
+**2026-10-15：SDK SSE取消与请求回收已验收。** `sdk-sse-abort-backoff` 的窄缺陷已关闭。共享 `createSseClient` 在 `packages/sdk/js/src/v2/gen/core/serverSentEvents.gen.ts:137` 为每次请求创建独立AbortController，向它转发调用者取消；请求失败、流退出和退避前结束当前请求，保留调用者signal供正常重试。`:181` 的 `cancel` 先结束请求，再复用同一reader取消Promise并处理拒绝；finally等待清理后释放reader锁。validator返回后检查取消，禁止启动后续transformer或交付事件；默认退避定时器和等待中的自定义sleep均可由调用者取消唤醒。原先只调用body/reader.cancel的中间实现仍留下开放503响应和校验失败响应；增加请求所有权后，两项原生回收断言同时通过，没有延长时限。
+
+`s08-r02-sdk-sse-red-20261015-parent-02` 为 **2 pass / 7 fail / 20 assertions、exit1**；中间 `sdk-sse-green-20261015-parent-01` 仍为 **7 pass / 2 fail / 28 assertions、exit1**，均保留。最终 `sdk-sse-green-20261015-parent-02` 为 **9 pass / 37 assertions**；`sdk-full-green-20261015-parent-01` 覆盖SDK当前全部三个测试文件，为 **26 pass / 198 assertions / 0 fail / 0 skip**，包含前述九例，不能相加。九例由8个Bun loopback/native-fetch场景和1个公开fetch选项的真实Response/ReadableStream场景构成；pending-read和自定义cancel拒绝例在基线已通过，不冒称这两项动态复现了缺陷。SDK typecheck、真实build和format均exit0；build为19.901814秒，15个gen文件的路径与字节及canonical OpenAPI前后一致，临时spec已删除，另记48个ignored dist文件和构建元数据哈希。各执行的完整source/HEAD/index冻结、原始日志/JUnit、owner实际ECHILD与私有root回收已核对。证据见 `s08-r02-sdk-cancellation-accounting-20261015.json`；本段省略前缀的执行标签均有 `s08-r02-` 前缀。首次准备的owner_gate缺项发生于preflight，未启动测试，不计为RED，失败准备原样保留。
+
+SDK独立审计见 `sdk-independent-audit-20261015-lvt0udqg/audit.json`；接受范围仍为26例/198 assertions，包含9例/37 assertions，不重复相加。最终测试时HEAD为 `e389ea52720c464da88b0d7e257759ff6a994b5a`，冻结工作树含待提交的SDK修复。该源码快照与提交后 `5394fd169d88e8ba8af0386b650f5d2a272e84a4` 检查点相比，仅两份账本变化，31个SDK源码文件及1个固定模型输入文件一致；比较规则为同目录 `audit.py:263` 与 `audit.py:264`。此处比较源码快照，不是声称两个Git提交仅有账本差异。15个生成文件的实际build前后相等与48个ignored dist文件的构建后哈希分开记录，后者不构成dist前后可再现性证明。
+
+**生成模板维护债另行保留。** `sdk-sse-generator-template-maintenance`（owner=SDK / S8）记录15处行为替换和3处既有类型替换，共18处；core transport为16处，client types为2处。复用 `packages/sdk/js/script/build.ts:239` 的 `patchGeneratedSource`，以 `source.split(before).length !== 2` 拒绝不再精确匹配一次的目标，再执行单次replace。该规则检测文本漂移，不能证明上游语义兼容；实际标准build已证明当前固定0.90.10模板可再生成，区别于仅有静态匹配。维护者须在上游或受支持的生成扩展提供等价行为后逐项移除本地替换；每次生成器升级仍需验证匹配次数、生成输入/输出及最终取消/正常重试行为。
+
+取消仍要求资源所有者协作：已运行的onRequest、自定义fetch、validator/transformer或底层stream cancel Promise不能被SDK强行终止；若它们永不settle，相应await仍可能不结束。SDK可停止等待自定义sleep，但不能撤销callback内部资源。validator用例在abort后显式放行旧callback，证明后续transformer/event不再开始。全部SDK/SSE消费者组合、CLI错误关联和完整S08/S09仍按各自owner/unlock开放。
+
+**2026-10-15：第010组的静态渲染客户端漏传已修复。** 原 `full-package-aigcfroge-010` 为 **exit132 / 4.074秒**，日志在14条pass后出现Bun SIGSEGV，未生成完整JUnit；不能把这些日志行算作本组验收。`s08-r02-scrollback-native-diagnostic` 先停在SIGPWR，后续 `s08-r02-scrollback-native-segv` 捕获 `Bun Pool 5` 的SIGSEGV，RIP位于Bun主程序；两次GDB退出码0仅表示诊断命令完成，解释文件单独记录了这一限制。缺少函数级调试符号，尚未定位Bun原生缺陷，也未证明与008五个skip共因。
+
+已证实的产品问题在 `packages/aigcfroge/src/cli/cmd/run/scrollback.surface.ts:393`：静态 `entryWriter` 未收到既有客户端。最终代码将该依赖传到 `RunEntryContent`，由 `scrollback.writer.tsx:324` 的构造适配器传入Code/Diff/Markdown构造参数；复用Solid `spread` 保留响应式更新，复用公开 `jsx` 接口返回原生节点。没有新增全局客户端或销毁所有权；客户端按组件构造生命周期固定，不宣称支持客户端热替换。只加JSX属性不足以保证构造期注入，原提案及独立审查保存在 `package-suite-backend-010-diagnostic-20261015-0_gn7ye7` 与 `constructor-adapter-review-20261015-4n_lq6tw`。
+
+新增 `scrollback.client.test.tsx` 的四条回归在原产品代码上分别观察到指定客户端零调用：首轮static write和独立diff/markdown运行在预期断言失败后exit132，独立code为exit1。崩溃回执不是完整四例JUnit；四种预期断言都有各自日志。最终测试仅比RED移除六个无运行语义的非空断言。最终公开JSX接口版本的 `s08-r02-scrollback-client-final-green` 为 **4 pass / 38 assertions / exit0 / 3.773秒**，覆盖静态write/diff实际输出，以及直接code/markdown内容更新后仍使用同一注入客户端。
+
+`s08-r02-scrollback-original010-green` 保持原五文件SHA和精确 `(file,name)` 集合，完整一次执行为 **50 pass / 134 assertions / 0 skip / exit0 / 6.479秒**。不可变计划位于 `backend010-final-20261015-emc_fz2y/plan.json`；原010失败没有被覆盖。相邻 `s08-r02-scrollback-footer-green` 为 **31 pass / 5既有skip / 133 assertions / exit0 / 5.529秒**，覆盖完整footer.view及subagent-data两文件；此范围与008/012重叠，不增加原分组完成数。最终类型检查 `s08-r02-scrollback-final-types` exit0 / 35.776秒。原双重类型转换和六个非空断言导致的lint失败保留；最终采用公开接口，不关闭或绕过lint规则。上述运行源码/HEAD/index/branch冻结；本组通过只确认本次注入路径和相关渲染回归，不证明所有真实worker退出路径无崩溃。未解决范围登记为 `cli-renderer-native-crash`（owner=S8），需真实worker最小复现、生命周期修复及完整相关分组验证后解锁。
+
+**超时清理结论补正。** 续作扫描发现原009留下PID155402，它有独立PGID，cwd为已删除的 `/tmp/aigcfroge-suite-Va3Gms/tmp/oc-cli-QJhElG`；原009的 `environment.json` 精确确认该隔离根。它不来自后来通过的009分片。已验证身份后发送SIGTERM并确认PID消失，随后扫描未发现相同测试隔离前缀的进程。证据为 `s08-r02-orphan-cli-origin-20261015.json`、`s08-r02-orphan-cli-cleanup-20261015.json`、`s08-r02-cli-after-orphan-scan.json`。原回执的“原进程组不存在”不能推出“所有脱离该组的后代均已退出”；登记 `package-supervisor-detached-processes`（owner=S8），需补齐外层监督器的后代所有权，并用真实脱离进程组的子进程验证强制超时清理，保持既有执行时限。本次原生诊断不替代该监督器验证。
+
+**2026-10-15：后端011–018已补齐，保留平台跳过与原整组超时。** 本批在干净 `a36c4e862ddd2f560beae087b350002c6dfe2c6b` 上串行执行10次完整文件运行，覆盖原8组、42个唯一测试文件：**529 pass / 3 skip / 0 fail / 1402 assertions**。011–014为131 pass/447 assertions；015为181 pass/334 assertions/3 skip；016三片为73 pass/313 assertions；017–018为144 pass/308 assertions。完整JUnit、原文件集合、用例唯一性、原始日志及源码/HEAD/index冻结均对应；各成功执行均自然exit0，owner具有实际ECHILD、无剩余后代，预登记私有root的inode已解除链接。汇总见 `s08-r02-package-backend011-018-accounting.json`；独立审计见 `backend011-014-independent-audit-20261015-h9v4y654`、`backend015-016-independent-audit-20261015-awkg6mwd`、`backend016-split-independent-audit-20261015-ry8n3vbn`。文件集合、用例唯一性与冻结对应关系由 `backend011-014-private-20261015-bebg4JI7/queue.py:86` 的 `audit` 决定；进程成功和目录身份删除分别由同目录 `gate.py:189` 的 `require_owner_success` 与 `environment.py:48` 的 `finish` 判断。上述路径均相对于本节证据根目录。这些是各检查点的接受证据，不是所有包在新修订上的完整重跑；在011–018完成的该历史检查点，原发现计划尚余019–074共56组，后来新增的测试文件另行对账。
+
+原 `full-package-aigcfroge-016-owned-20261015-r1` 在**90.000459秒**判定timeout、exit124，没有JUnit。日志已有51条pass，耗时相加85.0781秒，随后仍有生命周期场景和文件待执行；证据支持整组累计耗时超限，未定位单例挂死。原失败保留，按workspace单文件、delegation单文件、Effect四文件拆为三片完整运行，文件并集精确原六文件、无重复、无名称过滤；各片耗时37.701878/38.912375/28.185131秒，每片仍90秒。原51条中途日志不再计入通过。真实超时的进程回收为0.118451秒、文件系统清理为0.007053秒，实际进程身份及登记root均已消失；见 `s08-r02-package-backend016-timeout-accounting.json`。
+
+015的三条skip由 `packages/aigcfroge/test/config/tui.test.ts:15` 的 `process.platform === "win32"` 决定，分别为 `defaults Ctrl+Z to input undo on Windows`、`keeps explicit input undo overrides on Windows`、`ignores terminal suspend bindings on Windows`。它们不计为通过，登记 `windows-tui-config-tests`，owner=S8；须在原生Windows上以经验证的有界监督与清理机制执行完整相关文件，取得这三例的JUnit/源码/清理收据后关闭。当前Linux owner不提供原生Windows证据。
+
+**2026-10-15：后端019–030接受证据已对账，完整组与空文件例外分开计数。** 本批在干净 `5394fd169d88e8ba8af0386b650f5d2a272e84a4` / `agent-ui-tdd` 上执行，保留90秒工作负载截止、原完整文件argv与单并发，无名称过滤。019–026八组为 **565 pass / 1 skip / 1307 assertions**；028–030三组均exit0，为 **293 pass / 0 skip / 998 assertions**（分别277/15/1 pass）。027只接受三个活动文件的 **96 pass / 228 assertions**，另一个空占位文件为0 pass。合计原12组的接受证据为 **954 pass / 1 skip / 0 fail / 2533 assertions**，覆盖 **59个活动JUnit文件＋1个空占位文件**；955个JUnit身份按 `(file,classname,name,line)` 无重复。11组通过完整非空文件审核，027另经精确空文件对账；这不是12组全部完整通过，也不是当前所有包在同一修订的重跑。汇总见 `s08-r02-package-backend019-030-accounting-20261015.json`；019–026独立审计见 `backend019-030-independent-audit-20261015-9kal7tax/019-026-audit.json`，判定入口为同目录 `audit.py:85`。028–030的原队列结果见 `backend028-030-continuation-20261015-6tj7qx6t/batch-028-030/queue-result.json`，完整文件与冻结审核由`backend028-030-continuation-20261015-6tj7qx6t/queue.py:86` 的 `audit` 决定。027–030独立审计见 `backend027-030-independent-audit-20261015-9560pvau/audit.json`（SHA256 `f77c868850e497dc5a9d5fb26b9a567287a444226395b7cd0e234d06f60155e8`）：389 pass/1226 assertions，保留027原queue exit1，331个输入重哈希一致。各运行source/HEAD/index冻结、owner实际ECHILD及登记私有root回收由原收据保留。原发现计划当前为 **29个完整组＋1个空文件对账组＝30/74范围已有接受证据**；剩余 **031–074共44组**，三个后来新增的后端测试文件仍单独对账。
+
+**027的原审核失败保留，GitLab Duo占位不计覆盖。** 原四文件argv没有改动；`backend027-030-final-20261015-zqmj9f4d/batch-027-030/queue-result.json` 仍为 **exit1 / stopped-at-first-error**，原因是`backend027-030-final-20261015-zqmj9f4d/queue.py:152` 要求JUnit文件集等于计划文件集。`packages/aigcfroge/test/provider/gitlab-duo.test.ts` 的SHA256为 `e3404b94a0fdce2db9af4221b139833cef316c0031b961596bcdf3f0e68854c0`；TypeScript AST仅有空 `export {}` 与注释，无活动测试或可执行语句。外部 `backend027-empty-reconcile-20261015-yy_ra5_9/reconcile.py:32` 的 `require_exact_empty_placeholder` 只允许这个固定文件/hash从JUnit缺失集合豁免，其余原audit检查保留；`:50` 的入口不运行测试。该目录 `reconciliation.json` 为已完成对账，保留三个活动文件的96 pass、原queue exit1、占位 **0 pass / 0 executed skip**，没有重跑96例。`gitlab-duo-placeholder-tests` 的owner=S8（Provider/GitLab维护者）；解锁须先确认受支持契约，将陈旧TODO替换为实际实现的活动测试，执行完整文件与受影响provider用例，取得源码对应JUnit、真实断言及有界owner/root清理证据。任何源码hash变化都使本次单文件例外失效；不能通用豁免缺失JUnit文件，也不能删除占位来宣称行为已覆盖。
+
+**025的Windows fsmonitor跳过仍开放。** `windows-worktree-fsmonitor`，owner=S8，来自 `packages/aigcfroge/test/project/worktree-remove.test.ts:88` 的 `stops fsmonitor before removing a worktree`。实际predicate在同文件 **`:12`**：`process.platform === "win32" ? it.instance : it.instance.skip`。本次Linux记1 skip、0 pass；更正后的证据为 `backend025-windows-fsmonitor-debt-revision2-20261015.json`，旧revision1原样保留。解锁须在原生Windows、Git fsmonitor daemon实际可用且在移除前活动的环境运行完整文件，核对daemon/worktree清理、完整JUnit、源码及经验证的有界owner收据；模拟platform值和Linux通过不能替代。
+
+**Linux包测试监督器的后代回收债务已关闭。** 新链复用仓库外 `linux-owner-revision-20261015-uyvnppq9/owner.py`：Linux subreaper接管脱离进程组的后代，按直接子进程pidfd发信号，以真实waitpid ECHILD收束。原七场景加收据写入故障共八场景全部达到预定结果，无driver fallback；真实90秒场景在90.001046秒决定timeout，首次KILL为90.001342秒。验证见 `linux-owner-validation-20261015-parent-01` 与独立审计 `linux-owner-validation-audit-20261015-3du7evuc`。新record/OwnedEnvironment在启动前创建并持有私有目录描述符，核对environment收据和device/inode后，仅在进程已回收时删除。六场景补验的预期退出码为0/7/124/70/70/143，分别覆盖成功、失败、真实超时、路径替换、owner收据缺失、收尾中断；无关文件哨兵保持，失败未被清理成功掩盖，见 `adapter-validation-20261015-parent-01`。实际011–018复用此链，016超时提供真实包负载回收证据。
+
+`linux-owner-port-validation-20261015-parent-01` 的单场景补验为exit0：detached子进程先持有真实loopback TCP端口，ready后仅给owner发SIGTERM；owner保持143并回收全部后代，原端口不设置reuse仍可bind/listen，无关sentinel端口在前后都接受连接并响应。没有重跑原14场景。由此关闭 `package-supervisor-detached-processes` 的Linux包runner范围；旧run.py及旧失败回执原样保留，续作不再使用旧runner。90秒仅是工作负载截止，另有最多2秒进程回收观察；文件系统清理及总耗时独立计量，不承诺总墙钟≤90或≤92秒。其它平台、浏览器/性能及完整S08/S09仍按原owner/unlock推进。
+
+当前仍未交付的范围及持有人：
+
+| 范围                                                                                             | Owner                              | Unlock                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 完整 S08/package/API/E3/E4/适用展示矩阵                                                          | S8 / Integration QA / Core runtime | 对照发现集合与源码，补齐 backend 031–074剩余44组、恢复008五项显式skip、在原生Windows验证015三例及025 fsmonitor用例，并补GitLab Duo占位的活动测试，完成effect-mode业务及适用矩阵；Desktop普通包组仅完成Linux本地范围；有限代表性通过不自动缩减完成定义。                                                                                                           |
+| SDK SSE生成模板的15+3精确替换维护                                                                | SDK / S8                           | 保留18处目标的精确一次匹配与生成输入/输出对应；以经过取消、资源回收、正常重试和类型验收的上游修复或受支持生成扩展逐项替代。自定义callback内部资源仍由调用方协作释放；不关闭CLI错误关联或完整S08/S09。                                                                                                                                                             |
+| E4 未执行文件/large text、PTY stream/exit/delete、not-found/剩余 identity、default/V2 与平台组合 | S10                                | 在既有批准的隔离环境按原 deadline/retries=0 执行，保留真实退出码与进程/端口/workspace 清理证据；不复用用户 HOME、auth、服务。                                                                                                                                                                                                                                     |
+| S08-R02 剩余 effect/状态范围与性能调查                                                           | S8 / S9 / App / QA                 | 已有Plan、Assistant、drawer及八类API投影的选定E3（交集不相加）；继续验证全部SDK/SSE、Assistant读回失败/初次加载错误组合、跨Session草稿、closed drawer在途/共享observer及剩余Mode组合、Custom初次Snapshot pending、迟到Upgrade/异常重试、Start跨Location策略及V1 revision。新负载基线已保存；继续调查空白/旧Session观察、长尾及其它fallback保真性，不冒称完整R02。 |
+| 真实 packaged Codex 新 thread/resume                                                             | S9 / Core CLI / Desktop            | 在实际打包入口验证 transport/CLI 资源解析、持久 ID 与回收；入口 smoke/单测不替代。                                                                                                                                                                                                                                                                                |
+| DeepSeek Flash / 实际外部 provider / OAuth                                                       | S9B / Provider 配置负责人          | 普通Flash别名的单回合AppRuntime/SessionV2实际服务链已由 `flash-live-product-4` 验证；继续补其余适用transport/auth/OAuth与故障范围。旧V4权重已由服务商退役，不能把别名成功当旧权重证明。loopback 合成凭据不能替代。模型 Flash 与页面重绘 flash 是不同范围。                                                                                                        |
+| macOS、Windows/WSL、签名、真实 CI、release/rollout                                               | S9 / Desktop / Release             | 按实际支持平台和明确目标完成门禁，并取得对应远端/发布授权；本地提交已有授权。                                                                                                                                                                                                                                                                                     |
+| WorkReview 实际 historical migration、其它存储/通知失败                                          | S9A                                | 继续沿 `work-review-lifecycle` 原 unlock；历史读回或当前 SQLite 快照恢复不替代真实 migration。                                                                                                                                                                                                                                                                    |
+| 四类历史正向支持、FFF 完整进程隔离                                                               | S9B                                | 保持既有 legacy-history / filesystem-fff-process-isolation owner/unlock；本轮没有关闭它们的直接证据。                                                                                                                                                                                                                                                             |
+
+恢复脚本已重建c5提交的冻结代码与保存的自有 fixture SQLite/artifact 字节；成功范围限于上述收据，不证明生产灾备、旧版 migration、Location 迁移或 automatic post-crash continuation。S08/S09 保持开放，未把局部绿色扩展成整期验收。
+
+### 15.22 2026-10-15 S08 / 后端031–038续验与Question单契约测试修正
+
+实施目录 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`。本批只改两份 OpenAPI 测试与本节/coverage manifest；生产源码、Schema、SDK与依赖不变，主目录 `main` 的原有文档未修改。历史授权允许提交已验证的本地切片，不包含push/CI/release。
+
+- **接受范围**：原031–038八组的完整相关文件集合为 **37文件、203 pass / 1既有skip / 0 fail / 1306 assertions**。031修订四例为4 pass/219 assertions；032、033为28/3 pass与59/229 assertions；034两片为35 pass/166 assertions；035为26 pass/104 assertions；036三片为29 pass/98 assertions；037六片为42 pass/1 skip/136 assertions；038完整五文件为36 pass/295 assertions。聚合由 `backend031-038-acceptance-20261015.json` 从实际queue/record/JUnit生成，未重复用例身份，也未计入超时日志的partial passes。032–033来自原停止队列中已经核验的两个成功结果，不把该队列的exit1称为整批通过。
+- **036/037截止保留**：036原完整六文件实际outer90/exit124，owner实际ECHILD、无后代且私有root已删除；原queue进程已经缺失，尚未写final result。因此单独保存 `backend036-orphan-reconcile-20261015-i7_67wlp/terminal-accounting.json`，控制器退出码为null，不伪造exit1或覆盖原queue-start。036原六文件按2＋1＋3分片，037原六文件按每文件分片；原顺序/并集、测试deadline、worker与断言不变。037原完整组同样outer90/exit124，queue明确exit1/first-error stop。新分片均自然exit0，源码/HEAD/index冻结、真实ECHILD和注册目录回收通过。只调整外部选择计划，不加timeout、filter或跳过。
+- **Question测试根因**：038原执行 **34 pass / 2 fail / 286 assertions、exit1**。两失败仍要求已退休的`/question`路由。真实合同由 `packages/server/src/groups/question.ts:43` 的 Session-owned reply与`:59` 的reject声明，ID约束来自 `packages/schema/src/question.ts:6`，不恢复旧接口。`httpapi-public-openapi.test.ts:267` 改为断言旧list/reply/reject路径不存在，并保留规范reply/reject的QuestionNotFoundError与SessionNotFoundError断言；`httpapi-query-schema-drift.test.ts:92` 验证两端点的sessionID和requestID四项pattern。原完整五文件argv不变、无名称过滤，修后 **36 pass / 295 assertions / 0 fail / 0 skip、exit0**。仅两份测试hash显式修订；旧失败/计划不覆盖。证据为 `backend038-question-green-20261015-sanoydex` 与对应raw record/JUnit/冻结结果。
+- **037既有skip仍开放**：`httpapi-provider-not-found-skip`，owner=S8，源为 `packages/aigcfroge/test/server/httpapi-provider.test.ts:331` 的 `returns public v2 provider not found errors`。实际为`it.instance.skip`，没有注明原因。需核对当前provider路由/错误合同，修复或纠正该具体测试后解除skip并跑完整文件；本轮七条active provider测试不替代它。unlock已登记coverage manifest。
+
+038测试修正后的后端typecheck、两文件format、增量lint与diff检查均exit0；增量lint实际2文件/6新增行。本节不关闭完整后端整包、R02、E4、其他平台或S08/S09；039–074、剩余包/extra tests、API硬门禁、状态/性能、真实packaged thread/resume、历史/外部provider及受授权远程交付范围仍沿各自owner/unlock开放。上一节的后代回收门禁只证明测试生命周期，不是产品完成条件。
+
+### 15.23 2026-10-16 S08 / 后端039–042续验与admit-only测试前提修正
+
+实施目录 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`。只改 `httpapi-session.test.ts` 的请求前提、本节与coverage manifest；生产源码、Schema、SDK、依赖和主目录 `main` 不变。原授权只允许验证后的本地提交，不包含push、远端CI或发布。
+
+- **041根因与修正**：原单文件组为outer90/exit124，截止前出现真实断言失败：精确重试多出 `promotedSeq: 2`。测试要求零可见消息和 `promoted_seq: null`，请求却省略 `resume: false`。调度规则由 `packages/core/src/session.ts:908` 的新入库且非admit-only条件决定；精确重试是否匹配由 `packages/core/src/session/input.ts:666` 的 `equivalent` 决定，调用位于 `session.ts:904`。公开合同为 `packages/server/src/groups/session.ts:254–280`。两次相同请求与冲突请求显式走既有admit-only；保留完整响应相等、持久化行、零消息及409冲突断言，不修改执行语义或删掉 `promotedSeq` 后比较。原失败日志、原文件SHA和原停止队列均保留。
+- **041完整验收**：TypeScript AST列出39条 `(file, describe, name)` 唯一用例，无既有skip；按原顺序10＋9＋15＋5穷尽分片。每片自然exit0，合计 **39 pass / 0 fail / 0 selected skip / 200 assertions**。每份JUnit仍包含全部39条身份；其余29/30/24/34条filtered rows只用于证明未选集合，不计产品skip或通过。外部90秒、内部90000ms、concurrency1与零重试不变。全文件原执行的partial passes计零，不能与分片相加。
+- **039–042记账**：039完整文件 **21 pass / 56 assertions**；040原三文件 **10 pass / 99 assertions**；042原两文件 **47 pass / 1既有skip / 125 assertions**。与041合计 **117 pass / 1既有skip / 480 assertions / 7不同文件**，由 `backend041-042-suffix-20261016-rzskg5i4/039-042-accounting.json` 从实际queue/audit/JUnit生成，未重复身份。041与042收据、精确分片并集证明见同目录 `acceptance.json`。运行源码、HEAD、index冻结；每次owner实际ECHILD、无后代，注册私有root删除。039/040是已接受的旧成功结果，不把原040–042停止队列称为整批exit0。
+- **启动错误单独保留**：新分片准备曾被缺失owner绑定字段、非法label拒绝；另一次filter实际选中0/39，exit1。它们不是产品RED或通过。相关目录/console/freeze不覆盖；修订只补既有绑定并使用字面用例名后缀，最终JUnit核对每片选中集合及39条完整并集。没有重新验证或替换现有owner。
+- **042既有skip开放**：`httpapi-sync-validation-skip`，owner=S8，声明源 `packages/aigcfroge/test/server/httpapi-sync.test.ts:130`，JUnit标题行131。`returns structured validation errors` 的status/content-type/error-envelope断言没有执行，skip处无原因。须追踪当前Sync payload decoder/错误序列化，按受支持合同修正后解除skip并验收完整文件；不能用相邻400状态断言替代。owner/unlock已登记coverage manifest。
+
+本切片不关闭完整后端整包或S08/S09。043–074、037 provider既有skip、新增/extra package tests、API硬门禁、R02剩余状态、E4/性能/packaged thread/resume、历史/平台/外部provider及授权交付仍按§15.21各自owner/unlock开放。
+
+### 15.24 2026-10-16 S08 / 后端043–050续验与WorkReview无评审读回契约
+
+实施目录 `/home/keer/workspace/aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`。本切片延续已授权的验证后本地提交；源码修改限于 `packages/aigcfroge/test/server/httpapi-work-review.test.ts` 的七处精确读回预期，另同步本节和coverage manifest。
+
+- **根因与修正**：`WorkReview.None` 表示未发起评审，允许已有保存产物。该关系由 `packages/core/src/session/work-review-service.ts:91` 的 `get` 决定：无snapshot且无review在`:98`返回仅none；有snapshot且无review在`:105`返回none及真实artifact binding。Schema为 `packages/schema/src/work-review.ts:57`。原046运行出现三条真实失败，测试错误地要求已保存产物消失。七处预期改为精确比较原artifact ID及内容revision，仍验证拒绝跨Session/Location、伪造字段、非法命令、认证失败和存储失败后状态不变；没有放宽为部分匹配或更改生产行为。
+- **接受范围**：043、044原成功结果分别为 **2 pass / 116 assertions**、**7 pass / 35 assertions**。修后045–050六片各5条，完整覆盖WorkReview原30条唯一用例，合计 **30 pass / 843 assertions / 0 selected skip / 0 fail**。本切片共 **39 pass / 994 assertions / 4不同文件**。每份WorkReview JUnit仍含全部30条，25条未选中记录只用于核对集合，不计产品skip或通过。各片保持原90秒工作负载截止、90000ms测试timeout、concurrency1及零重试。
+- **证据与失败保留**：证据根目录沿用§15.21。043/044位于 `backend043-046-final-20261015-ykrqkqjt/batch-043-046`，原队列因045过滤器选中零测试而exit1，不能称整队列通过。过滤器改为字面测试名后缀；原30条名称及分片集合保留。046的真实失败收据为 `checks/s08-r02-backend046-20261016-69e5f30e26.json`（exit1），修后完整六片位于 `backend045-050-contract-20261016-vr6rn7fb/batch-045-046` 与 `batch-047-050`，两队列均exit0。各运行保留源码/HEAD/index/branch冻结、实际owner ECHILD、无后代及注册私有目录删除证据；中间045成功结果不重复计入最终六片。
+- **工程检查**：`backend050-quality-bound-20261016-lw4tjqz3/result.json` 记录后端typecheck **exit0 / 25.822268秒**、增量lint **exit0 / 7.211976秒**；lint实际检查1文件、28新增行。最初质量清单缺少既有owner门禁字段，预检拒绝且未启动工作负载；保留在 `backend050-quality-20261016-8pltp6cq/preflight-failure.json`，不记为测试失败或通过。后续清单仅补齐原门禁配置，执行器、进程监督器和目录清理实现均复用既有字节。
+
+独立审计为 `readonly-audit-043-050-20261016-eyePmQSP/audit.json`，从原始JUnit、冻结记录和owner/目录收据重核上述集合与计数。旧计划的status/final_checkpoint字段沿用旧值，`run-selected.py`未纳入其SHA256SUMS；审计使用六组实际before/after与修后checkpoint.json对账，不把旧计划元数据当成执行证明。
+
+本切片不关闭完整后端整包或S08/S09。原发现清单下一组为051，051–074共24组、新增后端文件、显式skip、其他包/API/E3/E4/展示/性能/平台及授权交付范围仍按§15.21各自owner/unlock开放。以上是各自源码检查点的验收收据，不是同一新提交的全仓重跑。
+
+### 15.25 2026-10-16 S08 / 后端051与OpenAPI快照归一
+
+- **原失败**：`full-package-aigcfroge-051-owned-20261016-9c3583cce4` 在87.264981秒自然exit1，完整六文件为 **34 pass / 1 fail / 126 assertions**。唯一失败为 `openapi-drift.test.ts` 的独立原始快照过期；未触及90秒截止，owner与私有目录清理通过。原051–054队列停止，052–054没有执行，失败收据与旧快照字节保留在原Git提交/冻结记录中。
+- **根因修正**：SDK构建在 `packages/sdk/js/script/build.ts:14` 调用 `OpenApi.generateOpenApiSpec()`，该唯一生成边界为 `packages/script/src/openapi.ts:18`；正式drift脚本也复用它。测试改在 `packages/aigcfroge/test/server/openapi-drift.test.ts:53` 将同一生成文本与 `packages/sdk/openapi.json` 逐字比较，保留直接检查真实 `Server.openapi()` 的identifier用例及两个原测试名。删除79,254行的独立 `test/server/openapi.snapshot.json`、自动创建缺失快照和UPDATE覆写分支；更新 `docs/testing.md` 的规范生成命令。规范快照、SDK生成文件、依赖和生产源码均未修改。
+- **完整051验收**：原六文件按workflow单文件与其余五文件拆为1＋5，不加名称过滤。`backend051-split-20261016-5cig2rtn/batch-001-002/queue-result.json` 为exit0，两片分别 **11 pass / 29 assertions / 64.438918秒**、**24 pass / 97 assertions / 57.412507秒**；合计 **35 pass / 126 assertions / 0 skip / 0 fail**。同目录上级 `queue.py:271` 对比原失败JUnit的完整 `(file, classname, name)` 集合，35项无漏无重，允许修改后行号移动。每片保持90秒截止、90000ms timeout、concurrency1和零重试；完整源码/HEAD/index/branch冻结、实际ECHILD及注册目录删除均通过。原34条通过不与修后35条相加。
+- **复查**：`backend051-quality-20261016-ob1e22d_/result.json` 的后端typecheck、增量lint、两文件format均exit0，分别24.84308/7.071945/0.947230秒。准备阶段独立复审未发现阻断问题；最终子智能体遇到上游400/429，由主智能体完成差分、原始收据和源码散列复核，见 `backend051-parent-review-20261016-9l84qhml/review.json` 与 `source-correspondence.json`。生成子进程复用既有owner监督器；没有新增生成实现或运行时适配。
+
+原发现计划下一组为052，052–074共23组仍待运行。Sync旧错误包裹预期的显式skip已有只读诊断，尚未解除或计为通过；其余包/API/E3/E4/展示/性能/平台及完整S08/S09仍按各自owner/unlock开放。
+
+### 15.26 2026-10-16 S08 / 后端052–054与Session可选字段编码
+
+- **原始收据**：`backend052-054-label-20261016-n9jcx73s/batch-052-054` 的052为 **23 pass / 70 assertions / 5 files**，053为 **3 pass / 33 assertions / 1 file**，均无skip/fail。054在43.103602秒自然exit1，六文件 **25 pass / 1 fail / 78 assertions**；Custom父会话的V1 fork响应含 `workContract: null`，严格V1解码失败。原队列与失败收据保留，不将其中25条通过重复计入修后验收。另一次错误freeze标签导致的启动拒绝发生于测试前，计0条执行。
+- **根因与修复**：HTTP的 `Session.Info` 在 `packages/aigcfroge/src/session/session.ts:251` 对分类和合同使用 `Schema.optional`，而 `Schema.toCodecJson` 会将已有的undefined编码为null。决定省略规则的是 `packages/schema/src/schema.ts:13` 的 `optionalOmitUndefined`；V2 schema与V1 `workContract` 已使用该规则。此次仅让两个HTTP字段复用该owner，不在适配器或fork handler增加清理分支。有效字段保留，显式null仍被拒绝。
+- **RED与回归**：`session-schema-red-prepared-20261016-vk56eyxm/verification.json` 保留新增用例的真实RED：完整文件 **5 pass / 1 fail / 48 assertions**，原实现把缺省分类编码为null。修后 `backend054-accept-20261016-w6qkjxmw` 接受schema完整文件 **6 pass / 55 assertions**、054原始完整六文件 **26 pass / 81 assertions**、适配器与OpenAPI两文件 **4 pass / 8 assertions**；全部无skip/fail。054原/新JUnit的26个 `(file, classname, name)` 身份完全相同，见 `backend054-quality-20261016-ivj39v34/exact-original054-union.json`。052–054合计 **52 pass / 184 assertions / 12 files**，补充回归10项另计，不能当成完整后端重跑。
+- **工程验证**：所有运行保持90秒截止、90000ms timeout、concurrency1及零重试；源码/HEAD/index/branch冻结、owner clean/ECHILD和注册私有目录删除均验证。`backend054-quality-20261016-ivj39v34` 的后端typecheck、增量lint、格式检查均exit0，耗时38.231812/4.590799/1.080208秒；lint实际覆盖2文件24新增行。OpenAPI规范经现有生成器逐字节比对不变，SDK生成产物未修改。原失败与RED均保留，不作为通过收据。
+
+下一原始组为055，055–074共20组仍待继续；其中session-schema文件新增的1项回归必须在后续分组重新绑定时显式登记。Sync错误响应显式skip、新增文件、其他包/API/E3/E4/展示/性能/平台与完整S08/S09仍按§15.21各自owner/unlock开放。本切片未增加临时实现或新增技术债。
+
+### 15.27 2026-10-16 S08 / 后端055与共享HTTP运行时清理
+
+- **两类失败分别保留**：`checks/s08-r02-backend055-20261016-9p8ud1t8.json` 在55.731057秒自然结束，六文件 **40 pass / 1 fail / 147 assertions**。唯一断言失败要求旧消息 `V2-native`，实际 `v1SyncUnsupported` 已引导canonical admission。另有一个退出后存活的子进程被owner终止并回收；不能将最终ECHILD等同于测试自行完成清理。056–058未启动。
+- **独立清理RED**：`checks/s08-r02-worktree-lifecycle-red-20261016-rrcn6hol.json` 单独运行完整worktree文件，**6 pass / 0 fail / 13 assertions**，Bun自然exit0；但 `required_after_natural_exit:true`，owner终止残留子进程后返回70。它是生命周期门禁失败，不是产品断言失败或超时。进程与注册私有目录最终清理通过，原收据保留。
+- **共享根因**：`HttpApiApp.webHandler` 与 `AppRuntime` 使用同一个memoMap；`Worktree.createFromInfo` 在Worktree层scope中fork后台boot，Ready事件先于start scripts完成。决定scope关闭的是Effect的 `memoMapBuild.finalizer`（`.aigcfroge/references/effect-smol/packages/effect/src/Layer.ts:392`）：观察者数量归零才释放层。旧preload仅dispose AppRuntime，HTTP handler仍持有该层。`packages/aigcfroge/test/preload.ts:29` 现在先关闭已loaded的HTTP handler，再沿用AppRuntime.dispose；guard复用 `src/util/lazy.ts:17`，不创建未使用的handler，不加固定等待。另一个测试仅将消息片段更新为现有canonical admission引导，保留三个入口的400、tag与mode检查。
+- **验收**：`backend055-accept-20261016-hms9u8l4` 的独立worktree文件 **6 pass / 13 assertions / 9.565429秒**，完整055 **41 pass / 151 assertions / 48.240383秒**，均exit0且无skip/fail。两轮自然退出时owner无待清理子进程、无清理信号，ECHILD与私有目录删除通过；完整055的41个JUnit身份与原失败轮完全相同，见 `backend055-quality-20261016-v4kiejrr/exact-original055-union.json`。独立worktree复验不重复计入055的41项。该目录另有schema完整文件 **6 pass / 55 assertions**，以及后端typecheck、2文件4新增行的增量lint和格式检查，均exit0。
+
+该修复改变测试preload配置；后续计划必须显式绑定新的配置SHA256 `ad1041c20199fb09e00a6b35767c358efd389feaac756772afffa9640b325b35`，不能绕过旧hash门禁。原056–074共19组与新增文件、显式skip、其他包/API/E3/E4/展示/性能/平台及完整S08/S09仍按各自owner/unlock开放。既有001–054收据保持各自历史配置与源码身份，不宣称已在本配置上全部重跑。
+
+### 15.28 2026-10-16 S08 / 后端056–068、完整用例拆分与Git exclude夹具
+
+本批合计 **531 pass / 8 skip / 1 TODO / 2215 assertions / 34个唯一文件**；540个选中JUnit身份无重复。汇总与身份集合由回执生成，见 `backend056-068-accounting-20261016-1031642d/accounting.json` 及 `universe.json`。以下各分项与该合计重叠，不重复相加。
+
+- **接受范围**：056–063为 **231 pass / 2 skip / 1 TODO / 746 assertions / 14 files**，234个JUnit身份无重复；汇总及重哈希见 `backend056-063-parent-accounting-20261016-d9ed82ce/accounting.json`。064六片为 **60 pass / 1 selected skip / 223 assertions**；065为 **34 pass / 46 assertions**，066为 **52 pass / 191 assertions**，067为 **34 pass / 4 skip / 101 assertions**。修后068为 **120 pass / 1 skip / 908 assertions**。这些是各冻结源码上的接受收据，不能将显式skip/TODO算为通过，也不将原失败轮中的部分通过重复相加。
+- **064完整集合拆分**：原完整prompt文件在90.000772秒达到截止并exit124，未生成JUnit；26条中途pass日志的用例耗时合计85.84036秒，计0条验收。原失败及清理审计在 `backend064-timeout-parent-audit-20261016-250951a0/audit.json`。TypeScript AST枚举61个唯一文字名称，包括所有测试别名；新六片每片10条活动用例，第一片另选既有skip。实际耗时32.552255/40.410199/35.702099/43.950690/43.404866/36.271246秒，全部自然exit0。61个选中身份无漏无重；305行未选中JUnit skip仅为过滤产物。实际独立审核见 `backend064-actual-union-readonly-v2-20261016-i76t5t1x/audit.json`。其首版工具误把python3与launcher展开后的绝对解释器路径作字面比较，原审核exit1保留，修正版未重跑测试。
+- **068同源失败与修复**：原完整六文件在72.51秒结束，118 pass / 1 skip / 2 fail / 901 assertions。两个失败均发生在测试读取不存在的 `.git/info/exclude`，尚未执行待验证的exclude断言。隔离配置由 `packages/app/e2e/real/environment.ts:44` 设置空Git模板目录；测试不能假设可选模板文件存在。`packages/aigcfroge/test/snapshot/snapshot.test.ts:601` 与`:630` 现在直接写各自需要的规则，复用同文件`:41` 的write及 `FSUtil.writeWithDirs`，保留原全部Snapshot断言。没有改生产Snapshot或放开用户Git配置。修后完整121个身份均保留，证据在 `backend068-accept-20261016-6fddda7a7c`；120 pass、1既有skip、908 assertions，75.03秒自然exit0。原/新121个 `(file, classname, name)` 身份完全一致，只有两个失败用例新增完成7个断言；独立审核为 `backend068-open-skip-source-audit-20261016-9dfz2gyb/audit.json`，保留原失败轮与修后通用verifier的exit1。
+- **验证边界**：所有负载串行、零重试、concurrency1、90秒截止及90000ms测试timeout保持。各次源码/HEAD/index/branch冻结、owner实际ECHILD及注册私有目录清理均有对应收据。056、058、067、修后068的原通用verifier因显式skip拒绝，原exit1保留；按精确skip身份补充审核，不修改原门禁或为记账重跑测试。056/058/067补充审核分别位于 `backend056-open-skips-audit-20261016-z47Qv7hW`、`backend058-open-skip-audit-20261016-xv2fvvft`、`backend067-open-skips-audit-20261016-4putoi97`。`backend068-quality-20261016-ff82b2c28d` 的后端typecheck、增量lint、格式检查均exit0。准备期间的非法label及未显式套用066旧→新schema hash修订均在负载前被拒绝，计0条测试，失败准备目录保留。
+
+本批新增开放项如下，均同步到coverage manifest，尚未由建议补丁或静态分析关闭：
+
+| 范围                                       | Owner                          | Unlock                                                                                                                                                                                                                                   |
+| ------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 056 compaction开始时空摘要的退役投影预期   | S8 / Core Session              | 按 `SessionMessageUpdater.update`（`packages/core/src/session/message-updater.ts:375`）仅Ended建立边界的契约，以真实create/process验证请求与完成摘要两个阶段；显式区分coding双写与Assistant adoption，运行完整受影响文件。               |
+| 056 config URL instructions TODO与正文超时 | S8 / Session Instruction       | 在真正owner `Instruction.system` 上补本地HTTP成功/失败/正文stall测试；当前fetch的5000ms timeout只包请求、不包arrayBuffer，须获得RED后修复整个读取期限，并验证本地指令保留及完整文件。                                                    |
+| 058 OpenAI API-key录制用例                 | S8 / LLM                       | `canRun`（`llm-native-recorded.test.ts:225`）在非RECORD模式要求 `session/native-openai-tool-loop` cassette，当前缺失；补来源可信且匹配该请求的安全录制素材，再执行完整文件。未读取真实凭据或调用外部provider；不能用不同请求的录制冒充。 |
+| 064 Prompted/Synthetic投影skip             | S8 / Core Session              | 该投影仍由 `createUserMessage`（`prompt.ts:1230`）发布，不能随退役compaction断言删除；解除skip并验证真实noReply文件展开、顺序与持久化时间，按完整用例集合执行受影响文件。                                                                |
+| 067四项StructuredOutput真实provider用例    | S8 / Session Structured Output | `structured-output-integration.test.ts:11` 的API-key判断与`:17` 的选择使四例在隔离环境跳过。使用受控真实HTTP/可信录制验证实际Session链，或在另行明确授权的provider范围执行；保留完整文件与当前预算、JUnit、owner/root证据。              |
+| 068 Unicode文件修改后还原skip              | S8 / Snapshot                  | `snapshot.test.ts:310` 仍为显式skip；确认当前revert的Git路径解析契约，修复共享路径解析原因后恢复并运行完整文件。Unicode新增文件通过不能替代原文件内容还原。                                                                              |
+
+Sync validation的既有skip也继续开放：静态评审已发现legacy middleware声明与实际NamedError响应不一致，SDK静态清单涉及142个legacy operation，不是142个已观察到的运行失败。应修声明/序列化owner并通过规范脚本生成SDK，保留合法的handler tagged错误及canonical `/api`契约，不能仅改skip测试或手改生成类型。
+
+原发现计划下一组为069，069–074共6组仍待执行。原297个后端文件仍全部在场，后来新增的 `run-error-process.test.ts`、`scrollback.client.test.tsx`、`httpapi-exercise-auth.test.ts` 三个文件继续独立对账。所有显式skip/TODO、其他包/API/E3/E4/展示/性能/平台、真实打包Codex及完整S08/S09仍按各自owner/unlock开放；本批没有缩减完成定义。
+
+### 15.29 2026-10-16 S08 / 后端069–074与Assistant投影覆盖恢复
+
+本批接受 **387 pass / 0 skip / 0 fail / 772 assertions / 30个唯一文件**。完整文件并集与原069–074清单相同，387个 `(file, classname, name)` 身份无重复。汇总由执行收据生成，见 `backend069-074-accounting-20261016-c5faed56/accounting.json` 与 `universe.json`。各组分别为069 **107/164**、070 **82/216**、071 **75/197**、072 **86/97**、073 **33/84**、074 **4/14**（pass/assertions），与本批总量重叠。
+
+- **069累计截止与环境干扰**：原六文件90秒截止exit124，未生成JUnit，不接受中途pass。日志中edit文件29条pass合计78.77秒，后续仍有LSP与parameters；改为完整1+5文件。首次edit单文件仍超时，期间另一个v2-dev工作区的并行类型检查造成主机资源压力，多条用例增至14–18秒；该失败也保留。确认那批进程结束后，新完整edit文件29pass/58assertions，79.05秒；其余五文件78pass/106assertions，19.49秒。两个超时的owner均ECHILD且私有目录已删除。新结果不改写旧失败。
+- **070/071完整文件拆分**：070为1+1+1+2文件，071为1+5文件；文件顺序和并集保持，均无名称过滤。072/073保留原完整文件组。所有接受执行维持串行、concurrency1、零重试、90秒外限和90000ms测试timeout；source/HEAD/index/branch冻结、owner与私有目录清理均有通过收据。
+- **074三项skip恢复**：首次原文件1pass/3skip/3assertions，通用verifier的exit1保留。只解除skip后得到2pass/2fail/10assertions：`step.started`已立即建立Assistant，工具成功保留调用metadata并另存resultMetadata。决定这些行为的是 `packages/core/src/session/message-updater.ts:193` 与`:299` 的两个事件分支。测试的空消息和覆盖metadata预期过期；修正这两处断言，保留snapshot结束值、文本内容、完成时间和compaction断言，生产代码未改。完整四身份与原文件相同，修后4pass/14assertions，零skip/fail，证据为 `backend074-unskip-red-20261016-ec088a18` 与 `backend074-green-20261016-5d83f5fc`。
+- **工程检查**：`backend074-quality-20261016-57d495c1` 的后端typecheck、显式基线增量lint和源码格式检查均exit0。069–073对应未修改投影测试前的冻结源码，074对应修后源码；这是逐切片证据，不是最终修订的全仓重跑。
+
+原069–074不再待执行。后来新增的 `run-error-process.test.ts`、`scrollback.client.test.tsx`、`httpapi-exercise-auth.test.ts` 继续独立对账。此前显式skip/TODO、其他包/API/E3/E4/展示/性能/平台、真实打包Codex及完整S08/S09仍按原owner/unlock开放；远程指令正文截止与Sync错误合同的建议补丁尚未执行，不能以本批通过关闭。
+
+### 15.30 2026-10-16 S08 / 远程指令正文截止与新增后端文件
+
+- **新增文件已独立对账**：原发现清单后的 `run-error-process.test.ts`、`scrollback.client.test.tsx`、`httpapi-exercise-auth.test.ts` 三个完整文件一次执行为 **10 pass / 0 skip / 0 fail / 58 assertions**。`backend-additions-20261016-371fb541/prepared/verification.json` 确认完整身份集合、冻结源码与owner/root清理。其用例与此前各自定向回归重叠，不重复相加；本轮也不是全部后端文件在最终源码上的重跑。
+- **正文stall的真实RED**：`remote-instruction-red-20261016-e561a50c` 的完整instruction文件为 **11 pass / 1 fail / 29 assertions / exit1**，唯一失败为 `instruction body exceeded its deadline`。真实loopback HTTP先返回200 headers与部分正文，后续流不结束；Deferred确认已收到headers，监督fiber等待正文完成。原5000ms timeout只覆盖响应到达，遗漏正文读取，因而Session可被挂起。没有外部provider或凭据。
+- **复用原期限修根因**：`packages/aigcfroge/src/session/instruction.ts:94` 的内部fetch将execute与arrayBuffer一起置于原5000ms截止，再沿原空字符串失败策略返回。测试移到真正的 `Instruction.system` owner，验证UTF-8、来源与本地优先/config URL顺序，404和空正文仍保留本地规则，以及200后stall在期限内被省略；没有延长期限或新增网络服务。
+- **最终验收**：`remote-instruction-quality-fixed-20261016-h8lveege/green/verification.json` 为 **12 pass / 0 skip / 0 fail / 30 assertions**，完整文件替代旧空TODO。此前首次GREEN同为12/30，与最终轮重叠。最终后端typecheck、显式基线增量lint、源码format均exit0；源码/HEAD/index/branch冻结，owner实际ECHILD及私有目录删除通过。首次lint的三个consistent-return错误及exit1保留在 `remote-instruction-quality-20261016-5789c112`；仅令三个外层generator返回内层Effect结果，保留TCP地址guard，未关闭规则。所有负载仍串行、concurrency1、零重试、90秒截止与90000ms测试timeout。
+
+`instruction-config-url-tests` 已关闭并从开放coverage项移除，历史TODO/失败收据不改写。Sync声明/线形错误合同、compaction/Prompted投影skip、Unicode还原、录制与StructuredOutput、其他包/API/E3/E4/展示/性能/平台及真实打包Codex继续按各owner/unlock开放；完整S08/S09未关闭。本切片没有新增临时实现或技术债。
+
+### 15.31 2026-10-16 S08 / Sync validation 声明与 SDK 错误合同
+
+- **共享根因已修复**：legacy `SchemaErrorMiddleware` 声明与实际 name/data 响应不一致。`packages/aigcfroge/src/server/routes/instance/httpapi/middleware/schema-error.ts:19` 现声明 `BadRequestError`，`:27` 返回同类型；`errors.ts:9` 复用 `Schema.Class` 数据与 `optionalOmitUndefined`，保留 `{ name: "BadRequest", data: { message, kind? } }` 和消息截断。删除 `public.ts` 的旧 400 快照替换及 Console switch 400 删除逻辑。endpoint/middleware 并集由安装的 `node_modules/effect/src/unstable/httpapi/HttpApiEndpoint.ts:233` 的 `getErrorSchemas` 决定；identity、update、prompt_async、workflow run、retryStep 五个 Session 端点各自保留业务 `InvalidRequestError` 声明。Sync 的 validation 与内建 BadRequest 400 两臂保留。
+- **最终验收为 135 unique pass / 665 assertions / 9 files / 0 fail / 0 selected skip**。新 `sync-encoded-final-20261016-t0cxrmcg/decoder` 完整两文件为 **12/39**，按原 file/classname/name/line 身份与逐例 assertion 替换旧 12/39；另外七文件 **123/626** 的实现、配置和测试输入不变，复用原收据。去重与替换规则见 `sync-closure-final-evidence-20261016-lsv91l5s/aggregate-final.py:54`，明细见 `junit-replacement.json`、`junit-accounting.json`。完整 Session 041 四片 **10/9/15/5 pass、81/29/67/25 assertions** 合为 **39/202**，含首例 `it.effect`；117 个未选补集行计 0，通过身份无漏无重。本次覆盖相关完整文件，未声明全仓后端重跑。
+- **wire 校验与失败证据**：两处探针在 Bun partial matcher 前对真实 JSON 执行 `decodeUnknownSync(toEncoded(toCodecJson(Union(Array.from(SchemaErrorMiddleware.error)))))`，见 `httpapi-error-middleware.test.ts:153`、`httpapi-schema-error-body.test.ts:85`。`Schema.ts:2156` 与 `SchemaAST.ts:3351` 定义编码侧投影；由实际声明提取 wire schema，不新增 schema 或 cast。最终测试字节在四个生产 owner 为真实 HEAD 时为 **10 pass / 2 fail / 35 assertions / exit1**，恢复四文件后为 **12/39 / exit0**，其余输入相同。包括旧八轮、`tx64eaxe` 两处 `TS2345` 的 backend types **exit2**、最终 encoded-side RED，**十个失败负载**及 raw log/JUnit/freeze/owner/root 收据均保留在 `sync-closure-final-evidence-20261016-lsv91l5s/failure-rounds.json`；失败通过行不计入最终 union。另一次 label 下划线 preparer 拒绝未启动负载，单列 `preparation-rejection.json`。
+- **SDK 从声明再生成**：规范 build 修复 **139 legacy operations**；原 142 项中另 **3 项属 canonical ProjectCopy owner**，其响应保留。全部 **79 个 `/api` 完整 response 对象及 305 个 operation 集合不变**；五个 Session 业务错误臂、Console switch 真实 400 union 保留，SSE 与两份 client transport 和 HEAD 字节一致。规范 build 实际 **exit0 / 15.612962 秒**，预期只变三份生成文件；原 freeze wrapper **exit1、raw status=failed、command_exit_code=0**，mutation-aware verifier **exit0**。不能把 raw wrapper 记为通过。明细见 `sdk-build-accounting.json`、`generated-review.copy.json`。
+- **工程检查与源码对应**：新 decoder/backend types/incremental lint/14 文件 format 均实际 **exit0**，各 check/execute/verify **exit0**；types **28.369174 秒**、lint **10.383649 秒**、format **4.381265 秒**。lint 原始结果为 **13 changed files / 1150 added lines**。四轮同属 HEAD `2fdd0fe0967f8597734ead9fcf60e0c061025765`、branch `agent-ui-tdd`、5511 项 dirty checkpoint `647e897da3615f413f8ea3bbe8edd15e2b16d47c2823dab6010a90334b0bb4fb`；与旧测试快照仅两处 `toEncoded` wrapper。SDK types 原收据 **exit0 / 0.670056 秒**，全部31个 SDK 路径含24个 src 路径不变；`packages/sdk/js/tsconfig.json:13` 只 include src，`package.json:8` 为 typecheck，因此只复用 SDK 输入范围。`source-correspondence.json`、`sdk-typecheck-source-correspondence.json`、`quality-supplement.json` 逐项复核 source/argv/exit/hash/owner clean/ECHILD/私有 root 删除及串行时间戳；共复核656个引用证据文件，旧 aggregation 保持原样。ledger/coverage 后续编辑另记源码对应，不冒称旧 checkpoint 等于编辑后全树。
+
+本节完成 `httpapi-sync-validation-skip` 的实际错误 body 合同与相关完整文件验收；只移除该 deferred 项。§15.28 的142项 legacy 口径以本节139＋3 owner校正为准。CLI请求错误关联、已有 SDK 模板维护、compaction/Prompted 投影 skip、Unicode 还原、录制与 StructuredOutput、其余包/API/E3/E4/展示/性能/平台及真实打包 Codex 仍按原 owner/unlock 开放；完整 S08/S09 未关闭。复用现有序列化及生成边界，未新增临时产品实现。
+
+### 15.32 2026-10-17 S08 / Unicode Snapshot 还原与 Provider 404 覆盖
+
+- **Snapshot 共享路径解析根因已修复**：`packages/aigcfroge/src/snapshot/index.ts:474` 的批量 `ls-tree` 使用 `--name-only -z`，`:496` 按 NUL 分隔保留原始文件名；`:497` 的集合匹配决定已有文件进入 checkout，`:520` 的同一集合决定哪些新增文件删除。旧逐行 trim 无法匹配 Git 引号转义的 Unicode 路径，会把已有文件误判为新增文件。复用 Git 原生输出协议，没有新增路径解码器或接口。
+- **原测试直接恢复并保留 RED**：完整 Snapshot 文件为 **55 pass / 1 fail / 737 assertions / exit1**，唯一失败为中文已有文件在还原后不存在；生产修复后同一测试字节为 **56 pass / 0 fail / 0 skip / 739 assertions / exit0**，包含中文及西里尔文原内容读回。原56个身份集合未变。后续仅展开长数组行，TypeScript节点树相同；格式变化不冒称原始编译输出字节相同。证据为 `snapshot-unicode-next-20261016-v0d5grpy` 与 `snapshot-format-equivalence-20261016-vk1hzlpe`。
+- **Provider 404 恢复现有契约覆盖**：`packages/aigcfroge/test/server/httpapi-provider.test.ts:330` 仅解除 skip，真实 HTTP 请求仍断言404及完整 `ProviderNotFoundError` JSON。缺失判定由 `packages/server/src/handlers/provider.ts:22` 的 Catalog lookup 决定，`:23` 构造已声明错误；没有修改生产 API。完整文件 **8 pass / 23 assertions / 0 fail / 0 skip / exit0**，证据为 `provider-not-found-next-20261016-tvpi7dyy/prepared`。该轮直接通过，不制造或声称产品 RED；可达 Git 历史未说明最初 skip 原因。
+- **续作核验与类型检查**：上述两份完整文件的 **64 unique pass / 762 assertions** 是复核保存证据，不是本轮重跑。`snapshot-provider-closure-20261017/audit.py:11` 比较全树路径记录；当前5511项源码与Provider及新types快照一致，Snapshot GREEN仅差数组排版及Provider解除skip。63个引用证据文件重哈希一致，RED/GREEN/Provider进程均取得实际ECHILD且私有root已删除。新完整后端typecheck为 **exit0 / 28.504650秒**，沿用一个checker、`GOMAXPROCS=2`，去掉前轮临时2GiB软内存限制，保留90秒截止；没有排除文件或放宽诊断。证据为 `snapshot-resume-quality-20261017-yf8zsqbo/prepared`。三轮旧types超时仍各为exit124，首轮原清理未取得ECHILD及后续补清理单独保留；后两轮清理通过。历史profile为空，不能据本轮通过断言超时唯一根因。
+
+本轮五文件格式、显式基线增量lint及coverage/manifest测试均实际exit0，check/execute/verify全部通过，见 `snapshot-provider-quality-20261017-b186_xq6`。账本编辑与已验证源码的对应由 `snapshot-provider-closure-20261017/audit-final.py:11` 单独比较；只允许两份账本变化，不把旧源码快照称为编辑后的全树。独立复跑的节点树比较见同目录 `format-equivalence-final.cjs`，最初比较器误把SourceFile完整正文当作语义字段而拒绝，修正仅排除这一容器字段；没有重跑行为测试或改变生产文件。
+
+关闭 `snapshot-unicode-revert-skip` 与 `httpapi-provider-not-found-skip`，只移除这两个开放coverage项。原skip、失败、格式失败和超时收据保持不变；compaction/Prompted投影、录制、StructuredOutput、其余包/API/E3/E4/展示/性能/平台与真实打包Codex仍按原owner/unlock开放。完整S08/S09继续执行，未缩减为后端测试范围；本切片未新增临时产品实现或技术债。
+
+### 15.33 2026-10-17 S08 / Compaction 完成边界与 Prompted/Synthetic 投影
+
+- **修正测试契约，生产实现未变**：`packages/aigcfroge/test/session/compaction.test.ts:585` 用明确coding模式执行真实create→process，复用既有LLM流夹具和SessionProcessor。请求保存后canonical为空；完成后必须恰好一条边界，包含请求ID、manual原因、实际summary和recent。开始/完成的判定由 `packages/core/src/session/message-updater.ts:375` 与 `:379` 决定，非空成功摘要由 `packages/aigcfroge/src/session/compaction.ts:524` 与 `:535` 决定。旧Started→空摘要断言已退役，不能为恢复旧断言修改投影。
+- **Prompt真实文件展开与持久化**：`packages/aigcfroge/test/session/prompt.test.ts:589` 恢复noReply调用，显式coding与asc读取，检查用户文本/文件及两个Synthetic顺序，并验证三行data时间和数据库列时间等于实际prompt返回的created时间。仅排除合法agent/model switch行。发布顺序由 `prompt.ts:1230` 与 `:1242` 决定，`packages/core/src/session.ts:722` 按seq排序，`projector.ts:198` 编码持久化；没有手造投影事件、睡眠等待或provider调用。
+- **完整集合验收**：Compaction完整53项为 **53 pass / 153 assertions / 0 fail / 0 skip / exit0 / 63.073250秒**，见 `compaction-boundary-20261017-go5mmytr/prepared`。Prompt六个互斥分片为 **61 unique pass / 225 assertions / 0 fail / 0 selected skip**，305行未选补集均为0断言，不计活动skip或通过；见 `prompt-projection-final-20261017-vwxlx_7z/independent-union-verification.json`。六片源码完全相同，旧→新名称映射明确，原60pass＋1未执行skip不重复相加。并集判定由同目录 `verify-union.py:26` 的identity与 `:184` 的集合检查决定。两文件合计 **114 unique pass / 378 assertions**，112个引用证据重哈希一致，见 `session-projection-closure-20261017/accounting.json`。直接验证现有行为，未制造或声称产品RED。
+- **准备拒绝单列**：原 `prompt-six-partition-adapter-20261016-_8uep5u2` 在启动测试前被封印检查拒绝；父调用把stdout放入准备目录，封印记录后日志增长。该目录与exit1原样保留，未执行其中的测试。新准备目录逐字节复用finalizer、adapter和verifier，日志放到外部兄弟目录 `prompt-projection-logs-20261017-8ayqy_u8`；新check、六次execute/verify及最终union verify均exit0。全部负载保持90秒截止、90000ms测试timeout、concurrency1、零重试，均自然退出，owner取得ECHILD、无后代且私有root删除。
+
+首次完整后端typecheck实际exit2（23.489021秒），失败仅为 `prompt.test.ts:639` 的预期数组被推断为string[]；收据 `session-projection-quality-20261017-1n1m6p1o` 保留。修复为const字面量元组，运行时断言保持原值；该轮owner取得ECHILD且私有root已删除，不计为通过。
+
+修后后端typecheck（23.041618秒）、显式基线增量lint和四文件格式均实际exit0，证据 `session-projection-final-quality-20261017-ot1b1_nj`。该轮coverage/manifest为10pass/1fail/26assertions：新增deferred owner写成描述文字，未满足 `packages/app/e2e/real/coverage.ts:184` 的S编号规则；现修为S8，原exit1保留。
+
+最终coverage/manifest完整11项为 **11pass/26assertions/exit0**，格式检查及const修复的Bun转译字节比较均exit0，见 `session-projection-ledger-final-20261017-p3id0mxw`。`session-projection-closure-20261017/runtime-equivalence.ts:14` 比较旧/新转译结果；const修复前114项行为证据可复用，不声称行为已重跑。最终源码对应及引用证据复核见同目录 `audit-final.py` 与 `audit-final.json`。
+
+关闭 `session-compaction-canonical-boundary-skip` 和 `prompt-canonical-projection-skip`。Assistant adoption的成功/未完成规则与coding双写入口分开；带error的已完成summary尚未覆盖，登记 `assistant-legacy-history-error-summary`（owner=S8 / Core Session），unlock为真实adoption负例及完整Core文件验收。StructuredOutput本地HTTP草稿未实施；录制、其他包/API/E3/E4/展示/性能/平台与打包Codex边界继续开放，完整S08/S09未关闭。
+
+### 15.34 2026-10-17 S08 / StructuredOutput HTTP 链与 Assistant 失败摘要
+
+- **四项 StructuredOutput 路径恢复**：`packages/aigcfroge/test/session/structured-output-integration.test.ts:282` 复用现有TestLLMServer与隔离临时配置，固定coding/build、本地模型和标题。四例通过实际HTTP/SSE、SessionPrompt、SessionProcessor、StructuredOutput工具和数据库，分别检查简单/嵌套结构、普通文本和format持久化；每例恰好一次provider请求且回复队列耗尽。简单结构还检查请求模型、required工具选择及工具schema，文本例检查没有StructuredOutput工具。未接入外部模型服务；这些结果不代表Anthropic或OpenAI线上行为。
+- **保留失败并修正输入边界**：原完整两文件实际为 **23pass/4fail/54assertions/exit1/27.982485秒**，见 `structured-output-local-20261017/behavior`；四例均在MessageUpdated编码format时失败。`packages/aigcfroge/src/server/routes/instance/httpapi/groups/session.ts:86` 定义从PromptInput派生的已解码payload，`handlers/session.ts:834` 的handler再交给服务；直接服务测试必须提供同一解码形态。现于测试`:15` 复用 `Schema.decodeUnknownSync(SessionPrompt.PromptInput)`。没有放宽生产schema或为普通对象增加兼容分支。相邻单测原用未知outputFormat字段且只断言解码成功；现用真实format，并在 `structured-output.test.ts:117` 检查默认retryCount与编码结果。
+- **StructuredOutput 完整验收**：同一27个用例名称在修后为 **27pass/91assertions/0fail/0skip/exit0/21.774823秒**，见 `structured-output-local-20261017/decoded-behavior/prepared/verification.json`。后端typecheck实际exit0/24.693139秒，见同目录 `decoded-types`。失败轮与通过轮不重复相加；失败是旧测试输入与当前Schema.Class契约不符，不宣称修复了生产provider缺陷。
+- **Assistant 失败摘要保持普通历史**：`packages/core/test/session-legacy-history.test.ts:335` 在原完成/未完成场景中增加finish=stop且含APIError的摘要，实际触发旧记录adoption并核验context和持久化messages仍是user/assistant，保留正文、完成状态与错误身份。生产边界仍由 `packages/core/src/session/legacy-history.ts:202` 的summary、finish、无error与compaction条件决定；`:234` 保留错误映射。完整Core文件最终 **7pass/36assertions/0fail/0skip/exit0**，见 `assistant-error-summary-20261017/behavior-typed`。原首次7pass/36assertions不重复计数；其后Core types exit2源于SQL列的Omit联合类型只保留共同字段，收据在 `types`。测试复用本文件的类型化字段展开，用Pick约束实际Assistant字段，未更改SQL声明或数据。修后Core types exit0，见 `types-typed`。
+
+本切片仅变更三份测试与两份账本，复用原服务、Schema、HTTP及数据库夹具；没有新增产品实现。最终34个唯一行为用例共127断言。显式基线增量lint、五文件格式与coverage/manifest的最终门禁收据位于 `session-coverage-close-20261017`，其 `audit.py` 复核源码差异、JUnit身份及证据哈希；两包types对应各自冻结切片，后端types早于Core测试编辑，不声称两者全树快照相同。全部负载串行、concurrency1、零重试，保留90秒外限与90000ms测试timeout；实际owner ECHILD及私有目录删除均单独核验。
+
+最终增量lint、五文件格式及coverage/manifest均exit0；账本11pass/26assertions。首次格式门禁的两文件exit1、随后原始JS字节比较的exit1均保留：Bun转译仍保留对象排版，不能把字节差异直接判为语义变化。`format-copy-v2.ts` 复用先前TypeScript AST节点种类/文本/有序子节点比较，并独立比较规范化JS；两文件AST一致，规范化JS一致，原始JS仅Core文件相同。排版后的源码与行为/类型检查分别绑定，不声称重跑行为。
+
+关闭 `structured-output-provider-integration-skips` 与 `assistant-legacy-history-error-summary`。可信OpenAI录制、CLI Footer及原生renderer、GitLab占位、Windows与其他包/API/E3/E4/展示/性能/打包Codex边界继续按原owner/unlock开放；完整S08/S09未关闭。
+
+### 15.35 2026-10-17 S08 / CLI Footer 五项覆盖恢复
+
+工作区仍为 `aigcfroge-agent-ui-tdd-impl`，分支 `agent-ui-tdd`，冻结HEAD为 `aa5df6d9b74d2339d60ec31c86fddbaa43cbc824`。本节仅修改Footer测试与两份账本，无生产renderer/keymap修改。证据目录为 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/footer-unskip-20261017`。
+
+- **保留初次失败**：直接移除五处skip后，完整Footer文件为 **28pass/1fail/127assertions/exit1/6.729825秒**，见 `run`。失败是打开Commands面板后仍调用 `footerComposerFrame`，得到 `TypeError: undefined is not an object`；此次没有原生崩溃。GREEN验证器如实拒绝本轮，原日志、JUnit、失败回执不覆盖。
+- **修正测试阶段**：`packages/aigcfroge/src/cli/cmd/run/footer.view.tsx:279` 的 `promptView` 按route选择身份，`:641` 的 `For` 重建对应frame；`:667` 的 `Switch` 只在composer路由挂载 `RunPromptBody`，command路由挂载 `RunCommandMenuBody`。因此旧断言不能在command面板内查找Textarea。测试现先验证面板期间Textarea不存在，再在关闭后验证frame身份改变；三次往返均保留draft，最后继续编辑并提交恰好一次。`footerComposerFrame` 对缺失frame给出明确错误，移除旧非空断言。
+- **五条真实交互恢复**：命令面板往返、leader variant绑定、skill绑定编辑、关闭skill面板清理合成草稿、自定义Question Return提交均已执行。完整文件 **29pass/148assertions/0skip/exit0/6.020703秒**，见 `contract/prepared/verification.json`；原第008组六个完整文件为 **46pass/234assertions/0skip/exit0/6.021636秒**，见 `complete008/prepared/verification.json`。后者与历史第008组的46个JUnit身份一一对应，前者是其中子集，不重复相加。复用实际OpenTUI renderer、keymap与原清理流程，没有替换成mock renderer或缩减测试名称集合。
+
+五项缺失行为覆盖已恢复，移除 `cli-footer-opentui-skips`；该项原unlock中尚未完成的原生生命周期根因调查归并到现有 `cli-renderer-native-crash`，owner仍为S8。本次测试通过不代表历史SIGSEGV已修复，也未证明Footer与backend010共因；后者的原始失败与真实worker诊断条件继续保留。可信录制、GitLab占位、Windows、其他包/API/E3/E4/展示/性能/打包Codex仍开放，完整S08/S09继续执行。
+
+后端typecheck、显式基线增量lint与账本校验均exit0；账本11pass/26assertions。首次三文件格式检查仅因本文多余空行exit1，Footer测试格式已通过；失败收据保留，空行已移除。最终三文件格式门禁与独立哈希/源码/JUnit审计见同目录 `format-final` 和 `audit.json`。每轮负载串行、concurrency1、零重试，90秒外限及90000ms测试timeout不变；源码/HEAD/branch/index冻结，实际ECHILD与私有目录inode删除均核对。
+
+### 15.36 2026-10-17 S08 / 文件与 PTY 真实后端验收
+
+本节关闭默认 Linux 环境下的 `session-files.spec.ts` 与 `session-pty.spec.ts` 两个完整文件验收，未修改生产实现。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/e4-io-contract-20261017`。
+
+- **完整执行**：最终同一轮 **6 pass / 0 fail / 0 skip / 0 retry / exit0**，包含生产构建，负载用时 **48.446940秒**。Playwright报告、六份trace、E4 manifest及teardown、源码冻结与owner/root收据由 `audit.py` / `audit.json` 核验。最初文件3例及旧PTY3例各自通过，作为原始证据保留，不与最终6例重复相加；旧PTY对象存在断言不能证明退出状态。
+- **文件合同**：实际HTTP验证搜索、文本与二进制、越界拒绝、missing-file404及完整2MiB文本。原“两会话读文件”用例实际上仅发出两次并行文件请求，名称已修正；本轮不声称证明Session隔离。
+- **终端合同**：先收到实际命令输出，再由DELETE触发服务端WebSocket正常关闭；另一个立即退出的进程通过canonicalGET明确读取 `status=exited / exitCode=7`，验证active-only接口隐藏、canonical列表保留、显式删除及后续404。不存在的命令实际500，并检查两种列表均无残留。边界由 `packages/core/src/pty.ts:253` 的退出回调、`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/pty.ts:95` 的get过滤及 `packages/server/src/handlers/pty.ts:58` 的canonical读取决定；未新增兼容实现或错误类型。
+
+全部运行使用既有封印owner，串行、concurrency1、零重试、90秒外限；最终Playwright用例timeout为90000ms。E4 gate确认端口释放、进程组消失、工作区无残留，且未强制SIGKILL；owner实际取得ECHILD并删除注册私有目录。外部命令适配器只将既有E4框架映射到注册目录并保存证据，没有新增进程监督器。类型、增量lint、格式和账本门禁结果见同目录最终审计。
+
+只收窄 `e4-isolated-runtime-revalidation` 中已验证的文件/PTY范围。not-found、其余identity/lifeline及default/V2组合、平台、界面状态和S09门禁仍开放；完整S08/S09未关闭。此次未新增产品实现或技术债。
+
+### 15.37 2026-10-17 S08 / Session 公共链 default 与 V2 验收
+
+- **default实际7pass/1skip/0fail/0retry**，负载74.896208秒：完整 `session-not-found.spec.ts` 两例、`session-lifeline.spec.ts` 三轮，以及 `session-identity-consumers.spec.ts` 的两个单后端用例。唯一skip为历史身份/Review双后端场景，原test第127行以 `!peer` 判断并要求 `E4_DUAL_BACKEND=1`；本轮没有peer，该项计零通过，不替代此前双后端证据。
+- **V2实际5pass/0skip/0fail/0retry**，负载67.706599秒：完整not-found与lifeline文件，运行manifest确认V2开关。两轮均有真实HTTP404与错误body、生产页面错误态/reload、health版本核对及三轮创建/reload；default另外核对权限/身份Header和Agent picker可见性。Picker用例未检查全部选项或执行Agent切换，不作额外覆盖声明。
+- **边界明确**：合计12次通过是两个配置的执行数，不是12种不同业务。两轮provider请求数均为0；没有验证provider turn、提示入箱或中断后自动恢复。lifeline第30行注释已纠正：创建Session不等于写入session_input，测试代码与断言未改。审计以测试时HEAD原文的精确两行注释替换证明源码对应；不声称注释修改后又重跑行为。
+
+证据目录 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/e4-session-acceptance-20261017`，`audit.py` / `audit.json` 核验两份实际Playwright结果、12份trace、唯一拓扑skip、default/V2 manifest、命令/源码/owner及最终格式和账本收据。两轮均在既有90秒owner下串行执行，90000ms用例timeout、worker1、零重试；E4端口/进程组/工作区清理通过，无强制SIGKILL，owner取得实际ECHILD并移除注册私有目录。
+
+本节只收窄已验证的公共链与单后端identity范围，其他default/V2/provider/跨后端组合、平台、界面状态及S09门禁继续开放。未修改产品实现，未增加兼容逻辑；完整S08/S09未关闭。
+
+### 15.38 2026-10-17 S08 / 笔记初次读取失败与串行基准
+
+`AssistantNoteEditor` 原先在 GET 失败后仅记录控制台错误，并解除编辑限制。现在由既有加载 owner 保留失败状态、显示本地化错误和共享 Retry 按钮；只有读取成功才允许编辑、保存和删除。重试只重新读取。既有取消回调和已加载笔记草稿规则保留；没有新增接口、Schema 或查询 owner。
+
+- RED 使用旧生产构建，实际 **1 pass / 1 fail / exit1**；失败为缺少 “Could not load this note.” alert。GREEN 保持这两个测试字节不变，用新生产构建运行完整 `assistant-session-panel.spec.ts`：**10 pass / 0 skip / 0 retry / exit0**，55.066秒。覆盖初次请求挂起、200成功、400失败、显式读取重试、权威内容加载后一次保存，以及原有隐藏面板、旧笔记完成、保存/删除排他、提醒Session归属和关闭抽屉行为。
+- 从通过的失败场景 trace 中提取 Retry 前画面并检查：默认 light/English/desktop 错误文案、禁用字段和 Retry 控件正常。未将此画面计作新错误态的 dark/Chinese/narrow/keyboard 验证。
+- 原有完整 tab benchmark 的 before 和 after 均 **exit124**，由90秒外限中止；原始输出和不完整 traces 保留。现将冷、热两组注册为独立测试，每组仍为原来的5次独立 context trial，测量步骤和统计运算未变；移除用例内600秒覆盖，使调用方90000ms设置生效。两组均需执行才覆盖原范围。
+
+分组后的四轮均实际通过，worker1、零重试，仍使用既有90秒owner。下表由实际结果生成；它们构成新的分组负载基线，不能和先前中止的整组结果混算。
+
+| 构建/组     | trials | 负载秒数 | first-correct median ms | stable median ms |
+| ----------- | ------ | -------- | ----------------------- | ---------------- |
+| before cold | 5      | 62.954   | 234.3                   | 245.7            |
+| before hot  | 5      | 73.149   | 222.4                   | 248.2            |
+| after cold  | 5      | 64.970   | 223.1                   | 242.4            |
+| after hot   | 5      | 68.805   | 216.9                   | 239.5            |
+
+每组5次仅供描述性比较，不声称因果、统计显著性、无闪烁或完整性能无回退。现有 flash 和其他S09要求继续保留。本节没有重跑 packaged Electron 或平台矩阵。
+
+证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/note-read-boundary-20261017`。`audit.py` / `audit.json` 对应实际Playwright结果、源码冻结、旧/新bundle源码映射、原有trial实现对应、Chrome traces、实际ECHILD及注册私有目录删除；并记录App类型、增量lint、格式与账本检查结果。通用runner的verify0只证明命令/源码/生命周期，浏览器结论另查实际Playwright结果；两次超时与行为RED不改记为绿色测试。
+
+`session-hidden-mode-effects` 仅收窄初次笔记读取200/400与显式重试范围。失败的保存后刷新、初次加载的其他scope/空响应/呈现组合、跨Session草稿、剩余隐藏observer及Custom状态继续开放；完整S08/S09未关闭。
+
+### 15.39 2026-10-17 S08 / 笔记写入成功后的读取恢复
+
+两处笔记编辑器现在区分写入失败和写入成功后的刷新失败。后者保留草稿、禁用再次写入，并提供本地化 Refresh 按钮；重试只读取，不重复 POST。`packages/app/src/utils/assistant-query.ts:25` 复用现有查询失效入口，接收库已有的严格错误选项并等待全部失效请求结束。共享控制器 `assistant-mutation.ts:20` 以操作身份、原编辑 owner 和 disposal 判断当前归属；`:23` 仍为已完成的旧写入刷新原始 keys，`:58` 只重试刷新。既有非笔记 mutation 没有自动切换到严格恢复，其剩余范围继续登记。
+
+- **行为 RED**：Dashboard 新建/更新/删除三例、侧栏更新/删除两例在旧生产构建上分别实际3fail和2fail，均缺少刷新恢复提示。修正下述夹具后，Dashboard同三例再次实际3fail。共五个唯一失败场景，重复验证不另计覆盖。
+- **保留失败与根因**：首次新构建的Dashboard完整运行在90秒外限退出124，留下四个已报告失败，无完整Playwright JSON。trace证明私有 `mockServer` 遗漏 `/kb/dangling`，收到200 HTML而非JSON；严格失效正确传播了读取错误。只在 `packages/app/e2e/regression/assistant-dashboard.spec.ts:470` 补充空列表响应，未改变生产实现或放宽错误处理。原始trace、日志及诊断保留。
+- **完整 E3**：最终侧栏12pass、Dashboard10pass、跨服务器3pass，共25次执行，零fail/skip/retry。覆盖一次写入后的失败读取、显式刷新、禁用字段、取消/新建归属、同ID跨服务器旧请求完成，以及完整文件内原有场景。侧栏和修正后Dashboard各自的RED/GREEN测试字节相同。实际QueryClient与控制器单测16pass/1626assertions；其中含相邻刷新等待、重复刷新失败、写入失败重试、替换/dispose及隐藏observer恢复。
+
+复用§15.38的after冷/热两组作为本轮before：切片开始的生产输入、bundle、测量代码及夹具对应，并重新核对原始证据哈希。新构建冷/热各5次均通过，同样串行、worker1、零重试、90秒owner与CLI90000ms设置。
+
+| 构建/组             | trials | 负载秒数 | first-correct median ms | stable median ms |
+| ------------------- | ------ | -------- | ----------------------- | ---------------- |
+| before cold（复用） | 5      | 64.970   | 223.1                   | 242.4            |
+| before hot（复用）  | 5      | 68.805   | 216.9                   | 239.5            |
+| after cold          | 5      | 63.629   | 217.7                   | 242.4            |
+| after hot           | 5      | 69.907   | 209.5                   | 236.2            |
+
+这是描述性样本；新冷/热组分别仍有3/1次blank观察，不作因果、统计显著性或完整性能无回退声明。错误画面仅检查默认English/light/desktop，不计作完整呈现矩阵。
+
+证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/note-readback-20261017`。最终检查与 `audit.json` 核对实际Playwright/JUnit、生产源码映射、前后基准、各轮源码冻结、owner实际ECHILD及注册私有目录删除；通用verify不能替代浏览器结果。App类型、增量lint、格式与账本结果以各自收据为准。
+
+首次App类型检查exit1：三个新缓存断言的 `getQueryData` 泛型未指定，产生TS2769。沿用相邻测试的 `getQueryData<string>` 后，完整三文件单测仍为16pass/1626assertions。下一轮App源码类型通过，随后E3类型阶段exit2：原Dashboard基础笔记夹具的scope被推断为string。给该夹具补充 `satisfies KbNoteNote`，保留全部测试逻辑；Bun转译前后JavaScript完全相同，见 `type-equivalence`。原失败保留在 `types` / `types-final`，最终单测及类型结果见 `unit-final` / `types-checked`。生产源码未变，最终E3对应经过转译等价验证，不声称类型注解修改后重跑浏览器。
+
+本节只收窄 `session-hidden-mode-effects` 的两处笔记写后读取恢复。owner仍为S8；其他Assistant操作的读取失败、初始加载scope/空响应/呈现、跨Session草稿、剩余隐藏observer与Custom状态的直接验收是其unlock。其他真实运行配置与S09交付门禁继续开放；未关闭完整S08/S09。
+
+### 15.40 2026-10-17 S08 / Custom 初次 Snapshot pending 与迟到 Upgrade 归属
+
+**已实现并验证。** 初次 `/session/:id/composition` 读取原会经 `useSessionSnapshotCommands` 的 `snapshot()` 进入 Session 路由 transition，整页被 `surface-pending` 替换。`packages/app/src/utils/session-commands.ts` 现在给资源 `initialValue` 并读 `.latest`；`components/custom/custom-snapshot-panel.tsx` 同样 seed 资源；`components/prompt-input.tsx` 的 Custom agent 列表改读 `.latest`。`handleUpgrade` 的每次 await 后用实时 URL（`currentRoute(location.pathname, location.search)`）核对 Session + server，迟到完成不再导航到 upgraded Session；组件内 `source()/draft()` 检查保留。
+
+**RED 与 GREEN 分开记账。** 首次整文件 13 例在 90s 外限 `exit124`：观察到 2 个失败，第 13 例开始时被中止，未产生完整 tally；保留 `s08-custom-snapshot-20261017-194807`。定向 RED `s08-custom-snapshot-red-20261017-195042` 为 2 fail（pending 路由被替换、late plan 仍发 upgrade）。修复后拆成两个不相交的 90s 运行覆盖全部 13 例：`s08-custom-snapshot-fullA-20261017-200342` **6 pass / 48.7s**，`s08-custom-snapshot-fullB-20261017-200433` **7 pass / 54.8s**，均 0 fail / 0 skip / 0 retry。相邻回归：`composer-submit.spec.ts` **5 pass / 1.0m**（含跨 Session 草稿+附件不串），`custom-builder-states.spec.ts -g Start` **7 pass / 1.1m**，custom 组件单测 **65 pass / 0 fail / 150 assertions**；App typecheck、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 均 exit0。
+
+**未关闭。** V1 snapshot revision 正向 Upgrade、Start 跨 Location 完成策略、这些 Custom 错误态的 dark/Chinese/narrow/keyboard 呈现矩阵仍未验收。Codex CLI 的安装后错误已由 §15.21 分别覆盖：`Unable to locate Codex CLI binaries`（SDK 提前构造）与 app-server 握手版本门禁均已修复并有独立证据；真实 packaged Codex 新 thread/resume 仍需真实 CLI 环境，本轮未重跑，不能据此宣称通过。证据根目录 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/custom-snapshot-pending-20261017`，`README.md`/`SOURCE.txt` 记录实际命令、退出码、源码哈希与未完成项。本轮没有新增接口、Schema 或数据库迁移。
+
+### 15.41 2026-10-17 S08 / 跨 Session 草稿直接 E3 收据
+
+复用既有 `packages/app/e2e/regression/composer-submit.spec.ts:177` 的“recovers an unsubmitted draft and attachment without leaking either into another session”，不新增测试或生产代码。该用例在 Session A 输入文本并附加图片，切到 Session B 断言输入为空且无附件，返回 A 断言文本+附件恢复，移除附件后再切 B 仍为空、返回 A 文本保留，并断言整个来回零 `/prompt_async` 写入。
+
+**实际运行**：`bun --cwd packages/app test:e2e --project=chromium e2e/regression/composer-submit.spec.ts --workers=1 --retries=0 --timeout=90000 -g "without leaking either into another session"`，**1 pass / 0 fail / 0 skip / 0 retry / exit0 / 45.2s**。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/custom-snapshot-pending-20261017/s08-cross-session-draft-focused-20261017-201109/`。更广的 Assistant/Custom 跨 Session 草稿仍按 `session-hidden-mode-effects` 的 unlock 保持开放；本切片只关闭 composer 文本+附件这一条直接验收，不关闭完整 S08。
+
+### 15.42 2026-10-17 S08 / Assistant KB 读取失败与显式重试
+
+`AssistantKbTab` 原先把 notes/search/backlinks/dangling 的读取失败折叠成空列表，用户只看到 “No notes yet”。现在 `readFailed` 汇总四类查询错误，显示既有本地化 “Couldn't load. Try again.” + Retry；`retryReads` 只重取实际失败的查询，已缓存行保留，失败时不再显示空状态。复用 `assistant.dashboard.loadError` 与 `assistant.citation.retry`，没有新增接口、Schema、数据库迁移或 i18n key。
+
+- **RED**：旧 `assistant-kb-tab.tsx` 上 KB tab 可见但无 alert，**1 fail**。首次尝试先因测试入口错误失败：点击 KB 分组标题只展开分组、不打开 tab；改为既有 “Dangling links” 导航项后到达缺失 alert 的真实断言。两份失败均保留。
+- **GREEN**：修复后同一测试 **1 pass / 43.6s**；新增用例 + 既有 “old note save does not close the current note draft” **2 pass / 48.9s**；prettier 格式化后的最终源码再跑 **2 pass / 53.9s**，均 0 fail / 0 skip / 0 retry。
+- **单测/门禁**：Assistant KB/panel/entity/nav **50 pass / 0 fail / 138 assertions**；App typecheck、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 均 exit0。
+- **未关闭**：其他 Assistant 读取（dashboard list、memory/citation、reminders/inbox 的非 mutation 读取）、closed drawer 在途/共享 observer、呈现矩阵与完整 S08/S09 仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-read-20261017/`。
+
+### 15.43 2026-10-17 S08 / closed drawer 在途与共享 observer：未成立的验收尝试
+
+尝试补一条直接 E3：把 `/kb` 请求用 gate 持有，左导航保持打开作为共享 observer，点击 “Dangling links” 打开 KB tab，再关闭 Assistant review panel，断言请求不被取消且不重放。实际运行中，**review panel/KB tab 在 gate 未释放前没有出现**；释放 gate 后才出现。该轮不能证明“共享 observer 保留请求”或“无 observer 时取消请求”，因此没有把用例留在 spec，也没有据此修改生产代码。
+
+- **保留失败**：`s08-drawer-shared-kb-*` 三份 receipt；首次窄屏尝试还遇到 `#session-mode-panel-toggle`/viewport 顺序问题，单独保留。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-read-20261017/` 的 `s08-drawer-shared-kb*`。
+- **Owner S8；Unlock**：需要一个能在共享读取仍 pending 时先打开 KB tab 的 fixture，或直接对 query observer/cancel 路径做可观测断言；在得到该证据前，保持 `session-hidden-mode-effects` 的 “closed-panel in-flight/shared-observer” 为 open，不声称已覆盖。本轮没有新增生产代码。
+
+**2026-10-18 复试（S08-R01 伞形矩阵，仍未成立但定位更精确）**：新 fixture 复用 Assistant 会话 + canonical 空历史 + 左侧 AssistantSessionSidebar，把 `/kb` 用 `page.route` gate 住（覆盖路由注册在 `mockAigcfrogeServer` 之后），再点击导航 “Dangling links”。三次观察：
+
+1. **gate 未释放时，路由 Suspense 边界进入 pending**：`main` 内容被替换为 `<div data-component="surface-pending" data-surface-pending="route" role="status" aria-label="Loading">`，`#review-panel[aria-label="Assistant panel"]`、`[data-component="assistant-kb-tab"]`、`session-mode-panel` 全部不存在（body 只剩侧栏与 DebugBar）。这精确解释了 2026-10-17 的“panel/KB tab 不出现”，不是选择器问题。等待 2.5s 仍 pending，只有释放 gate 才恢复。
+2. **同一流程在 `/kb` 不 pending 时可正常工作**（probe：无 gate 打开 KB tab，`surface-pending` 0 个、`#review-panel` 1、KB tab 1、`main` 文本 292 字符）——说明 panel 打开本身没问题，问题与“打开时存在被 gate 的共享读取”相关。
+3. **共享 observer 的代码事实成立**：`AssistantNavTree` 与 `AssistantKbTab`/`AssistantNoteEditor` 都用 `assistantQueryOptions(scope,"kb")`（同一 queryKey）；`useModeQueryActivity` 只在 slot inactive 时 `client.cancelQueries({ queryKey, type: "inactive" })`，即“还有可见 observer 的共享读取不会被取消”。因此验证只需要一条**先打开 drawer、再制造共享 refetch** 的路径，而不是在 pending 时首次打开 drawer。
+
+- **保留证据**：`assistant-closed-panel.spec.ts` 尝试稿与两次运行日志（gated / no-gate probe）在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/closed-panel-attempt-20261018/`；失败 spec 未留在仓库。
+- **Owner S8；Unlock（更新）**：先打开 Assistant drawer 并加载 KB，再用 note-editor 保存等既有 invalidation 触发共享 `/kb` refetch（在浏览器侧 gate 第二次请求），refetch pending 时关闭 drawer；断言请求不取消、不重放，且 nav tree（共享 observer）收到结果。若走首次打开路径，则需要先移除“打开 drawer 时被 pending 共享读取拖入路由 Suspense”的行为，这属于产品行为变更，不能只改 fixture。
+
+**已收口（2026-10-18，S08-R01 伞形矩阵）**：新增 `packages/app/e2e/regression/assistant-closed-panel.spec.ts` 一条直接 E3，按上述 unlock 路径落地：`/kb` 首次读取立即 200 载入数据 → 导航树打开 KB tab 并 hydrate note → 通过 note-editor 的真实保存动作触发 `assistantKbQueryKeys` invalidation → 第二次 `/kb` 读取被 route gate 持有 → 关闭 drawer（`aria-hidden="true"`、KB tab 卸载）→ 断言无 `requestfailed`、nav tree 在 drawer 关闭期间收到结果（`[data-nav-section="kb"]` 计数 1）→ 释放 gate 后正好 `[200, 200]`、`/kb` 请求数仍为 2 → 重开 drawer 切回 KB tab 仍显示 note、请求数不增（无重放）。**实际运行：1 pass / 38.8s、1 pass / 38.6s（2/2）**；presentation tagging 契约 **5 pass / 35.2s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（1 文件 / 217 新增行）、prettier、`git diff --check` 均 exit0。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/closed-panel-e3/`。
+
+**同轮登记的产品行为风险（owner：App / Assistant；unlock：给 Assistant mode 内容加 panel 局部 Suspense fallback，或避免在首个共享读取 pending 时打开 drawer）**：两次“首次打开即 gate”的尝试都证明，当某个 Assistant 查询**尚无 data 且正在 fetch**时打开 drawer，`useQuery().data` 读的是 TanStack Solid Query 内部的 `createResource`（`@tanstack/solid-query/src/useBaseQuery.ts:380-382`：`queryResource()?.data`，resource 无 initialValue）；该读取会把路由级 Suspense 边界拖入 `surface-pending owner="route"`，整个 Session 主区消失直到读取完成。`/kb` 与 `/kb/dangling` 两个不同查询都能复现，因此不是单个 fixture 问题；本切片不改产品行为，只登记并给出 unlock。**已修复（2026-10-18，`10e830bb9`，详见 §15.57）**：Assistant panel 的 tab 内容区现在有自己的 Suspense 边界，路由不再被单个面板读取拖入 `surface-pending`；新增直接 E3 `assistant-session-panel-pending.spec.ts` 锁定该行为。
+
+### 15.44 2026-10-17 S08 / Assistant delivery history 读取失败与显式重试
+
+Assistant session panel 的 reminders tab 原先把 `/delivery/:id` 读取失败折叠成 “No deliveries for this session yet.”。现在 `inboxQuery.isError` 显示既有本地化错误 + Retry，失败时不再显示空历史；重试只重取该 query。复用 `assistant.dashboard.loadError` / `assistant.citation.retry`，没有新增接口、Schema、迁移或 i18n key。
+
+- **RED**：旧 `assistant-session-panel.tsx` 上无 alert，**1 fail**，保留 `s08-delivery-history-red-20261017-203242`。
+- **GREEN**：修复后同一测试 **1 pass / 44.7s**；新增用例 + KB 读取失败 + completed reminder ownership 的相邻集合 **3 pass / 57.9s**，0 fail / 0 skip / 0 retry。Assistant panel/kb/entity 单测 **32 pass / 0 fail / 90 assertions**；App typecheck、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 均 exit0。
+- **未关闭**：其他 Assistant 读取（dashboard session list 已由 `loadSessions` 的 toast 兜底、memory/citation、reminders 非 mutation 读取）、closed drawer 在途/共享 observer（§15.43）、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-delivery-history-20261017/`。
+
+### 15.45 2026-10-17 S08 / delivery-history 错误态呈现矩阵（base + dark + zh + 390px + 键盘）
+
+在 `assistant-session-panel.spec.ts` 新增 `@presentation` 直接 E3，复用 delivery-history 读取失败 fixture；该用例跳过全局英文 pin，按 project 断言：
+
+- `html[data-color-scheme]` = light/dark；`documentElement.lang` = en/zh；narrow = 390×844；
+- 本地化错误文案 “Couldn't load. Try again.” / “加载失败，请重试”；
+- alert 的 bounding box 在 390px 视口内，无横向溢出；
+- 通过真实 Tab 顺序到达 Retry，断言 focus outline，再按 Enter 触发重试并读回 delivery。
+
+**实际运行**：base `chromium` **1 pass / 43.8s**；`chromium-dark` + `chromium-zh` + `chromium-narrow` **3 pass / 1.3m**；相邻 KB/delivery E3 **2 pass / 55.9s**；presentation tagging contract **5 pass / 37.4s**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。没有改生产代码。
+
+**边界**：只覆盖 delivery-history 一个错误态；KB 错误态、memory/citation、closed-panel 在途/共享 observer、所有 Assistant 呈现排列仍未验收，不能称完整呈现矩阵。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-delivery-presentation-20261017/`。
+
+### 15.46 2026-10-17 S08 / KB 错误态呈现矩阵（base + dark + zh + 390px + 键盘）
+
+复用 KB 读取失败 fixture，在 `assistant-session-panel.spec.ts` 新增 `@presentation` 直接 E3，断言真实 theme/lang/viewport、本地化 KB 错误文案、390px alert 不溢出、真实 Tab 到达 Retry、focus outline，以及 Enter 重试后读回 note。没有新增生产代码。
+
+**实际运行（最终源码，逐 project 运行以守住 90s）**：base `chromium` **1 pass / 46.0s**；`chromium-dark` **1 pass / 43.2s**；`chromium-zh` **1 pass / 44.7s**；`chromium-narrow` **1 pass / 41.9s**。相邻 KB/delivery E3 **2 pass / 56.8s**；presentation tagging contract **5 pass / 33.0s**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
+
+**保留失败**：三 project 合并在一个 90s 命令中 `exit124`；首次 zh 运行也因选择器仍用英文 “Dangling links” 而超时，改用本地化 “悬空链接” 后通过。两份 receipt 均保留。
+
+**边界**：目前只有 KB 与 delivery-history 两个错误态的呈现证据；其他 Assistant 错误态、closed-panel 在途/共享 observer 及完整 S08/S09 仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-kb-presentation-20261017/`。
+
+### 15.47 2026-10-17 S08-B / E4 provider turn、interrupt、V2 与双后端
+
+在隔离 E4 harness（真实后端、真实 SQLite/workspace、确定性 loopback provider、production build、workers=1、retries=0）逐例运行，所有成功轮次的 `teardown-gate.json` 均 passed（端口释放、进程组退出、无残留、SIGTERM 报告 clean）。证据根目录 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/e4-provider-turn-20261017/`。
+
+| 用例                                                           | 结果                                                                          |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| default `browser submit` → provider turn → reload              | **1 pass / exit0 / 90000ms**                                                  |
+| default interrupted SSE → retry → later turn                   | **1 pass / exit0 / 90000ms**；测试内 provider completion 2→3                  |
+| default streamed tool call → continuation → durable            | **1 pass / exit0 / 90000ms**                                                  |
+| default two transient 500s → retry                             | **1 pass / exit0 / 90000ms**；provider completion delta=3                     |
+| default chat-mode provider turn → mode readback                | **1 pass / exit0 / 90000ms**                                                  |
+| default slow provider → waited, not failed                     | **1 pass / exit0 / 90000ms**                                                  |
+| default duplicated delta → one assistant message               | **1 pass / exit0 / 90000ms**；测试只断言 message 数与 completion 数           |
+| default completed-turn restart                                 | **1 pass / exit0 / 120000ms**；config 默认，移除 spec 的 360s 覆盖            |
+| V2 Custom canonical admission → provider turn → reload/restart | **1 pass / exit0 / 120000ms**                                                 |
+| dual-backend Assistant provider/credential/context isolation   | **1 pass / exit0 / 120000ms**；peer 独立 DB/workspace，teardown passed        |
+| dual-backend S02 decision-scope matrix                         | **5 pass / exit0 / 120000ms per test**；2.8m 整轮，teardown passed            |
+| dual-backend S07 stale review across shared Session ID         | **1 pass / exit0 / 120000ms**；spec 原 240s 覆盖归一为 120s                   |
+| dual-backend manifest coverage gates                           | **4 pass / exit0 / 120000ms**；teardown passed                                |
+| V2 coding canonical admission → provider turn → reload/restart | **1 pass / exit0 / 90000ms**；provider delta=1、admission row 1、重试不增调用 |
+| dual-backend shared Session ID identity/review                 | **1 pass / exit0 / 90000ms**；peer 独立 DB/workspace，teardown passed         |
+| Assistant reminder → daemon → inbox/reload                     | **120s approved pass**；90s receipt 保留为预算截断                            |
+
+**预算裁定（2026-10-17，用户批准）**：`assistant-scheduler.spec.ts` 自身注释写明既有 E4 预算为 120s；该用例使用 120s，120s 运行 **1 pass / exit0 / teardown passed**，现计入通过。90s 运行仍保留为预算截断 receipt，不记作 90s 通过，也不据此改生产代码或缩短真实 45s 到期语义。其余 E4 用例均在 90000ms 内完成。
+
+**Duplicate-delta 观察**：该用例按其标题只证明“一条 assistant message / 一次 completion”；probe 仍打印持久化文本为 `E4 deterministic responseE4 deterministic response`。因此不声称文本级去重，保留为 open observation。
+
+**协议与预算归一化（2026-10-17 核对）**：`CLAUDE.md:71` 与 `AGENTS.md:204` 规定单测 `--timeout 30000`；`docs/testing.md:140` 规定 `packages/aigcfroge` 包预算 90000ms（与 30s 就绪窗口耦合）；`packages/app/playwright.config.ts:47` 的 E3 预算是 180000ms；`packages/app/e2e/real/playwright.config.ts:62` 的 E4 预算是 **120000ms**，`assistant-scheduler.spec.ts:224` 也明确写“existing 120s E4 test budget”。**90s 不是仓库 E4 协议**，只是本轮早期执行提示的 harness 上限。按协议统一 E4 到 120s：`session-turn.spec.ts` 的 restart 用例移除 `test.setTimeout(360_000)`，由 config 的 120s 生效，实测 **1 pass**。此前在 90s 内完成的 E4 用例仍是更严格上限下的有效 receipt，不重跑。
+
+**未关闭**：S07 单后端 lifecycle/restart（不属本轮 dual-backend 矩阵）、真实外部 provider/OAuth、Windows/macOS 打包、签名/发布与完整 S08/S09。完整 S08-B/S09 仍开放。
+
+### 15.48 2026-10-17 S08 / Assistant dashboard memory 读取失败与显式重试
+
+Assistant dashboard 的 memory 区块原先只显示错误文案、没有 Retry。现在失败时在既有 `role="alert"` 内提供 Retry，调用 `memoryQuery.refetch()`；成功行与 pending 提案保持原 owner。复用 `assistant.dashboard.loadError` / `assistant.citation.retry`，没有新增接口、Schema、迁移或 i18n key。
+
+- **RED**：旧 dashboard 无 alert，**1 fail**（`s08-dashboard-memory-red-20261017-215018`）。
+- **GREEN**：同测试 **1 pass / 43.4s**；新增用例 + 首屏渲染 + memory confirm/reject 相邻集合 **3 pass / 48.3s**，0 fail/skip/retry。App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
+- **可达性观察**：Assistant session panel 的 memory tab 只能由 nav tree 的 memory 条目打开；memory 列表为空或读取失败时没有条目，section header 只展开/折叠，因此 panel memory tab 在该状态下不可达。本轮未改该入口，也未声称 panel memory error 已覆盖；dashboard 是当前可达的读取失败表面。Owner S8；若需要 section-level 入口，另开切片。
+- **未关闭**：citation、dashboard session list（现有 toast 兜底）、reminders 非 mutation 读取、initial-load scope/empty-response 组合、closed-panel 在途/共享 observer、呈现矩阵与完整 S08/S09。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-dashboard-memory-20261017/`。
+
+### 15.49 2026-10-17 S08 / citation 读取失败直接 E3：未成立的覆盖尝试
+
+生产代码 `message-timeline.tsx` 已有 citation 错误 UI（`data-component="assistant-citation-error"`）和 `refetchCitation` Retry，但缺少直接 E3。尝试复用 Assistant panel fixture 预置含 `[Citation note](kb://...)` 的 assistant 消息：legacy `pageMessages` 只渲染 user 行；改用 canonical `SessionMessagesResponse` 的 user+assistant 对仍不出现 assistant citation 行/链接。多次调整 message/parent/shape 后仍未成立，失败用例已从 spec 移除，未改生产代码。
+
+- **保留 receipt**：`s08-citation-read-20261017-215508`、`-215637`、`-215751`、`-215853`、`-215949`，证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-citation-e3-20261017/`。
+- **Owner S8；Unlock**：需要能稳定渲染 canonical/legacy assistant citation 的 fixture（或直接驱动 `kb://` link 的 DOM 合约），再断言 400 → error → Retry → 200 note。当前只保留生产实现与单测，不声称 citation error 已直接 E2E 覆盖。
+
+**已收口（2026-10-18，S08-R01 伞形矩阵）**：fixture 缺口实际由三件事叠加造成——① Assistant Session 的对话读的是 canonical 投影 `/api/session/:id/message`，旧尝试只喂 legacy `pageMessages`；② canonical 读按 newest-first 返回，fixture 必须给 `[assistant, user]` 顺序，`project()` 会反转；③ Work 产物预览会在隐藏的 `session-mode-panel[data-mode="work"]` 里再渲染同一段 assistant markdown，因此 `a[href="kb://…"]` 必须按时间线 turn（`[data-message-id="<userMessageID>"]`）收窄，且 kb 覆盖路由必须注册在 `mockAigcfrogeServer` **之后**（Playwright 后注册先匹配）。新增 `packages/app/e2e/regression/assistant-citation.spec.ts` 两条直接 E3：a) 400 → `assistant-citation-error`（本地化文案 + Retry + Dismiss）→ Retry（覆盖为 200）→ `assistant-citation` 读回 note 标题与正文；b) Dismiss 关闭失败 overlay、不产生第二次读取。**实际运行**：`2 pass / 37.3s、37.5s / exit0`；presentation tagging 契约 **5 pass / 31.4s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（1 文件 / 168 新增行；先按 no-unsafe-type-assertion 改成 `SessionMessage` 类型标注后通过）、prettier、`git diff --check` 均 exit0。**边界**：只覆盖点击 `kb://` 后的失败/重试/关闭；不覆盖 loading gate、并发切换 note 与真实后端。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/citation-e3/`。
+
+### 15.50 2026-10-17 S08 / Assistant reminder 读取失败与共享 Retry
+
+`ReminderList` 原先在 `error` 时只显示错误文案。现在共享组件增加可选 `onRetry`，错误行显示既有本地化 Retry；dashboard 传 `pendingQuery.refetch()`，session panel 传 `remindersQuery.refetch()`。没有新增接口、Schema、迁移或 i18n key。
+
+- **RED**：旧共享组件无 alert，**1 fail**（`s08-reminder-read-red-20261017-220520`）。
+- **GREEN**：同测试 **1 pass / 43.5s**；新增用例 + dashboard 首屏 + memory 失败 + memory confirm/reject **4 pass / 1.0m**，0 fail/skip/retry。Assistant entity/panel/kb 单测 **32 pass / 0 fail / 90 assertions**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
+- **未关闭**：dashboard session list（toast 兜底）、initial-load scope/empty-response、closed-panel 在途/共享 observer、呈现矩阵与完整 S08/S09（citation 直接 E3 已于 2026-10-18 由 §15.49 收口）。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-reminder-read-20261017/`。
+
+### 15.51 2026-10-17 S08 / memory 与 reminder 错误态呈现矩阵 + narrow 布局修复
+
+在 `assistant-dashboard.spec.ts` 新增两条 `@presentation` 用例，分别让 `/memory` 或 `/schedule/pending` 返回 400，断言真实 theme/lang/viewport、本地化错误文案、alert 在 390px 内不溢出、真实 Tab 到达 Retry、focus outline，以及 Enter 重试后读回数据。
+
+- **桌面三 project**：`chromium` + `chromium-dark` + `chromium-zh` **6 pass / 1.7m**。
+- **narrow**：首次 **1 pass / 1 fail**——390px 下 reminder 行被日期/操作挤到内容不可见，`Follow up with customer` 解析为 hidden。修 `ReminderList` 为窄屏 `flex-col`、`sm:flex-row` 的响应式布局后，narrow **2 pass / 57.6s**。
+- **相邻回归**：dashboard 首屏 + memory/reminder 失败 + memory confirm/reject **4 pass / 1.1m**；Assistant entity/panel/kb 单测 **32 pass / 90 assertions**；App typecheck、增量 lint、prettier、`git diff --check` 均 exit0。
+- **边界**：目前覆盖 KB、delivery-history、memory、reminder 四个错误态的呈现；citation 直接 E3 已由 §15.49 收口，closed-panel observer、initial-load 组合与完整矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-dashboard-presentation-20261017/`。
+
+### 15.52 2026-10-18 S08 / Assistant dashboard session list 读取失败与 inline Retry
+
+`ServerSync.loadSessions` 原先把 `GET /session` 的失败折叠进 `toast.session.listFailed`，所以 dashboard 的 `sessionLoad` query 永远成功，无法区分“该用户没有 Assistant Session”与“列表根本没读回来”。现在 `loadSessions` 增加 opt-in `rethrow`：带上它时 fetch 拒绝会传到调用方，默认（bootstrap 及其他所有调用点）仍是 toast-only。合并分支不再在共享 promise 失败后重取（否则每个并发调用方各触发一次重试），清理链改为 `.catch(() => {}).finally(...)`，保证 `sessionLoads` 删除与 `children.unpin` 仍然执行。
+
+dashboard 侧复用既有 `assistant.dashboard.loadError` + `assistant.citation.retry`，在 `role="alert"` 内提供 Retry 调 `sessionLoad.refetch()`，错误态下不再渲染行列表。没有新增接口、Schema、迁移或 i18n key。
+
+- **RED（最终测试 + 旧生产代码，stash 后运行）**：无 alert，**1 fail / exit1**（`s08-session-list-red-final-20261018-012222`）；首轮 RED 同样 1 fail（`-003416`）。
+- **中间失败保留**：`-005710` 修复后 alert 已出现但行断言用 `getByText` 触发 strict-mode 重复匹配；`-011304` 重试已读回行、仅选择器未收窄。
+- **GREEN**：失败 → Retry → 行读回 **1 pass / 44.9s / exit0**（`-011948`）。
+- **极性对照**：空 session 列表仍是空列表、无 alert **1 pass**；与失败用例合跑 **2 pass / 46.8s / exit0**（`-014214`）。
+- **相邻回归**：dashboard 首屏 + memory 失败 + reminder 失败 + session list 失败 + memory confirm/reject **5 pass / 1.1m / exit0**（`-012749`）。
+- **单测/门禁**：`server-sync.test.ts` + `assistant-dashboard-model.test.ts` **34 pass / 59 assertions / exit0**；App typecheck exit0；prettier、`LINT_BASE_REF=HEAD` 增量 lint（3 文件 / 103 新增行）、`git diff --check` 均 exit0。
+- **未关闭**：closed-panel 在途/共享 observer（§15.43）、initial-load 的其他 scope/呈现组合、剩余呈现矩阵与完整 S08/S09（citation 直接 E3 已由 §15.49 收口）。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/assistant-session-list-read-20261018/`。
+
+### 15.53 2026-10-18 S09 / post-c5 可恢复快照在 `473943815` 上重跑通过 + 执行位漂移修复
+
+按 `final-recovery-README.md` 的既定程序，在 `473943815`（§15.52 之后）用原 `run.py` 记录器（outer 180s、串行、`source_changed_during_run=[]`、`process_group_exists_after=false`）执行 `prepare-final-recovery.py --expected-head 473943815…`。
+
+- **首次失败，原因是真实的本地状态漂移，不是脚本缺陷**：`final-recovery-20261018-post-session-list` **exit1 / 3.471s**，`code-comparison.mismatches=["packages/sdk/js/script/build.ts"]`。字节哈希一致（`bc23388…`），差异在文件模式：索引为 `100755`，实施工作树丢失执行位；由于该 worktree 的 `core.fileMode=false`，`git status` 与 `git diff` 都不报告，属于“不可见漂移”。
+- **修复**：`chmod +x packages/sdk/js/script/build.ts`；随后 `git ls-files -s` 中全部 `100755` 条目均带执行位、`100644` 条目均不带，`git status` 干净。
+- **重跑通过**：`final-recovery-20261018-post-session-list-b` **exit0 / 4.237s / RECOVERY.json=passed**；`tracked_entries=5513`、`present_files=5499`、`symlinks=14`、`mismatches=[]`、`extra_paths=[]`、`source_unchanged=true`；`base.tar` 69,376,000 bytes / sha256 `d597678c…`；`index.patch` 与 `worktree.patch` 均为 0 字节（干净树）。两份 WorkReview fixture SQLite 副本 `integrity=ok`、外键错误 0，Review 身份/状态/revision 与已保存 artifact revision 对应。
+- **边界（沿用原口径，不扩大）**：只证明该提交的本地字节/执行位/symlink 重建与两份已完成合成 fixture 的副本；不证明生产灾备、旧版本 migration、Location 物理迁移或崩溃后自动续跑。忽略依赖与构建产物。
+- **未关闭**：Windows/macOS 打包与签名、真实外部 provider/OAuth、真实 packaged Codex、release/灰度授权仍为外部阻塞；完整 S08/S09 未关闭。
+
+### 15.54 2026-10-18 S09 / 性能描述性收据（cold 通过、flash 通过、hot 未取得）
+
+在 `473943815` 的生产构建（`s08-r02-app-session-list-final`，1507 文件）上按既有 launcher 串行跑 `e2e/performance` 的 tab/flash 两例，`workers=1`、`retries=0`、隔离 `HOME`/XDG、端口 44786–44797（44785 被外部 `language_server` 占用，因此新增只改端口的 `s08-r02-execute-perf.ts` + `s08-r02.playwright.config.perf.mts`，未改动原 launcher）。**全部为描述性样本，不设阈值，不声称无回归或因果。**
+
+- **cold tab switch：通过**。5 trials，firstCorrect 中位 **230.0ms**（min 224.5 / max 242.2），stable 中位 **260.3ms**。
+- **cached repaint flash：通过**。1000ms 窗口 53 次观察：blank 51、source 1、wrongDestination 0、unknown 0，末样本 `maxBottomErrorPx=24299.5`。
+- **hot tab switch：本轮未取得**。4 次运行（180s×2、360s、45s probe）全部超时且 0 trace；失败时目标 timeline 为空，`waitForStableSessionSwitch` 永远等不到稳定 destination。保留全部 `playwright.json` 与失败截图。
+- **归因对照（同机、同 launcher、交错执行）**：10-13 bundle hot **通过**（中位 222.1ms）；10-17 中午 bundle hot **两次通过**（中位 211.5 / 224.6ms）；把 §15.52 两个文件回退后按当前源码构建的 bundle hot **同样超时**；当前 bundle hot **超时**。因此该 hot 行为**不是 §15.52 引入**。
+- **bisect 结果（三种受控构建，各自构建后运行 hot）**：`nosnapshotseed`（回退 `bef26213a` 的三个文件）hot **1 pass**；`noseed-commands-only`（只回退 `packages/app/src/utils/session-commands.ts`）hot **两次 1 pass**；`preretry-b`（只回退 §15.52 两个文件）hot **超时**。根因锁定在 `session-commands.ts` 的 `{ initialValue: undefined }`：seeding 把 composition 读取的 `resolved` 固定在创建时刻，promise 在 session 路由 transition 结束后才 settle，`loadEnd` 因此把一个已结束的 transition 重新标记为 running；hot 路径第二次进入同一 Session 时 timeline 滚动被重置到顶部。
+- **已修复（2026-10-18，dev-server + production bundle 双栈验证）**：移除 `initialValue`；非 custom 会话保留原有的 suspending 读取（让 composition 读取仍随 session 路由 transition 提交，timeline 滚动锚点依赖该时序）；custom 会话改用新的 `latest()` 访问器——只订阅 `snapshot.state` 做响应式、用 `untrack` 取值，不把读取放进 transition，从而保留 §15.40「初始 Snapshot pending 时 Session 可见」。同时 `commands` memo 先按 mode 分流，`prompt-input` 的 agent 列表改用 `latest()`。
+- **修复后实际运行**：dev-server hot **2 pass / 48.7s、49.5s**（firstCorrect 中位 194.0 / 209.9ms，0 blank、0 wrongDestination）；production bundle `s08-r02-app-session-commands-fix`（1507 文件）cold **1 pass**（中位 303.1ms）、hot **1 pass**（中位 216.4ms，0 blank）、flash **1 pass**（50 观察：blank 1 / source 4 / wrongDestination 0）；Custom pending 及相邻 4 例 **4 pass / 43.5s**；App typecheck exit0；相关单测 **32 pass / 113 assertions**；prettier、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 30 新增行）、`git diff --check` 均 exit0。
+- **未关闭**：hot/flash 仍是描述性样本，统计性无回归裁决仍开放；Windows/macOS 打包、真实外部 provider/OAuth、真实 packaged Codex、release/灰度授权仍为外部阻塞。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s09-perf-descriptive-20261018/`。
+
+### 15.55 2026-10-18 S08 / session-list 错误态呈现矩阵（base + dark + zh + 390px + 键盘）
+
+在 `assistant-dashboard.spec.ts` 新增 `@presentation` 直接 E3，复用 §15.52 的 `/session` 列表读取失败 fixture 与项目 seed，按 project 断言：`html[data-color-scheme]` = light/dark；`documentElement.lang` = en/zh；narrow = 390×844；本地化错误文案；alert 的 bounding box 在 390px 内无横向溢出；通过真实 Tab 到达 Retry 并断言 focus outline；Enter 重试后读回 assistant Session 行且 alert 消失。
+
+- **逐 project 运行**：`chromium` **1 pass / 42.0s**；`chromium-dark` **1 pass / 41.6s**；`chromium-zh` **1 pass / 43.1s**；`chromium-narrow` **1 pass / 42.4s**。
+- **相邻回归**：session-list 读取失败重试 + 空列表极性对照 **2 pass / 48.1s**。
+- **门禁**：App typecheck（含 e2e tsconfig）exit0；prettier；`LINT_BASE_REF=HEAD` 增量 lint（1 文件 / 69 新增行）；`git diff --check` 均 exit0。
+- **边界**：这是第 5 个错误态的呈现证据（KB、delivery-history、memory、reminder、session-list）；citation 直接 E3 已由 §15.49 收口，closed-panel 在途/共享 observer（§15.43）、Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 矩阵仍未验收。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/session-list-presentation-20261018/`。
+
+### 15.56 2026-10-18 S08-R01 / 伞形矩阵第一轮：S01–S07 单元·API·E3 实际运行
+
+在 `63ac91c2d`/`b4a3c3f47` 之后按 R2 §6 的 S01–S07 命令清单实跑（串行、包内运行、workers=1、retries=0、90s 测试 timeout）。**这是伞形矩阵的第一轮，不是完整 S08。**
+
+- **单元/API（全部 exit0）**：`core` **252 pass / 0 fail / 892 assertions / 14 文件 / 14.94s**；`app` **242 pass / 0 fail / 638 assertions / 12 文件 / 3.37s**；`session-ui` **121 pass / 0 fail / 263 assertions / 19 文件 / 1.92s**；`tui` **15 pass / 0 fail / 37 assertions / 3 文件 / 2.48s**；`aigcfroge` HTTP：`httpapi-work-review` **30 pass / 843 assertions / 168.33s**、`httpapi-decision-ownership` **8 pass / 51 assertions / 48.03s**、`httpapi-session`（含 Task 路由）**39 pass / 202 assertions / 131.58s**。计划点名的 `test/server/httpapi-session-task.test.ts` 未单独创建，Task HTTP 契约由既有 `httpapi-session.test.ts` 覆盖（与计划的文件名偏差已记录）。
+- **E3（dev-server，完整文件）**：`session-todo-progress` **16 pass / 1.3m**、`session-decision-surface` **20 pass / 1.8m**、`prompt-agent-directory` **7 pass / 52.1s**、`session-tool-row` **36 pass / 2.4m**、`agent-task-hub` **8 pass / 1.1m**（修复后）、`work-review-lifecycle` **23 pass / 1 fail / 1.8m**。
+- **本轮修复的测试漂移**：`agent-task-hub.spec.ts` 在 `a4acc4082`（2026-10-15「align browser fixture API projections」）后失效——① hub 断言 build+Unassigned = 2 行，但共享 mock 现在默认额外返回 meta/assistant-orchestrator，实际 4 行；② narrow 用例把 coding Session 的 `/session/:id/composition` fidelity 404 计入「unexpected browser errors」。已在该 spec 内把目录固定为 build 单 agent，并在 narrow 用例覆盖该已知 404 为 200 `{}`（仅该用例、带注释）。**先按父提交 `47602cc18` 回退本轮两个生产文件复跑，两例同样失败，证明不是本轮引入。**
+- **本轮已修复的既有 a11y 失败**：`AI-TDD-S08-R04 C WorkReview preserves localized keyboard actions, layout and reduced motion @presentation @a11y` 在 `expectKeyboardFocus(page, open)` 的 `focus.hit` 失败（同样在 `47602cc18` 复现）。根因是 E3 dev-server 挂载的 **dev-only** DebugBar（`layout.tsx` 的 `import.meta.env.DEV && <DebugBar />`，`fixed bottom-right md:block`）在 1280×720 遮挡 composer 的 `Review artifact` 按钮，真实 `document.elementFromPoint` 正确命中调试条；生产构建不渲染它（`global-shell-production.test.ts` 断言 count 0）。修复：在该呈现测试导航后用 `addStyleTag` 隐藏 `[data-component="debug-bar"]`（带注释说明 dev-only 原因），未改产品布局。修复后单例 **1 pass / 38.7s**、完整文件 **24/24 pass / 2.0m**、四 project 矩阵（chromium / dark / zh / narrow）**4/4 pass / 40.8/40.2/40.7/39.4s**。
+- **新登记的债务**：非 custom Session 仍会请求 `/session/:id/composition`（真实/夹具均 404），浏览器 console 出现 "Failed to load resource: 404"，每个会话页面多次。它既是既有行为（`bef26213a` 之前就存在），也是 §15.54 修复中「非 custom 保留 suspending 读取以维持 transition 时序」的副作用。Owner：App / Session；Unlock：先修 §13.1 的 timeline 滚动锚点根因，再移除该 suspending 读取与无用请求；不要只在测试里过滤 404。
+- **§7.5 E4（真实后端，本轮实际执行）**：
+  - `work-review-lifeline.spec.ts`：**2 pass + 1 expected skip（双后端 topology 缺席）+ 0 fail / 1.8m**，teardown gate passed（`leakedPorts: []`、`groupAlive: false`、`residue: []`、SIGTERM 报告 clean），`providerRequestCount: 27`。
+  - 默认全量 `test:e2e:real`（12 spec / 36 用例）：**29 pass / 2 fail / 5 skip / 4.1m**，teardown gate passed。两例失败逐条复跑均通过：`assistant-scheduler` **1 pass / 2.2m**（首跑 expected 1 收到 2 次 provider 调用）、`session-files` **3 pass / 1.0m**（首跑 `find/file` 返回 `[]`）→ **属 flaky，不是确定性产品失败**；两次复跑 teardown gate 均 passed。已将两例登记为 E4 flake（见下），不把首跑 2 fail 冒充产品回归，也不把复跑绿冒充全量绿。
+  - V2 变体（`E4_V2_RUNTIME=1`）单独运行：**10 pass / 26 expected skip / 0 fail / 1.4m**，teardown gate passed。该绿只代表既有 V2 现状的独立运行结果；按 §7.5 不以其绿宣称 Custom 完整 provider 正向缺口已修。
+  - 双后端变体（`E4_DUAL_BACKEND=1`，testMatch 5 个 spec）：**12 pass / 4 expected skip / 0 fail / 3.3m**，teardown gate passed（`leakedPorts: []`、`groupAlive: false`、`residue: []`）。4 个 skip 均为 topology guard：`session-identity-consumers` 与 `work-review-lifeline` 各 2 个单后端专属用例（`test.skip(!!e4().peer)`）；双后端专属用例（含 identity 共享 Session 身份、WorkReview stale command、Assistant provider 隔离、session-decision-scope 5 次参数化、manifest 4 例）全部通过。
+- **新登记的 flake（owner：QA / CI；unlock：拿到重复触发条件或稳定化后复查）**：① `assistant-scheduler` 首轮真实后端偶发两次 provider 调用（expected 1）；② `session-files` 首轮 `find/file` 偶发 `[]`（可能存在工作区索引/ripgrep 二进制就绪竞态）。两者在独立复跑均通过，故当前不判为产品缺陷，但不能计入确定性绿。
+- **§7.5 展示矩阵（本轮实际执行）**：计划点名的共享 `agent-interaction-presentation.spec.ts` 并未创建；仓库已有等价契约实现——`e2e/regression/presentation-matrix.spec.ts`（矩阵定义唯一真源 `e2e/presentation-matrix.ts` 的消费方）+ `presentation-tagging.spec.ts`（tag/项目不变式）+ 各 spec 的 `@presentation`/`@a11y` 标签，matrix project 只跑带标签用例。按此等价口径实跑：矩阵契约 **8 pass / 1.6m**（2 用例 × 4 project，断言真实 theme/lang/viewport、五模式可见性与基础键盘焦点）；tagging 契约 **5 pass / 31.5s**；matrix 三 project（dark/zh/narrow）上：`session-tool-row` **3 pass / 49.2s**、`global-shell-presentation` **3 pass / 46.9s**、`assistant-dashboard` **9 pass / 2.3m**、`assistant-session-panel` **6 pass / 1.7m**、`permission-tier` **3 pass / 46.6s**、`mode-slot-fallback-a11y` **47 pass / 1 flaky fail / 3.2m**（`chromium-zh` 的 `Escape follows the breakpoint in both directions @a11y` 首跑失败，随后复跑 zh ×2 + base ×1 **3 pass / 38.7、38.3、37.2s**，判为 flake 并登记）；`work-review-lifecycle` 的 `@presentation @a11y` 四 project **4/4 pass**（§15.56 前段）。合计 **84 pass + 1 flake（复跑绿）**。
+- **新登记的 flake（owner：App / A11y；unlock：复现重复触发条件后修时序）**：`mode-slot-fallback-a11y.spec.ts` 的 `Escape follows the breakpoint in both directions @a11y` 在 `chromium-zh` 偶发「shrinking back must re-arm Escape」失效（期望 0 实得 1），独立复跑三次均通过。
+- **本轮未执行（因此不能宣称 S08-R01 闭环）**：受影响包「全套」测试（core/app/session-ui/aigcfroge 完整文件集；2026-10-18 已补 core/app/session-ui/tui/schema 全量，见 §15.58，aigcfroge 后端完整套件仍未跑）、S08-R04 的 Custom 错误态矩阵与完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列、S08-R05 家族、P3 closed-drawer fixture（已由 §15.43 收口）、P5 外部项。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/`。
+
+### 15.57 2026-10-18 S08 / Assistant panel 加载边界：路由 Suspense 爆炸半径修复（RED→GREEN）
+
+**根因**：TanStack Solid Query 的 `data` 访问器由 `createResource` 支撑（`@tanstack/solid-query/src/useBaseQuery.ts:378-382`，resource 无 initialValue）。某个 Assistant 查询**尚无 data 且正在 fetch** 时打开 drawer，`useQuery().data` 的读取会 suspend；session mode panel 当时没有任何本地 Suspense 边界，suspension 逃逸到 `layout.tsx` 的路由边界，整个 Session 主区被 `surface-pending owner="route"` 替换直到读取完成。先用 `/kb` 与 `/kb/dangling` 两个不同查询确认不是单 fixture 问题。
+
+**RED**：新增 `packages/app/e2e/regression/assistant-session-panel-pending.spec.ts`（gate `GET /kb`、导航树打开 drawer，断言 Session heading 仍可见、无 route fallback、panel 有 slot fallback，释放后 KB tab 显示 note 且共享读取只有 1 次）。未改代码时 **1 fail**：heading 找不到（路由 fallback 已替换主区）。保留 `red-no-boundary.log`。
+
+**方案对冲与取舍**：
+
+- 先试**共享边界**（`session-side-panel.tsx` 的 `modePanel` 统一加 Suspense，对齐 `mode-workspace.tsx` 的 per-slot 边界）：新 E3 通过，但 `assistant-session-panel.spec.ts` 全文件 **13 passed / 3 failed**——整面板挂起导致 tab list/default-tab 注册丢失，错误态用例只看到空 tablist（snapshot 证实）。该方案回退，证据 `attempt1-wide-boundary-*`。
+- 采用**窄边界**：只在 `assistant-session-panel.tsx` 的 `TabsV2` 区域加 `<Suspense fallback={<SurfacePending owner="slot" class="flex-1 py-6" />}>`，保留 `SessionRightPanel` shell 与 default-tab effect 在边界外。复用既有 `SurfacePending`（`owner="slot"`），没有新增 UI 组件或 i18n key。
+
+**实际运行（最终实现）**：新 E3 **1 pass / 34.7s、1 pass / 36.0s**；先失败的 delivery-history 错误态用例单跑 **1 pass / 42.7s**；`assistant-session-panel.spec.ts` 全文件 **16 passed / 2.2m**；closed-drawer 共享 observer **1 pass / 35.9s**；WorkReview presentation **1 pass / 36.7s**；presentation matrix contract（chromium）**2 passed / 45.1s**；受影响单测 **19 pass / 41 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 290 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/panel-boundary-20261018/`。
+
+**未关闭**：
+
+- Chat / Work / Custom 三个 session mode panel 仍无本地 Suspense 边界，同一失败类仍存在。Owner：App / Modes；Unlock：按本切片先例在各自 panel 的**内容区**（不包住 shell/default-tab 注册）加边界，并各补一条 gate 读取的直接 E3。
+- 无 per-panel ErrorBoundary parity（`mode-workspace.tsx` 的 `SlotError`）；session mode panel 的读取拒绝仍可能到达 app 级 boundary。Owner：App / Modes；Unlock：复用 `SlotError` 模式并补拒绝态 E3。
+
+### 15.58 2026-10-18 S08-R01 / 受影响包全线套件实跑（package-wide）
+
+按 R2 §6/§7「仅跑 -g 新用例不足以关闭本阶段」的要求，在 `f2f5e5252` 上用各包自己的 test 脚本跑**完整文件集**（串行、包内运行，未指定单文件/`-g`）。目的有两个：关闭 S08-R01 的「受影响包全套」缺口，并给本会话的生产改动（`63ac91c2d` 的 session-commands 时序修复、`10e830bb9` 的 assistant panel 边界）提供全包检测网。
+
+| 包                   | 命令                                           | 结果                                                                         |
+| -------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| app（单测）          | `bun --cwd packages/app test:unit`             | **1469 pass / 0 fail / 5462 expect / 157 文件 / 98.70s**                     |
+| app（virtualizer）   | `bun --cwd packages/app test:virtualizer`      | **3 pass / 0 fail / 9 expect / 1 文件 / 1.38s**                              |
+| app（e2e contracts） | `bun --cwd packages/app test:e2e:contracts`    | **56 pass / 0 fail / 190 expect / 7 文件 / 2.73s**                           |
+| session-ui           | `bun --cwd packages/session-ui test`           | **121 pass / 0 fail / 263 expect / 19 文件 / 2.06s**                         |
+| tui                  | `bun --cwd packages/tui test --timeout 30000`  | **221 tests / 1 skip / 0 fail / 8 snapshots / 542 expect / 50 文件 / 9.19s** |
+| schema               | `bun --cwd packages/schema test`               | **324 pass / 0 fail / 876 expect / 28 文件 / 0.43s**                         |
+| core                 | `bun --cwd packages/core test --timeout 30000` | **2640 pass / 3 skip / 0 fail / 8127 expect / 295 文件 / 145.24s**           |
+
+合计 **4834 pass / 4 skip / 0 fail / 17587 expect / 557 文件**，所有包 exit0。日志中出现的 WARN/SQLite lock 探测输出是该测试自身的预期打印（例如 `s2-atomic-batch-deadlock-probe` 的 P1–P4 断言与 asset registry 的 invalid-entry WARN），不是失败。4 个 skip 是各包既有的平台/环境守卫用例；因为包脚本使用 `--only-failures`，本 receipt 未逐一枚举 skip 名称——这是记录口径的缺口，不是新增 skip。
+
+- **边界**：`packages/aigcfroge` 后端完整套件（历史 074 组，按既有 receipt 为多轮数小时量级）**未执行**；desktop/storybook 不在「受影响包」内且未跑；本轮不重跑 E4（§15.47/§15.48 已有 receipts，且本轮无后端改动）。因此不能宣称 S08-R01 全量闭环。
+- **owner / unlock（aigcfroge 完整套件）**：QA/CI；unlock 为按既有 backend group 脚本分批执行并保留每批 JUnit/manifest 证据（参见 §15.22–§15.29 的 001–074 组 receipts），不把本轮的 core/app/session-ui/tui/schema 全绿外推到后端包。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/package-wide-20261018/`（各包完整 stdout：`app-unit.log`、`app-virtualizer.log`、`app-contracts.log`、`session-ui-full.log`、`tui-full.log`、`schema-full.log`、`core-full.log`）。
+
+### 15.59 2026-10-18 S08 / Custom snapshot 读取失败：alert + Retry 与呈现矩阵（RED→GREEN）
+
+**背景**：`custom-snapshot-panel.tsx` 对非 404 的 composition 读取失败只渲染一个 danger 行（无 `role="alert"`、无 Retry），与 §15.44–§15.52 已建立的「读取失败 = 本地化 alert + 显式 Retry」策略不一致；「Custom 错误态矩阵」在 §15.55/§15.57 的边界里仍是 open。
+
+- **RED**：在 `custom-snapshot-states.spec.ts` 新增功能 E3（`state.snapshot=500` → 断言 `role=alert` 文案 + Retry → 切 200 → 点击读回 digest），旧代码 **1 fail / 38.6s**（alert not found），receipt `red.log`。
+- **GREEN**：`custom-snapshot-panel.tsx` 解构 `refetch`，错误行加 `role="alert"` + `ButtonV2` Retry（复用既有 `assistant.citation.retry` i18n；无新 key、无新接口/Schema/迁移）。功能 E3 **1 pass / 38.6s**，helper 修正后复跑 **1 pass / 39.5s**。
+- **呈现矩阵（新增 @presentation E3）**：断言真实 theme/lang/viewport、本地化 `custom.snapshot.loadFailed` 文案、390px alert 不溢出、真实 Tab 到 Retry + focus outline、Enter 重试读回 digest。
+  - 首次运行 `chromium-narrow` **1 fail**：不是产品缺陷——narrow 下 mode panel 是 content-panel overlay，shared helper `openSnapshot` 没有打开浮层，panel 处于 hidden；修正 helper：panel 不可见时点击 `#session-mode-panel-toggle` 并断言 `aria-expanded="true"`（用户的 narrow 入口），无产品改动。修正后 narrow **1 pass / 37.6s**。
+  - base / dark / zh 修正后各 **1 pass / 39.2s、37.7s、39.5s**。
+- **相邻回归**：`custom-snapshot-states.spec.ts` 全文件 **15 passed / 1.3m**（13 既有 + 2 新增）；presentation tagging 契约 **5 passed / 34.9s**；`custom-plan-state` 单测 **25 pass / 35 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 90 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。
+- **未关闭**：Upgrade 失败的 rose 错误行仍无 `role="alert"`、也未进入呈现矩阵（现有 Upgrade 用例只验证请求与状态流转）；Custom 的 404-absent 与 pending 已由既有用例覆盖但不属于本呈现矩阵；完整 light/dark/en/zh/narrow/keyboard/reduced-motion 全排列仍未验收。Owner：App / Custom；Unlock：按本切片补 Upgrade 错误态的 alert 语义 + 4-project E3。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/custom-error-20261018/`。
+
+### 15.60 2026-10-18 S08 / Custom Upgrade 失败：alert 语义与呈现矩阵（RED→GREEN）
+
+**背景**：`custom-snapshot-panel.tsx` 的 Upgrade 失败行一直是普通 rose 容器（无 `role="alert"`），且未进入呈现矩阵；§15.59 把它登记为 Custom 错误态矩阵的剩余项。Upgrade 的显式重试路径本身已存在（失败后主按钮重新可用），本次只补 a11y 语义与呈现证据，不新增重试控件。
+
+- **RED**：新增功能 E3（`upgradeStatus=409` → `role="alert"` 显示本地化 busy 文案 → Dismiss 清空 → 主按钮重试成功并跳到 upgraded session）。旧代码 **1 fail / 34.2s**（alert not found），receipt `red-upgrade.log`。
+- **GREEN**：Upgrade 错误容器加 `role="alert"`（1 行产品改动）；功能 E3 **1 pass / 34.2s**。
+- **呈现矩阵（新增 @presentation E3）**：断言真实 theme/lang/viewport、`custom.snapshot.busyError` 本地化文案（en `Session is running, cannot upgrade` / zh `会话正在运行中，无法升级`）、390px alert 不溢出、真实 Tab 到 Dismiss 且 `:focus-visible` + focus ring、Enter 关闭 alert，随后主按钮重试成功跳到 upgraded session。
+  - **保留两次失败**：第一次假设 `upgrade.click()` 后按钮保持 focused，4 project 全 fail；第二次改为 Tab 遍历到达 Dismiss 后仍断言 CSS `outline`，4 project 全 fail——该控件用 `focus-visible:ring-2`（box-shadow）而非 outline。第三次改为断言 `:focus-visible` + `boxShadow !== none`，**4/4 pass / 38.9、43.3、44.8、45.7s**。失败 receipts 均保留。
+- **相邻回归**：`custom-snapshot-states.spec.ts` 全文件 **17 passed / 1.8m**（15 既有 + 2 新增）；presentation tagging **5 passed / 46.0s**；`custom-plan-state` 单测 **25 pass / 35 assertions**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 78 新增行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿。
+- **已收口（2026-10-18，`5c3d5352c`，详见 §15.64）**：非 busy 的 Upgrade 失败改为「本地化前缀 + 原始 detail」（`custom.snapshot.upgradeFailed`），en/zh 两个 locale；Custom 错误态矩阵覆盖 snapshot 读取失败、Upgrade busy 与非 busy 三种状态。完整 light/dark/en/zh/narrow/keyboard/reduced-motion 组合穷举按用户 2026-10-18 决定不做（代表性覆盖已在 §15.61–§15.63 收口）。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/custom-error-20261018/`。
+
+### 15.61 2026-10-18 S08-R04 / 展示矩阵代表面补齐（decision surface + citation overlay）
+
+**范围决策（用户 2026-10-18 确认）**：R04 按「代表性覆盖」验收——每个新增交互面至少一条四 project `@presentation` 用例（真实 theme/lang/viewport + keyboard 抽检），不做状态 × theme × lang × viewport × keyboard × reduced-motion 的组合穷举。下个任务选为补齐矩阵代表面。
+
+- **新增 citation overlay 四 project 用例**（`assistant-citation.spec.ts`，tag `@presentation`）：错误 overlay 本地化文案、390px 不溢出、真实 Tab 到 Retry（`:focus-visible`、outline 或 ring）、Enter 重试读回 note。base **37.9s**、dark **35.9s**、zh **36.2s**、narrow **35.9s**，4/4 pass；全文件 **3 passed / 44.4s**。
+- **新增 decision surface 四 project 用例**（`session-decision-surface.spec.ts`，tag `["@presentation","@localized"]`，复用该 spec 既有的 `@localized` 跳过英文 pin 的约定）：pending question dock 的本地化 Submit、390px dock 不溢出、真实 Tab 到 Submit、Enter 提交并断言 `questionReplies` 的 path/body。base **36.2s**、dark **36.7s**、zh **35.8s**、narrow **37.1s**，4/4 pass；全文件 **21 passed / 1.9m**。
+  - **保留失败**：首次 base 断言 Submit 的 CSS `outline/ring` 失败——该控件是 legacy primary Button（`data-component="button"`），键盘焦点用 tokenized 背景色变化表示，不设置 outline/ring。改为「focus-visible 可达 + 构图背景色在聚焦后变化」后通过；未用程序化 focus 绕过 Tab 顺序。
+- **相邻回归/门禁**：presentation tagging 契约 **5 passed / 32.6s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 107 新增行）、prettier、`git diff --check` 全绿。
+- **R04 代表面现状清单**（供后续补面）：已覆盖 shell/matrix 契约、五模式可见性、global shell、session tool row、WorkReview、assistant dashboard（memory/reminder/session-list）、assistant session panel（KB/delivery）、custom snapshot 读取失败与 Upgrade busy、assistant citation overlay、decision surface。**仍未覆盖的代表面**：S01 session-todo-progress、S04 agent-task-hub / prompt-agent-directory（hub 仅有 untagged narrow 用例）、assistant closed-panel 的呈现维度、以及 reduced-motion 目前只在 WorkReview 用例中覆盖。Owner：S8；Unlock：按同一配方为上述每个面各补一条四 project 用例；不要求组合穷举。
+- **记录其他范围决策**：`packages/aigcfroge` 后端完整套件（074 组）登记为 QA/CI 外部项（沿用历史 receipts，本会话不跑）；Custom Upgrade 非 busy 文案只要 en+zh（`parity.test.ts` 只强制 en↔zh；其余 locale 文件为冻结快照，运行时不再注册），后续补 key 时不要求其他语言。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap-20261018/`。
+
+### 15.62 2026-10-18 S08-R04 / S01 todo-progress 呈现与 reduced-motion 矩阵 + 调试残留清理
+
+按用户 2026-10-18 的 R04 收口决定（**补 todo-progress + agent-task-hub 两个面即视为代表覆盖完成**；closed-panel 呈现维度不列入 R04 收口），本轮补 S01 面并把既有 reduced-motion 用例真正带进矩阵：
+
+- **新增 `session-todo-progress.spec.ts` `@presentation` 用例**：真实 theme/lang/viewport（四 project）、本地化 progressbar aria-label（en `1 of 2 todos completed` / zh `已完成 1 个任务（共 2 个）`）、390px track 不溢出、真实 Tab 到 stats 按钮（`:focus-visible`，取 outline 或 ring）、Enter 打开 fold-over 并断言 2 行 checkbox。结果：base **38.0s**、dark **37.2s**、zh **37.8s**、narrow **37.7s**，**4/4 pass**。
+- **reduced-motion 用例加 `@a11y` 标签**（`stops progress animations when reduced motion is requested`）：该 spec 的 beforeEach 改为对 `@presentation`/`@a11y` 用例保留 project locale；矩阵三 project **dark 39.0s / zh 37.2s / narrow 36.9s，3/3 pass**，使 reduced-motion 从「仅 WorkReview 一处」扩展为 S01 track + WorkReview 两处。
+- **清理调试残留**：清点 agent hub 面时发现 2026-10-18 早前对齐 fixture 的提交（`f104a93d3`）误留下 `HUB404` 响应日志（`page.on("response") console.log`）。本轮删除（单独 commit `158aafaf4`），并把「新增测试辅助日志必须随切片清理」记入交付前检查项。
+- **相邻回归/门禁**：todo 全文件 **17 passed / 1.3m**；agent hub 全文件 **8 passed / 1.0m**；presentation tagging **5 passed / 31.5s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint、prettier、`git diff --check` 全绿。
+- **R04 代表面剩余（按用户收口决定）**：仅 S04 `agent-task-hub` / `prompt-agent-directory`；closed-panel 呈现维度与组合穷举不在收口范围。Owner：S8；Unlock：按同一配方补一个四 project 用例即可判定 R04 代表覆盖完成。
+- **待办决策**：Custom Upgrade 非 busy 文案已获用户确认采用建议的 en/zh 文案（`Could not upgrade this session's composition: {{message}}` / `无法升级该会话的组合：{{message}}`；`parity.test.ts` 只强制 en↔zh，其余 locale 冻结），作为下一小切片的 ready unlock。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap2-20261018/`。
+
+### 15.63 2026-10-18 S08-R04 / S04 hub + agent directory 呈现补齐 → R04 代表覆盖收口
+
+按用户 2026-10-18 的收口标准（todo-progress + agent-task-hub/prompt-agent-directory 补完即判定 R04 代表覆盖完成；组合穷举不做），本轮补 S04 两个面：
+
+- **agent-task-hub `@presentation` 用例**：真实 theme/lang/viewport（四 project）、本地化入口文案（`common.moreOptions` / `session.agentHub.agents`：en `More options`/`My agents`，zh `更多选项`/`我的智能体`）、真实 Tab 到 More options（`:focus-visible`；该 ghost 图标按钮以 tokenized 背景色表达焦点，断言接受 outline/ring/背景变化之一）、Enter 打开菜单、delegation panel 与 card 可见、panel 在 390px 内不溢出且页面无横向滚动。结果：base **36.3s**、dark **36.2s**、zh **36.1s**、narrow **35.1s**，**4/4 pass**；全文件 **9 passed / 1.1m**。首次 base 失败已保留：仍按 outline/ring 断言 icon button 的焦点，实测仅背景色变化，改为真实可观察 affordance 后通过。
+- **prompt-agent-directory `@presentation` 用例**：键盘输入 `@` 打开目录（输入路径真实键盘）、复用既有鼠标选择路径插入一个 agent part、断言 theme/lang/viewport、390px 无横向滚动、选中后 composer 保持 focused。结果：base **34.5s**、dark **34.9s**、zh **35.5s**、narrow **35.6s**，**4/4 pass**；全文件 **8 passed / 59.3s**。
+- **相邻回归/门禁**：presentation tagging **5 passed / 35.0s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（2 文件 / 120 新增行）、prettier、`git diff --check` 全绿。
+- **R04 代表覆盖收口（按用户 2026-10-18 决定）**：已完成 matrix/shell 契约、五模式可见性、global shell、session tool row、WorkReview、assistant dashboard、assistant session panel、custom snapshot/Upgrade 错误态、citation overlay、decision surface、session-todo-progress、agent-task-hub、prompt-agent-directory；reduced-motion 由 todo-progress `@a11y` + WorkReview 覆盖；closed-panel 呈现维度与组合穷举不在收口范围。
+- **仍未关闭（不属于 R04 代表覆盖）**：S08 其他 R 项的残余（如 initial-load scope/empty-response 组合、cross-Session draft breadth、Custom Start cross-Location/V1 revision 领域策略）、§7 的其余 E4 矩阵、S08-R05 家族验证、外部/QA-CI 项（aigcfroge 后端完整套件、Windows/macOS、真实 provider/OAuth、packaged Codex、release/灰度授权），以及已获批但未实现的 Upgrade 非 busy en/zh 文案。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/presentation-gap3-20261018/`。
+
+### 15.64 2026-10-18 S08 / Custom Upgrade 非 busy 失败文案本地化（RED→GREEN）
+
+**背景**：§15.60 的 open 项——非 busy 的 Upgrade 失败（如 HTTP 500）把服务端原始英文 message 直接显示给用户；用户 2026-10-18 已批准建议文案，并确认当前只需 en + zh（`parity.test.ts` 只强制 en↔zh，其余 locale 文件为冻结快照、运行时不注册）。
+
+- **RED**：新增功能 E3（`upgradeStatus=500` → alert 应含本地化前缀 + 原始 detail），旧实现只显示 `Snapshot upgrade failed`，**1 fail / 38.9s**（receipt `red.log`，失败文本与期望差异完整保留）。
+- **GREEN**：新增 `custom.snapshot.upgradeFailed`（en `Could not upgrade this session's composition: {{message}}` / zh `无法升级该会话的组合：{{message}}`，只改 en/zh，未触碰其他 locale）；`custom-snapshot-panel.tsx` 的非 busy catch 改为 `language.t("custom.snapshot.upgradeFailed", { message: msg })`。功能 E3 **1 pass / 38.9s**。
+- **呈现矩阵（新增 @presentation E3）**：断言 en/zh 本地化前缀 + 原始 detail 保留、真实 theme/lang/viewport、390px alert 不溢出。base **39.6s**、dark **37.5s**、zh **39.3s**、narrow **37.1s**，**4/4 pass**。
+- **回归/门禁**：`custom-snapshot-states.spec.ts` 全文件 **19 passed / 1.3m**（17 既有 + 2 新增）；i18n parity 测试 **1 test / 0 fail / 1539 expect**；presentation tagging **5 passed / 31.9s**；App typecheck（含 e2e tsconfig）、`LINT_BASE_REF=HEAD` 增量 lint（4 文件 / 45 新增行）、prettier、`git diff --check` 全绿。
+- **边界**：只本地化非 busy Upgrade 失败的前缀；服务端 detail 保持英文原文（诊断信息，符合既有 `custom.snapshot.loadFailed` 模式）；409 busy 既有本地化文案不变。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/upgrade-copy-20261018/`。
+
+### 15.65 2026-10-18 S08 交付对账（delivery checkpoint）
+
+**范围**：对 `agent-ui-tdd` 分支在 S08 相关的已交付证据、残余 scope 与外部阻塞做一次人工对账，供用户按计划要求批准/拒绝 scope cut；本切片不改产品代码，只做验证与账本。
+
+- **分支/提交（命令生成）**：分支 `agent-ui-tdd`，HEAD `7405d8317`；相对 `main` merge-base `260e8275b` 共 **95 个提交**；本会话（`47602cc18..HEAD`）**27 个提交**（`fix` 8 / `test` 6 / `docs` 11 / `chore` 1，其余为会话前既有）。工作树干净，无监听/残留进程；`main` 工作树只有既有未触碰改动。
+- **证据目录**：`/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/` 共 **17 个证据目录、19MB**（E3 矩阵、E4 四拓扑、包级全套、custom 错误态、citation/closed-panel、panel boundary、delivery-checkpoint 等）。
+- **检查点复跑（HEAD 上）**：app 单测 **1469 pass / 0 fail / 5463 expect / 157 文件 / 90.57s**；app virtualizer **3 pass**；app contracts **56 pass / 190 expect**；presentation matrix contract **2 passed / 45.8s**；presentation tagging **5 passed / 32.1s**；App typecheck（含 e2e tsconfig）exit0；增量 lint 无改动文件；prettier、`git diff --check`、ledger 契约 11 pass 全绿。
+- **本轮会话已交付**（均有 §15.43–§15.64 与证据）：hot timeline 回归根因修复（dev 2/2 + prod cold/hot/flash）；E4 lifeline **2 pass + 1 expected skip**、默认链 **29 pass / 2 flake(复跑绿) / 5 skip**、V2 **10 pass**、双后端 **12 pass**（teardown gate 全部 passed）；包级全套 **4834 pass / 4 platform skip / 0 fail / 557 文件**；R04 代表覆盖按用户标准收口（matrix/shell、五模式、tool row、WorkReview、dashboard/panel、Custom 错误态、citation、decision、todo、hub、directory；reduced-motion 两处）；citation 直接 E3；closed-drawer 共享 observer；Assistant panel 加载边界；Custom snapshot/Upgrade 错误态 alert+Retry+en/zh 文案；agent hub fixture 对齐与调试残留清理。
+- **用户已明确的范围决定**：R04 采用代表性覆盖、不做组合穷举；closed-panel 呈现维度不列入 R04 收口；`packages/aigcfroge` 后端完整套件为 QA/CI 外部项；Custom 文案只要求 en+zh（`parity.test.ts` 只强制 en↔zh）；所有提交本地、未 push/PR。
+- **残余 scope（S08 内、可继续做）**：① initial-load scope/empty-response 呈现组合；② cross-Session draft breadth（composer draft 已复验，其余 draft 面未覆盖）；③ Custom Start cross-Location completion policy 与 V1 snapshot revision resolution（领域/产品决策）；④ §7 的其余 E4 矩阵（desktop/packaged 等）；⑤ S08-R05 家族验证清单（Task 事件、Question/Permission owner、TUI 投影、生成 SDK 同版本可用性）；⑥ `session-hidden-mode-effects` 剩余组合。以上均需继续投入，部分（③）需产品确认。
+- **外部/QA-CI 残余（无法在本会话闭环）**：`aigcfroge` 后端完整套件；`windows-tui-config-tests`、`windows-worktree-fsmonitor`、真实 packaged Codex/Windows-macOS 打包签名；`sdk-sse-generator-template-maintenance`；`gitlab-duo-placeholder-tests`；`llm-native-openai-recording`；`cli-request-error-correlation`；`cli-renderer-native-crash`；`filesystem-fff-process-isolation`；`assistant-native-provider-coverage`、`assistant-reminder-provider-lifeline`；真实外部 provider/OAuth；release/灰度授权。owner/unlock 均在 manifest 中。
+- **结论口径**：本轮**不能宣称 S08 全量闭环**。按计划「未获批准不能缩减完成定义」，是否把上述残余视为本轮接受的余量、并入 S09 交付检查，需要用户明确批准；本切片只提供对账事实与建议。
+
+### 15.66 2026-10-18 S08-R05 / 规范事件、owner、TUI 与生成 SDK 同版本验证清单
+
+按用户 2026-10-18 的决定（先补 in-scope 证据再收口），本条把 `AI-TDD-S08-R05` 的断言逐项对上证据/命令，尽量只用同版本或 source-identical receipt，不重复跑无谓测试：
+
+| R05 断言                                   | 证据                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 规范 Task 事件单一来源                     | `packages/core/src/session/task.ts:92` 是 `task.updated` 唯一 producer；`packages/app/src/context/global-sync/event-reducer.ts:237` 是 App 唯一 reducer case；E3 todo-progress **17 pass / 1.3m**、agent hub **9 pass / 1.1m** 覆盖事件驱动渲染与写回                                                                                                 |
+| HTTP Task 合同                             | `httpapi-session.test.ts` **39 pass / 202 assertions**（含 Task 路由；§15.56 receipt，`packages/aigcfroge` 源码自该 receipt 后未变，见下）                                                                                                                                                                                                            |
+| 当前问题/权限 owner                        | `httpapi-decision-ownership.test.ts` **8 pass / 51 assertions**（同 source-identical 口径）；E3 decision surface **21 pass / 1.9m**（spec 自 9d2279ed9 后未变）；core full 内 permission/question/tool-question 等套件通过                                                                                                                            |
+| TUI 投影与生成 SDK 同版本                  | `bun --cwd packages/tui typecheck` **exit 0**；`bun --cwd packages/tui test` **221 tests / 1 skip / 0 fail / 8 snapshots / 542 expect / 50 文件 / 8.76s**；TUI 源码直接 import `@aigcfroge/sdk/v2` 生成类型                                                                                                                                           |
+| 生成 SDK 同版本可用                        | `bun run script/check-openapi-drift.ts` → **OpenAPI snapshot is up to date / exit 0**；`bun --cwd packages/sdk/js typecheck` **exit 0**                                                                                                                                                                                                               |
+| 已退休旧格式不再处理                       | 代码审计：无 `todo.updated`/`session/todo`/`TodoDock`/`session.plan` 生产残留（仅保留 `session.todo.list` 等展示 i18n 文案），无 alias/redirect/fallback 端点                                                                                                                                                                                         |
+| 无第二 ToolRegistry / 不重写 provider 循环 | merge-base `260e8275b` 上已存在 legacy `packages/aigcfroge/src/tool/registry.ts` 与 V2 `packages/core/src/tool/registry.ts`（**非本轮创建**）；本分支对二者/provider runner 是净删除（`aigcfroge/tool/registry.ts` −6 行、`core/session/runner/llm.ts` −10 行、`processor.ts` 4 行改动），未新增 registry 或 provider loop；`task.updated` 仍单一来源 |
+
+- **source-identical 复用口径（命令核对）**：`git diff --stat 7d694abf9..HEAD -- packages/core packages/aigcfroge packages/tui packages/schema packages/session-ui` 为空 → §15.58 的 core **2640 pass / 3 skip**、session-ui **121 pass**、schema **324 pass**、tui **221/1 skip** 与 §15.56 的 API receipts 对当前 HEAD 仍成立；App 包在交付检查点（§15.65）已按当前 HEAD 重跑 **1469 pass / 0 fail / 5463 expect**。
+- **同 HEAD 新增复跑**：OpenAPI drift、SDK typecheck、TUI typecheck、TUI 全量（见上表）。
+- **边界**：本条是**验证清单**，不是新的产品行为；不覆盖 initial-load scope/empty-response 组合、cross-Session draft breadth、Custom Start cross-Location/V1 revision 领域策略与其余 E4 矩阵——这些仍按用户决定继续补。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/r05-inventory-20261018/`。
+
+### 15.67 2026-10-18 S08 / initial-load 与 empty-response 极性组合（Assistant panel + Custom absent）
+
+按用户「先补 in-scope 证据」决定，本轮补最容易误判的三类极性：**初始 pending 不等于空、空结果不等于错误、404 absent 不等于读失败**。
+
+- **新增 `assistant-session-panel.spec.ts` 三条**：
+  1. `successful empty knowledge-base list stays empty, not an error`：`/kb` 返回 200 `[]` → 空态文案可见、无 `role=alert`（**1 pass / 39.8s**）。
+  2. `initial pending KB list shows loading, not empty and not an error`：用后注册的 route 持有 `/kb`，打开 KB tab 时断言 **无 route 级 `surface-pending`**、panel 可见、只有 slot 级 fallback、无空态文案、无 alert；释放后 KB tab 出现并显示空态（**1 pass / 39.5s**）。该用例同时锁住 §15.57 的 panel 边界在“初始 pending”组合下的行为。
+  3. `successful empty delivery history stays empty, not an error`：`/delivery/:id` 返回 200 `[]` → 空历史文案可见、无 alert（**1 pass / 38.0s**）。
+- **新增 `custom-snapshot-states.spec.ts` 一条**：`an absent snapshot is not a read failure, and Upgrade stays disabled`：404 absent → `role=alert` count 0、Upgrade 禁用（与 400/500/malformed 的错误态形成极性对照）（**1 pass / 39.2s**）。
+- **回归/门禁**：`assistant-session-panel.spec.ts` 全文件 **19 passed / 2.4m**；`custom-snapshot-states.spec.ts` 全文件 **20 passed / 1.4m**；presentation tagging **5 passed / 31.0s**；App typecheck（含 e2e tsconfig）exit0；增量 lint 修正一次新增用例的 unused `testInfo` 参数后通过（2 文件 / 113 新增行）；prettier、`git diff --check` 全绿。
+- **边界**：覆盖 Assistant panel 的 KB/delivery 与 Custom absent；**dashboard memory/reminders 的空态极性、cross-Session draft breadth、Custom Start cross-Location/V1 revision 领域策略、§7 剩余 E4 矩阵**仍未覆盖，继续按用户决定补。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/polarity-20261018/`。
+
+### 15.68 2026-10-18 S08 / dashboard initial-load 与 empty-response 极性（reminders / memory / KB）
+
+按用户「先补 in-scope 证据」决定，补齐 §15.67 留下的 dashboard 空态极性。新增 `assistant-dashboard.spec.ts` 独立 describe（180s 预算）4 条 E3：
+
+1. **空 reminder 列表不是错误**：`/schedule/pending` 200 `[]` → 空文案可见、无 `role=alert`（**1 pass / 37.1s**）。
+2. **初始 pending reminder 只等待、不空也不报错**：后注册 route 持有 `/schedule/pending` → 断言 **slot 级** loading 面（`[data-surface-pending="slot"]`，mode-workspace 的 per-slot 边界）出现、空文案 count 0、无 alert；释放后 dashboard heading 与空文案出现、无 alert（**1 pass / 38.8s**）。观察：gated 读取期间 shell 保持挂载，assistant mode slot 显示 loading（本次采样 2 个 slot pending），不是 route 级整页 blanking——属既有边界设计，不登记为缺陷。
+3. **空 memory 列表不是错误**：`/memory` 200 `[]` → 无 alert、`Personal memory` section 不渲染（**1 pass / 41.8s**）。
+4. **空 KB 列表不是错误**：`/kb` 200 `[]` → 空文案可见、无 alert（**1 pass / 38.7s**）。
+
+- **保留失败**：初始 pending 用例迭代 4 次才通过——① 首版断言 heading 可见（gated 时应为 loading 面）→ fail；② 改断言 route 级 `surface-pending`（实际是 slot 级）→ fail；③ 编辑时误删 `page.goto` 导致 poll 超时 → fail；④ 恢复 goto 并断言 slot 级 loading 后通过。四份失败 receipt 均保留。
+- **回归/门禁**：dashboard 全文件 **21 passed / 2.7m**（17 既有 + 4 新增）；presentation tagging **5 passed / 34.7s**；App typecheck（含 e2e tsconfig）exit0；增量 lint（1 文件 / 73 新增行）、prettier、`git diff --check` 全绿。
+- **残余 in-scope**：cross-Session draft breadth、§7 剩余可跑 E4、Custom Start cross-Location / V1 revision 领域策略（需产品确认）；外部/QA-CI 项不变。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/polarity-dashboard-20261018/`。
+
+### 15.69 2026-10-18 S08 / cross-Session draft breadth 清点（含 note editor 行为探针与 followup queue 退役发现）
+
+按用户「先补 in-scope 证据」决定，清点剩余 draft 面并区分「已有覆盖 / 需产品决策 / 已退役」：
+
+1. **Composer prompt + attachment draft**：已有 E3 `composer-submit.spec.ts`「recovers an unsubmitted draft and attachment without leaking either into another session」——跨 Session 不泄漏、回到原 Session 保留；本轮不重复改动。
+2. **Custom builder draft**：`custom-builder-states.spec.ts` 的「Recalculate retains the Builder」「switching projects retains the Builder and waits for the new draft's plan」以及 `custom-draft.test.ts` 单测覆盖 draft 按项目/草稿保留；custom draft 是 tab/project 作用域，不是 per-Session，因此无新增 cross-Session 用例。
+3. **Assistant note editor 未保存草稿（探针）**：临时 E3（两 assistant Session，A 打开 KB note editor 并输入未保存文本 → 切到 B → 切回 A，记录值与会话写请求；探针已从仓库移除，receipt 保留）得到：切到 B 时 **B 的 editor 显示其自身持久化内容（`Persisted probe body`），未泄漏 A 的未保存文本**；切回 A 时 editor 再次显示持久化内容（**未保存文本被丢弃**）；整个过程 **0 条 PATCH/PUT/POST 写请求**（没有静默保存）。即「隔离 + 不静默提交」已成立；**是否要求跨 Session 保留未保存草稿是产品语义，待用户确认**。
+4. **Followup queue drafts（发现，未关闭）**：`settings.tsx` 把 `general.followup` 的 `"queue"` 在读取与写入两端都强制映射为 `"steer"`（`withFallback(<queue ? steer>)`、`setFollowup(queue→steer)`），而 `session.tsx` 的 `queueEnabled` 仅当 `settings.general.followup() === "queue"` 时才为真 → **新建队列 follow-up 的 UI 路径不可达**；`SessionFollowupDock` 只在持久化 store 仍有旧 queued items 时渲染（legacy 读取）。全仓无 followup 相关 E2E。Owner：App/Composer；Unlock：确认旧持久化队列数据的迁移/丢弃策略后，删除 `SessionFollowupDock`/`queueFollowup`/`editingFollowup` 死路或明确保留为 legacy 只读，并补一条极性测试。
+
+- **本轮不改产品代码**；两个待决问题将按用户回答在后续切片处理。证据（探针日志与结果 JSON）在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/draft-inventory-20261018/`。
+
+### 15.70 2026-10-18 S08 / 两个 draft 语义问题的中间契约（待用户确认，未改代码）
+
+§15.69 清点出的两个产品语义问题在询问时被中断；为不阻塞进度，按“不臆定、不改代码、不删代码”的风险最小口径先登记中间契约，待用户确认后再落实现：
+
+1. **Assistant note editor 未保存草稿**：现行行为 = 不跨 Session 泄漏、不静默保存、切走即丢弃（§15.69 探针）。中间契约按“接受丢弃”记录，但**未新增任何行为断言测试**（避免把未确认语义写成验收），owner App/Assistant；unlock：用户确认保留语义后，再决定是否补「跨 Session 保留」实现与 E3。
+2. **Followup queue 退役路径**：settings 两端强制 queue→steer，queue UI 对新输入不可达，`SessionFollowupDock` 仅为 legacy 读取。中间契约 = **保留 legacy 只读、不删除**，owner App/Composer；unlock：确认旧持久化 queued 数据的迁移/丢弃策略后，再删除 `SessionFollowupDock`/`queueFollowup`/`editingFollowup` 死路并调整引用。
+
+- 本切片不动产品/测试代码，只登记语义与 unlock；证据见 §15.69。
+
+### 15.71 2026-10-18 S08 / E4 `E4_CUSTOM_MODE=1` 真实后端拓扑（新增配置）
+
+§7.5 命令矩阵此前已跑 lifeline / 默认链 / V2 / 双后端，但 `E4_CUSTOM_MODE=1`（真实后端启用 Custom runtime、预置 `.aigcfroge/agents` custom-runtime agent）**从未单独跑过**。本轮补跑：
+
+- **命令**：`E4_CUSTOM_MODE=1 bun --cwd packages/app test:e2e --config=e2e/real/playwright.config.ts --project=chromium-real`，隔离 `E4_RUN_DIR=/tmp/aigcfroge-e4-custom-203047`；runtime manifest 记录 `customMode: true`、`v2Runtime: false`、`backendVersion: local`。
+- **结果**：**30 passed / 2 failed / 4 skipped / 4.3m**；teardown gate **passed**（`leakedPorts: []`、`groupAlive: false`、`residue: []`、`forcedKill: false`）。两条失败与此前默认链的 flaky 对完全一致：`assistant-scheduler.spec.ts`（new chat first send…persist across reload）与 `session-files.spec.ts`（searches, reads, and isolates files）。
+- **flaky 归因**：自定义模式单独复跑上述两条 → scheduler **1 passed / 2.2m**、session-files **3 passed / 1.1m**，teardown gate 均 passed。与 §15.58 默认链的「29 pass / 2 flake（复跑绿）」同源，判定为已知 flaky 对，**不是 Custom mode 回归**；无确定性失败。
+- **仍未覆盖的组合拓扑**（登记 manifest，owner S8/S10）：`E4_CUSTOM_MODE=1` 与 `E4_V2_RUNTIME=1` 同时开启、`E4_CUSTOM_MODE=1` 与 `E4_DUAL_BACKEND=1` 同时开启；单独 V2 / 单独 dual 已分别在 §15.56 取证。默认链的 `--repeat-each=2` 亦未在 Custom 模式复跑。
+- §7.5 命令矩阵现状：lifeline ✅、默认链 ✅、V2 ✅、**Custom ✅（本条）**、双后端 ✅；presentation 代表覆盖已按用户决定收口，组合穷举不做。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/e4-custom-mode-20261018/`（含 manifest、teardown gate、两条 rerun 日志）。
+
+### 15.72 2026-10-18 S08 / E4 组合拓扑（custom+V2、custom+dual、V2+dual、triple）与 decision-scope 的 V2 guard
+
+§15.71 后继续补组合拓扑；第一轮把 `E4_CUSTOM_MODE` 与 `E4_V2_RUNTIME`/`E4_DUAL_BACKEND` 叠加，结果按拓扑拆开：
+
+| 拓扑                               | 结果                                                                                |
+| ---------------------------------- | ----------------------------------------------------------------------------------- |
+| A. `CUSTOM+V2` 全链                | **11 passed / 25 skipped / 0 failed / 1.9m**，teardown gate passed                  |
+| B. `CUSTOM+V2+DUAL`（首跑）        | **4 passed / 5 failed / 7 skipped / 2.6m**，gate passed                             |
+| C. `CUSTOM+DUAL`（无 V2）          | **12 passed / 4 skipped / 0 failed / 3.4m**，gate passed（与 §15.56 dual 基线一致） |
+| D. `V2+DUAL`（无 custom）          | **4 passed / 5 failed / 7 skipped / 2.6m**，gate passed                             |
+| E. `V2+DUAL`（加 guard 后）        | **4 passed / 12 skipped / 0 failed / 1.1m**，gate passed                            |
+| F. `CUSTOM+V2+DUAL`（加 guard 后） | **4 passed / 12 skipped / 0 failed / 58.7s**，gate passed                           |
+
+- **B/D 的 5 条失败全部相同**：`session-decision-scope.spec.ts` 的 `admit()`（spec:56）轮询 `questions/permissions` 数量期望 1、实得 0（15s 超时），分布在 R06 abort 与 R03 scope 用例。C 为绿证明 **Custom mode 不参与该失败**；D 无 custom 仍复现，**归因 V2 runtime**。
+- **根因**：该 spec 用默认后端的 isolated E4 decision tool 建立 waiting question/permission；V2 runtime 不挂载该 tool 链。兄弟矩阵 spec 已有 guard（`session-identity-consumers.spec.ts:27`、`work-review-lifeline.spec.ts:39` 的 `test.skip(() => e4().v2Runtime, …)`），仅 decision-scope 缺 guard。按 reuse-first 复用同一 guard 模式新增 `b0c1554e5`，E/F 变为 0 failed（skip 计入 12）。
+- **边界（不许含糊）**：guard 只是**不把未支持组合当回归**，不代表 V2 下 dual decision 有正证据；该正证据登记为残余（owner S8/S10；unlock：在 V2 runtime 下补一套 dual decision 正向执行证据，或明确该组合不受支持）。Custom-mode 的 `--repeat-each=2` 亦未跑。
+- **门禁**：App typecheck（含 e2e tsconfig）exit0；增量 lint（1 文件 / 5 行）、prettier、`git diff --check`、ledger 契约 11 pass 全绿；所有 E4 run 的 teardown gate passed（ports free/group gone/workspace clean/backend local/report clean）。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/e4-combined-20261018/`（各拓扑日志、manifest、teardown gate）。
+
+### 15.73 2026-10-18 S08 本地收口决定与接受余量清单（用户批准）
+
+按用户 2026-10-18 对三项清单的明确答复，S08 的**本地可跑证据部分据此收口**；这不是 S08 全量闭环，产品语义、残余验证与外部/QA-CI 项按下表登记为接受余量。清单由 `packages/app/e2e/coverage-manifest.json`（25 条 deferred）与 §15.40–§15.72 的 receipt 生成，不是手写。
+
+**A. 产品语义 3 项 —— 用户选择「接受为余量」**
+
+1. **Assistant note editor 未保存草稿**：接受现行契约（不跨 Session 泄漏、不静默保存、切走丢弃；§15.69 探针）。未写成行为断言，避免把未定产品语义固化为验收。Owner：App/Assistant；Unlock：产品确认需要保留后，新增按 Session 的 draft 存储 + 恢复/清理语义 + E3。
+2. **Followup queue 退役路径**：接受「保留 legacy 只读、不删除」的中间契约（settings 两端把 queue 映射为 steer，`SessionFollowupDock` 仅读旧持久化数据；§15.69）。Owner：App/Composer；Unlock：确认旧 queued 数据的迁移/丢弃策略后，再删除 `SessionFollowupDock`/`queueFollowup`/`editingFollowup` 死路并调整引用。
+3. **Custom Start cross-Location 完成策略 / V1 snapshot revision 领域规则**：接受为需产品口径的余量；未臆定规则、未加行为断言。Owner：Custom/Product；Unlock：Owner 给出跨 Location completion 与 V1 revision 解析口径后，实现 + E3/E4。
+
+**B. 残余验证 2 项 —— 用户选择「跑 repeat-each，V2 证据登记」**
+
+1. **V2 runtime 下 dual decision 正向执行证据**：接受为余量。当前只有 `b0c1554e5` 的 V2 guard（不再把未支持组合当回归），**没有** V2 dual decision 正证据。Owner：S8/S10；Unlock：为 V2 runtime 设计并执行一套 dual decision 正向矩阵，或明确该组合不受支持。
+2. **Custom-mode E4 `--repeat-each=2`**：本轮执行（结果见 §15.74）。
+
+**C. 外部/QA-CI —— 用户确认「全部为外部余量」**
+aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windows-tui-config-tests`、`windows-worktree-fsmonitor`；真实 provider/OAuth（`assistant-native-provider-coverage`、`assistant-reminder-provider-lifeline`）；packaged Codex；`sdk-sse-generator-template-maintenance`；`gitlab-duo-placeholder-tests`；`llm-native-openai-recording`；`cli-request-error-correlation`、`cli-renderer-native-crash`；`filesystem-fff-process-isolation`；release/灰度授权。owner/unlock 均在 manifest 对应条目，本收口不包含。
+
+**结论口径**：S08 本地证据（R01 包级/API/E3/E4、R02 直接测试与错误态/极性、R03 四拓扑 + 组合拓扑 + V2 guard、R04 代表覆盖、R05 验证清单、R06 有限 Flash 路径）按用户决定收口；上述 A/B/C 为接受余量或外部项，**不得表述为已闭环**。S09 本地交付包待本条落账后开始。
+
+### 15.74 2026-10-18 S08 / Custom-mode E4 `--repeat-each=2` 结果与归因（repeat 安全性缺口，非产品回归）
+
+用户决定「跑 repeat-each，V2 证据登记」后的执行结果：
+
+- **全链**：`E4_CUSTOM_MODE=1` + `--repeat-each=2`（72 次执行）→ **60 passed / 4 failed / 8 skipped / 7.1m**，teardown gate passed。4 条失败全部是已知 flaky 对：`assistant-scheduler.spec.ts` 与 `session-files.spec.ts` 各失败两次。
+- **失败迭代归因（命令证据）**：全部失败目录都带 `-repeat1` 后缀（`results` 中 5 个 repeat1 目录；pair 复跑中 scheduler 1 failed 也只在 `-repeat1`，session-files 同）。**repeat0 全部通过**，即失败只出现在同一 run dir 的第二轮。
+- **单独复跑 pair（仍 `--repeat-each=2`）**：scheduler **1 passed / 1 failed / 2.6m**；session-files **5 passed / 1 failed / 1.0m**；两次 teardown gate passed。scheduler 失败断言 `Expected 1, Received 4`（cumulative deliveries = 两轮各 2），session-files 失败为 workspace 内容断言（repeat0 遗留状态）；与「共享 run dir 的 backend DB/workspace 被两轮复用」一致。
+- **结论**：这是 **E4 状态型 spec 的 repeat 安全性缺口**（同一 orchestrator run dir 的 DB/workspace 跨 repeat 复用，而 spec 假设 fresh delivery/workspace），**不是 Custom mode 回归、也不是新增产品缺陷**；默认链 non-repeat 下的偶发 flaky（§15.58/§15.71）是另一层时序问题。两者都需在 spec 侧处理。
+- **登记**：owner S8/S10；unlock：给 `assistant-scheduler` 与 `session-files` 增加 per-repeat 状态隔离（fresh deliveries/workspace 或 spec 级 reset），之后重跑 `--repeat-each=2` 期望 72/0，再作为门禁。**不得把本条写成 repeat-each 通过。**
+- **V2 dual decision 正向证据**：按用户决定登记为接受余量（§15.73 B1），本条不补。
+- 证据在 `/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s08-r01-umbrella-20261018/e4-custom-repeat-20261018/`（全链日志、pair 复跑日志、manifest、teardown gate、repeat1 失败目录）。
+
+### 15.75 2026-10-18 实施计划任务闭环对账（S00–S09 / X01–X05）
+
+按用户要求，对照 `docs/plan/agent-interaction-ui-tdd-implementation.md` 的 §1.3 三档完成口径与 §6 施工卡、§8 发布前清单、§9 外部边界，做一次全局对账。**结论先行：计划任务未全部闭环；切片实现与 S08 本地证据大多完成，但批次验收记录、S08 的少量产品残项、S09 全部发布门禁与最终 diff 审批仍未闭环。**
+
+#### 切片级状态
+
+| 切片                            | 当前状态                                                            | 证据/缺口                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S00 基线/执行契约               | **闭环（基线档）**                                                  | `docs/review/agent-interaction-ui-s00-baseline-2026-09-30.json`、approval/evidence 文档（main worktree）；分支 `agent-ui-tdd` 基于冻结 main `260e8275b`、隔离 worktree，见 §15.4/15.5/15.7。计划审批≠代码验收。                                                                                                                                                                                                                                                                                                                                                       |
+| S01 Task 单契约                 | **实现/测试完成；批次验收未记录**                                   | §15.56 实跑（core/app/session-ui/tui + `httpapi-session` 39 pass + todo E3）；§15.66 审计：`task.updated` 单一 producer/reducer、无 legacy todo 端点、无第二 ToolRegistry/provider loop。§15.4/15.5 的 B2 批次审查未签放行记录；B1 逐 R 验收表未单列。                                                                                                                                                                                                                                                                                                                |
+| S02 待决选择/草稿/焦点          | **实现/测试完成；批次验收未记录**                                   | `session-request-tree` / composer 单测、`session-decision-surface` E3 **21 pass**（+四 project 呈现 4/4）；B2 批次待审查（§15.4/15.5）。B2 开放项（冷启动归因、首次文本时延、Task dev/HMR 等）已归 S08/S09 owner。                                                                                                                                                                                                                                                                                                                                                    |
+| S03 回复路由/授权               | **实现/测试完成；批次验收未记录**                                   | §5 已闭环表 2026-10-03 条目（S03 R01/R02）；`httpapi-decision-ownership` **8 pass**、core question/permission suites；B2 批次待审查。                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| S04 @目录/Hub                   | **实现/测试完成；待用户验收**                                       | §15.6「B3 实现与限定验证完成，待用户验收」；`prompt-agent-directory` 全文件 8 pass、`agent-task-hub` 9 pass、两 spec `@presentation` 4/4（§15.63）。                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| S05 Icon/ToolRow/历史           | **实现/测试完成；待用户验收；R07 广度仅代表性**                     | §15.6 B3；`session-tool-row` 36 pass、presentation 3/3、mode-slot a11y 47 pass（1 zh flake 复跑绿）；R07 的“缩放/更广 reduced-motion”未全排列（reduced-motion 仅 WorkReview + todo track 两处），zoom 未跑。                                                                                                                                                                                                                                                                                                                                                          |
+| S06 WorkReview producer/API/SDK | **实现/测试完成；人工审查未记录；2 项 B4 残债开放**                 | §15.7/15.8（HTTP 30 pass、SDK/OpenAPI drift、core service/persistence）；残债 `B4-SESSION-READ`（通用 Session 读取错误契约）与 `B4-WIDE-EFFECT`（完整 advisory effect 矩阵）仍开放。                                                                                                                                                                                                                                                                                                                                                                                  |
+| S07 WorkReview UI/E4            | **实现/测试完成；批次验收未记录**                                   | §15.9/15.10/§15.56：E3 `work-review-lifecycle` 24/24 与 B5 23/23；E4 lifeline **2 pass + 1 expected skip**、reload/restart-backend 真实链；B5 批次审查未记录放行。                                                                                                                                                                                                                                                                                                                                                                                                    |
+| S08 五模式/跨层                 | **用户批准本地证据收口（§15.73），但仍有 3 类未列入批准清单的残项** | R01 ✅（包级 4834 pass/557 文件、API、E3、E4 四拓扑+组合拓扑+展示代表）；R03 ✅（dual/triple/scope；V2 dual 正证据登记）；R04 ✅ 代表覆盖（用户批准）；R05 ✅ 验证清单；R02 ✅ 大部分（错误态/极性/panel 边界/custom 错误态/citation/closed-drawer）但 **Chat/Work/Custom panel 无本地 Suspense 边界 + 无 per-panel ErrorBoundary parity（§15.57 open）**、**非 custom composition 404 suspending 读取副作用（§15.56 debt）** 未在 §15.73 批准清单内；R06 ⚠️ 真实外部 provider 仅一次限定 Flash 正向回合，**Custom/V2 完整 provider 正向 E4 仍不能宣布完成（X01）**。 |
+| S09 清理/性能/灰度/交付         | **未闭环**                                                          | 清理：TodoDock 已无残留，followup queue 死路为已接受残余；性能：cold/hot/flash 描述性样本均通过（§15.54），**统计性无回归裁决仍开放**（owner S09/Performance）；桌面包/IPC：Linux x64 packaged smoke 曾通过，**Windows/macOS 与 packaged Codex 外部**；SDK/OpenAPI drift ✅；恢复演练 §15.53 ✅；**最终 diff 未获批**；CI/灰度/远端/发布未授权。                                                                                                                                                                                                                      |
+
+#### §8 发布前清单（11 条）实测判定
+
+- ✅ 已有证据：1（S00 基线）、4（WorkReview 真实 producer/读回/SDK/UI/E4）、5（生产 BasicTool 入口 + ToolRow E3）、6（API/V2 SDK drift up to date）、7（teardown gate 全部 passed、无残留进程/端口）、8（before/after 同口径描述性基准）、9 的 TUI 部分（221 tests 保留）、10（未交付项已登记 manifest 25 条 + 本节）、回退/恢复（§15.53）。
+- ⚠️ 部分：2（S01–S07 的逐 R 有效 RED→GREEN 记录分散在 B1–B5，**没有一张对账表可一键核验**；§15.56 只证明命令实跑）、9 的 desktop 部分（仅 Linux x64 代表性 smoke，跨平台外部）。
+- ❌ 未满足：11 的**最终 diff 获批**；12 的 push/PR/发布授权；S09 统计性能裁决。
+
+#### 外部边界 X01–X05
+
+- **X01 V2/Custom 执行缺口**：运行时多段已修复（frozen child、同 child 采用、存储快照、denied redispatch、rejected message ID 恢复、capabilities、共享权限排序/background jobs/admission），manifest 剩余为完整 E4/包/平台/CI 矩阵（owner S9C）；**Custom 完整 provider 正向 E4 仍不能宣布**，真实外部 provider 仅有限 Flash 回合。**未列入 §15.73 的 A/B/C 批准清单**。
+- X02 E4 环境广度：本地已覆盖全面，平台/IDE/真实服务外部（QA/CI）。
+- X03 当前调用链原子切换：Task 家族已切换、无 adapter/fallback；本计划内相关合同已直接升级。
+- X04 原生竞品 Map/图形拓扑、X05 全域审批与自动恢复：明确不做/外部 PRD，保持不实现。
+
+#### 结论
+
+计划**未全部闭环**。按计划自己的口径：S00 基线闭环；S01–S07 切片实现与证据基本完成但批次验收/放行记录缺失；S08 仅“本地证据部分”按用户批准收口且仍有未批准的 R02/R06 残项；S09 与最终交付门禁未完成。任何“本期完整交付/全部闭环”的表述都不成立。建议下一步二选一（待用户决定）：① 补齐 S08 三项未批准残项（panel 边界/ErrorBoundary parity 可先测后修，composition 404 需先评估 suspending 读取时序；X01 需 S9C 授权与真实环境）；② 承认上述残项登记，进入 S09 本地交付包（生成逐 R 对账表 + 最终 diff/证据清单 + PR 描述草稿，仍不 push）。
+
+### 15.76 2026-10-18 S08 残项最终处理：用户确认全部接受为登记余量（S08 本地收口最终化）
+
+用户 2026-10-18 对上轮对账（§15.75）中「未列入批准清单」的 SaaS 残项作出决定：**全部接受为登记余量**，并指示下一步进入 S09。据此：
+
+- **接受为余量（不再继续修，保留 owner/unlock）**：
+  1. Chat/Work/Custom 三个 session mode panel 仍无本地 Suspense 边界（§15.57；同失败类在 Assistant 已修，其余面板未修）；
+  2. 无 per-panel ErrorBoundary parity（`mode-workspace.tsx` 的 `SlotError` 未在 session mode panel 复用）；
+  3. 非 custom Session 仍会请求 `/session/:id/composition`（404）且保留 suspending 读取（§15.56 debt）；
+  4. S08-R06 / X01 的 Custom/V2 完整 provider 正向 E4 仍未取得（真实外部 provider 仅一次限定 Flash 正向回合；V2 runtime 下 dual decision 仅 guard、无正证据）。
+- **口径**：接受为余量 ≠ 已修复。§15.73 的 A/B/C + 本条的 1–4 共同构成 S08 的**用户批准收口范围**；S08 仍不能表述为“全量闭环”，但本地证据部分已按用户批准最终收口。manifest 对应条目（`agent-interaction-s08-full-matrix`、`session-hidden-mode-effects`、`v2-runtime-execution-gap`）已同步追加接受记录。
+- 下一步按用户指示进入 S09 本地交付包（§15.77）。
+
+### 15.77 2026-10-18 S09 / 本地交付包（PR stack + 证据索引，未 push/PR）
+
+按用户指示进入 S09，并先了解仓库 Git 工作流与 PR 约定，再在**不 push、不建 PR**的前提下生成本地交付包：
+
+- **Git 事实（命令生成）**：仓库 `origin` = `keerzzz/AigcForge`（PR 目标），`upstream` = `anomalyco/opencode`（fork 父仓，非 PR 目标）；冻结基线 `260e8275b` 是 `origin/main`（`d5376379f`）的祖先，**origin/main 领先 2 个提交**；分支 `agent-ui-tdd` 线性（0 merge commits）、相对冻结基线 107 commits（记录本包后 108）、487 文件 / +46,715 / −99,149。本地 `main` worktree 有未推送提交与 dirty/untracked 文档，不纳入交付。
+- **PR 约定（已核对）**：CONTRIBUTING 要求 **issue-first**（`Closes #`）、PR 标题 conventional（`feat|fix|docs|chore|refactor|test` + 可选 scope）、模板必填（类型/变更/验证/截图/清单）、禁止长 AI 生成描述墙、UI 变更需截图/录屏、PR 尽量小而聚焦；`pr-standards.yml` 会打 `needs:title`/`needs:issue`；CI 由 `ci.yml`（lint + turbo typecheck + turbo test + OpenAPI drift）与 `test.yml`（linux/windows 单测、e2e、HttpApi coverage/auth）+ storybook/pr-standards 组成；E4 **不在 PR 必跑集合**；`.husky/pre-push` 跑 `bun typecheck`。
+- **交付包内容**（`/home/keer/.codex/artifacts/aigcfroge-remaining-20261011/s09-delivery-20261018/`）：`README.md`、`commits.txt`、`diffstat.txt`、`changed-files.tsv`、`pr-stack-stats.txt`、`pr-stack.md`、`pr-drafts.md`、`gates.md`、`risks.md`、`evidence-index.md`、`head.txt` 与 gate 日志（含一次 format 命令因含已删除文件 exit2 的失败收据与修正后的通过收据）。
+- **PR stack 建议（按计划批次）**：①`260e8275b..c0426b444` B1+B2（S01–S03，247 文件）；②`c0426b444..70aa2ecec` B3（S04–S05，41 文件）；③`70aa2ecec..173eddb4f` B4（S06，54 文件）；④`173eddb4f..a8d2490a1` B5（S07，68 文件）；⑤`a8d2490a1..HEAD` B6（S08/S09，104 commits，190 文件，35 test / 34 docs / 33 fix / 1 chore）。**不自动拆分**：squash 批次内无内部提交边界，进一步拆分需显式重建提交而非切范围。
+- **本轮新跑门禁（HEAD `7bfedb98b`）**：App typecheck（含 e2e tsconfig）exit0；`LINT_BASE_REF=260e8275b` 增量 lint exit0（413 文件 / 46,715 新增行）；`git diff --check` exit0；修正后的格式检查 exit0（444 个仍存在的改动文件）；ledger 契约 11 pass；**未跑**全仓 `bun turbo typecheck`/`bun turbo test`/全量 lint/CI e2e/Windows/macOS/packaged/real provider（原因与归属见 `gates.md`）。
+- **风险（详见 `risks.md`）**：分支落后 origin/main 2 提交且 `#127` 与 agent/history 面相交，需 rebase/merge 后重跑门禁；无 linked issue；无 UI 截图/录屏；PR 体量大但按批次交审；本地 main 不得作为 PR 基础。
+- **授权状态**：全部提交仍为本地，**未 push、未建 PR、未发布/灰度**；S09 退出要求“最终 diff 获批 + 用户授权 commit/push/PR”，当前在等待用户审阅。下一步只能：用户审阅 diff/证据 → 批准后再执行 rebase、建 issue、push/PR（或继续本地补证）。
+
+### 15.78 2026-10-19 S09 审批修复与远端交付（进行中）
+
+- **授权续接**：原聊天 `01a14f34-2ae1-74c0-aadc-7d01947c88b9` 的目标已更新为：审批修复通过后提交 PR、跟进修复至合并、同步本地 main、按 Git 工作流发布桌面端。此前 §15.77 的“等待授权”是历史状态。
+- **审批问题**：F01 App/TUI Shell 发送器与 canonical 历史投影；F02 中断分类；F03 TUI Task GET/SSE 时序；F04 `todowrite` 历史行；F05 legacy 错误详情；F06 CLI canonical Task 格式化。修复复用现有 admission、ToolPart、TaskWriteTool 和 hydration tracker，不新增存储或平行接口。
+- **R06 更正**：§15.1 的 App 证据不能代替 TUI。TUI 现有消息回读 tracker 纳入 Task 事件；空快照也是更新，失败 GET 保留重试，bootstrap/卸载使旧回读失效，旧请求清理不得删除新 tracker。
+- **测试夹具修正**：TUI Shell 补齐真实 `/config/providers` 合同；TUI hydration 使用现行 `/task` 路由，移除过时 `/todo` 夹具。最初超时不记作有效 RED；修正后取得实际断言失败。CLI 数组预期修正为完整快照，避免以错误 fixture 限制实现。
+- **证据**：`/home/keer/.codex/artifacts/agent-ui-tdd-remediation-20261019/` 保存每批命令、退出码和原始日志。旧审批与本轮 RED 保留。最终汇总由 `gates.jsonl` 生成，不以历史通过替代修复后执行。
+- **开放交付项**：浏览器/E4 与生产性能复测（Owner：App/QA；unlock：当前修复的真实执行结果）；main 冲突集成与 CI（Owner：当前交付；unlock：修复提交与远端检查）；本地 main 保全同步（Owner：当前交付；unlock：远端合并且原本地提交/文档有可恢复副本）；桌面多平台发布（Owner：Release CI；unlock：合并后 CI 与签名/产物校验通过）。§15.73/§15.76 接受的余量不因本轮局部通过而改写为已完成。
+
+### 15.79 2026-10-19 修复后集成验证
+
+- **main 集成**：`193100965` 保存六项修复；`6fd1cbc72` 合入 main 的本机 CLI 发现与 typed Location 404。Codex SDK 保留本分支的惰性初始化、统一超时取消和持久 thread ID 行为；真实 SDK 显式使用本机 CLI 路径。组合 Core 回归 48 pass；SDK 重新生成和 PublicApi/SDK/drift 同进程回归 46 pass。
+- **Shell 提交后草稿保护**：复查确认 TUI 等待 Shell admission 时的新编辑会被旧成功回调清空。隔离用例取得 `next command → 空字符串` 的有效 RED，修复复用现有 prompt/history owner，只有草稿与提交快照相同才清空。之前两次夹具超时单独保留，不当作产品 RED。
+- **浏览器证据**：完整工具历史 E3 首轮 39 pass / 1 fail；失败是新用例错误要求 Running 行可展开，与既有合同不符。更正为 Ended 后展开，受影响用例及 light/dark/zh/narrow 展示补测 6 pass。E4 Assistant Shell 与 legacy history/reload/测试后端重启 2 pass，清理门禁通过。[截图说明](evidence/agent-ui-tdd/README.md) 区分 E3 fixture 与真实后端链路。
+- **生产性能观察**：下表由四轮原始 BENCHMARK 数据生成。固定 CPU ×6、24 deltas、320 历史轮、无 CPU profiler；旧/新 dist 已冻结。首轮 12%–24% 变慢未在后续直接对照中一致复现；最后一对流式完成差约 2.9%，long-task 总时长 2351→2366ms。每轮均完成 3 场景，无行替换、底部漂移或丢失 deltas。有限样本不支持统计性等效保证。
+
+| 场景（ms）           | 原基线 | 修复后首轮 | 旧构建对照 | 新构建对照 |
+| -------------------- | -----: | ---------: | ---------: | ---------: |
+| 冷切换稳定时间中位数 |  249.4 |      309.7 |      330.2 |      233.3 |
+| 热切换稳定时间中位数 |  216.9 |      243.0 |      234.2 |      210.9 |
+| 流式完成时间         | 3105.1 |     3697.6 |     3142.8 |     3234.1 |
+
+- **本地门禁**：App 1484 unit + 3 virtualizer + 56 E2E contracts、TUI 230 pass / 1 既有 skip；全仓 lint（含格式、增量与未等待断言检查）和 16 个 typecheck 任务全部退出 0。HTTP coverage 登记 335 场景、306 operation，auth 335 pass，均无 missing/skip。HTTP exerciser 仅改写配置文件末尾换行，已恢复预运行原字节。完整后端功能套件与跨平台结果仍由必需远端 CI 验证，不以 coverage/auth 代替。原始结果见同目录 `gates.jsonl`。
+- **交付状态**：远端合并、本地 main 保全同步、版本 PR 与六平台签名发布继续由当前交付负责人跟进；未有产物证据前不记为已发布。§15.73/§15.76 的已接受余量保持原义。
+
+### 15.80 2026-10-19 PR #129 Windows 生命周期夹具计时
+
+- **来源**：PR #129 首轮 `unit (windows)`（run `39196273799`）中 Core 的 4 个 deadline 生命周期用例超时；普通 failure 用例通过。后端复用同一夹具，也出现相同超时，随后整个 Turbo 批次因 Core 失败退出。
+- **共享边界**：`packages/core/test/lib/effect-lifecycle.ts` 为 Core、后端 isolated/shared helper 生成隔离子进程。Bun 1.3.14 的 `BunTest.updateMinTimeout`（上游 `src/test_runner/bun_test.zig:573`）只将内部 deadline 插入 timer heap；Windows `Timer.All.ensureUVTimer`（上游 `src/runtime/timer/Timer.zig:125`）仅在 `active_timer_count > 0` 时保持 libuv timer 引用。只有未完成 Deferred 的子进程没有应用计时器，CI 现象与该引用缺口一致。
+- **处理**：夹具持有一个 real interval，并在 `afterAll` 清理；断言仍要求 Bun 自身触发 50ms deadline、完成原 scope finalizer、恢复 Custom flag，并保留 cleanup defect。没有增加被测截止时间，也没有替换生产或测试 helper 的取消逻辑。当前 Linux Core 5 个、后端 isolated/shared 10 个场景通过；Windows 结果等待新一轮 CI。
+- **技术债 — Owner: test infrastructure。** 该保活只服务于固定 Bun 版本的隔离 deadline 测试。解锁条件：升级后的 Bun 在 Windows 上无需应用 timer 也能执行这些 deadline/finalizer 用例，再删除保活并通过 Core 与后端两种 helper 的真实 Windows 回归。Windows 修复尚未取得新 CI 结果前不得记为已验证。
+
+### 15.81 2026-10-19 PR #129 E2E 夹具与平台校准
+
+首轮 Windows E2E 为 **18 fail / 452 pass**；Linux 首轮在取消前也出现同类错误，不能记为完整结果。本轮按共同边界修复测试，未改生产 Session/timeline 代码。
+
+- **已接受的 composition 404 保持真实**：`useSessionSnapshotCommands`（`packages/app/src/utils/session-commands.ts:36`）仍读取非 Custom 快照，服务端 `composition`（`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:1158`）对不存在快照返回 typed 404。这是 §15.56/§15.76 的接受余量，不在本轮宣称修复。`trackPageErrors`（`packages/app/e2e/utils/errors.ts:9`）只把调用方明确列出的完整 URL + 精确 404 网络错误记为 `[expected-browser-error]`，逐条保留到日志；未知 Session、不同目录、500、应用错误仍失败。真实浏览器反例同时验证这四个边界及 typed 404 body。原 Agent Hub 的 `200 {}` 覆盖已删除。
+- **Custom 正常场景补齐快照**：共享 mock 允许按 Session ID 提供类型化 composition；未提供的快照继续返回原 typed 404。Workflow Custom 用例提供有效 V2 快照，Work 用例保留已知快照缺失。没有将所有未匹配请求改成成功响应。
+- **项目规模种子一致**：Location 匹配由共享 mock 的最长 worktree 前缀规则（`packages/app/e2e/utils/mock-server.ts:191`）决定。规模用例复用既有 `projects` 配置，从同一 registry entries 生成项目列表；不放宽未知目录保护。0、50、500、2000 项均完成渲染和交互，page/console errors 均为 0。
+- **资产往返测真实导航**：原 `page.goto` 执行两次完整文档加载；现在点击 `ModeSwitcher` 的模式按钮，并验证同一 document 节点仍在。资源 owner 是 `ModeWorkspace`（`packages/app/src/pages/mode-workspace.tsx:74`）下的 `ChatAssetsProvider`，其 active 输入冻结规则在 `packages/app/src/components/chat/chat-assets.tsx:100`。保持既有最多七次重读的接受界限，没有抬高请求预算或新增缓存。
+- **真实缩放按本机内容区校准**：Windows 首轮实测 712 CSS px，原断言硬编码 Linux 的 720。复用持久 Chromium profile，从 hostless `about:blank` 记录未缩放窗口；`expectPageZoom`（`packages/app/e2e/zoom/fixtures.ts:110`）验证同一外部窗口、内容区宽高比例、DPR 倍率与 `visualViewport.scale=1`。独立 clean-profile 对照、200% 重排和 Work/Assistant 面板可达性继续执行，没有改用 viewport/CDP 缩放模拟。
+
+**本地独立批次（均 exit 0）**：委派/Workflow/资产 12 pass；Task/历史分页/缩放/投影及错误反例 12 pass；项目规模/Agent Hub 5 pass；独立真实缩放 2 pass；App E2E contracts 56 pass / 190 assertions；App typecheck 通过。最初定位 404 的单例为 1 fail，单独记账，不与修复后通过数相加。证据在 `/home/keer/.codex/artifacts/agent-ui-tdd-remediation-20261019/` 的 `ci-e2e-*.log`、`ci-native-zoom-evidence/` 和 `gates.jsonl`。
+
+**仍开放 — Owner: CI / 当前交付。** Windows 校准与 §15.80 的真实 Windows 生命周期验证仍以最新提交的 CI 为准；必需检查、PR 合并、main 保全同步和六平台实际发布尚未完成。解锁条件：对应最新 SHA 的检查及发布产物证据，不以这些 Linux 本地通过替代。§15.73/§15.76 接受余量以及外部模型、OAuth、安装/升级/迁移实机边界保持原义。
+
+### 15.82 2026-10-19 PR #129 恢复 E4 执行
+
+- **用户要求**：恢复 PR 中的 E4。删除 `test.yml` 的非 PR 限制，复用既有 default / V2 / Custom 三段串行 job；不改重试、超时、隔离后端或 provider 合同。`docs/testing.md` 同步现行正向 runtime 验证边界；§15.77 的旧 PR 集合描述仅为当时快照。
+- **仍开放 — Owner: CI / 当前交付。** 最新提交必须实际运行并通过 `e4 (linux)` 才可合并本 PR；解锁条件为同一 SHA 的 default、V2、Custom 三段结果及 teardown/manifest 证据。恢复调度本身不等于 E4 已通过，也不自动改变远端 branch protection。§15.73/§15.76 接受余量及外部模型、OAuth、安装/升级/迁移边界保持原义。
+
+### 15.83 2026-10-19 PR #129 E4 顺序与异步边界修复
+
+- **首轮真实结果**：恢复后的 `e4 (linux)`（run `39200817932`，HEAD `7829f592d`）default 为 30 pass / 2 fail / 5 条件 skip，teardown 通过；default 失败使 V2 / Custom 步骤未执行。此轮不是 E4 全绿。
+- **提醒请求归属**：`providerRequests`（`packages/app/e2e/real/orchestrator.ts:110`）属于整个 run。失败 trace 中第一条 completion 来自前一个历史回放用例（带 `history-completed-call` / `history-pending-call`），第二条才是 `reminder-confirm`。提醒用例现在记录开始前的 completion 数，只断言本用例增量为 1；工具回执与附件也只读取该增量窗口，并核对 confirmation 场景。
+- **文件索引可见性**：`FileSystemSearch.fffLayer`（`packages/core/src/filesystem/search.ts:129`）由 native index 读取搜索结果，文件写入与索引可见不是同步合同。CI 目录布局的本地 trace 记录 `/find/file` 先返回 `[]`，128ms 后返回 `["files/alpha.md"]`。用例在原 15s assertion 预算内轮询精确相对路径，保留响应数组、读取内容、二进制、路径越界和 typed 404 验证。
+- **提醒等待截止点**：`SchedulerCore.daemon`（`packages/core/src/session/schedule-core.ts:99`）每分钟重新 arm 后 tick。提醒设在约 45s 后，旧的 70s 轮询从确认后开始，可能早于到期后的下一次 tick。改为固定截止 `dueAt + 70s`，该用例总预算为 180s，覆盖未来到期、一个 daemon 周期及 UI/read/reload。修复后实际投递在创建后 84,926ms、到期后 41,803ms，完成状态与唯一 delivery 均经真实 API 验证；没有更改生产调度、插入 delivery 或启动测试 daemon。
+- **本地结果**：原顺序复现为 5 pass / 1 fail；计数修复后又暴露投递等待不足，为 5 pass / 1 fail；修正截止后，同一 history → reminder → files 批次 6 pass，teardown 通过。失败与后续通过独立保存在 `gates.jsonl`，不相加。
+- **串行 variant 的测试发现**：首次本地 V2 完整补验在收集阶段失败：上一段 `run-evidence` 中缓存的 Effect 仓库 `.test.ts` 被当成 E4 源码加载。配置现在排除生成的 `run-evidence` / `test-results` / `playwright-report` 目录，保留现有 default 和 dual 的用例集合。新增回归在三个目录放入一旦导入即抛错的 spec，用真实 Playwright `--list` 验证 single / dual 都不会导入它们；配置契约 7 pass。最初命令路径未匹配和隔离临时目录权限错误均保留为失败收据，不算产品 RED。
+- **仍开放 — Owner: CI / 当前交付。** V2 / Custom 补验、最新提交完整 CI、PR 合并、main 保全同步与实际桌面发布仍按真实终态解锁。§15.73/§15.76 接受余量保持原义。
+
+### 15.84 2026-10-19 PR #129 必需检查回归（CLI legacy todo 历史）与 E4 复跑
+
+- **来源**：PR #129 HEAD `7829f592d` 的三个必需检查 `Lint, Test, and Typecheck`、`unit (linux)`、`unit (windows)` 因同一用例失败：`packages/aigcfroge/test/cli/run/scrollback.surface.test.ts:432` 期望 `[✓] List files under run/`，实际只输出 `# Todos`。该测试相对 `origin/main` 未改动，失败属于产品回归而非过时夹具。
+- **根因**：分支把 `todowrite` 输入从 `todos` 改为 canonical `tasks`（`packages/aigcfroge/src/tool/todo.ts`），CLI 渲染层只读 `metadata.tasks ?? input.tasks`；历史 part 仍携带 `todos`，所以历史 todo 行渲染为空，与 PR 描述的历史只读快照不符。
+- **修复**：`packages/aigcfroge/src/cli/cmd/run/tool.ts` 新增局部 `todoRows`，按 `metadata.tasks` → `input.tasks` → `metadata.todos` → `input.todos` 取首个存在的数组（空数组同样是权威快照），用于内联详情、结构化快照与 rollup 三处。无并行实现、无 type escape；回归保留 canonical 空快照压制 legacy 行的语义（`test/cli/run/task-formatter.test.ts` 10 pass；`scrollback.surface.test.ts` 17 pass）。
+- **证据边界**：`packages/app/e2e/tsconfig.json` 现排除 `run-evidence` / `test-results` / `playwright-report`，避免本地生成证据被当作 e2e 源码编译（此前本地 E4 后 App typecheck 假红；CI 独立 checkout 不受影响）。
+- **本地门禁**：上述两测试文件 0 fail；`bun --cwd packages/aigcfroge typecheck` 与 `bun --cwd packages/app typecheck` exit 0；`LINT_BASE_REF=origin/main bun run script/lint-changed.ts` 428 文件通过；SDK 重新生成后 `git diff --exit-code -- packages/sdk packages/sdk/js/src` exit 0。
+- **E4 复跑**：以 CI 命令按 default → V2 → Custom 串行复跑：default `32 pass / 5 skip / 0 fail`（6.4m）、V2 `10 pass / 27 skip / 0 fail`（1.6m）、Custom `1 pass / 1 skip / 0 fail`（1.3m），三段 teardown gate 均通过；`session-files` 索引轮询与 `assistant-scheduler` 提醒/请求归属修复均通过。首轮复跑曾在 “Add project” 目录选择器因本地残留 `run-evidence/*/workspace` 造成 basename 歧义而 strict-mode 失败（31 pass / 1 fail）；该歧义来自本地历史证据目录，CI 全新 checkout 每阶段只有一个 workspace，且 V2/Custom 阶段不运行该用例，故保留为本地夹具脆弱性，不改选择器合同。
+- **仍开放 — Owner: CI / 当前交付。** 上述结果为本地隔离复跑，不等于远端已通过；最新 SHA 的完整 CI（含 `unit (windows)` 与三段 E4）仍需真实结果，合并后 main 保全同步与实际桌面发布继续按终态解锁。§15.82/§15.83 的开放项与 §15.73/§15.76 接受余量保持原义。
+
+## 16. 本机 CLI 发现与惰性初始化验证边界（2026-09-29）
 
 来源：`local-cli-discovery` 续办与 `CLAUDE.md` 复审。以下实机验证不能由单元测试、临时 Node bundle 或拦截接口响应的浏览器用例替代。
 
@@ -402,8 +1880,10 @@ Phase B 的 placement 维度与 MCP 命名/冲突 owner 已交付，两项 P1（
 - **真实认证 CLI 执行与恢复 — Owner: core / QA。** 回归覆盖惰性工厂、初始化失败、SDK 流错误、超时取消与外部会话 ID 保留，但未调用已登录的真实 Codex/Claude 执行模型任务。解锁条件：在授权的测试账号和隔离工作区验证首次执行、外部会话续接及失败后恢复；不得用模拟 SDK 或路径检测结果宣称认证/版本兼容性已通过。自动安装和登录检测仍是本功能明确的非目标。
 - **CLI 设置页真实中文与窄屏视觉覆盖 — Owner: app / QA。** 浏览器回归已执行基础与深色配置；但 `chromium-zh` 与 settings 的 `chromium-narrow` 结果不能作为中文/窄屏证明：`pinEnglishUI`（`packages/app/e2e/utils/locale.ts:13`）强制写入英文，`pinDesktopViewport`（`packages/app/e2e/utils/viewport.ts:13`）强制设为 1280×720。personas 的独立 390×844 用例只证明设置入口和标签键盘操作，不覆盖 CLI 清单的中文长文案与路径布局。解锁条件：增加不覆盖目标 locale/viewport 的 CLI presentation 用例，先断言实际语言与视口，再验证中文、长路径换行、加载/空/错误态和刷新操作。
 
-## 14. OpenAPI 组件 schema 跨测试文件污染（2026-09-30）
+## 17. OpenAPI 组件 schema 跨测试文件污染（2026-09-30）
 
 来源：`local-cli-discovery` 分支给 `InstanceContextMiddleware` 加 `error: ApiNotFoundError` 后的提交前复审。触发条件：`bun --cwd packages/aigcfroge test test/server/httpapi-public-openapi.test.ts test/server/openapi-drift.test.ts`（两个文件在同一 `bun test` 进程内一起跑）。
 
 - **`PublicApi`（`packages/aigcfroge/src/server/routes/instance/httpapi/public.ts`）与 `Api`（`packages/server/src/api.ts` → `openapi()`）通过 `effect/unstable/httpapi` 的 `OpenApi.fromApi` 共享同一个全局组件 schema 注册表 — Owner: aigcfroge / server。** `httpapi-public-openapi.test.ts` 先导入并调用 `OpenApi.fromApi(PublicApi)`，这会把 `installation.update-available`/`installation.updated` 等事件 schema（`EventInstallationUpdate-available`、`EventInstallationUpdated`、`V2EventInstallationUpdate-available`、`V2EventInstallationUpdated`）注册进共享的 `effect/unstable/httpapi` schema 缓存；随后同进程内的 `openapi-drift.test.ts` 调用 `server/server.ts` 的 `openapi()` 构建独立的 `Api` spec 时，这些泄漏的 schema 一并混入其 `components.schemas` 与相关事件联合类型的 `anyOf`，导致其与已提交的 `packages/aigcfroge/test/server/openapi.snapshot.json` 产生 262 行差异，`OpenAPI contract > matches the checked-in snapshot` 失败。单独运行任一文件、或调换两者的导入顺序后先跑 `openapi-drift.test.ts` 均不复现；已用 `git stash` 对照 `main`（无本次改动）验证同样复现，确认是既有缺陷，与 `InstanceContextMiddleware`/`LocationMiddleware` 的本次改动无关。**未闭环：** 尚未定位 `effect/unstable/httpapi` 侧具体的全局可变状态（怀疑是 `OpenApi.annotations`/`Schema` 装饰在模块级完成、多次 `OpenApi.fromApi` 调用间未隔离）；也未评估是否需要在 vendor 的 `effect` 依赖之外自行加隔离，还是等上游修复。解锁条件：定位污染点后，要么给两个 API 的 schema 命名空间加前缀隔离，要么在 `bunfig.toml`/CI 里把这两个测试文件强制拆到不同的 `bun test` 进程（`--isolate` 未必覆盖模块级单例，需先验证），并补一条"两个 OpenApi 测试文件同进程运行不冲突"的回归用例。
+
+**集成状态（2026-10-19）**：§17 保留 main 的历史诊断；本分支已把 drift 与 SDK 统一到 `packages/script/src/openapi.ts` 的独立 CLI 生成边界，快照使用 `packages/sdk/openapi.json`。合并后生成器与同进程 public-contract/SDK/drift 回归已经通过（46 pass，原始日志见 §15.79）；旧的第二份 snapshot 保持删除。此结论证明当前生成边界隔离有效，不宣称已经修复上游 Effect 全局状态。

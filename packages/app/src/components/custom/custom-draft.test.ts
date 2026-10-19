@@ -1,11 +1,133 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import { createStore } from "solid-js/store"
+import { createMemo, createRoot } from "solid-js"
 import {
   createCustomDraftState,
   createCustomDraftStore,
+  DEFAULT_DRAFT,
   toCompositionInput,
   type CustomDraftState,
 } from "@/context/custom-draft"
 import { Digest, Revision, type Snapshot } from "@aigcfroge/schema/composition"
+
+const pristine = structuredClone(DEFAULT_DRAFT)
+
+describe("custom-draft ownership", () => {
+  // Restore the exported seed between RED cases: the ownership bug itself mutates
+  // it, and one failing case must not determine another case's starting data.
+  beforeEach(() => Object.assign(DEFAULT_DRAFT, structuredClone(pristine)))
+  afterEach(() => Object.assign(DEFAULT_DRAFT, structuredClone(pristine)))
+
+  test("a captured composition keeps its requested capabilities after later edits", () => {
+    const draft = createCustomDraftState()
+    const captured = draft.composition
+    draft.toggleCapability("tools")
+    expect(captured).toMatchObject({ requestedCapabilities: [] })
+    const enabled = draft.composition
+    draft.toggleCapability("tools")
+    expect(enabled).toMatchObject({ requestedCapabilities: ["tools"] })
+    expect(draft.composition).toMatchObject({ requestedCapabilities: [] })
+  })
+
+  test("a composition memo advances when capabilities are added and removed", () => {
+    createRoot((dispose) => {
+      try {
+        const draft = createCustomDraftState()
+        const input = createMemo(() => draft.composition)
+        const initial = input()
+        draft.toggleCapability("tools")
+        const enabled = input()
+        expect(enabled).not.toBe(initial)
+        expect(enabled).toMatchObject({ requestedCapabilities: ["tools"] })
+        draft.toggleCapability("tools")
+        expect(input()).not.toBe(enabled)
+        expect(input()).toMatchObject({ requestedCapabilities: [] })
+      } finally {
+        dispose()
+      }
+    })
+  })
+
+  test("fresh stores keep nested selections independent", () => {
+    const first = createCustomDraftState()
+    const second = createCustomDraftState()
+    first.addAgent({ kind: "agent", relativePath: "first.md", revision: "first" })
+    first.togglePrompt("orchestrator", { kind: "prompt", relativePath: "first-prompt.md", revision: "first" })
+    first.toggleSkill("orchestrator", { kind: "skill", relativePath: "first-skill", revision: "first" })
+    first.toggleCommand("orchestrator", { kind: "command", relativePath: "first-command.md", revision: "first" })
+    first.toggleCapability("first-capability")
+
+    expect(second.state).toEqual(pristine)
+    expect(createCustomDraftState().state).toEqual(pristine)
+  })
+
+  test("editing a fresh store leaves the default seed unchanged", () => {
+    const store = createCustomDraftState()
+    store.addAgent({ kind: "agent", relativePath: "default-agent.md", revision: "default" })
+    store.togglePrompt("orchestrator", { kind: "prompt", relativePath: "default-prompt.md", revision: "default" })
+    store.toggleCapability("default-capability")
+
+    expect(DEFAULT_DRAFT).toEqual(pristine)
+  })
+
+  test("owns nonempty initial values without changing the caller or sibling store", () => {
+    const initial: CustomDraftState = {
+      ...pristine,
+      agents: [{ kind: "agent", relativePath: "seed.md", revision: "seed" }],
+      workflow: { kind: "workflow", relativePath: "seed.yaml", revision: "seed" },
+      bindings: {
+        orchestrator: {
+          prompts: [{ kind: "prompt", relativePath: "seed-prompt.md", revision: "seed" }],
+          skills: [{ kind: "skill", relativePath: "seed-skill", revision: "seed" }],
+          commands: [{ kind: "command", relativePath: "seed-command.md", revision: "seed" }],
+        },
+      },
+      requestedCapabilities: ["seed-capability"],
+    }
+    const expected = structuredClone(initial)
+    const [reactive] = createStore(initial)
+    const first = createCustomDraftState(reactive)
+    const second = createCustomDraftState(initial)
+    first.addAgent({ kind: "agent", relativePath: "added.md", revision: "added" })
+    first.togglePrompt("orchestrator", { kind: "prompt", relativePath: "added-prompt.md", revision: "added" })
+    first.toggleSkill("orchestrator", { kind: "skill", relativePath: "added-skill", revision: "added" })
+    first.toggleCommand("orchestrator", { kind: "command", relativePath: "added-command.md", revision: "added" })
+    first.toggleCapability("added-capability")
+
+    expect(initial).toEqual(expected)
+    expect(second.state).toEqual(expected)
+  })
+
+  test("preserves a supplied store and its external setter", () => {
+    const [state, setState] = createStore(structuredClone(pristine))
+    const draft = createCustomDraftState(pristine, [state, setState])
+    expect(draft.state).toBe(state)
+    draft.setTitle("draft change")
+    expect(state.title).toBe("draft change")
+    setState("title", "external change")
+    expect(draft.state.title).toBe("external change")
+    draft.reset()
+    expect(state).toEqual(pristine)
+  })
+
+  test("reset clears every nested selection and does not attach the default seed", () => {
+    const store = createCustomDraftState()
+    store.addAgent({ kind: "agent", relativePath: "before-reset.md", revision: "before" })
+    store.togglePrompt("orchestrator", { kind: "prompt", relativePath: "before-reset.md", revision: "before" })
+    store.toggleCapability("before-reset")
+    store.reset()
+    expect(store.state).toEqual(pristine)
+
+    const sibling = createCustomDraftState()
+    store.addAgent({ kind: "agent", relativePath: "after-reset.md", revision: "after" })
+    store.toggleCommand("orchestrator", { kind: "command", relativePath: "after-reset.md", revision: "after" })
+    store.toggleCapability("after-reset")
+    expect(sibling.state).toEqual(pristine)
+    expect(DEFAULT_DRAFT).toEqual(pristine)
+    store.reset()
+    expect(store.state).toEqual(pristine)
+  })
+})
 
 describe("custom-draft store", () => {
   test("initializes with default state", () => {
@@ -366,10 +488,9 @@ describe("createCustomDraftStore", () => {
   test("returns an independent store per call, with no instance cache", () => {
     // The module-level `sharedStores` map is gone: the Custom Sidebar and Main share a
     // store because `ModeWorkspace` owns one Provider above both slots, not because a
-    // global map hands them the same object. Pinned here because the cache was also
-    // what made an inline `value={createCustomDraftStore(...)}` look harmless — see
-    // `CustomDraftScope`. Only the unresolved-Location path is reachable from a unit
-    // test; the persisted path needs `usePlatform()`.
+    // global map hands them the same object. Location changes replace the store
+    // through the Provider's memo; context/custom-draft.test.ts covers that owner
+    // and the persisted path under the real PlatformProvider.
     const first = createCustomDraftStore(undefined)
     const second = createCustomDraftStore(undefined)
 

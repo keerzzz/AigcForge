@@ -573,6 +573,7 @@ describe.serial("Phase 3: Codex Participant & External CLI Binding", () => {
     Effect.gen(function* () {
       expect(DelegationReview.copyable("no_change", "approved")).toBe(true)
       const permission = PermissionV2.Service.of({
+        grant: () => Effect.die("unused grant operation"),
         effectiveRules: () => Effect.succeed([]),
         ask: () => Effect.succeed({ id: PermissionV2.ID.create(), effect: "deny" }),
         assert: () => Effect.fail(new PermissionV2.DeniedError({ rules: [] })),

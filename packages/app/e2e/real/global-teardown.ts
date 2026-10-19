@@ -105,6 +105,7 @@ export default async function globalTeardown() {
       ["provider", manifest.providerPort],
       ["backend", manifest.backendPort],
       ["preview", manifest.previewPort],
+      ...(manifest.peer === undefined ? [] : [["peer", manifest.peer.backendPort] as const]),
     ] as const) {
       if (await portInUse(port)) leakedPorts.push(`${name}:${port}`)
     }
@@ -125,9 +126,14 @@ export default async function globalTeardown() {
   // Workspace residue: the backend may create its own `.aigcfroge` state dir in
   // the project; anything else in the temp workspace is unexpected.
   const allowed = new Set([".git", ".aigcfroge"])
-  const residue = existsSync(manifest.workspaceDir)
-    ? readdirSync(manifest.workspaceDir).filter((entry) => !allowed.has(entry))
-    : []
+  const workspaces = [manifest.workspaceDir, ...(manifest.peer === undefined ? [] : [manifest.peer.workspaceDir])]
+  const residue = workspaces.flatMap((workspace) =>
+    existsSync(workspace)
+      ? readdirSync(workspace)
+          .filter((entry) => !allowed.has(entry))
+          .map((entry) => path.join(workspace, entry))
+      : [],
+  )
 
   const problems: Array<string> = []
   if (leakedPorts.length > 0) problems.push(`ports still listening: ${leakedPorts.join(", ")}`)

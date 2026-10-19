@@ -124,6 +124,7 @@ const executions: string[] = []
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    grant: () => Effect.die("unused grant operation"),
     effectiveRules: () => Effect.succeed([]),
     assert: () => Effect.die("unused"),
     ask: () => Effect.die("unused"),
@@ -428,11 +429,11 @@ const setup = Effect.gen(function* () {
   yield* insertSession(sessionID)
 })
 
-const providerUnavailable = () =>
+const providerUnavailable = (message = "Provider unavailable") =>
   new LLMError({
     module: "test",
     method: "stream",
-    reason: new TransportReason({ message: "Provider unavailable" }),
+    reason: new TransportReason({ message }),
   })
 
 const setupOverflowRecovery = Effect.gen(function* () {
@@ -590,26 +591,60 @@ const verifyEphemeralDeltas = (kind: FragmentKind) =>
     expect(yield* session.context(sessionID)).toMatchObject(expectedContext)
   })
 
-const verifyPartialFlushOnFailure = (kind: FragmentKind) =>
+const verifyPartialFlushOnFailure = (
+  kind: FragmentKind,
+  source: "stream" | "event" = "stream",
+  message = "Provider unavailable",
+) =>
   Effect.gen(function* () {
     yield* setup
     const session = yield* SessionV2.Service
     const prompt = `Fail after ${kind}`
     const fixture = fragmentFixture(kind, fragmentID(kind, "partial"), ["Partial"])
-    const failure = providerUnavailable()
+    const failure = providerUnavailable(message)
     yield* session.prompt({ sessionID, prompt: Prompt.make({ text: prompt }), resume: false })
-    responseStream = Stream.concat(Stream.fromIterable(fixture.partialEvents), Stream.fail(failure))
+    requests.length = 0
+    responseStream = Stream.concat(
+      Stream.fromIterable(fixture.partialEvents),
+      source === "stream"
+        ? Stream.fail(failure)
+        : Stream.fromIterable([
+            LLMEvent.providerError({ message, retryable: false }),
+            LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+          ]),
+    )
 
-    expect(yield* session.resume(sessionID).pipe(Effect.flip)).toBe(failure)
-    expect(yield* session.context(sessionID)).toMatchObject([
+    if (source === "stream") expect(yield* session.resume(sessionID).pipe(Effect.flip)).toBe(failure)
+    if (source === "event") yield* session.resume(sessionID)
+    expect(requests).toHaveLength(1)
+    const expected = [
       { type: "user", text: prompt },
       {
         type: "assistant",
         finish: "error",
-        error: { type: "unknown", message: "Provider unavailable" },
-        content: [fixture.expectedContent],
+        error: { type: "unknown", message },
+        content: [
+          kind === "tool input" && source === "event"
+            ? { type: "tool", id: fragmentID(kind, "partial"), state: { status: "error", input: {} } }
+            : fixture.expectedContent,
+        ],
       },
-    ])
+    ]
+    expect(yield* session.context(sessionID)).toMatchObject(expected)
+    yield* replaySessionProjection(sessionID)
+    expect(yield* session.context(sessionID)).toMatchObject(expected)
+    if (kind === "tool input") {
+      const { db } = yield* Database.Service
+      const recorded = yield* db
+        .select()
+        .from(EventTable)
+        .where(eq(EventTable.aggregate_id, sessionID))
+        .all()
+        .pipe(Effect.orDie)
+      expect(
+        recorded.filter((event) => event.type === EventV2.versionedType(SessionEvent.Tool.Input.Ended.type, 1)),
+      ).toMatchObject([{ data: { callID: fragmentID(kind, "partial"), text: "Partial" } }])
+    }
   })
 
 const verifyPartialFlushOnInterruption = (kind: FragmentKind) =>
@@ -626,22 +661,25 @@ const verifyPartialFlushOnInterruption = (kind: FragmentKind) =>
     )
 
     const runner = yield* SessionRunner.Service
-    const fiber = yield* runner.run({ sessionID, force: true }).pipe(Effect.forkChild)
+    const fiber = yield* runner.run({ sessionID, force: true }).pipe(Effect.forkIn(yield* Effect.scope))
     yield* Deferred.await(streamed)
     yield* Fiber.interrupt(fiber)
-    expect(yield* session.context(sessionID)).toMatchObject([
+    const expected = [
       { type: "user", text: prompt },
       {
         type: "assistant",
         finish: "error",
-        error: { type: "unknown", message: "Provider turn interrupted" },
+        error: { type: "interrupted", message: "Provider turn interrupted" },
         content: [
           kind === "tool input"
             ? { type: "tool", id: fragmentID(kind, "interrupted"), state: { status: "error" } }
             : fixture.expectedContent,
         ],
       },
-    ])
+    ]
+    expect(yield* session.context(sessionID)).toMatchObject(expected)
+    yield* replaySessionProjection(sessionID)
+    expect(yield* session.context(sessionID)).toMatchObject(expected)
   })
 
 describe("SessionRunnerLLM", () => {
@@ -3147,14 +3185,30 @@ describe("SessionRunnerLLM", () => {
       const executionCount = executions.length
       response = [
         LLMEvent.stepStart({ index: 0 }),
+        LLMEvent.textStart({ id: "text-before-tool-error" }),
+        LLMEvent.textDelta({ id: "text-before-tool-error", text: "Partial before the tool" }),
         LLMEvent.toolCall({ id: "call-before-provider-error", name: "echo", input: { text: "settled" } }),
         LLMEvent.providerError({ message: "Provider unavailable" }),
       ]
+      responses = [response, fragmentFixture("text", "unexpected-retry", ["Unexpected retry"]).completeEvents]
 
       yield* session.resume(sessionID)
 
       expect(requests).toHaveLength(1)
       expect(executions.slice(executionCount)).toEqual(["settled"])
+      yield* replaySessionProjection(sessionID)
+      expect(yield* session.context(sessionID)).toMatchObject([
+        { type: "user" },
+        {
+          type: "assistant",
+          finish: "error",
+          error: { message: "Provider unavailable" },
+          content: [
+            { type: "text", text: "Partial before the tool" },
+            { type: "tool", id: "call-before-provider-error", state: { status: "completed" } },
+          ],
+        },
+      ])
     }),
   )
 
@@ -3294,8 +3348,18 @@ describe("SessionRunnerLLM", () => {
 
     it.effect(`durably closes partial ${kind} when the provider stream fails`, () => verifyPartialFlushOnFailure(kind))
 
+    it.effect(`durably closes partial ${kind} when the provider emits an unclassified error`, () =>
+      verifyPartialFlushOnFailure(kind, "event"),
+    )
+
     it.effect(`durably closes partial ${kind} when the provider stream is interrupted`, () =>
       verifyPartialFlushOnInterruption(kind),
+    )
+  }
+
+  for (const source of ["stream", "event"] as const) {
+    it.effect(`preserves provider ${source} failures whose text matches an interruption`, () =>
+      verifyPartialFlushOnFailure("text", source, "Provider turn interrupted"),
     )
   }
 

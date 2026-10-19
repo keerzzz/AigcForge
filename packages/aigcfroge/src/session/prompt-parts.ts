@@ -3,7 +3,7 @@ export * as PromptParts from "./prompt-parts"
 import { Effect, FileSystem, Schema } from "effect"
 import { fileURLToPath } from "url"
 import { SessionV1 } from "@aigcfroge/core/v1/session"
-import { FileAttachment, Prompt } from "@aigcfroge/schema/prompt"
+import { FileAttachment } from "@aigcfroge/schema/prompt"
 
 /**
  * Legacy prompt-part normalization, extracted from `SessionPrompt.createUserMessage`
@@ -34,54 +34,7 @@ export function formatMcpResourceBytes(value: number) {
   return `${Math.ceil(value / (1024 * 1024))} MB`
 }
 
-type LegacyPart =
-  | SessionV1.TextPartInput
-  | SessionV1.FilePartInput
-  | SessionV1.AgentPartInput
-  | SessionV1.SubtaskPartInput
-
-const isTextPart = (part: LegacyPart): part is SessionV1.TextPartInput => part.type === "text"
-const isFilePart = (part: LegacyPart): part is SessionV1.FilePartInput => part.type === "file"
-const isAgentPart = (part: LegacyPart): part is SessionV1.AgentPartInput => part.type === "agent"
-
-/**
- * The single mapping from legacy prompt parts to the canonical Core Prompt
- * (`@aigcfroge/schema/prompt`). File parts carry their raw URI here; the caller
- * materializes them at an effect boundary before the prompt reaches a provider.
- */
-export function canonicalPromptFromParts(parts: readonly LegacyPart[]): Prompt {
-  const text = parts
-    .filter(isTextPart)
-    .map((part) => part.text)
-    .join("\n")
-  const files = parts.filter(isFilePart).map((part) =>
-    FileAttachment.create({
-      uri: part.url,
-      mime: part.mime,
-      ...(part.filename ? { name: part.filename } : {}),
-      ...(canonicalSource(part.source) ? { source: canonicalSource(part.source) } : {}),
-    }),
-  )
-  const agents = parts
-    .filter(isAgentPart)
-    .map((part) =>
-      part.source
-        ? { name: part.name, source: { start: part.source.start, end: part.source.end, text: part.source.value } }
-        : { name: part.name },
-    )
-  return Prompt.make({
-    text,
-    ...(files.length > 0 ? { files } : {}),
-    ...(agents.length > 0 ? { agents } : {}),
-  })
-}
-
-// Legacy file sources are `{ type, text: { value, start, end }, ... }`; the canonical
-// `Prompt.Source` is a flat `{ start, end, text }`.
-const canonicalSource = (
-  source: SessionV1.FilePartInput["source"],
-): { start: number; end: number; text: string } | undefined =>
-  source?.text ? { start: source.text.start, end: source.text.end, text: source.text.value } : undefined
+export { canonicalPromptFromParts } from "@aigcfroge/core/session/legacy-history"
 
 export class UnmaterializedUriError extends Schema.TaggedErrorClass<UnmaterializedUriError>()(
   "PromptParts.UnmaterializedUriError",

@@ -6,6 +6,12 @@
  */
 import { readManifest, type E4Manifest } from "./manifest"
 
+export const customRuntimeAgent = {
+  fileName: "e4-runtime.md",
+  source:
+    "---\nkind: agent\nname: e4-runtime\ndescription: Isolated runtime acceptance\n---\nAnswer the synthetic test question.\n",
+}
+
 export function e4(): E4Manifest {
   return readManifest(process.env.E4_RUN_DIR ?? "")
 }
@@ -14,9 +20,9 @@ export function e4(): E4Manifest {
  * Seed the localStorage server registry and default server URL with the real
  * backend. Sealed via addInitScript so it applies before any app code runs.
  */
-export function seedRealBackend(page: import("@playwright/test").Page, backendUrl: string) {
+export function seedRealBackend(page: import("@playwright/test").Page, backendUrl: string, peers: string[] = []) {
   const registry = JSON.stringify({
-    list: [{ type: "http", http: { url: backendUrl } }],
+    list: [backendUrl, ...peers].map((url) => ({ type: "http", http: { url } })),
     projects: {},
     lastProject: {},
   })

@@ -5,7 +5,6 @@ import { Credential } from "@aigcfroge/core/credential"
 import { Integration } from "@aigcfroge/core/integration"
 import { SkillV2 } from "@aigcfroge/core/skill"
 import { InstanceDisposed } from "@/server/event"
-import { Question } from "@/question"
 import { ConfigApi } from "./groups/config"
 import { ControlApi } from "./groups/control"
 import { ControlPlaneApi } from "./groups/control-plane"
@@ -35,7 +34,6 @@ import { ProjectApi } from "./groups/project"
 import { ProjectCopyApi } from "./groups/project-copy"
 import { ProviderApi } from "./groups/provider"
 import { PtyApi, PtyConnectApi } from "./groups/pty"
-import { QuestionApi } from "./groups/question"
 import { SessionApi } from "./groups/session"
 import { SyncApi } from "./groups/sync"
 import { TuiApi } from "./groups/tui"
@@ -73,7 +71,6 @@ export const InstanceHttpApi = HttpApi.make("aigcfroge-instance")
   .addHttpApi(ProjectApi)
   .addHttpApi(ProjectCopyApi)
   .addHttpApi(PtyApi)
-  .addHttpApi(QuestionApi)
   .addHttpApi(PermissionApi)
   .addHttpApi(PromptAssetApiGroup.PromptAssetApi)
   .addHttpApi(WorkArtifactApiGroup.WorkArtifactApi)
@@ -106,8 +103,6 @@ export const AigcfrogeHttpApi = HttpApi.make("aigcfroge")
   .addHttpApi(PtyConnectApi)
   .annotate(HttpApi.AdditionalSchemas, [
     EventSchema,
-    Question.Replied,
-    Question.Rejected,
     Credential.Value,
     Integration.Inputs,
     Integration.Method,

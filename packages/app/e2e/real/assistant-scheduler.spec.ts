@@ -1,18 +1,4 @@
-/**
- * S9B E4: real ScheduleService seed -> backend daemon -> HTTP inbox -> Assistant
- * panel -> mark-read POST -> reload. No network interception or manual tick.
- *
- * Coverage boundary: ScheduleApi has list/pending/cancel, but no create endpoint;
- * the UI also has no reminder form. Seed through the existing service API in a
- * separate, isolated Bun process, NOT a fabricated POST /schedule or raw SQL.
- * This does not exercise natural-language confirmation or reminder_create (which
- * rejects past dueAt values). The seed is a short-future, one-shot reminder.
- *
- * Schedule.Delivery omits isRead and DeliveryList has no read/unread decoration.
- * Verify the real UI POST/refetch and persistent state via the existing
- * DeliveryService.countUnread, reopening its database connection for each read.
- * Do not claim a visual read-state transition or a live inbox push before reload.
- */
+/** Default Assistant: UI draft/first send -> confirmed conversation -> canonical tool -> daemon -> inbox/read/reload. */
 import { execFile } from "node:child_process"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -23,52 +9,224 @@ import { Environment } from "./environment"
 import { e4, seedRealBackend } from "./fixture"
 import { isRecord, type E4Manifest } from "./manifest"
 import { pinEnglishUI } from "../utils/locale"
+import { sessionTitle } from "../../src/utils/session-title"
 
-test("Assistant reminder: daemon delivery and inbox read persist across reload", async ({ page, request }) => {
+test.skip(() => e4().v2Runtime, "This acceptance verifies Assistant execution with the global V2 opt-in disabled")
+
+test("Assistant reminder: new chat first send, daemon delivery and inbox read persist across reload", async ({
+  page,
+  request,
+}, testInfo) => {
+  // Cover the 45s future due time, one 60s daemon cycle, and the UI/reload checks.
+  test.setTimeout(180_000)
   const runtime = e4()
+  expect(runtime.v2Runtime).toBe(false)
   const headers = { "x-aigcfroge-directory": runtime.workspaceDir }
   const query = `?directory=${encodeURIComponent(runtime.workspaceDir)}`
   const health = await request.get(`${runtime.backendUrl}/global/health`)
   expect(health.ok()).toBeTruthy()
   expect(await health.json()).toMatchObject({ healthy: true, version: runtime.backendVersion })
 
-  const response = await request.post(`${runtime.backendUrl}/session${query}`, {
-    headers,
-    data: {
-      title: "E4 Assistant scheduler",
-      mode: "assistant",
-      model: { id: "gpt-test", providerID: "aigcfroge" },
-    },
+  await pinEnglishUI(page)
+  seedRealBackend(page, runtime.backendUrl)
+  await page.setViewportSize({ width: 1400, height: 900 })
+  const creations: unknown[] = []
+  page.on("request", (incoming) => {
+    const url = new URL(incoming.url())
+    if (incoming.method() === "POST" && url.origin === runtime.backendUrl && url.pathname === "/session") {
+      creations.push(incoming.postDataJSON())
+    }
   })
-  expect(response.ok(), `Assistant session create: ${await response.text()}`).toBeTruthy()
-  const session: unknown = await response.json()
+  await page.goto("/mode/assistant")
+  await expect(page.getByRole("heading", { name: "Assistant Dashboard", exact: true })).toBeVisible()
+  const location = page.locator('[data-mode-location="assistant"]')
+  await location.getByRole("button", { name: "Add project", exact: true }).click()
+  const directoryPicker = page.getByRole("dialog")
+  await directoryPicker.getByPlaceholder("Search folders").fill(runtime.workspaceDir)
+  await directoryPicker
+    .locator('[data-slot="list-item"]')
+    .filter({ has: page.getByText(path.basename(runtime.workspaceDir), { exact: true }) })
+    .click()
+  await expect(directoryPicker).toBeHidden()
+  await expect(location.getByRole("button", { name: "New session", exact: true })).toBeEnabled()
+  await page.getByRole("button", { name: "New assistant chat", exact: true }).click()
+  await expect(page).toHaveURL(/\/new-session\?draftId=[^&#]+$/)
+  await expect(page.locator('[data-component="session-new-composer"]')).toBeVisible()
+  const composer = page.locator('[data-component="session-prompt-dock"] [data-component="prompt-input"]')
+  await expect(composer).toBeVisible()
+  await expect(page.locator('[data-action="prompt-agent"]')).toContainText("assistant-orchestrator")
+  await expect(page.locator('[data-action="prompt-model"]')).toContainText("E4 Deterministic")
+  expect(creations, "opening an Assistant draft must not create a durable Session").toEqual([])
+  await testInfo.attach("assistant-entry-navigation", {
+    body: JSON.stringify(
+      await page.evaluate(() => performance.getEntriesByType("navigation").map((entry) => entry.toJSON())),
+    ),
+    contentType: "application/json",
+  })
+  const content = `E4 Assistant reminder ${path.basename(runtime.runDir)}`
+  const dueAt = Date.now() + 45_000
+  const providerURL = `http://127.0.0.1:${runtime.providerPort}`
+  const providerCalls = async () =>
+    (await records(await request.get(`${providerURL}/e4/provider-requests`), "requests")).filter(
+      (row) => typeof row.path === "string" && row.path.endsWith("/chat/completions"),
+    )
+  // The provider ledger belongs to the whole run, including earlier history cases.
+  const callsBefore = (await providerCalls()).length
+  const configure = await request.post(
+    `${providerURL}/e4/provider-failures?mode=reminder-confirm&count=1&content=${encodeURIComponent(content)}&dueAt=${dueAt}`,
+  )
+  expect(configure.ok()).toBeTruthy()
+  await composer.fill(
+    `Remind me: ${content}, at ${new Date(dueAt).toISOString()}, timezone UTC. Please show the details for confirmation first.`,
+  )
+  const [created, firstAdmission] = await Promise.all([
+    page.waitForResponse(
+      (incoming) =>
+        incoming.request().method() === "POST" &&
+        new URL(incoming.url()).origin === runtime.backendUrl &&
+        new URL(incoming.url()).pathname === "/session",
+    ),
+    page.waitForResponse(
+      (incoming) =>
+        incoming.request().method() === "POST" &&
+        new URL(incoming.url()).origin === runtime.backendUrl &&
+        /^\/session\/[^/]+\/prompt_async$/.test(new URL(incoming.url()).pathname),
+    ),
+    composer.press("Enter"),
+  ])
+  expect(created.ok(), "Assistant draft first send creates a Session").toBeTruthy()
+  expect(creations).toEqual([{ mode: "assistant", agent: "assistant-orchestrator" }])
+  const session: unknown = await created.json()
   if (!isRecord(session) || typeof session.id !== "string") throw new Error("Assistant session has no id")
-  expect(session.mode).toBe("assistant")
-
+  expect(session).toMatchObject({
+    directory: runtime.workspaceDir,
+    mode: "assistant",
+    agent: "assistant-orchestrator",
+  })
   const sessionID = session.id
+  expect(firstAdmission.status()).toBe(204)
+  expect(new URL(firstAdmission.url()).pathname).toBe(`/session/${sessionID}/prompt_async`)
+  const firstPrompt: unknown = firstAdmission.request().postDataJSON()
+  if (!isRecord(firstPrompt) || typeof firstPrompt.messageID !== "string") throw new Error("First prompt has no id")
+  expect(firstPrompt).toMatchObject({
+    agent: "assistant-orchestrator",
+    model: { providerID: "e4-real", modelID: "e4-deterministic" },
+  })
+  await expect(page).toHaveURL(`/server/${base64Encode(runtime.backendUrl)}/session/${sessionID}`)
+  const persistedResponse = await request.get(`${runtime.backendUrl}/session/${sessionID}${query}`, { headers })
+  expect(persistedResponse.ok()).toBeTruthy()
+  const persisted: unknown = await persistedResponse.json()
+  expect(persisted).toMatchObject({
+    id: sessionID,
+    directory: runtime.workspaceDir,
+    mode: "assistant",
+    agent: "assistant-orchestrator",
+    model: { id: "e4-deterministic", providerID: "e4-real" },
+  })
+  await testInfo.attach("assistant-first-send", {
+    body: JSON.stringify({
+      creation: creations[0],
+      session: persisted,
+      prompt: firstPrompt,
+    }),
+    contentType: "application/json",
+  })
   const inboxPath = `/delivery/${sessionID}`
   const inboxURL = `${runtime.backendUrl}${inboxPath}${query}`
   const scheduleURL = `${runtime.backendUrl}/schedule/${sessionID}${query}`
   expect(await records(await request.get(inboxURL, { headers }))).toEqual([])
   expect(await records(await request.get(scheduleURL, { headers }))).toEqual([])
 
-  const content = `E4 Assistant reminder ${sessionID}`
-  const reminder = await scheduleService(runtime, { operation: "create", sessionID, content })
-  if (!isRecord(reminder)) throw new Error("ScheduleService.create returned an invalid reminder")
+  await expect.poll(async () => (await providerCalls()).length - callsBefore).toBe(1)
+  const first = (await providerCalls())[callsBefore]
+  await testInfo.attach("assistant-provider-before-confirmation", {
+    body: JSON.stringify(first),
+    contentType: "application/json",
+  })
+  expect(first).toMatchObject({ model: "e4-deterministic", authenticated: true, scenario: "reminder-confirm" })
+  expect(first?.toolNames).toContain("reminder_create")
+  for (const name of ["bash", "edit", "task"]) expect(first?.toolNames).not.toContain(name)
+  await expect(
+    page
+      .getByText(
+        `Please confirm: ${content}; ${new Date(dueAt).toISOString()}; timezone UTC. If offline, delivery will catch up when the app is next online.`,
+        { exact: true },
+      )
+      .first(),
+  ).toBeVisible()
+  expect(await records(await request.get(scheduleURL, { headers }))).toEqual([])
+  expect(await records(await request.get(inboxURL, { headers }))).toEqual([])
+  expect((await request.post(`${providerURL}/e4/provider-failures?mode=reminder-create&count=1`)).ok()).toBeTruthy()
+  await composer.fill("I confirm those exact reminder details. Create it now.")
+  const [confirmation] = await Promise.all([
+    page.waitForResponse(
+      (incoming) =>
+        incoming.request().method() === "POST" &&
+        new URL(incoming.url()).origin === runtime.backendUrl &&
+        new URL(incoming.url()).pathname === `/session/${sessionID}/prompt_async`,
+    ),
+    composer.press("Enter"),
+  ])
+  expect(confirmation.status()).toBe(204)
+  const confirmationPrompt: unknown = confirmation.request().postDataJSON()
+  if (!isRecord(confirmationPrompt) || typeof confirmationPrompt.messageID !== "string")
+    throw new Error("Confirmation prompt has no id")
+  expect(confirmationPrompt).toMatchObject({
+    agent: "assistant-orchestrator",
+    model: { providerID: "e4-real", modelID: "e4-deterministic" },
+  })
+  expect(creations).toHaveLength(1)
+  await expect.poll(async () => (await records(await request.get(scheduleURL, { headers }))).length).toBe(1)
+  const reminder = (await records(await request.get(scheduleURL, { headers })))[0]
   if (
+    !reminder ||
     typeof reminder.id !== "string" ||
     typeof reminder.deliveryKey !== "string" ||
     typeof reminder.dueAt !== "number" ||
     typeof reminder.createdAt !== "number"
   )
-    throw new Error("ScheduleService.create returned an invalid reminder")
-  expect(reminder).toMatchObject({ sessionID, kind: "reminder", content, timezone: "UTC", status: "pending" })
+    throw new Error("Reminder tool did not persist a valid schedule")
+  expect(reminder).toMatchObject({ sessionID, kind: "reminder", content, dueAt, timezone: "UTC" })
   expect(reminder.dueAt).toBeGreaterThan(reminder.createdAt)
+  await expect
+    .poll(async () =>
+      (await providerCalls())
+        .slice(callsBefore)
+        .some((row) => Array.isArray(row.toolResultIDs) && row.toolResultIDs.includes("call_e4_read_workspace")),
+    )
+    .toBe(true)
+  const admissions = await records(await request.get(`${providerURL}/e4/admission?sessionID=${sessionID}`), "rows")
+  expect(admissions).toHaveLength(2)
+  expect(admissions.map((row) => row.id)).toEqual([firstPrompt.messageID, confirmationPrompt.messageID])
+  expect(
+    admissions.every((row) => typeof row.promoted_seq === "number" && row.promoted_seq >= Number(row.admitted_seq)),
+  ).toBe(true)
+  await expect(page.getByText("E4 deterministic response", { exact: true }).first()).toBeVisible()
+  await testInfo.attach("assistant-admissions", { body: JSON.stringify(admissions), contentType: "application/json" })
+  await testInfo.attach("assistant-provider-calls", {
+    body: JSON.stringify((await providerCalls()).slice(callsBefore)),
+    contentType: "application/json",
+  })
+  const messages = await request.get(`${runtime.backendUrl}/api/session/${sessionID}/message${query}`, { headers })
+  expect(messages.ok()).toBeTruthy()
+  const projected: unknown = await messages.json()
+  if (!isRecord(projected) || !Array.isArray(projected.data)) throw new Error("Invalid canonical message page")
+  expect(
+    projected.data
+      .flatMap((message: unknown) => (isRecord(message) && Array.isArray(message.content) ? message.content : []))
+      .some(
+        (part: unknown) =>
+          isRecord(part) &&
+          part.name === "reminder_create" &&
+          isRecord(part.state) &&
+          part.state.status === "completed",
+      ),
+  ).toBe(true)
 
   // SchedulerCore.daemon scans/ticks once per minute. Cross-process service
-  // events need not wake its EventV2 instance, so wait for its own DB rescan.
-  // The existing 120s E4 test budget is unchanged; no sleep, clock shim, restart,
-  // direct delivery insert or test-owned daemon can satisfy this assertion.
+  // events need not wake its EventV2 instance. Bound the wait from dueAt, so a
+  // cycle immediately before the future due time cannot consume the budget.
+  // No sleep, clock shim, restart, direct delivery insert or test-owned daemon.
   await expect
     .poll(
       async () => {
@@ -83,7 +241,7 @@ test("Assistant reminder: daemon delivery and inbox read persist across reload",
       },
       {
         message: "real daemon completes the reminder and delivers it exactly once",
-        timeout: 70_000,
+        timeout: Math.max(1, reminder.dueAt + 70_000 - Date.now()),
         intervals: [250, 500, 1_000],
       },
     )
@@ -103,19 +261,26 @@ test("Assistant reminder: daemon delivery and inbox read persist across reload",
   expect(inbox[0].deliveredAt).toBeGreaterThanOrEqual(reminder.dueAt)
   expect(await scheduleService(runtime, { operation: "unread", sessionID })).toBe(1)
 
-  await pinEnglishUI(page)
-  seedRealBackend(page, runtime.backendUrl)
-  await page.setViewportSize({ width: 1400, height: 900 })
   const fromInbox = (incoming: Response) =>
     incoming.request().method() === "GET" &&
     new URL(incoming.url()).origin === runtime.backendUrl &&
     new URL(incoming.url()).pathname === inboxPath
-  const [opened] = await Promise.all([
-    page.waitForResponse(fromInbox),
-    page.goto(`/server/${base64Encode(runtime.backendUrl)}/session/${sessionID}`),
-  ])
+  const [opened] = await Promise.all([page.waitForResponse(fromInbox), page.reload()])
   expect(await records(opened)).toEqual(inbox)
-  await expect(page.getByRole("heading", { name: "E4 Assistant scheduler", exact: true })).toBeVisible()
+  const reloadedResponse = await request.get(`${runtime.backendUrl}/session/${sessionID}${query}`, { headers })
+  expect(reloadedResponse.ok()).toBeTruthy()
+  const reloaded: unknown = await reloadedResponse.json()
+  if (!isRecord(reloaded) || typeof reloaded.title !== "string") throw new Error("Assistant session has no title")
+  expect(reloaded).toMatchObject({
+    id: sessionID,
+    mode: "assistant",
+    agent: "assistant-orchestrator",
+    model: { id: "e4-deterministic", providerID: "e4-real" },
+  })
+  expect(reloaded.title).toBe(session.title)
+  await expect(
+    page.getByRole("heading", { name: sessionTitle(reloaded.title) ?? "New session", exact: true }),
+  ).toBeVisible()
 
   const panel = page.locator('#review-panel[aria-label="Assistant panel"]')
   const history = panel.locator("section").filter({
@@ -151,7 +316,7 @@ test("Assistant reminder: daemon delivery and inbox read persist across reload",
   ])
   // Assert on status only: the message argument is evaluated before expect(),
   // so reading the body here would fail even when the response is OK. The
-  // mark-read route answers 204 with no body, which CDP cannot fetch.
+  // mark-read route answers 200 with an empty body.
   expect(read.ok(), "mark delivery read").toBeTruthy()
   expect(await records(refetched)).toEqual(inbox)
   expect(await scheduleService(runtime, { operation: "unread", sessionID })).toBe(0)
@@ -169,9 +334,10 @@ test("Assistant reminder: daemon delivery and inbox read persist across reload",
   ])
 })
 
-async function records(response: APIResponse | Response) {
+async function records(response: APIResponse | Response, field?: string) {
   expect(response.ok(), `${response.url()}: ${await response.text()}`).toBeTruthy()
-  const body: unknown = await response.json()
+  const parsed: unknown = await response.json()
+  const body = field && isRecord(parsed) ? parsed[field] : parsed
   if (!Array.isArray(body)) throw new Error(`${response.url()}: expected a JSON array`)
   const rows: unknown[] = body
   if (!rows.every(isRecord)) throw new Error(`${response.url()}: expected object records`)
@@ -186,9 +352,9 @@ async function records(response: APIResponse | Response) {
  */
 async function scheduleService(
   runtime: E4Manifest,
-  input: { operation: "create" | "unread"; sessionID: string; content?: string },
+  input: { operation: "unread"; sessionID: string },
 ): Promise<unknown> {
-  expect(runtime.dbPath, "service seed must use only the isolated E4 database").toBe(
+  expect(runtime.dbPath, "read probe must use only the isolated E4 database").toBe(
     path.join(runtime.runDir, "e4.sqlite"),
   )
   const result = await promisify(execFile)(
@@ -196,25 +362,11 @@ async function scheduleService(
     [
       "--no-env-file",
       "--eval",
-      `const { DateTime, Effect } = await import("effect")
+      `const { Effect } = await import("effect")
        const { ScheduleService } = await import("@aigcfroge/core/session/schedule-service")
        const { SessionSchema } = await import("@aigcfroge/core/session/schema")
        const sessionID = SessionSchema.ID.make(process.env.E4_ASSISTANT_SESSION_ID)
-       const result = process.env.E4_ASSISTANT_OPERATION === "create"
-         ? await Effect.runPromise(
-             Effect.gen(function* () {
-               const schedules = yield* ScheduleService.Service
-               return yield* schedules.create({
-                 sessionID,
-                 kind: "reminder",
-                 content: process.env.E4_ASSISTANT_CONTENT,
-                 dueAt: (yield* DateTime.nowAsDate).getTime() + 2_000,
-                 timezone: "UTC",
-                 deliveryKey: "e4-assistant-reminder:" + sessionID,
-               })
-             }).pipe(Effect.provide(ScheduleService.defaultLayer)),
-           )
-         : await Effect.runPromise(
+       const result = await Effect.runPromise(
              Effect.gen(function* () {
                const deliveries = yield* ScheduleService.DeliveryService
                return yield* deliveries.countUnread(sessionID)
@@ -229,7 +381,6 @@ async function scheduleService(
         AIGCFROGE_DB: runtime.dbPath,
         E4_ASSISTANT_OPERATION: input.operation,
         E4_ASSISTANT_SESSION_ID: input.sessionID,
-        E4_ASSISTANT_CONTENT: input.content ?? "",
       },
       encoding: "utf8",
       timeout: 15_000,

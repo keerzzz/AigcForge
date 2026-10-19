@@ -3,7 +3,7 @@ export * as PermissionV2 from "./permission"
 // `Effect` is aliased because this module re-exports schema's `Effect` (the
 // permission rule effect, allow/deny) on the line below — a genuine same-name
 // collision, which is the only case AGENTS.md §Imports permits an alias for.
-import { Context, Deferred, Duration, Effect as EffectRuntime, Layer, Option, Schema } from "effect"
+import { Context, Deferred, Duration, Effect as EffectRuntime, Layer, Option, Schema, Semaphore } from "effect"
 import { Permission } from "@aigcfroge/schema/permission"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { EventV2 } from "./event"
@@ -70,6 +70,12 @@ export const ReplyInput = Schema.Struct({
   message: Schema.String.pipe(Schema.optional),
 }).annotate({ identifier: "PermissionV2.ReplyInput" })
 export type ReplyInput = typeof ReplyInput.Type
+
+export class GrantInput extends Schema.Class<GrantInput>("PermissionV2.GrantInput")({
+  sessionID: SessionV2.ID,
+  requestID: ID,
+  level: Schema.Literals(["session", "location"]),
+}) {}
 
 export const AskResult = Schema.Struct({
   id: ID,
@@ -138,6 +144,9 @@ export interface Interface {
   ) => EffectRuntime.Effect<AskResult, SessionV2.NotFoundError | GrantEvent.CommitRejected>
   readonly assert: (input: AssertInput) => EffectRuntime.Effect<void, Error | SessionV2.NotFoundError>
   readonly reply: (input: ReplyInput) => EffectRuntime.Effect<void, NotFoundError>
+  readonly grant: (
+    input: GrantInput,
+  ) => EffectRuntime.Effect<ScopedGrantStore.Info, NotFoundError | GrantEvent.CommitRejected, ScopedGrantStore.Service>
   readonly get: (id: ID) => EffectRuntime.Effect<Request | undefined>
   readonly forSession: (sessionID: SessionV2.ID) => EffectRuntime.Effect<ReadonlyArray<Request>>
   readonly list: () => EffectRuntime.Effect<ReadonlyArray<Request>>
@@ -152,7 +161,7 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 interface Pending {
   readonly request: Request
   readonly agent?: AgentV2.ID
-  readonly deferred: Deferred.Deferred<void, RejectedError | CorrectedError>
+  readonly deferred: Deferred.Deferred<void, RejectedError | CorrectedError | AskExpiredError>
 }
 
 export const layer = Layer.effect(
@@ -169,6 +178,7 @@ export const layer = Layer.effect(
     // silent no_responder rejection. A missing provider must fail the layer.
     const presence = yield* ApprovalPresence.Service
     const pending = new Map<ID, Pending>()
+    const decisions = yield* Semaphore.make(1)
 
     const consultGrant = EffectRuntime.fn("PermissionV2.consultGrant")(function* (input: AssertInput) {
       // Read per-call: layer-construction-time capture would miss providers
@@ -195,13 +205,15 @@ export const layer = Layer.effect(
     })
 
     yield* EffectRuntime.addFinalizer(() =>
-      EffectRuntime.forEach(pending.values(), (item) => Deferred.fail(item.deferred, new RejectedError()), {
-        discard: true,
-      }).pipe(
-        EffectRuntime.ensuring(
-          EffectRuntime.sync(() => {
-            pending.clear()
-          }),
+      decisions.withPermit(
+        EffectRuntime.forEach(pending.values(), (item) => Deferred.fail(item.deferred, new RejectedError()), {
+          discard: true,
+        }).pipe(
+          EffectRuntime.ensuring(
+            EffectRuntime.sync(() => {
+              pending.clear()
+            }),
+          ),
         ),
       ),
     )
@@ -262,7 +274,7 @@ export const layer = Layer.effect(
     const create = (request: Request, agent?: AgentV2.ID) =>
       EffectRuntime.uninterruptible(
         EffectRuntime.gen(function* () {
-          const deferred = yield* Deferred.make<void, RejectedError | CorrectedError>()
+          const deferred = yield* Deferred.make<void, RejectedError | CorrectedError | AskExpiredError>()
           const item = { request, agent, deferred }
           if (pending.has(request.id)) return yield* EffectRuntime.die(`Duplicate pending permission ID: ${request.id}`)
           pending.set(request.id, item)
@@ -309,97 +321,153 @@ export const layer = Layer.effect(
           // cannot keep a custom prompt parked.
           yield* requireResponder(input.sessionID)
           const item = yield* create(request(input), input.agent)
-          yield* restore(Deferred.await(item.deferred)).pipe(
-            EffectRuntime.timeoutOrElse({
-              duration: Duration.millis(presence.ttlMs),
-              orElse: () =>
-                EffectRuntime.gen(function* () {
-                  yield* events
-                    .publish(Event.Replied, {
-                      sessionID: item.request.sessionID,
-                      requestID: item.request.id,
-                      reply: "reject",
-                    })
-                    .pipe(EffectRuntime.ignore)
-                  pending.delete(item.request.id)
-                  yield* new AskExpiredError({ requestID: item.request.id, ttlMs: presence.ttlMs })
-                }),
-            }),
-            EffectRuntime.ensuring(
-              EffectRuntime.sync(() => {
-                pending.delete(item.request.id)
+          yield* restore(
+            Deferred.await(item.deferred).pipe(
+              EffectRuntime.timeoutOrElse({
+                duration: Duration.millis(presence.ttlMs),
+                orElse: () =>
+                  EffectRuntime.uninterruptible(
+                    EffectRuntime.gen(function* () {
+                      const error = new AskExpiredError({ requestID: item.request.id, ttlMs: presence.ttlMs })
+                      const items = yield* decisions.withPermit(
+                        EffectRuntime.gen(function* () {
+                          if (pending.get(item.request.id) !== item) {
+                            yield* Deferred.await(item.deferred)
+                            return []
+                          }
+                          return yield* settle([item], { requestID: item.request.id, reply: "reject" }, error)
+                        }),
+                      )
+                      if (!items.length) return yield* EffectRuntime.void
+                      yield* publishReplies(items, "reject")
+                      return yield* error
+                    }),
+                  ),
               }),
+            ),
+          ).pipe(
+            EffectRuntime.ensuring(
+              decisions
+                .withPermit(EffectRuntime.sync(() => pending.delete(item.request.id)))
+                .pipe(
+                  EffectRuntime.flatMap((removed) => (removed ? publishReplies([item], "reject") : EffectRuntime.void)),
+                ),
             ),
           )
         }),
       ),
     )
 
-    const reply = EffectRuntime.fn("PermissionV2.reply")((input: ReplyInput) =>
+    // Terminal state is authoritative. Notification failures still propagate, but
+    // cannot strand a tool or make a committed decision answerable a second time.
+    const settle = EffectRuntime.fnUntraced(function* (
+      items: ReadonlyArray<Pending>,
+      input: ReplyInput,
+      failure?: AskExpiredError,
+    ) {
+      yield* EffectRuntime.forEach(items, (item, index) => {
+        pending.delete(item.request.id)
+        if (input.reply !== "reject") return Deferred.succeed(item.deferred, undefined)
+        return Deferred.fail(
+          item.deferred,
+          failure ??
+            (index === 0 && input.message ? new CorrectedError({ feedback: input.message }) : new RejectedError()),
+        )
+      })
+      return items
+    })
+
+    // Observers run after releasing the decision lock. They may await a tool's
+    // completion or initiate another decision without blocking either owner.
+    const publishReplies = (items: ReadonlyArray<Pending>, reply: Reply) =>
       EffectRuntime.uninterruptible(
-        EffectRuntime.gen(function* () {
-          const existing = pending.get(input.requestID)
-          if (!existing) return yield* new NotFoundError({ requestID: input.requestID })
-          yield* events.publish(Event.Replied, {
-            sessionID: existing.request.sessionID,
-            requestID: existing.request.id,
-            reply: input.reply,
-          })
-
-          if (input.reply === "reject") {
-            yield* Deferred.fail(
-              existing.deferred,
-              input.message ? new CorrectedError({ feedback: input.message }) : new RejectedError(),
-            )
-            pending.delete(input.requestID)
-            for (const [id, item] of pending) {
-              if (item.request.sessionID !== existing.request.sessionID) continue
-              yield* events.publish(Event.Replied, {
-                sessionID: item.request.sessionID,
-                requestID: item.request.id,
-                reply: "reject",
-              })
-              yield* Deferred.fail(item.deferred, new RejectedError())
-              pending.delete(id)
-            }
-            return
-          }
-
-          if (input.reply === "always" && existing.request.save?.length) {
-            yield* saved.add({
-              projectID: location.project.id,
-              action: existing.request.action,
-              resources: existing.request.save,
-            })
-          }
-          yield* Deferred.succeed(existing.deferred, undefined)
-          pending.delete(input.requestID)
-          if (input.reply !== "always" || !existing.request.save?.length) return
-
-          for (const [id, item] of pending) {
-            const rules = yield* configured(item.request.sessionID, item.agent).pipe(
-              EffectRuntime.catchTag("Session.NotFoundError", () => EffectRuntime.succeed(undefined)),
-            )
-            if (!rules) continue
-            // configured 已含 saved approval（在 Chat full 危险 action 的 ask
-            // 之前）与显式 deny 重放；不再追加 remembered——追加会把 saved
-            // allow 放到危险 ask 之后，自动放行跳过逐次确认（H1）。
-            if (
-              !item.request.resources.every(
-                (resource) => evaluate(item.request.action, resource, rules).effect === "allow",
-              )
-            )
-              continue
-            yield* events.publish(Event.Replied, {
+        EffectRuntime.forEach(
+          items,
+          (item) =>
+            events.publish(Event.Replied, {
               sessionID: item.request.sessionID,
               requestID: item.request.id,
-              reply: "always",
-            })
-            yield* Deferred.succeed(item.deferred, undefined)
-            pending.delete(id)
-          }
-        }),
-      ),
+              reply,
+            }),
+          { discard: true },
+        ),
+      )
+
+    const reply = EffectRuntime.fn("PermissionV2.reply")((input: ReplyInput) =>
+      decisions
+        .withPermit(
+          EffectRuntime.uninterruptible(
+            EffectRuntime.gen(function* () {
+              const existing = pending.get(input.requestID)
+              if (!existing) return yield* new NotFoundError({ requestID: input.requestID })
+              if (input.reply === "reject") {
+                const related = Array.from(pending.values()).filter(
+                  (item) => item !== existing && item.request.sessionID === existing.request.sessionID,
+                )
+                return yield* settle([existing, ...related], input)
+              }
+              if (input.reply !== "always" || !existing.request.save?.length) return yield* settle([existing], input)
+
+              // Persist before announcing success; failed writes leave the prompt pending.
+              yield* saved.add({
+                projectID: location.project.id,
+                action: existing.request.action,
+                resources: existing.request.save,
+              })
+              const related = yield* EffectRuntime.forEach(
+                Array.from(pending.values()).filter((item) => item !== existing),
+                EffectRuntime.fnUntraced(function* (item) {
+                  const rules = yield* configured(item.request.sessionID, item.agent).pipe(
+                    EffectRuntime.catchTag("Session.NotFoundError", () => EffectRuntime.succeed(undefined)),
+                  )
+                  if (!rules) return undefined
+                  // Re-evaluate the canonical rules, including explicit deny and
+                  // Chat full dangerous-action gates, before propagating approval.
+                  if (
+                    !item.request.resources.every(
+                      (resource) => evaluate(item.request.action, resource, rules).effect === "allow",
+                    )
+                  )
+                    return undefined
+                  return item
+                }),
+              )
+              return yield* settle([existing, ...related.filter((item) => item !== undefined)], input)
+            }),
+          ),
+        )
+        .pipe(EffectRuntime.flatMap((items) => publishReplies(items, input.reply))),
+    )
+
+    const grant = EffectRuntime.fn("PermissionV2.grant")((input: GrantInput) =>
+      decisions
+        .withPermit(
+          EffectRuntime.uninterruptible(
+            EffectRuntime.gen(function* () {
+              const existing = pending.get(input.requestID)
+              if (!existing || existing.request.sessionID !== input.sessionID)
+                return yield* new NotFoundError({ requestID: input.requestID })
+              const grants = yield* ScopedGrantStore.Service
+              // A competing reply, expiry, or cancellation cannot detach issuance from
+              // its pending request. Persistence failure leaves the request answerable.
+              const issued = yield* grants.issue({
+                scope:
+                  input.level === "session"
+                    ? { level: "session", sessionID: existing.request.sessionID }
+                    : { level: "location" },
+                action: existing.request.action,
+                resources: existing.request.resources,
+              })
+              yield* settle([existing], { requestID: input.requestID, reply: "once" })
+              return { issued, request: existing }
+            }),
+          ),
+        )
+        .pipe(
+          EffectRuntime.flatMap((result) =>
+            publishReplies([result.request], "once").pipe(EffectRuntime.as(result.issued)),
+          ),
+        ),
     )
 
     const list = EffectRuntime.fn("PermissionV2.list")(function* () {
@@ -414,7 +482,7 @@ export const layer = Layer.effect(
       return Array.from(pending.values(), (item) => item.request).filter((request) => request.sessionID === sessionID)
     })
 
-    return Service.of({ ask, assert, reply, get, forSession, list, effectiveRules })
+    return Service.of({ ask, assert, reply, grant, get, forSession, list, effectiveRules })
   }),
 )
 

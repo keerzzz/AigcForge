@@ -1,4 +1,4 @@
-import { createMemo, createResource, createSignal, For, Show } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
@@ -8,6 +8,8 @@ import { useGlobal } from "@/context/global"
 import { useServer, ServerConnection } from "@/context/server"
 import { openSessionByID } from "@/pages/layout/helpers"
 import { useCustomDraft } from "@/context/custom-draft"
+import { useLayout } from "@/context/layout"
+import { currentRoute } from "@/context/layout-helpers"
 import { useMode } from "@/context/mode"
 import { showToast } from "@/utils/toast"
 import type { Snapshot } from "@aigcfroge/schema/composition"
@@ -15,7 +17,8 @@ import { decodeSnapshotResponse } from "@/utils/snapshot-decode"
 import { WorkflowRuntimePanel } from "@/pages/session/workflow-runtime-panel"
 import { SessionRightPanel } from "@/components/session-right-panel"
 import { createSizing } from "@/pages/session/helpers"
-import { classifySnapshotFailure, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
+import { classifySnapshotFailure, evaluateStartGate, parseErrorDetails, type SnapshotFetch } from "./custom-plan-state"
+import { useModeSlotActive, whenActive } from "@/pages/mode-slot-active"
 
 export interface CustomSessionPanelProps {
   sessionID?: string
@@ -23,49 +26,70 @@ export interface CustomSessionPanelProps {
 }
 
 export function CustomSessionPanel(props: CustomSessionPanelProps) {
+  const slotActive = useModeSlotActive()
   const language = useLanguage()
   const sdk = useSDK()
   const tabs = useTabs()
   const global = useGlobal()
   const server = useServer()
   const draft = useCustomDraft()
+  const layout = useLayout()
   const mode = useMode()
   const size = createSizing()
 
   const [upgrading, setUpgrading] = createSignal(false)
   const [upgradeError, setUpgradeError] = createSignal<string | undefined>()
   const [copied, setCopied] = createSignal(false)
+  createEffect(
+    on([draft, () => props.sessionID], () => {
+      setUpgrading(false)
+      setUpgradeError(undefined)
+      setCopied(false)
+    }),
+  )
 
   // Fetch snapshot for the session. `throwOnError: true` so the status reaches
   // `classifySnapshotFailure`: only a 404 means "this session has no snapshot", and
   // the panel must not render a 400 (a snapshot the server could not decode) or a
   // dropped connection as the same thing. See custom-plan-state.ts (P2-11).
-  const [snapshotFetch] = createResource(
-    () => ({ sessionID: props.sessionID, directory: props.directory }),
-    async (source): Promise<SnapshotFetch<Snapshot>> => {
-      if (!source.sessionID) return { state: "absent" }
+  const source = createMemo(() =>
+    whenActive(slotActive(), () => ({ sessionID: props.sessionID, directory: props.directory, sdk: sdk() })),
+  )
+  const [snapshotFetch, { refetch: refetchSnapshot }] = createResource(
+    source,
+    async (source): Promise<SnapshotFetch<Snapshot> & { source: typeof source }> => {
+      if (!source.sessionID) return { source, state: "absent" }
       try {
-        const s = sdk()
-        const res = await s.client.session.composition({ sessionID: source.sessionID }, { throwOnError: true })
+        const res = await source.sdk.client.session.composition({ sessionID: source.sessionID }, { throwOnError: true })
         const decoded = decodeSnapshotResponse(res.data)
         if (decoded === undefined) {
           // 2xx whose body is not a Snapshot: server/client schema drift, not an
           // absent composition.
-          return { state: "failed", message: language.t("custom.snapshot.undecodable") }
+          return { source, state: "failed", message: language.t("custom.snapshot.undecodable") }
         }
-        return { state: "ready", snapshot: decoded }
+        return { source, state: "ready", snapshot: decoded }
       } catch (err: unknown) {
-        return classifySnapshotFailure(err)
+        return { source, ...classifySnapshotFailure(err) }
       }
     },
+    // `latest` only avoids suspending after the first settle. Without an initial
+    // value the first read is a real `read()` and the whole route body is replaced
+    // by the route-level `surface-pending` fallback until the snapshot arrives —
+    // the session must stay visible while this panel waits. See the pending-state
+    // E3 in `custom-snapshot-states.spec.ts`.
+    { initialValue: undefined },
   )
 
-  const snapshot = createMemo(() => {
+  const result = createMemo(() => {
     const fetched = snapshotFetch.latest
+    return fetched?.source === source() ? fetched : undefined
+  })
+  const snapshot = createMemo(() => {
+    const fetched = result()
     return fetched?.state === "ready" ? fetched.snapshot : undefined
   })
   const snapshotError = createMemo(() => {
-    const fetched = snapshotFetch.latest
+    const fetched = result()
     return fetched?.state === "failed" ? fetched.message : undefined
   })
 
@@ -92,40 +116,81 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  async function handleUpgrade() {
-    const currentSessionID = props.sessionID
-    const s = sdk()
-    const dir = props.directory ?? s.directory
-    const currentServer = server.current
-    if (!currentSessionID || !dir || !currentServer) return
+  const canUpgrade = () => !upgrading() && !snapshotFetch.loading && snapshot() !== undefined
 
+  // A completion belongs to the Session the user is still looking at. The old
+  // component can be unmounted or kept for another tab while its request settles,
+  // so `source()` alone cannot see the route move; compare the live route owner.
+  const onSameSession = (sessionID: string, serverKey: ServerConnection.Key) => {
+    // The router's committed route can lag behind the address bar while a route
+    // transition is waiting on another request. The user has already left this
+    // Session at that point, so read the live URL instead of the transition view.
+    const route = globalThis.location
+      ? currentRoute(globalThis.location.pathname, globalThis.location.search)
+      : layout.route()
+    return (
+      route.type === "session" &&
+      route.sessionId === sessionID &&
+      (!route.server || ServerConnection.sameKey(route.server, serverKey))
+    )
+  }
+
+  async function handleUpgrade() {
+    if (!canUpgrade()) return
+    const currentSource = source()
     const currentSnapshot = snapshot()
-    if (currentSnapshot) {
-      draft.loadFromSnapshot(currentSnapshot)
-    }
+    if (!currentSource?.sessionID || !currentSnapshot) return
+    const currentSessionID = currentSource.sessionID
+    const s = currentSource.sdk
+    const dir = currentSource.directory ?? s.directory
+    const currentServer = server.list.find((connection) => server.scope(ServerConnection.key(connection)) === s.scope)
+    if (!dir || !currentServer) return
+    const currentServerKey = ServerConnection.key(currentServer)
+    const currentDraft = draft()
+    currentDraft.loadFromSnapshot(currentSnapshot)
+    const composition = currentDraft.composition
 
     setUpgrading(true)
     setUpgradeError(undefined)
 
     try {
+      // Reconstructing an editable draft can change the input (for example profile
+      // to temporary). Its new plan, rather than the old snapshot, owns the digest.
+      const planned = await s.client.customComposition.plan(
+        { directory: dir, body: composition },
+        { throwOnError: true },
+      )
+      if (source() !== currentSource || draft() !== currentDraft) return
+      if (!onSameSession(currentSessionID, currentServerKey)) return
+      const gate = evaluateStartGate({
+        starting: false,
+        hasSdk: true,
+        result: { plan: planned.data },
+        draft: {
+          source: composition.source,
+          agentCount: composition.source === "temporary" ? composition.agents.length : 0,
+        },
+      })
+      if (!gate.canStart) {
+        setUpgradeError(language.t(`custom.builder.startBlocker.${gate.blocker}`))
+        return
+      }
       const res = await s.client.customComposition.upgrade(
         {
           directory: dir,
           compositionUpgradeInput: {
             sessionID: currentSessionID,
-            composition: draft.composition,
-            expectedPlanDigest: currentSnapshot?.digest,
+            composition,
+            expectedPlanDigest: planned.data?.digest,
           },
         },
         { throwOnError: true },
       )
 
-      // Upgrade is atomic like start: it returns the Session it re-froze, so open that one.
-      // Handing off to `launchModeSession` opened a blank custom draft instead, orphaning the
-      // upgraded session and leaving a draft whose first send goes to plain `POST /session` —
-      // which custom mode rejects with 400. `custom-preview-column.tsx:107-112` fixed exactly
-      // this for the start path (BUG-CUSTOM-START); this call site survived because nothing
-      // stopped a client passing `custom` to a generic-creation helper.
+      if (source() !== currentSource || draft() !== currentDraft) return
+      if (!onSameSession(currentSessionID, currentServerKey)) return
+      // Upgrade creates a new Session on the source server. Open the returned ID
+      // through that same owner, even when the global server selection differs.
       const upgraded = res.data?.session
       if (upgraded?.id) {
         const ctx = global.ensureServerCtx(currentServer)
@@ -133,7 +198,7 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           sessionID: upgraded.id,
           sessionDirectory: upgraded.location.directory,
           projectDirectory: dir,
-          server: ServerConnection.key(currentServer),
+          server: currentServerKey,
           global,
           tabs,
           projects: ctx.projects,
@@ -141,15 +206,19 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
         showToast(language.t("custom.snapshot.upgradeSuccess"))
       }
     } catch (err: unknown) {
+      if (draft() !== currentDraft || !onSameSession(currentSessionID, currentServerKey) || sdk() !== s) return
       const { status, message } = parseErrorDetails(err)
       const msg = message ?? String(err)
       if (status === 409 || msg.includes("busy") || msg.includes("SessionBusyError")) {
         setUpgradeError(language.t("custom.snapshot.busyError"))
         return
       }
-      setUpgradeError(msg)
+      // Same policy as the failed snapshot read: a localized prefix plus the verbatim
+      // server detail, never a raw English message from the wire.
+      setUpgradeError(language.t("custom.snapshot.upgradeFailed", { message: msg }))
     } finally {
-      setUpgrading(false)
+      if (draft() === currentDraft && onSameSession(currentSessionID, currentServerKey) && sdk() === s)
+        setUpgrading(false)
     }
   }
 
@@ -162,13 +231,23 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
             <Icon name="mode-custom" size="small" class="text-v2-text-text-base" />
             <span class="text-v2-text-text-base text-14-medium">{language.t("custom.snapshot.panelTitle")}</span>
           </div>
-          <ButtonV2 variant="neutral" size="small" icon="edit" loading={upgrading()} onClick={handleUpgrade}>
+          <ButtonV2
+            variant="neutral"
+            size="small"
+            icon="edit"
+            disabled={!canUpgrade()}
+            loading={upgrading()}
+            onClick={handleUpgrade}
+          >
             {language.t("custom.snapshot.upgradeButton")}
           </ButtonV2>
         </div>
 
         <Show when={upgradeError()}>
-          <div class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center justify-between">
+          <div
+            role="alert"
+            class="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-12-regular text-rose-300 flex items-center justify-between"
+          >
             <span>{upgradeError()}</span>
             <button
               type="button"
@@ -181,12 +260,20 @@ export function CustomSessionPanel(props: CustomSessionPanelProps) {
           </div>
         </Show>
 
-        {/* A failed composition read is reported; only a 404 renders as "no snapshot" */}
+        {/* A failed composition read is reported; only a 404 renders as "no snapshot". The
+            read is retryable in place: a server error is not the same as an absent snapshot,
+            so the panel keeps the failure visible as an alert and re-reads the same session. */}
         <Show when={snapshotError()}>
           {(message) => (
-            <div class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-3 text-12-regular text-v2-state-fg-danger">
+            <div
+              role="alert"
+              class="flex items-center gap-2 rounded-md border border-v2-state-border-danger bg-v2-state-bg-danger p-3 text-12-regular text-v2-state-fg-danger"
+            >
               <Icon name="warning" size="small" class="shrink-0" />
               <span class="min-w-0 flex-1">{language.t("custom.snapshot.loadFailed", { message: message() })}</span>
+              <ButtonV2 variant="neutral" size="small" onClick={() => void refetchSnapshot()}>
+                {language.t("assistant.citation.retry")}
+              </ButtonV2>
             </div>
           )}
         </Show>

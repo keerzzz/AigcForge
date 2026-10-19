@@ -10,6 +10,7 @@ import { type Accessor, createMemo, For, type JSX, Match, Show, Switch } from "s
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { getProjectAvatarVariant, type LocalProject, useLayout } from "@/context/layout"
+import type { SessionContribution } from "@/context/route-contribution"
 import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
 import { messageAgentColor } from "@/utils/agent"
@@ -78,6 +79,7 @@ export type SessionItemProps = {
   navList?: Accessor<Session[]>
   slug: string
   serverKey?: ServerConnection.Key
+  status?: SessionContribution["sessionStatus"]
   mobile?: boolean
   dense?: boolean
   showTooltip?: boolean
@@ -150,12 +152,12 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
   const notification = useNotification()
   const permission = usePermission()
   const serverSync = useServerSync()
-  const unseenCount = createMemo(() => notification.session.unseenCount(props.session.id))
-  const hasError = createMemo(() => notification.session.unseenHasError(props.session.id))
+  const unseenCount = createMemo(() => (props.status ?? notification.session).unseenCount(props.session.id))
+  const hasError = createMemo(() => (props.status ?? notification.session).unseenHasError(props.session.id))
   const [sessionStore] = serverSync().child(props.session.directory)
   const hasPermissions = createMemo(() => {
     return !!sessionPermissionRequest(sessionStore.session, sessionStore.permission, props.session.id, (item) => {
-      return !permission.autoResponds(item, props.session.directory)
+      return !(props.status ?? permission).autoResponds(item, props.session.directory)
     })
   })
   const isWorking = createMemo(() => {

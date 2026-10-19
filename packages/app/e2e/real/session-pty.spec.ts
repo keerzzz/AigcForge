@@ -42,7 +42,7 @@ async function createPty(request: APIRequestContext, input: { title: string; com
 
 test.skip(() => e4().v2Runtime, "pty chain runs against the default backend")
 
-test("creates a PTY, streams output over the real WebSocket, exits, and deletes", async ({ request }) => {
+test("creates a PTY, streams output over the real WebSocket, and closes on deletion", async ({ request }) => {
   const e4m = e4()
   const ptyID = await createPty(request, { title: "S5 pty", command: "/bin/sh" })
 
@@ -57,71 +57,93 @@ test("creates a PTY, streams output over the real WebSocket, exits, and deletes"
   }
   const ticket = tokenBody.ticket
 
-  const output = await new Promise<string>((resolve, reject) => {
-    const socket = new WebSocket(
-      `ws://127.0.0.1:${e4m.backendPort}/pty/${ptyID}/connect?directory=${encodeURIComponent(e4m.workspaceDir)}&ticket=${encodeURIComponent(ticket)}`,
-    )
-    let text = ""
-    socket.addEventListener("open", () => socket.send(Contracts.ptyCommand))
-    socket.addEventListener("message", (event) => {
-      text += typeof event.data === "string" ? event.data : ""
-      if (Contracts.hasPtyOutput(text)) {
-        socket.close()
-        resolve(text)
-      }
-    })
-    socket.addEventListener("error", () => reject(new Error("pty websocket error")))
-    socket.addEventListener("close", () => resolve(text))
-  })
-  expect(Contracts.hasPtyOutput(output), "pty streamed the command output").toBe(true)
-
-  // Delete is the real cleanup contract; the process must be gone from the list.
-  const removed = await request.delete(
-    `${e4m.backendUrl}/pty/${ptyID}?directory=${encodeURIComponent(e4m.workspaceDir)}`,
-    { headers: headers() },
+  const socket = new WebSocket(
+    `ws://127.0.0.1:${e4m.backendPort}/pty/${ptyID}/connect?directory=${encodeURIComponent(e4m.workspaceDir)}&ticket=${encodeURIComponent(ticket)}`,
   )
-  expect(removed.ok(), `pty delete: ${await removed.text()}`).toBeTruthy()
+  const closed = new Promise<number>((resolve) => {
+    socket.addEventListener("close", (event) => resolve(event.code), { once: true })
+  })
+  try {
+    const output = await new Promise<string>((resolve, reject) => {
+      let text = ""
+      socket.addEventListener("open", () => socket.send(Contracts.ptyCommand), { once: true })
+      socket.addEventListener("message", (event) => {
+        text += typeof event.data === "string" ? event.data : ""
+        if (Contracts.hasPtyOutput(text)) resolve(text)
+      })
+      socket.addEventListener("error", () => reject(new Error("pty websocket error")), { once: true })
+      socket.addEventListener("close", () => reject(new Error("pty websocket closed before output")), { once: true })
+    })
+    expect(Contracts.hasPtyOutput(output), "pty streamed the command output").toBe(true)
+    expect(socket.readyState, "the server still owns the live socket before deletion").toBe(WebSocket.OPEN)
+
+    const removed = await request.delete(
+      `${e4m.backendUrl}/pty/${ptyID}?directory=${encodeURIComponent(e4m.workspaceDir)}`,
+      { headers: headers() },
+    )
+    expect(removed.ok(), `pty delete: ${await removed.text()}`).toBeTruthy()
+    expect(await closed, "deletion closes the attached WebSocket normally").toBe(1000)
+  } finally {
+    socket.close()
+  }
+  const missing = await request.get(`${e4m.backendUrl}/api/pty/${ptyID}`, { headers: headers() })
+  expect(missing.status()).toBe(404)
+  expect(await missing.json()).toMatchObject({ _tag: "PtyNotFoundError", ptyID })
   await expect.poll(async () => (await listPtys(request)).length, { timeout: 20_000 }).toBe(0)
 })
 
-test("a PTY that exits immediately still reports a terminal state, not a hang", async ({ request }) => {
+test("an immediately exited PTY retains its exit code until explicit removal", async ({ request }) => {
   const ptyID = await createPty(request, { title: "S5 pty exit", command: "/bin/sh", args: ["-c", "exit 7"] })
 
-  const info = await request.get(`${e4().backendUrl}/pty/${ptyID}?directory=${encodeURIComponent(e4().workspaceDir)}`, {
-    headers: headers(),
-  })
-  expect(info.ok(), `pty get: ${await info.text()}`).toBeTruthy()
-  const body: unknown = await info.json()
-  expect(isRecord(body), "pty get returns an object").toBe(true)
+  // /api/pty retains the process result. The active-only /pty surface hides it.
+  await expect
+    .poll(
+      async () => {
+        const info = await request.get(`${e4().backendUrl}/api/pty/${ptyID}`, { headers: headers() })
+        expect(info.status()).toBe(200)
+        return info.json()
+      },
+      { timeout: 10_000 },
+    )
+    .toMatchObject({
+      location: { directory: e4().workspaceDir },
+      data: { id: ptyID, status: "exited", exitCode: 7 },
+    })
 
-  const removed = await request.delete(
+  const hidden = await request.get(
     `${e4().backendUrl}/pty/${ptyID}?directory=${encodeURIComponent(e4().workspaceDir)}`,
     { headers: headers() },
   )
-  expect(removed.ok()).toBeTruthy()
+  expect(hidden.status()).toBe(404)
+  expect(await hidden.json()).toMatchObject({ _tag: "PtyNotFoundError", ptyID })
+  expect(await listPtys(request)).toEqual([])
+
+  const retained = await request.get(`${e4().backendUrl}/api/pty`, { headers: headers() })
+  expect(retained.status()).toBe(200)
+  expect(await retained.json()).toMatchObject({
+    location: { directory: e4().workspaceDir },
+    data: [{ id: ptyID, status: "exited", exitCode: 7 }],
+  })
+
+  const removed = await request.delete(`${e4().backendUrl}/api/pty/${ptyID}`, { headers: headers() })
+  expect(removed.status()).toBe(204)
+  const missing = await request.get(`${e4().backendUrl}/api/pty/${ptyID}`, { headers: headers() })
+  expect(missing.status()).toBe(404)
+  expect(await missing.json()).toMatchObject({ _tag: "PtyNotFoundError", ptyID })
+  const empty = await request.get(`${e4().backendUrl}/api/pty`, { headers: headers() })
+  expect(empty.status()).toBe(200)
+  expect(await empty.json()).toMatchObject({ data: [] })
 })
 
-test("creating a PTY with a bogus command fails typed instead of leaking a process", async ({ request }) => {
+test("creating a PTY with a nonexistent command rejects without retaining a process", async ({ request }) => {
   const created = await request.post(`${e4().backendUrl}/pty?directory=${encodeURIComponent(e4().workspaceDir)}`, {
     headers: headers(),
     data: { title: "S5 pty bad", command: "/definitely/not/a/binary", cwd: e4().workspaceDir },
   })
-  // Either the create is rejected, or it succeeds and the process reports exit —
-  // what must NOT happen is a silent success with a live orphan.
-  if (created.ok()) {
-    const body: unknown = await created.json()
-    if (isRecord(body) && typeof body.id === "string") {
-      const removed = await request.delete(
-        `${e4().backendUrl}/pty/${body.id}?directory=${encodeURIComponent(e4().workspaceDir)}`,
-        { headers: headers() },
-      )
-      expect(removed.ok()).toBeTruthy()
-    }
-  } else {
-    // Observed contract: a spawn failure surfaces as 500, not a typed 4xx.
-    // Asserted as-is (live observation, not a hoped-for shape) — what matters
-    // for the P0 gate is the line below: no live orphan survives the attempt.
-    expect(created.status()).toBe(500)
-  }
+  // The current Linux spawn failure is an HTTP 500, without a typed 4xx contract.
+  expect(created.status()).toBe(500)
   await expect.poll(async () => (await listPtys(request)).length, { timeout: 20_000 }).toBe(0)
+  const empty = await request.get(`${e4().backendUrl}/api/pty`, { headers: headers() })
+  expect(empty.status()).toBe(200)
+  expect(await empty.json()).toMatchObject({ data: [] })
 })

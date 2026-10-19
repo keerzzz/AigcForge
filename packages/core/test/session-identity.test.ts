@@ -127,20 +127,21 @@ const workflowRunLayer = (run: WorkflowAsset.WorkflowRunInfo | undefined) =>
     getBySession: () => Effect.succeed(run),
   })
 
-const artifactOf = (revision: WorkflowAsset.Revision): WorkArtifact.ArtifactSnapshot => ({
-  artifact: Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)({
-    id: "art_identity_fixture",
-    sessionID: "ses_identity_fixture",
-    kind: "document",
-    title: "Identity artifact",
-    mediaType: "text/markdown",
-    relativePath: "identity-artifact.md",
-    status: "available",
-    createdAt: 1_700_000_000_000,
-    updatedAt: 1_700_000_000_000,
-  }),
-  revision,
-})
+const artifactOf = (revision: WorkflowAsset.Revision) =>
+  new WorkArtifact.ArtifactSnapshot({
+    artifact: Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)({
+      id: "art_identity_fixture",
+      sessionID: "ses_identity_fixture",
+      kind: "document",
+      title: "Identity artifact",
+      mediaType: "text/markdown",
+      relativePath: "identity-artifact.md",
+      status: "available",
+      createdAt: 1_700_000_000_000,
+      updatedAt: 1_700_000_000_000,
+    }),
+    revision,
+  })
 
 const workArtifactLayer = (artifact: WorkArtifact.ArtifactSnapshot | undefined) =>
   Layer.mock(WorkArtifact.Service, {

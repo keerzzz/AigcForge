@@ -8,11 +8,11 @@ export function CustomCompositionConfig() {
   const language = useLanguage()
   const draft = useCustomDraft()
 
-  const boundPrompts = createMemo(() => draft.state.bindings["orchestrator"]?.prompts ?? [])
-  const boundSkills = createMemo(() => draft.state.bindings["orchestrator"]?.skills ?? [])
-  const boundCommands = createMemo(() => draft.state.bindings["orchestrator"]?.commands ?? [])
+  const boundPrompts = createMemo(() => draft().state.bindings["orchestrator"]?.prompts ?? [])
+  const boundSkills = createMemo(() => draft().state.bindings["orchestrator"]?.skills ?? [])
+  const boundCommands = createMemo(() => draft().state.bindings["orchestrator"]?.commands ?? [])
   const bindingConsumers = createMemo<Array<[string, CustomDraftBinding]>>(() => {
-    const entries = Object.entries(draft.state.bindings).map(
+    const entries = Object.entries(draft().state.bindings).map(
       ([consumer, binding]) =>
         [consumer, { ...binding, commands: binding.commands ?? [] }] as [string, CustomDraftBinding],
     )
@@ -30,15 +30,15 @@ export function CustomCompositionConfig() {
         <div class="inline-flex rounded-lg border border-v2-border-border-base bg-v2-background-bg-layer-02 p-1 max-w-sm">
           <button
             type="button"
-            class={`flex-1 rounded-md px-3 py-1.5 text-12-medium transition-colors ${draft.state.source === "temporary" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base shadow-sm" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
-            onClick={() => draft.setSource("temporary")}
+            class={`flex-1 rounded-md px-3 py-1.5 text-12-medium transition-colors ${draft().state.source === "temporary" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base shadow-sm" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
+            onClick={() => draft().setSource("temporary")}
           >
             {language.t("custom.builder.sourceTemporary")}
           </button>
           <button
             type="button"
-            class={`flex-1 rounded-md px-3 py-1.5 text-12-medium transition-colors ${draft.state.source === "profile" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base shadow-sm" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
-            onClick={() => draft.setSource("profile")}
+            class={`flex-1 rounded-md px-3 py-1.5 text-12-medium transition-colors ${draft().state.source === "profile" ? "bg-v2-background-bg-layer-03 text-v2-text-text-base shadow-sm" : "text-v2-text-text-muted hover:text-v2-text-text-base"}`}
+            onClick={() => draft().setSource("profile")}
           >
             {language.t("custom.builder.sourceProfile")}
           </button>
@@ -46,7 +46,7 @@ export function CustomCompositionConfig() {
       </div>
 
       <Show
-        when={draft.state.source === "temporary"}
+        when={draft().state.source === "temporary"}
         fallback={
           <div class="flex flex-col gap-2">
             <label class="text-v2-text-text-muted text-12-medium">
@@ -56,8 +56,8 @@ export function CustomCompositionConfig() {
               type="text"
               class="w-full rounded-md border border-v2-border-border-base bg-v2-background-bg-layer-02 px-3 py-2 text-13-regular text-v2-text-text-base placeholder:text-v2-text-text-muted focus:border-v2-border-border-focus focus:outline-none"
               placeholder=".aigcfroge/profiles/default.yaml"
-              value={draft.state.profilePath ?? ""}
-              onInput={(e) => draft.setProfilePath(e.currentTarget.value)}
+              value={draft().state.profilePath ?? ""}
+              onInput={(e) => draft().setProfilePath(e.currentTarget.value)}
             />
             <span class="text-v2-text-text-faint text-11-regular">{language.t("custom.builder.profilePathHelp")}</span>
           </div>
@@ -73,7 +73,7 @@ export function CustomCompositionConfig() {
               <Icon name="mode-custom" size="small" class="shrink-0 text-v2-icon-icon-muted" />
               <div class="min-w-0">
                 <Show
-                  when={draft.state.workflow}
+                  when={draft().state.workflow}
                   fallback={
                     <span class="text-v2-text-text-muted text-12-regular">
                       {language.t("custom.builder.noWorkflow")}
@@ -93,13 +93,13 @@ export function CustomCompositionConfig() {
                 </Show>
               </div>
             </div>
-            <Show when={draft.state.workflow}>
+            <Show when={draft().state.workflow}>
               <IconButtonV2
                 variant="ghost-muted"
                 size="small"
                 icon={<Icon name="close" />}
                 aria-label={language.t("common.remove")}
-                onClick={() => draft.setWorkflow(undefined)}
+                onClick={() => draft().setWorkflow(undefined)}
               />
             </Show>
           </div>
@@ -108,10 +108,10 @@ export function CustomCompositionConfig() {
         {/* Included Agents */}
         <div class="flex flex-col gap-2">
           <label class="text-v2-text-text-muted text-12-medium uppercase tracking-wider">
-            {language.t("custom.builder.includedAgents")} ({draft.state.agents.length})
+            {language.t("custom.builder.includedAgents")} ({draft().state.agents.length})
           </label>
           <Show
-            when={draft.state.agents.length > 0}
+            when={draft().state.agents.length > 0}
             fallback={
               <div class="rounded-lg border border-dashed border-v2-border-border-base p-4 text-center text-v2-text-text-muted text-12-regular">
                 {language.t("custom.builder.noAgentsSelected")}
@@ -119,7 +119,7 @@ export function CustomCompositionConfig() {
             }
           >
             <div class="flex flex-wrap gap-2">
-              <For each={draft.state.agents}>
+              <For each={draft().state.agents}>
                 {(agent) => {
                   const name = agent.name ?? agent.relativePath.replace(/\.md$/, "")
 
@@ -132,7 +132,7 @@ export function CustomCompositionConfig() {
                         size="small"
                         icon={<Icon name="close" />}
                         aria-label={language.t("common.remove")}
-                        onClick={() => draft.removeAgent(agent.relativePath)}
+                        onClick={() => draft().removeAgent(agent.relativePath)}
                       />
                     </div>
                   )
@@ -179,7 +179,7 @@ export function CustomCompositionConfig() {
                                 <button
                                   type="button"
                                   class="hover:text-purple-100"
-                                  onClick={() => draft.togglePrompt(consumer, prompt)}
+                                  onClick={() => draft().togglePrompt(consumer, prompt)}
                                 >
                                   <Icon name="close" size="small" />
                                 </button>
@@ -211,7 +211,7 @@ export function CustomCompositionConfig() {
                                 <button
                                   type="button"
                                   class="hover:text-emerald-100"
-                                  onClick={() => draft.toggleSkill(consumer, skill)}
+                                  onClick={() => draft().toggleSkill(consumer, skill)}
                                 >
                                   <Icon name="close" size="small" />
                                 </button>
@@ -243,7 +243,7 @@ export function CustomCompositionConfig() {
                                   type="button"
                                   class="shrink-0 text-v2-text-text-muted hover:text-v2-text-text-base focus-visible:outline focus-visible:outline-1 focus-visible:outline-v2-border-border-active"
                                   aria-label={language.t("common.remove")}
-                                  onClick={() => draft.toggleCommand(consumer, command)}
+                                  onClick={() => draft().toggleCommand(consumer, command)}
                                 >
                                   <Icon name="close" size="small" />
                                 </button>

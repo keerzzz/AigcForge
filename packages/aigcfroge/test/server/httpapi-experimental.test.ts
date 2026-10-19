@@ -214,6 +214,26 @@ describe("experimental HttpApi", () => {
   )
 
   it.instance(
+    "rejects invalid Console switch payload with the validation envelope",
+    () =>
+      Effect.gen(function* () {
+        const tmp = yield* TestInstance
+        const response = yield* request(ExperimentalPaths.consoleSwitch, tmp.directory, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ accountID: 0, orgID: "org-test" }),
+        })
+        expect(response.status).toBe(400)
+        expect(response.headers["content-type"] ?? "").toContain("application/json")
+        expect(yield* response.json).toMatchObject({
+          name: "BadRequest",
+          data: { kind: "Payload", message: expect.stringContaining("accountID") },
+        })
+      }),
+    { config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
     "serves Console org switch through the default server app",
     () =>
       Effect.gen(function* () {

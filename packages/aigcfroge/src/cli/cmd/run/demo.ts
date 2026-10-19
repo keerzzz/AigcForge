@@ -1007,7 +1007,8 @@ function emitQuestion(state: State, kind: QuestionKind = "multi"): void {
   state.asks.set(id, { ref })
 
   feed(state, {
-    type: "question.asked",
+    id: `question.v2.asked:${id}`,
+    type: "question.v2.asked",
     properties: {
       id,
       sessionID: state.id,
@@ -1017,7 +1018,7 @@ function emitQuestion(state: State, kind: QuestionKind = "multi"): void {
         callID: ref.call,
       },
     },
-  } as Event)
+  } satisfies Event)
 }
 
 async function emitFmt(state: State, kind: string, body: string, signal?: AbortSignal): Promise<boolean> {
@@ -1221,18 +1222,18 @@ export function createRunDemo(input: Input) {
 
   const questionReply = (input: QuestionReply): boolean => {
     const ask = state.asks.get(input.requestID)
-    if (!ask || !input.answers) {
+    if (!ask || input.sessionID !== state.id) {
       return false
     }
 
     state.asks.delete(input.requestID)
     const event = {
-      id: `question.replied:${input.requestID}:${Date.now()}`,
-      type: "question.replied",
+      id: `question.v2.replied:${input.requestID}:${Date.now()}`,
+      type: "question.v2.replied",
       properties: {
-        sessionID: state.id,
+        sessionID: input.sessionID,
         requestID: input.requestID,
-        answers: input.answers,
+        answers: input.questionV2Reply.answers,
       },
     } satisfies Event
     feed(state, event)
@@ -1240,7 +1241,7 @@ export function createRunDemo(input: Input) {
       title: "question",
       output: "",
       metadata: {
-        answers: input.answers,
+        answers: input.questionV2Reply.answers,
       },
     })
     return true
@@ -1248,18 +1249,19 @@ export function createRunDemo(input: Input) {
 
   const questionReject = (input: QuestionReject): boolean => {
     const ask = state.asks.get(input.requestID)
-    if (!ask) {
+    if (!ask || input.sessionID !== state.id) {
       return false
     }
 
     state.asks.delete(input.requestID)
     feed(state, {
-      type: "question.rejected",
+      id: `question.v2.rejected:${input.requestID}:${Date.now()}`,
+      type: "question.v2.rejected",
       properties: {
-        sessionID: state.id,
+        sessionID: input.sessionID,
         requestID: input.requestID,
       },
-    } as Event)
+    } satisfies Event)
     failTool(state, ask.ref, "question rejected")
     return true
   }

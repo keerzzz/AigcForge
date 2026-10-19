@@ -306,7 +306,8 @@ export const negotiateCapabilities = (connection: CodexAppServerConnection): Eff
       },
       InitializeResponse,
     ).pipe(Effect.option)
-    if (Option.isNone(initRes) || !initRes.value.userAgent.includes("/0.150.")) {
+    // Compatibility comes from decoded protocol responses, not the CLI release in userAgent.
+    if (Option.isNone(initRes)) {
       return { supported: false, fallbackTransport: "sdk", resolveAdapter: fallbackAdapter }
     }
     const probeRes = yield* request(

@@ -1,4 +1,5 @@
 import type { Duration, Effect } from "effect"
+import type { ProductMode } from "@aigcfroge/schema/product-mode"
 import type { PermissionV2 } from "@aigcfroge/core/permission"
 import type { ScopedGrantStore } from "@aigcfroge/core/grant/store"
 import type { SessionComposition } from "@aigcfroge/core/session/composition"
@@ -44,6 +45,10 @@ export type RequestSpec = {
   body?: unknown
 }
 
+export type AuthProbe = RequestSpec & {
+  prepare?: () => Effect.Effect<void>
+}
+
 export type CallResult = {
   status: number
   contentType: string
@@ -61,7 +66,11 @@ export type ScenarioContext = {
   directory: string | undefined
   headers: (extra?: Record<string, string>) => Record<string, string>
   file: (name: string, content: string) => Effect.Effect<void>
-  session: (input?: { title?: string; parentID?: SessionID }) => Effect.Effect<SessionInfo>
+  session: (input?: {
+    title?: string
+    parentID?: SessionID
+    mode?: ProductMode.GenericSessionMode
+  }) => Effect.Effect<SessionInfo>
   sessionGet: (sessionID: SessionID) => Effect.Effect<SessionInfo | undefined>
   customSession: (input?: {
     title?: string
@@ -92,7 +101,6 @@ export type ScenarioContext = {
   project: () => Effect.Effect<Project.Info>
   message: (sessionID: SessionID, input?: { text?: string }) => Effect.Effect<MessageSeed>
   messages: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts[]>
-  todos: (sessionID: SessionID, todos: TodoInfo[]) => Effect.Effect<void>
   tasks: (
     sessionID: SessionID,
     tasks: ReadonlyArray<SessionTask.WriteInfo>,
@@ -150,7 +158,7 @@ export type ActiveScenario = {
   project: ProjectOptions | undefined
   seed: (ctx: ScenarioContext) => Effect.Effect<unknown>
   request: (ctx: ScenarioContext, state: unknown) => RequestSpec
-  authProbe: RequestSpec | undefined
+  authProbe: AuthProbe | undefined
   expect: (ctx: ScenarioContext, state: unknown, result: CallResult) => Effect.Effect<void>
   compare: Comparison
   capture: CaptureMode
@@ -166,7 +174,7 @@ export type BuilderState<S> = {
   project: ProjectOptions | undefined
   seed: (ctx: ScenarioContext) => Effect.Effect<S>
   request: (ctx: SeededContext<S>) => RequestSpec
-  authProbe: RequestSpec | undefined
+  authProbe: AuthProbe | undefined
   capture: CaptureMode
   mutates: boolean
   reset: boolean
@@ -187,5 +195,4 @@ export type Result =
   | { status: "skip"; scenario: TodoScenario }
 
 export type SessionInfo = { id: SessionID; title: string; parentID?: SessionID }
-export type TodoInfo = { content: string; status: string; priority: string }
 export type MessageSeed = { info: SessionV1.User; part: SessionV1.TextPart }

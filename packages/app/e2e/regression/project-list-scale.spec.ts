@@ -12,8 +12,8 @@ import { pinDesktopViewport } from "../utils/viewport"
  * What is not yet measured is what a list far past the current sizes actually does, and
  * that is the only thing that can decide whether a cap, a virtualised list or nothing is
  * owed. This spec seeds N projects straight into the registry store — the same shape
- * `home-mode-filter.spec.ts:86-94` uses — because the mock's `/project` only ever answers
- * `[config.project]` and knows nothing about extra entries.
+ * `home-mode-filter.spec.ts:86-94` uses. The same entries seed the server's project
+ * list so each Location-scoped bootstrap resolves a real fixture project.
  *
  * It is a measurement, not a cap or virtualisation contract. Assertions stay
  * contract-like: the app renders the rows it was given, still reacts to clicks, and
@@ -40,6 +40,7 @@ const seededProjects = (n: number) =>
   }))
 
 async function openHome(page: Page, n: number) {
+  const entries = seededProjects(n)
   await mockAigcfrogeServer(page, {
     directory,
     project: {
@@ -50,6 +51,14 @@ async function openHome(page: Page, n: number) {
       time: { created, updated: created },
       sandboxes: [],
     },
+    projects: entries.map((entry, index) => ({
+      id: `proj_scale_${index}`,
+      worktree: entry.worktree,
+      vcs: "git",
+      name: `Scale ${index}`,
+      time: { created, updated: created },
+      sandboxes: [],
+    })),
     provider: { providers: [], default: {} },
     // No sessions: the projects are the only variable in this measurement.
     sessions: [],
@@ -62,7 +71,7 @@ async function openHome(page: Page, n: number) {
       "aigcfroge.global.dat:server",
       JSON.stringify({ list: [], projects: { local: entries }, lastProject: {} }),
     )
-  }, seededProjects(n))
+  }, entries)
 }
 
 test.beforeEach(async ({ page }) => {

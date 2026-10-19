@@ -4,6 +4,7 @@ import { AccordionV2 } from "@aigcfroge/ui/v2/accordion-v2"
 import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
 import { useLanguage } from "@/context/language"
 import { useSDK } from "@/context/sdk"
+import { useModeQueryActivity } from "@/pages/mode-slot-active"
 
 const CONFIDENCE_COLOR: Record<string, string> = {
   high: "var(--syntax-success)",
@@ -43,8 +44,11 @@ export function SessionCacheDiagnostics(props: { sessionID: string }) {
   const language = useLanguage()
   const sdk = useSDK()
 
+  const queryKey = () => [sdk().scope, "cache-diagnostics", props.sessionID] as const
+  const slotActive = useModeQueryActivity(queryKey)
   const query = createQuery(() => ({
-    queryKey: ["cache-diagnostics", props.sessionID] as const,
+    enabled: slotActive(),
+    queryKey: queryKey(),
     queryFn: async () => {
       const result = await sdk().client.session.cacheDiagnostics({ sessionID: props.sessionID })
       return result.data

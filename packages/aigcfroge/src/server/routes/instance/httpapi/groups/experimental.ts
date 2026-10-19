@@ -18,6 +18,7 @@ import { described } from "./metadata"
 import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 
 const ConsoleStateResponse = Schema.Struct({
   consoleManagedProviders: Schema.mutable(Schema.Array(Schema.String)),
@@ -31,6 +32,7 @@ const CapabilitiesResponse = Schema.Struct({
   customMode: Schema.optionalKey(Schema.Boolean),
   productModes: Schema.optionalKey(Schema.Array(Schema.String)),
   customCompositionVersion: Schema.optionalKey(Schema.Number),
+  canonicalSessionModes: Schema.Array(ProductMode.ID),
 }).annotate({ identifier: "ExperimentalCapabilities" })
 
 const ConsoleOrgOption = Schema.Struct({

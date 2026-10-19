@@ -1,4 +1,4 @@
-import type { Message, Session, Part, SnapshotFileDiff, SessionStatus, Provider } from "@aigcfroge/sdk/v2"
+import type { Message, Session, Part, ToolPart, SnapshotFileDiff, SessionStatus, Provider } from "@aigcfroge/sdk/v2"
 import { createSimpleContext } from "@aigcfroge/ui/context"
 import { PreloadMultiFileDiffResult } from "@pierre/diffs/ssr"
 
@@ -41,6 +41,8 @@ export type NavigateToSessionFn = (sessionID: string) => void
 
 export type SessionHrefFn = (sessionID: string) => string
 
+export type QuestionActionFn = (part: Pick<ToolPart, "sessionID" | "messageID" | "callID">) => (() => void) | undefined
+
 export const { use: useData, provider: DataProvider } = createSimpleContext({
   name: "Data",
   init: (props: {
@@ -48,6 +50,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
     directory: string
     onNavigateToSession?: NavigateToSessionFn
     onSessionHref?: SessionHrefFn
+    onQuestionAction?: QuestionActionFn
   }) => {
     return {
       get store() {
@@ -58,6 +61,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
       },
       navigateToSession: props.onNavigateToSession,
       sessionHref: props.onSessionHref,
+      questionAction: props.onQuestionAction,
     }
   },
 })

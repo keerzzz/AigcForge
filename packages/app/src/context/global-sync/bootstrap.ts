@@ -1,3 +1,5 @@
+import { Schema } from "effect"
+import { Question } from "@aigcfroge/schema/question"
 import type {
   Config,
   AigcfrogeClient,
@@ -5,19 +7,19 @@ import type {
   PermissionRequest,
   Project,
   ProviderAuthResponse,
-  QuestionRequest,
+  QuestionV2Request,
   Session,
   SessionTaskInfo,
-  Todo,
 } from "@aigcfroge/sdk/v2/client"
 import { PermissionPendingModel } from "./permission-pending"
+import { PendingEvents } from "./pending-events"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@aigcfroge/core/util/path"
 import { retry } from "@aigcfroge/core/util/retry"
 import { batch } from "solid-js"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"
-import { cmp, normalizeAgentList, normalizeProviderList } from "./utils"
+import { cmp, mergeSessionReview, normalizeAgentList, normalizeProviderList } from "./utils"
 import { formatServerError } from "@/utils/server-errors"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import { QueryClient, queryOptions } from "@tanstack/solid-query"
@@ -29,18 +31,8 @@ type GlobalStore = {
   ready: boolean
   path: Path
   project: Project[]
-  session_todo: {
-    [sessionID: string]: Todo[]
-  }
   session_task: {
     [sessionID: string]: SessionTaskInfo[]
-  }
-  /** Mirrors server-sync's GlobalStore (M7 ⑦ freshness recency maps). */
-  session_todo_updated_at: {
-    [sessionID: string]: number
-  }
-  session_task_updated_at: {
-    [sessionID: string]: number
   }
   /** P2: ephemeral per-session task progress (mirrors server-sync's GlobalStore). */
   session_task_progress: {
@@ -157,12 +149,12 @@ function mergeSession(setStore: SetStoreFunction<State>, session: Session) {
   setStore("session", (list) => {
     const next = list.slice()
     const idx = next.findIndex((item) => item.id >= session.id)
-    if (idx === -1) return [...next, session]
+    if (idx === -1) return [...next, mergeSessionReview(undefined, session)]
     if (next[idx]?.id === session.id) {
-      next[idx] = session
+      next[idx] = mergeSessionReview(next[idx], session)
       return next
     }
-    next.splice(idx, 0, session)
+    next.splice(idx, 0, mergeSessionReview(undefined, session))
     return next
   })
 }
@@ -186,7 +178,7 @@ function warmSessions(input: {
     ids.map((sessionID) =>
       retry(() => input.sdk.session.get({ sessionID })).then((x) => {
         const session = x.data
-        if (!session?.id) return
+        if (session?.id !== sessionID) return
         mergeSession(input.setStore, session)
       }),
     ),
@@ -207,7 +199,7 @@ export function loadV2PermissionPending(input: {
   sdk: PermissionPendingClient
   store: Store<State>
   setStore: SetStoreFunction<State>
-}) {
+}): Promise<void> {
   const revision = input.store.permission_v2_revision
   const loadEpoch = input.store.permission_v2_load_epoch + 1
   input.setStore("permission_v2_load_epoch", loadEpoch)
@@ -219,10 +211,11 @@ export function loadV2PermissionPending(input: {
     const ids = permissions.map((permission) => permission.sessionID)
     return warmSessions({ ids, store: input.store, setStore: input.setStore, sdk: input.sdk }).then(() => {
       if (input.store.permission_v2_load_epoch !== loadEpoch) return
-      const pending = PermissionPendingModel.applyPermissionV2Events(
-        permissions,
-        input.store.permission_v2_events.filter((event) => event.revision > revision),
-      )
+      const pending = PendingEvents.replay(permissions, input.store.permission_v2_events, {
+        after: revision,
+        current: input.store.permission_v2_revision,
+      })
+      if (!pending) return loadV2PermissionPending(input)
       const grouped = Object.fromEntries(
         Object.entries(groupBySession(pending)).map(([sessionID, requests]) => [
           sessionID,
@@ -235,6 +228,51 @@ export function loadV2PermissionPending(input: {
       })
     })
   })
+}
+
+type QuestionPendingClient = SessionReader & {
+  v2: { question: { request: Pick<AigcfrogeClient["v2"]["question"]["request"], "list"> } }
+}
+
+export function loadQuestionPending(input: {
+  directory: string
+  sdk: QuestionPendingClient
+  store: Store<State>
+  setStore: SetStoreFunction<State>
+}): Promise<void> {
+  const revision = input.store.question_revision
+  const loadEpoch = input.store.question_load_epoch + 1
+  input.setStore("question_load_epoch", loadEpoch)
+  return input.sdk.v2.question.request
+    .list({ location: { directory: input.directory } }, { throwOnError: true })
+    .then((x) => {
+      const questions = (x.data?.data ?? []).filter((question): question is QuestionV2Request =>
+        Schema.is(Question.Request)(question),
+      )
+      return warmSessions({
+        ids: questions.map((question) => question.sessionID),
+        store: input.store,
+        setStore: input.setStore,
+        sdk: input.sdk,
+      }).then(() => {
+        if (input.store.question_load_epoch !== loadEpoch) return
+        const pending = PendingEvents.replay(questions, input.store.question_events, {
+          after: revision,
+          current: input.store.question_revision,
+        })
+        if (!pending) return loadQuestionPending(input)
+        const grouped = Object.fromEntries(
+          Object.entries(groupBySession(pending)).map(([sessionID, requests]) => [
+            sessionID,
+            requests.sort((a, b) => cmp(a.id, b.id)),
+          ]),
+        )
+        return batch(() => {
+          input.setStore("question", reconcile(grouped, { merge: false }))
+          input.setStore("question_events", [])
+        })
+      })
+    })
 }
 
 export const loadProvidersQuery = (scope: ServerScope, directory: string | null, sdk: AigcfrogeClient) =>
@@ -368,31 +406,7 @@ export async function bootstrapDirectory(input: {
           }),
         ),
       () => retry(() => loadV2PermissionPending(input)),
-      () =>
-        retry(() =>
-          input.sdk.question.list().then((x) => {
-            const ids = (x.data ?? []).map((question) => question?.sessionID).filter((id): id is string => !!id)
-            const grouped = groupBySession((x.data ?? []).filter((q): q is QuestionRequest => !!q?.id && !!q.sessionID))
-            return warmSessions({ ids, store: input.store, setStore: input.setStore, sdk: input.sdk }).then(() =>
-              batch(() => {
-                for (const sessionID of Object.keys(input.store.question)) {
-                  if (grouped[sessionID]) continue
-                  input.setStore("question", sessionID, [])
-                }
-                for (const [sessionID, questions] of Object.entries(grouped)) {
-                  input.setStore(
-                    "question",
-                    sessionID,
-                    reconcile(
-                      questions.filter((q) => !!q?.id).sort((a, b) => cmp(a.id, b.id)),
-                      { key: "id" },
-                    ),
-                  )
-                }
-              }),
-            )
-          }),
-        ),
+      () => retry(() => loadQuestionPending(input)),
       () => Promise.resolve(input.loadSessions(input.directory)),
       input.mcp && (() => input.queryClient.fetchQuery(loadMcpQuery(input.scope, input.directory, input.sdk))),
       () =>

@@ -2,13 +2,13 @@ import { Effect } from "effect"
 import { looksJson } from "./assertions"
 import type {
   ActiveScenario,
+  AuthProbe,
   AuthPolicy,
   BuilderState,
   CallResult,
   Comparison,
   Method,
   ProjectOptions,
-  RequestSpec,
   ScenarioContext,
   SeededContext,
   TodoScenario,
@@ -50,7 +50,7 @@ class ScenarioBuilder<S = undefined> {
     return this.clone({ request })
   }
 
-  probe(authProbe: RequestSpec) {
+  probe(authProbe: AuthProbe) {
     return this.clone({ authProbe })
   }
 

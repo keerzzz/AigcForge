@@ -17,6 +17,7 @@ export function DirectoryDataProvider(
   props: ParentProps<{
     directory: string | Accessor<string>
     draftID?: string
+    defaultAgent?: string
     server?: Accessor<ServerConnection.Key | undefined>
   }>,
 ) {
@@ -61,7 +62,7 @@ export function DirectoryDataProvider(
       }}
       onSessionHref={href}
     >
-      <LocalProvider>{props.children}</LocalProvider>
+      <LocalProvider defaultAgent={props.defaultAgent}>{props.children}</LocalProvider>
     </DataProvider>
   )
 }

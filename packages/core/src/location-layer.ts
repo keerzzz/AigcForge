@@ -75,12 +75,12 @@ import { AppProcess } from "./process"
 import { CrossSpawnSpawner } from "./cross-spawn-spawner"
 import { SessionIdentityProjection } from "./session/session-identity"
 import { SessionStore } from "./session/store"
-import { SessionTodo } from "./session/todo"
 import { ScheduleService } from "./session/schedule-service"
 import { PersonalMemory } from "./session/personal-memory"
 import { KBService } from "./session/kb-service"
 import { SessionTask } from "./session/task"
 import { WorkArtifact } from "./session/artifact"
+import { WorkReviewService } from "./session/work-review-service"
 import { QuestionV2 } from "./question"
 import { LLMClient } from "@aigcfroge/llm"
 import { RequestExecutor } from "@aigcfroge/llm/route"
@@ -194,9 +194,9 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(CredentialScanner.layer),
         Layer.provide(services),
       )
-      const todos = SessionTodo.layer.pipe(Layer.provide(tasks), Layer.provide(services))
       const questions = QuestionV2.locationLayer.pipe(Layer.provide(services))
       const workArtifact = WorkArtifact.locationLayer.pipe(Layer.provide(services), Layer.provide(mutation))
+      const workReview = WorkReviewService.layer.pipe(Layer.provide(workArtifact), Layer.provide(services))
       // The `task` built-in reaches child Sessions through the TaskDriver module
       // bridge (a plain Deferred filled by the composition root), not a Layer, so
       // BuiltInTools carries no extra requirement here. See tool/task-driver.ts.
@@ -223,7 +223,6 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         Layer.provide(commandAssetService),
         Layer.provide(agentAssetService),
         Layer.provide(resources),
-        Layer.provide(todos),
         Layer.provide(tasks),
         Layer.provide(questions),
         Layer.provide(image),
@@ -274,12 +273,12 @@ export class LocationServiceMap extends LayerMap.Service<LocationServiceMap>()(
         customProfileService,
         compositionResolver,
         resources,
-        todos,
         tasks,
         workflowRun,
         workflowRunner,
         questions,
         workArtifact,
+        workReview,
         model,
         runner,
         scheduleService,

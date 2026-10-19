@@ -1,5 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { testRender } from "@opentui/solid"
+import type { TuiPluginApi } from "@aigcfroge/plugin/tui"
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
 import {
@@ -78,6 +79,29 @@ test("resolves overrides without mutating input", () => {
   expect(config).toMatchObject({ theme: "custom", mouse: false, leader_timeout: 750, attention: input.attention })
   expect(config.keybinds.get("session.list")).toHaveLength(1)
   expect(input.keybinds).toEqual({ session_list: "ctrl+l" })
+})
+
+test("exposes resolved local preferences through the published plugin view", () => {
+  const resolved = resolve(
+    {
+      theme: "custom",
+      plugin: [["example-plugin", { enabled: true }]],
+      scroll_speed: 1.5,
+      scroll_acceleration: { enabled: true },
+      diff_style: "stacked",
+      keybinds: { session_list: "ctrl+l" },
+    },
+    { terminalSuspend: true },
+  )
+  const config: TuiPluginApi["tuiConfig"] = resolved
+
+  expect(config).toBe(resolved)
+  expect(config.theme).toBe("custom")
+  expect(config.plugin).toEqual([["example-plugin", { enabled: true }]])
+  expect(config.scroll_speed).toBe(1.5)
+  expect(config.scroll_acceleration?.enabled).toBe(true)
+  expect(config.diff_style).toBe("stacked")
+  expect(config.keybinds.get("session.list").map((binding) => binding.key)).toEqual(["ctrl+l"])
 })
 
 test("resolves a session move keybind", () => {

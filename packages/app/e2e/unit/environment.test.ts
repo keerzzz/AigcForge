@@ -43,6 +43,7 @@ const secrets = Object.fromEntries(
     "AIGCFROGE_CONFIG_CONTENT",
     "AIGCFROGE_TEST_HOME",
     "AIGCFROGE_V2_RUNTIME",
+    "AIGCFROGE_CUSTOM_MODE",
     "AIGCFROGE_SERVER_PASSWORD",
     "GIT_CONFIG_COUNT",
     "GIT_CONFIG_KEY_0",
@@ -72,6 +73,10 @@ test("all user-directory and temporary-file sources are run-local", () => {
   expect(env.PATH).toBe(parent.PATH)
   expect(env.SystemRoot).toBe(parent.SystemRoot)
   expect(env.LANG).toBe(parent.LANG)
+  // npm rejects loading one pathname as both the user and global config.
+  expect(env.npm_config_userconfig).not.toBe(env.npm_config_globalconfig)
+  expect(env.npm_config_userconfig).toStartWith(runDir + path.sep)
+  expect(env.npm_config_globalconfig).toStartWith(runDir + path.sep)
 })
 
 test("child environment is an allowlist, not a product-prefix blacklist", () => {
@@ -120,6 +125,8 @@ test("backend startup and restart use an absolute entrypoint and the run workspa
   expect(backend.env.AIGCFROGE_DB).toBe(path.join(runDir, "e4.sqlite"))
   expect(backend.env.AIGCFROGE_DISABLE_PROJECT_CONFIG).toBe("true")
   expect(backend.env.AIGCFROGE_V2_RUNTIME).toBeUndefined()
+  expect(backend.env.AIGCFROGE_CUSTOM_MODE).toBeUndefined()
+  expect(Environment.backend({ ...input, customMode: true }, parent).env.AIGCFROGE_CUSTOM_MODE).toBe("true")
   expect(backend.env.OPENAI_API_KEY).toBeUndefined()
   expect(Environment.backend(input, { ...parent, ...secrets })).toEqual(backend)
   expect(Environment.backend({ ...input, v2Runtime: true }, parent).env.AIGCFROGE_V2_RUNTIME).toBe("true")

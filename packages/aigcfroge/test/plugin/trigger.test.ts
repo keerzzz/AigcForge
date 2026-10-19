@@ -1,4 +1,6 @@
 import { describe, expect } from "bun:test"
+import type { PluginInput } from "@aigcfroge/plugin"
+import { AigcfrogeClient } from "@aigcfroge/sdk/v2/client"
 import { Effect, Layer } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
@@ -79,11 +81,13 @@ const triggerSystemTransform = Effect.fn("PluginTriggerTest.triggerSystemTransfo
         id: ModelV2.ID.make("claude-sonnet-4-6"),
         api: { id: "claude-sonnet-4-6", url: "", npm: "@ai-sdk/anthropic" },
         name: "claude-sonnet-4-6",
+        release_date: "",
         capabilities: {
           temperature: true,
           reasoning: true,
           attachment: true,
           toolcall: true,
+          interleaved: false,
           input: { text: true, audio: false, image: true, video: false, pdf: true },
           output: { text: true, audio: false, image: false, video: false, pdf: false },
         },
@@ -100,6 +104,39 @@ const triggerSystemTransform = Effect.fn("PluginTriggerTest.triggerSystemTransfo
 })
 
 describe("plugin.trigger", () => {
+  it.instance("constructs the canonical public client for a real PluginInput", () =>
+    withProject(
+      [
+        `import { AigcfrogeClient } from ${JSON.stringify(import.meta.resolve("@aigcfroge/sdk/v2/client"))}`,
+        "export default async (input) => ({",
+        `  ${JSON.stringify(systemHook)}: (_request, output) => {`,
+        "    output.system.push(JSON.stringify({",
+        "      canonical: input.client instanceof AigcfrogeClient,",
+        '      retiredTodo: "todo" in input.client.session,',
+        '      retiredQuestion: "question" in input.client,',
+        "      task: typeof input.client.session.task?.get,",
+        "      question: typeof input.client.v2?.session?.question?.reply,",
+        "    }))",
+        "  },",
+        "})",
+      ].join("\n"),
+      Effect.gen(function* () {
+        // Check the public type as well as the client injected by Plugin.Service.
+        const typed: PluginInput["client"] = new AigcfrogeClient()
+        expect(typed).toBeInstanceOf(AigcfrogeClient)
+        expect(yield* triggerSystemTransform()).toEqual([
+          JSON.stringify({
+            canonical: true,
+            retiredTodo: false,
+            retiredQuestion: false,
+            task: "function",
+            question: "function",
+          }),
+        ])
+      }),
+    ),
+  )
+
   it.instance("runs synchronous hooks without crashing", () =>
     withProject(
       [

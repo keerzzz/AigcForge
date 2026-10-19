@@ -1,9 +1,11 @@
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test"
 import { Schema } from "effect"
 import { WorkContract } from "@aigcfroge/schema/work-contract"
-import type { SessionCreateData } from "@aigcfroge/sdk/v2/client"
+import type { Session, SessionCreateData, SessionPromptAsyncData, V2SessionShellData } from "@aigcfroge/sdk/v2/client"
 import type { Prompt } from "@/context/prompt"
 import type { DraftTab } from "@/context/tabs"
+
+type SentPrompt = NonNullable<SessionPromptAsyncData["body"]> & SessionPromptAsyncData["path"]
 
 let createPromptSubmit: typeof import("./submit").createPromptSubmit
 
@@ -23,17 +25,25 @@ const optimistic: Array<{
   }
 }> = []
 const optimisticSeeded: boolean[] = []
-const storedSessions: Record<string, Array<{ id: string; title?: string; directory?: string }>> = {}
+const storedSessions: Record<
+  string,
+  Array<{ id: string; title?: string; directory?: string; mode?: Session["mode"] }>
+> = {}
 const promoted: Array<{ directory: string; sessionID: string }> = []
 const placements: Array<{ server: string; leafID: string; rootID: string; directory: string }> = []
 const sentShell: string[] = []
+const admittedShell: Array<V2SessionShellData["body"] & V2SessionShellData["path"] & { directory: string }> = []
+const restoredPrompts: Prompt[] = []
 const syncedDirectories: string[] = []
 
 let params: { id?: string } = {}
 let search: { draftId?: string } = {}
-let sentPrompt = Promise.withResolvers<{ sessionID: string }>()
+let sentPrompt = Promise.withResolvers<SentPrompt>()
 let selected = "/repo/worktree-a"
 let variant: string | undefined
+let canonicalSessionModes: Session["mode"][] = []
+let capabilitiesError: Error | undefined
+let shellError: Error | undefined
 
 const promptValue: Prompt = [{ type: "text", content: "ls", start: 0, end: 2 }]
 const prompt = {
@@ -42,7 +52,9 @@ const prompt = {
   cursor: () => 0,
   dirty: () => true,
   reset: () => undefined,
-  set: () => undefined,
+  set: (value: Prompt) => {
+    restoredPrompts.push(value.slice())
+  },
   context: {
     add: () => undefined,
     remove: () => undefined,
@@ -67,6 +79,7 @@ const clientFor = (directory: string) => {
             // The real endpoint answers with the session's own directory, and
             // `submit.ts` records placement from it.
             directory,
+            mode: input?.mode ?? "coding",
           },
         }
       },
@@ -75,7 +88,7 @@ const clientFor = (directory: string) => {
         return { data: undefined }
       },
       prompt: async () => ({ data: undefined }),
-      promptAsync: async (input: { sessionID: string }) => {
+      promptAsync: async (input: SentPrompt) => {
         sentPrompt.resolve(input)
         return { data: undefined }
       },
@@ -84,6 +97,15 @@ const clientFor = (directory: string) => {
         return { data: undefined }
       },
       abort: async () => ({ data: undefined }),
+    },
+    v2: {
+      session: {
+        shell: async (input: V2SessionShellData["body"] & V2SessionShellData["path"]) => {
+          admittedShell.push({ ...input, directory })
+          if (shellError) throw shellError
+          return { data: { id: "input-shell" } }
+        },
+      },
     },
     worktree: {
       create: async () => ({ data: { directory: `${directory}/new` } }),
@@ -189,7 +211,7 @@ beforeAll(async () => {
         directory: "/repo/main",
         client: rootClient,
         url: "http://localhost:4096",
-        createClient(opts: any) {
+        createClient(opts: { directory: string }) {
           return clientFor(opts.directory)
         },
       }
@@ -223,6 +245,10 @@ beforeAll(async () => {
 
   mock.module("@/context/server-sync", () => ({
     useServerSync: () => () => ({
+      capabilities: async () => {
+        if (capabilitiesError) throw capabilitiesError
+        return { canonicalSessionModes }
+      },
       child: (directory: string) => {
         syncedDirectories.push(directory)
         storedSessions[directory] ??= []
@@ -261,6 +287,7 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
+  promptValue.splice(0, promptValue.length, { type: "text", content: "ls", start: 0, end: 2 })
   createdClients.length = 0
   createdSessions.length = 0
   createdSessionRequests.length = 0
@@ -272,8 +299,13 @@ beforeEach(() => {
   placements.length = 0
   params = {}
   search = {}
-  sentPrompt = Promise.withResolvers<{ sessionID: string }>()
+  sentPrompt = Promise.withResolvers<SentPrompt>()
   sentShell.length = 0
+  admittedShell.length = 0
+  restoredPrompts.length = 0
+  canonicalSessionModes = []
+  capabilitiesError = undefined
+  shellError = undefined
   syncedDirectories.length = 0
   selected = "/repo/worktree-a"
   variant = undefined
@@ -414,9 +446,76 @@ describe("prompt submit worktree selection", () => {
     await submit.handleSubmit(event)
 
     expect(storedSessions["/repo/worktree-a"]).toEqual([
-      { id: "session-1", title: "New session 1", directory: "/repo/worktree-a" },
+      { id: "session-1", title: "New session 1", directory: "/repo/worktree-a", mode: "coding" },
     ])
     expect(optimisticSeeded).toEqual([true])
+  })
+})
+
+describe("prompt submit canonical Shell admission", () => {
+  function shellSubmit(info: { id: string; mode: Session["mode"] } | undefined, modes: string[]) {
+    return createPromptSubmit({
+      prompt,
+      info: () => info,
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "shell",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: (mode) => modes.push(mode),
+      setPopover: () => undefined,
+      newSessionWorktree: () => selected,
+    })
+  }
+
+  test.each(["assistant", "custom", "coding"] as const)(
+    "uses server-selected canonical admission for an existing %s session",
+    async (mode) => {
+      params = { id: "session-existing" }
+      canonicalSessionModes = [mode]
+      await shellSubmit({ id: "session-existing", mode }, []).handleSubmit(new Event("submit"))
+
+      expect(admittedShell).toEqual([{ sessionID: "session-existing", command: "ls", directory: "/repo/main" }])
+      expect(sentShell).toEqual([])
+    },
+  )
+
+  test("keeps V1 Shell for a mode absent from the server capabilities", async () => {
+    params = { id: "session-existing" }
+    canonicalSessionModes = ["assistant", "custom"]
+    await shellSubmit({ id: "session-existing", mode: "coding" }, []).handleSubmit(new Event("submit"))
+
+    expect(admittedShell).toEqual([])
+    expect(sentShell).toEqual(["/repo/main"])
+  })
+
+  test("uses the created Assistant session mode and selected worktree", async () => {
+    search = { draftId: "draft-selected" }
+    draftTabs.push({ type: "draft", draftID: "draft-selected", mode: "assistant" })
+    canonicalSessionModes = ["assistant"]
+    await shellSubmit(undefined, []).handleSubmit(new Event("submit"))
+
+    expect(admittedShell).toEqual([{ sessionID: "session-1", command: "ls", directory: "/repo/worktree-a" }])
+    expect(sentShell).toEqual([])
+  })
+
+  test.each(["admission", "capabilities"] as const)("restores the Shell draft after %s failure", async (boundary) => {
+    params = { id: "session-existing" }
+    canonicalSessionModes = ["assistant"]
+    if (boundary === "admission") shellError = new Error("Shell admission rejected")
+    if (boundary === "capabilities") capabilitiesError = new Error("Server capabilities unavailable")
+    const modes: string[] = []
+    await shellSubmit({ id: "session-existing", mode: "assistant" }, modes).handleSubmit(new Event("submit"))
+
+    expect(restoredPrompts).toEqual([promptValue])
+    expect(modes).toEqual(["normal", "shell"])
+    expect(sentShell).toEqual([])
+    expect(admittedShell).toHaveLength(boundary === "admission" ? 1 : 0)
   })
 })
 
@@ -565,4 +664,54 @@ describe("prompt submit Work contracts", () => {
     // not a timer, so this submission cannot leak into the next test's fixtures.
     return sentPrompt.promise
   }
+})
+
+describe("AI-TDD-S04-R02 existing prompt submission channel", () => {
+  test("sends the structured mention only after explicit submit and preserves the current primary agent", async () => {
+    params = { id: "session-existing" }
+    promptValue.splice(
+      0,
+      promptValue.length,
+      { type: "text", content: "Review ", start: 0, end: 7 },
+      { type: "agent", name: "reviewer", content: "@reviewer", start: 7, end: 16 },
+      { type: "text", content: " now", start: 16, end: 20 },
+    )
+    const submit = createPromptSubmit({
+      prompt,
+      info: () => ({ id: "session-existing" }),
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "normal",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+    })
+
+    expect(createdSessions).toEqual([])
+    expect(optimistic).toEqual([])
+    expect(sentShell).toEqual([])
+    const event = new Event("submit", { cancelable: true })
+    await submit.handleSubmit(event)
+    const sent = await sentPrompt.promise
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(sent).toMatchObject({ sessionID: "session-existing", agent: "agent" })
+    expect(sent.parts.map((part) => part.type)).toEqual(["text", "agent"])
+    expect(sent.parts[1]).toMatchObject({
+      type: "agent",
+      name: "reviewer",
+      source: { value: "@reviewer", start: 7, end: 16 },
+    })
+    expect(optimistic).toHaveLength(1)
+    expect(optimistic[0]).toMatchObject({ sessionID: "session-existing", message: { agent: "agent" } })
+    expect(createdSessionRequests).toEqual([])
+    expect(createdSessions).toEqual([])
+    expect(sentShell).toEqual([])
+  })
 })

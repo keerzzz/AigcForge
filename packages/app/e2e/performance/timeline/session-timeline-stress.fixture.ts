@@ -1,3 +1,5 @@
+import type { ProviderListResponse } from "@aigcfroge/sdk/v2/client"
+
 const words = [
   "alpha",
   "bravo",
@@ -292,17 +294,47 @@ export const fixture = {
     time: { created: 1700000000000, updated: 1700000000000 },
     sandboxes: [],
   },
+  // Synthetic metadata: the reserved URL, zero costs, and release date do not describe a live service.
   provider: {
     all: [
       {
         id: "aigcfroge",
         name: "Aigcfroge",
-        models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
+        source: "config",
+        env: [],
+        options: {},
+        models: {
+          "claude-opus-4-6": {
+            id: "claude-opus-4-6",
+            providerID: "aigcfroge",
+            api: {
+              id: "claude-opus-4-6",
+              url: "https://timeline-fixture.invalid/v1",
+              npm: "@ai-sdk/anthropic",
+            },
+            name: "Claude Opus 4.6",
+            capabilities: {
+              temperature: true,
+              reasoning: true,
+              attachment: true,
+              toolcall: true,
+              input: { text: true, audio: false, image: true, video: false, pdf: true },
+              output: { text: true, audio: false, image: false, video: false, pdf: false },
+              interleaved: false,
+            },
+            cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+            limit: { context: 200_000, output: 4096 },
+            status: "active",
+            options: {},
+            headers: {},
+            release_date: "2000-01-01",
+          },
+        },
       },
     ],
     connected: ["aigcfroge"],
-    default: { providerID: "aigcfroge", modelID: "claude-opus-4-6" },
-  },
+    default: { aigcfroge: "claude-opus-4-6" },
+  } satisfies ProviderListResponse,
   sessions: [
     {
       id: sourceID,

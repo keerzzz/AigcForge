@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Deferred, Effect, Fiber, Layer, Schema } from "effect"
+import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Schema } from "effect"
 import { AgentV2 } from "@aigcfroge/core/agent"
 import { Database } from "@aigcfroge/core/database/database"
 import { EventV2 } from "@aigcfroge/core/event"
@@ -17,7 +17,7 @@ import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { eq } from "drizzle-orm"
 import { location } from "./fixture/location"
-import { testEffect } from "./lib/effect"
+import { awaitWithTimeout, testEffect } from "./lib/effect"
 
 const attachResponder = () =>
   Effect.gen(function* () {
@@ -48,7 +48,7 @@ const layer = PermissionV2.locationLayer.pipe(
 )
 const it = testEffect(layer)
 
-function setup(rules: PermissionV2.Ruleset = []) {
+function setup(rules: PermissionV2.Ruleset = [], sessionID = SessionV2.ID.make("ses_test")) {
   return Effect.gen(function* () {
     const { db } = yield* Database.Service
     yield* db
@@ -60,7 +60,7 @@ function setup(rules: PermissionV2.Ruleset = []) {
     yield* db
       .insert(SessionTable)
       .values({
-        id: SessionV2.ID.make("ses_test"),
+        id: sessionID,
         project_id: Project.ID.global,
         slug: "test",
         directory: "/project",
@@ -99,18 +99,21 @@ function assertion(input: Partial<PermissionV2.AssertInput> = {}) {
   } satisfies PermissionV2.AssertInput
 }
 
-function waitForRequest() {
+function waitForRequest(input: Partial<PermissionV2.AssertInput> = {}) {
   return Effect.gen(function* () {
     const service = yield* PermissionV2.Service
     const events = yield* EventV2.Service
+    const assertionInput = assertion(input)
     const asked = yield* Deferred.make<PermissionV2.Request>()
-    const unsubscribe = yield* events.listen((event) =>
-      event.type === PermissionV2.Event.Asked.type
-        ? Deferred.succeed(asked, event.data as PermissionV2.Request).pipe(Effect.asVoid)
-        : Effect.void,
-    )
+    const unsubscribe = yield* events.listen((event) => {
+      if (event.type !== PermissionV2.Event.Asked.type) return Effect.void
+      const request = Schema.decodeUnknownSync(PermissionV2.Request)(event.data)
+      if (request.id !== assertionInput.id) return Effect.void
+      return Deferred.succeed(asked, request).pipe(Effect.asVoid)
+    })
     yield* Effect.addFinalizer(() => unsubscribe)
-    const fiber = yield* service.assert(assertion()).pipe(Effect.forkScoped)
+    const scope = yield* Effect.scope
+    const fiber = yield* service.assert(assertionInput).pipe(Effect.forkIn(scope))
     const request = yield* Deferred.await(asked)
     return { service, fiber, request }
   })
@@ -533,3 +536,183 @@ describe("PermissionV2 always auto-approval (H1)", () => {
     }),
   )
 })
+
+describe("PermissionV2 decision ownership (AI-TDD-S03)", () => {
+  it.effect("R03: concurrent approval and rejection have one terminal event", () =>
+    Effect.gen(function* () {
+      yield* setup()
+      yield* attachResponder()
+      const events = yield* EventV2.Service
+      const terminal: EventV2.Payload[] = []
+      const off = yield* events.listen((event) => {
+        if (event.type !== PermissionV2.Event.Replied.type) return Effect.void
+        terminal.push(event)
+        return Effect.yieldNow
+      })
+      yield* Effect.addFinalizer(() => off)
+      const asked = yield* waitForRequest()
+      const results = yield* Effect.all(
+        (["once", "reject"] as const).map((reply) =>
+          asked.service.reply({ requestID: asked.request.id, reply }).pipe(Effect.exit),
+        ),
+        { concurrency: "unbounded" },
+      )
+
+      expect(results.filter(Exit.isSuccess)).toHaveLength(1)
+      expect(results.filter(Exit.isFailure)).toHaveLength(1)
+      expect(terminal).toHaveLength(1)
+      expect(yield* asked.service.list()).toEqual([])
+      yield* Fiber.await(asked.fiber)
+    }),
+  )
+
+  it.effect("R06: persistence failure leaves the request answerable without announcing approval", () =>
+    Effect.gen(function* () {
+      yield* setup()
+      const events = yield* EventV2.Service
+      const terminal: EventV2.Payload[] = []
+      const off = yield* events.listen((event) =>
+        Effect.sync(() => {
+          if (event.type === PermissionV2.Event.Replied.type) terminal.push(event)
+        }),
+      )
+      yield* Effect.addFinalizer(() => off)
+      const saved = yield* PermissionSaved.Service
+      const service = Context.get(
+        yield* Layer.build(
+          Layer.fresh(
+            PermissionV2.layer.pipe(
+              Layer.provide(
+                Layer.mock(PermissionSaved.Service, {
+                  list: saved.list,
+                  add: () => Effect.die("permission storage failed"),
+                }),
+              ),
+            ),
+          ),
+        ),
+        PermissionV2.Service,
+      )
+      const request = yield* service.ask(assertion({ save: ["src/*"] }))
+      const result = yield* service.reply({ requestID: request.id, reply: "always" }).pipe(Effect.exit)
+
+      expect(Exit.isFailure(result)).toBe(true)
+      expect(terminal).toHaveLength(0)
+      expect(yield* service.get(request.id)).toBeDefined()
+      expect(yield* saved.list({ projectID: Project.ID.global })).toEqual([])
+      yield* service.reply({ requestID: request.id, reply: "reject" })
+      expect(yield* service.list()).toEqual([])
+    }),
+  )
+
+  it.effect("R06: publication failure does not strand a committed permission decision", () =>
+    Effect.gen(function* () {
+      yield* setup()
+      yield* attachResponder()
+      const asked = yield* waitForRequest()
+      const events = yield* EventV2.Service
+      const off = yield* events.listen((event) =>
+        event.type === PermissionV2.Event.Replied.type ? Effect.die("decision notification failed") : Effect.void,
+      )
+      yield* Effect.addFinalizer(() => off)
+      const result = yield* asked.service.reply({ requestID: asked.request.id, reply: "once" }).pipe(Effect.exit)
+
+      expect(Exit.isFailure(result)).toBe(true)
+      expect(yield* asked.service.list()).toEqual([])
+      expect(Exit.isSuccess(yield* Fiber.await(asked.fiber))).toBe(true)
+    }),
+  )
+})
+
+it.live("AI-TDD-S03-R06: a delayed notification cannot hold the next decision hostage", () =>
+  Effect.gen(function* () {
+    yield* setup()
+    const service = yield* PermissionV2.Service
+    const first = yield* service.ask(assertion({ id: PermissionV2.ID.create("per_slow_notification") }))
+    const second = yield* service.ask(assertion({ id: PermissionV2.ID.create("per_next_decision") }))
+    const started = yield* Deferred.make<void>()
+    const release = yield* Deferred.make<void>()
+    const events = yield* EventV2.Service
+    const off = yield* events.listen((event) =>
+      event.type === PermissionV2.Event.Replied.type &&
+      Schema.decodeUnknownSync(PermissionV2.Event.Replied.data)(event.data).requestID === first.id
+        ? Deferred.succeed(started, undefined).pipe(Effect.andThen(Deferred.await(release)))
+        : Effect.void,
+    )
+    yield* Effect.addFinalizer(() => off)
+    const scope = yield* Effect.scope
+    const notifying = yield* service.reply({ requestID: first.id, reply: "once" }).pipe(Effect.forkIn(scope))
+    yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined))
+    yield* awaitWithTimeout(Deferred.await(started), "first notification did not begin")
+    const next = yield* service.reply({ requestID: second.id, reply: "once" }).pipe(Effect.forkIn(scope))
+    const settled = yield* awaitWithTimeout(Fiber.join(next), "committed notification blocked the next decision").pipe(
+      Effect.exit,
+    )
+    yield* Deferred.succeed(release, undefined)
+    yield* Fiber.join(notifying)
+    yield* Fiber.join(next)
+    expect(Exit.isSuccess(settled)).toBe(true)
+    expect(yield* service.list()).toEqual([])
+  }),
+)
+
+it.effect("AI-TDD-S03-R05: correction rejects related requests without crossing Session ownership", () =>
+  Effect.gen(function* () {
+    yield* setup()
+    const foreignID = SessionV2.ID.make("ses_foreign")
+    yield* setup([], foreignID)
+    yield* attachResponder()
+    const first = yield* waitForRequest({ id: PermissionV2.ID.create("per_corrected") })
+    const related = yield* waitForRequest({ id: PermissionV2.ID.create("per_related") })
+    const foreign = yield* waitForRequest({ id: PermissionV2.ID.create("per_foreign"), sessionID: foreignID })
+    yield* first.service.reply({ requestID: first.request.id, reply: "reject", message: "choose a safer path" })
+    const correction = yield* Fiber.await(first.fiber)
+    const rejection = yield* Fiber.await(related.fiber)
+    expect(Exit.isFailure(correction)).toBe(true)
+    expect(Exit.isFailure(rejection)).toBe(true)
+    if (Exit.isFailure(correction))
+      expect(Cause.squash(correction.cause)).toEqual(
+        new PermissionV2.CorrectedError({ feedback: "choose a safer path" }),
+      )
+    if (Exit.isFailure(rejection)) expect(Cause.squash(rejection.cause)).toBeInstanceOf(PermissionV2.RejectedError)
+    expect(yield* first.service.list()).toEqual([foreign.request])
+    yield* foreign.service.reply({ requestID: foreign.request.id, reply: "once" })
+    expect(Exit.isSuccess(yield* Fiber.await(foreign.fiber))).toBe(true)
+  }),
+)
+
+it.live("AI-TDD-S03-R06: interruption of a timed pending ask cleans its owner without waiting for TTL", () =>
+  Effect.gen(function* () {
+    yield* setup()
+    yield* attachResponder()
+    const asked = yield* waitForRequest()
+    yield* awaitWithTimeout(Fiber.interrupt(asked.fiber), "cancelled permission ask still waited for its TTL")
+    expect(yield* asked.service.list()).toEqual([])
+    expect(yield* asked.service.reply({ requestID: asked.request.id, reply: "once" }).pipe(Effect.flip)).toEqual(
+      new PermissionV2.NotFoundError({ requestID: asked.request.id }),
+    )
+  }),
+)
+
+it.live("R06: withdrawing a permission publishes one closure without rejecting another pending permission", () =>
+  Effect.gen(function* () {
+    yield* setup()
+    yield* attachResponder()
+    const events = yield* EventV2.Service
+    const replies: unknown[] = []
+    const off = yield* events.listen((event) =>
+      Effect.sync(() => {
+        if (event.type === PermissionV2.Event.Replied.type) replies.push(event.data)
+      }),
+    )
+    yield* Effect.addFinalizer(() => off)
+    const first = yield* waitForRequest({ id: PermissionV2.ID.create("per_cancelled") })
+    const second = yield* waitForRequest({ id: PermissionV2.ID.create("per_remaining") })
+    yield* awaitWithTimeout(Fiber.interrupt(first.fiber), "permission cancellation did not finish")
+    expect(yield* first.service.list()).toEqual([second.request])
+    expect(replies).toEqual([{ sessionID: first.request.sessionID, requestID: first.request.id, reply: "reject" }])
+    yield* second.service.reply({ requestID: second.request.id, reply: "once" })
+    expect(Exit.isSuccess(yield* Fiber.await(second.fiber))).toBe(true)
+    expect(replies).toHaveLength(2)
+  }),
+)

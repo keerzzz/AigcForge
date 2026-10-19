@@ -84,6 +84,12 @@
 
 ## 🔄 In Progress
 
+### B3 S04/S05 UI integration（2026-10-06）
+
+B2 已提交，B3 待本轮验收。S04 的目录/实例/能力消费状态见[持久委派计划 Phase 6 的 B3 补注](../../docs/plan/meta-agent-persistent-delegation-closed-loop.md)与 [ADR-22](../../docs/architecture/adr/ADR-22-meta-agent-persistent-delegation.md)；S05 的当前 Task/调用历史与适用状态见[Todo/Task 方案 §5.9](../../docs/plan/todo-task-system-upgrade.md)。既有 M0–M7 完成记录及 runtime/恢复状态不因本 UI 同步改写。
+
+动态证据、剩余项与最终验收仅在[技术债账本 §15.6](../../docs/technical-debt.md)维护；本条是现有状态索引的交叉引用，不另建执行/审批账本，不表示完整五模式、E4 或 S09 已完成。
+
 ### Meta-Agent Persistent Delegation (ADR-22)
 
 - [ ] Delegation/Participant/Turn/Delivery Schema + migration + EventV2 aggregate

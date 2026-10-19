@@ -8,7 +8,7 @@ import { DelegationParser } from "./delegation-parser"
 
 /**
  * The minimal Codex SDK surface this adapter drives. Injected so unit tests
- * provide a fake and production passes the real `@openai/codex-sdk` `Codex`
+ * provide a fake and production lazily loads the real `@openai/codex-sdk`
  * instance. `run()` returns the completed turn whose `finalResponse` is the
  * agent's final text; resume reopens a thread by id.
  */
@@ -27,7 +27,7 @@ export interface CodexSdk {
 }
 
 export const makeCodexSdkAdapter = (
-  sdk: CodexSdk | (() => Promise<CodexSdk>),
+  sdk: CodexSdk | (() => CodexSdk | Promise<CodexSdk>),
   name = "codex",
 ): CliAdapter & Required<Pick<CliAdapter, "execute">> => ({
   name,
@@ -40,27 +40,22 @@ export const makeCodexSdkAdapter = (
   execute: ({ prompt, cwd, resumeId, timeoutMs }) =>
     Effect.scoped(
       Effect.gen(function* () {
-        const client =
-          typeof sdk === "function"
-            ? yield* Effect.tryPromise({
-                try: sdk,
-                catch: (error) => new Error(error instanceof Error ? error.message : String(error)),
-              })
-            : sdk
         // approvalPolicy "never" auto-denies permission prompts — the unattended
         // default for external-CLI delegation; interactive approval wiring is a
         // follow-up (codex surfaces approvals as stream events, not a callback).
         const options = { workingDirectory: cwd, approvalPolicy: "never" as const }
-        const thread = yield* Effect.try({
-          try: () => (resumeId ? client.resumeThread(resumeId, options) : client.startThread(options)),
-          catch: (error) => new Error(error instanceof Error ? error.message : String(error)),
-        })
+        let thread: ReturnType<CodexSdk["startThread"]> | undefined
         const abortController = yield* Effect.acquireRelease(
           Effect.sync(() => new AbortController()),
           (controller) => Effect.sync(() => controller.abort()),
         )
         const turnResult = yield* Effect.tryPromise({
-          try: () => thread.run(prompt, { signal: abortController.signal }),
+          try: async () => {
+            const client = typeof sdk === "function" ? await sdk() : sdk
+            abortController.signal.throwIfAborted()
+            thread = resumeId ? client.resumeThread(resumeId, options) : client.startThread(options)
+            return thread.run(prompt, { signal: abortController.signal })
+          },
           catch: (error) => new Error(error instanceof Error ? error.message : String(error)),
         }).pipe(
           Effect.timeoutOrElse({
@@ -85,11 +80,9 @@ export const makeCodexSdkAdapter = (
             }),
           ),
         )
-        // The SDK assigns the id after the turn starts, including failed turns.
-        const sessionId = thread.id ?? resumeId ?? undefined
-        if (!("finalResponse" in turnResult)) {
-          return { ...turnResult, ...(sessionId ? { sessionId } : {}) }
-        }
+        // thread.started assigns the persistent id even when the turn later fails or times out.
+        const sessionId = (thread?.id ?? resumeId) || undefined
+        if (!("finalResponse" in turnResult)) return { ...turnResult, ...(sessionId ? { sessionId } : {}) }
         const summary = turnResult.finalResponse.trim()
         if (!summary) {
           return {
@@ -110,18 +103,7 @@ export const makeCodexSdkAdapter = (
         }
         const parsed = DelegationParser.parseDelegationResult(turnResult.finalResponse)
         return { status: "success" as const, summary, sessionId, review: parsed?.review }
-      }).pipe(
-        Effect.catch((error) =>
-          Effect.succeed({
-            status: "failed" as const,
-            summary: `CLI "${name}" SDK initialization failed: ${error.message}`,
-            ...(resumeId ? { sessionId: resumeId } : {}),
-            errorCode: "cli_unavailable",
-            recoveryRequired: true,
-            errors: [error.message],
-          }),
-        ),
-      ),
+      }),
     ),
 })
 

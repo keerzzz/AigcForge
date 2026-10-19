@@ -192,7 +192,7 @@ test.describe("regression: session timeline local row state", () => {
     })
   })
 
-  test("keeps a sticky edit header aligned with a multi-hunk diff", async ({ page }) => {
+  test("keeps a sticky edit header aligned with a multi-hunk diff", async ({ page }, testInfo) => {
     const events: EventPayload[] = []
     const lines = Array.from({ length: 1_000 }, (_, index) => `export const value${index} = ${index}\n`).join("")
     const after = [100, 300, 500, 700, 900].reduce(
@@ -228,7 +228,9 @@ test.describe("regression: session timeline local row state", () => {
     await expect.poll(() => wrapper.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(500)
     const samples = await wrapper.evaluate(async (element) => {
       const root = element.closest<HTMLElement>(".scroll-view__viewport")!
-      element.scrollIntoView({ block: "start" })
+      // Align within this viewport only: native scrollIntoView also moves layout
+      // ancestors and leaves focus scroll-padding before the sticky threshold.
+      root.scrollTop += element.getBoundingClientRect().top - root.getBoundingClientRect().top
       const result = []
       for (const offset of [0, 120, 240, 360, 480]) {
         root.scrollBy(0, offset - (result.at(-1)?.offset ?? 0))
@@ -237,6 +239,10 @@ test.describe("regression: session timeline local row state", () => {
         const diff = element.querySelector<HTMLElement>('[data-component="edit-content"]')!
         result.push({
           offset,
+          scrollTop: root.scrollTop,
+          scrollPaddingTop: getComputedStyle(root).scrollPaddingTop,
+          rootTop: root.getBoundingClientRect().y,
+          stickyTop: getComputedStyle(trigger).top,
           trigger: trigger.getBoundingClientRect().y,
           diff: diff.getBoundingClientRect().y,
           bottom: element.getBoundingClientRect().bottom,
@@ -245,6 +251,15 @@ test.describe("regression: session timeline local row state", () => {
       return result
     })
 
+    await testInfo.attach("sticky-header-samples.json", {
+      body: JSON.stringify(samples, null, 2),
+      contentType: "application/json",
+    })
+    expect(samples[0].rootTop).toBeGreaterThanOrEqual(0)
+    expect(samples.map((sample) => sample.scrollTop - samples[0].scrollTop)).toEqual([0, 120, 240, 360, 480])
+    expect(
+      samples.every((sample) => Math.abs(sample.trigger - sample.rootTop - Number.parseFloat(sample.stickyTop)) <= 1),
+    ).toBe(true)
     expect(samples[0].trigger).toBeLessThan(samples[0].diff)
     expect(samples.every((sample) => Math.abs(sample.trigger - samples[0].trigger) <= 1)).toBe(true)
     expect(samples.every((sample) => sample.trigger < sample.bottom)).toBe(true)

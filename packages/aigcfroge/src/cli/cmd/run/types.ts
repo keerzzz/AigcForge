@@ -11,7 +11,7 @@
 //     → stream.ts bridges to footer API
 //       → footer.ts queues commits and patches the footer view
 //         → OpenTUI split-footer renderer writes to terminal
-import type { AigcfrogeClient, PermissionRequest, QuestionRequest, ToolPart } from "@aigcfroge/sdk/v2"
+import type { AigcfrogeClient, PermissionRequest, QuestionV2Request, ToolPart } from "@aigcfroge/sdk/v2"
 import type { TuiConfig } from "@aigcfroge/tui/config"
 
 export type RunFilePart = {
@@ -173,7 +173,7 @@ export type RunEntryBody =
 export type FooterView =
   | { type: "prompt" }
   | { type: "permission"; request: PermissionRequest }
-  | { type: "question"; request: QuestionRequest }
+  | { type: "question"; request: QuestionV2Request }
 
 export type FooterPromptRoute =
   | { type: "composer" }
@@ -207,7 +207,7 @@ export type FooterSubagentState = {
   tabs: FooterSubagentTab[]
   details: Record<string, FooterSubagentDetail>
   permissions: PermissionRequest[]
-  questions: QuestionRequest[]
+  questions: QuestionV2Request[]
 }
 
 // The reducer emits this alongside scrollback commits so the footer can update in the same frame.
@@ -282,9 +282,9 @@ export type FooterEvent =
 
 export type PermissionReply = Parameters<AigcfrogeClient["permission"]["reply"]>[0]
 
-export type QuestionReply = Parameters<AigcfrogeClient["question"]["reply"]>[0]
+export type QuestionReply = Parameters<AigcfrogeClient["v2"]["session"]["question"]["reply"]>[0]
 
-export type QuestionReject = Parameters<AigcfrogeClient["question"]["reject"]>[0]
+export type QuestionReject = Parameters<AigcfrogeClient["v2"]["session"]["question"]["reject"]>[0]
 
 export type RunTuiConfig = Pick<TuiConfig.Resolved, "keybinds" | "leader_timeout" | "diff_style">
 

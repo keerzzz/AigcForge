@@ -1,16 +1,16 @@
 import { describe, expect } from "bun:test"
-import { Effect, Schema, Stream } from "effect"
+import { Deferred, Effect, Ref, Schema, Stream } from "effect"
 import { HttpClientRequest } from "effect/unstable/http"
-import { LLM, LLMError, Message, Model, ToolCallPart, Usage } from "../../src"
+import { LLM, LLMError, LLMEvent, Message, Model, ToolCallPart, Usage } from "../../src"
 import * as Azure from "../../src/providers/azure"
 import * as OpenAI from "../../src/providers/openai"
 import * as OpenAIChat from "../../src/protocols/openai-chat"
 import { ProviderShared } from "../../src/protocols/shared"
 import { Auth, LLMClient } from "../../src/route"
 import { it } from "../lib/effect"
-import { dynamicResponse, fixedResponse, truncatedStream } from "../lib/http"
+import { dynamicResponse, fixedResponse } from "../lib/http"
 import { deltaChunk, usageChunk } from "../lib/openai-chunks"
-import { sseEvents } from "../lib/sse"
+import { sseEvents, sseRaw } from "../lib/sse"
 
 const TargetJson = Schema.fromJsonString(Schema.Unknown)
 const encodeJson = Schema.encodeSync(TargetJson)
@@ -551,6 +551,41 @@ describe("OpenAI Chat route", () => {
       ])
     }),
   )
+  ;[
+    { name: "text", delta: { content: "Partial answer" }, text: "Partial answer", reasoning: "" },
+    { name: "reasoning", delta: { reasoning_content: "Partial thought" }, text: "", reasoning: "Partial thought" },
+  ].forEach((content) => {
+    ;["EOF", "[DONE]"].forEach((ending) => {
+      it.effect(`reports ${ending} without a finish reason after partial ${content.name}`, () =>
+        Effect.gen(function* () {
+          const body =
+            ending === "[DONE]"
+              ? sseEvents(deltaChunk(content.delta))
+              : sseRaw(`data: ${encodeJson(deltaChunk(content.delta))}`)
+          const response = yield* LLMClient.generate(request).pipe(Effect.provide(fixedResponse(body)))
+
+          expect(response.text).toBe(content.text)
+          expect(response.reasoning).toBe(content.reasoning)
+          expect(response.events.filter(LLMEvent.is.providerError)).toEqual([
+            expect.objectContaining({ message: expect.stringContaining("finish_reason"), retryable: false }),
+          ])
+          expect(response.events.at(-1)).toMatchObject({ type: "provider-error" })
+          expect(response.events.filter(LLMEvent.is.stepFinish)).toEqual([])
+          expect(response.events.filter(LLMEvent.is.finish)).toEqual([])
+        }),
+      )
+    })
+  })
+
+  it.effect("preserves an empty response before any content starts", () =>
+    Effect.gen(function* () {
+      const response = yield* LLMClient.generate(request).pipe(
+        Effect.provide(fixedResponse(sseRaw(`data: ${encodeJson(deltaChunk({ role: "assistant" }))}`))),
+      )
+
+      expect(response.events).toEqual([])
+    }),
+  )
 
   it.effect("assembles streamed tool call input", () =>
     Effect.gen(function* () {
@@ -643,6 +678,11 @@ describe("OpenAI Chat route", () => {
         { type: "tool-input-start", id: "call_1", name: "lookup", providerMetadata: undefined },
         { type: "tool-input-delta", id: "call_1", name: "lookup", text: '{"query"' },
         { type: "tool-input-delta", id: "call_1", name: "lookup", text: ':"weather"}' },
+        expect.objectContaining({
+          type: "provider-error",
+          message: expect.stringContaining("finish_reason"),
+          retryable: false,
+        }),
       ])
       expect(response.toolCalls).toEqual([])
     }),
@@ -656,17 +696,45 @@ describe("OpenAI Chat route", () => {
       expect(error.message).toContain("Invalid openai/openai-chat stream event")
     }),
   )
+  ;[
+    { kind: "transport", message: "Failed to read openai/openai-chat stream" },
+    { kind: "decode", message: "Invalid openai/openai-chat stream event" },
+  ].forEach((failure) => {
+    it.effect(`preserves the ${failure.kind} error after observed text without adding an EOF error`, () =>
+      Effect.gen(function* () {
+        const observed = yield* Deferred.make<void>()
+        const events = yield* Ref.make<LLMEvent[]>([])
+        const encoder = new TextEncoder()
+        const tail =
+          failure.kind === "transport"
+            ? Stream.fail(new Error("connection reset"))
+            : Stream.succeed(encoder.encode(sseRaw(`data: ${encodeJson(deltaChunk({ content: 123 }))}`)))
+        const body = yield* Stream.toReadableStreamEffect(
+          Stream.succeed(encoder.encode(sseRaw(`data: ${encodeJson(deltaChunk({ content: "Hello" }))}`))).pipe(
+            // Release the failure only after the consumer observes the prefix.
+            Stream.concat(Stream.fromEffect(Deferred.await(observed)).pipe(Stream.flatMap(() => tail))),
+          ),
+        )
+        const error = yield* LLMClient.stream(request).pipe(
+          Stream.runForEach((event) =>
+            Ref.update(events, (all) => [...all, event]).pipe(
+              Effect.andThen(LLMEvent.is.textDelta(event) ? Deferred.succeed(observed, undefined) : Effect.void),
+            ),
+          ),
+          Effect.provide(fixedResponse(body)),
+          Effect.flip,
+        )
 
-  it.effect("surfaces transport errors that occur mid-stream", () =>
-    Effect.gen(function* () {
-      const layer = truncatedStream([
-        `data: ${JSON.stringify(deltaChunk({ role: "assistant", content: "Hello" }))}\n\n`,
-      ])
-      const error = yield* LLMClient.generate(request).pipe(Effect.provide(layer), Effect.flip)
-
-      expect(error.message).toContain("Failed to read openai/openai-chat stream")
-    }),
-  )
+        expect(error).toBeInstanceOf(LLMError)
+        expect(error.message).toContain(failure.message)
+        expect(yield* Ref.get(events)).toEqual([
+          { type: "step-start", index: 0 },
+          { type: "text-start", id: "text-0" },
+          { type: "text-delta", id: "text-0", text: "Hello" },
+        ])
+      }),
+    )
+  })
 
   it.effect("fails HTTP provider errors before stream parsing", () =>
     Effect.gen(function* () {
@@ -688,19 +756,22 @@ describe("OpenAI Chat route", () => {
 
   it.effect("short-circuits the upstream stream when the consumer takes a prefix", () =>
     Effect.gen(function* () {
-      // The body has more chunks than we'll consume. If `Stream.take(1)` did
-      // not interrupt the upstream HTTP body the test would hang waiting for
-      // the rest of the stream to drain.
-      const body = sseEvents(
-        deltaChunk({ role: "assistant", content: "Hello" }),
-        deltaChunk({ content: " world" }),
-        deltaChunk({}, "stop"),
+      // The provider stays open after text, so taking the prefix must cancel
+      // the body without treating that cancellation as a premature EOF.
+      const body = yield* Stream.toReadableStreamEffect(
+        Stream.succeed(new TextEncoder().encode(sseRaw(`data: ${encodeJson(deltaChunk({ content: "Hello" }))}`))).pipe(
+          Stream.concat(Stream.never),
+        ),
       )
 
       const events = Array.from(
-        yield* LLMClient.stream(request).pipe(Stream.take(1), Stream.runCollect, Effect.provide(fixedResponse(body))),
+        yield* LLMClient.stream(request).pipe(Stream.take(3), Stream.runCollect, Effect.provide(fixedResponse(body))),
       )
-      expect(events.map((event) => event.type)).toEqual(["step-start"])
+      expect(events).toEqual([
+        { type: "step-start", index: 0 },
+        { type: "text-start", id: "text-0" },
+        { type: "text-delta", id: "text-0", text: "Hello" },
+      ])
     }),
   )
 })

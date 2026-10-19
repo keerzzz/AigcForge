@@ -81,4 +81,28 @@ export function make(): Effect.Effect<Shape> {
   })
 }
 
+// Cancel only the waiting boundary. The caller may need to finish cooperative
+// tool cleanup and persist its normal aborted result after that wait has ended.
+export const interruptOnSignal =
+  (signal?: AbortSignal) =>
+  <A, E, R>(effect: Effect.Effect<A, E, R>) => {
+    if (!signal) return effect
+    return Effect.suspend(() => {
+      if (signal.aborted) return Effect.interrupt
+      return Effect.raceFirst(
+        effect,
+        Effect.callback<never>((resume) => {
+          const abort = () => {
+            // A synchronous resume bypasses the callback's returned cleanup.
+            signal.removeEventListener("abort", abort)
+            resume(Effect.interrupt)
+          }
+          signal.addEventListener("abort", abort, { once: true })
+          if (signal.aborted) abort()
+          return Effect.sync(() => signal.removeEventListener("abort", abort))
+        }),
+      )
+    })
+  }
+
 export * as EffectBridge from "./bridge"

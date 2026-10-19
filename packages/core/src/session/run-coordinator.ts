@@ -23,6 +23,7 @@ type Entry<E> = {
 
 export const make = <Key, E>(options: {
   readonly drain: (key: Key, force: boolean) => Effect.Effect<void, E>
+  readonly onStatus?: (key: Key, active: boolean) => Effect.Effect<void>
 }): Effect.Effect<Coordinator<Key, E>, never, Scope.Scope> =>
   Effect.gen(function* () {
     const active = new Map<Key, Entry<E>>()
@@ -38,8 +39,9 @@ export const make = <Key, E>(options: {
       const ready = Deferred.makeUnsafe<void>()
       const owner = fork(
         (successor ? Effect.yieldNow : Deferred.await(ready)).pipe(
+          Effect.andThen(successor ? Effect.void : (options.onStatus?.(key, true) ?? Effect.void)),
           Effect.andThen(Effect.suspend(() => options.drain(key, force))),
-          Effect.onExit((exit) => Effect.sync(() => settle(key, entry, exit))),
+          Effect.onExit((exit) => settle(key, entry, exit)),
           Effect.exit,
           Effect.asVoid,
         ),
@@ -48,21 +50,39 @@ export const make = <Key, E>(options: {
       if (!successor) Deferred.doneUnsafe(ready, Effect.void)
     }
 
-    const settle = (key: Key, entry: Entry<E>, exit: Exit.Exit<void, E>) => {
-      if (Exit.isSuccess(exit) && !entry.stopping && entry.pendingWake) {
-        entry.pendingWake = false
-        start(key, entry, false, true)
-        return
-      }
+    const settle = (key: Key, entry: Entry<E>, exit: Exit.Exit<void, E>) =>
+      Effect.suspend(() => {
+        if (Exit.isSuccess(exit) && !entry.stopping && entry.pendingWake) {
+          entry.pendingWake = false
+          start(key, entry, false, true)
+          return Effect.void
+        }
 
-      const successor = entry.pendingWake ? makeEntry() : undefined
-      if (successor === undefined) active.delete(key)
-      else {
-        active.set(key, successor)
-        start(key, successor, false, true)
-      }
-      Deferred.doneUnsafe(entry.done, exit)
-    }
+        if (entry.pendingWake) {
+          const successor = makeEntry()
+          active.set(key, successor)
+          start(key, successor, false, true)
+          Deferred.doneUnsafe(entry.done, exit)
+          return Effect.void
+        }
+
+        // Keep cleanup owned until idle is published so a newer busy cannot be
+        // overwritten. Wakes during publication begin a new busy interval.
+        entry.stopping = true
+        return (options.onStatus?.(key, false) ?? Effect.void).pipe(
+          Effect.ensuring(
+            Effect.sync(() => {
+              active.delete(key)
+              if (entry.pendingWake) {
+                const successor = makeEntry()
+                active.set(key, successor)
+                start(key, successor, false)
+              }
+              Deferred.doneUnsafe(entry.done, exit)
+            }),
+          ),
+        )
+      })
 
     const run = (key: Key): Effect.Effect<void, E> =>
       Effect.uninterruptibleMask((restore) => {

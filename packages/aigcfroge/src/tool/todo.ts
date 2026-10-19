@@ -1,30 +1,57 @@
-/**
- * @deprecated Todo/Task 升级：V1 todowrite tool 已由 `taskwrite`/`task_schedule`/
- * `task_spawn`（`@aigcfroge/core/tool`）取代。本文件保留以向后兼容（V1 runtime 的
- * 写入经 V1 Todo.Service 收敛到 TaskTable），不新增功能。自 M3b-2 起标记 deprecated
- * （提前标记决策），物理删除仍在 M5 之后的下个大版本（Phase 5 V1 退役的独立决策）。
- */
 import { Effect, Schema } from "effect"
-import { SessionTodo } from "@aigcfroge/core/session/todo"
+import { SessionTask } from "@aigcfroge/core/session/task"
+import { Location } from "@aigcfroge/core/location"
+import { Project } from "@aigcfroge/core/project"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { InstanceRef, WorkspaceRef } from "@/effect/instance-ref"
 import * as Tool from "./tool"
 import DESCRIPTION_WRITE from "./todowrite.txt"
-import { Todo } from "../session/todo"
 
-// Reuse the core strict write contract: only the four model-facing statuses and
-// three priorities are accepted, so an invalid value is rejected by schema
-// validation (the model can self-correct) instead of being silently persisted.
+// Reuse the canonical six-state write contract directly (AI-TDD-S01-R04/R08):
+// the default V1 execution chain writes SessionTask through its own registered
+// tool, with no three-field bridge and no second persisted shape. Invalid
+// status/priority is rejected by schema validation at the input boundary (the
+// model can self-correct) instead of being silently persisted.
 export const Parameters = Schema.Struct({
-  todos: Schema.mutable(Schema.Array(SessionTodo.WriteItem)).annotate({ description: "The updated todo list" }),
+  tasks: Schema.mutable(Schema.Array(SessionTask.WriteInfo)).annotate({
+    description:
+      "The full task list. Entries without an id are created with a stable tsk_ id; entries with an id are reconciled in place. Omitted entries are removed.",
+  }),
+  expectedRevision: Schema.optional(Schema.Number).annotate({
+    description:
+      "The max revision the caller observed across all tasks. If any task changed since, the replace is rejected as stale.",
+  }),
 })
 
 type Metadata = {
-  todos: ReadonlyArray<Todo.Info>
+  tasks: ReadonlyArray<SessionTask.Info>
 }
 
-export const TodoWriteTool = Tool.define<typeof Parameters, Metadata, Todo.Service>(
+// Core's EventV2.publish stamps an event's location only from an ambient
+// Location.Service (core/src/event.ts). V1 prompt-loop fibers carry InstanceRef
+// instead, so without this bridge task.updated would go out location-less and
+// the SSE /event location filter would drop it.
+const withInstanceLocation = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const ctx = yield* InstanceRef
+    if (!ctx) return yield* effect
+    const workspaceID = yield* WorkspaceRef
+    return yield* effect.pipe(
+      Effect.provideService(
+        Location.Service,
+        Location.Service.of({
+          directory: AbsolutePath.make(ctx.directory),
+          ...(workspaceID ? { workspaceID } : {}),
+          project: { id: Project.ID.make(ctx.project.id), directory: AbsolutePath.make(ctx.worktree) },
+        }),
+      ),
+    )
+  })
+
+export const TodoWriteTool = Tool.define<typeof Parameters, Metadata, SessionTask.Service>(
   "todowrite",
   Effect.gen(function* () {
-    const todo = yield* Todo.Service
+    const tasks = yield* SessionTask.Service
 
     return {
       description: DESCRIPTION_WRITE,
@@ -41,42 +68,36 @@ export const TodoWriteTool = Tool.define<typeof Parameters, Metadata, Todo.Servi
           // Tool execute defects surface to the model as the tool-error message
           // (see SessionProcessor.failToolCall), so map each failure to a
           // readable, self-correcting instruction instead of swallowing it.
-          const updated = yield* todo
-            .update({
+          const updated = yield* withInstanceLocation(
+            tasks.update({
               sessionID: ctx.sessionID,
-              todos: params.todos,
-            })
-            .pipe(
-              Effect.catchTag("SessionTask.TaskWriteError", (error) => {
-                if (error.reason !== "stale_revision") return Effect.die(new Error(error.message))
-                // Mirror core todowrite: hand the model the server's current
-                // list so it can merge its changes and retry.
-                return todo
-                  .get(ctx.sessionID)
-                  .pipe(
-                    Effect.flatMap((current) =>
-                      Effect.die(
-                        new Error(
-                          `${error.message}\nCurrent server-side todo list:\n${JSON.stringify(current, null, 2)}\nMerge your changes into this list and retry.`,
-                        ),
+              tasks: params.tasks,
+              expectedRevision: params.expectedRevision,
+            }),
+          ).pipe(
+            Effect.catchTag("SessionTask.TaskWriteError", (error) => {
+              if (error.reason !== "stale_revision") return Effect.die(new Error(error.message))
+              // Hand the model the server's current list so it can merge its
+              // changes and retry.
+              return tasks
+                .get(ctx.sessionID)
+                .pipe(
+                  Effect.flatMap((current) =>
+                    Effect.die(
+                      new Error(
+                        `${error.message}\nCurrent server-side task list:\n${JSON.stringify(current, null, 2)}\nMerge your changes into this list and retry.`,
                       ),
                     ),
-                  )
-              }),
-              Effect.catchTag("SchemaError", () =>
-                Effect.die(
-                  new Error(
-                    "Invalid todo status or priority: status must be one of pending, in_progress, completed, cancelled; priority must be one of high, medium, low.",
                   ),
-                ),
-              ),
-            )
+                )
+            }),
+          )
 
           return {
             title: `${updated.filter((x) => x.status !== "completed").length} todos`,
             output: JSON.stringify(updated, null, 2),
             metadata: {
-              todos: updated,
+              tasks: updated,
             },
           }
         }),

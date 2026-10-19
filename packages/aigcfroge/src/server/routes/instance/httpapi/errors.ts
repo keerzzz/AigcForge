@@ -1,9 +1,28 @@
 import { Schema } from "effect"
+import { optionalOmitUndefined } from "@aigcfroge/core/schema"
 // S7: the domain error family lives in the canonical owner (packages/server).
 // The legacy surface keeps its legacy-only error shapes here but re-exports the
 // shared domain errors instead of re-implementing them, so both surfaces encode
 // the same wire shape. See docs/plan §S7 GREEN 1.
 export { UnsupportedProductModeError, CompositionResolveError } from "@aigcfroge/server/errors"
+
+class BadRequestData extends Schema.Class<BadRequestData>("BadRequestData")({
+  message: Schema.String,
+  kind: optionalOmitUndefined(Schema.Literals(["Params", "Headers", "Query", "Body", "Payload"])),
+}) {}
+
+// Public HTTP errors use ErrorClass to preserve the legacy name/data envelope.
+export class BadRequestError extends Schema.ErrorClass<BadRequestError>("BadRequestError")(
+  {
+    name: Schema.Literal("BadRequest"),
+    data: BadRequestData,
+  },
+  { httpApiStatus: 400 },
+) {
+  override get message() {
+    return this.data.message
+  }
+}
 
 export class InvalidRequestError extends Schema.TaggedErrorClass<InvalidRequestError>()(
   "InvalidRequestError",
@@ -125,15 +144,6 @@ export class SessionBusyError extends Schema.TaggedErrorClass<SessionBusyError>(
     message: Schema.String,
   },
   { httpApiStatus: 409 },
-) {}
-
-export class QuestionNotFoundError extends Schema.TaggedErrorClass<QuestionNotFoundError>()(
-  "QuestionNotFoundError",
-  {
-    requestID: Schema.String,
-    message: Schema.String,
-  },
-  { httpApiStatus: 404 },
 ) {}
 
 export class PermissionNotFoundError extends Schema.TaggedErrorClass<PermissionNotFoundError>()(

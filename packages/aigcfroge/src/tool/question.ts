@@ -1,23 +1,27 @@
-import { Effect, Schema } from "effect"
-import * as Tool from "./tool"
-import { Question } from "../question"
-import DESCRIPTION from "./question.txt"
+import { Effect } from "effect"
+import { Location } from "@aigcfroge/core/location"
+import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { QuestionV2 } from "@aigcfroge/core/question"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+// Both runtime tool entrypoints are named QuestionTool; share the native contract.
+import { QuestionTool as NativeQuestionTool } from "@aigcfroge/core/tool/question"
+import { InstanceState } from "@/effect/instance-state"
+import { EffectBridge } from "@/effect/bridge"
+import { Tool } from "./tool"
 
-export const Parameters = Schema.Struct({
-  questions: Schema.mutable(Schema.Array(Question.Prompt)).annotate({ description: "Questions to ask" }),
-})
+export const Parameters = NativeQuestionTool.Input
 
 type Metadata = {
-  answers: ReadonlyArray<Question.Answer>
+  answers: ReadonlyArray<QuestionV2.Answer>
 }
 
-export const QuestionTool = Tool.define<typeof Parameters, Metadata, Question.Service>(
+export const QuestionTool = Tool.define<typeof Parameters, Metadata, LocationServiceMap>(
   "question",
   Effect.gen(function* () {
-    const question = yield* Question.Service
+    const locations = yield* LocationServiceMap
 
     return {
-      description: DESCRIPTION,
+      description: NativeQuestionTool.description,
       parameters: Parameters,
       formatValidationError: () =>
         [
@@ -28,24 +32,28 @@ export const QuestionTool = Tool.define<typeof Parameters, Metadata, Question.Se
           `- multiple (boolean, optional): Whether multiple selections are allowed`,
           `Please rebuild the entire "questions" array with valid objects.`,
         ].join("\n"),
-      execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
+      execute: (params: typeof Parameters.Type, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
-          const answers = yield* question.ask({
-            sessionID: ctx.sessionID,
-            questions: params.questions,
-            tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+          const location = Location.Ref.make({
+            directory: AbsolutePath.make(yield* InstanceState.directory),
+            workspaceID: yield* InstanceState.workspaceID,
           })
-
-          const formatted = params.questions
-            .map((q, i) => `"${q.question}"="${answers[i]?.length ? answers[i].join(", ") : "Unanswered"}"`)
-            .join(", ")
+          const answers = yield* QuestionV2.Service.pipe(
+            Effect.flatMap((question) =>
+              question.ask({
+                sessionID: ctx.sessionID,
+                questions: params.questions,
+                tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
+              }),
+            ),
+            Effect.provide(locations.get(location)),
+            EffectBridge.interruptOnSignal(ctx.abort),
+          )
 
           return {
             title: `Asked ${params.questions.length} question${params.questions.length > 1 ? "s" : ""}`,
-            output: `User has answered your questions: ${formatted}. You can now continue with the user's answers in mind.`,
-            metadata: {
-              answers,
-            },
+            output: NativeQuestionTool.toModelOutput(params.questions, answers),
+            metadata: { answers },
           }
         }).pipe(Effect.orDie),
     }

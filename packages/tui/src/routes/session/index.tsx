@@ -1287,10 +1287,7 @@ export function Session() {
                   />
                 </Show>
                 <Show when={permissions().length === 0 && questions().length > 0}>
-                  <QuestionPrompt
-                    request={questions()[0]}
-                    directory={sync.session.get(questions()[0].sessionID)?.directory}
-                  />
+                  <QuestionPrompt request={questions()[0]} />
                 </Show>
                 <Show when={session()?.parentID}>
                   <SubagentFooter />

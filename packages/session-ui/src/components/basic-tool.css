@@ -237,7 +237,8 @@
   }
 
   &:hover,
-  &:focus-visible {
+  &:focus-visible,
+  &:focus-within {
     border-color: var(--border-weak-base, rgba(255, 255, 255, 0.08));
     background: color-mix(in srgb, var(--background-stronger) 88%, transparent);
 

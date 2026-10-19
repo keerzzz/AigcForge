@@ -13,7 +13,7 @@ function nextRunOf(task: SessionTaskInfo): number | undefined {
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const [open, setOpen] = createSignal(true)
   const theme = () => props.api.theme.current
-  const list = createMemo(() => props.api.state.session.task?.(props.session_id) ?? [])
+  const list = createMemo(() => props.api.state.session.task(props.session_id))
   const show = createMemo(() => list().length > 0 && list().some((item) => item.status !== "completed"))
 
   return (

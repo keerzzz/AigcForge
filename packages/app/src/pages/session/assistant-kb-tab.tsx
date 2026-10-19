@@ -2,25 +2,29 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import { useQuery } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
 import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
-import { assistantQueryKey } from "@/utils/assistant-query"
+import { assistantQueryKey, assistantQueryOptions } from "@/utils/assistant-query"
+import { useModeQueryActivity } from "@/pages/mode-slot-active"
 
 /** Knowledge-base search, filtering, backlinks, and dangling-link inspection. */
 export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNoteNote) => void }) {
   const language = useLanguage()
   const serverSDK = useServerSDK()
+  const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
 
   const [search, setSearch] = createSignal("")
   const [tagFilter, setTagFilter] = createSignal<string | undefined>()
   const [selectedID, setSelectedID] = createSignal<string | undefined>(props.target)
 
   const notesQuery = useQuery(() => ({
-    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
+    enabled: slotActive(),
+    ...assistantQueryOptions(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -29,15 +33,17 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
   const notes = createMemo(() => notesQuery.data ?? [])
 
   const searchQuery = useQuery(() => ({
-    queryKey: assistantQueryKey(serverSDK().scope, "kb-search", search()),
+    enabled: slotActive() && !!search(),
+    ...assistantQueryOptions(serverSDK().scope, "kb-search", search()),
     queryFn: async () => {
       const value = search()
-      if (!value) return notes()
+      if (!value) return []
       const res = await serverSDK().client.kb.search({ query: value })
       return Array.isArray(res.data) ? res.data : []
     },
   }))
-  const visible = createMemo(() => searchQuery.data ?? [])
+  // Empty search follows the list owner directly, including mutation readback.
+  const visible = createMemo(() => (search() ? (searchQuery.data ?? []) : notes()))
 
   const tags = createMemo(() => {
     const set = new Set<string>()
@@ -68,25 +74,38 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
   })
 
   const backlinksQuery = useQuery(() => ({
-    queryKey: assistantQueryKey(serverSDK().scope, "kb-backlinks", selectedID() ?? ""),
+    ...assistantQueryOptions(serverSDK().scope, "kb-backlinks", selectedID() ?? ""),
     queryFn: async () => {
       const id = selectedID()
       if (!id) return []
       const res = await serverSDK().client.kb.backlinks({ id })
       return Array.isArray(res.data) ? res.data : []
     },
-    enabled: !!selectedID(),
+    enabled: slotActive() && !!selectedID(),
   }))
   const backlinks = createMemo(() => backlinksQuery.data ?? [])
 
   const danglingQuery = useQuery(() => ({
-    queryKey: assistantQueryKey(serverSDK().scope, "dangling"),
+    enabled: slotActive(),
+    ...assistantQueryOptions(serverSDK().scope, "dangling"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.dangling()
       return Array.isArray(res.data) ? res.data : []
     },
   }))
   const dangling = createMemo(() => danglingQuery.data ?? [])
+
+  // A failed read is not an empty knowledge base. Keep the error visible and
+  // retry only the queries that actually failed; cached rows stay on screen.
+  const readFailed = createMemo(
+    () => notesQuery.isError || searchQuery.isError || backlinksQuery.isError || danglingQuery.isError,
+  )
+  const retryReads = () => {
+    if (notesQuery.isError) void notesQuery.refetch()
+    if (searchQuery.isError) void searchQuery.refetch()
+    if (backlinksQuery.isError) void backlinksQuery.refetch()
+    if (danglingQuery.isError) void danglingQuery.refetch()
+  }
 
   const titleIndex = createMemo(() => new Set(notes().map((note) => note.title)))
 
@@ -136,6 +155,17 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
         </select>
       </div>
 
+      <Show when={readFailed()}>
+        <div role="alert" class="flex min-w-0 items-center gap-2">
+          <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
+            {language.t("assistant.dashboard.loadError")}
+          </p>
+          <ButtonV2 variant="neutral" size="small" onClick={retryReads}>
+            {language.t("assistant.citation.retry")}
+          </ButtonV2>
+        </div>
+      </Show>
+
       <ScrollView class="min-h-0 flex-1">
         <div class="flex min-w-0 flex-col gap-4">
           <Show
@@ -144,7 +174,11 @@ export function AssistantKbTab(props: { target?: string; onEditNote: (note: KbNo
           >
             <Show
               when={filtered().length > 0}
-              fallback={<p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.kb.empty")}</p>}
+              fallback={
+                <Show when={!readFailed()}>
+                  <p class="text-v2-text-text-muted text-13-regular">{language.t("assistant.kb.empty")}</p>
+                </Show>
+              }
             >
               <div class="flex min-w-0 flex-col gap-px">
                 <For each={filtered()}>

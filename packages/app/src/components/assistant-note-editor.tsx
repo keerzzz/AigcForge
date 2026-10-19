@@ -1,37 +1,47 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
-import { useQuery } from "@tanstack/solid-query"
+import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js"
+import { createStore } from "solid-js/store"
+import { useQuery, useQueryClient } from "@tanstack/solid-query"
 import { Icon } from "@aigcfroge/ui/v2/icon"
 import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
+import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
 import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { useLanguage } from "@/context/language"
 import { useServerSDK } from "@/context/server-sdk"
 import { decorateWikilinks } from "@/components/assistant-wikilink-decorate"
-import { assistantQueryKey } from "@/utils/assistant-query"
+import { assistantKbQueryKeys, assistantQueryKey, assistantQueryOptions } from "@/utils/assistant-query"
+import { AssistantMutation } from "@/utils/assistant-mutation"
+import { ScopedKey } from "@/utils/server-scope"
+import { useModeQueryActivity } from "@/pages/mode-slot-active"
 import {
   danglingWikilinks,
   findWikilinkBeforeCaret,
   insertCompletion,
   wikilinkCandidates,
 } from "@/components/assistant-note-editor-model"
-import type { KbNoteNote } from "@aigcfroge/sdk/v2/client"
 
 /** Markdown note editor with wikilink completion, preview, and dangling-link feedback. */
 export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => void }) {
   const language = useLanguage()
   const serverSDK = useServerSDK()
+  const queryClient = useQueryClient()
+  const slotActive = useModeQueryActivity(() => assistantQueryKey(serverSDK().scope))
+  const owner = createMemo(() => ({ scope: serverSDK().scope, noteID: props.noteId }))
 
   const [title, setTitle] = createSignal("")
   const [tags, setTags] = createSignal("")
   const [content, setContent] = createSignal("")
-  const [loading, setLoading] = createSignal(false)
-  const [saving, setSaving] = createSignal(false)
-  const [deleting, setDeleting] = createSignal(false)
+  const [load, setLoad] = createStore({ pending: false, failed: false, attempt: 0 })
+  const unavailable = () => load.pending || load.failed
+  const mutation = AssistantMutation.create({ client: queryClient, onComplete: () => props.onSaved() })
+  createEffect(on(owner, () => mutation.reset()))
+  const pending = mutation.blocked
   const [completion, setCompletion] = createSignal<string[] | undefined>()
   const [completionIndex, setCompletionIndex] = createSignal(0)
 
   const notesQuery = useQuery(() => ({
-    queryKey: assistantQueryKey(serverSDK().scope, "kb"),
+    enabled: slotActive(),
+    ...assistantQueryOptions(serverSDK().scope, "kb"),
     queryFn: async () => {
       const res = await serverSDK().client.kb.list({})
       return Array.isArray(res.data) ? res.data : []
@@ -40,32 +50,56 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   const notes = createMemo(() => notesQuery.data ?? [])
   const titleIndex = createMemo(() => new Set(notes().map((note) => note.title)))
 
-  createEffect(() => {
-    const id = props.noteId
-    if (!id) return
-    let cancelled = false
-    setLoading(true)
-    void serverSDK()
-      .client.kb.get({ id })
-      .then((res) => {
-        if (cancelled) return
-        const note = res.data as KbNoteNote | undefined
-        if (!note) return
-        setTitle(note.title ?? "")
-        setTags((note.tags ?? []).join(", "))
-        setContent(note.content ?? "")
-      })
-      .catch(console.error)
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    onCleanup(() => {
-      cancelled = true
-    })
-  })
+  // Reactivating a mounted editor may resume a pending read, but must not hydrate
+  // an already loaded note over its unsaved draft.
+  let loadedNote: string | undefined
+  createEffect(
+    on(
+      () => [owner(), slotActive(), load.attempt] as const,
+      ([origin, active]) => {
+        const id = origin.noteID
+        if (!id || !active) return
+        const sdk = serverSDK()
+        const key = ScopedKey.from(origin.scope, "kb", id)
+        if (loadedNote === key) return
+        let cancelled = false
+        loadedNote = undefined
+        setTitle("")
+        setTags("")
+        setContent("")
+        setCompletion(undefined)
+        setLoad({ pending: true, failed: false })
+        void sdk.client.kb
+          .get({ id })
+          .then((res) => {
+            if (cancelled) return
+            const note = res.data
+            if (!note) {
+              setLoad("failed", true)
+              return
+            }
+            setTitle(note.title ?? "")
+            setTags((note.tags ?? []).join(", "))
+            setContent(note.content ?? "")
+            loadedNote = key
+          })
+          .catch(() => {
+            if (!cancelled) setLoad("failed", true)
+          })
+          .finally(() => {
+            if (!cancelled) setLoad("pending", false)
+          })
+        onCleanup(() => {
+          cancelled = true
+        })
+      },
+    ),
+  )
 
   createEffect(() => {
     if (props.noteId) return
+    loadedNote = undefined
+    setLoad({ pending: false, failed: false })
     setTitle("")
     setTags("")
     setContent("")
@@ -101,6 +135,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   }
 
   const acceptCompletion = (index: number) => {
+    if (unavailable() || pending()) return
     const candidates = completion()
     const match = completionMatch()
     const title = candidates?.[index]
@@ -150,49 +185,41 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
   })
 
   const save = () => {
+    if (unavailable() || pending()) return
     const sdk = serverSDK()
-    const id = props.noteId
+    const origin = owner()
+    const id = origin.noteID
+    const keys = assistantKbQueryKeys(sdk.scope)
+    const current = () => owner() === origin
     const currentTitle = title().trim()
     const tagList = tags()
       .split(",")
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0)
     if (!currentTitle) return
-    setSaving(true)
-    const request = id
-      ? sdk.client.kb.update({
-          id,
-          title: currentTitle,
-          content: content(),
-          tags: tagList,
-        })
-      : sdk.client.kb.create({
-          title: currentTitle,
-          content: content(),
-          scope: "global",
-          tags: tagList,
-        })
-    void request
-      .then(() => {
-        void notesQuery.refetch()
-        props.onSaved()
-      })
+    setCompletion(undefined)
+    void mutation
+      .run(
+        () =>
+          id
+            ? sdk.client.kb.update({ id, title: currentTitle, content: content(), tags: tagList })
+            : sdk.client.kb.create({ title: currentTitle, content: content(), scope: "global", tags: tagList }),
+        keys,
+        current,
+      )
       .catch(console.error)
-      .finally(() => setSaving(false))
   }
 
   const remove = () => {
-    const id = props.noteId
+    if (unavailable() || pending()) return
+    const sdk = serverSDK()
+    const origin = owner()
+    const id = origin.noteID
     if (!id) return
-    setDeleting(true)
-    void serverSDK()
-      .client.kb.remove({ id })
-      .then(() => {
-        void notesQuery.refetch()
-        props.onSaved()
-      })
-      .catch(console.error)
-      .finally(() => setDeleting(false))
+    const keys = assistantKbQueryKeys(sdk.scope)
+    const current = () => owner() === origin
+    setCompletion(undefined)
+    void mutation.run(() => sdk.client.kb.remove({ id }), keys, current).catch(console.error)
   }
 
   return (
@@ -203,6 +230,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           aria-label={language.t("assistant.kb.titlePlaceholder")}
           placeholder={language.t("assistant.kb.titlePlaceholder")}
           value={title()}
+          disabled={unavailable() || pending()}
           onInput={(event) => setTitle(event.currentTarget.value)}
         />
         <input
@@ -210,6 +238,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           aria-label={language.t("assistant.editor.tagsPlaceholder")}
           placeholder={language.t("assistant.editor.tagsPlaceholder")}
           value={tags()}
+          disabled={unavailable() || pending()}
           onInput={(event) => setTags(event.currentTarget.value)}
         />
         <IconButtonV2
@@ -217,7 +246,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
           size="small"
           icon={<Icon name="status-active" />}
           aria-label={language.t("assistant.kb.save")}
-          disabled={saving() || !title().trim()}
+          disabled={unavailable() || pending() || !title().trim()}
           onClick={save}
         />
         <Show when={props.noteId}>
@@ -226,11 +255,37 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
             size="small"
             icon={<Icon name="xmark-small" />}
             aria-label={language.t("assistant.kb.delete")}
-            disabled={deleting()}
+            disabled={unavailable() || pending()}
             onClick={remove}
           />
         </Show>
       </div>
+
+      <Show when={load.failed}>
+        <div role="alert" class="flex min-w-0 items-center gap-2">
+          <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">{language.t("assistant.citation.error")}</p>
+          <ButtonV2 variant="neutral" size="small" onClick={() => setLoad("attempt", (attempt) => attempt + 1)}>
+            {language.t("assistant.citation.retry")}
+          </ButtonV2>
+        </div>
+      </Show>
+
+      <Show when={mutation.state.phase === "write-failed" || mutation.state.phase === "refresh-failed"}>
+        <div role="alert" class="flex min-w-0 items-center gap-2">
+          <p class="min-w-0 flex-1 text-v2-state-fg-danger text-12-regular">
+            {language.t(
+              mutation.state.phase === "refresh-failed"
+                ? "assistant.editor.refreshError"
+                : "assistant.dashboard.actionError",
+            )}
+          </p>
+          <Show when={mutation.state.phase === "refresh-failed"}>
+            <ButtonV2 variant="neutral" size="small" onClick={() => void mutation.retry().catch(console.error)}>
+              {language.t("common.refresh")}
+            </ButtonV2>
+          </Show>
+        </div>
+      </Show>
 
       <Show when={completion()?.length}>
         <div
@@ -269,7 +324,7 @@ export function AssistantNoteEditor(props: { noteId?: string; onSaved: () => voi
             aria-label={language.t("assistant.kb.contentPlaceholder")}
             placeholder={language.t("assistant.kb.contentPlaceholder")}
             value={content()}
-            disabled={loading()}
+            disabled={unavailable() || pending()}
             onInput={(event) => {
               setContent(event.currentTarget.value)
               updateCompletion()

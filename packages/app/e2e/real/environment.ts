@@ -43,7 +43,7 @@ export function create(runDir: string, parent: NodeJS.ProcessEnv): Record<string
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_TEMPLATE_DIR: dirs.gitTemplate,
     npm_config_userconfig: path.join(dirs.home, ".npmrc"),
-    npm_config_globalconfig: path.join(dirs.home, ".npmrc"),
+    npm_config_globalconfig: path.join(dirs.home, ".npmrc-global"),
     npm_config_cache: path.join(dirs.cache, "npm"),
     BUN_INSTALL_CACHE_DIR: path.join(dirs.cache, "bun"),
     // No fallback to cloud instance credentials if a provider SDK probes the default chain.
@@ -52,7 +52,7 @@ export function create(runDir: string, parent: NodeJS.ProcessEnv): Record<string
 }
 
 export function backend(
-  input: { runDir: string; entrypoint: string; port: number; v2Runtime: boolean },
+  input: { runDir: string; entrypoint: string; port: number; v2Runtime: boolean; customMode?: boolean },
   parent: NodeJS.ProcessEnv,
 ): { args: string[]; cwd: string; env: Record<string, string> } {
   if (!path.isAbsolute(input.entrypoint)) throw new Error("E4 backend entrypoint must be absolute")
@@ -79,6 +79,7 @@ export function backend(
       AIGCFROGE_DISABLE_AUTOUPDATE: "true",
       AIGCFROGE_DISABLE_MODELS_FETCH: "true",
       ...(input.v2Runtime ? { AIGCFROGE_V2_RUNTIME: "true" } : {}),
+      ...(input.customMode ? { AIGCFROGE_CUSTOM_MODE: "true" } : {}),
     },
   }
 }

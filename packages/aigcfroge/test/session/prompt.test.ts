@@ -4,7 +4,7 @@ import { SessionV1 } from "@aigcfroge/core/v1/session"
 import { Database } from "@aigcfroge/core/database/database"
 import { DelegationService } from "@aigcfroge/core/delegation/service"
 import { SessionTask } from "@aigcfroge/core/session/task"
-import { eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { FetchHttpClient } from "effect/unstable/http"
 import { expect } from "bun:test"
@@ -25,8 +25,6 @@ import { Env } from "../../src/env"
 import { Git } from "../../src/git"
 import { Image } from "../../src/image/image"
 
-import { Question } from "../../src/question"
-import { Todo } from "../../src/session/todo"
 import { Session } from "@/session/session"
 import { SessionMessageTable } from "@aigcfroge/core/session/sql"
 import { LLM } from "../../src/session/llm"
@@ -42,7 +40,6 @@ import { SessionRunState } from "../../src/session/run-state"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
 import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { Skill } from "../../src/skill"
 import { SystemPrompt } from "../../src/session/system"
 import { Shell } from "@aigcfroge/core/shell"
@@ -189,8 +186,6 @@ function makePrompt(input?: { processor?: "blocking" }) {
     Database.defaultLayer,
     EventV2Bridge.defaultLayer,
   ).pipe(Layer.provideMerge(infra))
-  const question = Question.layer.pipe(Layer.provideMerge(deps))
-  const todo = Todo.defaultLayer.pipe(Layer.provideMerge(deps))
   const registry = ToolRegistry.layer.pipe(
     Layer.provide(Skill.defaultLayer),
     Layer.provide(LocationServiceMap.layer),
@@ -202,8 +197,6 @@ function makePrompt(input?: { processor?: "blocking" }) {
     Layer.provide(RuntimeFlags.layer({ experimentalEventSystem: true })),
     Layer.provide(DelegationService.defaultLayer),
     Layer.provide(SessionTask.defaultLayer),
-    Layer.provideMerge(todo),
-    Layer.provideMerge(question),
     Layer.provideMerge(deps),
   )
   const trunc = Truncate.layer.pipe(Layer.provideMerge(deps))
@@ -593,15 +586,15 @@ it.instance("loop stops provider overflow instead of auto-compacting when disabl
   }),
 )
 
-noLLMServer.instance.skip(
-  "prompt emits v2 prompted and synthetic events (v2 projector disabled)",
+noLLMServer.instance(
+  "projects a no-reply prompt and expanded text-file context to canonical history",
   () =>
     Effect.gen(function* () {
       const prompt = yield* SessionPrompt.Service
       const sessions = yield* Session.Service
-      const chat = yield* sessions.create({ title: "Pinned" })
+      const chat = yield* sessions.create({ title: "Pinned", mode: "coding" })
 
-      yield* prompt.prompt({
+      const message = yield* prompt.prompt({
         sessionID: chat.id,
         agent: "build",
         noReply: true,
@@ -616,24 +609,38 @@ noLLMServer.instance.skip(
         ],
       })
 
-      const messages = yield* SessionV2.Service.use((session) => session.messages({ sessionID: chat.id })).pipe(
-        Effect.provide(SessionExecution.noopLayer),
-        Effect.provide(SessionV2.defaultLayer),
-      )
-      const { db } = yield* Database.Service
-      const row = yield* db
+      const messages = yield* SessionV2.Service.use((session) =>
+        session.messages({ sessionID: chat.id, order: "asc" }),
+      ).pipe(Effect.provide(SessionV2.defaultLayer))
+      const db = (yield* Database.Service).db
+      const rows = yield* db
         .select()
         .from(SessionMessageTable)
         .where(eq(SessionMessageTable.session_id, chat.id))
-        .get()
+        .orderBy(asc(SessionMessageTable.seq))
+        .all()
         .pipe(Effect.orDie)
-      expect(messages.find((message) => message.type === "user")).toMatchObject({ type: "user", text: "hello v2" })
-      expect(typeof row?.data.time.created).toBe("number")
-      expect(messages).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ type: "synthetic", text: expect.stringContaining("Called the Read tool") }),
-          expect.objectContaining({ type: "synthetic", text: "note content" }),
-        ]),
+      expect(
+        messages.filter((message) => message.type !== "agent-switched" && message.type !== "model-switched"),
+      ).toMatchObject([
+        {
+          type: "user",
+          text: "hello v2",
+          files: [{ uri: "data:text/plain;base64,bm90ZSBjb250ZW50", mime: "text/plain", name: "note.txt" }],
+        },
+        { type: "synthetic", text: expect.stringContaining("Called the Read tool") },
+        { type: "synthetic", text: "note content" },
+      ])
+      expect(
+        rows
+          .filter((row) => row.type !== "agent-switched" && row.type !== "model-switched")
+          .map((row) => ({ type: row.type, created: row.data.time.created, column: row.time_created })),
+      ).toEqual(
+        (["user", "synthetic", "synthetic"] as const).map((type) => ({
+          type,
+          created: message.info.time.created,
+          column: message.info.time.created,
+        })),
       )
     }),
   { config: cfg },

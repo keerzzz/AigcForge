@@ -4,7 +4,7 @@ import { createStore, produce } from "solid-js/store"
 import { Persist, persisted, removePersisted, draftPersistedKeys } from "@/utils/persist"
 import { ServerConnection, useServer } from "./server"
 import { createEffect, createSignal, getOwner, onCleanup, startTransition } from "solid-js"
-import { useLocation, useNavigate, useParams } from "@solidjs/router"
+import { useLocation, useNavigate } from "@solidjs/router"
 import { usePlatform } from "./platform"
 import { uuid } from "@/utils/uuid"
 import { SessionTabsRemovedDetail } from "@/components/titlebar-session-events"
@@ -12,6 +12,8 @@ import { useChatWorkspace } from "./chat-workspace"
 import { sessionHref } from "@/utils/session-route"
 import { planTabClose } from "./tab-close"
 import { createTabMemory } from "./tab-memory"
+import { currentRoute } from "./layout-helpers"
+import { sessionContributionForRoute, useRouteContribution } from "./route-contribution"
 import { isMode, type Mode } from "./mode"
 import type { WorkContract } from "@aigcfroge/schema/work-contract"
 import type { WorkPreset } from "@aigcfroge/schema/work-preset"
@@ -95,11 +97,11 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
     )
     const [recent, setRecent, , recentReady] = persisted(Persist.global("tabs.recent"), createStore<RecentTab>({}))
 
-    const params = useParams()
     const navigate = useNavigate()
     const location = useLocation()
     const memory = createTabMemory(getOwner())
     const workspace = useChatWorkspace()
+    const routeContribution = useRouteContribution()
 
     const closing = new Set<string>()
     const [focusHandoff, setFocusHandoff] = createSignal<TabFocusHandoff>()
@@ -246,43 +248,33 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         if (server.key === key) navigate("/")
       },
       removeSessions: (input: SessionTabsRemovedDetail) => {
-        const removed = store
-          .filter(
-            (tab) => tab.type === "session" && tab.server === server.key && input.sessionIDs.includes(tab.sessionId),
-          )
-          .map(tabKey)
+        const sessionIDs = new Set(input.sessionIDs)
+        const matches = (tab: Tab) =>
+          tab.type === "session" && ServerConnection.sameKey(tab.server, input.server) && sessionIDs.has(tab.sessionId)
+        const removed = store.filter(matches).map(tabKey)
         void startTransition(() => {
           setStore(
             produce((tabs) => {
-              const sessionIDs = new Set(input.sessionIDs)
-              const currentHref =
-                params.dir && params.id
-                  ? tabHref({
-                      type: "session",
-                      server: server.key,
-                      sessionId: params.id,
-                    })
-                  : undefined
-              const currentIndex = currentHref
-                ? tabs.findIndex(
-                    (tab) => tab.type === "session" && tab.server === server.key && tabHref(tab) === currentHref,
-                  )
-                : -1
+              const route = currentRoute(location.pathname, location.search)
+              const owner = sessionContributionForRoute(routeContribution?.current(), route)
+              const currentIndex = tabs.findIndex(
+                (tab) =>
+                  tab.type === "session" &&
+                  route.type === "session" &&
+                  !!route.server &&
+                  ServerConnection.sameKey(tab.server, route.server) &&
+                  (tab.sessionId === route.sessionId || tabKey(tab) === owner?.activeTopLevelTabKey),
+              )
               const currentTab = tabs[currentIndex]
-              const removedCurrent =
-                currentTab?.type === "session" &&
-                currentTab.server === server.key &&
-                sessionIDs.has(currentTab.sessionId)
+              const removedCurrent = currentTab && matches(currentTab)
 
               for (let i = tabs.length - 1; i >= 0; i--) {
                 const tab = tabs[i]
-                if (!tab || tab.type !== "session") continue
-                if (tab.server !== server.key) continue
-                if (!sessionIDs.has(tab.sessionId)) continue
+                if (!tab || !matches(tab)) continue
                 tabs.splice(i, 1)
               }
 
-              if (!removedCurrent) return
+              if (input.navigate === false || !removedCurrent) return
               const nextTab =
                 tabs.slice(currentIndex).find((tab) => tab.type === "session") ??
                 tabs.slice(0, currentIndex).findLast((tab) => tab.type === "session")

@@ -21,12 +21,17 @@ import { TestLLMServer } from "../../lib/llm-server"
 
 import { MessageID, PartID } from "../../../src/session/schema"
 import { call, callAuthProbe, disposeApps } from "./backend"
-import { original } from "./environment"
 import { runtime } from "./runtime"
 import type { ActiveScenario, Options, ProjectOptions, Result, Scenario, ScenarioContext, SeededContext } from "./types"
 import { ProviderV2 } from "@aigcfroge/core/provider"
 import { ModelV2 } from "@aigcfroge/core/model"
 import { WORKFLOWS_DIR } from "@aigcfroge/core/constants"
+
+// Importing the reusable runner must not initialize the standalone CLI's HOME/DB.
+const original = {
+  AIGCFROGE_SERVER_PASSWORD: Flag.AIGCFROGE_SERVER_PASSWORD,
+  AIGCFROGE_SERVER_USERNAME: Flag.AIGCFROGE_SERVER_USERNAME,
+}
 
 export function runScenario(options: Options) {
   return (scenario: Scenario) => {
@@ -66,8 +71,7 @@ function runAuth(scenario: ActiveScenario) {
     // skips `withContext` entirely — so nothing populated it and every probe,
     // including public routes like `/global/health`, died on "TaskDriver runtime
     // state is not provided" rather than reporting 401/200. Building it here is
-    // the same call `withContext` makes; `buildWithMemoMap` memoizes, so only
-    // the first scenario pays for it.
+    // the same call `withContext` makes.
     const modules = yield* Effect.promise(() => runtime())
     yield* Layer.buildWithMemoMap(modules.AppLayer, modules.memoMap, yield* Scope.Scope)
 
@@ -75,6 +79,7 @@ function runAuth(scenario: ActiveScenario) {
     if (scenario.auth === "protected") {
       if (result.status !== 401) throw new Error(`auth expected 401, got ${result.status}`)
       const authed = yield* callAuthProbe(scenario, "valid")
+      if (authed.timedOut || authed.status === 0) throw new Error("auth probe timed out with valid credentials")
       if (authed.status === 401) throw new Error("auth rejected valid credentials")
       return
     }
@@ -161,7 +166,7 @@ function withContext<A, E>(
           session: (input) =>
             run(
               modules.Session.Service.use((svc) =>
-                svc.create({ title: input?.title, parentID: input?.parentID }).pipe(Effect.orDie),
+                svc.create({ title: input?.title, parentID: input?.parentID, mode: input?.mode }).pipe(Effect.orDie),
               ),
             ),
           sessionGet: (sessionID) =>
@@ -293,8 +298,6 @@ function withContext<A, E>(
             }),
           messages: (sessionID) =>
             run(modules.Session.Service.use((svc) => svc.messages({ sessionID }).pipe(Effect.orDie))),
-          todos: (sessionID, todos) =>
-            run(modules.Todo.Service.use((svc) => svc.update({ sessionID, todos }).pipe(Effect.orDie, Effect.asVoid))),
           tasks: (sessionID, tasks) =>
             run(
               Effect.gen(function* () {

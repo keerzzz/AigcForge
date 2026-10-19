@@ -338,6 +338,12 @@ ADR 转 `Accepted` 前必须满足以下 Gate。Phase 是实施计划中的首�
 | G15     | 本期 UI 仅要求功能、错误态、焦点和一个窄视口证据；完整 dark/i18n/全量窄视口矩阵列为后续 UI 基础设施任务                                                  | PRD；计划 Phase 6                   |
 | G16     | PRD、ADR、计划、testing.md、technical-debt.md 与生成物/历史文档的引用链和规范词汇一致                                                                    | 文档门；计划 Phase 0、脚本 gate     |
 
+**B3/S04 UI 消费接线状态（2026-10-06；非 ADR 接受决定）**
+
+B2 已提交，B3 待本轮验收。S04 仅补目录/运行实例的 UI 消费：@ 候选复用可见性与 Custom 快照池边界，选择插入结构化 agent part 而不直接派工；Agent Hub 保留同名 Agent 下各 child Session/Participant 的独立身份，状态/跳转不从摘要推断，缺失能力不宣称可用控制。具体 UI 接线见[统一实施计划 Phase 6](../../plan/meta-agent-persistent-delegation-closed-loop.md)中的 B3 补注。
+
+本状态补注不改 §2 的聚合根、投递、权限、capability、生命周期或恢复决定，不等于本节 G1–G16 全部通过或将 ADR 改为 Accepted。动态验证、剩余范围及 B3 验收只回填[技术债账本 §15.6](../../technical-debt.md)，本 ADR 不另存测试 tally 或审批结论。
+
 ## 6. Prior Art
 
 2026-08-31 调研（约 30 个开源项目 + 协议与评审工具）。以下是本 ADR 直接借用的先例；未列出的项目基本是并行 worktree / tmux 会话管理器，解决隔离与并行，不解决持久委派。

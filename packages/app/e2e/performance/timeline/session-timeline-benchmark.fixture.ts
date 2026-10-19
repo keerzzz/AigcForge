@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test"
 import { mockAigcfrogeServer } from "../../utils/mock-server"
 import { expectAppVisible, expectSessionTitle } from "../../utils/waits"
 import { expect } from "../benchmark"
+import { createTimelineSseTransport } from "./session-timeline-sse"
 
 const directory = "C:/Aigcfroge/TimelineStateRegression"
 const projectID = "proj_timeline_state_regression"
@@ -93,9 +94,17 @@ const assistantMessage = {
   parts: [editPart],
 }
 
-export async function setupTimelineBenchmark(page: Page, options: { historyTurns: number; eventBatch: number }) {
-  const events: EventPayload[] = []
-  let eventBatch = options.eventBatch
+export async function setupTimelineBenchmark(
+  page: Page,
+  options: { historyTurns: number; eventBatch: number; eventIntervalMs?: number },
+) {
+  const transport = await createTimelineSseTransport<EventPayload>({
+    batch: options.eventBatch,
+    intervalMs: options.eventIntervalMs ?? 16,
+  })
+  page.once("close", () => {
+    void transport.close().catch((error: unknown) => console.error("benchmark SSE cleanup failed", error))
+  })
   await mockAigcfrogeServer(page, {
     directory,
     project: project(),
@@ -108,9 +117,8 @@ export async function setupTimelineBenchmark(page: Page, options: { historyTurns
         assistantMessage,
       ],
     }),
-    events: () => events.splice(0, eventBatch),
-    eventRetry: 16,
   })
+  await page.route(/\/(?:global\/)?event(?:\?.*)?$/, (route) => route.continue({ url: transport.url }))
   await page.addInitScript(() => {
     localStorage.setItem(
       "settings.v3",
@@ -133,17 +141,7 @@ export async function setupTimelineBenchmark(page: Page, options: { historyTurns
   return {
     scroller,
     text,
-    transport: {
-      enqueue(payload: EventPayload | EventPayload[]) {
-        events.push(...(Array.isArray(payload) ? payload : [payload]))
-      },
-      pendingCount() {
-        return events.length
-      },
-      releaseAll() {
-        eventBatch = events.length
-      },
-    },
+    transport,
     async scrollToBottom() {
       await scroller.evaluate((element) => {
         element.scrollTop = element.scrollHeight

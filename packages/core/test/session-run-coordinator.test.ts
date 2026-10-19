@@ -343,3 +343,176 @@ describe("SessionRunCoordinator", () => {
     ),
   )
 })
+
+describe("execution status notifications", () => {
+  it.effect("serializes a new wake behind an in-flight idle notification", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const idleStarted = yield* Deferred.make<void>()
+        const releaseIdle = yield* Deferred.make<void>()
+        const secondStarted = yield* Deferred.make<void>()
+        const states: boolean[] = []
+        let runs = 0
+        const coordinator = yield* SessionRunCoordinator.make<string, never>({
+          drain: () =>
+            Effect.sync(() => ++runs).pipe(
+              Effect.flatMap((run) =>
+                run === 1 ? Effect.void : Deferred.succeed(secondStarted, undefined).pipe(Effect.andThen(Effect.never)),
+              ),
+            ),
+          onStatus: (_key, active) =>
+            Effect.gen(function* () {
+              if (!active) {
+                yield* Deferred.succeed(idleStarted, undefined)
+                yield* Deferred.await(releaseIdle)
+              }
+              states.push(active)
+            }),
+        })
+
+        const first = yield* coordinator.run("s").pipe(Effect.forkChild)
+        yield* Deferred.await(idleStarted)
+        yield* coordinator.wake("s")
+        yield* Effect.yieldNow
+        yield* Deferred.succeed(releaseIdle, undefined)
+        yield* Deferred.await(secondStarted)
+        yield* Fiber.join(first)
+
+        expect(states).toEqual([true, false, true])
+        expect(yield* coordinator.isActive("s")).toBe(true)
+        yield* coordinator.interrupt("s")
+      }),
+    ),
+  )
+
+  it.effect("starts an explicit resume after an in-flight idle notification", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const idleStarted = yield* Deferred.make<void>()
+        const releaseIdle = yield* Deferred.make<void>()
+        const secondStarted = yield* Deferred.make<void>()
+        const forces: boolean[] = []
+        const coordinator = yield* SessionRunCoordinator.make<string, never>({
+          drain: (_key, force) =>
+            Effect.sync(() => forces.push(force)).pipe(
+              Effect.flatMap((run) =>
+                run === 1 ? Effect.void : Deferred.succeed(secondStarted, undefined).pipe(Effect.andThen(Effect.never)),
+              ),
+            ),
+          onStatus: (_key, active) =>
+            active
+              ? Effect.void
+              : Deferred.succeed(idleStarted, undefined).pipe(Effect.andThen(Deferred.await(releaseIdle))),
+        })
+
+        yield* coordinator.wake("s")
+        yield* Deferred.await(idleStarted)
+        const resumed = yield* coordinator.run("s").pipe(Effect.forkChild)
+        yield* Effect.yieldNow
+        yield* Deferred.succeed(releaseIdle, undefined)
+        yield* Deferred.await(secondStarted)
+
+        expect(forces).toEqual([false, true])
+        yield* coordinator.interrupt("s")
+        const exit = yield* Fiber.await(resumed)
+        expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBeTrue()
+      }),
+    ),
+  )
+
+  it.effect("clears a wake when interrupted during idle publication", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const idleStarted = yield* Deferred.make<void>()
+        const releaseIdle = yield* Deferred.make<void>()
+        const states: boolean[] = []
+        let runs = 0
+        const coordinator = yield* SessionRunCoordinator.make<string, never>({
+          drain: () =>
+            Effect.sync(() => {
+              runs += 1
+            }),
+          onStatus: (_key, active) =>
+            Effect.gen(function* () {
+              if (!active) {
+                yield* Deferred.succeed(idleStarted, undefined)
+                yield* Deferred.await(releaseIdle)
+              }
+              states.push(active)
+            }),
+        })
+
+        yield* coordinator.wake("s")
+        yield* Deferred.await(idleStarted)
+        yield* coordinator.wake("s")
+        const interrupted = yield* coordinator.interrupt("s").pipe(Effect.forkChild)
+        yield* Effect.yieldNow
+        yield* Deferred.succeed(releaseIdle, undefined)
+        yield* Fiber.join(interrupted)
+
+        expect(runs).toBe(1)
+        expect(states).toEqual([true, false])
+        expect(yield* coordinator.isActive("s")).toBe(false)
+      }),
+    ),
+  )
+
+  it.effect("keeps one busy interval across coalesced wakes and settles after idle publication", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const started = yield* Deferred.make<void>()
+        const gate = yield* Deferred.make<void>()
+        const idle = yield* Deferred.make<void>()
+        const states: boolean[] = []
+        let runs = 0
+        const coordinator = yield* SessionRunCoordinator.make<string, never>({
+          drain: () =>
+            Effect.gen(function* () {
+              runs += 1
+              yield* Deferred.succeed(started, undefined)
+              yield* Deferred.await(gate)
+            }),
+          onStatus: (_key, active) =>
+            Effect.gen(function* () {
+              states.push(active)
+              if (!active) yield* Deferred.succeed(idle, undefined)
+            }),
+        })
+        yield* coordinator.wake("s")
+        yield* Deferred.await(started)
+        yield* coordinator.wake("s")
+        const resumed = yield* coordinator.run("s").pipe(Effect.forkChild)
+        expect(yield* coordinator.isActive("s")).toBe(true)
+        yield* Deferred.succeed(gate, undefined)
+        yield* Deferred.await(idle)
+        yield* Fiber.join(resumed)
+        expect(yield* coordinator.isActive("s")).toBe(false)
+        expect(runs).toBe(2)
+        expect(states).toEqual([true, false])
+      }),
+    ),
+  )
+
+  it.effect("interrupt settles the active owner and publishes idle once", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const started = yield* Deferred.make<void>()
+        const states: boolean[] = []
+        const coordinator = yield* SessionRunCoordinator.make<string, never>({
+          drain: () => Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never)),
+          onStatus: (_key, active) =>
+            Effect.sync(() => {
+              states.push(active)
+            }),
+        })
+        yield* coordinator.wake("s")
+        yield* Deferred.await(started)
+        yield* coordinator.interrupt("s")
+        expect(yield* coordinator.isActive("s")).toBe(false)
+        expect(states).toEqual([true, false])
+        yield* coordinator.interrupt("s")
+        expect(states).toEqual([true, false])
+      }),
+    ),
+  )
+})

@@ -394,6 +394,7 @@ export class RunScrollbackStream {
         commit,
         body: staticBody(commit, body, spaced),
         theme: this.theme,
+        treeSitterClient: this.treeSitterClient,
         opts: {
           diffStyle: this.diffStyle,
         },

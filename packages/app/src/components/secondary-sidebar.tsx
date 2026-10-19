@@ -1,6 +1,10 @@
 import { Show, createEffect, createMemo, createSignal, For, onCleanup, onMount, untrack, type Accessor } from "solid-js"
 import { ModeSlotActiveProvider } from "@/pages/mode-slot-active"
-import { useRouteContribution, type SessionContribution } from "@/context/route-contribution"
+import {
+  sessionContributionForRoute,
+  useRouteContribution,
+  type SessionContribution,
+} from "@/context/route-contribution"
 import { createStore, produce } from "solid-js/store"
 import { useNavigate, useParams } from "@solidjs/router"
 import { getFilename } from "@aigcfroge/core/util/path"
@@ -21,8 +25,8 @@ import { AssistantSessionSidebar } from "@/components/assistant-session-sidebar"
 import { useGlobal } from "@/context/global"
 import { useTabs } from "@/context/tabs"
 import { ServerConnection, useServer } from "@/context/server"
-import { useServerSDK } from "@/context/server-sdk"
-import { useServerSync } from "@/context/server-sync"
+import { ServerSDKProvider, useServerSDK } from "@/context/server-sdk"
+import { ServerSyncProvider, useServerSync } from "@/context/server-sync"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useNotification } from "@/context/notification"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
@@ -115,6 +119,22 @@ function SecondarySidebar() {
     if (!contribution) return undefined
     return { ...contribution, ownerKey: `${contribution.scope}\0${contribution.directory}` }
   })
+  const assistantTarget = createMemo(
+    () => {
+      const contribution = sessionContributionForRoute(routeContribution?.current(), layout.route())
+      if (!contribution) return undefined
+      const connection = server.list.find((item) =>
+        ServerConnection.sameKey(contribution.server, ServerConnection.key(item)),
+      )
+      if (!connection) return undefined
+      return { contribution, connection }
+    },
+    undefined,
+    {
+      equals: (previous, next) =>
+        previous?.contribution === next?.contribution && previous?.connection === next?.connection,
+    },
+  )
 
   // When navigating to a session (via the current-directory signal), auto-expand
   // the project (and workspace) that contains it, and collapse other projects.
@@ -489,6 +509,36 @@ function SecondarySidebar() {
     )
   }
 
+  const archiveSession = async (session: Session, connection = conn()) => {
+    if (!connection) return
+    const target = global.ensureServerCtx(connection)
+    const key = ServerConnection.key(connection)
+    const [, setStore] = target.sync.child(session.directory, { bootstrap: false })
+    const archivedAt = Date.now()
+    const result = await target.sdk.client.session
+      .update({
+        directory: session.directory,
+        sessionID: session.id,
+        time: { archived: archivedAt },
+      })
+      .catch((error) => {
+        showToast({
+          title: language.t("common.requestFailed"),
+          description: formatServerError(error, language.t),
+        })
+        return undefined
+      })
+    if (!result) return
+    setStore(
+      produce((draft) => {
+        const idx = draft.session.findIndex((s: Session) => s.id === session.id)
+        if (idx !== -1) draft.session.splice(idx, 1)
+      }),
+    )
+    target.sync.ensureDirSyncContext(session.directory).session.evict(session.id)
+    notifySessionTabsRemoved({ server: key, directory: session.directory, sessionIDs: [session.id] })
+  }
+
   const sidebarCtx: WorkspaceSidebarContext = {
     currentDir,
     navList,
@@ -496,36 +546,7 @@ function SecondarySidebar() {
     sidebarHovering: () => true,
     clearHoverProjectSoon: () => {},
     prefetchSession: () => {},
-    archiveSession: async (session) => {
-      const [, setStore] = sync().child(session.directory, { bootstrap: false })
-      const archivedAt = Date.now()
-      const result = await serverSDK()
-        .client.session.update({
-          directory: session.directory,
-          sessionID: session.id,
-          time: { archived: archivedAt },
-        })
-        .catch((error) => {
-          showToast({
-            title: language.t("common.requestFailed"),
-            description: formatServerError(error, language.t),
-          })
-          return undefined
-        })
-      if (!result) return
-      setStore(
-        produce((draft) => {
-          const idx = draft.session.findIndex((s: Session) => s.id === session.id)
-          if (idx !== -1) draft.session.splice(idx, 1)
-        }),
-      )
-      sync().ensureDirSyncContext(session.directory).session.evict(session.id)
-      notifySessionTabsRemoved({ directory: session.directory, sessionIDs: [session.id] })
-      if (session.id === params.id) {
-        const tabIdx = tabs.store.findIndex((t) => t.type === "session" && t.sessionId === session.id)
-        if (tabIdx !== -1) tabs.removeTab(tabIdx)
-      }
-    },
+    archiveSession,
     workspaceName,
     renameWorkspace,
     editorOpen: inlineEditor.editorOpen,
@@ -698,22 +719,35 @@ function SecondarySidebar() {
           />
         )}
       </Show>
-      <div style={{ display: mode.currentMode === "work" ? "" : "none" }}>
-        <WorkSecondarySidebar
-          directory={chatDirectory}
-          sortNow={sortNow}
-          ctx={sidebarCtx}
-          serverKey={serverKey() ?? undefined}
-        />
-      </div>
-      <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
-        <AssistantSessionSidebar
-          directory={chatDirectory}
-          sortNow={sortNow}
-          ctx={sidebarCtx}
-          serverKey={serverKey() ?? undefined}
-        />
-      </div>
+      <ModeSlotActiveProvider value={() => mode.currentMode === "work"}>
+        <div style={{ display: mode.currentMode === "work" ? "" : "none" }}>
+          <WorkSecondarySidebar
+            directory={chatDirectory}
+            sortNow={sortNow}
+            ctx={sidebarCtx}
+            serverKey={serverKey() ?? undefined}
+          />
+        </div>
+      </ModeSlotActiveProvider>
+      <Show when={assistantTarget()} keyed>
+        {(target) => (
+          <ServerSDKProvider server={() => target.connection}>
+            <ServerSyncProvider server={() => target.connection}>
+              <ModeSlotActiveProvider
+                value={() => mode.currentMode === "assistant" && target.contribution.assistantPanel.available()}
+              >
+                <div style={{ display: mode.currentMode === "assistant" ? "" : "none" }}>
+                  <AssistantSessionSidebar
+                    target={() => target.contribution}
+                    sortNow={sortNow}
+                    ctx={{ ...sidebarCtx, archiveSession: (session) => archiveSession(session, target.connection) }}
+                  />
+                </div>
+              </ModeSlotActiveProvider>
+            </ServerSyncProvider>
+          </ServerSDKProvider>
+        )}
+      </Show>
     </aside>
   )
 }

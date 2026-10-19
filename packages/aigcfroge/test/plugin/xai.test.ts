@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import type { PluginInput } from "@aigcfroge/plugin"
 import {
   accessTokenIsExpiring,
   buildAuthorizeUrl,
@@ -15,12 +16,12 @@ function makeJwt(payload: object): string {
 }
 
 function makeInput(opts?: { failSet?: boolean }) {
-  const setCalls: Array<Record<string, unknown>> = []
+  const setCalls: Array<Parameters<PluginInput["client"]["auth"]["set"]>[0]> = []
   return {
     input: {
       client: {
         auth: {
-          set: async (req: Record<string, unknown>) => {
+          set: async (req: (typeof setCalls)[number]) => {
             setCalls.push(req)
             if (opts?.failSet) throw new Error("auth.set boom")
           },
@@ -266,7 +267,7 @@ describe("plugin.xai", () => {
         "Bearer new-access",
       ])
       expect(setCalls).toHaveLength(1)
-      expect((setCalls[0].body as any).refresh).toBe("rt-new")
+      expect(setCalls[0]).toMatchObject({ providerID: "xai", auth: { refresh: "rt-new" } })
     })
 
     test("does not share refresh single-flight across loader instances", async () => {
@@ -348,7 +349,7 @@ describe("plugin.xai", () => {
       const resp = await opts.fetch!(new URL("/chat/completions", server.url), { headers: {} })
       expect(resp.status).toBe(200)
       expect(captured[0].get("authorization")).toBe("Bearer new-access")
-      expect((setCalls[0].body as any).refresh).toBe("rt-old")
+      expect(setCalls[0]).toMatchObject({ providerID: "xai", auth: { refresh: "rt-old" } })
     })
 
     test("refreshes based on stored expiry or JWT expiry and skips refresh when both are fresh", async () => {

@@ -89,7 +89,10 @@ const pathParamPatterns = [
   { method: "patch", path: SessionPaths.updatePart, name: "partID", pattern: "^prt" },
   { method: "post", path: SessionPaths.permissions, name: "permissionID", pattern: "^per" },
   { method: "post", path: "/permission/:requestID/reply", name: "requestID", pattern: "^per" },
-  { method: "post", path: "/question/:requestID/reply", name: "requestID", pattern: "^que" },
+  { method: "post", path: "/api/session/:sessionID/question/:requestID/reply", name: "sessionID", pattern: "^ses" },
+  { method: "post", path: "/api/session/:sessionID/question/:requestID/reply", name: "requestID", pattern: "^que" },
+  { method: "post", path: "/api/session/:sessionID/question/:requestID/reject", name: "sessionID", pattern: "^ses" },
+  { method: "post", path: "/api/session/:sessionID/question/:requestID/reject", name: "requestID", pattern: "^que" },
   { method: "put", path: PtyPaths.update, name: "ptyID", pattern: "^pty" },
   { method: "delete", path: WorkspacePaths.remove, name: "id", pattern: "^wrk" },
 ] satisfies Array<{ method: Method; path: string; name: string; pattern: string }>

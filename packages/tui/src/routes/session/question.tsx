@@ -3,16 +3,18 @@ import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-j
 import { useRenderer } from "@opentui/solid"
 import type { TextareaRenderable } from "@opentui/core"
 import { selectedForeground, tint, useTheme } from "../../context/theme"
-import type { QuestionAnswer, QuestionRequest } from "@aigcfroge/sdk/v2"
+import type { QuestionV2Answer, QuestionV2Request } from "@aigcfroge/sdk/v2"
 import { useSDK } from "../../context/sdk"
 import { SplitBorder } from "../../ui/border"
+import { useToast } from "../../ui/toast"
 import { useTuiConfig } from "../../config"
 import { useBindings, useAigcfrogeModeStack } from "../../keymap"
 
 const QUESTION_MODE = "question"
 
-export function QuestionPrompt(props: { request: QuestionRequest; directory?: string }) {
+export function QuestionPrompt(props: { request: QuestionV2Request }) {
   const sdk = useSDK()
+  const toast = useToast()
   const { theme } = useTheme()
   const renderer = useRenderer()
   const tuiConfig = useTuiConfig()
@@ -24,7 +26,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
   const [tabHover, setTabHover] = createSignal<number | "confirm" | null>(null)
   const [store, setStore] = createStore({
     tab: 0,
-    answers: [] as QuestionAnswer[],
+    answers: [] as QuestionV2Answer[],
     custom: [] as string[],
     selected: 0,
     editing: false,
@@ -45,20 +47,23 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
     return store.answers[store.tab]?.includes(value) ?? false
   })
 
-  function submit() {
-    const answers = questions().map((_, i) => store.answers[i] ?? [])
-    void sdk.client.question.reply({
-      requestID: props.request.id,
-      directory: props.directory,
-      answers,
-    })
+  function submit(answers = questions().map((_, i) => store.answers[i] ?? [])) {
+    void sdk.client.v2.session.question
+      .reply(
+        {
+          sessionID: props.request.sessionID,
+          requestID: props.request.id,
+          questionV2Reply: { answers },
+        },
+        { throwOnError: true },
+      )
+      .catch(toast.error)
   }
 
   function reject() {
-    void sdk.client.question.reject({
-      requestID: props.request.id,
-      directory: props.directory,
-    })
+    void sdk.client.v2.session.question
+      .reject({ sessionID: props.request.sessionID, requestID: props.request.id }, { throwOnError: true })
+      .catch(toast.error)
   }
 
   function pick(answer: string, custom: boolean = false) {
@@ -71,11 +76,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
       setStore("custom", inputs)
     }
     if (single()) {
-      void sdk.client.question.reply({
-        requestID: props.request.id,
-        directory: props.directory,
-        answers: [[answer]],
-      })
+      submit([[answer]])
       return
     }
     setStore("tab", store.tab + 1)

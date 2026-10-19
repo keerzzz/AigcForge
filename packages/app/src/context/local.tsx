@@ -58,7 +58,7 @@ const clone = (value: State | undefined) => {
 
 export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
   name: "Local",
-  init: () => {
+  init: (props: { defaultAgent?: string }) => {
     const params = useParams()
     const sdk = useSDK()
     const sync = useSync()
@@ -190,7 +190,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const agent = {
       list,
       current() {
-        return pickAgent(scope()?.agent ?? store.current)
+        return pickAgent(scope()?.agent ?? props.defaultAgent ?? store.current)
       },
       set(name: string | undefined) {
         const item = pickAgent(name)

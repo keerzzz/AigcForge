@@ -249,20 +249,28 @@ describe("tool parameters", () => {
   })
 
   describe("todo", () => {
-    test("accepts todos array", () => {
+    test("accepts tasks array (canonical six-state contract)", () => {
       const parsed = parse(Todo, {
-        todos: [{ id: "t1", content: "do x", status: "pending", priority: "medium" }],
+        tasks: [{ id: "t1", content: "do x", status: "pending", priority: "medium" }],
       })
-      expect(parsed.todos.length).toBe(1)
+      expect(parsed.tasks.length).toBe(1)
+    })
+    test("accepts every canonical status including scheduled and failed", () => {
+      expect(
+        accepts(Todo, {
+          tasks: [{ content: "do x", status: "scheduled", priority: "medium", scheduledAt: Date.now() + 60_000 }],
+        }),
+      ).toBe(true)
+      expect(accepts(Todo, { tasks: [{ content: "do x", status: "failed", priority: "medium" }] })).toBe(true)
+      expect(accepts(Todo, { tasks: [{ content: "do x", status: "cancelled", priority: "medium" }] })).toBe(true)
     })
     test("rejects invalid status", () => {
-      expect(accepts(Todo, { todos: [{ content: "do x", status: "bogus", priority: "medium" }] })).toBe(false)
-      expect(accepts(Todo, { todos: [{ content: "do x", status: "scheduled", priority: "medium" }] })).toBe(false)
+      expect(accepts(Todo, { tasks: [{ content: "do x", status: "bogus", priority: "medium" }] })).toBe(false)
     })
     test("rejects invalid priority", () => {
-      expect(accepts(Todo, { todos: [{ content: "do x", status: "pending", priority: "urgent" }] })).toBe(false)
+      expect(accepts(Todo, { tasks: [{ content: "do x", status: "pending", priority: "urgent" }] })).toBe(false)
     })
-    test("rejects missing todos", () => {
+    test("rejects missing tasks", () => {
       expect(accepts(Todo, {})).toBe(false)
     })
   })

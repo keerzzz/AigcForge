@@ -5,12 +5,11 @@ import type {
   FilePart,
   LspStatus,
   McpStatus,
-  Todo,
   Message,
   Part,
   Provider,
   PermissionRequest,
-  QuestionRequest,
+  QuestionV2Request,
   Session,
   SessionStatus,
   SessionTaskInfo,
@@ -388,16 +387,11 @@ export type TuiState = {
     count: () => number
     get: (sessionID: string) => Session | undefined
     diff: (sessionID: string) => ReadonlyArray<TuiSidebarFileItem>
-    /**
-     * @deprecated Legacy Todo projection for third-party TUI plugins. Use
-     * `state.session.task` instead; removed in Phase 5 (V1 retirement).
-     */
-    todo: (sessionID: string) => ReadonlyArray<TuiSidebarTodoItem>
-    task?: (sessionID: string) => ReadonlyArray<SessionTaskInfo>
+    task: (sessionID: string) => ReadonlyArray<SessionTaskInfo>
     messages: (sessionID: string) => ReadonlyArray<Message>
     status: (sessionID: string) => SessionStatus | undefined
     permission: (sessionID: string) => ReadonlyArray<PermissionRequest>
-    question: (sessionID: string) => ReadonlyArray<QuestionRequest>
+    question: (sessionID: string) => ReadonlyArray<QuestionV2Request>
   }
   part: (messageID: string) => ReadonlyArray<Part>
   lsp: () => ReadonlyArray<TuiSidebarLspItem>
@@ -422,13 +416,18 @@ type TuiAttentionConfigView = {
   sounds: Partial<Record<TuiAttentionSoundName, string>>
 }
 
-type TuiConfigView = Pick<PluginConfig, "$schema" | "theme" | "plugin"> &
-  NonNullable<PluginConfig["tui"]> & {
-    leader_timeout: number
-    attention: TuiAttentionConfigView
-    plugin_enabled?: Record<string, boolean>
-    keybinds: TuiBindingLookupView
-  }
+// TUI preferences belong to the local host, not the HTTP server Config.
+// Keep this public read view independent of the private TUI runtime package.
+type TuiConfigView = Pick<PluginConfig, "$schema" | "plugin"> & {
+  theme?: string
+  scroll_speed?: number
+  scroll_acceleration?: { enabled: boolean }
+  diff_style?: "auto" | "stacked"
+  leader_timeout: number
+  attention: TuiAttentionConfigView
+  plugin_enabled?: Record<string, boolean>
+  keybinds: TuiBindingLookupView
+}
 
 export type TuiApp = {
   readonly version: string
@@ -449,8 +448,6 @@ export type TuiSidebarMcpItem = {
 }
 
 export type TuiSidebarLspItem = Pick<LspStatus, "id" | "root" | "status">
-
-export type TuiSidebarTodoItem = Pick<Todo, "content" | "status">
 
 export type TuiSidebarFileItem = {
   file: string

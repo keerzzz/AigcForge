@@ -49,8 +49,6 @@ import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
 import { Format } from "../format"
 import { InstanceState } from "@/effect/instance-state"
 import { EffectBridge } from "@/effect/bridge"
-import { Question } from "../question"
-import { Todo } from "../session/todo"
 import { LSP } from "@/lsp/lsp"
 import { Instruction } from "../session/instruction"
 import { FSUtil } from "@aigcfroge/core/fs-util"
@@ -371,8 +369,6 @@ export const defaultLayer = Layer.suspend(() =>
       Layer.provide(Config.defaultLayer),
       Layer.provide(Plugin.defaultLayer),
       Layer.provide(CliAdapterRegistry.defaultLayer),
-      Layer.provide(Question.defaultLayer),
-      Layer.provide(Todo.defaultLayer),
       Layer.provide(Skill.defaultLayer),
       Layer.provide(Agent.defaultLayer),
       Layer.provide(Session.defaultLayer),
@@ -479,8 +475,6 @@ export const node = LayerNode.make(layer.pipe(Layer.provide(Ripgrep.defaultLayer
   Config.node,
   Plugin.node,
   CliAdapterRegistry.node,
-  Question.node,
-  Todo.node,
   Agent.node,
   Skill.node,
   Session.node,

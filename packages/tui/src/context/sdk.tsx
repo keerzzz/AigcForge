@@ -13,7 +13,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
   init: (props: {
     url: string
     directory?: string
-    fetch?: typeof fetch
+    fetch?: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>
     headers?: RequestInit["headers"]
     events?: EventSource
   }) => {

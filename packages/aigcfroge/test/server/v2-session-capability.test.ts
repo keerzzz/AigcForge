@@ -393,7 +393,7 @@ describe.serial("V2 Session Capability Matrix", () => {
             expect(yield* response.json).toMatchObject({
               _tag: "UnsupportedProductModeError",
               mode: "custom",
-              message: expect.stringContaining("V2-native"),
+              message: expect.stringContaining("Use canonical admission"),
             })
           }),
         )

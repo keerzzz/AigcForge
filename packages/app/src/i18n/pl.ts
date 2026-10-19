@@ -796,6 +796,7 @@ export const dict = {
   "session.review.noVcs.createGit.action": "Utwórz repozytorium Git",
   "session.todo.progress": "Ukończono {{done}} z {{total}} zadań",
   "session.question.progress": "{{current}} z {{total}} pytań",
+  "session.requests.pending": "Oczekujące żądania: {{count}}",
   "session.header.open.finder": "Finder",
   "session.header.open.fileExplorer": "Eksplorator plików",
   "session.header.open.fileManager": "Menedżer plików",

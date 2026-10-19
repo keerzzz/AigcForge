@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
-import type { Message, Part, PermissionRequest, Project, QuestionRequest, Session } from "@aigcfroge/sdk/v2/client"
+import type { Message, Part, PermissionRequest, Project, QuestionV2Request, Session } from "@aigcfroge/sdk/v2/client"
 import { createStore } from "solid-js/store"
+import { WorkReview } from "@aigcfroge/schema/work-review"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import type { State } from "./types"
 import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } from "./event-reducer"
 
@@ -55,7 +57,7 @@ const questionRequest = (id: string, sessionID: string, title = id) =>
         options: [{ label: title, description: title }],
       },
     ],
-  }) as QuestionRequest
+  }) as QuestionV2Request
 
 const permissionV2Request = (id: string, sessionID: string, action = "bash") => ({
   id,
@@ -79,12 +81,14 @@ const baseState = (input: Partial<State> = {}) =>
     sessionTotal: 0,
     session_status: {},
     session_diff: {},
-    todo: {},
     permission: {},
     permission_v2: {},
     permission_v2_revision: 0,
     permission_v2_load_epoch: 0,
     permission_v2_events: [],
+    question_revision: 0,
+    question_load_epoch: 0,
+    question_events: [],
     question: {},
     mcp: {},
     lsp: [],
@@ -227,7 +231,6 @@ describe("applyDirectoryEvent", () => {
         message: { ses_1: [message] },
         part: { [message.id]: [textPart("prt_1", "ses_1", message.id)] },
         session_diff: { ses_1: [] },
-        todo: { ses_1: [] },
         permission: { ses_1: [] },
         permission_v2: {},
         question: { ses_1: [] },
@@ -249,7 +252,6 @@ describe("applyDirectoryEvent", () => {
     expect(store.message.ses_1).toBeUndefined()
     expect(store.part[message.id]).toBeUndefined()
     expect(store.session_diff.ses_1).toBeUndefined()
-    expect(store.todo.ses_1).toBeUndefined()
     expect(store.permission.ses_1).toBeUndefined()
     expect(store.question.ses_1).toBeUndefined()
     expect(store.session_status.ses_1).toBeUndefined()
@@ -358,7 +360,6 @@ describe("applyDirectoryEvent", () => {
           message: { [item.info.id]: [message] },
           part: { [message.id]: [textPart("prt_1", item.info.id, message.id)] },
           session_diff: { [item.info.id]: [] },
-          todo: { [item.info.id]: [] },
           permission: { [item.info.id]: [] },
           permission_v2: {},
           question: { [item.info.id]: [] },
@@ -380,7 +381,6 @@ describe("applyDirectoryEvent", () => {
       expect(store.message[item.info.id]).toBeUndefined()
       expect(store.part[message.id]).toBeUndefined()
       expect(store.session_diff[item.info.id]).toBeUndefined()
-      expect(store.todo[item.info.id]).toBeUndefined()
       expect(store.permission[item.info.id]).toBeUndefined()
       expect(store.question[item.info.id]).toBeUndefined()
       expect(store.session_status[item.info.id]).toBeUndefined()
@@ -391,7 +391,7 @@ describe("applyDirectoryEvent", () => {
     const dropped = rootSession({ id: "ses_b" })
     const kept = rootSession({ id: "ses_a" })
     const message = userMessage("msg_1", dropped.id)
-    const todos: string[] = []
+    const droppedTaskCleanups: string[] = []
     const [store, setStore] = createStore(
       baseState({
         limit: 1,
@@ -399,7 +399,6 @@ describe("applyDirectoryEvent", () => {
         message: { [dropped.id]: [message] },
         part: { [message.id]: [textPart("prt_1", dropped.id, message.id)] },
         session_diff: { [dropped.id]: [] },
-        todo: { [dropped.id]: [] },
         permission: { [dropped.id]: [] },
         question: { [dropped.id]: [] },
         session_status: { [dropped.id]: { type: "busy" } },
@@ -413,9 +412,9 @@ describe("applyDirectoryEvent", () => {
       push() {},
       directory: "/tmp",
       loadLsp() {},
-      setSessionTodo(sessionID, value) {
+      setSessionTask(sessionID, value) {
         if (value !== undefined) return
-        todos.push(sessionID)
+        droppedTaskCleanups.push(sessionID)
       },
     })
 
@@ -423,11 +422,10 @@ describe("applyDirectoryEvent", () => {
     expect(store.message[dropped.id]).toBeUndefined()
     expect(store.part[message.id]).toBeUndefined()
     expect(store.session_diff[dropped.id]).toBeUndefined()
-    expect(store.todo[dropped.id]).toBeUndefined()
     expect(store.permission[dropped.id]).toBeUndefined()
     expect(store.question[dropped.id]).toBeUndefined()
     expect(store.session_status[dropped.id]).toBeUndefined()
-    expect(todos).toEqual([dropped.id])
+    expect(droppedTaskCleanups).toEqual([dropped.id])
   })
 
   test("cleanupDroppedSessionCaches clears part-only orphan state", () => {
@@ -567,7 +565,7 @@ describe("applyDirectoryEvent", () => {
     const [store, setStore] = createStore(
       baseState({
         permission: { [sessionID]: [permissionRequest("perm_1", sessionID), permissionRequest("perm_3", sessionID)] },
-        question: { [sessionID]: [questionRequest("q_1", sessionID), questionRequest("q_3", sessionID)] },
+        question: { [sessionID]: [questionRequest("que_q_1", sessionID), questionRequest("que_q_3", sessionID)] },
       }),
     )
 
@@ -602,34 +600,34 @@ describe("applyDirectoryEvent", () => {
     expect(store.permission[sessionID]?.map((x) => x.id)).toEqual(["perm_1", "perm_3"])
 
     applyDirectoryEvent({
-      event: { type: "question.asked", properties: questionRequest("q_2", sessionID) },
+      event: { type: "question.v2.asked", properties: questionRequest("que_q_2", sessionID) },
       store,
       setStore,
       push() {},
       directory: "/tmp",
       loadLsp() {},
     })
-    expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["q_1", "q_2", "q_3"])
+    expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["que_q_1", "que_q_2", "que_q_3"])
 
     applyDirectoryEvent({
-      event: { type: "question.asked", properties: questionRequest("q_2", sessionID, "updated") },
+      event: { type: "question.v2.asked", properties: questionRequest("que_q_2", sessionID, "updated") },
       store,
       setStore,
       push() {},
       directory: "/tmp",
       loadLsp() {},
     })
-    expect(store.question[sessionID]?.find((x) => x.id === "q_2")?.questions[0]?.header).toBe("updated")
+    expect(store.question[sessionID]?.find((x) => x.id === "que_q_2")?.questions[0]?.header).toBe("updated")
 
     applyDirectoryEvent({
-      event: { type: "question.rejected", properties: { sessionID, requestID: "q_2" } },
+      event: { type: "question.v2.rejected", properties: { sessionID, requestID: "que_q_2" } },
       store,
       setStore,
       push() {},
       directory: "/tmp",
       loadLsp() {},
     })
-    expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["q_1", "q_3"])
+    expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["que_q_1", "que_q_3"])
   })
 
   test("tracks V2 permission requests separately from legacy permission requests", () => {
@@ -766,5 +764,264 @@ describe("applyDirectoryEvent", () => {
 
     expect(pushes).toEqual(["/tmp"])
     expect(lspLoads).toBe(1)
+  })
+})
+
+describe("AI-TDD-S03 canonical Question contract", () => {
+  test("receives native questions without a second pending store", () => {
+    const [store, setStore] = createStore(baseState())
+    const request = questionRequest("que_native", "ses_native")
+    applyDirectoryEvent({
+      event: { type: "question.v2.asked", properties: request },
+      store,
+      setStore,
+      directory: "/tmp",
+      push() {},
+      loadLsp() {},
+    })
+    expect(store.question[request.sessionID]).toEqual([request])
+  })
+
+  for (const type of ["question.v2.replied", "question.v2.rejected"]) {
+    test(`${type} only removes the matching Session's question`, () => {
+      const owner = questionRequest("que_shared", "ses_owner")
+      const sibling = questionRequest("que_shared", "ses_sibling")
+      const [store, setStore] = createStore(
+        baseState({
+          question: { ses_owner: [owner], ses_sibling: [sibling] },
+        }),
+      )
+      applyDirectoryEvent({
+        event: { type, properties: { sessionID: owner.sessionID, requestID: owner.id, answers: [["Yes"]] } },
+        store,
+        setStore,
+        directory: "/tmp",
+        push() {},
+        loadLsp() {},
+      })
+      expect(store.question.ses_owner).toEqual([])
+      expect(store.question.ses_sibling).toEqual([sibling])
+    })
+  }
+
+  test("does not revive the retired Question event family", () => {
+    const [store, setStore] = createStore(baseState())
+    applyDirectoryEvent({
+      event: { type: "question.asked", properties: questionRequest("que_retired", "ses_retired") },
+      store,
+      setStore,
+      directory: "/tmp",
+      push() {},
+      loadLsp() {},
+    })
+    expect(store.question.ses_retired).toBeUndefined()
+  })
+})
+
+describe("Task events are full-list invalidations", () => {
+  test("data, clear, and a delayed older payload all invalidate without writing event snapshots", () => {
+    const [store, setStore] = createStore(baseState())
+    const invalidated: string[] = []
+    const written: string[] = []
+    for (const tasks of [[{ id: "tsk_a", revision: 90 }], [], [{ id: "tsk_a", revision: 1 }]]) {
+      applyDirectoryEvent({
+        event: { type: "task.updated", properties: { sessionID: "ses_a", tasks } },
+        store,
+        setStore,
+        directory: "/a",
+        push() {},
+        loadLsp() {},
+        setSessionTask: (sessionID) => {
+          written.push(sessionID)
+        },
+        invalidateSessionTask: (sessionID) => {
+          invalidated.push(sessionID)
+        },
+      })
+    }
+    expect(invalidated).toEqual(["ses_a", "ses_a", "ses_a"])
+    expect(written).toEqual([])
+  })
+})
+
+const review = (revision: number, state: WorkReview.State = "open", artifactID = "artifact-a") =>
+  new WorkReview.Review({
+    contractVersion: 1,
+    artifactID,
+    artifactRevision: WorkflowAsset.Revision.make("a".repeat(64)),
+    state,
+    revision,
+    updatedAt: 10,
+  })
+
+const reviewSession = (id: string, workReview?: WorkReview.Review): Session => ({
+  id,
+  slug: id,
+  projectID: "project",
+  directory: "/project",
+  title: id,
+  version: "1",
+  mode: "work",
+  time: { created: 1, updated: 1 },
+  ...(workReview ? { workReview } : {}),
+})
+
+function reviewStore(sessions: Session[] = []) {
+  const [store, setStore] = createStore<State>({ ...baseState({ sessionTotal: sessions.length }), session: sessions })
+  return {
+    store,
+    apply(event: Parameters<typeof applyDirectoryEvent>[0]["event"]) {
+      applyDirectoryEvent({ event, store, setStore, directory: "/project", push() {}, loadLsp() {} })
+    },
+  }
+}
+
+describe("AI-TDD-S06-R11/R12 WorkReview Session readback", () => {
+  test("R11: current Session snapshots expose the direct canonical workReview", () => {
+    const context = reviewStore()
+    const session = reviewSession("ses_a", review(1))
+    context.apply({ type: "session.created", properties: { info: session } })
+    expect(context.store.session[0]?.workReview).toEqual(session.workReview)
+  })
+
+  test("R11: metadata-only snapshots do not manufacture a compatibility workReview", () => {
+    const context = reviewStore()
+    context.apply({
+      type: "session.created",
+      properties: { info: { ...reviewSession("ses_a"), metadata: { workReview: review(7) } } },
+    })
+    expect(context.store.session[0]?.workReview).toBeUndefined()
+  })
+
+  test("R12: work.review.updated changes only the addressed session and accepts wire objects", () => {
+    const context = reviewStore([reviewSession("ses_a", review(1)), reviewSession("ses_b", review(2))])
+    const sibling = context.store.session[1]?.workReview
+    const current = review(4, "resolved")
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID: "ses_a", revision: current.revision, review: { ...current } },
+    })
+    expect(context.store.session[0]?.workReview).toEqual(current)
+    expect(context.store.session[0]?.title).toBe("ses_a")
+    expect(context.store.session[1]?.workReview).toBe(sibling)
+    expect(context.store.sessionTotal).toBe(2)
+  })
+
+  test("R12: a newer event is retained across duplicate and out-of-order delivery", () => {
+    const context = reviewStore([reviewSession("ses_a", review(1))])
+    const newest = review(4, "resolved")
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID: "ses_a", revision: 4, review: { ...newest } },
+    })
+    expect(context.store.session[0]?.workReview).toEqual(newest)
+    const accepted = context.store.session[0]?.workReview
+    ;[review(4, "open", "artifact-b"), review(3, "responded"), review(2, "fix_requested")].forEach((older) => {
+      context.apply({
+        type: "work.review.updated",
+        properties: { sessionID: "ses_a", revision: older.revision, review: { ...older, updatedAt: 999 } },
+      })
+      expect(context.store.session[0]?.workReview).toBe(accepted)
+    })
+  })
+
+  test("R12: revision, not timestamp, decides which event is newer", () => {
+    const context = reviewStore([reviewSession("ses_a", review(1))])
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID: "ses_a", revision: 2, review: { ...review(2), updatedAt: 1 } },
+    })
+    expect(context.store.session[0]?.workReview).toMatchObject({ revision: 2, updatedAt: 1 })
+  })
+
+  test.each([0, -1, 1.5, NaN, Infinity, "2", null, undefined, 3])(
+    "R12: invalid or body-mismatched envelope revision %p is rejected",
+    (revision) => {
+      const context = reviewStore([reviewSession("ses_a", review(1))])
+      const before = context.store.session[0]?.workReview
+      context.apply({
+        type: "work.review.updated",
+        properties: { sessionID: "ses_a", revision, review: { ...review(2) } },
+      })
+      expect(context.store.session[0]?.workReview).toBe(before)
+    },
+  )
+
+  test.each([undefined, null, [], {}, { sessionID: "ses_a", revision: 2 }].map((properties) => [properties]))(
+    "R12: malformed event properties %p are rejected without throwing",
+    (properties) => {
+      const context = reviewStore([reviewSession("ses_a", review(1))])
+      const before = context.store.session[0]?.workReview
+      expect(() => context.apply({ type: "work.review.updated", properties })).not.toThrow()
+      expect(context.store.session[0]?.workReview).toBe(before)
+    },
+  )
+
+  test.each(["", null, 1, undefined, "ses_missing"])("R12: invalid or unknown session %p is isolated", (sessionID) => {
+    const context = reviewStore([reviewSession("ses_a", review(1))])
+    const before = context.store.session[0]?.workReview
+    context.apply({
+      type: "work.review.updated",
+      properties: { sessionID, revision: 2, review: { ...review(2) } },
+    })
+    expect(context.store.session.map((session) => session.id)).toEqual(["ses_a"])
+    expect(context.store.session[0]?.workReview).toBe(before)
+    expect(context.store.sessionTotal).toBe(1)
+  })
+
+  test.each([
+    undefined,
+    null,
+    {},
+    { ...review(2), artifactID: "" },
+    { ...review(2), revision: 0 },
+    { ...review(2), revision: undefined },
+    { ...review(2), state: "approved" },
+    { ...review(2), artifactRevision: "invalid" },
+  ])("R12: malformed canonical Review %p is rejected", (body) => {
+    const context = reviewStore([reviewSession("ses_a", review(1))])
+    const before = context.store.session[0]?.workReview
+    context.apply({ type: "work.review.updated", properties: { sessionID: "ses_a", revision: 2, review: body } })
+    expect(context.store.session[0]?.workReview).toBe(before)
+  })
+  ;["session.created", "session.updated"].forEach((type) => {
+    test.each(["older", "equal", "missing", "invalid"] as const)(
+      `R12: late ${type} with %s review cannot roll back accepted review`,
+      (kind) => {
+        const latest = review(5, "resolved")
+        const context = reviewStore([reviewSession("ses_a", latest)])
+        const body =
+          kind === "missing"
+            ? undefined
+            : kind === "invalid"
+              ? { ...review(8), artifactID: "" }
+              : review(kind === "equal" ? 5 : 2, "open", "artifact-b")
+        context.apply({
+          type,
+          properties: {
+            info: {
+              ...reviewSession("ses_a"),
+              workReview: body,
+              title: "server title",
+              time: { created: 1, updated: 90 },
+            },
+          },
+        })
+        expect(context.store.session[0]?.workReview).toEqual(latest)
+        expect(context.store.session[0]?.title).toBe("server title")
+        expect(context.store.session[0]?.time.updated).toBe(90)
+        expect(context.store.sessionTotal).toBe(1)
+      },
+    )
+
+    test(`R11: ${type} strips an invalid direct review without losing a new session`, () => {
+      const context = reviewStore()
+      context.apply({
+        type,
+        properties: { info: { ...reviewSession("ses_a"), workReview: { ...review(2), artifactID: "" } } },
+      })
+      expect(context.store.session.map((session) => session.id)).toEqual(["ses_a"])
+      expect(context.store.session[0]?.workReview).toBeUndefined()
+    })
   })
 })

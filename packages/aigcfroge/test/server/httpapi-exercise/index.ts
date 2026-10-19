@@ -1378,30 +1378,6 @@ const scenarios: Scenario[] = [
       body: { reply: "once" },
     }))
     .json(404, object, "status"),
-  http.protected.get("/question", "question.list").json(200, array),
-  http.protected
-    .post("/question/{requestID}/reply", "question.reply.invalid")
-    .at((ctx) => ({
-      path: route("/question/{requestID}/reply", { requestID: "que_httpapi_reply" }),
-      headers: ctx.headers(),
-      body: { answers: "Yes" },
-    }))
-    .status(400),
-  http.protected
-    .post("/question/{requestID}/reply", "question.reply")
-    .at((ctx) => ({
-      path: route("/question/{requestID}/reply", { requestID: "que_httpapi_reply" }),
-      headers: ctx.headers(),
-      body: { answers: [["Yes"]] },
-    }))
-    .json(404, object, "status"),
-  http.protected
-    .post("/question/{requestID}/reject", "question.reject")
-    .at((ctx) => ({
-      path: route("/question/{requestID}/reject", { requestID: "que_httpapi_reject" }),
-      headers: ctx.headers(),
-    }))
-    .json(404, object, "status"),
   http.protected
     .get("/file", "file.list")
     .seeded((ctx) => ctx.file("hello.txt", "hello\n"))
@@ -2352,6 +2328,35 @@ const scenarios: Scenario[] = [
     }))
     .json(200, data(object)),
   http.protected
+    .get("/api/session/{sessionID}/work-review", "v2.session.workReview.get")
+    .seeded((ctx) => ctx.session({ title: "Unreviewed Work session", mode: "work" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/work-review", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(isRecord(body.data) && body.data.status === "none", "a new Work session has no review")
+    }),
+  http.protected
+    .post("/api/session/{sessionID}/work-review", "v2.session.workReview.transition.unavailable")
+    .mutating()
+    .seeded((ctx) => ctx.session({ title: "Work session without an artifact", mode: "work" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/work-review", { sessionID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: {
+        action: "submit",
+        expectedReviewRevision: 0,
+        artifactID: "art_unavailable",
+        expectedArtifactRevision: "a".repeat(64),
+      },
+    }))
+    .json(409, (body) => {
+      object(body)
+      check(body._tag === "ConflictError", "a review command without an artifact must fail closed")
+    }),
+  http.protected
     .post("/api/session/{sessionID}/agent", "v2.session.switchAgent")
     .seeded((ctx) => ctx.session({ title: "Switch agent" }))
     .at((ctx) => ({
@@ -2989,23 +2994,6 @@ const scenarios: Scenario[] = [
     }))
     .json(200, array),
   http.protected
-    .get("/session/{sessionID}/todo", "session.todo")
-    .seeded((ctx) =>
-      Effect.gen(function* () {
-        const session = yield* ctx.session({ title: "Todo session" })
-        const todos = [{ content: "cover session todo", status: "pending", priority: "high" }]
-        yield* ctx.todos(session.id, todos)
-        return { session, todos }
-      }),
-    )
-    .at((ctx) => ({
-      path: route("/session/{sessionID}/todo", { sessionID: ctx.state.session.id }),
-      headers: ctx.headers(),
-    }))
-    .json(200, (body, ctx) => {
-      check(stable(body) === stable(ctx.state.todos), "todos should match seeded state")
-    }),
-  http.protected
     .get("/session/{sessionID}/task", "session.task.get")
     .seeded((ctx) =>
       Effect.gen(function* () {
@@ -3314,7 +3302,7 @@ const scenarios: Scenario[] = [
   http.protected
     .post("/session/{sessionID}/work-artifact/apply", "work-artifact.apply")
     .mutating()
-    .seeded((ctx) => ctx.session({ title: "Work artifact session" }))
+    .seeded((ctx) => ctx.session({ title: "Work artifact session", mode: "work" }))
     .at((ctx) => ({
       path: route("/session/{sessionID}/work-artifact/apply", { sessionID: ctx.state.id }),
       headers: ctx.headers(),
@@ -3812,6 +3800,14 @@ const scenarios: Scenario[] = [
   http.protected
     .get("/tui/control/next", "tui.control.next")
     .mutating()
+    .probe({
+      path: "/tui/control/next",
+      prepare: () =>
+        Effect.gen(function* () {
+          const modules = yield* Effect.promise(runtime)
+          modules.Tui.submitTuiRequest({ path: "/tui/auth-probe", body: { text: "queued" } })
+        }),
+    })
     .seeded((ctx) => ctx.tuiRequest({ path: "/tui/exercise", body: { text: "queued" } }))
     .json(
       200,

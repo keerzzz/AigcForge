@@ -1,5 +1,5 @@
-import { createContext, createMemo, Show, useContext, type ParentProps } from "solid-js"
-import { createStore, produce, reconcile, type SetStoreFunction } from "solid-js/store"
+import { createContext, createMemo, on, useContext, type Accessor, type ParentProps } from "solid-js"
+import { createStore, produce, reconcile, unwrap, type SetStoreFunction } from "solid-js/store"
 import { Persist, persisted } from "@/utils/persist"
 import { customDraftKey, DRAFT_PERSIST_KEY } from "@/context/custom-draft-location"
 import type { ServerScope } from "@/utils/server-scope"
@@ -129,7 +129,7 @@ export function toCompositionInput(state: CustomDraftState): CompositionTemporar
     workflow,
     bindings,
     presentation: state.presentation,
-    requestedCapabilities: state.requestedCapabilities,
+    requestedCapabilities: [...state.requestedCapabilities],
   }
 }
 
@@ -137,13 +137,9 @@ export function createCustomDraftState(
   initial: CustomDraftState = DEFAULT_DRAFT,
   customStore?: [get: CustomDraftState, set: SetStoreFunction<CustomDraftState>],
 ) {
-  // No `commands ?? []` normalization here: it only ever ran on the branch that
-  // builds a store from `initial`, and `initial` is always `DEFAULT_DRAFT`, whose
-  // `bindings` is `{}` — so it normalized nothing. The path that CAN hydrate a
-  // pre-`commands` binding is the persisted one, and it arrives as `customStore`,
-  // which skipped that branch entirely. The per-use `commands ?? []` guards
-  // downstream are therefore reachable, not redundant.
-  const [state, setState] = customStore ?? createStore<CustomDraftState>({ ...initial })
+  // Persisted bindings can predate commands, so retain the per-use `commands ?? []`
+  // guards instead of normalizing only the initial defaults.
+  const [state, setState] = customStore ?? createStore(copyDraft(initial))
 
   return {
     state,
@@ -247,7 +243,7 @@ export function createCustomDraftState(
       )
     },
     reset() {
-      setState(reconcile({ ...DEFAULT_DRAFT }))
+      setState(reconcile(copyDraft(DEFAULT_DRAFT)))
     },
     loadFromSnapshot(snapshot: Snapshot) {
       setState(
@@ -344,6 +340,12 @@ export function createCustomDraftState(
   }
 }
 
+function copyDraft(state: CustomDraftState) {
+  // Solid proxies the initial graph rather than copying it. Unwrap supplied stores
+  // before cloning so every owned draft has independent nested selections.
+  return structuredClone(unwrap(state))
+}
+
 export type CustomDraftLocation = { scope: ServerScope; directory: string }
 
 /**
@@ -373,48 +375,28 @@ export function createCustomDraftStore(location: CustomDraftLocation | undefined
   // asset picks that essentially nobody has. The old key is left in place, unread.
   const [state, setState] = persisted(
     Persist.serverWorkspace(location.scope, location.directory, DRAFT_PERSIST_KEY),
-    createStore<CustomDraftState>({ ...DEFAULT_DRAFT }),
+    createStore(copyDraft(DEFAULT_DRAFT)),
   )
   return createCustomDraftState(DEFAULT_DRAFT, [state, setState])
 }
 
 export type CustomDraftStore = ReturnType<typeof createCustomDraftState>
 
-const CustomDraftContext = createContext<CustomDraftStore>()
+const CustomDraftContext = createContext<Accessor<CustomDraftStore>>()
 
 /**
- * Creates the store exactly once per mount and hands it down.
- *
- * This has to be a component, not an inline `value={createCustomDraftStore(...)}`:
- * a Provider's `value` prop is a getter, so an inline call would build a new store
- * on every reactive read and the draft would keep resetting. The instance cache used
- * to hide that; it is gone.
- */
-function CustomDraftScope(props: ParentProps<{ location: CustomDraftLocation | undefined }>) {
-  const store = createCustomDraftStore(props.location)
-  return <CustomDraftContext.Provider value={store}>{props.children}</CustomDraftContext.Provider>
-}
-
-/**
- * `location` returns undefined until the server and directory are both known. The
- * subtree is `keyed` on the resolved identity, so it is rebuilt — and the store
- * recreated for the new Location — when the Location changes, including the first
- * transition out of "not ready" that a single evaluation could never recover from.
+ * Replace only the Location-owned store. The Provider also encloses the other
+ * Mode slots, so keying its children would discard their retained DOM and state.
+ * The memo owns persisted resources and disposes them before each key change;
+ * `on` keeps hydration and draft edits out of the store-creation dependencies.
  */
 export function CustomDraftProvider(props: ParentProps<{ location: () => CustomDraftLocation | undefined }>) {
   const key = createMemo(() => {
     const location = props.location()
     return location === undefined ? undefined : customDraftKey(location)
   })
-  return (
-    <Show
-      when={key()}
-      keyed
-      fallback={<CustomDraftScope location={props.location()}>{props.children}</CustomDraftScope>}
-    >
-      <CustomDraftScope location={props.location()}>{props.children}</CustomDraftScope>
-    </Show>
-  )
+  const draft = createMemo(on(key, () => createCustomDraftStore(props.location())))
+  return <CustomDraftContext.Provider value={draft}>{props.children}</CustomDraftContext.Provider>
 }
 
 export function useCustomDraft() {

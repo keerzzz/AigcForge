@@ -323,13 +323,6 @@ import type {
   PtyShellsResponses,
   PtyUpdateErrors,
   PtyUpdateResponses,
-  QuestionAnswer,
-  QuestionListErrors,
-  QuestionListResponses,
-  QuestionRejectErrors,
-  QuestionRejectResponses,
-  QuestionReplyErrors,
-  QuestionReplyResponses,
   QuestionV2Reply,
   RevisionDigest,
   ScheduleCancelErrors,
@@ -398,8 +391,6 @@ import type {
   SessionTaskUpdateErrors,
   SessionTaskUpdateResponses,
   SessionTaskWriteInfo,
-  SessionTodoErrors,
-  SessionTodoResponses,
   SessionToolSummaryErrors,
   SessionToolSummaryResponses,
   SessionUnrevertErrors,
@@ -630,6 +621,10 @@ import type {
   V2SessionSwitchModelResponses,
   V2SessionWaitErrors,
   V2SessionWaitResponses,
+  V2SessionWorkReviewGetErrors,
+  V2SessionWorkReviewGetResponses,
+  V2SessionWorkReviewTransitionErrors,
+  V2SessionWorkReviewTransitionResponses,
   V2SkillListErrors,
   V2SkillListResponses,
   VcsApplyErrors,
@@ -661,6 +656,7 @@ import type {
   WorkflowAssetListErrors,
   WorkflowAssetListResponses,
   WorkPresetCategory,
+  WorkReviewCommand,
   WorktreeCreateErrors,
   WorktreeCreateInput,
   WorktreeCreateResponses,
@@ -3401,109 +3397,6 @@ export class Pty extends HeyApiClient {
   }
 }
 
-export class Question extends HeyApiClient {
-  /**
-   * List pending questions
-   *
-   * Get all pending question requests across all sessions.
-   */
-  public list<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<QuestionListResponses, QuestionListErrors, ThrowOnError>({
-      url: "/question",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Reply to question request
-   *
-   * Provide answers to a question request from the AI assistant.
-   */
-  public reply<ThrowOnError extends boolean = false>(
-    parameters: {
-      requestID: string
-      directory?: string
-      workspace?: string
-      answers?: Array<QuestionAnswer>
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "requestID" },
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-            { in: "body", key: "answers" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<QuestionReplyResponses, QuestionReplyErrors, ThrowOnError>({
-      url: "/question/{requestID}/reply",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
-   * Reject question request
-   *
-   * Reject a question request from the AI assistant.
-   */
-  public reject<ThrowOnError extends boolean = false>(
-    parameters: {
-      requestID: string
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "requestID" },
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<QuestionRejectResponses, QuestionRejectErrors, ThrowOnError>({
-      url: "/question/{requestID}/reject",
-      ...options,
-      ...params,
-    })
-  }
-}
-
 export class Override extends HeyApiClient {
   /**
    * Disable the session permission override
@@ -3896,7 +3789,7 @@ export class WorkArtifact extends HeyApiClient {
   /**
    * Apply work artifact
    *
-   * Persist a drafted work artifact (candidate message) to the current Location atomically.
+   * Persist a drafted work artifact at the Session's stored Location and save its recoverable binding.
    */
   public apply<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7356,38 +7249,6 @@ export class Session2 extends HeyApiClient {
   }
 
   /**
-   * Get session todos
-   *
-   * Retrieve the todo list associated with a specific session, showing tasks and action items.
-   */
-  public todo<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<SessionTodoResponses, SessionTodoErrors, ThrowOnError>({
-      url: "/session/{sessionID}/todo",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
    * Get message diff
    *
    * Get the file changes (diff) that resulted from a specific user message in the session.
@@ -8986,6 +8847,70 @@ export class Agent extends HeyApiClient {
   }
 }
 
+export class WorkReview extends HeyApiClient {
+  /**
+   * Get work review
+   *
+   * Read the persisted review and verify its binding against the current Session artifact.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<
+      V2SessionWorkReviewGetResponses,
+      V2SessionWorkReviewGetErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/work-review",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Transition work review
+   *
+   * Apply a revision-checked review action and return the authoritative result. This neither grants permissions nor resumes model execution.
+   */
+  public transition<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      workReviewCommand: WorkReviewCommand
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { key: "workReviewCommand", map: "body" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionWorkReviewTransitionResponses,
+      V2SessionWorkReviewTransitionErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/work-review",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Permission2 extends HeyApiClient {
   /**
    * List session permission requests
@@ -9095,7 +9020,7 @@ export class Permission2 extends HeyApiClient {
   }
 }
 
-export class Question2 extends HeyApiClient {
+export class Question extends HeyApiClient {
   /**
    * List session question requests
    *
@@ -9804,14 +9729,19 @@ export class Session3 extends HeyApiClient {
     })
   }
 
+  private _workReview?: WorkReview
+  get workReview(): WorkReview {
+    return (this._workReview ??= new WorkReview({ client: this.client }))
+  }
+
   private _permission?: Permission2
   get permission(): Permission2 {
     return (this._permission ??= new Permission2({ client: this.client }))
   }
 
-  private _question?: Question2
-  get question(): Question2 {
-    return (this._question ??= new Question2({ client: this.client }))
+  private _question?: Question
+  get question(): Question {
+    return (this._question ??= new Question({ client: this.client }))
   }
 }
 
@@ -10859,7 +10789,7 @@ export class Request2 extends HeyApiClient {
   }
 }
 
-export class Question3 extends HeyApiClient {
+export class Question2 extends HeyApiClient {
   private _request?: Request2
   get request(): Request2 {
     return (this._request ??= new Request2({ client: this.client }))
@@ -11760,9 +11690,9 @@ export class V2 extends HeyApiClient {
     return (this._pty ??= new Pty2({ client: this.client }))
   }
 
-  private _question?: Question3
-  get question(): Question3 {
-    return (this._question ??= new Question3({ client: this.client }))
+  private _question?: Question2
+  get question(): Question2 {
+    return (this._question ??= new Question2({ client: this.client }))
   }
 
   private _reference?: Reference
@@ -11882,11 +11812,6 @@ export class AigcfrogeClient extends HeyApiClient {
   private _pty?: Pty
   get pty(): Pty {
     return (this._pty ??= new Pty({ client: this.client }))
-  }
-
-  private _question?: Question
-  get question(): Question {
-    return (this._question ??= new Question({ client: this.client }))
   }
 
   private _permission?: Permission

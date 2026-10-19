@@ -10,7 +10,7 @@ export type ServerSentEventsOptions<TData = unknown> = Omit<RequestInit, "method
      *
      * @default globalThis.fetch
      */
-    fetch?: typeof fetch
+    fetch?: (request: Request) => Response | Promise<Response>
     /**
      * Implementing clients can call request interceptors inside this hook.
      */
@@ -90,7 +90,30 @@ export const createSseClient = <TData = unknown>({
 }: ServerSentEventsOptions): ServerSentEventsResult<TData> => {
   let lastEventId: string | undefined
 
-  const sleep = sseSleepFn ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
+  const sleep = (ms: number, signal: AbortSignal) =>
+    new Promise<void>((resolve, reject) => {
+      if (signal.aborted) return resolve()
+      const finish = () => {
+        cleanup()
+        resolve()
+      }
+      const cleanup = () => {
+        signal.removeEventListener("abort", finish)
+        if (timer !== undefined) clearTimeout(timer)
+      }
+      const fail = (error: unknown) => {
+        cleanup()
+        reject(error)
+      }
+      const timer = sseSleepFn ? undefined : setTimeout(finish, ms)
+      signal.addEventListener("abort", finish, { once: true })
+      if (!sseSleepFn) return
+      try {
+        void sseSleepFn(ms).then(finish, fail)
+      } catch (error) {
+        fail(error)
+      }
+    })
 
   const createStream = async function* () {
     let retryDelay: number = sseDefaultRetryDelay ?? 3000
@@ -111,24 +134,42 @@ export const createSseClient = <TData = unknown>({
         headers.set("Last-Event-ID", lastEventId)
       }
 
+      const requestController = new AbortController()
+      const abortRequest = () => requestController.abort(signal.reason)
+
       try {
+        signal.addEventListener("abort", abortRequest, { once: true })
+        if (signal.aborted) {
+          abortRequest()
+          break
+        }
         const requestInit: RequestInit = {
           redirect: "follow",
           ...options,
           body: options.serializedBody,
           headers,
-          signal,
+          signal: requestController.signal,
         }
         let request = new Request(url, requestInit)
         if (onRequest) {
           request = await onRequest(url, requestInit)
         }
+        if (signal.aborted) break
         // fetch must be assigned here, otherwise it would throw the error:
         // TypeError: Failed to execute 'fetch' on 'Window': Illegal invocation
         const _fetch = options.fetch ?? globalThis.fetch
         const response = await _fetch(request)
+        if (signal.aborted) {
+          abortRequest()
+          await response.body?.cancel().catch(() => {})
+          break
+        }
 
-        if (!response.ok) throw new Error(`SSE failed: ${response.status} ${response.statusText}`)
+        if (!response.ok) {
+          abortRequest()
+          await response.body?.cancel().catch(() => {})
+          throw new Error(`SSE failed: ${response.status} ${response.statusText}`)
+        }
 
         if (!response.body) throw new Error("No body in SSE response")
 
@@ -136,12 +177,13 @@ export const createSseClient = <TData = unknown>({
 
         let buffer = ""
 
+        let cancellation: Promise<void> | undefined
+        const cancel = () => {
+          abortRequest()
+          return (cancellation ??= reader.cancel().catch(() => {}))
+        }
         const abortHandler = () => {
-          try {
-            reader.cancel()
-          } catch {
-            // noop
-          }
+          void cancel()
         }
 
         signal.addEventListener("abort", abortHandler)
@@ -149,7 +191,7 @@ export const createSseClient = <TData = unknown>({
         try {
           while (true) {
             const { done, value } = await reader.read()
-            if (done) break
+            if (done || signal.aborted) break
             buffer += value
             // Normalize line endings: CRLF -> LF, then CR -> LF
             buffer = buffer.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
@@ -158,6 +200,7 @@ export const createSseClient = <TData = unknown>({
             buffer = chunks.pop() ?? ""
 
             for (const chunk of chunks) {
+              if (signal.aborted) break
               const lines = chunk.split("\n")
               const dataLines: Array<string> = []
               let eventName: string | undefined
@@ -195,11 +238,14 @@ export const createSseClient = <TData = unknown>({
                   await responseValidator(data)
                 }
 
+                if (signal.aborted) break
+
                 if (responseTransformer) {
                   data = await responseTransformer(data)
                 }
               }
 
+              if (signal.aborted) break
               onSseEvent?.({
                 data,
                 event: eventName,
@@ -207,19 +253,22 @@ export const createSseClient = <TData = unknown>({
                 retry: retryDelay,
               })
 
-              if (dataLines.length) {
+              if (dataLines.length && !signal.aborted) {
                 yield data as any
               }
             }
           }
         } finally {
           signal.removeEventListener("abort", abortHandler)
+          await cancel()
           reader.releaseLock()
         }
 
         break // exit loop on normal completion
       } catch (error) {
-        // connection failed or aborted; retry after delay
+        abortRequest()
+        if (signal.aborted) break
+        // connection failed; retry after delay
         onSseError?.(error)
 
         if (sseMaxRetryAttempts !== undefined && attempt >= sseMaxRetryAttempts) {
@@ -228,7 +277,10 @@ export const createSseClient = <TData = unknown>({
 
         // exponential backoff: double retry each attempt, cap at 30s
         const backoff = Math.min(retryDelay * 2 ** (attempt - 1), sseMaxRetryDelay ?? 30000)
-        await sleep(backoff)
+        await sleep(backoff, signal)
+      } finally {
+        signal.removeEventListener("abort", abortRequest)
+        abortRequest()
       }
     }
   }

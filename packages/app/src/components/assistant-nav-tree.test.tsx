@@ -113,9 +113,9 @@ describe("AssistantSessionSidebar (detail secondary sidebar, batch 2 G3)", () =>
   })
 
   test("maps the right-panel state to the tree selection (active tab → kind, target → itemId)", () => {
-    expect(sidebar).toContain("tabs().active()")
-    expect(sidebar).toContain("assistant().target()")
-    expect(sidebar).toContain("openEntityPanel({ view: view(), tabs: tabs(), assistant: assistant()")
+    expect(sidebar).toContain("panel().active()")
+    expect(sidebar).toContain("panel().target()")
+    expect(sidebar).toContain("panel().open(next.kind, next.itemId)")
   })
 
   test("secondary-sidebar assistant slot is no longer a placeholder", () => {

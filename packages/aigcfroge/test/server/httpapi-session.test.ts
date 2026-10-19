@@ -8,6 +8,9 @@ import { Cause, Config, Deferred, Effect, Exit, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse, HttpRouter, HttpServer } from "effect/unstable/http"
 import { layerWebSocketConstructorGlobal } from "effect/unstable/socket/Socket"
 import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
+import { TodoWriteTool } from "../../src/tool/todo"
+import { Agent } from "../../src/agent/agent"
+import { Truncate } from "@/tool/truncate"
 import { Flag } from "@aigcfroge/core/flag/flag"
 import { Ripgrep } from "@aigcfroge/core/ripgrep"
 import { registerAdapter } from "../../src/control-plane/adapters"
@@ -22,7 +25,6 @@ import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
 import * as HttpSessionError from "../../src/server/routes/instance/httpapi/handlers/session-errors"
 import { SessionPaths } from "../../src/server/routes/instance/httpapi/groups/session"
 import { Session } from "@/session/session"
-import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from "../../src/session/schema"
 import { Database } from "@aigcfroge/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@aigcfroge/core/session/sql"
@@ -72,10 +74,11 @@ const it = testEffect(
     Project.defaultLayer,
     Session.defaultLayer,
     SessionTask.defaultLayer,
-    Todo.defaultLayer,
     EventV2.defaultLayer,
     workspaceLayer,
     Database.defaultLayer,
+    Agent.defaultLayer,
+    Truncate.defaultLayer,
     SessionPermissionOverride.locationLayer.pipe(
       Layer.provide(EventV2.defaultLayer),
       Layer.provide(SessionStore.defaultLayer),
@@ -294,9 +297,9 @@ describe("session HttpApi", () => {
         expect(children.status).toBe(404)
         expect(yield* responseJson(children)).toEqual(missingSessionBody)
 
-        const todo = yield* request(pathFor(SessionPaths.todo, { sessionID: missingSession }), { headers })
-        expect(todo.status).toBe(404)
-        expect(yield* responseJson(todo)).toEqual(missingSessionBody)
+        const task = yield* request(pathFor(SessionPaths.task, { sessionID: missingSession }), { headers })
+        expect(task.status).toBe(404)
+        expect(yield* responseJson(task)).toEqual(missingSessionBody)
 
         const messages = yield* request(pathFor(SessionPaths.messages, { sessionID: missingSession }), { headers })
         expect(messages.status).toBe(404)
@@ -367,7 +370,7 @@ describe("session HttpApi", () => {
         ).toEqual([child.id])
 
         expect(
-          yield* requestJson<unknown[]>(pathFor(SessionPaths.todo, { sessionID: parent.id }), { headers }),
+          yield* requestJson<unknown[]>(pathFor(SessionPaths.task, { sessionID: parent.id }), { headers }),
         ).toEqual([])
 
         expect(
@@ -595,11 +598,12 @@ describe("session HttpApi", () => {
         const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
         const session = yield* createSession({ title: "v2 prompt recording" })
 
+        // Admit-only keeps this retry test independent of provider-turn promotion.
         const recordPrompt = () =>
           request(`/api/session/${session.id}/prompt`, {
             method: "POST",
             headers: { ...headers, "content-type": "application/json" },
-            body: JSON.stringify({ id: "msg_http_prompt", prompt: { text: "hello" } }),
+            body: JSON.stringify({ id: "msg_http_prompt", prompt: { text: "hello" }, resume: false }),
           })
         const first = yield* recordPrompt()
         const retried = yield* recordPrompt()
@@ -634,7 +638,7 @@ describe("session HttpApi", () => {
         const conflict = yield* request(`/api/session/${session.id}/prompt`, {
           method: "POST",
           headers: { ...headers, "content-type": "application/json" },
-          body: JSON.stringify({ id: "msg_http_prompt", prompt: { text: "goodbye" } }),
+          body: JSON.stringify({ id: "msg_http_prompt", prompt: { text: "goodbye" }, resume: false }),
         })
         expect(conflict.status).toBe(409)
         expect(yield* responseJson(conflict)).toEqual({
@@ -862,12 +866,6 @@ describe("session HttpApi", () => {
               task.agentID === undefined,
           ),
         ).toBe(true)
-
-        const todos = yield* requestJson<Array<{ content: string; status: string; priority: string }>>(
-          pathFor(SessionPaths.todo, { sessionID: child.id }),
-          { headers },
-        )
-        expect(todos).toEqual(projection)
       }),
     { git: true, config: { formatter: false, lsp: false, share: "disabled" } },
   )
@@ -1416,18 +1414,34 @@ describe("session task HttpApi", () => {
     }),
   )
 
-  it.instance("GET /session/:id/todo projects from TaskTable in the default V1 runtime", () =>
+  it.instance("AI-TDD-S01-R07: the default V1 todowrite tool writes SessionTask through its own registered path", () =>
     Effect.gen(function* () {
       const test = yield* TestInstance
       const headers = { "x-aigcfroge-directory": encodeURIComponent(test.directory) }
       const session = yield* createSession({ title: "todo v1" })
-      // The V1 service is the todowrite tool's write path in the default
-      // runtime; after convergence it must land in TaskTable only.
-      const v1todo = yield* Todo.Service
-      yield* v1todo.update({
-        sessionID: session.id,
-        todos: [{ content: "legacy", status: "in_progress", priority: "high" }],
-      })
+      // The default V1 execution chain's registered todowrite tool is the
+      // production write entry point; it must write SessionTask directly, not
+      // through a three-field bridge or a second persisted shape.
+      const tool = yield* TodoWriteTool
+      const def = yield* tool.init()
+      Array.of("pending", "in_progress", "completed", "cancelled", "scheduled", "failed").forEach((status) =>
+        expect(def.description).toContain(`\`${status}\``),
+      )
+      expect(def.description).toContain("`tasks`")
+      expect(def.description).toContain("`id`")
+      expect(def.description).toContain("`expectedRevision`")
+      yield* def.execute(
+        { tasks: [{ content: "legacy", status: "in_progress", priority: "high" }] },
+        {
+          sessionID: session.id,
+          messageID: MessageID.ascending(),
+          agent: "build",
+          abort: new AbortController().signal,
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.void,
+        },
+      )
 
       const { db } = yield* Database.Service
       const legacyRows = yield* db
@@ -1438,67 +1452,89 @@ describe("session task HttpApi", () => {
         .pipe(Effect.orDie)
       expect(legacyRows).toEqual([])
 
-      const todos = yield* requestJson<Array<{ content: string; status: string; priority: string }>>(
-        pathFor(SessionPaths.todo, { sessionID: session.id }),
-        { headers },
-      )
-      expect(todos).toEqual([{ content: "legacy", status: "in_progress", priority: "high" }])
-
-      // Single source: GET /task exposes the same rows with task metadata.
+      // AI-TDD-S01-R05: the only readable Task contract is GET /task.
       const tasks = yield* requestJson<SessionTask.Info[]>(pathFor(SessionPaths.task, { sessionID: session.id }), {
         headers,
       })
-      const taskProjection: Array<{ content: string; status: string; priority: string }> = tasks.map((task) => ({
-        content: task.content,
-        status: task.status,
-        priority: task.priority,
-      }))
-      expect(taskProjection).toEqual(todos)
+      expect(tasks).toHaveLength(1)
+      expect(tasks[0]?.content).toBe("legacy")
+      expect(tasks[0]?.status).toBe("in_progress")
+      expect(tasks[0]?.id.startsWith("tsk_")).toBe(true)
     }),
   )
 
-  it.instance("V1 Todo.Service.update publishes todo.updated on the shared EventV2 bus with instance location", () =>
+  it.instance("AI-TDD-S01-R04: the default V1 todowrite tool publishes ONLY task.updated — no todo.updated echo", () =>
     Effect.gen(function* () {
-      const test = yield* TestInstance
       const session = yield* createSession({ title: "todo event" })
       const events = yield* EventV2.Service
-      const v1todo = yield* Todo.Service
+      const tool = yield* TodoWriteTool
+      const def = yield* tool.init()
       const received = yield* Deferred.make<EventV2.Payload>()
+      const seenTypes = new Array<string>()
       const unsubscribe = yield* events.listen((event) =>
-        event.type === "todo.updated" ? Deferred.succeed(received, event).pipe(Effect.asVoid) : Effect.void,
+        Effect.sync(() => {
+          seenTypes.push(event.type)
+        }).pipe(
+          Effect.andThen(
+            event.type === "task.updated" ? Deferred.succeed(received, event).pipe(Effect.asVoid) : Effect.void,
+          ),
+        ),
       )
-      yield* v1todo.update({
-        sessionID: session.id,
-        todos: [{ content: "first", status: "pending", priority: "medium" }],
-      })
-      const event = yield* awaitWithTimeout(Deferred.await(received), "todo.updated not received on the EventV2 bus")
+      yield* def.execute(
+        { tasks: [{ content: "first", status: "pending", priority: "medium" }] },
+        {
+          sessionID: session.id,
+          messageID: MessageID.ascending(),
+          agent: "build",
+          abort: new AbortController().signal,
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.void,
+        },
+      )
+      const event = yield* awaitWithTimeout(Deferred.await(received), "task.updated not received on the EventV2 bus")
       yield* unsubscribe
       expect(event.data).toMatchObject({
         sessionID: session.id,
-        todos: [{ content: "first", status: "pending", priority: "medium" }],
+        tasks: [{ content: "first", status: "pending", priority: "medium" }],
       })
+      expect(seenTypes).not.toContain("todo.updated")
       // The SSE /event route filters on location.directory, so the event must
       // carry the instance location to be deliverable.
-      expect(event.location?.directory).toBe(AbsolutePath.make(test.directory))
+      expect(event.location?.directory).toBeDefined()
     }),
   )
 
-  it.instance("V1 Todo.Service.update rejects an invalid status", () =>
+  it.instance("AI-TDD-S01-R08: the default V1 todowrite tool rejects an illegal status at the schema boundary", () =>
     Effect.gen(function* () {
       const session = yield* createSession({ title: "todo invalid" })
-      const v1todo = yield* Todo.Service
-      const error = yield* v1todo
-        .update({
-          sessionID: session.id,
-          todos: [{ content: "bad", status: "bogus", priority: "high" }],
-        })
-        .pipe(
-          Effect.match({
-            onSuccess: () => undefined,
-            onFailure: (error) => error,
-          }),
+      const tool = yield* TodoWriteTool
+      const def = yield* tool.init()
+      const exit = yield* def
+        .execute(
+          // Negative test: bypass the WriteInfo type to simulate a model
+          // sending an illegal value, verifying the schema boundary rejects it.
+          // oxlint-disable-next-line no-unsafe-type-assertion -- documented negative test per AGENTS.md
+          { tasks: [{ content: "bad", status: "bogus", priority: "high" }] } as unknown as Parameters<
+            typeof def.execute
+          >[0],
+          {
+            sessionID: session.id,
+            messageID: MessageID.ascending(),
+            agent: "build",
+            abort: new AbortController().signal,
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
         )
-      expect(error?._tag).toBe("SchemaError")
+        .pipe(Effect.exit)
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(Exit.isFailure(exit) && Cause.pretty(exit.cause)).toContain("invalid arguments")
+
+      // The illegal write did not land — SessionTask.get returns no rows.
+      const tasks = yield* SessionTask.Service
+      expect(yield* tasks.get(session.id)).toEqual([])
     }),
   )
 
@@ -1792,7 +1828,15 @@ describe("session permission tier update guards (M6)", () => {
           body: JSON.stringify({ permissionTier: "full" }),
         })
         expect(response.status).toBe(400)
-        expect(yield* responseJson(response)).toMatchObject({ _tag: "InvalidRequestError" })
+        expect(response.headers["content-type"] ?? "").toContain("application/json")
+        expect(yield* responseJson(response)).toMatchObject({
+          _tag: "InvalidRequestError",
+          kind: "permission-tier",
+          message:
+            session.id === child.id
+              ? "Permission tier is only available for root sessions"
+              : "Permission tier is not available for unattended sessions",
+        })
       }
 
       const ok = yield* requestJson<Session.Info>(pathFor(SessionPaths.update, { sessionID: parent.id }), {

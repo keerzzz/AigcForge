@@ -8,37 +8,44 @@ import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
 
 /** Dynamic context tab trigger shared by the coding/chat/assistant right panels. */
-export function SessionContextTabTrigger(props: { contextOpen: Accessor<boolean>; onClose: () => void }) {
+export function SessionContextTabTrigger(props: {
+  contextOpen: Accessor<boolean>
+  onClose: () => void
+  forceMount?: boolean
+}) {
   const language = useLanguage()
   const command = useCommand()
   return (
-    <Show when={props.contextOpen()}>
-      <TabsV2.Trigger
-        value="context"
-        closeButton={
-          <TooltipKeybind
-            title={language.t("common.closeTab")}
-            keybind={command.keybind("tab.close")}
-            placement="bottom"
-            gutter={10}
-          >
-            <IconButton
-              icon="close-small"
-              variant="ghost"
-              class="h-5 w-5"
-              onClick={props.onClose}
-              aria-label={language.t("common.closeTab")}
-            />
-          </TooltipKeybind>
-        }
-        hideCloseButton
-        onMiddleClick={props.onClose}
-      >
-        <div class="flex items-center gap-2">
-          <SessionContextUsage variant="indicator" />
-          <div>{language.t("session.tab.context")}</div>
-        </div>
-      </TabsV2.Trigger>
+    <Show when={props.forceMount || props.contextOpen()}>
+      <span style={{ display: props.contextOpen() ? "contents" : "none" }}>
+        <TabsV2.Trigger
+          value="context"
+          disabled={!props.contextOpen()}
+          closeButton={
+            <TooltipKeybind
+              title={language.t("common.closeTab")}
+              keybind={command.keybind("tab.close")}
+              placement="bottom"
+              gutter={10}
+            >
+              <IconButton
+                icon="close-small"
+                variant="ghost"
+                class="h-5 w-5"
+                onClick={props.onClose}
+                aria-label={language.t("common.closeTab")}
+              />
+            </TooltipKeybind>
+          }
+          hideCloseButton
+          onMiddleClick={props.onClose}
+        >
+          <div class="flex items-center gap-2">
+            <SessionContextUsage variant="indicator" />
+            <div>{language.t("session.tab.context")}</div>
+          </div>
+        </TabsV2.Trigger>
+      </span>
     </Show>
   )
 }

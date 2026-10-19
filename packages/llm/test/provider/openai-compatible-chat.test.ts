@@ -1,16 +1,17 @@
 import { describe, expect } from "bun:test"
 import { Effect, Schema } from "effect"
 import { HttpClientRequest } from "effect/unstable/http"
-import { LLM, Message, ToolCallPart } from "../../src"
+import { LLM, LLMEvent, Message, ToolCallPart } from "../../src"
 import { Auth, LLMClient } from "../../src/route"
 import * as OpenAICompatible from "../../src/providers/openai-compatible"
 import * as OpenAICompatibleChat from "../../src/protocols/openai-compatible-chat"
 import { it } from "../lib/effect"
-import { dynamicResponse } from "../lib/http"
-import { sseEvents } from "../lib/sse"
+import { dynamicResponse, fixedResponse } from "../lib/http"
+import { sseEvents, sseRaw } from "../lib/sse"
 
 const Json = Schema.fromJsonString(Schema.Unknown)
 const decodeJson = Schema.decodeUnknownSync(Json)
+const encodeJson = Schema.encodeSync(Json)
 
 const model = OpenAICompatibleChat.route
   .with({
@@ -233,6 +234,25 @@ describe("OpenAI-compatible Chat route", () => {
       expect(response.text).toBe("Hello!")
       expect(response.usage).toMatchObject({ inputTokens: 5, outputTokens: 2, totalTokens: 7 })
       expect(response.events.at(-1)).toMatchObject({ type: "finish", reason: "stop" })
+    }),
+  )
+
+  it.effect("reports incomplete compatible output at clean EOF while retaining text and reasoning", () =>
+    Effect.gen(function* () {
+      const body = sseRaw(
+        `data: ${encodeJson(deltaChunk({ reasoning_content: "Partial thought" }))}`,
+        `data: ${encodeJson(deltaChunk({ content: "Partial answer" }))}`,
+      )
+      const response = yield* LLMClient.generate(request).pipe(Effect.provide(fixedResponse(body)))
+
+      expect(response.reasoning).toBe("Partial thought")
+      expect(response.text).toBe("Partial answer")
+      expect(response.events.filter(LLMEvent.is.providerError)).toEqual([
+        expect.objectContaining({ message: expect.stringContaining("finish_reason"), retryable: false }),
+      ])
+      expect(response.events.at(-1)).toMatchObject({ type: "provider-error" })
+      expect(response.events.filter(LLMEvent.is.stepFinish)).toEqual([])
+      expect(response.events.filter(LLMEvent.is.finish)).toEqual([])
     }),
   )
 })

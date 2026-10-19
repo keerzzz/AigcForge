@@ -4,7 +4,7 @@ import { BoxRenderable, RGBA, type RootRenderable } from "@opentui/core"
 import { testRender, useRenderer } from "@opentui/solid"
 import { createSignal } from "solid-js"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
-import type { QuestionRequest } from "@aigcfroge/sdk/v2"
+import type { QuestionV2Request } from "@aigcfroge/sdk/v2"
 import { AigcfrogeKeymapProvider, registerAigcfrogeKeymap } from "@aigcfroge/tui/keymap"
 import {
   RUN_COMMAND_PANEL_ROWS,
@@ -261,7 +261,9 @@ function boxPath(root: BoxRenderable | RootRenderable, name: string): BoxRendera
 }
 
 function footerComposerFrame(root: BoxRenderable | RootRenderable) {
-  return boxPath(root, "TextareaRenderable")!.at(-5)!
+  const frame = boxPath(root, "TextareaRenderable")?.at(-5)
+  if (!frame) throw new Error("Footer composer frame not found")
+  return frame
 }
 
 function footerStatusline(root: BoxRenderable | RootRenderable) {
@@ -677,12 +679,18 @@ test("direct queued prompt panel renders pending prompt actions", async () => {
   }
 })
 
-// OpenTUI currently crashes Bun in the full `test/cli/run` directory run here.
-// Re-enable after the upstream OpenTUI fix lands in this repo.
-test.skip("direct footer recreates the frame across command panel transitions", async () => {
-  const app = await renderFooter()
+test("direct footer recreates the frame across command panel transitions", async () => {
+  const submits: RunPrompt[] = []
+  const app = await renderFooter({
+    onSubmit(prompt) {
+      submits.push(prompt)
+      return true
+    },
+  })
 
   try {
+    await app.renderOnce()
+    "draft".split("").forEach((key) => app.mockInput.pressKey(key))
     await app.renderOnce()
 
     for (let index = 0; index < 3; index++) {
@@ -691,19 +699,25 @@ test.skip("direct footer recreates the frame across command panel transitions", 
       await app.renderOnce()
 
       expect(app.captureCharFrame()).toContain("Commands")
-      expect(footerComposerFrame(app.renderer.root)).not.toBe(composerFrame)
+      expect(boxPath(app.renderer.root, "TextareaRenderable")).toBeUndefined()
       app.mockInput.pressKey("c", { ctrl: true })
       await app.renderOnce()
+      expect(footerComposerFrame(app.renderer.root)).not.toBe(composerFrame)
+      expect(app.captureCharFrame()).toContain("draft")
       expect(app.captureCharFrame()).not.toContain("Commands")
       expect(app.captureCharFrame()).not.toContain("┃")
       expect(app.captureCharFrame()).not.toContain("█")
     }
+    app.mockInput.pressKey("!")
+    app.mockInput.pressEnter()
+    await app.renderOnce()
+    expect(submits).toEqual([{ text: "draft!", parts: [] }])
   } finally {
     app.cleanup()
   }
 })
 
-test.skip("direct footer dispatches leader variant binding only when leader is registered", async () => {
+test("direct footer dispatches leader variant binding only when leader is registered", async () => {
   const calls: string[] = []
   const app = await renderFooter({
     tuiConfig: createTuiResolvedConfig({ keybinds: { leader: "ctrl+x", variant_cycle: "<leader>t" } }),
@@ -831,9 +845,7 @@ test("direct footer slash autocomplete keeps a real skills command", async () =>
   }
 })
 
-// OpenTUI currently segfaults Bun while tearing down this composer-to-skill-panel transition.
-// Re-enable after the upstream renderer teardown fix lands.
-test.skip("direct footer skill picker inserts an editable bound skill command", async () => {
+test("direct footer skill picker inserts an editable bound skill command", async () => {
   const submits: RunPrompt[] = []
   const app = await renderFooter({
     commands: [command({ name: "new", description: "Skill named new", source: "skill" })],
@@ -869,9 +881,7 @@ test.skip("direct footer skill picker inserts an editable bound skill command", 
   }
 })
 
-// OpenTUI currently segfaults Bun while tearing down this skill-panel close transition.
-// Re-enable after the upstream renderer teardown fix lands.
-test.skip("direct footer clears the synthetic skills draft when the panel closes", async () => {
+test("direct footer clears the synthetic skills draft when the panel closes", async () => {
   const submits: RunPrompt[] = []
   const app = await renderFooter({
     commands: [command({ name: "formatter", description: "Apply formatter fixes", source: "skill" })],
@@ -1141,7 +1151,7 @@ test("direct question body separates single-select checkmark from label", async 
         ],
       },
     ],
-  } satisfies QuestionRequest
+  } satisfies QuestionV2Request
   const replies: unknown[] = []
 
   const app = await testRender(
@@ -1167,16 +1177,16 @@ test("direct question body separates single-select checkmark from label", async 
     app.mockInput.pressEnter()
     await app.renderOnce()
 
-    expect(replies).toHaveLength(1)
+    expect(replies).toEqual([
+      { sessionID: request.sessionID, requestID: request.id, questionV2Reply: { answers: [["Product"]] } },
+    ])
     expect(app.captureCharFrame()).toContain("Product ✓")
   } finally {
     app.renderer.destroy()
   }
 })
 
-// OpenTUI currently segfaults while tearing down this textarea-backed keymap renderer.
-// Re-enable after the runtime fix.
-test.skip("direct custom answer submits through keymap return binding", async () => {
+test("direct custom answer submits through keymap return binding", async () => {
   const question = {
     id: "question-1",
     sessionID: "session-1",
@@ -1188,7 +1198,7 @@ test.skip("direct custom answer submits through keymap return binding", async ()
         custom: true,
       },
     ],
-  } satisfies QuestionRequest
+  } satisfies QuestionV2Request
   const questions: unknown[] = []
   let off: (() => void) | undefined
 
@@ -1228,7 +1238,9 @@ test.skip("direct custom answer submits through keymap return binding", async ()
     await app.renderOnce()
     app.mockInput.pressEnter()
     await app.renderOnce()
-    expect(questions).toEqual([{ requestID: "question-1", answers: [["typed"]] }])
+    expect(questions).toEqual([
+      { sessionID: "session-1", requestID: "question-1", questionV2Reply: { answers: [["typed"]] } },
+    ])
   } finally {
     app.renderer.currentFocusedRenderable?.blur()
     app.renderer.currentFocusedEditor?.blur()
@@ -1372,3 +1384,54 @@ test("direct variant panel renders current variant selector", async () => {
     app.renderer.destroy()
   }
 })
+
+for (const action of ["reply", "reject"] as const) {
+  test(`direct Question ${action} failure restores interaction without an unhandled rejection`, async () => {
+    const calls: unknown[] = []
+    const failure = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    const retried = Promise.withResolvers<void>()
+    const question: QuestionV2Request = {
+      id: "child-question",
+      sessionID: "child-session",
+      questions: [
+        { header: "Mode", question: "Mode?", custom: false, options: [{ label: "Fast", description: "Quick pass" }] },
+      ],
+    }
+    const submit = (input: unknown) => {
+      calls.push(input)
+      if (calls.length === 1) {
+        started.resolve()
+        return failure.promise
+      }
+      retried.resolve()
+      return retried.promise
+    }
+    const app = await testRender(
+      () => <RunQuestionBody request={question} theme={RUN_THEME_FALLBACK.footer} onReply={submit} onReject={submit} />,
+      { width: 80, height: 12 },
+    )
+
+    try {
+      app.mockInput.pressKey(action === "reply" ? "1" : "ESCAPE")
+      await started.promise
+      await app.renderOnce()
+      expect(app.captureCharFrame()).toContain("Waiting for question event...")
+      failure.reject(new Error("Question is no longer pending"))
+      await app.renderOnce()
+      expect(app.captureCharFrame()).not.toContain("Waiting for question event...")
+      app.mockInput.pressKey(action === "reply" ? "1" : "ESCAPE")
+      await retried.promise
+      await app.renderOnce()
+      expect(calls).toEqual(
+        Array.from({ length: 2 }, () => ({
+          sessionID: question.sessionID,
+          requestID: question.id,
+          ...(action === "reply" ? { questionV2Reply: { answers: [["Fast"]] } } : {}),
+        })),
+      )
+    } finally {
+      app.renderer.destroy()
+    }
+  })
+}

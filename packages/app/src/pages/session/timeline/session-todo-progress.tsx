@@ -2,7 +2,6 @@ import { Index, Show, createEffect, createMemo, createSignal, onCleanup, type JS
 import { CheckboxV2 } from "@aigcfroge/ui/v2/checkbox-v2"
 import { useServerSync } from "@/context/server-sync"
 import { useSDK } from "@/context/sdk"
-import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
 import { useMode } from "@/context/mode"
 import { showToast } from "@/utils/toast"
@@ -11,9 +10,7 @@ import {
   computeProgressLedger,
   computeTodoProgress,
   flipTaskWriteStatus,
-  pickProgressTodos,
   preserveStatus,
-  sameTodoList,
   type TodoProgressInput,
 } from "@/pages/session/timeline/session-todo-progress-model"
 
@@ -35,37 +32,30 @@ export function SessionTodoProgress(props: {
   /** Agent tint for the environment pulse (kept; message-timeline uses it). */
   tint: () => string | undefined
 }) {
-  const sync = useSync()
   const serverSync = useServerSync()
   const sdk = useSDK()
   const language = useLanguage()
   const mode = useMode()
   const [open, setOpen] = createSignal(false)
-  let trackRef: HTMLDivElement | undefined
+  let pointerInside: PointerEvent | undefined
 
+  // AI-TDD-S01-R02/R04: single canonical Task source — no legacy todo
+  // projection, no dual-source freshness arbitration.
   const tasks = createMemo<readonly TodoProgressInput[]>(() => {
     const id = props.sessionID()
     if (!id) return []
     const data = serverSync().data
-    // M7 ⑦: pick the fresher source (plan §5.8 decision 7). task (id-bearing)
-    // wins when both agree so the fold-over stays writable; a standalone V1
-    // todo.updated outranks the seeded task pull instead of being frozen out.
-    return pickProgressTodos(
-      data.session_task[id]?.map((task) => ({
-        id: task.id,
-        content: task.content,
-        status: task.status,
-        priority: task.priority,
-        // The SDK types revision as number | "NaN" | "Infinity" | ... (JSON
-        // edge cases); narrow to a real number so expectedRevision is clean.
-        revision: typeof task.revision === "number" ? task.revision : undefined,
-        // M1.5: Work step digest rides the ledger projection (D5 passthrough).
-        outputDigest: task.outputDigest,
-      })),
-      data.session_task_updated_at[id],
-      (data.session_todo[id] ?? []) as TodoProgressInput[],
-      data.session_todo_updated_at[id],
-    )
+    return (data.session_task[id] ?? []).map((task) => ({
+      id: task.id,
+      content: task.content,
+      status: task.status,
+      priority: task.priority,
+      // The SDK types revision as number | "NaN" | "Infinity" | ... (JSON
+      // edge cases); narrow to a real number so expectedRevision is clean.
+      revision: typeof task.revision === "number" ? task.revision : undefined,
+      // M1.5: Work step digest rides the ledger projection (D5 passthrough).
+      outputDigest: task.outputDigest,
+    }))
   })
 
   const progress = createMemo(() => {
@@ -104,48 +94,27 @@ export function SessionTodoProgress(props: {
       })
   }
 
-  // Reload recovery: pull once when the session mounts (directory-sync has
-  // built-in retry; subsequent updates arrive via SSE task.updated/todo.updated).
-  // NIT (Step 1 approval): if the live todo source already holds data that
-  // diverges from the persisted TaskTable pull, discard the seed so a stale
-  // V1 task pull can never shadow the fresher todo channel.
+  // Cold seed and status/event recovery share the ServerSync readback owner.
   createEffect(() => {
-    const id = props.sessionID()
-    if (!id) return
-    void sync().session.todo(id)
-    if (serverSync().data.session_task[id] !== undefined) return
-    void sdk()
-      .client.session.task.get({ sessionID: id, directory: sdk().directory })
-      .then((response) => {
-        if (serverSync().data.session_task[id] !== undefined) return
-        const tasks = response.data ?? []
-        // Only discard a diverging seed when the live todo source actually has
-        // data — an empty todo pull is not a divergence signal.
-        const liveTodo = serverSync().data.session_todo[id]
-        if (
-          liveTodo &&
-          liveTodo.length > 0 &&
-          !sameTodoList(tasks as TodoProgressInput[], liveTodo as TodoProgressInput[])
-        ) {
-          return
-        }
-        serverSync().task.set(id, tasks)
-      })
-      .catch((err: unknown) => {
-        // Degrades to the read-only todo projection; the next task.updated or
-        // writeback round-trip reseeds the store.
-        const description = err instanceof Error ? err.message : String(err)
-        console.warn("SessionTodoProgress task recovery pull failed", description)
-      })
+    const sessionID = props.sessionID()
+    const owner = serverSync()
+    const directory = sdk().directory
+    if (!sessionID || owner.data.session_task[sessionID] !== undefined) return
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+    void owner.task.load({ directory, sessionID, signal: controller.signal }).catch((error: unknown) => {
+      if (controller.signal.aborted) return
+      const description = error instanceof Error ? error.message : String(error)
+      console.warn("SessionTodoProgress task recovery pull failed", description)
+    })
   })
 
   // Fold-over dismiss layer (M7 decision 6): click outside the strip + panel closes.
   createEffect(() => {
     if (!open()) return
     const handler = (event: PointerEvent) => {
-      const target = event.target instanceof Node ? event.target : null
-      if (target && trackRef?.contains(target)) return
-      setOpen(false)
+      if (event !== pointerInside) setOpen(false)
+      pointerInside = undefined
     }
     document.addEventListener("pointerdown", handler)
     onCleanup(() => document.removeEventListener("pointerdown", handler))
@@ -203,7 +172,11 @@ export function SessionTodoProgress(props: {
   return (
     <Show when={tasks().length > 0}>
       <div
-        ref={trackRef}
+        on:pointerdown={(event) => {
+          // Claim the live subtree's event before document dismissal; a recovered
+          // conditional subtree can leave a creation-time DOM ref detached.
+          if (open()) pointerInside = event
+        }}
         data-component="session-todo-progress"
         role="progressbar"
         aria-label={language.t("session.todo.progress", { done: progress().done, total: progress().total })}

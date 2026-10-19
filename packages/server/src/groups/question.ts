@@ -22,7 +22,7 @@ export const QuestionGroup = HttpApiGroup.make("server.question")
         }),
       ),
   )
-  .annotateMerge(OpenApi.annotations({ title: "questions", description: "Experimental question routes." }))
+  .annotateMerge(OpenApi.annotations({ title: "questions", description: "Location-owned question routes." }))
   .middleware(LocationMiddleware)
   .add(
     HttpApiEndpoint.get("session.question.list", "/api/session/:sessionID/question", {
@@ -70,6 +70,4 @@ export const QuestionGroup = HttpApiGroup.make("server.question")
         }),
       ),
   )
-  .annotateMerge(
-    OpenApi.annotations({ title: "session questions", description: "Experimental session question routes." }),
-  )
+  .annotateMerge(OpenApi.annotations({ title: "session questions", description: "Session-owned question decisions." }))

@@ -1,5 +1,20 @@
-import { createScrollbackWriter } from "@opentui/solid"
-import { TextRenderable, type ColorInput, type ScrollbackRenderContext, type ScrollbackWriter } from "@opentui/core"
+import { createScrollbackWriter, spread, useRenderer } from "@opentui/solid"
+import { jsx } from "@opentui/solid/jsx-runtime"
+import {
+  CodeRenderable,
+  DiffRenderable,
+  MarkdownRenderable,
+  TextRenderable,
+  type BaseRenderable,
+  type CodeOptions,
+  type ColorInput,
+  type DiffRenderableOptions,
+  type MarkdownOptions,
+  type RenderContext,
+  type ScrollbackRenderContext,
+  type ScrollbackWriter,
+  type TreeSitterClient,
+} from "@opentui/core"
 import { Match, Switch, createMemo } from "solid-js"
 import { entryBody, entryFlags } from "./entry.body"
 import { entryColor, entryLook, entrySyntax } from "./scrollback.shared"
@@ -99,6 +114,7 @@ export function RunEntryContent(props: {
   body?: RunEntryBody
   theme?: RunTheme
   opts?: ScrollbackOptions
+  treeSitterClient?: TreeSitterClient
   width?: number
 }) {
   const theme = createMemo(() => props.theme ?? RUN_THEME_FALLBACK)
@@ -154,13 +170,14 @@ export function RunEntryContent(props: {
         </text>
       </Match>
       <Match when={code()}>
-        <code
+        <RunCode
           width="100%"
           wrapMode="word"
           filetype={code()!.filetype}
           drawUnstyledText={false}
           streaming={streaming()}
           syntaxStyle={syntax()}
+          treeSitterClient={props.treeSitterClient}
           content={code()!.content}
           fg={color()}
         />
@@ -172,12 +189,13 @@ export function RunEntryContent(props: {
           </text>
           <box width="100%" paddingLeft={1}>
             <line_number width="100%" fg={theme().block.muted} minWidth={3} paddingRight={1}>
-              <code
+              <RunCode
                 width="100%"
                 wrapMode="char"
                 filetype={toolFiletype(code_snapshot()!.file)}
                 streaming={false}
                 syntaxStyle={syntax()}
+                treeSitterClient={props.treeSitterClient}
                 content={code_snapshot()!.content}
                 fg={theme().block.text}
               />
@@ -194,11 +212,12 @@ export function RunEntryContent(props: {
               </text>
               {item.diff.trim() ? (
                 <box width="100%" paddingLeft={1}>
-                  <diff
+                  <RunDiff
                     diff={item.diff}
                     view="unified"
                     filetype={toolFiletype(item.file)}
                     syntaxStyle={syntax()}
+                    treeSitterClient={props.treeSitterClient}
                     showLineNumbers={true}
                     width="100%"
                     wrapMode="word"
@@ -286,9 +305,10 @@ export function RunEntryContent(props: {
         </box>
       </Match>
       <Match when={markdown()}>
-        <markdown
+        <RunMarkdown
           width="100%"
           syntaxStyle={syntax()}
+          treeSitterClient={props.treeSitterClient}
           streaming={streaming()}
           content={markdown()!.content}
           fg={color()}
@@ -299,11 +319,32 @@ export function RunEntryContent(props: {
   )
 }
 
+// Solid applies intrinsic props after construction. Code eagerly resolves its
+// client, and Diff/Markdown accept their client only in constructor options.
+function nativeRenderable<T>(Renderable: new (ctx: RenderContext, options: T) => BaseRenderable, props: T) {
+  const node = new Renderable(useRenderer(), props)
+  spread(node, props)
+  return jsx(() => node)
+}
+
+function RunCode(props: CodeOptions) {
+  return nativeRenderable(CodeRenderable, props)
+}
+
+function RunDiff(props: DiffRenderableOptions) {
+  return nativeRenderable(DiffRenderable, props)
+}
+
+function RunMarkdown(props: MarkdownOptions) {
+  return nativeRenderable(MarkdownRenderable, props)
+}
+
 export function entryWriter(input: {
   commit: StreamCommit
   body?: RunEntryBody
   theme?: RunTheme
   opts?: ScrollbackOptions
+  treeSitterClient?: TreeSitterClient
 }): ScrollbackWriter {
   return createScrollbackWriter(
     (ctx) => (
@@ -311,6 +352,7 @@ export function entryWriter(input: {
         commit={input.commit}
         body={input.body}
         theme={input.theme}
+        treeSitterClient={input.treeSitterClient}
         opts={{ ...input.opts, suppressBackgrounds: true }}
         width={ctx.width}
       />

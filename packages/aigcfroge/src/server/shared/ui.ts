@@ -1,6 +1,6 @@
 import { FSUtil } from "@aigcfroge/core/fs-util"
 import { Effect, Stream } from "effect"
-import { HttpBody, HttpClient, HttpClientRequest, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { HttpClient, HttpClientRequest, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { createHash } from "node:crypto"
 import { ProxyUtil } from "../proxy-util"
 
@@ -21,10 +21,20 @@ export function cspForHtml(body: string) {
   return csp(match ? createHash("sha256").update(match[2]).digest("base64") : "")
 }
 
-function requestBody(request: HttpServerRequest.HttpServerRequest) {
-  if (request.method === "GET" || request.method === "HEAD") return HttpBody.empty
-  const len = request.headers["content-length"]
-  return HttpBody.stream(request.stream, request.headers["content-type"], len === undefined ? undefined : Number(len))
+function proxyRequestHeaders(headers: Readonly<Record<string, string>>) {
+  // The hosted UI serves public assets; local API credentials and arbitrary
+  // client headers must never cross that origin boundary.
+  return ProxyUtil.headers(
+    Object.fromEntries(
+      ["accept", "accept-language", "cache-control", "if-modified-since", "if-none-match", "range", "if-range"].flatMap(
+        (name) => {
+          const value = headers[name]
+          return value === undefined ? [] : [[name, value] as const]
+        },
+      ),
+    ),
+    { host: UI_UPSTREAM.host },
+  )
 }
 
 function proxyResponseHeaders(headers: Record<string, string>) {
@@ -38,7 +48,9 @@ function proxyResponseHeaders(headers: Record<string, string>) {
 }
 
 export function upstreamURL(path: string) {
-  return new URL(path, UI_UPSTREAM).toString()
+  const url = new URL(UI_UPSTREAM)
+  url.pathname = path
+  return url.toString()
 }
 
 export function embeddedUI(disableEmbeddedWebUi: boolean) {
@@ -50,6 +62,18 @@ export function embeddedUI(disableEmbeddedWebUi: boolean) {
 
 function notFound() {
   return HttpServerResponse.jsonUnsafe({ error: "Not Found" }, { status: 404 })
+}
+
+function isUIPath(path: string) {
+  // API namespaces never belong to the SPA, even after an endpoint is retired.
+  try {
+    // Match the router's case-insensitive paths and raw semicolon query delimiter.
+    // Only classification is normalized; asset path casing stays intact.
+    return !/^\/+(?:api|question|session)(?:\/|$)/i.test(decodeURIComponent(path.replace(/;.*/s, "")))
+  } catch (error) {
+    if (error instanceof URIError) return false
+    throw error
+  }
 }
 
 /**
@@ -84,6 +108,7 @@ export function serveEmbeddedUIEffect(
   fs: FSUtil.Interface,
   embeddedWebUI: Record<string, string>,
 ) {
+  if (!isUIPath(requestPath)) return Effect.succeed(notFound())
   const file = embeddedWebUI[requestPath.replace(/^\//, "")] ?? embeddedWebUI["index.html"] ?? null
   if (!file) return Effect.succeed(notFound())
 
@@ -98,8 +123,9 @@ export function serveUIEffect(
   services: { fs: FSUtil.Interface; client: HttpClient.HttpClient; disableEmbeddedWebUi: boolean },
 ) {
   return Effect.gen(function* () {
+    const path = ProxyUtil.requestURL(request.url).pathname
+    if ((request.method !== "GET" && request.method !== "HEAD") || !isUIPath(path)) return notFound()
     const embeddedWebUI = yield* Effect.promise(() => embeddedUI(services.disableEmbeddedWebUi))
-    const path = new URL(request.url, "http://localhost").pathname
 
     if (embeddedWebUI) return yield* serveEmbeddedUIEffect(path, services.fs, embeddedWebUI)
 
@@ -113,8 +139,7 @@ function proxyUIEffect(request: HttpServerRequest.HttpServerRequest, path: strin
   return Effect.gen(function* () {
     const response = yield* client.execute(
       HttpClientRequest.make(request.method)(upstreamURL(path), {
-        headers: ProxyUtil.headers(request.headers, { host: UI_UPSTREAM.host }),
-        body: requestBody(request),
+        headers: proxyRequestHeaders(request.headers),
       }),
     )
     const headers = proxyResponseHeaders(response.headers)

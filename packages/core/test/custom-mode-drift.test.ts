@@ -73,6 +73,7 @@ const models = SessionRunnerModel.layerWith(() => Effect.succeed(model))
 const permission = Layer.succeed(
   PermissionV2.Service,
   PermissionV2.Service.of({
+    grant: () => Effect.die("unused grant operation"),
     effectiveRules: () => Effect.succeed([]),
     assert: () => Effect.die("unused"),
     ask: () => Effect.die("unused"),

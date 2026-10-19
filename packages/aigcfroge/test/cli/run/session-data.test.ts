@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { Event } from "@aigcfroge/sdk/v2"
+import type { Event, QuestionV2Request } from "@aigcfroge/sdk/v2"
 import { createSessionData, flushInterrupted, reduceSessionData } from "@/cli/cmd/run/session-data"
 import type { StreamCommit } from "@/cli/cmd/run/types"
 
@@ -193,7 +193,7 @@ describe("run session data", () => {
     }).data
 
     const ask = reduce(data, {
-      type: "question.asked",
+      type: "question.v2.asked",
       properties: {
         id: "question-1",
         sessionID: "session-1",
@@ -591,3 +591,35 @@ describe("run session data", () => {
     ])
   })
 })
+
+for (const type of ["question.v2.replied", "question.v2.rejected"] as const) {
+  test(`native ${type} settles only the source session's pending question`, () => {
+    const request: QuestionV2Request = {
+      id: "question-native",
+      sessionID: "session-1",
+      questions: [{ header: "Mode", question: "Mode?", options: [{ label: "Fast", description: "Quick pass" }] }],
+    }
+    const asked = reduce(createSessionData(), {
+      id: "asked",
+      type: "question.v2.asked",
+      properties: request,
+    } satisfies Event)
+    expect(asked.data.questions).toEqual([request])
+    expect(asked.footer?.view).toEqual({ type: "question", request })
+
+    const updated = { ...request, questions: [] }
+    reduce(asked.data, { id: "updated", type: "question.v2.asked", properties: updated } satisfies Event)
+    expect(asked.data.questions).toEqual([updated])
+    const properties = { sessionID: request.sessionID, requestID: request.id }
+    const event =
+      type === "question.v2.replied"
+        ? ({ id: "settled", type, properties: { ...properties, answers: [] } } satisfies Event)
+        : ({ id: "settled", type, properties } satisfies Event)
+    reduce(asked.data, { ...event, properties: { ...event.properties, sessionID: "child-session" } })
+    expect(asked.data.questions).toEqual([updated])
+
+    const settled = reduce(asked.data, event)
+    expect(settled.data.questions).toEqual([])
+    expect(settled.footer?.view).toEqual({ type: "prompt" })
+  })
+}

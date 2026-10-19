@@ -373,7 +373,7 @@ function ResolvedDraftRoute(props: { draft: DraftTab }) {
       <ServerSyncProvider server={conn}>
         <TargetServerScopedProviders directory={directory}>
           <SDKProvider directory={directory}>
-            <DirectoryDataProvider directory={directory} server={serverKey}>
+            <DirectoryDataProvider directory={directory} server={serverKey} defaultAgent={props.draft.agent}>
               <ApprovalCenter />
               <DraftProviders>
                 <NewSession />

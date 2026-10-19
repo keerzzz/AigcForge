@@ -1,6 +1,7 @@
 export * as SolidJsxPlugin from "./solid-jsx-plugin"
 
 import { transformSync } from "@babel/core"
+import { pathToFileURL } from "node:url"
 import presetTypescript from "@babel/preset-typescript"
 import babelPresetSolid from "babel-preset-solid"
 
@@ -20,6 +21,13 @@ import babelPresetSolid from "babel-preset-solid"
 export const solidJsxPlugin: Bun.Plugin = {
   name: "solid-jsx",
   setup(builder) {
+    // Keep the query in the module identity: resolving a URL import to the worker
+    // module itself lets isolated test caches confuse their different exports.
+    builder.onLoad({ filter: /\?worker&url$|\.(?:svg|png)$/ }, (args) => ({
+      contents: `export default ${JSON.stringify(pathToFileURL(args.path.replace(/\?worker&url$/, "")).href)}`,
+      loader: "js",
+    }))
+
     builder.onLoad({ filter: /\.tsx$/ }, async (args) => {
       const source = await Bun.file(args.path).text()
       const result = transformSync(source, {

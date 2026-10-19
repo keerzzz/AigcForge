@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import { OpenApi } from "effect/unstable/httpapi"
 import { PublicApi } from "../../src/server/routes/instance/httpapi/public"
+import { SessionApi } from "../../src/server/routes/instance/httpapi/groups/session"
 
 type Method = "get" | "post" | "put" | "delete" | "patch"
 type OpenApiSchema = {
   readonly $ref?: string
   readonly anyOf?: ReadonlyArray<OpenApiSchema>
+  readonly oneOf?: ReadonlyArray<OpenApiSchema>
+  readonly allOf?: ReadonlyArray<OpenApiSchema>
   readonly type?: string
   readonly enum?: readonly unknown[]
   readonly properties?: Record<string, OpenApiSchema>
@@ -58,8 +61,13 @@ function componentName(ref: string) {
 function componentNames(response: OpenApiResponse | undefined) {
   const schema = response?.content?.["application/json"]?.schema
   if (!schema) return []
+  return [...new Set(schemaComponentNames(schema))]
+}
+
+function schemaComponentNames(schema: OpenApiSchema): string[] {
   return [
-    ...new Set([schema, ...(schema.anyOf ?? [])].flatMap((item) => (item.$ref ? [componentName(item.$ref)] : []))),
+    ...(schema.$ref ? [componentName(schema.$ref)] : []),
+    ...[...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])].flatMap(schemaComponentNames),
   ]
 }
 
@@ -160,8 +168,7 @@ describe("PublicApi OpenAPI v2 errors", () => {
     const refs = v2Operations(spec)
       .flatMap((route) =>
         Object.entries(route.operation.responses ?? {}).flatMap(([status, response]) => {
-          const ref = responseRef(response)
-          return ref ? [`${route.method.toUpperCase()} ${route.path} ${status} ${componentName(ref)}`] : []
+          return componentNames(response).map((name) => `${route.method.toUpperCase()} ${route.path} ${status} ${name}`)
         }),
       )
       .filter((entry) => entry.endsWith(" BadRequestError") || entry.endsWith(" NotFoundError"))
@@ -264,20 +271,13 @@ describe("PublicApi OpenAPI v2 errors", () => {
   test("documents permission and question not-found errors", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
 
-    // InstanceContextMiddleware now declares a typed 404 error, which merges into
-    // every endpoint that consumes it as an `anyOf` alongside the endpoint's own error.
+    // Instance middleware adds its location-not-found case to endpoint errors.
     expect(componentNames(spec.paths["/permission/{requestID}/reply"]?.post?.responses?.["404"])).toEqual([
       "PermissionNotFoundError",
       "NotFoundError",
     ])
-    for (const route of [
-      ["post", "/question/{requestID}/reply"],
-      ["post", "/question/{requestID}/reject"],
-    ] as const) {
-      expect(componentNames(spec.paths[route[1]]?.[route[0]]?.responses?.["404"])).toEqual([
-        "QuestionNotFoundError",
-        "NotFoundError",
-      ])
+    for (const path of ["/question", "/question/{requestID}/reply", "/question/{requestID}/reject"]) {
+      expect(spec.paths[path], "Retired question routes must not remain in the public contract").toBeUndefined()
     }
     for (const route of [
       ["post", "/api/session/{sessionID}/question/{requestID}/reply"],
@@ -338,6 +338,74 @@ describe("PublicApi OpenAPI v2 errors", () => {
     expect(componentNames(spec.paths["/project/{projectID}"]?.patch?.responses?.["404"])).toEqual([
       "ProjectNotFoundError",
       "NotFoundError",
+    ])
+  })
+  test("legacy Sync errors include validation and retain the built-in handler arm", () => {
+    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
+    for (const path of ["/sync/history", "/sync/replay", "/sync/steal"]) {
+      expect(componentNames(spec.paths[path]?.post?.responses?.["400"]), path).toEqual(
+        expect.arrayContaining(["BadRequestError", "effect_HttpApiError_BadRequest"]),
+      )
+    }
+  })
+
+  test("legacy business and domain errors remain beside the validation envelope", () => {
+    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
+    expect(componentNames(spec.paths["/session/{sessionID}/fork"]?.post?.responses?.["400"])).toEqual(
+      expect.arrayContaining(["BadRequestError", "effect_HttpApiError_BadRequest", "UnsupportedProductModeError"]),
+    )
+    expect(componentNames(spec.paths["/session/{sessionID}/permission-override"]?.put?.responses?.["400"])).toEqual(
+      expect.arrayContaining([
+        "BadRequestError",
+        "effect_HttpApiError_BadRequest",
+        "InvalidRequestError",
+        "UnsupportedProductModeError",
+      ]),
+    )
+  })
+
+  test("legacy validation schema preserves its name/data envelope and optional kind", () => {
+    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
+    const error = spec.components.schemas.BadRequestError
+    const data = error?.properties?.data
+    const fields = data?.$ref ? spec.components.schemas[componentName(data.$ref)] : data
+    expect(error?.required).toEqual(["name", "data"])
+    expect(error?.properties?.name?.enum).toEqual(["BadRequest"])
+    expect(error?.properties?._tag).toBeUndefined()
+    expect(fields?.required).toEqual(["message"])
+    expect(fields?.properties?.kind?.enum).toEqual(["Params", "Headers", "Query", "Body", "Payload"])
+  })
+
+  test("Session handler rejection contracts belong to their endpoints", () => {
+    const spec = OpenApi.fromApi(SessionApi) as OpenApiSpec
+    for (const route of [
+      ["get", "/session/{sessionID}/identity"],
+      ["patch", "/session/{sessionID}"],
+      ["post", "/session/{sessionID}/prompt_async"],
+      ["post", "/session/{sessionID}/workflow/run"],
+      ["post", "/session/{sessionID}/workflow/{runID}/step/{stepRunID}/retry"],
+    ] as const) {
+      expect(componentNames(spec.paths[route[1]]?.[route[0]]?.responses?.["400"]), route.join(" ")).toContain(
+        "InvalidRequestError",
+      )
+    }
+  })
+
+  test("Sync validation does not inherit unrelated business error contracts", () => {
+    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
+    for (const path of ["/sync/history", "/sync/replay", "/sync/steal"]) {
+      expect(componentNames(spec.paths[path]?.post?.responses?.["400"]).sort(), path).toEqual([
+        "BadRequestError",
+        "effect_HttpApiError_BadRequest",
+      ])
+    }
+  })
+
+  test("Console switch documents both validation and handler rejection contracts", () => {
+    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
+    expect(componentNames(spec.paths["/experimental/console/switch"]?.post?.responses?.["400"]).sort()).toEqual([
+      "BadRequestError",
+      "effect_HttpApiError_BadRequest",
     ])
   })
 })

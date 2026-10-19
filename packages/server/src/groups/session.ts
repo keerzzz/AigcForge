@@ -9,11 +9,13 @@ import { Schema, Struct } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import {
   ConflictError,
+  ForbiddenError,
   InvalidCursorError,
   InvalidRequestError,
   ServiceUnavailableError,
   SessionNotFoundError,
   UnknownError,
+  WorkReviewUnavailableError,
   UnsupportedProductModeError,
   CompositionResolveError,
 } from "../errors"
@@ -23,6 +25,7 @@ import { ModelV2 } from "@aigcfroge/core/model"
 import { Location } from "@aigcfroge/core/location"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { Composition } from "@aigcfroge/schema/composition"
+import { WorkReview } from "@aigcfroge/schema/work-review"
 
 const SessionsQueryFields = {
   workspace: WorkspaceV2.ID.pipe(Schema.optional),
@@ -167,6 +170,52 @@ export const SessionGroup = HttpApiGroup.make("server.session")
           identifier: "v2.session.get",
           summary: "Get session",
           description: "Retrieve a session by ID.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.get("session.workReview.get", "/api/session/:sessionID/work-review", {
+      params: { sessionID: SessionV2.ID },
+      success: Schema.Struct({ data: WorkReview.ReadResult }),
+      error: [
+        SessionNotFoundError,
+        ForbiddenError,
+        InvalidRequestError,
+        ConflictError,
+        WorkReviewUnavailableError,
+        UnsupportedProductModeError,
+      ],
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.workReview.get",
+          summary: "Get work review",
+          description: "Read the persisted review and verify its binding against the current Session artifact.",
+        }),
+      ),
+  )
+  .add(
+    HttpApiEndpoint.post("session.workReview.transition", "/api/session/:sessionID/work-review", {
+      params: { sessionID: SessionV2.ID },
+      payload: WorkReview.Command,
+      success: Schema.Struct({ data: WorkReview.Ready }),
+      error: [
+        SessionNotFoundError,
+        ForbiddenError,
+        InvalidRequestError,
+        ConflictError,
+        WorkReviewUnavailableError,
+        UnsupportedProductModeError,
+      ],
+    })
+      .middleware(SessionLocationMiddleware)
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "v2.session.workReview.transition",
+          summary: "Transition work review",
+          description:
+            "Apply a revision-checked review action and return the authoritative result. This neither grants permissions nor resumes model execution.",
         }),
       ),
   )

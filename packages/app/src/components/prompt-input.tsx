@@ -11,9 +11,11 @@ import {
   createMemo,
   createSignal,
   createResource,
+  onMount,
   type ComponentProps,
   type JSX,
 } from "solid-js"
+import { useParams, useSearchParams } from "@solidjs/router"
 import { Popover as KobaltePopover } from "@kobalte/core/popover"
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store"
 import type { useLocal } from "@/context/local"
@@ -31,6 +33,8 @@ import {
 import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
+import { isAgentVisible } from "@/context/global-sync/utils"
+import { useSettings } from "@/context/settings"
 import { useComments } from "@/context/comments"
 import { Button } from "@aigcfroge/ui/button"
 import { DockShellForm } from "@aigcfroge/ui/dock-surface"
@@ -49,7 +53,16 @@ import { SessionPermissionOverrideControl } from "@/pages/session/composer/sessi
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { createSessionTabs } from "@/pages/session/helpers"
-import { createTextFragment, getCursorPosition, setCursorPosition, setRangeEdge } from "./prompt-input/editor-dom"
+import { useServer } from "@/context/server"
+import { tabKey, useTabs, type Tab } from "@/context/tabs"
+import { parseServerKey } from "@/utils/session-route"
+import {
+  createTextFragment,
+  getCursorPosition,
+  getTextLength,
+  setCursorPosition,
+  setRangeEdge,
+} from "./prompt-input/editor-dom"
 import { createPromptAttachments } from "./prompt-input/attachments"
 import { ACCEPTED_FILE_TYPES, pickAttachmentFiles } from "./prompt-input/files"
 import {
@@ -72,6 +85,7 @@ import { showToast } from "@/utils/toast"
 import { ImagePreview } from "@aigcfroge/ui/image-preview"
 import { pathKey } from "@/utils/path-key"
 import { displayName } from "@/pages/layout/helpers"
+import { Ime } from "@/utils/ime"
 
 export type PromptInputState = ReturnType<typeof usePrompt>
 
@@ -87,7 +101,7 @@ export type PromptInputSubmission = {
 
 export type PromptInputControls = {
   agents: {
-    available: { name: string; hidden?: boolean; mode: string; source?: string }[]
+    available: { name: string; hidden?: boolean; mode: string; source?: string; originRelativePath?: string }[]
     options: string[]
     current: string
     loading: boolean
@@ -204,10 +218,46 @@ const EXAMPLES = [
   "prompt.example.25",
 ] as const
 
+// Keep transient selection with the tab when a decision dock unmounts the editor.
+type ComposerSelection = {
+  start: number
+  end: number
+  backward: boolean
+  focused: boolean
+  draft: Prompt
+}
+
+type ComposerSelectionState = { snapshot?: ComposerSelection }
+
+// Match PromptProvider's tab identity without requiring these contexts for injected state.
+function useComposerSelectionOwner(sessionID: () => string | undefined) {
+  const tabs = useTabs()
+  const params = useParams<{ serverKey?: string; id?: string }>()
+  const [search] = useSearchParams<{ draftId?: string }>()
+  const server = useServer()
+  const tab = createMemo<Tab | undefined>(() => {
+    if (search.draftId) {
+      return tabs.store.find((candidate) => candidate.type === "draft" && candidate.draftID === search.draftId)
+    }
+    const id = sessionID() ?? params.id
+    if (!id) return undefined
+    const parsed = params.serverKey ? parseServerKey(params.serverKey) : undefined
+    const serverKey = parsed ? (parsed.ok ? parsed.key : undefined) : server.key
+    if (!serverKey) return undefined
+    return (
+      tabs.store.find(
+        (candidate) => candidate.type === "session" && candidate.server === serverKey && candidate.sessionId === id,
+      ) ?? { type: "session" as const, server: serverKey, sessionId: id }
+    )
+  })
+  return { tabs, tab }
+}
+
 export const PromptInput: Component<PromptInputProps> = (props) => {
   const sdk = useSDK()
 
   const sync = useSync()
+  const settings = useSettings()
   const files = useFile()
   const prompt = props.state ?? usePrompt()
   const layout = useLayout()
@@ -218,6 +268,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const language = useLanguage()
   const platform = usePlatform()
   const tabs = () => props.controls.session.tabs
+  // Skip the per-tab owner entirely when a caller injects `state` (stories and
+  // tests render outside Session/draft where Tabs/Server providers are absent).
+  const selectionOwner = props.state ? undefined : useComposerSelectionOwner(() => props.controls.session.id)
+  let composerSelection: ComposerSelectionState | undefined
+  let composerSelectionKey: string | undefined
   let editorRef!: HTMLDivElement
   let fileInputRef: HTMLInputElement | undefined
   let scrollRef!: HTMLDivElement
@@ -629,6 +684,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const restoreFocus = () => {
     requestAnimationFrame(() => {
+      if (!editorRef?.isConnected) return
       const cursor = prompt.cursor() ?? promptLength(prompt.current())
       editorRef.focus()
       setCursorPosition(editorRef, cursor)
@@ -642,6 +698,125 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (cursor !== null) setCursorPosition(editorRef, cursor)
   }
 
+  const selectionState = () => {
+    const owner = selectionOwner
+    const tab = owner?.tab()
+    if (!owner || !tab) return undefined
+    // Re-resolve when the route points at a different tab so a snapshot can
+    // never bleed into another Session/draft.
+    const key = tabKey(tab)
+    if (composerSelectionKey !== key) {
+      composerSelection = owner.tabs.state<ComposerSelectionState>(tab, "prompt-selection", () => ({
+        snapshot: undefined,
+      }))
+      composerSelectionKey = key
+    }
+    return composerSelection
+  }
+
+  // Inverse of setRangeEdge: the same zero-width/BR/pill accounting measured on
+  // a live boundary, so both ends and the direction round-trip exactly.
+  const textOffsetAt = (node: Node, offset: number) => {
+    const probe = document.createRange()
+    probe.selectNodeContents(editorRef)
+    probe.setEnd(node, offset)
+    return getTextLength(probe.cloneContents())
+  }
+
+  // `focus` is explicit only where the caller knows the answer (blur means the
+  // editor was focused); otherwise keep the last known signal rather than let a
+  // dock taking focus erase the fact that the user was editing here.
+  const captureSelection = (focus?: boolean) => {
+    const state = selectionState()
+    if (!state || !editorRef) return
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return
+    const range = selection.getRangeAt(0)
+    if (!editorRef.contains(range.startContainer) || !editorRef.contains(range.endContainer)) return
+    state.snapshot = {
+      start: textOffsetAt(range.startContainer, range.startOffset),
+      end: textOffsetAt(range.endContainer, range.endOffset),
+      backward:
+        !selection.isCollapsed &&
+        selection.anchorNode === range.endContainer &&
+        selection.anchorOffset === range.endOffset,
+      focused: focus ?? state.snapshot?.focused ?? document.activeElement === editorRef,
+      // PromptStore swaps the array on every write, so identity is the cheap
+      // "did the draft change" test; isPromptEqual only breaks ties.
+      draft: prompt.current(),
+    }
+  }
+
+  const canRestoreFocus = () => {
+    const active = document.activeElement
+    if (!active || active === document.body || active === document.documentElement) return true
+    return active === editorRef || editorRef.contains(active)
+  }
+
+  const restoreEditorSelection = () => {
+    const state = selectionState()
+    const snapshot = state?.snapshot
+    if (!state || !snapshot?.focused || !editorRef?.isConnected) return
+    // A changed or cleared draft owns its own caret: never apply a stale range.
+    const draft = prompt.current()
+    if (snapshot.draft !== draft && !isPromptEqual(snapshot.draft, draft)) {
+      state.snapshot = undefined
+      return
+    }
+    // Set the end first so a later start cannot collapse the selected range.
+    const range = document.createRange()
+    range.selectNodeContents(editorRef)
+    range.collapse(true)
+    setRangeEdge(editorRef, range, "end", snapshot.end)
+    setRangeEdge(editorRef, range, "start", snapshot.start)
+    if (!editorRef.contains(range.startContainer) || !editorRef.contains(range.endContainer)) {
+      state.snapshot = undefined
+      return
+    }
+    if (
+      textOffsetAt(range.startContainer, range.startOffset) !== snapshot.start ||
+      textOffsetAt(range.endContainer, range.endOffset) !== snapshot.end
+    ) {
+      state.snapshot = undefined
+      return
+    }
+    // Never pull focus from another editor, dialog, or session.
+    if (!canRestoreFocus()) return
+    editorRef.focus()
+    const selection = window.getSelection()
+    if (!selection) return
+    selection.removeAllRanges()
+    selection.addRange(range)
+    if (snapshot.backward && !range.collapsed) {
+      selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset)
+    }
+    state.snapshot = undefined
+  }
+
+  let restoreFrame: number | undefined
+  // An in-editor selection while the editor owns focus is the authoritative
+  // "user was editing here" signal; other selection changes keep the last one.
+  const handleSelectionChange = () => captureSelection(document.activeElement === editorRef ? true : undefined)
+
+  onMount(() => {
+    document.addEventListener("selectionchange", handleSelectionChange)
+    restoreFrame = requestAnimationFrame(() => {
+      restoreFrame = undefined
+      restoreEditorSelection()
+    })
+  })
+
+  onCleanup(() => {
+    document.removeEventListener("selectionchange", handleSelectionChange)
+    if (restoreFrame !== undefined) {
+      cancelAnimationFrame(restoreFrame)
+      restoreFrame = undefined
+    }
+    // Best-effort final capture; earlier selectionchange/blur writes survive if
+    // the browser has already cleared the selection by the time we get here.
+    captureSelection()
+  })
+
   createEffect(() => {
     props.controls.session.id
     if (props.controls.session.id) return
@@ -653,9 +828,12 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
 
   const [composing, setComposing] = createSignal(false)
-  const isImeComposing = (event: KeyboardEvent) => event.isComposing || composing() || event.keyCode === 229
+  const isImeComposing = (event: KeyboardEvent) => Ime.isImeComposing(event, composing())
 
   const handleBlur = () => {
+    // Blur proves the editor was focused; capture before the dock's focus move
+    // can relocate the selection.
+    captureSelection(true)
     closePopover()
     setComposing(false)
   }
@@ -672,22 +850,45 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     })
   }
 
-  const agentList = createMemo(() =>
-    props.controls.agents.available
-      .filter((agent) => !agent.hidden && agent.mode !== "primary")
-      .map((agent): AtOption => {
-        const source = agent.source === "external-cli" ? ("external-cli" as const) : undefined
-        return { type: "agent", name: agent.name, display: agent.name, source }
-      }),
-  )
+  const agentList = createMemo(() => {
+    const session = info()
+    const custom = session?.mode === "custom"
+    if (props.controls.session.id && !session) return []
+    if (custom && sessionCommands.snapshot.loading) return []
+    const snapshot = custom ? sessionCommands.latest() : undefined
+    // A Custom session must not borrow the live catalog or a previous session's snapshot.
+    if (custom && (!snapshot || (snapshot.sessionID !== undefined && snapshot.sessionID !== session?.id))) return []
+
+    return props.controls.agents.available
+      .filter((agent) => agent.mode !== "primary" && isAgentVisible(agent, settings.visibility.customAgents()))
+      .filter(
+        (agent) =>
+          !snapshot ||
+          (snapshot.version === 1
+            ? snapshot.data.agentID === agent.name
+            : snapshot.data.agents.some((entry) => entry.id === agent.name || entry.name === agent.name)),
+      )
+      .map((agent) => {
+        const source = agent.source === "native" || agent.source === "external-cli" ? agent.source : undefined
+        return {
+          type: "agent",
+          name: agent.name,
+          display: agent.name,
+          source,
+          originRelativePath: agent.originRelativePath,
+        } satisfies AtOption
+      })
+  })
 
   const handleAtSelect = (option: AtOption | undefined) => {
     if (!option) return
     if (option.type === "agent") {
+      // The async search can still hold a candidate whose visibility or frozen scope changed.
+      if (!agentList().some((agent) => agent.name === option.name)) return
       addPart({ type: "agent", name: option.name, content: "@" + option.name, start: 0, end: 0 })
-    } else {
-      addPart({ type: "file", path: option.path, content: "@" + option.path, start: 0, end: 0 })
+      return
     }
+    addPart({ type: "file", path: option.path, content: "@" + option.path, start: 0, end: 0 })
   }
 
   const atKey = (x: AtOption | undefined) => {
@@ -1245,6 +1446,16 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     })
 
   const handleKeyDown = (event: KeyboardEvent) => {
+    // IME composition owns every key until it ends. Candidate confirmation
+    // (Enter), candidate cancellation (Escape), Backspace, arrows and modified
+    // keys must reach the IME, never our editor commands. Keep the event's
+    // default so the browser can commit/cancel, but stop it before app-level
+    // keybindings; Shift+Enter stays a newline only outside composition.
+    if (isImeComposing(event)) {
+      event.stopPropagation()
+      return
+    }
+
     if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "u") {
       event.preventDefault()
       if (store.mode !== "normal") return
@@ -1319,15 +1530,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       }
     }
 
-    // Handle Shift+Enter BEFORE IME check - Shift+Enter is never used for IME input
-    // and should always insert a newline regardless of composition state
+    // Ordinary Shift+Enter still inserts a newline; composition was already
+    // returned above, so an IME Shift+Enter never reaches this branch.
     if (event.key === "Enter" && event.shiftKey) {
       addPart({ type: "text", content: "\n", start: 0, end: 0 })
       event.preventDefault()
-      return
-    }
-
-    if (event.key === "Enter" && isImeComposing(event)) {
       return
     }
 
@@ -1386,7 +1593,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       return
     }
 
-    // Note: Shift+Enter is handled earlier, before IME check
+    // Note: Shift+Enter and IME Enter are both handled earlier
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
       if (event.repeat) return
@@ -1880,6 +2087,7 @@ function ComposerAgentControl(props: { state: ComposerAgentControlState }) {
           size="normal"
           options={props.state.options}
           current={props.state.current}
+          allowDuplicateSelectionEvents={false}
           onSelect={props.state.onSelect}
           class="max-w-[175px] justify-start text-v2-text-text-faint [&_[data-component=icon]]:text-v2-icon-icon-muted"
           valueClass="truncate pl-5 text-[13px] font-[440] leading-5 text-v2-text-text-faint"

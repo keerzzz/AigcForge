@@ -6,6 +6,7 @@ import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
 import { Icon } from "@aigcfroge/ui/icon"
+import { SelectV2 } from "@aigcfroge/ui/v2/select-v2"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
@@ -28,6 +29,8 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { requireServerKey, sessionHref } from "@/utils/session-route"
 import { useGlobal } from "@/context/global"
+import { PermissionPendingModel } from "@/context/global-sync/permission-pending"
+import type { SessionActiveRequest } from "@/pages/session/composer/session-request-tree"
 
 export function SessionComposerRegion(props: {
   state: SessionComposerState
@@ -194,6 +197,40 @@ export function SessionComposerRegion(props: {
     navigate(sessionHref(requireServerKey(key), id))
   }
 
+  const pendingRequestCount = createMemo(() => props.state.pendingRequests().length)
+  const requestPickerLabel = createMemo(() => language.t("session.requests.pending", { count: pendingRequestCount() }))
+  const requestID = (request: SessionActiveRequest) =>
+    request.domain === "question"
+      ? request.request.id
+      : PermissionPendingModel.permissionPresentation(request.request).id
+  const duplicateRequestIDs = createMemo(() => {
+    const counts = new Map<string, number>()
+    for (const request of props.state.pendingRequests()) {
+      const id = requestID(request)
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+    return new Set([...counts].filter(([, count]) => count > 1).map(([id]) => id))
+  })
+  const requestLabel = (request: SessionActiveRequest) => {
+    const title =
+      request.domain === "question"
+        ? language.t("notification.question.title")
+        : language.t("notification.permission.title")
+    const detail =
+      request.domain === "question"
+        ? (() => {
+            const question = request.request.questions[0]
+            if (!question) return ""
+            return [question.header, question.question].filter((part) => part.length > 0).join(" · ")
+          })()
+        : PermissionPendingModel.permissionPresentation(request.request).action
+    const ownerSessionID =
+      request.ownerSessionID !== route.params.id || duplicateRequestIDs().has(requestID(request))
+        ? request.ownerSessionID
+        : undefined
+    return [title, detail, requestID(request), ownerSessionID].filter(Boolean).join(" · ")
+  }
+
   const ready = Promise.resolve()
   const [promptReadyResource] = createResource(
     () => prompt.ready.promise ?? ready,
@@ -217,10 +254,34 @@ export function SessionComposerRegion(props: {
           "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
         }}
       >
+        <Show when={pendingRequestCount() > 1}>
+          <div data-component="session-request-picker" class="pb-2">
+            <div class="pb-1 text-12-medium text-text-weak">{requestPickerLabel()}</div>
+            <SelectV2
+              appearance="inline"
+              aria-label={requestPickerLabel()}
+              options={props.state.pendingRequests()}
+              current={props.state.activeRequest()}
+              value={(request) => request.key}
+              label={requestLabel}
+              onSelect={(request) => {
+                if (!request) return
+                props.state.selectRequest(request.key)
+              }}
+            />
+          </div>
+        </Show>
+
         <Show when={props.state.questionRequest()} keyed>
           {(request) => (
             <div>
-              <SessionQuestionDock request={request} sessionID={route.params.id} onSubmit={props.onResponseSubmit} />
+              <SessionQuestionDock
+                request={request}
+                requestKey={props.state.questionRequestKey()}
+                focusRequest={props.state.focusRequest()}
+                sessionID={route.params.id}
+                onSubmit={props.onResponseSubmit}
+              />
             </div>
           )}
         </Show>

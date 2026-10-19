@@ -445,7 +445,22 @@ Layer 5: TUI (packages/tui/src/component/task-item.tsx)
 
 ---
 
+### 5.9 生产 ToolRow 与 Task 历史的适用状态（B3/S05，2026-10-06）
+
+**状态：B2 已提交，B3 待本轮验收；以下同步 UI 边界，动态结果待主线证据。** 不把 §5.8 已落地的 M7 规则重新列为未实现，也不改旧里程碑的历史 tally。
+
+- **当前 Task 与当次调用分工**：SessionTodoProgress/TaskPanel 继续读当前 Task；标题下方统一轨道、默认折叠面板、idle 静态留存与既有写回规则保留。`taskwrite`、`task_create`、`task_update`、`task_delete`、`task_reorder` 的历史共用 [`taskWriteSnapshot`](../../packages/session-ui/src/components/task-write-tool-model.ts#L16)，仅取当次 ToolPart 的 input/metadata，默认紧凑，展开只读；后续 Task 修改不覆盖旧调用，不恢复旧 todowrite 历史的在线编辑入口。
+- **状态必须沿真实入口解释**：普通工具的 pending/running/completed/error 与明确中断错误由生产 owner 呈现；reasoning 仍是自己的流式/终态 Part，不制造 ToolState。主线核验并分派的 Context 错误修复保留 `groupParts` 与稳定 ID，复用 `ToolPartDisplay`、`ToolErrorCard`、`isInterruptedError`，不新增错误状态真源；据主线进展，生产补丁已集成，GREEN 与最终合批结果待关联证据。适用样例由主线按实际入口和共享 owner 确认，不预先扩为“每 renderer × 所有状态”的全笛卡尔矩阵。
+- **Question 不增加第二提交 owner**：等待时仅显示状态/精确定位动作，回答后为只读投影；提交仍由既有 SessionQuestionDock 持有。定位不发回复请求，也不在工具历史中挂第二份表单。
+- **交互与测量边界**：BasicTool 的受控晚到 output 修订复用 open/defer 依赖，sticky 测量修订仅限定 timeline 滚动，均不改变 Task 产品语义（主线进展，动态验收待证据）。dynamic trigger、triggerHref、locked、defer、animated 的既有合同保留；旧 animated 未定位到当前 App caller，另有 worker 准备真实生产组件的浏览器 fixture，不以 ShellSubmessage 的绿色代替该合同。长终端/Diff、图标和可访问动作仍由生产入口验收，不只看 story。
+
+本节不外推完整五模式/Custom 正向 provider、更广 E4 或 S09 性能；执行证据、owner/unlock 和最终 B3 验收只维护于[技术债账本 §15.6](../technical-debt.md)，本方案不新增平行账本。
+
+---
+
 ## 6. 跨模式适用矩阵
+
+> **B3 适用范围补注**：以下保留原领域用途矩阵，不作为本轮五模式执行验证结果。S05 的生产行/历史呈现边界见 §5.9；M7 已落地状态保留，动态验收待主线证据。
 
 | 能力                 | Chat            | Coding           | Work               | Assistant   | Meta-Agent    | 电商                |
 | -------------------- | --------------- | ---------------- | ------------------ | ----------- | ------------- | ------------------- |

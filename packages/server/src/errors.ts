@@ -1,5 +1,7 @@
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
+import { optionalOmitUndefined } from "@aigcfroge/schema/schema"
+import { SessionLegacyHistory } from "@aigcfroge/core/session/legacy-history"
 
 export class InvalidRequestError extends Schema.TaggedErrorClass<InvalidRequestError>()(
   "InvalidRequestError",
@@ -10,6 +12,17 @@ export class InvalidRequestError extends Schema.TaggedErrorClass<InvalidRequestE
   },
   { httpApiStatus: 400 },
 ) {}
+
+// Legacy adoption currently rejects unsupported shapes as defects. Translate only
+// that domain error; raw transcript content and unrelated defects stay out of 400s.
+export const mapUnsupportedHistory = Effect.catchDefect((error) => {
+  if (!(error instanceof SessionLegacyHistory.ImportError)) return Effect.die(error)
+  return new InvalidRequestError({
+    message: "This session's legacy history cannot be adopted. Its source history has been preserved.",
+    kind: "unsupported-history",
+    field: "sessionID",
+  })
+})
 
 export class UnauthorizedError extends Schema.TaggedErrorClass<UnauthorizedError>()(
   "UnauthorizedError",
@@ -31,6 +44,16 @@ export class ServiceUnavailableError extends Schema.TaggedErrorClass<ServiceUnav
   {
     message: Schema.String,
     service: Schema.optional(Schema.String),
+  },
+  { httpApiStatus: 503 },
+) {}
+
+export class WorkReviewUnavailableError extends Schema.TaggedErrorClass<WorkReviewUnavailableError>()(
+  "WorkReviewUnavailableError",
+  {
+    message: Schema.String,
+    code: Schema.Literals(["storage", "notification"]),
+    committedRevision: optionalOmitUndefined(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
   },
   { httpApiStatus: 503 },
 ) {}

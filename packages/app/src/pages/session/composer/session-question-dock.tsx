@@ -1,19 +1,35 @@
-import { For, Show, createMemo, onCleanup, onMount, type Component } from "solid-js"
+import { For, Show, createEffect, createMemo, onCleanup, onMount, untrack, type Component } from "solid-js"
 import { createStore } from "solid-js/store"
-import { useMutation } from "@tanstack/solid-query"
+import { useIsMutating, useMutation, useQueryClient } from "@tanstack/solid-query"
 import { Button } from "@aigcfroge/ui/button"
 import { DockPrompt } from "@aigcfroge/session-ui/dock-prompt"
 import { Icon } from "@aigcfroge/ui/icon"
 import { showToast } from "@/utils/toast"
-import type { QuestionAnswer, QuestionRequest } from "@aigcfroge/sdk/v2"
+import type { QuestionV2Answer, QuestionV2Request } from "@aigcfroge/sdk/v2"
 import { useLanguage } from "@/context/language"
-import { useSDK } from "@/context/sdk"
+import { useSDK, type DirectorySDK } from "@/context/sdk"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useServerSDK } from "@/context/server-sdk"
 import { ScopedKey } from "@/utils/server-scope"
+import { Ime } from "@/utils/ime"
 
-const cache = new Map<string, { tab: number; answers: QuestionAnswer[]; custom: string[]; customOn: boolean[] }>()
+const cache = new Map<string, { tab: number; answers: QuestionV2Answer[]; custom: string[]; customOn: boolean[] }>()
+
+type QuestionReplyInput = {
+  readonly key: ScopedKey
+  readonly client: DirectorySDK["client"]
+  readonly requestID: string
+  readonly sessionID: string
+  readonly answers: QuestionV2Answer[]
+}
+
+type QuestionRejectInput = {
+  readonly key: ScopedKey
+  readonly client: DirectorySDK["client"]
+  readonly requestID: string
+  readonly sessionID: string
+}
 
 function Mark(props: { multi: boolean; picked: boolean; onClick?: (event: MouseEvent) => void }) {
   return (
@@ -60,13 +76,20 @@ function Option(props: {
   )
 }
 
-export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionID?: string; onSubmit: () => void }> = (
-  props,
-) => {
+export const SessionQuestionDock: Component<{
+  request: QuestionV2Request
+  requestKey?: ScopedKey
+  focusRequest?: number
+  sessionID?: string
+  onSubmit: () => void
+}> = (props) => {
   const sdk = useSDK()
   const serverSDK = useServerSDK()
   const language = useLanguage()
-  const cacheKey = ScopedKey.from(serverSDK().scope, props.request.id)
+  const queryClient = useQueryClient()
+  const cacheKey =
+    props.requestKey ??
+    ScopedKey.from(serverSDK().scope, sdk().directory, props.request.sessionID, "question", props.request.id)
   const isChildRequest = createMemo(() => props.sessionID !== undefined && props.request.sessionID !== props.sessionID)
 
   const questions = createMemo(() => props.request.questions)
@@ -75,11 +98,12 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
   const cached = cache.get(cacheKey)
   const [store, setStore] = createStore({
     tab: cached?.tab ?? 0,
-    answers: cached?.answers ?? ([] as QuestionAnswer[]),
+    answers: cached?.answers ?? ([] as QuestionV2Answer[]),
     custom: cached?.custom ?? ([] as string[]),
     customOn: cached?.customOn ?? ([] as boolean[]),
     editing: false,
     focus: 0,
+    composing: false,
   })
 
   let root: HTMLDivElement | undefined
@@ -166,6 +190,7 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
     focusFrame = requestAnimationFrame(() => {
       focusFrame = undefined
       const el = next === options().length ? customRef : optsRef[next]
+      if (!el?.isConnected) return
       el?.focus()
     })
   }
@@ -211,47 +236,83 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
     showToast({ title: language.t("common.requestFailed"), description: message })
   }
 
+  const mutationKey = createMemo(() => ["session-question-response", cacheKey] as const)
+  const pending = useIsMutating(() => ({ mutationKey: mutationKey(), exact: true }))
+
   const replyMutation = useMutation(() => ({
-    mutationFn: (answers: QuestionAnswer[]) => sdk().client.question.reply({ requestID: props.request.id, answers }),
+    mutationKey: mutationKey(),
+    mutationFn: (input: QuestionReplyInput) =>
+      input.client.v2.session.question.reply(
+        {
+          sessionID: input.sessionID,
+          requestID: input.requestID,
+          questionV2Reply: { answers: input.answers },
+        },
+        { throwOnError: true },
+      ),
     onMutate: () => {
       props.onSubmit()
     },
-    onSuccess: () => {
+    onSuccess: (_data, input) => {
       replied = true
-      cache.delete(cacheKey)
+      cache.delete(input.key)
     },
     onError: fail,
   }))
 
   const rejectMutation = useMutation(() => ({
-    mutationFn: () => sdk().client.question.reject({ requestID: props.request.id }),
+    mutationKey: mutationKey(),
+    mutationFn: (input: QuestionRejectInput) =>
+      input.client.v2.session.question.reject(
+        { sessionID: input.sessionID, requestID: input.requestID },
+        { throwOnError: true },
+      ),
     onMutate: () => {
       props.onSubmit()
     },
-    onSuccess: () => {
+    onSuccess: (_data, input) => {
       replied = true
-      cache.delete(cacheKey)
+      cache.delete(input.key)
     },
     onError: fail,
   }))
 
-  const sending = createMemo(() => replyMutation.isPending || rejectMutation.isPending)
+  const sending = createMemo(() => pending() > 0)
 
-  const reply = async (answers: QuestionAnswer[]) => {
+  const reply = (answers: QuestionV2Answer[]) => {
     if (sending()) return
-    await replyMutation.mutateAsync(answers)
+    if (queryClient.isMutating({ mutationKey: mutationKey(), exact: true })) return
+    replyMutation.mutate({
+      key: cacheKey,
+      client: sdk().client,
+      sessionID: props.request.sessionID,
+      requestID: props.request.id,
+      answers,
+    })
   }
 
-  const reject = async () => {
+  const reject = () => {
     if (sending()) return
-    await rejectMutation.mutateAsync()
+    if (queryClient.isMutating({ mutationKey: mutationKey(), exact: true })) return
+    rejectMutation.mutate({
+      key: cacheKey,
+      client: sdk().client,
+      sessionID: props.request.sessionID,
+      requestID: props.request.id,
+    })
   }
-
-  const submit = () => void reply(questions().map((_, i) => store.answers[i] ?? []))
 
   const answered = (i: number) => {
     if ((store.answers[i]?.length ?? 0) > 0) return true
     return store.customOn[i] && (store.custom[i] ?? "").trim().length > 0
+  }
+
+  const canSubmit = () => questions().length > 0 && questions().every((_, i) => answered(i))
+  const canAdvance = () => (last() ? canSubmit() : answered(store.tab))
+
+  const submit = () => {
+    if (sending() || !canSubmit()) return
+    reply(questions().map((_, i) => store.answers[i] ?? []))
   }
 
   const picked = (answer: string) => store.answers[store.tab]?.includes(answer) ?? false
@@ -309,11 +370,14 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
   }
 
   const nav = (event: KeyboardEvent) => {
+    if (Ime.isImeComposing(event, store.composing)) return
     if (event.defaultPrevented) return
 
     if (event.key === "Escape") {
+      if (!store.editing) return
       event.preventDefault()
-      void reject()
+      setStore("editing", false)
+      focus(options().length)
       return
     }
 
@@ -384,11 +448,23 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
   }
 
   const focusCustom = (el: HTMLTextAreaElement) => {
-    setTimeout(() => {
+    if (focusFrame !== undefined) cancelAnimationFrame(focusFrame)
+    focusFrame = requestAnimationFrame(() => {
+      focusFrame = undefined
+      if (!el.isConnected) return
       el.focus()
       resizeInput(el)
-    }, 0)
+    })
   }
+
+  createEffect(() => {
+    if (!props.focusRequest) return
+    untrack(() => {
+      const input = root?.querySelector<HTMLTextAreaElement>('[data-slot="question-custom-input"]')
+      if (store.editing && input) return focusCustom(input)
+      focus(pickFocus())
+    })
+  })
 
   const toggleCustomMark = (event: MouseEvent) => {
     event.preventDefault()
@@ -399,8 +475,9 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
   const next = () => {
     if (sending()) return
     if (store.editing) commitCustom()
+    if (!canAdvance()) return
 
-    if (store.tab >= total() - 1) {
+    if (last()) {
       submit()
       return
     }
@@ -454,7 +531,7 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
       }
       footer={
         <>
-          <Button variant="ghost" size="large" disabled={sending()} onClick={reject} aria-keyshortcuts="Escape">
+          <Button variant="ghost" size="large" disabled={sending()} onClick={reject}>
             {language.t("ui.common.dismiss")}
           </Button>
           <div data-slot="question-footer-actions">
@@ -466,7 +543,7 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
             <Button
               variant={last() ? "primary" : "secondary"}
               size="large"
-              disabled={sending()}
+              disabled={sending() || !canAdvance()}
               onClick={next}
               aria-keyshortcuts="Meta+Enter Control+Enter"
             >
@@ -562,17 +639,15 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; sessionI
                 rows={1}
                 disabled={sending()}
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    e.preventDefault()
-                    setStore("editing", false)
-                    focus(options().length)
-                    return
-                  }
+                  // AI-TDD-S02-R05: IME candidate confirmation must not commit this answer.
+                  if (Ime.isImeComposing(e, store.composing)) return
                   if ((e.metaKey || e.ctrlKey) && !e.altKey) return
                   if (e.key !== "Enter" || e.shiftKey) return
                   e.preventDefault()
                   commitCustom()
                 }}
+                onCompositionStart={() => setStore("composing", true)}
+                onCompositionEnd={() => setStore("composing", false)}
                 onInput={(e) => {
                   customUpdate(e.currentTarget.value)
                   resizeInput(e.currentTarget)

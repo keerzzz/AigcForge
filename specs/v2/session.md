@@ -21,6 +21,8 @@ ADR-17 (Accepted for M0/M1 implementation) and the Custom PRD add one fixed `cus
 - Context Epoch remains the single source of truth for exact model-visible System Context, while Composition Snapshot preserves frozen asset references, versions, and allowlists;
 - Custom sessions are governed by a single V2-native runtime policy owner (no V1 fallback or scattered flag checks);
 - child Sessions and forks inherit the parent/source Custom Mode and the applicable Snapshot facts;
+- reusing a Custom Session ID adopts its existing identity under the runtime kill switch; it does not create a new Custom root or replace its frozen Snapshot;
+- generic HTTP creation checks the persisted adopted or parent identity against the client capability before any create write, even when the payload omits Mode; identity lookup does not import legacy history;
 - `task` tool execution and child Session creation enforce a dual-gate check against the Snapshot's authorized Agent allowlist;
 - profile or asset changes never rewrite a running Session; adopting new revisions requires a fork or new Session;
 - client capability negotiation via `x-aigcfroge-capabilities: product-mode-custom-v1`; unsupported old clients fail explicitly for `custom` with a typed error and never apply the historical Coding fallback;
@@ -73,6 +75,18 @@ SessionExecution.resume(sessionID)
 The local runner issues one explicit `llm.stream(request)` per provider turn, projects each complete local tool call durably before eagerly starting its structured child execution, awaits every started tool fiber after provider-stream closure, and reloads projected history once before continuation. Promoting any new user input resets the selected agent's configured provider-turn allowance; multiple steers promoted at one boundary reset it once. Tool settlement events carry the owning assistant message ID because provider-local call IDs may repeat across turns. Before assembling a provider request, the runner durably fails any local tool still projected as `running` from a previous process with `Tool execution interrupted`; abandoned side effects are never silently replayed.
 
 Projected hosted tools preserve call-side and settlement-side provider metadata separately so settlement and interruption recovery cannot erase continuation identifiers. Provider-native reasoning and provider metadata replay only while the historical assistant model matches the selected continuation model; after a model switch, visible reasoning text remains ordinary assistant text and provider-native metadata is omitted.
+
+An interrupted provider turn flushes partial content and records an assistant error with `type: "interrupted"` through `session.next.step.failed.1`. Provider failures remain `type: "unknown"`, even when their message text mentions interruption. Replay and client presentation preserve this classification; clients must not infer termination reasons from error text.
+
+## Legacy Assistant History Adoption
+
+Canonical reads and prompt admission may adopt a legacy Assistant transcript. Adoption preserves its source rows and message/tool identities, records the imported history once, and does not execute historical tools or charge historical usage again. Repeated reads and exact prompt retries must not duplicate the imported transcript.
+
+Adoption retains each legacy error's message when present, falling back to its error name only when it has no message. A legacy `MessageAbortedError` becomes a canonical `interrupted` error; other legacy errors remain `unknown` regardless of their text.
+
+The current compatibility boundary atomically rejects mixed V1/canonical conversation history, legacy per-prompt system instructions, compaction with retained `tail_start_id`, and unmaterialized remote/tool attachments. Rejection leaves both source history and existing canonical state unchanged and admits no new input. It must not guess a cross-source ordering, promote old instructions into permanent privileged context, truncate a retained tail, or fetch historical remote content using ambient credentials. Supporting these shapes requires the explicit contracts tracked in the coverage manifest.
+
+At the public HTTP boundary, `SessionLegacyHistory.ImportError` is returned as `InvalidRequestError` with status 400, `kind: "unsupported-history"`, and `field: "sessionID"`. Its message states that the source history was preserved and contains no transcript, remote URL or credential details. This applies to canonical Session/message reads and prompt admission, including the legacy `prompt_async` adapter when it enters the canonical runtime. Unrelated storage defects remain server errors. Raw V1 inspection and Session deletion remain available after a rejected adoption.
 
 ## Context Epochs
 
@@ -174,6 +188,10 @@ Status: `complete` is usable in the native V2 path, `partial` covers only part o
 | Prompt/reference expansion | Native synthetic expansion replay                                        | partial  | V2 replays synthetic messages but only the V1 compatibility path creates them.                                                         |
 
 Provider timeout, retry, and watchdog policy is intentionally deferred. The runner does not impose a universal provider-stream inactivity or absolute timeout. A future slice should design configurable policy around provider behavior, durable failure reporting, and local drain-chain release rather than hardcoding one default for every provider.
+
+A provider error after partial output follows the same terminal failure path as an error before output: flush partial fragments, persist the failed assistant step, and settle already-started tools without automatically repeating the provider turn. An absent error classification does not imply that retry is safe. Explicit resume reloads durable history, including partial text and completed tool results; exact prompt retry does not repeat a promoted input. Newly admitted steer or queue inputs retain their existing delivery semantics.
+
+For OpenAI Chat and compatible routes, successful transport EOF without `finish_reason` after content has started is an incomplete provider response, including when `[DONE]` was received. The protocol emits a non-retryable provider error rather than fabricating successful completion or executing accumulated tool inputs. Completion validation runs only after successful input exhaustion; transport failures, decode failures and consumer cancellation keep their original semantics.
 
 Inbox delivery is explicit:
 

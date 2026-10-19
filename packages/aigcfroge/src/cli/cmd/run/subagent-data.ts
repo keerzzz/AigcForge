@@ -1,4 +1,4 @@
-import type { Event, Message, Part, PermissionRequest, QuestionRequest, ToolPart } from "@aigcfroge/sdk/v2"
+import type { Event, Message, Part, PermissionRequest, QuestionV2Request, ToolPart } from "@aigcfroge/sdk/v2"
 import * as Locale from "@/util/locale"
 import {
   bootstrapSessionData,
@@ -47,7 +47,7 @@ export type BootstrapSubagentInput = {
   messages: SessionMessage[]
   children: Array<{ id: string; title?: string }>
   permissions: PermissionRequest[]
-  questions: QuestionRequest[]
+  questions: QuestionV2Request[]
 }
 
 function createDetail(sessionID: string): DetailState {
@@ -814,9 +814,9 @@ export function reduceSubagentData(input: {
     event.type === "message.part.delta" ||
     event.type === "permission.asked" ||
     event.type === "permission.replied" ||
-    event.type === "question.asked" ||
-    event.type === "question.replied" ||
-    event.type === "question.rejected" ||
+    event.type === "question.v2.asked" ||
+    event.type === "question.v2.replied" ||
+    event.type === "question.v2.rejected" ||
     event.type === "session.error" ||
     event.type === "session.status"
       ? event.properties.sessionID

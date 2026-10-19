@@ -1,10 +1,16 @@
 import { expect, test, type Page } from "@playwright/test"
+import type { SessionTaskInfo } from "@aigcfroge/sdk/v2"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
+import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 
 // English-label spec — pin the UI language so the zh projects stay green (see utils/locale.ts).
-test.beforeEach(({ page }) => pinEnglishUI(page))
+// Presentation/a11y-tagged cases keep their project locale so the matrix measures real wiring.
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.tags.includes("@presentation") || testInfo.tags.includes("@a11y")) return
+  await pinEnglishUI(page)
+})
 
 const directory = "C:/Aigcfroge/TodoProgressRegression"
 const projectID = "proj_todo_progress_regression"
@@ -47,7 +53,8 @@ const taskA = {
   outputDigest: "ses_child",
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
-}
+  revision: 1,
+} satisfies SessionTaskInfo
 const taskB = {
   id: "tsk_mock_b",
   content: "review",
@@ -56,14 +63,11 @@ const taskB = {
   sessionID,
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
-}
-const todoProjection = [
-  { content: "audit", status: "completed", priority: "high" },
-  { content: "review", status: "pending", priority: "medium" },
-]
+  revision: 1,
+} satisfies SessionTaskInfo
 
 async function mockServer(page: Page, events: EventPayload[], config?: Partial<MockServerConfig>) {
-  await mockAigcfrogeServer(page, {
+  const server: MockServerConfig = {
     directory,
     project: project(),
     provider: provider(),
@@ -71,14 +75,37 @@ async function mockServer(page: Page, events: EventPayload[], config?: Partial<M
     pageMessages: () => ({ items: [userMessage] }),
     // Always re-serve a busy session status (idempotent) so the progress
     // container renders again after a reload, then drain the test's queue.
-    events: () => [
-      { directory, payload: { type: "session.status", properties: { sessionID, status: { type: "busy" } } } },
-      ...events.splice(0, 1),
-    ],
+    events: () => {
+      const pending = events.splice(0, 1)
+      pending.forEach((event) => {
+        if (event.payload.type !== "task.updated") return
+        const properties = event.payload.properties
+        if (!properties || typeof properties !== "object" || !("tasks" in properties)) {
+          throw new Error("Task fixture event has no authoritative list")
+        }
+        if (!Array.isArray(properties.tasks)) throw new Error("Task fixture list must be an array")
+        const tasks: unknown[] = properties.tasks
+        if (
+          !tasks.every(
+            (task): task is NonNullable<MockServerConfig["tasks"]>[number] =>
+              typeof task === "object" && task !== null && "id" in task && typeof task.id === "string",
+          )
+        )
+          throw new Error("Task fixture row must have an id")
+        // A normal backend publication follows a committed list. Keep the
+        // existing mock GET authoritative before delivering its invalidation.
+        server.tasks = tasks
+      })
+      return [
+        { directory, payload: { type: "session.status", properties: { sessionID, status: { type: "busy" } } } },
+        ...pending,
+      ]
+    },
     eventRetry: 16,
     tasks: [taskA, taskB],
     ...config,
-  })
+  }
+  await mockAigcfrogeServer(page, server)
 }
 
 test.describe("regression: session todo progress pulse line", () => {
@@ -121,6 +148,7 @@ test.describe("regression: session todo progress pulse line", () => {
     const body = await response.json()
     expect(body.id).toBe("tsk_mock_b")
     expect(body.status).toBe("completed")
+    expect(response.request().postDataJSON()).toMatchObject({ status: "completed", expectedRevision: 1 })
 
     // The republished task.updated reconciles the fold-over to 2/2.
     events.push({
@@ -133,11 +161,14 @@ test.describe("regression: session todo progress pulse line", () => {
     await expect(page.locator('[data-component="session-todo-progress-stats"]')).toHaveText("2/2", {
       timeout: 10_000,
     })
+    await expect(panel).toBeVisible()
+    await page.locator('[data-component="prompt-input"]').click()
+    await expect(panel).toHaveCount(0)
   })
 
   test("restores nodes and stats after a reload via the task pull", async ({ page }) => {
     const events: EventPayload[] = []
-    await mockServer(page, events, { todoList: todoProjection })
+    await mockServer(page, events)
     await configurePage(page)
 
     events.push({ directory, payload: { type: "task.updated", properties: { sessionID, tasks: [taskA, taskB] } } })
@@ -189,27 +220,7 @@ test.describe("regression: session todo progress pulse line", () => {
     const body = await response.json()
     expect(body.id).toBe("tsk_mock_b")
     expect(body.status).toBe("completed")
-  })
-
-  test("renders the id-less V1 todo projection read-only", async ({ page }) => {
-    const events: EventPayload[] = []
-    // No tasks served by GET /session/:id/task and no task.updated event:
-    // the component falls back to the three-field todo projection (V1 runtime).
-    await mockServer(page, events, { tasks: [], todoList: todoProjection })
-    await configurePage(page)
-
-    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
-    await expectSessionTitle(page, title)
-
-    await expect(page.locator('[data-component="session-todo-progress-node"]')).toHaveCount(2, { timeout: 15_000 })
-    await page.locator('[data-component="session-todo-progress-stats"]').click()
-    const panel = page.locator('[data-component="session-todo-progress-panel"]')
-    await expect(panel).toBeVisible()
-    // Id-less entries are read-only: PATCHing them would re-mint ids and wipe
-    // the persisted outputDigest, so every checkbox is disabled. Kobalte marks
-    // disabled state with the data-disabled attribute on the control element.
-    await expect(panel.locator('[data-slot="checkbox-v2-control"]').first()).toHaveAttribute("data-disabled", "")
-    await expect(panel.locator('[data-slot="checkbox-v2-control"]').nth(1)).toHaveAttribute("data-disabled", "")
+    expect(response.request().postDataJSON()).toMatchObject({ status: "completed", expectedRevision: 1 })
   })
 })
 
@@ -379,7 +390,7 @@ test.describe("regression: session todo progress M7 unified track", () => {
         properties: {
           sessionID,
           tasks: [
-            { ...taskA, status: "scheduled" },
+            { ...taskA, status: "scheduled", scheduledAt: 1900000000000, nextRun: 1900000000000 },
             { ...taskB, status: "failed" },
           ],
         },
@@ -425,7 +436,7 @@ test.describe("regression: session todo progress M7 unified track", () => {
     expect(Math.abs(fillBox!.x + fillBox!.width - (nodeBox!.x + nodeBox!.width / 2))).toBeLessThan(1)
   })
 
-  test("stops progress animations when reduced motion is requested", async ({ page }) => {
+  test("stops progress animations when reduced motion is requested", { tag: "@a11y" }, async ({ page }) => {
     const events: EventPayload[] = []
     await page.emulateMedia({ reducedMotion: "reduce" })
     await mockServer(page, events, { tasks: [] })
@@ -438,6 +449,59 @@ test.describe("regression: session todo progress M7 unified track", () => {
     await expect(pulse).toHaveCSS("animation-name", "none")
   })
 })
+
+test(
+  "R04/presentation: the task progress track stays readable and keyboard operable at dark, Chinese and 390px",
+  { tag: "@presentation" },
+  async ({ page }, testInfo) => {
+    const expected = PRESENTATION_EXPECTED[testInfo.project.name]
+    if (!expected) throw new Error(`unexpected project ${testInfo.project.name}`)
+    const narrow = testInfo.project.name === "chromium-narrow"
+    const events: EventPayload[] = []
+    await page.setViewportSize(expected.viewport)
+    await mockServer(page, events)
+    events.push({
+      directory,
+      payload: { type: "task.updated", properties: { sessionID, tasks: [taskA, taskB] } },
+    })
+    await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+    await expectSessionTitle(page, title)
+    await expect(page.locator("html")).toHaveAttribute("data-color-scheme", expected.colorScheme)
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(expected.lang)
+    if (narrow) expect(page.viewportSize()).toEqual({ width: 390, height: 844 })
+
+    const track = page.locator('[data-component="session-todo-progress"]')
+    await expect(track).toBeVisible({ timeout: 15_000 })
+    const label = expected.lang === "zh" ? "已完成 1 个任务（共 2 个）" : "1 of 2 todos completed"
+    await expect(track).toHaveAttribute("aria-label", label)
+    const box = await track.boundingBox()
+    if (!box) throw new Error("the todo progress track must have a box")
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+
+    const stats = page.locator('[data-component="session-todo-progress-stats"]')
+    await expect(stats).toHaveText("1/2")
+    let focused = false
+    for (let index = 0; index < 100 && !focused; index += 1) {
+      await page.keyboard.press("Tab")
+      focused = await stats.evaluate((node) => node === document.activeElement)
+    }
+    expect(focused, "the task stats control must be keyboard reachable").toBe(true)
+    await expect(stats).toBeFocused()
+    const focus = await stats.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return { visible: node.matches(":focus-visible"), outline: style.outlineStyle, ring: style.boxShadow }
+    })
+    expect(focus.visible).toBe(true)
+    expect(focus.outline !== "none" || focus.ring !== "none").toBe(true)
+
+    await page.keyboard.press("Enter")
+    await expect(stats).toHaveAttribute("aria-expanded", "true")
+    const panel = page.locator('[data-component="session-todo-progress-panel"]')
+    await expect(panel).toBeVisible()
+    await expect(panel.getByRole("checkbox")).toHaveCount(2)
+  },
+)
 
 test.describe("regression: work resume ledger (M1.5)", () => {
   // An interrupted Work run: step 1 completed (with digest), step 2 in_progress.

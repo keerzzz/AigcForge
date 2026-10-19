@@ -326,6 +326,33 @@ describe("PermissionEffective R6 整改（custom unattended 天花板）", () =>
 })
 
 describe("PermissionEffective attended custom 重写为 ask（Phase D §2.6）", () => {
+  test("Custom meta retains approval for declared tools after its default deny", () => {
+    const config = input({ mode: "custom", attended: true })
+    const rules = v2(config, metaBase)
+    const legacy = PermissionEffective.effectiveV1(config, metaBaseV1)
+    for (const action of ["task", "question", "propose_prompt_asset"]) {
+      expect(PermissionEffective.evaluate(rules, action, "*")).toBe("ask")
+      expect(PermissionEffective.evaluateV1(legacy, action, "*")).toBe("ask")
+    }
+    expect(PermissionEffective.evaluate(rules, "read", "src/index.ts")).toBe("allow")
+    expect(PermissionEffective.evaluate(rules, "some_future_tool", "*")).toBe("deny")
+    expect(PermissionEffective.evaluate(v2({ ...config, attended: false }, metaBase), "task", "*")).toBe("deny")
+  })
+
+  test("Custom rewritten approvals preserve explicit and trailing global denies", () => {
+    const config = input({ mode: "custom", attended: true, savedApprovals: [{ action: "task", resource: "blocked" }] })
+    const rules = v2(config, [...metaBase, { action: "task", resource: "blocked", effect: "deny" }])
+    expect(PermissionEffective.evaluate(rules, "task", "blocked")).toBe("deny")
+    expect(PermissionEffective.evaluate(rules, "task", "allowed")).toBe("ask")
+    expect(
+      PermissionEffective.evaluate(
+        v2(input({ mode: "custom", attended: true }), [...metaBase, { action: "*", resource: "*", effect: "deny" }]),
+        "task",
+        "*",
+      ),
+    ).toBe("deny")
+  })
+
   // 资产作者声明的全量 allow（攻击面输入）。
   const allowAllAsset: Permission.Ruleset = [
     { action: "bash", resource: "*", effect: "allow" },

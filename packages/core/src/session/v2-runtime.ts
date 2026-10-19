@@ -19,7 +19,7 @@ const sessionExecutionLive = SessionExecutionLocal.layer.pipe(
 )
 
 export const v2RuntimeLayer = SessionV2.layer.pipe(
-  Layer.provide(sessionExecutionLive),
+  Layer.provideMerge(sessionExecutionLive),
   Layer.provide(SessionStore.defaultLayer),
   Layer.provide(ProjectV2.defaultLayer),
   Layer.provide(Database.defaultLayer),

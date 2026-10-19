@@ -5,6 +5,7 @@ import { ModelV2 } from "../model"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { WorkContract } from "@aigcfroge/schema/work-contract"
+import { WorkReview } from "@aigcfroge/schema/work-review"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
 import { ProjectV2 } from "../project"
 import { ProviderV2 } from "../provider"
@@ -16,6 +17,7 @@ import { SessionTable } from "./sql"
 
 const decodePresetCategory = Schema.decodeUnknownOption(WorkPreset.Category)
 const decodeWorkContract = Schema.decodeUnknownOption(WorkContract.Snapshot)
+const decodeWorkReview = Schema.decodeUnknownOption(WorkReview.Review)
 
 export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.Info {
   return SessionSchema.Info.make({
@@ -23,6 +25,7 @@ export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.In
     mode: Schema.decodeUnknownSync(ProductMode.ID)(row.mode ?? ProductMode.Default),
     presetCategoryId: Option.getOrUndefined(decodePresetCategory(row.metadata?.presetCategoryId)),
     workContract: Option.getOrUndefined(decodeWorkContract(row.metadata?.workContract)),
+    workReview: Option.getOrUndefined(decodeWorkReview(row.metadata?.workReview)),
     projectID: ProjectV2.ID.make(row.project_id),
     title: row.title,
     slug: row.slug,

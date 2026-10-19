@@ -73,3 +73,12 @@ describe("SessionV2.create presetCategoryId passthrough", () => {
     }),
   )
 })
+
+it.effect("AI-TDD-S06-R01: a production Work create persists its ad-hoc contract", () =>
+  Effect.gen(function* () {
+    const sessions = yield* SessionV2.Service
+    const created = yield* sessions.create({ location, mode: "work" })
+    expect(created.workContract).toEqual({ source: "ad-hoc", contractVersion: 1 })
+    expect((yield* sessions.get(created.id)).workContract).toEqual(created.workContract)
+  }),
+)

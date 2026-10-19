@@ -58,7 +58,9 @@ export interface ProtocolStream<Frame, Event, State> {
   readonly step: (state: State, event: Event) => Effect.Effect<readonly [State, ReadonlyArray<LLMEvent>], LLMError>
   /** Optional request-completion signal for transports that do not end naturally. */
   readonly terminal?: (event: Event) => boolean
-  /** Optional flush emitted when the framed stream ends. */
+  /** Optional validation after successful input completion, before `onHalt`; skipped on failure or cancellation. */
+  readonly onEnd?: (state: State) => ReadonlyArray<LLMEvent>
+  /** Optional flush emitted when the framed stream halts, including upstream failures. */
   readonly onHalt?: (state: State) => ReadonlyArray<LLMEvent>
 }
 
@@ -68,7 +70,7 @@ export interface ProtocolStream<Frame, Event, State> {
  * - `body.schema` infers the provider-native request body shape.
  * - `body.from` ties the common `LLMRequest` to the provider body.
  * - `stream.event` infers the decoded streaming event and the wire frame.
- * - `stream.initial`, `stream.step`, and `stream.onHalt` infer the parser state.
+ * - `stream.initial`, `stream.step`, `stream.onEnd`, and `stream.onHalt` infer the parser state.
  *
  * Provider implementations should usually call `Protocol.make({ ... })`
  * without explicit type arguments; the schemas and parser functions are the

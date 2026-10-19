@@ -17,8 +17,8 @@ export const Info = SessionTaskSchema.Info
 export type Info = typeof Info.Type
 
 /**
- * Write shape accepted by {@link SessionTask.update}/{@link SessionTask.append}/
- * {@link SessionTask.replaceLegacy}. `id` is optional: absent tasks are minted a
+ * Write shape accepted by {@link SessionTask.update}/{@link SessionTask.append}.
+ * `id` is optional: absent tasks are minted a
  * stable `tsk_` id. M0 persists id/content/status/priority/parentID/sessionID;
  * M2 adds `output_digest`, written through {@link SessionTask.patch}.
  */
@@ -80,16 +80,6 @@ export class TaskWriteError extends Schema.TaggedErrorClass<TaskWriteError>()("S
 }
 
 /**
- * Compatibility projection of a task into the legacy three-field todo shape so
- * existing App/TUI `todo.updated` consumers keep working against the task source.
- */
-export class TodoProjection extends Schema.Class<TodoProjection>("SessionTask.TodoProjection")({
-  content: Schema.String,
-  status: Schema.String,
-  priority: Schema.String,
-}) {}
-
-/**
  * Runtime execution phase for a task's current provider turn (P2). Ephemeral -
  * never persisted on the task row; carried only by `task.progress` events so the
  * UI can show a determinate pulse when a tool reports `current/total`.
@@ -115,14 +105,6 @@ export const Event = {
     type: "work.step_resumed",
     schema: {
       sessionID: SessionSchema.ID,
-    },
-  }),
-  /** Legacy `todo.updated` projection emitted alongside every task write. */
-  TodoUpdated: EventV2.define({
-    type: "todo.updated",
-    schema: {
-      sessionID: SessionSchema.ID,
-      todos: Schema.Array(TodoProjection),
     },
   }),
   /**
@@ -171,19 +153,6 @@ export interface Interface {
   readonly append: (input: {
     readonly sessionID: SessionSchema.ID
     readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
-  }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
-  /**
-   * Legacy todowrite bridge: reconcile by position, reusing existing ids so a
-   * delegation writeback to a linked task survives a later full-list replace.
-   * New positions mint ids, trailing rows are removed, all in one transaction.
-   * `expectedRevision` is the max revision the caller observed across the
-   * session's tasks (see {@link Interface.update}); a mismatch means another
-   * write path landed in between and the stale replace fails `stale_revision`.
-   */
-  readonly replaceLegacy: (input: {
-    readonly sessionID: SessionSchema.ID
-    readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
-    readonly expectedRevision?: number
   }) => Effect.Effect<ReadonlyArray<Info>, TaskWriteError>
   /**
    * Target a single task by id and update its status (delegation writeback).
@@ -376,10 +345,9 @@ const reachableCycleGraph = (
  * has no future run, `"trigger"` when a `scheduled` status carries no real
  * trigger (an enabled recurrence with a future cron match, or a one-shot
  * scheduledAt). `undefined` means the schedule is live. The effective schedule
- * applies the preserve-omitted rule (input ?? prior), so a reconcile / legacy
- * replace that omits schedule fields against a schedule-bearing row stays
- * valid. Shared by update / append / replaceLegacy / patch so no write path can
- * persist a dead job.
+ * applies the preserve-omitted rule (input ?? prior), so a reconcile that
+ * omits schedule fields against a schedule-bearing row stays valid. Shared by
+ * update / append / patch so no write path can persist a dead job.
  */
 const scheduleFailureKind = (
   task: { status: string; recurrence?: SessionTaskSchema.TaskRecurrence | null; scheduledAt?: number | null },
@@ -423,16 +391,8 @@ export const layer = Layer.effect(
         .all()
         .pipe(Effect.orDie)
 
-    const publishBoth = (sessionID: SessionSchema.ID, tasks: ReadonlyArray<Info>) =>
-      Effect.gen(function* () {
-        yield* events.publish(Event.Updated, { sessionID, tasks })
-        yield* events.publish(Event.TodoUpdated, {
-          sessionID,
-          todos: tasks.map(
-            (task) => new TodoProjection({ content: task.content, status: task.status, priority: task.priority }),
-          ),
-        })
-      })
+    const publish = (sessionID: SessionSchema.ID, tasks: ReadonlyArray<Info>) =>
+      events.publish(Event.Updated, { sessionID, tasks })
 
     const update = Effect.fn("SessionTask.update")(
       (input: {
@@ -661,7 +621,7 @@ export const layer = Layer.effect(
                 updatedAt: now,
               })
             })
-            yield* publishBoth(input.sessionID, resolved)
+            yield* publish(input.sessionID, resolved)
             return resolved
           }),
         ),
@@ -824,111 +784,7 @@ export const layer = Layer.effect(
             if (result.type === "invalid") {
               return yield* Effect.fail(result.error)
             }
-            yield* publishBoth(input.sessionID, result.resolved)
-            return result.resolved
-          }),
-        ),
-    )
-
-    const replaceLegacy = Effect.fn("SessionTask.replaceLegacy")(
-      (input: {
-        readonly sessionID: SessionSchema.ID
-        readonly tasks: ReadonlyArray<typeof WriteInfo.Type>
-        readonly expectedRevision?: number
-      }) =>
-        writeLock.withPermits(1)(
-          Effect.gen(function* () {
-            const now = (yield* DateTime.nowAsDate).getTime()
-            const result = yield* db
-              .transaction((tx) =>
-                Effect.gen(function* () {
-                  const existing = yield* tx
-                    .select()
-                    .from(TaskTable)
-                    .where(eq(TaskTable.session_id, input.sessionID))
-                    .orderBy(asc(TaskTable.position))
-                    .all()
-                    .pipe(Effect.orDie)
-                  // Full-list optimistic-concurrency guard (same semantics as
-                  // update): the caller's expectedRevision is the max revision they
-                  // observed; a higher current max means another write path landed
-                  // between their read and this replace, so the stale plan is
-                  // rejected before any write (the trailing-delete below would
-                  // otherwise silently drop the other path's rows).
-                  if (input.expectedRevision !== undefined) {
-                    const maxRevision = existing.reduce((max, row) => Math.max(max, row.revision), 0)
-                    if (maxRevision !== input.expectedRevision) {
-                      return {
-                        type: "invalid" as const,
-                        error: new TaskWriteError({ sessionID: input.sessionID, reason: "stale_revision" }),
-                      }
-                    }
-                  }
-                  // Dead-job guard (re-review M-1): the legacy TodoWrite bridge can
-                  // carry `status: "scheduled"` with no trigger — reject instead of
-                  // persisting a job the daemon's arm scan can never pick up.
-                  for (const [index, task] of input.tasks.entries()) {
-                    const dead = scheduleFailureKind(task, existing[index], now)
-                    if (dead) {
-                      return {
-                        type: "invalid" as const,
-                        error: new TaskWriteError({
-                          sessionID: input.sessionID,
-                          id: task.id ?? existing[index]?.id,
-                          reason: "invalid_schedule",
-                          schedule: dead,
-                        }),
-                      }
-                    }
-                  }
-                  for (const [index, task] of input.tasks.entries()) {
-                    const prior = existing[index]
-                    const id = prior?.id ?? Identifier.ascending("task")
-                    // Preserve-omitted is input-first (same rule as update and
-                    // hasDeadSchedule): an omitted field keeps the existing row's
-                    // value, an explicit one wins.
-                    const columns = {
-                      content: task.content,
-                      status: task.status,
-                      priority: task.priority,
-                      parent_id: task.parentID ?? prior?.parent_id ?? null,
-                      agent_id: task.agentID ?? prior?.agent_id ?? null,
-                      scheduled_at: task.scheduledAt ?? prior?.scheduled_at ?? null,
-                      recurrence: task.recurrence ?? prior?.recurrence ?? null,
-                      spawned_from: task.spawnedFrom ?? prior?.spawned_from ?? null,
-                      depends_on: task.dependsOn ?? prior?.depends_on ?? null,
-                      revision: prior ? prior.revision + 1 : 1,
-                      position: index,
-                      time_updated: now,
-                    }
-                    if (prior) {
-                      yield* tx.update(TaskTable).set(columns).where(eq(TaskTable.id, id)).run().pipe(Effect.orDie)
-                    } else {
-                      yield* tx
-                        .insert(TaskTable)
-                        .values({ id, session_id: input.sessionID, ...columns, time_created: now })
-                        .run()
-                        .pipe(Effect.orDie)
-                    }
-                  }
-                  for (const row of existing.slice(input.tasks.length)) {
-                    yield* tx.delete(TaskTable).where(eq(TaskTable.id, row.id)).run().pipe(Effect.orDie)
-                  }
-                  const full = yield* tx
-                    .select()
-                    .from(TaskTable)
-                    .where(eq(TaskTable.session_id, input.sessionID))
-                    .orderBy(asc(TaskTable.position))
-                    .all()
-                    .pipe(Effect.orDie)
-                  return { type: "ok" as const, resolved: full.map((row) => toInfo(row, now)) }
-                }),
-              )
-              .pipe(Effect.orDie)
-            if (result.type === "invalid") {
-              return yield* Effect.fail(result.error)
-            }
-            yield* publishBoth(input.sessionID, result.resolved)
+            yield* publish(input.sessionID, result.resolved)
             return result.resolved
           }),
         ),
@@ -996,7 +852,7 @@ export const layer = Layer.effect(
             // The event re-reads the table and maps rows to Info, so the patched
             // digest rides the payload (DB and event payload stay in agreement).
             const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
-            yield* publishBoth(input.sessionID, full)
+            yield* publish(input.sessionID, full)
             // The row was re-read after the update set time_updated = now, so toInfo
             // already carries updatedAt = now — no post-hoc override needed.
             return toInfo(row, now)
@@ -1008,7 +864,7 @@ export const layer = Layer.effect(
       writeLock.withPermits(1)(
         Effect.gen(function* () {
           yield* db.delete(TaskTable).where(eq(TaskTable.session_id, sessionID)).run().pipe(Effect.orDie)
-          yield* publishBoth(sessionID, [])
+          yield* publish(sessionID, [])
         }),
       ),
     )
@@ -1023,7 +879,7 @@ export const layer = Layer.effect(
             if (!row) return undefined
             yield* db.delete(TaskTable).where(scoped).run().pipe(Effect.orDie)
             const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
-            yield* publishBoth(input.sessionID, full)
+            yield* publish(input.sessionID, full)
             return toInfo(row, now)
           }),
         ),
@@ -1060,7 +916,7 @@ export const layer = Layer.effect(
             const row = yield* db.select().from(TaskTable).where(scoped).get().pipe(Effect.orDie)
             if (!row) return undefined
             const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
-            yield* publishBoth(input.sessionID, full)
+            yield* publish(input.sessionID, full)
             return toInfo(row, now)
           }),
         ),
@@ -1121,7 +977,7 @@ export const layer = Layer.effect(
               )
               .pipe(Effect.orDie)
             const full = yield* read(input.sessionID).pipe(Effect.map((rows) => rows.map((item) => toInfo(item, now))))
-            yield* publishBoth(input.sessionID, full)
+            yield* publish(input.sessionID, full)
             return full
           }),
         ),
@@ -1159,7 +1015,6 @@ export const layer = Layer.effect(
     return Service.of({
       update,
       append,
-      replaceLegacy,
       patch,
       get,
       delete: remove,

@@ -1,32 +1,42 @@
-import { onCleanup } from "solid-js"
+import { createRoot, getOwner, onCleanup } from "solid-js"
 
 export function createRefCountMap<T>(
   create: (key: string) => T,
   remove?: (key: string) => void,
   identity: (key: string) => string = (key) => key,
 ) {
-  const items = new Map<string, T>()
-  const refCounts = new Map<string, number>()
+  const owner = getOwner()
+  const items = new Map<string, { value: T; dispose: () => void; refs: number }>()
+  const dispose = (id: string) => {
+    const item = items.get(id)
+    if (!item) return
+    items.delete(id)
+    item.dispose()
+    remove?.(id)
+  }
+  if (owner) onCleanup(() => items.forEach((_, id) => dispose(id)))
 
   return (key: string) => {
     const id = identity(key)
-    onCleanup(() => {
-      refCounts.set(id, (refCounts.get(id) ?? 0) - 1)
-      if (refCounts.get(id) === 0) {
-        remove?.(id)
-        items.delete(id)
-        refCounts.delete(id)
-      }
-    })
-
-    const cached = items.get(id)
-    if (cached) {
-      refCounts.set(id, (refCounts.get(id) ?? 0) + 1)
-      return cached
-    }
-    const item = create(key)
+    // Shared subscriptions belong to the entry, never to its first consumer.
+    const item =
+      items.get(id) ??
+      createRoot((dispose) => {
+        // The factory allocates subscriptions; failed initialization must release them.
+        try {
+          return { value: create(key), dispose, refs: 0 }
+        } catch (error) {
+          dispose()
+          throw error
+        }
+      }, owner)
+    item.refs++
     items.set(id, item)
-    refCounts.set(id, 1)
-    return item
+    onCleanup(() => {
+      if (items.get(id) !== item) return
+      item.refs--
+      if (item.refs === 0) dispose(id)
+    })
+    return item.value
   }
 }

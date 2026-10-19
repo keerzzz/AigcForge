@@ -16,7 +16,6 @@ import { Prompt } from "../component/prompt"
 import type { useToast } from "../ui/toast"
 import * as Keymap from "../keymap"
 import { createCommandShim } from "./command-shim"
-import { projectTodoFromTask } from "./task-todo-project"
 import type { PluginRoutes } from "./api"
 export type { RouteMap } from "./api"
 export { createPluginRoutes, createTuiApi } from "./api"
@@ -128,13 +127,6 @@ function stateApi(sync: ReturnType<typeof useSync>): TuiPluginApi["state"] {
         return (sync.data.session_diff[sessionID] ?? []).flatMap((item) =>
           item.file === undefined ? [] : [{ ...item, file: item.file }],
         )
-      },
-      /**
-       * @deprecated Legacy Todo projection for third-party TUI plugins. Use
-       * `state.session.task` instead; removed in Phase 5 (V1 retirement).
-       */
-      todo(sessionID) {
-        return (sync.data.task[sessionID] ?? []).map(projectTodoFromTask)
       },
       task(sessionID) {
         return sync.data.task[sessionID] ?? []

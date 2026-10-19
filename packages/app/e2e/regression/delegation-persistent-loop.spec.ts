@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 import { mockAigcfrogeServer } from "../utils/mock-server"
-import { trackPageErrors } from "../utils/errors"
+import { snapshotMisses, trackPageErrors } from "../utils/errors"
 import { expectSessionTitle } from "../utils/waits"
 
 const directory = "C:/Aigcfroge/DelegationRegression"
@@ -12,7 +12,7 @@ const moreOptions = /^(More options|更多选项|更多選項)$/
 const myAgents = /^(My agents|我的智能体|我的智能體)$/
 
 test("shows independent delegation state and opens the Build conversation", async ({ page }) => {
-  const errors = trackPageErrors(page)
+  const errors = trackPageErrors(page, snapshotMisses(directory, [sessionID, childID]))
   await mockAigcfrogeServer(page, {
     directory,
     project: {
@@ -142,7 +142,7 @@ test("shows independent delegation state and opens the Build conversation", asyn
 })
 
 test("shows loading, empty, and error states as the delegation request settles", async ({ page }) => {
-  const errors = trackPageErrors(page)
+  const errors = trackPageErrors(page, snapshotMisses(directory, [sessionID]))
   await mockAigcfrogeServer(page, {
     directory,
     project: {
