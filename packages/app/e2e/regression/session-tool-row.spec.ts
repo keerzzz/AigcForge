@@ -317,8 +317,7 @@ test.describe("AI-TDD-S05 production tool rows", () => {
       "#aigcfroge-icon-console",
     )
     await expect(tool).toContainText("Running")
-    await expand(tool)
-    await expect(tool.locator('[data-slot="bash-pre"]')).toHaveText(`$ ${shell.command}`)
+    await expect(tool.locator('[data-slot="collapsible-trigger"]').first()).toHaveAttribute("aria-expanded", "false")
     const identity = await tool.getAttribute("data-timeline-part-id")
     if (!identity) throw new Error("Expected the canonical Shell part identity")
     const requests = reads.length
@@ -343,6 +342,7 @@ test.describe("AI-TDD-S05 production tool rows", () => {
     await expect.poll(() => reads.length).toBeGreaterThan(requests)
     await expect(tool).toHaveAttribute("data-timeline-part-id", identity)
     await expect(tool).toContainText("Completed")
+    await expand(tool)
     await expect(tool.locator('[data-slot="bash-pre"]')).toHaveText(
       `$ ${shell.command}\n\nfirst canonical line\nlast canonical line\nexit code 0`,
     )
@@ -520,7 +520,7 @@ test.describe("AI-TDD-S05 production tool rows", () => {
 
   test("R06 retained todowrite history is expandable and never follows or edits the live Task state", async ({
     page,
-  }) => {
+  }, testInfo) => {
     const part = call("todowrite", { tasks: [snapshot] }, JSON.stringify([snapshot]), { tasks: [snapshot] })
     const skill = call("skill", { name: "review" })
     const writes: string[] = []
@@ -559,6 +559,7 @@ test.describe("AI-TDD-S05 production tool rows", () => {
     expect(writes).toEqual([])
     await expect(row(page, skill)).toBeVisible()
     await expect(row(page, skill).locator("button, [aria-expanded]")).toHaveCount(0)
+    await testInfo.attach("readonly-task-history", { body: await page.screenshot(), contentType: "image/png" })
   })
 })
 
@@ -640,6 +641,7 @@ test(
     await expand(row(page, failure))
     await expect(row(page, failure).locator('[data-slot="tool-error-card-content"]')).toBeVisible()
     await expect(row(page, failure).locator('[data-slot="tool-error-card-content"]')).toContainText(failure.state.error)
+    await testInfo.attach("tool-history-presentation", { body: await page.screenshot(), contentType: "image/png" })
   },
 )
 

@@ -1810,6 +1810,22 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **证据**：`/home/keer/.codex/artifacts/agent-ui-tdd-remediation-20261019/` 保存每批命令、退出码和原始日志。旧审批与本轮 RED 保留。最终汇总由 `gates.jsonl` 生成，不以历史通过替代修复后执行。
 - **开放交付项**：浏览器/E4 与生产性能复测（Owner：App/QA；unlock：当前修复的真实执行结果）；main 冲突集成与 CI（Owner：当前交付；unlock：修复提交与远端检查）；本地 main 保全同步（Owner：当前交付；unlock：远端合并且原本地提交/文档有可恢复副本）；桌面多平台发布（Owner：Release CI；unlock：合并后 CI 与签名/产物校验通过）。§15.73/§15.76 接受的余量不因本轮局部通过而改写为已完成。
 
+### 15.79 2026-10-19 修复后集成验证
+
+- **main 集成**：`193100965` 保存六项修复；`6fd1cbc72` 合入 main 的本机 CLI 发现与 typed Location 404。Codex SDK 保留本分支的惰性初始化、统一超时取消和持久 thread ID 行为；真实 SDK 显式使用本机 CLI 路径。组合 Core 回归 48 pass；SDK 重新生成和 PublicApi/SDK/drift 同进程回归 46 pass。
+- **Shell 提交后草稿保护**：复查确认 TUI 等待 Shell admission 时的新编辑会被旧成功回调清空。隔离用例取得 `next command → 空字符串` 的有效 RED，修复复用现有 prompt/history owner，只有草稿与提交快照相同才清空。之前两次夹具超时单独保留，不当作产品 RED。
+- **浏览器证据**：完整工具历史 E3 首轮 39 pass / 1 fail；失败是新用例错误要求 Running 行可展开，与既有合同不符。更正为 Ended 后展开，受影响用例及 light/dark/zh/narrow 展示补测 6 pass。E4 Assistant Shell 与 legacy history/reload/测试后端重启 2 pass，清理门禁通过。[截图说明](evidence/agent-ui-tdd/README.md) 区分 E3 fixture 与真实后端链路。
+- **生产性能观察**：下表由四轮原始 BENCHMARK 数据生成。固定 CPU ×6、24 deltas、320 历史轮、无 CPU profiler；旧/新 dist 已冻结。首轮 12%–24% 变慢未在后续直接对照中一致复现；最后一对流式完成差约 2.9%，long-task 总时长 2351→2366ms。每轮均完成 3 场景，无行替换、底部漂移或丢失 deltas。有限样本不支持统计性等效保证。
+
+| 场景（ms）           | 原基线 | 修复后首轮 | 旧构建对照 | 新构建对照 |
+| -------------------- | -----: | ---------: | ---------: | ---------: |
+| 冷切换稳定时间中位数 |  249.4 |      309.7 |      330.2 |      233.3 |
+| 热切换稳定时间中位数 |  216.9 |      243.0 |      234.2 |      210.9 |
+| 流式完成时间         | 3105.1 |     3697.6 |     3142.8 |     3234.1 |
+
+- **本地门禁**：App 1484 unit + 3 virtualizer + 56 E2E contracts、TUI 230 pass / 1 既有 skip；全仓 lint（含格式、增量与未等待断言检查）和 16 个 typecheck 任务全部退出 0。HTTP coverage 登记 335 场景、306 operation，auth 335 pass，均无 missing/skip。HTTP exerciser 仅改写配置文件末尾换行，已恢复预运行原字节。完整后端功能套件与跨平台结果仍由必需远端 CI 验证，不以 coverage/auth 代替。原始结果见同目录 `gates.jsonl`。
+- **交付状态**：远端合并、本地 main 保全同步、版本 PR 与六平台签名发布继续由当前交付负责人跟进；未有产物证据前不记为已发布。§15.73/§15.76 的已接受余量保持原义。
+
 ## 16. 本机 CLI 发现与惰性初始化验证边界（2026-09-29）
 
 来源：`local-cli-discovery` 续办与 `CLAUDE.md` 复审。以下实机验证不能由单元测试、临时 Node bundle 或拦截接口响应的浏览器用例替代。
@@ -1824,4 +1840,4 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 
 - **`PublicApi`（`packages/aigcfroge/src/server/routes/instance/httpapi/public.ts`）与 `Api`（`packages/server/src/api.ts` → `openapi()`）通过 `effect/unstable/httpapi` 的 `OpenApi.fromApi` 共享同一个全局组件 schema 注册表 — Owner: aigcfroge / server。** `httpapi-public-openapi.test.ts` 先导入并调用 `OpenApi.fromApi(PublicApi)`，这会把 `installation.update-available`/`installation.updated` 等事件 schema（`EventInstallationUpdate-available`、`EventInstallationUpdated`、`V2EventInstallationUpdate-available`、`V2EventInstallationUpdated`）注册进共享的 `effect/unstable/httpapi` schema 缓存；随后同进程内的 `openapi-drift.test.ts` 调用 `server/server.ts` 的 `openapi()` 构建独立的 `Api` spec 时，这些泄漏的 schema 一并混入其 `components.schemas` 与相关事件联合类型的 `anyOf`，导致其与已提交的 `packages/aigcfroge/test/server/openapi.snapshot.json` 产生 262 行差异，`OpenAPI contract > matches the checked-in snapshot` 失败。单独运行任一文件、或调换两者的导入顺序后先跑 `openapi-drift.test.ts` 均不复现；已用 `git stash` 对照 `main`（无本次改动）验证同样复现，确认是既有缺陷，与 `InstanceContextMiddleware`/`LocationMiddleware` 的本次改动无关。**未闭环：** 尚未定位 `effect/unstable/httpapi` 侧具体的全局可变状态（怀疑是 `OpenApi.annotations`/`Schema` 装饰在模块级完成、多次 `OpenApi.fromApi` 调用间未隔离）；也未评估是否需要在 vendor 的 `effect` 依赖之外自行加隔离，还是等上游修复。解锁条件：定位污染点后，要么给两个 API 的 schema 命名空间加前缀隔离，要么在 `bunfig.toml`/CI 里把这两个测试文件强制拆到不同的 `bun test` 进程（`--isolate` 未必覆盖模块级单例，需先验证），并补一条"两个 OpenApi 测试文件同进程运行不冲突"的回归用例。
 
-**集成状态（2026-10-19）**：§17 保留 main 的历史诊断；本分支已把 drift 与 SDK 统一到 `packages/script/src/openapi.ts` 的独立 CLI 生成边界，快照使用 `packages/sdk/openapi.json`。合并后同进程 public-contract/drift 回归仍须验证；不恢复旧的第二份 snapshot。Owner：当前交付；unlock：生成器与组合回归通过。
+**集成状态（2026-10-19）**：§17 保留 main 的历史诊断；本分支已把 drift 与 SDK 统一到 `packages/script/src/openapi.ts` 的独立 CLI 生成边界，快照使用 `packages/sdk/openapi.json`。合并后生成器与同进程 public-contract/SDK/drift 回归已经通过（46 pass，原始日志见 §15.79）；旧的第二份 snapshot 保持删除。此结论证明当前生成边界隔离有效，不宣称已经修复上游 Effect 全局状态。
