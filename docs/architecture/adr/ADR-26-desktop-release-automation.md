@@ -74,6 +74,8 @@
 
 2026-09-28 后续调整：release notes 由独立 `changelog` job 生成（仅 `contents: read`，不持有 release App token），作为 `release-notes` artifact 传给 `version` job；macOS Intel x64 改用标准 `macos-15-intel` runner 恢复。
 
+2026-10-19 首次自动 `publish` 完整闭环：PR #129 合并（`ae10e5051`）→ 版本 PR #131（`chore(release): prepare v0.0.6`，合并提交 `69617090c`）→ 自动 run `39272798152` 构建 6 平台 / 24 资产并公开 v0.0.6。release body 双语结构验证通过。产物未签名（既有 `AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true` 例外），真实安装/升级/迁移验收与签名凭据仍未闭环。
+
 ## 4. Consequences
 
 - **收益**：版本提交与产物同源；标签从构建之初即正确；版本/发布记录可追踪；重复劳动消除；失败可恢复。
