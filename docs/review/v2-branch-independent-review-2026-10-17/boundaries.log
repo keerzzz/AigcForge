@@ -1,0 +1,139 @@
+$ bun run script/test.ts --timeout "30000" "/tmp/v2-approval-20261017/boundaries.test.ts"
+bun test v1.3.14 (0d9b296a)
+
+../../../../../../tmp/v2-approval-20261017/boundaries.test.ts:
+SSE_REPRO {"receivedFrames":1,"present":false,"failure":{"_tag":"Permission.RejectedError","reason":"no_responder"}}
+[02:09:26.112] ERROR (#2): 55 |   const presence = yield* ApprovalPresence.Service
+56 |   const present = yield* presence.hasResponder({ location: { directory: AbsolutePath.make("/tmp") }, mode: "coding" })
+57 |   const permission = yield* Permission.Service
+58 |   const result = yield* permission.assert({ sessionID, agent: agentID, action: "shell", resources: ["echo review"] }).pipe(Effect.exit)
+59 |   console.log("SSE_REPRO", JSON.stringify({ receivedFrames: Array.from(frames).length, present, failure: Exit.isFailure(result) ? Cause.squash(result.cause) : null }))
+60 |   expect(present).toBe(true)
+     ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at toBe (unknown:1:1)
+      at /tmp/v2-approval-20261017/boundaries.test.ts:60:19
+
+55 |   const presence = yield* ApprovalPresence.Service
+56 |   const present = yield* presence.hasResponder({ location: { directory: AbsolutePath.make("/tmp") }, mode: "coding" })
+57 |   const permission = yield* Permission.Service
+58 |   const result = yield* permission.assert({ sessionID, agent: agentID, action: "shell", resources: ["echo review"] }).pipe(Effect.exit)
+59 |   console.log("SSE_REPRO", JSON.stringify({ receivedFrames: Array.from(frames).length, present, failure: Exit.isFailure(result) ? Cause.squash(result.cause) : null }))
+60 |   expect(present).toBe(true)
+     ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at toBe (unknown:1:1)
+      at /tmp/v2-approval-20261017/boundaries.test.ts:60:19
+      at ~effect/Effect/successCont (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:985:26)
+      at runLoop (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:383:16)
+      at evaluate (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:327:10)
+      at runInAsyncScope (node:async_hooks:137:23)
+      at /home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:792:30
+      at processTicksAndRejections (native:7:39)
+(fail) a live production event-feed subscriber must make permission asks answerable [133.93ms]
+MCP_AUTH_REPRO {"policy":"ask","externalCallReached":true,"result":{"_id":"Exit","_tag":"Failure","cause":{"_id":"Cause","failures":[{"_tag":"Die","defect":"Tool result declared output without an output schema"}]}},"pending":[]}
+[02:09:26.256] ERROR (#81): 77 |   const tools = yield* Tool.Service
+78 |   const snapshot = yield* tools.snapshot(rules)
+79 |   const result = yield* snapshot.execute({ sessionID, agent: agentID, messageID: SessionMessage.ID.make("msg_review"), call: { type: "tool-call", id: "review", name: "mcp_review_echo", input: { msg: "unauthorized" } } }).pipe(Effect.exit)
+80 |   const called = yield* Effect.promise(() => markerFile.exists())
+81 |   console.log("MCP_AUTH_REPRO", JSON.stringify({ policy: "ask", externalCallReached: called, result, pending: yield* permission.forSession(sessionID) }))
+82 |   expect(called).toBe(false)
+     ^
+error: expect(received).toBe(expected)
+
+Expected: false
+Received: true
+
+      at toBe (unknown:1:1)
+      at /tmp/v2-approval-20261017/boundaries.test.ts:82:18
+
+77 |   const tools = yield* Tool.Service
+78 |   const snapshot = yield* tools.snapshot(rules)
+79 |   const result = yield* snapshot.execute({ sessionID, agent: agentID, messageID: SessionMessage.ID.make("msg_review"), call: { type: "tool-call", id: "review", name: "mcp_review_echo", input: { msg: "unauthorized" } } }).pipe(Effect.exit)
+80 |   const called = yield* Effect.promise(() => markerFile.exists())
+81 |   console.log("MCP_AUTH_REPRO", JSON.stringify({ policy: "ask", externalCallReached: called, result, pending: yield* permission.forSession(sessionID) }))
+82 |   expect(called).toBe(false)
+     ^
+error: expect(received).toBe(expected)
+
+Expected: false
+Received: true
+
+      at toBe (unknown:1:1)
+      at /tmp/v2-approval-20261017/boundaries.test.ts:82:18
+      at ~effect/Effect/successCont (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:985:26)
+      at runLoop (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:383:16)
+      at evaluate (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:327:10)
+      at runInAsyncScope (node:async_hooks:137:23)
+      at /home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:792:30
+      at processTicksAndRejections (unknown:7:39)
+(fail) a registered MCP tool with ask policy must not execute before approval [144.28ms]
+MCP_OUTPUT_REPRO {"_id":"Exit","_tag":"Failure","cause":{"_id":"Cause","failures":[{"_tag":"Die","defect":"Tool result declared output without an output schema"}]}}
+[02:09:26.348] ERROR (#183): 91 |   }) })
+92 |   const tools = yield* Tool.Service
+93 |   const snapshot = yield* tools.snapshot([{ action: "*", resource: "*", effect: "allow" }])
+94 |   const result = yield* snapshot.execute({ sessionID, agent: agentID, messageID: SessionMessage.ID.make("msg_settle"), call: { type: "tool-call", id: "settle", name: "mcp_settle_echo", input: { msg: "authorized" } } }).pipe(Effect.exit)
+95 |   console.log("MCP_OUTPUT_REPRO", JSON.stringify(result))
+96 |   expect(Exit.isSuccess(result)).toBe(true)
+     ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at toBe (unknown:1:1)
+      at /tmp/v2-approval-20261017/boundaries.test.ts:96:34
+
+91 |   }) })
+92 |   const tools = yield* Tool.Service
+93 |   const snapshot = yield* tools.snapshot([{ action: "*", resource: "*", effect: "allow" }])
+94 |   const result = yield* snapshot.execute({ sessionID, agent: agentID, messageID: SessionMessage.ID.make("msg_settle"), call: { type: "tool-call", id: "settle", name: "mcp_settle_echo", input: { msg: "authorized" } } }).pipe(Effect.exit)
+95 |   console.log("MCP_OUTPUT_REPRO", JSON.stringify(result))
+96 |   expect(Exit.isSuccess(result)).toBe(true)
+     ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at toBe (unknown:1:1)
+      at /tmp/v2-approval-20261017/boundaries.test.ts:96:34
+      at ~effect/Effect/successCont (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:985:26)
+      at runLoop (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:383:16)
+      at evaluate (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:327:10)
+      at runInAsyncScope (node:async_hooks:137:23)
+      at /home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:792:30
+      at doneUnsafe (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/Deferred.js:685:15)
+      at ~effect/Effect/evaluate (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:653:4)
+      at runLoop (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:383:16)
+      at evaluate (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:327:10)
+      at runInAsyncScope (node:async_hooks:137:23)
+      at /home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:792:30
+      at releaseTakers (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/Queue.js:1558:11)
+      at offerUnsafe (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/Queue.js:417:7)
+      at /home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/Queue.js:1687:33
+      at runLoop (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:383:16)
+      at evaluate (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:327:10)
+      at runInAsyncScope (node:async_hooks:137:23)
+      at /home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:792:30
+      at flushWaiters (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:3171:9)
+      at openUnsafe (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/effect@4.0.1/node_modules/effect/dist/internal/effect.js:3183:10)
+      at onReadable (/home/keer/workspace/aigcfroge-v2/node_modules/.bun/@effect+platform-node-shared@4.0.1+ff18a43d1df18ff8/node_modules/@effect/platform-node-shared/dist/NodeStream.js:224:11)
+      at emit (node:events:92:22)
+      at emitReadable_ (internal:streams/readable:395:16)
+      at processTicksAndRejections (unknown:7:39)
+(fail) a successfully returning MCP tool must settle through the production registry [91.89ms]
+
+ 0 pass
+ 3 fail
+ 5 expect() calls
+Ran 3 tests across 1 file. [1.55s]
+error: script "test" exited with code 1

@@ -1,0 +1,120 @@
+permission-targeted
+$ bun run script/test.ts --timeout "30000" test/permission.test.ts test/permission-ask-bounds.test.ts test/permission-grants.test.ts test/permission-session-override.test.ts test/session-permission-tier.test.ts test/scoped-grant-store.test.ts test/system-context-permission-state.test.ts test/tool-shell.test.ts
+ 145 pass
+ 42 skip
+ 0 fail
+Ran 187 tests across 8 files. [34.85s]
+
+mcp-cli-targeted
+$ bun run script/test.ts --timeout "30000" test/mcp-connection.test.ts test/tool-mcp-registration.test.ts test/mcp-location-isolation.test.ts "test/s2-connection-guard.test.ts" test/cli-adapters.test.ts test/cli-config-adapter.test.ts test/cli-discovery.test.ts test/cli-executable.test.ts test/cli-timeout.test.ts test/acp-client.test.ts test/cli-acp-adapter.test.ts test/cli-sdk-adapters.test.ts test/cli-sdk-lifecycle.test.ts
+ 119 pass
+ 0 fail
+Ran 119 tests across 13 files. [20.22s]
+
+asset-task-targeted
+$ bun run script/test.ts --timeout "30000" test/list-assets.test.ts test/tool-memory.test.ts test/tool-propose-memory.test.ts test/propose-plugin-asset.test.ts test/propose-workflow-asset.test.ts test/session-todo.test.ts test/tool-task-update.test.ts test/tool-taskschedule.test.ts test/tool-taskspawn.test.ts test/tool-todowrite.test.ts
+ 46 pass
+ 0 fail
+Ran 46 tests across 10 files. [11.15s]
+
+schema-full
+$ bun test --timeout "30000"
+ 319 pass
+ 0 fail
+Ran 319 tests across 40 files. [653.00ms]
+
+client-full
+$ bun test --timeout 5000 --timeout "30000"
+ 224 pass
+ 0 fail
+Ran 224 tests across 20 files. [42.00s]
+
+server-initial-not-isolated
+$ bun test --only-failures --timeout "30000"
+(fail) opens no file for HEAD and closes it when a download is aborted [5580.65ms]
+(fail) uses canonical plugins for shared clones and recorded strategy removal [565.34ms]
+(fail) canonical plugin setup can create using registrations made so far [402.68ms]
+(fail) explains how to recover when both OpenAI OAuth callback ports are busy [10004.46ms]
+ 78 pass
+ 1 skip
+ 4 fail
+Ran 83 tests across 29 files. [83.39s]
+error: script "test" exited with code 1
+
+server-isolated
+$ bun test --only-failures --timeout "30000"
+(fail) opens no file for HEAD and closes it when a download is aborted [5475.16ms]
+(fail) uses canonical plugins for shared clones and recorded strategy removal [565.84ms]
+(fail) canonical plugin setup can create using registrations made so far [364.20ms]
+ 79 pass
+ 1 skip
+ 3 fail
+Ran 83 tests across 29 files. [44.95s]
+error: script "test" exited with code 1
+
+core-full
+$ bun run script/test.ts --timeout "30000"
+(fail) LocationServiceMap > normalizes equivalent refs to one cached location graph [151.02ms]
+(fail) MCP connection over the modern protocol > exposes every connection operation [30000.00ms]
+(fail) Bus Session routing > updates cached ownership on silent replay and filters published replay [31.15ms]
+(fail) trigger recovers over SSE with complete input after the old socket closes and reconnect is rejected [30000.00ms]
+(fail) ModelsDevPlugin > converts reasoning options into settings variants [35.79ms]
+(fail) PluginSupervisor reload > reloads helper-defined RPC methods on a helper-only save [133.85ms]
+(fail) PluginSupervisor reload > reloads helper-defined RPC methods when the entrypoint also changes [113.67ms]
+(fail) PluginSupervisor reload > reloads helper-defined RPC methods outside the configured plugin directory [105.59ms]
+(fail) PluginSupervisor reload > retains a configured plugin change during initial activation [15000.00ms]
+(fail) PluginSupervisor reload > serializes the periodic refresh behind an in-flight reload [358.66ms]
+(fail) applies organization integration changes to running external plugins [2431.75ms]
+(fail) watches creation of an external helper with missing parent directories [5056.22ms]
+(fail) interrupts pending watcher setup when the loader scope closes during module evaluation [30009.60ms]
+(fail) loads plugins and their transitive dependencies against the host's Effect and @aigcfroge/plugin instances [587.00ms]
+(fail) redirects plugin dependencies with a nested Effect 3 installation to the host, allows effect/package.json, and fails loudly on unprovided subpaths [137.62ms]
+(fail) blocks a local plugin before module initialization and honors replacement policies [67.22ms]
+(fail) GitLabPlugin OAuth > exchanges a PKCE code for a native GitLab OAuth credential against gitlab.com by default [67.30ms]
+(fail) GitLabPlugin OAuth > uses the answered self-managed instance URL, including a relative URL root [88.17ms]
+(fail) GitLabPlugin OAuth > rejects invalid or denied callbacks ({"state":""}) [58.92ms]
+(fail) GitLabPlugin OAuth > rejects invalid or denied callbacks ({"code":""}) [60.32ms]
+(fail) GitLabPlugin OAuth > rejects invalid or denied callbacks ({"error":"access_denied","error_description":"User declined access"}) [56.43ms]
+(fail) GitLabPlugin OAuth > rejects invalid or denied callbacks ({"error":"access_denied"}) [53.13ms]
+(fail) GitLabPlugin OAuth > preserves the active connection after a failed token exchange (400) [58.90ms]
+(fail) GitLabPlugin OAuth > preserves the active connection after a failed token exchange (400) [67.43ms]
+(fail) GitLabPlugin OAuth > preserves the active connection after a failed token exchange (502) [65.04ms]
+(fail) GitLabPlugin OAuth > reports EADDRINUSE with a clear message when the callback port is occupied [60.45ms]
+(fail) GitLabPlugin OAuth > honors GITLAB_OAUTH_CLIENT_ID for self-managed applications [58.20ms]
+(fail) ConfigNormalize > preserves arbitrary JSON-round-tripped native configuration [30.64ms]
+(fail) ConfigWatch.plan > groups missing candidates and keeps parent watches when roots appear [9.78ms]
+(fail) Config > does not recursively watch ecosystem config roots [38.68ms]
+(fail) Config > ignores an invalid file while loading valid config values [40.30ms]
+ 6930 pass
+ 365 skip
+ 31 fail
+Ran 7326 tests across 347 files. [423.70s]
+error: script "test" exited with code 1
+
+migration-check
+$ bun run script/migration.ts --check
+Reading config file '/tmp/aigcfroge-core-migration-check-9XHUhV/incremental.config.ts'
+No schema changes, nothing to migrate 😴
+Reading config file '/tmp/aigcfroge-core-migration-check-9XHUhV/full.config.ts'
+[✓] Your SQL migration ➜ /tmp/aigcfroge-core-migration-check-9XHUhV/full/20261017020834_schema/migration.sql 🚀
+
+ai-full
+$ bun test --timeout 30000 --only-failures
+ 1793 pass
+ 28 skip
+ 0 fail
+Ran 1821 tests across 134 files. [10.10s]
+
+app-unit
+$ bun test --conditions=solid --only-failures --preload ./happydom.ts ./src
+(fail) recovers project metadata after the connection to the server is dropped [14.94ms]
+ 741 pass
+ 1 fail
+Ran 742 tests across 107 files. [2.44s]
+error: script "test:unit" exited with code 1
+
+app-browser-conditions
+$ bun test --conditions=browser --preload ./happydom.ts ./test-browser
+ 168 pass
+ 0 fail
+Ran 168 tests across 38 files. [6.86s]

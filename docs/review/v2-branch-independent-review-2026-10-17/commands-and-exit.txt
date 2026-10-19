@@ -1,0 +1,16 @@
+无缓存 lint + 全仓 typecheck | 根目录 `TURBO_FORCE=true bun run check` | 0 | 19/19 成功，0 缓存
+Permission / grant / shell 定向 | core 包；8 个文件，完整命令见 verification.txt | 0 | 145 pass / 42 skip / 0 fail
+MCP / CLI / ACP / SDK 定向 | core 包；13 个文件 | 0 | 119 pass / 0 fail
+资产 / 任务 / 记忆工具定向 | core 包；10 个文件 | 0 | 46 pass / 0 fail
+Core 全量 | core 包 `bun run test --timeout 30000` | 1 | 6930 pass / 365 skip / 31 fail；7326 tests / 347 files
+Server 全量，XDG 隔离 | server 包 `bun run test --timeout 30000` | 1 | 79 pass / 1 skip / 3 fail；83 tests / 29 files
+Schema 全量 | schema 包 `bun run test --timeout 30000` | 0 | 319 pass / 0 fail
+Client 全量 | client 包 `bun run test --timeout 30000` | 0 | 224 pass / 0 fail
+生成客户端 | client 包 `bun run check:generated` | 1 | ConfigEntry 生成差异 11 行，已保存并恢复
+迁移结构检查 | core 包 `bun run migration --check` | 0 | 无 schema 漂移；不等于存量库升级通过
+三条新增边界回归 | core 包运行外部 boundaries.test.ts | 1 | 0 pass / 3 fail，分别复现 F1/F2/F3
+CI SDK 任务复现 | 根目录 `bun turbo verify:package --filter=@opencode/sdk` | 1 | 目标包不存在；属于已登记 R0.1
+批次差异格式 | `git diff --check 06a42de9c HEAD` | 0 | 通过
+AI full | packages/ai: bun run test | 0 | 1793 pass / 28 skip / 0 fail
+App unit | packages/app: bun run test:unit | 1 | 741 pass / 1 fail
+App browser conditions | packages/app: bun run test:browser | 0 | 168 pass / 0 fail

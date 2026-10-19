@@ -1,0 +1,22 @@
+diff --git a/packages/client/src/promise/generated/types.ts b/packages/client/src/promise/generated/types.ts
+index 9ad36651b..f13ea9ec1 100644
+--- a/packages/client/src/promise/generated/types.ts
++++ b/packages/client/src/promise/generated/types.ts
+@@ -3699,6 +3699,17 @@ export type ConfigEntry =
+             handoffs?: Array<Handoff>
+           }
+         }
++        cli_agents?: {
++          [x: string]: {
++            command: string
++            description?: string | null
++            args?: Array<string> | null
++            output?: "claude-jsonl" | "codex-jsonl" | "plain" | null
++            transport?: "jsonl" | "sdk" | "acp" | "app-server" | null
++            timeout?: number | null
++          }
++        }
++        subagent_attended_default?: boolean
+         snapshots?: boolean
+         watcher?: { ignore?: Array<string> }
+         formatter?:

@@ -1,0 +1,13 @@
+8b0661b2a docs: record full-repo verification pass
+a6106abfd test(ai,client,app): finish rename-bridge alignment in fixtures and expectations
+b25b36d6a docs: record session window and branch approval review
+c33ac20d1 fix(core): skip asset migration marker write for empty entry sets
+04464540f test(core): bind approval responder in shell permission harness after ask-bounds fusion
+a251db78a feat(core): fuse permission grants approval presence and ask bounds
+9b0455b4a feat(core): port task todo schedule taskspawn tools as plugins
+9e9a93f36 feat(core): port kb memory reminder asset proposal tools as plugins
+9e675d48b feat(core): port ACP and SDK CLI client cluster
+8c313ba7e docs: record mcp connection chain arbitration
+fc51db11b feat(core): port MCP connection chain onto tool service
+b456dd402 docs: record phase A cli adapter leaves
+8a9228bdb feat(core): port CLI adapter leaves with config cli-agents schema fusion
