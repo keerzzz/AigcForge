@@ -1852,6 +1852,26 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **用户要求**：恢复 PR 中的 E4。删除 `test.yml` 的非 PR 限制，复用既有 default / V2 / Custom 三段串行 job；不改重试、超时、隔离后端或 provider 合同。`docs/testing.md` 同步现行正向 runtime 验证边界；§15.77 的旧 PR 集合描述仅为当时快照。
 - **仍开放 — Owner: CI / 当前交付。** 最新提交必须实际运行并通过 `e4 (linux)` 才可合并本 PR；解锁条件为同一 SHA 的 default、V2、Custom 三段结果及 teardown/manifest 证据。恢复调度本身不等于 E4 已通过，也不自动改变远端 branch protection。§15.73/§15.76 接受余量及外部模型、OAuth、安装/升级/迁移边界保持原义。
 
+### 15.83 2026-10-19 PR #129 E4 顺序与异步边界修复
+
+- **首轮真实结果**：恢复后的 `e4 (linux)`（run `39200817932`，HEAD `7829f592d`）default 为 30 pass / 2 fail / 5 条件 skip，teardown 通过；default 失败使 V2 / Custom 步骤未执行。此轮不是 E4 全绿。
+- **提醒请求归属**：`providerRequests`（`packages/app/e2e/real/orchestrator.ts:110`）属于整个 run。失败 trace 中第一条 completion 来自前一个历史回放用例（带 `history-completed-call` / `history-pending-call`），第二条才是 `reminder-confirm`。提醒用例现在记录开始前的 completion 数，只断言本用例增量为 1；工具回执与附件也只读取该增量窗口，并核对 confirmation 场景。
+- **文件索引可见性**：`FileSystemSearch.fffLayer`（`packages/core/src/filesystem/search.ts:129`）由 native index 读取搜索结果，文件写入与索引可见不是同步合同。CI 目录布局的本地 trace 记录 `/find/file` 先返回 `[]`，128ms 后返回 `["files/alpha.md"]`。用例在原 15s assertion 预算内轮询精确相对路径，保留响应数组、读取内容、二进制、路径越界和 typed 404 验证。
+- **提醒等待截止点**：`SchedulerCore.daemon`（`packages/core/src/session/schedule-core.ts:99`）每分钟重新 arm 后 tick。提醒设在约 45s 后，旧的 70s 轮询从确认后开始，可能早于到期后的下一次 tick。改为固定截止 `dueAt + 70s`，该用例总预算为 180s，覆盖未来到期、一个 daemon 周期及 UI/read/reload。修复后实际投递在创建后 84,926ms、到期后 41,803ms，完成状态与唯一 delivery 均经真实 API 验证；没有更改生产调度、插入 delivery 或启动测试 daemon。
+- **本地结果**：原顺序复现为 5 pass / 1 fail；计数修复后又暴露投递等待不足，为 5 pass / 1 fail；修正截止后，同一 history → reminder → files 批次 6 pass，teardown 通过。失败与后续通过独立保存在 `gates.jsonl`，不相加。
+- **串行 variant 的测试发现**：首次本地 V2 完整补验在收集阶段失败：上一段 `run-evidence` 中缓存的 Effect 仓库 `.test.ts` 被当成 E4 源码加载。配置现在排除生成的 `run-evidence` / `test-results` / `playwright-report` 目录，保留现有 default 和 dual 的用例集合。新增回归在三个目录放入一旦导入即抛错的 spec，用真实 Playwright `--list` 验证 single / dual 都不会导入它们；配置契约 7 pass。最初命令路径未匹配和隔离临时目录权限错误均保留为失败收据，不算产品 RED。
+- **仍开放 — Owner: CI / 当前交付。** V2 / Custom 补验、最新提交完整 CI、PR 合并、main 保全同步与实际桌面发布仍按真实终态解锁。§15.73/§15.76 接受余量保持原义。
+
+### 15.84 2026-10-19 PR #129 必需检查回归（CLI legacy todo 历史）与 E4 复跑
+
+- **来源**：PR #129 HEAD `7829f592d` 的三个必需检查 `Lint, Test, and Typecheck`、`unit (linux)`、`unit (windows)` 因同一用例失败：`packages/aigcfroge/test/cli/run/scrollback.surface.test.ts:432` 期望 `[✓] List files under run/`，实际只输出 `# Todos`。该测试相对 `origin/main` 未改动，失败属于产品回归而非过时夹具。
+- **根因**：分支把 `todowrite` 输入从 `todos` 改为 canonical `tasks`（`packages/aigcfroge/src/tool/todo.ts`），CLI 渲染层只读 `metadata.tasks ?? input.tasks`；历史 part 仍携带 `todos`，所以历史 todo 行渲染为空，与 PR 描述的历史只读快照不符。
+- **修复**：`packages/aigcfroge/src/cli/cmd/run/tool.ts` 新增局部 `todoRows`，按 `metadata.tasks` → `input.tasks` → `metadata.todos` → `input.todos` 取首个存在的数组（空数组同样是权威快照），用于内联详情、结构化快照与 rollup 三处。无并行实现、无 type escape；回归保留 canonical 空快照压制 legacy 行的语义（`test/cli/run/task-formatter.test.ts` 10 pass；`scrollback.surface.test.ts` 17 pass）。
+- **证据边界**：`packages/app/e2e/tsconfig.json` 现排除 `run-evidence` / `test-results` / `playwright-report`，避免本地生成证据被当作 e2e 源码编译（此前本地 E4 后 App typecheck 假红；CI 独立 checkout 不受影响）。
+- **本地门禁**：上述两测试文件 0 fail；`bun --cwd packages/aigcfroge typecheck` 与 `bun --cwd packages/app typecheck` exit 0；`LINT_BASE_REF=origin/main bun run script/lint-changed.ts` 428 文件通过；SDK 重新生成后 `git diff --exit-code -- packages/sdk packages/sdk/js/src` exit 0。
+- **E4 复跑**：以 CI 命令按 default → V2 → Custom 串行复跑：default `32 pass / 5 skip / 0 fail`（6.4m）、V2 `10 pass / 27 skip / 0 fail`（1.6m）、Custom `1 pass / 1 skip / 0 fail`（1.3m），三段 teardown gate 均通过；`session-files` 索引轮询与 `assistant-scheduler` 提醒/请求归属修复均通过。首轮复跑曾在 “Add project” 目录选择器因本地残留 `run-evidence/*/workspace` 造成 basename 歧义而 strict-mode 失败（31 pass / 1 fail）；该歧义来自本地历史证据目录，CI 全新 checkout 每阶段只有一个 workspace，且 V2/Custom 阶段不运行该用例，故保留为本地夹具脆弱性，不改选择器合同。
+- **仍开放 — Owner: CI / 当前交付。** 上述结果为本地隔离复跑，不等于远端已通过；最新 SHA 的完整 CI（含 `unit (windows)` 与三段 E4）仍需真实结果，合并后 main 保全同步与实际桌面发布继续按终态解锁。§15.82/§15.83 的开放项与 §15.73/§15.76 接受余量保持原义。
+
 ## 16. 本机 CLI 发现与惰性初始化验证边界（2026-09-29）
 
 来源：`local-cli-discovery` 续办与 `CLAUDE.md` 复审。以下实机验证不能由单元测试、临时 Node bundle 或拦截接口响应的浏览器用例替代。
