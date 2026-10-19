@@ -189,11 +189,11 @@ test.describe("persona audit: mode and detail closure", () => {
       await expect(page.getByRole("button", { name: "Add Project" })).toBeEnabled()
     })
 
-    await test.step("interaction: Settings explains its five top-level areas without leaving Custom", async () => {
+    await test.step("interaction: Settings explains its six top-level areas without leaving Custom", async () => {
       await page.getByRole("button", { name: "Settings" }).click()
       const dialog = page.getByRole("dialog")
       await expect(dialog).toBeVisible()
-      for (const tab of ["General", "Shortcuts", "Servers", "Providers", "Models"]) {
+      for (const tab of ["General", "Shortcuts", "Servers", "Providers", "Models", "CLI agents"]) {
         await dialog.getByRole("tab", { name: tab, exact: true }).click()
         await expect(dialog.getByRole("tabpanel", { name: tab, exact: true })).toBeVisible()
       }
@@ -215,7 +215,7 @@ test.describe("persona audit: mode and detail closure", () => {
       interaction: {
         closed: true,
         evidence:
-          "Settings explains all five areas, and the disabled Start Session now renders the start-gate blocker next to the control (custom-preview-column.tsx:171-181) instead of stopping silently.",
+          "Settings explains all six areas, and the disabled Start Session now renders the start-gate blocker next to the control (custom-preview-column.tsx:171-181) instead of stopping silently.",
       },
     })
   })
@@ -476,7 +476,7 @@ test.describe("persona audit: mode and detail closure", () => {
       await trigger.click()
       const dialog = page.getByRole("dialog")
       await expect(dialog).toBeVisible()
-      await expect(dialog.getByRole("tab")).toHaveCount(5)
+      await expect(dialog.getByRole("tab")).toHaveCount(6)
       const general = dialog.getByRole("tab", { name: "General", exact: true })
       await general.focus()
       await page.keyboard.press("ArrowDown")

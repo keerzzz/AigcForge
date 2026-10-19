@@ -1,7 +1,8 @@
 export * as ClaudeCodeSdkAdapter from "./claude-code-sdk"
 
 import { Duration, Effect } from "effect"
-import { query, type CanUseTool } from "@anthropic-ai/claude-agent-sdk"
+import type { CanUseTool } from "@anthropic-ai/claude-agent-sdk"
+import { CliExecutable } from "./cli-executable"
 import { which } from "../util/which"
 import type { CliAdapter, DelegationResult, SdkPermissionRequest } from "./cli-adapter"
 import { DelegationParser } from "./delegation-parser"
@@ -39,7 +40,10 @@ const toSdkPermissionResult = (decision: "allow" | "deny") =>
     ? { behavior: "allow" as const }
     : { behavior: "deny" as const, message: "denied by AigcForge permission policy" }
 
-export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): CliAdapter => ({
+export const makeClaudeCodeSdkAdapter = (
+  sdk: ClaudeSdk | (() => Promise<ClaudeSdk>),
+  name = "claude-code",
+): CliAdapter & Required<Pick<CliAdapter, "execute">> => ({
   name,
   command: "claude",
   description: "Claude Code — Anthropic's official AI coding assistant (SDK transport)",
@@ -51,6 +55,10 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
   execute: ({ prompt, cwd, resumeId, canUseTool, timeoutMs }) =>
     Effect.scoped(
       Effect.gen(function* () {
+        const client =
+          typeof sdk === "function"
+            ? yield* Effect.tryPromise({ try: sdk, catch: (error) => new Error(errorMessage(error)) })
+            : sdk
         const abortController = yield* Effect.acquireRelease(
           Effect.sync(() => new AbortController()),
           (controller) => Effect.sync(() => controller.abort()),
@@ -64,7 +72,7 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
         const sdkQuery = yield* Effect.acquireRelease(
           Effect.try({
             try: () =>
-              sdk.query({
+              client.query({
                 prompt,
                 options: {
                   cwd,
@@ -79,13 +87,13 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
           (active) => Effect.sync(() => active.close?.()),
         )
 
-        let observedSessionId: string | undefined
+        let observedSessionId = resumeId
         const collected = yield* Effect.tryPromise({
           try: async () => {
             let summary = ""
             let isError = false
             let sawResult = false
-            let sessionId: string | undefined
+            let sessionId = resumeId
             for await (const message of sdkQuery) {
               if (message.session_id) {
                 sessionId = message.session_id
@@ -111,6 +119,15 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
                 timedOut: true as const,
               }),
           }),
+          Effect.catch((error) =>
+            Effect.succeed({
+              summary: errorMessage(error),
+              isError: true,
+              sawResult: false,
+              sessionId: observedSessionId,
+              timedOut: false as const,
+            }),
+          ),
         )
 
         if (collected.timedOut) {
@@ -146,6 +163,7 @@ export const makeClaudeCodeSdkAdapter = (sdk: ClaudeSdk, name = "claude-code"): 
           Effect.succeed<DelegationResult>({
             status: "failed",
             summary: `CLI "${name}" SDK execution failed: ${errorMessage(error)}`,
+            ...(resumeId ? { sessionId: resumeId } : {}),
             errorCode: "provider_error",
             recoveryRequired: true,
             errors: [errorMessage(error)],
@@ -170,4 +188,9 @@ const emptyResult = (
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
-export const adapter: CliAdapter = makeClaudeCodeSdkAdapter({ query: (input) => query(input) })
+// Explicitly use the user's installation instead of the CLI shipped with the SDK.
+export const adapter: CliAdapter = makeClaudeCodeSdkAdapter(async () => {
+  const pathToClaudeCodeExecutable = CliExecutable.resolve("claude")
+  const { query } = await import("@anthropic-ai/claude-agent-sdk")
+  return { query: (input) => query({ ...input, options: { ...input.options, pathToClaudeCodeExecutable } }) }
+})

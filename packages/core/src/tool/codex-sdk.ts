@@ -1,6 +1,7 @@
 export * as CodexSdkAdapter from "./codex-sdk"
 
 import { Duration, Effect } from "effect"
+import { CliExecutable } from "./cli-executable"
 import { which } from "../util/which"
 import type { CliAdapter } from "./cli-adapter"
 import { DelegationParser } from "./delegation-parser"
@@ -12,13 +13,13 @@ import { DelegationParser } from "./delegation-parser"
  * agent's final text; resume reopens a thread by id.
  */
 export interface CodexSdk {
-  startThread(options?: { workingDirectory?: string; approvalPolicy?: string }): {
+  startThread(options?: { workingDirectory?: string; approvalPolicy?: "never" }): {
     id?: string | null
     run(input: string, options?: { signal?: AbortSignal }): Promise<{ finalResponse: string }>
   }
   resumeThread(
     id: string,
-    options?: { workingDirectory?: string; approvalPolicy?: string },
+    options?: { workingDirectory?: string; approvalPolicy?: "never" },
   ): {
     id?: string | null
     run(input: string, options?: { signal?: AbortSignal }): Promise<{ finalResponse: string }>
@@ -28,7 +29,7 @@ export interface CodexSdk {
 export const makeCodexSdkAdapter = (
   sdk: CodexSdk | (() => CodexSdk | Promise<CodexSdk>),
   name = "codex",
-): CliAdapter => ({
+): CliAdapter & Required<Pick<CliAdapter, "execute">> => ({
   name,
   command: "codex",
   description: "Codex — OpenAI's coding agent (SDK transport)",
@@ -106,9 +107,10 @@ export const makeCodexSdkAdapter = (
     ),
 })
 
-// Optional CLI resources are resolved only when this transport is selected.
+// Discovery never constructs an SDK client. Resolve the user's local CLI only
+// when executing; the SDK must not search this application's npm dependencies.
 export const adapter: CliAdapter = makeCodexSdkAdapter(async () => {
+  const codexPathOverride = CliExecutable.resolve("codex")
   const { Codex } = await import("@openai/codex-sdk")
-  // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- third-party SDK surface intentionally narrowed to the minimal seam
-  return new Codex() as unknown as CodexSdk
+  return new Codex({ codexPathOverride })
 })

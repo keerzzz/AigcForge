@@ -80,7 +80,13 @@ export const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
-    const locationRoot = yield* fs.realPath(location.directory)
+    // A stale remembered location (directory deleted, renamed, or migrated to
+    // a new machine) must not crash the whole location layer graph just to
+    // resolve symlinks for a directory that isn't there. Fall back to the
+    // nominal directory as its own root; `resolvePath` below already handles
+    // missing paths below the root via `notFound`.
+    const directoryExists = yield* fs.existsSafe(location.directory)
+    const locationRoot = directoryExists ? yield* fs.realPath(location.directory) : location.directory
 
     function notFound<A>(effect: Effect.Effect<A, FSUtil.Error>) {
       return effect.pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))

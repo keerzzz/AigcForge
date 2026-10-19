@@ -177,4 +177,16 @@ describe("LocationMutation", () => {
       path: "README.md",
     })
   })
+
+  it.live("builds the service without dying when the location directory does not exist on disk", () =>
+    Effect.gen(function* () {
+      // Regression: a stale remembered location (directory deleted, renamed,
+      // or migrated to a new machine) used to die at layer construction via
+      // an unguarded `fs.realPath(location.directory)`, which `Layer.orDie`
+      // in LocationServiceMap then escalated to a defect that interrupted
+      // every other concurrently-building location service.
+      const service = yield* LocationMutation.Service
+      expect(service).toBeTruthy()
+    }).pipe(provide(path.join(path.sep, "aigcfroge-test-missing-location-9f3c2a"))),
+  )
 })

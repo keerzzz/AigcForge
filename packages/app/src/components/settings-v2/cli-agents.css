@@ -1,0 +1,113 @@
+.settings-v2-cli-agents-header .settings-v2-tab-header-row {
+  flex-wrap: wrap;
+}
+
+.settings-v2-cli-agents-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 0.5px solid var(--v2-border-border-muted);
+  border-radius: 0.375rem;
+  background: var(--v2-background-bg-layer-01);
+  color: var(--v2-icon-icon-muted);
+}
+
+.settings-v2-cli-agents-note-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 440;
+  line-height: 1.35;
+  color: var(--v2-text-text-muted);
+}
+
+.settings-v2-cli-agents-note-copy strong {
+  font-size: 0.8125rem;
+  font-weight: 530;
+  line-height: 1.2;
+  color: var(--v2-text-text-base);
+}
+
+.settings-v2-cli-agents {
+  gap: 0;
+}
+
+.settings-v2-cli-agents [data-component="settings-v2-list"] {
+  padding-inline: 1.25rem;
+}
+
+.settings-v2-cli-agent-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  line-height: 1.35;
+}
+
+.settings-v2-cli-agent-location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.settings-v2-cli-agent-location code,
+.settings-v2-cli-agents-error-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-family-mono);
+  color: var(--v2-text-text-base);
+}
+
+.settings-v2-cli-agent-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 530;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.settings-v2-cli-agent-status[data-state="detected"] {
+  color: var(--v2-state-fg-success);
+}
+
+.settings-v2-cli-agent-status[data-state="missing"] {
+  color: var(--v2-text-text-muted);
+}
+
+.settings-v2-cli-agent-status-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.settings-v2-cli-agents-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-block: 3rem;
+  color: var(--v2-text-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 440;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.settings-v2-cli-agents-state-title {
+  color: var(--v2-text-text-base);
+  font-weight: 530;
+}
+
+.settings-v2-cli-agents-state [data-component="button-v2"] {
+  margin-top: 0.25rem;
+}

@@ -605,6 +605,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get events",
@@ -656,6 +666,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -715,6 +735,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -798,6 +828,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of all configured AI providers and their default models.",
@@ -852,6 +892,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get experimental features enabled on the Aigcfroge server.",
@@ -903,6 +953,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -1004,6 +1064,16 @@
               }
             }
           },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          },
           "500": {
             "description": "InternalServerError",
             "content": {
@@ -1072,6 +1142,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -1171,6 +1251,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of available tools with their JSON schema parameters for a specific provider and model combination.",
@@ -1229,6 +1319,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -1297,6 +1397,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all sandbox worktrees for the current project.",
@@ -1353,6 +1463,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -1425,6 +1545,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Remove a git worktree and delete its branch.",
@@ -1493,6 +1623,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -1627,6 +1767,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of all Aigcfroge sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.",
@@ -1698,6 +1848,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Detach any synchronous subagents currently blocking the session and continue them in the background.",
@@ -1753,6 +1913,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -1882,6 +2052,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Search for text patterns across files in the project using ripgrep.",
@@ -1976,6 +2156,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Search for files or directories by name or pattern in the project directory.",
@@ -2042,6 +2232,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Search for workspace symbols like functions, classes, and variables using LSP.",
@@ -2105,6 +2305,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -2176,7 +2386,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -2238,6 +2455,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get the git status of all files in the project.",
@@ -2290,6 +2517,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -2347,6 +2584,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve the current working directory and related path information for the Aigcfroge instance.",
@@ -2398,6 +2645,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -2456,6 +2713,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -2535,6 +2802,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve the current git diff for the working tree or against the default branch.",
@@ -2586,6 +2863,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -2658,6 +2945,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Apply a raw patch to the current working tree.",
@@ -2725,6 +3022,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -2801,6 +3108,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Unstage specified files.",
@@ -2871,6 +3188,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -2963,6 +3290,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve recent commit history.",
@@ -3021,6 +3358,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of all available commands in the Aigcfroge system.",
@@ -3076,6 +3423,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -3153,6 +3510,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of all available skills in the Aigcfroge system.",
@@ -3208,6 +3575,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -3269,6 +3646,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get formatter status",
@@ -3324,6 +3711,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -3387,6 +3784,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -3498,11 +3905,18 @@
             }
           },
           "404": {
-            "description": "McpServerNotFoundError",
+            "description": "McpServerNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/McpServerNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/McpServerNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -3577,11 +3991,18 @@
             }
           },
           "404": {
-            "description": "McpServerNotFoundError",
+            "description": "McpServerNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/McpServerNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/McpServerNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -3656,11 +4077,18 @@
             }
           },
           "404": {
-            "description": "McpServerNotFoundError",
+            "description": "McpServerNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/McpServerNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/McpServerNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -3751,11 +4179,18 @@
             }
           },
           "404": {
-            "description": "McpServerNotFoundError",
+            "description": "McpServerNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/McpServerNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/McpServerNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -3824,11 +4259,18 @@
             }
           },
           "404": {
-            "description": "McpServerNotFoundError",
+            "description": "McpServerNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/McpServerNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/McpServerNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -3896,11 +4338,18 @@
             }
           },
           "404": {
-            "description": "McpServerNotFoundError",
+            "description": "McpServerNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/McpServerNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/McpServerNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -3961,6 +4410,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of projects that have been opened with Aigcfroge.",
@@ -4015,6 +4474,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve the currently active project that Aigcfroge is working with.",
@@ -4066,6 +4535,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -4140,11 +4619,18 @@
             }
           },
           "404": {
-            "description": "ProjectNotFoundError",
+            "description": "ProjectNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProjectNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProjectNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -4250,6 +4736,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List known local absolute directories for a project.",
@@ -4316,6 +4812,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -4405,6 +4911,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of available shells on the system.",
@@ -4460,6 +4976,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -4519,6 +5045,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -4620,11 +5156,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -4698,11 +5241,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -4800,11 +5350,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -4895,11 +5452,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -4958,6 +5522,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -5034,11 +5608,18 @@
             }
           },
           "404": {
-            "description": "PermissionNotFoundError",
+            "description": "PermissionNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PermissionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PermissionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -5141,6 +5722,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all prompt assets for the current Location, including invalid (skipped) entries.",
@@ -5207,6 +5798,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -5277,6 +5878,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -5372,6 +5983,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -5628,6 +6249,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all skill assets for the current Location, including invalid (skipped) entries.",
@@ -5694,6 +6325,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -5764,6 +6405,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -5859,6 +6510,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -5970,6 +6631,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all mcp assets for the current Location, including invalid (skipped) entries.",
@@ -6036,6 +6707,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6106,6 +6787,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6201,6 +6892,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6312,6 +7013,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all command assets for the current Location, including invalid (skipped) entries.",
@@ -6378,6 +7089,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6448,6 +7169,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6543,6 +7274,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6654,6 +7395,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all agent assets for the current Location, including invalid (skipped) entries.",
@@ -6720,6 +7471,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6790,6 +7551,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6885,6 +7656,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -6996,6 +7777,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all custom profile assets for the current Location, including invalid (skipped) entries.",
@@ -7071,7 +7862,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -7142,6 +7940,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -7263,7 +8071,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -7370,6 +8185,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Resolve a proposed composition input into a deterministic execution plan.",
@@ -7447,6 +8272,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -7545,11 +8380,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -7658,6 +8500,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Check the health and asset freshness of a stored custom profile.",
@@ -7746,6 +8598,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Find all custom profiles referencing a specific asset.",
@@ -7784,6 +8646,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -7835,6 +8707,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -7891,6 +8773,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "A cancelled reminder is never delivered.",
@@ -7938,6 +8830,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -7992,6 +8894,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "List the inbox of a session",
@@ -8027,6 +8939,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -8070,6 +8992,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "User-level memory across projects (Memory Inspector).",
@@ -8108,6 +9040,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -8164,6 +9106,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Confirm a memory proposal",
@@ -8217,6 +9169,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Reject a memory proposal",
@@ -8267,6 +9229,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -8344,6 +9316,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Soft-delete a confirmed memory entry",
@@ -8401,6 +9383,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "List knowledge base notes",
@@ -8432,6 +9424,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -8525,6 +9527,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Read a knowledge base note",
@@ -8573,6 +9585,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -8652,6 +9674,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Remove a knowledge base note",
@@ -8709,6 +9741,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Notes whose [[wikilinks]] resolve to the given note (single-sided + derived).",
@@ -8747,6 +9789,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -8815,6 +9867,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Full-text search",
@@ -8869,6 +9931,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -8976,6 +10048,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "List persistent delegations",
@@ -9053,6 +10135,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -9168,6 +10260,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Get persistent delegation",
@@ -9238,6 +10340,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Purge delegation",
@@ -9305,6 +10417,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -9406,6 +10528,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "List delegation turns",
@@ -9471,6 +10603,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -9620,6 +10762,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Retry delegation delivery",
@@ -9727,6 +10879,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -9849,6 +11011,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Retract rejection",
@@ -9959,6 +11131,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -10077,6 +11259,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Interrupt delegation",
@@ -10183,6 +11375,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -10293,6 +11495,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Close delegation",
@@ -10400,6 +11612,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Archive delegation",
@@ -10492,6 +11714,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "summary": "Unarchive delegation",
@@ -10581,6 +11813,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -10680,6 +11922,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all workflow assets for the current Location, including invalid (skipped) entries.",
@@ -10746,6 +11998,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -10816,6 +12078,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -10924,6 +12196,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -11041,6 +12323,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all plugin assets for the current Location, including invalid entries and system-bridged plugins.",
@@ -11107,6 +12399,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -11177,6 +12479,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -11285,6 +12597,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -11447,6 +12769,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of all available AI providers, including both available and connected ones.",
@@ -11505,6 +12837,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -11574,6 +12916,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -11670,6 +13022,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Handle the OAuth callback from a provider after user authorization.",
@@ -11762,6 +13124,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -11910,6 +13282,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Get a list of all Aigcfroge sessions, sorted by most recently updated.",
@@ -11969,6 +13351,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -12097,6 +13489,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve the current status of all sessions, including active, idle, and completed states.",
@@ -12176,7 +13578,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -12258,7 +13667,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -12342,7 +13758,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -12462,7 +13885,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -12548,7 +13978,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -12635,7 +14072,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -12732,7 +14176,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -12813,7 +14264,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -12913,7 +14371,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13046,7 +14511,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13133,7 +14605,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13271,7 +14750,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13389,7 +14875,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13482,7 +14975,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13661,7 +15161,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13752,7 +15259,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13845,7 +15359,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -13945,7 +15466,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14029,7 +15557,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14132,7 +15667,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14220,7 +15762,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14314,7 +15863,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14415,7 +15971,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14593,7 +16156,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14752,7 +16322,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14881,7 +16458,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -14995,7 +16579,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15100,10 +16691,13 @@
                 "schema": {
                   "anyOf": [
                     {
+                      "$ref": "#/components/schemas/PermissionNotFoundError"
+                    },
+                    {
                       "$ref": "#/components/schemas/NotFoundError"
                     },
                     {
-                      "$ref": "#/components/schemas/PermissionNotFoundError"
+                      "$ref": "#/components/schemas/NotFoundError"
                     }
                   ]
                 }
@@ -15214,7 +16808,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15306,7 +16907,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15410,7 +17018,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15512,7 +17127,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15610,7 +17232,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15701,7 +17330,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15788,7 +17424,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15879,7 +17522,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -15962,7 +17612,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -16048,7 +17705,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -16173,7 +17837,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -16299,7 +17970,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -16432,7 +18110,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -16527,6 +18212,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Start sync loops for workspaces in the current project that have active sessions.",
@@ -16593,6 +18288,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -16710,6 +18415,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Update a session to belong to the current workspace through the sync event system.",
@@ -16813,6 +18528,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List sync events for all aggregates. Keys are aggregate IDs the client already knows about, values are the last known sequence ID. Events with seq > value are returned for those aggregates. Aggregates not listed in the input get their full history.",
@@ -16888,6 +18613,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Append prompt to the TUI.",
@@ -16959,6 +18694,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Open the help dialog in the TUI to display user assistance information.",
@@ -17011,6 +18756,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17069,6 +18824,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Open the theme dialog.",
@@ -17121,6 +18886,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17179,6 +18954,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Submit the prompt.",
@@ -17231,6 +19016,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17293,6 +19088,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17364,6 +19169,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17453,6 +19268,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17546,7 +19371,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -17631,6 +19463,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve the next TUI request from the queue for processing.",
@@ -17683,6 +19525,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17764,6 +19616,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List all available workspace adapters for the current project.",
@@ -17819,6 +19681,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17881,6 +19753,16 @@
                       "$ref": "#/components/schemas/BadRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -17969,6 +19851,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Register missing workspaces returned by workspace adapters.",
@@ -18036,6 +19928,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
                 }
               }
             }
@@ -18109,6 +20011,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Remove an existing workspace.",
@@ -18172,7 +20084,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -18331,6 +20250,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Resolve the requested location or the server default location.",
@@ -18396,6 +20325,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -18490,6 +20429,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve currently registered agents.",
@@ -18498,6 +20447,97 @@
           {
             "lang": "js",
             "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.agent.list({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/agent/cli": {
+      "get": {
+        "tags": ["aigcfroge HttpApi"],
+        "operationId": "v2.agent.cli",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "directory": {
+                  "type": "string"
+                },
+                "workspace": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "location": {
+                      "$ref": "#/components/schemas/LocationInfo"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CliAgentDiscovery"
+                      }
+                    }
+                  },
+                  "required": ["location", "data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Find user-installed CLI agents in the current server environment without running or installing them.",
+        "summary": "Detect CLI agents",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createAigcfrogeClient } from \"@aigcfroge/sdk\n\nconst client = createAigcfrogeClient()\nawait client.v2.agent.cli({\n  ...\n})"
           }
         ]
       }
@@ -20827,6 +22867,16 @@
               }
             }
           },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
+          },
           "503": {
             "description": "ServiceUnavailableError",
             "content": {
@@ -20914,6 +22964,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -21015,11 +23075,18 @@
             }
           },
           "404": {
-            "description": "ProviderNotFoundError",
+            "description": "ProviderNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProviderNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProviderNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -21114,6 +23181,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve available integrations and their authentication methods.",
@@ -21200,6 +23277,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve one integration and its authentication methods.",
@@ -21273,6 +23360,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -21386,6 +23483,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -21761,6 +23868,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Poll the current status of an OAuth attempt.",
@@ -21825,6 +23942,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -21901,6 +24028,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -21989,6 +24126,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Update a stored credential label.",
@@ -22073,6 +24220,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Remove a stored integration credential.",
@@ -22154,6 +24311,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve pending permission requests for a location.",
@@ -22221,6 +24388,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve saved permissions, optionally filtered by project.",
@@ -22268,6 +24445,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -22537,6 +24724,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve scoped grant history for a location.",
@@ -22617,11 +24814,18 @@
             }
           },
           "404": {
-            "description": "GrantNotFoundError",
+            "description": "GrantNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GrantNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/GrantNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -22837,6 +25041,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Serve one file relative to the requested location.",
@@ -22923,6 +25137,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -23032,6 +25256,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Find recursively ranked filesystem entries relative to the requested location.",
@@ -23113,6 +25347,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "Retrieve currently registered commands.",
@@ -23191,6 +25435,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -23323,6 +25577,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List PTY sessions for a location, including exited sessions retained until removal.",
@@ -23396,6 +25660,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -23522,11 +25796,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -23617,11 +25898,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -23726,11 +26014,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -23844,11 +26139,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -23950,11 +26252,18 @@
             }
           },
           "404": {
-            "description": "PtyNotFoundError",
+            "description": "PtyNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PtyNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PtyNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -24036,6 +26345,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -24375,6 +26694,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "description": "List references available in the requested location.",
@@ -24444,6 +26773,16 @@
                       "$ref": "#/components/schemas/InvalidRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -24530,6 +26869,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -24609,6 +26958,16 @@
                       "$ref": "#/components/schemas/InvalidRequestError"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationNotFoundError"
                 }
               }
             }
@@ -24718,11 +27077,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -24820,11 +27186,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -24955,11 +27328,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -25069,11 +27449,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -25183,11 +27570,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -25326,11 +27720,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -25438,11 +27839,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -25607,11 +28015,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -25740,11 +28155,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -25882,11 +28304,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -26018,11 +28447,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -26156,11 +28592,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -26288,11 +28731,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -26418,11 +28868,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -26548,11 +29005,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -26662,11 +29126,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -26776,11 +29247,18 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -26890,11 +29368,18 @@
             }
           },
           "404": {
-            "description": "Not found",
+            "description": "NotFound | NotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/effect_HttpApiError_NotFound"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NotFoundError"
+                    }
+                  ]
                 }
               }
             }
@@ -36466,6 +38951,25 @@
         },
         "additionalProperties": false
       },
+      "NotFoundError": {
+        "type": "object",
+        "required": ["name", "data"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["NotFoundError"]
+          },
+          "data": {
+            "type": "object",
+            "required": ["message"],
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
       "Model": {
         "type": "object",
         "properties": {
@@ -37360,25 +39864,6 @@
         },
         "required": ["type", "content"],
         "additionalProperties": false
-      },
-      "NotFoundError": {
-        "type": "object",
-        "required": ["name", "data"],
-        "properties": {
-          "name": {
-            "type": "string",
-            "enum": ["NotFoundError"]
-          },
-          "data": {
-            "type": "object",
-            "required": ["message"],
-            "properties": {
-              "message": {
-                "type": "string"
-              }
-            }
-          }
-        }
       },
       "File": {
         "type": "object",
@@ -41190,6 +43675,45 @@
         "required": ["_tag", "message"],
         "additionalProperties": false
       },
+      "LocationNotFoundError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["LocationNotFoundError"]
+          },
+          "directory": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "directory", "message"],
+        "additionalProperties": false
+      },
+      "CliAgentDiscovery": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": ["name", "command", "description", "available"],
+        "additionalProperties": false
+      },
       "SessionsResponse": {
         "type": "object",
         "properties": {
@@ -41823,6 +44347,17 @@
           "_tag": {
             "type": "string",
             "enum": ["Forbidden"]
+          }
+        },
+        "required": ["_tag"],
+        "additionalProperties": false
+      },
+      "effect_HttpApiError_NotFound": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["NotFound"]
           }
         },
         "required": ["_tag"],

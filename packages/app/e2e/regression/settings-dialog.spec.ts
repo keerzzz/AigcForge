@@ -76,7 +76,7 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test("opens all five settings tabs without changing the route and returns focus on Escape", async ({ page }) => {
+test("opens all six settings tabs without changing the route and returns focus on Escape", async ({ page }) => {
   await gotoWhenReady(page, "/mode/coding")
 
   const settings = page.getByRole("button", { name: "Settings" })
@@ -87,7 +87,7 @@ test("opens all five settings tabs without changing the route and returns focus 
   await expect(dialog).toBeVisible()
   await expect(page).toHaveURL(/\/mode\/coding$/)
 
-  for (const tab of ["General", "Shortcuts", "Servers", "Providers", "Models"]) {
+  for (const tab of ["General", "Shortcuts", "Servers", "Providers", "Models", "CLI agents"]) {
     await dialog.getByRole("tab", { name: tab, exact: true }).click()
     await expect(dialog.getByRole("tabpanel", { name: tab, exact: true })).toBeVisible()
     await expect(page).toHaveURL(/\/mode\/coding$/)
@@ -100,7 +100,7 @@ test("opens all five settings tabs without changing the route and returns focus 
 
 test("supports keyboard navigation across every settings tab", async ({ page }) => {
   const dialog = await openSettings(page)
-  const tabs = ["General", "Shortcuts", "Servers", "Providers", "Models"]
+  const tabs = ["General", "Shortcuts", "Servers", "Providers", "Models", "CLI agents"]
 
   await dialog.getByRole("tab", { name: tabs[0], exact: true }).focus()
   for (const tab of tabs.slice(1)) {
@@ -112,6 +112,172 @@ test("supports keyboard navigation across every settings tab", async ({ page }) 
   await page.keyboard.press("Home")
   await expect(dialog.getByRole("tab", { name: "General", exact: true })).toBeFocused()
   await expect(dialog.getByRole("tabpanel", { name: "General", exact: true })).toBeVisible()
+})
+
+test("scans CLI agents when opened and reports detected and unavailable commands", async ({ page }) => {
+  let scans = 0
+  await page.route("**/api/agent/cli*", async (route) => {
+    scans += 1
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        location: { directory },
+        data: [
+          {
+            name: "Codex",
+            command: "codex",
+            description: "OpenAI coding agent",
+            available: true,
+            path: "/usr/local/bin/codex",
+          },
+          {
+            name: "Claude Code",
+            command: "claude",
+            description: "Anthropic coding agent",
+            available: false,
+          },
+        ],
+      }),
+    })
+  })
+
+  const dialog = await openSettings(page)
+  await expect.poll(() => scans).toBe(0)
+  await dialog.getByRole("tab", { name: "CLI agents", exact: true }).click()
+  await expect.poll(() => scans).toBe(1)
+
+  const codex = dialog.locator('[data-component="settings-v2-row"]', { hasText: "Codex" })
+  await expect(codex.getByText("Detected", { exact: true })).toBeVisible()
+  await expect(codex.getByText("/usr/local/bin/codex", { exact: true })).toBeVisible()
+
+  const claude = dialog.locator('[data-component="settings-v2-row"]', { hasText: "Claude Code" })
+  await expect(claude.getByText("Not detected", { exact: true })).toBeVisible()
+  await expect(claude.getByText("/usr/local/bin/claude", { exact: true })).toHaveCount(0)
+})
+
+test("refreshes CLI agent discovery without showing the previous result", async ({ page }) => {
+  let scans = 0
+  await page.route("**/api/agent/cli*", async (route) => {
+    scans += 1
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        location: { directory },
+        data: [
+          {
+            name: scans === 1 ? "Codex" : "Codex refreshed",
+            command: "codex",
+            description: "OpenAI coding agent",
+            available: true,
+            path: "/usr/local/bin/codex",
+          },
+        ],
+      }),
+    })
+  })
+
+  const dialog = await openSettings(page)
+  await dialog.getByRole("tab", { name: "CLI agents", exact: true }).click()
+  await expect(dialog.getByText("Codex", { exact: true })).toBeVisible()
+
+  await dialog.getByRole("button", { name: "Refresh", exact: true }).click()
+  await expect.poll(() => scans).toBe(2)
+  await expect(dialog.getByText("Codex refreshed", { exact: true })).toBeVisible()
+  await expect(dialog.getByText("Codex", { exact: true })).toHaveCount(0)
+})
+
+test("shows a recoverable CLI discovery error and retries the scan", async ({ page }) => {
+  let scans = 0
+  await page.route("**/api/agent/cli*", async (route) => {
+    scans += 1
+    if (scans === 1) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "agent discovery unavailable" }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        location: { directory },
+        data: [
+          {
+            name: "Codex",
+            command: "codex",
+            description: "OpenAI coding agent",
+            available: true,
+            path: "/usr/local/bin/codex",
+          },
+        ],
+      }),
+    })
+  })
+
+  const dialog = await openSettings(page)
+  await dialog.getByRole("tab", { name: "CLI agents", exact: true }).click()
+  await expect(dialog.getByRole("alert")).toContainText("Could not scan CLI agents")
+
+  await dialog.getByRole("button", { name: "Retry scan", exact: true }).click()
+  await expect.poll(() => scans).toBe(2)
+  await expect(dialog.getByText("Detected", { exact: true })).toBeVisible()
+})
+
+test("shows the empty CLI discovery state when the server reports no agents", async ({ page }) => {
+  await page.route("**/api/agent/cli*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ location: { directory }, data: [] }),
+    })
+  })
+
+  const dialog = await openSettings(page)
+  await dialog.getByRole("tab", { name: "CLI agents", exact: true }).click()
+
+  await expect(dialog.getByText("No CLI agents configured", { exact: true })).toBeVisible()
+  await expect(dialog.locator('[data-component="settings-v2-row"]')).toHaveCount(0)
+})
+
+test("holds the loading state and disables refresh while a scan is in flight", async ({ page }) => {
+  let releaseScan!: () => void
+  const scanGate = new Promise<void>((resolve) => {
+    releaseScan = resolve
+  })
+  await page.route("**/api/agent/cli*", async (route) => {
+    await scanGate
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        location: { directory },
+        data: [
+          {
+            name: "Codex",
+            command: "codex",
+            description: "OpenAI coding agent",
+            available: true,
+            path: "/usr/local/bin/codex",
+          },
+        ],
+      }),
+    })
+  })
+
+  const dialog = await openSettings(page)
+  await dialog.getByRole("tab", { name: "CLI agents", exact: true }).click()
+
+  await expect(dialog.getByText("Scanning for CLI agents...", { exact: true })).toBeVisible()
+  const refresh = dialog.getByRole("button", { name: "Refresh", exact: true })
+  await expect(refresh).toBeDisabled()
+
+  releaseScan()
+  await expect(dialog.getByText("Detected", { exact: true })).toBeVisible()
+  await expect(refresh).toBeEnabled()
 })
 
 test("persists a general setting after closing and reopening the dialog", async ({ page }) => {
@@ -230,7 +396,7 @@ test("keeps every Settings tab reachable at 200 percent equivalent zoom", async 
   await page.setViewportSize({ width: 720, height: 450 })
   const dialog = await openSettings(page)
 
-  for (const tab of ["General", "Shortcuts", "Servers", "Providers", "Models"]) {
+  for (const tab of ["General", "Shortcuts", "Servers", "Providers", "Models", "CLI agents"]) {
     await dialog.getByRole("tab", { name: tab, exact: true }).click()
     await expect(dialog.getByRole("tabpanel", { name: tab, exact: true })).toBeVisible()
   }
@@ -244,5 +410,5 @@ test("keeps every Settings tab reachable at 200 percent equivalent zoom", async 
 
   await dialog.getByRole("tab", { name: "General", exact: true }).focus()
   await page.keyboard.press("End")
-  await expect(dialog.getByRole("tab", { name: "Models", exact: true })).toBeFocused()
+  await expect(dialog.getByRole("tab", { name: "CLI agents", exact: true })).toBeFocused()
 })
