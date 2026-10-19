@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 import type { ProjectUpdateData } from "@aigcfroge/sdk/v2/client"
 import { fixture } from "../performance/timeline/session-timeline-stress.fixture"
 import { mockAigcfrogeServer } from "../utils/mock-server"
+import { snapshotMisses, trackPageErrors } from "../utils/errors"
 ;(["same-origin", "separate-origin"] as const).forEach((topology) => {
   test(`benchmark bootstrap projections follow the API contracts on ${topology}`, async ({ page }, testInfo) => {
     const server = new URL(testInfo.project.use.baseURL ?? "http://127.0.0.1:3000")
@@ -212,6 +213,65 @@ import { mockAigcfrogeServer } from "../utils/mock-server"
     expect(project.icon.color).toBe("blue")
     expect(project.commands.start).toBe("old-command")
   })
+})
+
+test("browser error tracking accepts only explicitly named snapshot 404s", async ({ page }) => {
+  await mockAigcfrogeServer(page, {
+    directory: fixture.directory,
+    project: fixture.project,
+    provider: fixture.provider,
+    sessions: fixture.sessions,
+    pageMessages: () => ({ items: [] }),
+  })
+  await page.route("**/error-tracker-probe", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Error tracker probe</title>" }),
+  )
+  await page.goto("/error-tracker-probe")
+  const expected = snapshotMisses(fixture.directory, [fixture.sourceID])
+  const errors = trackPageErrors(page, expected)
+  const request = async (url: string) => {
+    const error = page.waitForEvent(
+      "console",
+      (message) => message.type() === "error" && message.location().url === url,
+    )
+    const response = await page.evaluate(async (url) => {
+      const response = await fetch(url)
+      return { status: response.status, body: await response.json() }
+    }, url)
+    await error
+    return response
+  }
+  expect(await request(expected[0].url)).toEqual({
+    status: 404,
+    body: { name: "NotFoundError", data: { message: `Snapshot not found for session ${fixture.sourceID}` } },
+  })
+  expect(errors).toEqual([])
+
+  const unknown = snapshotMisses(fixture.directory, ["ses_unknown_error"])[0].url
+  expect((await request(unknown)).status).toBe(404)
+  expect(errors).toHaveLength(1)
+  expect(errors[0]).toContain(unknown)
+  const otherDirectory = snapshotMisses(`${fixture.directory}/other`, [fixture.sourceID])[0].url
+  expect((await request(otherDirectory)).status).toBe(404)
+  expect(errors).toHaveLength(2)
+  expect(errors[1]).toContain(otherDirectory)
+
+  await page.route(expected[0].url, (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: "{}",
+      headers: { "access-control-allow-origin": "*" },
+    }),
+  )
+  expect((await request(expected[0].url)).status).toBe(500)
+  expect(errors).toHaveLength(3)
+  expect(errors[2]).toContain("500")
+  const applicationError = page.waitForEvent("console", (message) => message.text() === "snapshot application failure")
+  await page.evaluate(() => console.error("snapshot application failure"))
+  await applicationError
+  expect(errors).toHaveLength(4)
+  expect(errors[3]).toContain("snapshot application failure")
 })
 
 async function read(page: Page, server: URL, path: string, body?: ProjectUpdateData["body"]) {

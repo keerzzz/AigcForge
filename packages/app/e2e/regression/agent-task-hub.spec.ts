@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 import type { DelegationParticipantInfo, DelegationState, SessionTaskInfo } from "@aigcfroge/sdk/v2/client"
 import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
-import { trackPageErrors } from "../utils/errors"
+import { snapshotMisses, trackPageErrors } from "../utils/errors"
 import { pinEnglishUI } from "../utils/locale"
 import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 import { expectSessionTitle } from "../utils/waits"
@@ -332,7 +332,7 @@ test.describe("regression: agent hub scheduled-task management (M4)", () => {
 })
 
 test("delegation panel remains usable at a narrow viewport", async ({ page }) => {
-  const errors = trackPageErrors(page)
+  const errors = trackPageErrors(page, snapshotMisses(directory, [sessionID]))
   const events: EventPayload[] = []
   await mockServer(page, events, {
     delegations: [
@@ -353,9 +353,6 @@ test("delegation panel remains usable at a narrow viewport", async ({ page }) =>
       },
     ],
   })
-  // Coding sessions never consume the Custom snapshot; the fixture's fidelity 404 for
-  // that request is expected here and unrelated to the delegation panel under test.
-  await page.route("**/session/*/composition*", (route) => route.fulfill({ status: 200, json: {} }))
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
   await expectSessionTitle(page, title)

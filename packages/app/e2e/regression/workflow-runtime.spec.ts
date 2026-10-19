@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Request } from "@playwright/test"
+import type { CompositionSnapshotV2 } from "@aigcfroge/sdk/v2/client"
 import { mockAigcfrogeServer } from "../utils/mock-server"
-import { trackPageErrors } from "../utils/errors"
+import { snapshotMisses, trackPageErrors } from "../utils/errors"
 import { expectSessionTitle } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
 
@@ -62,6 +63,22 @@ const session = {
   version: "dev",
   time: { created: T0, updated: T0 },
 }
+
+const snapshot = {
+  version: 2,
+  digest: "a".repeat(64),
+  sessionID,
+  createdAt: T0,
+  data: {
+    agents: [],
+    bindings: { orchestrator: { instructions: [], prompts: [], skills: [], commands: [] } },
+    instructions: [],
+    prompts: [],
+    skills: [],
+    commands: [],
+    tools: { fingerprints: [], catalogDigest: "b".repeat(64), catalog: [] },
+  },
+} satisfies CompositionSnapshotV2
 
 const userMessage = {
   info: {
@@ -229,13 +246,14 @@ async function mountWorkflowPanel(
   mode: "custom" | "work" = "custom",
 ) {
   const mock: WorkflowMock = { state: initial, posts: [], gets: 0, cancelRunStatus: 200 }
-  const pageErrors = trackPageErrors(page)
+  const pageErrors = trackPageErrors(page, mode === "work" ? snapshotMisses(directory, [sessionID]) : [])
 
   await mockAigcfrogeServer(page, {
     directory,
     project,
     provider,
     sessions: [{ ...session, mode }],
+    compositions: mode === "custom" ? { [sessionID]: snapshot } : undefined,
     pageMessages: () => ({ items: [userMessage] }),
     // One queued event per SSE reconnect, matching the shared mock's one-shot stream.
     events: () => events.splice(0, 1),

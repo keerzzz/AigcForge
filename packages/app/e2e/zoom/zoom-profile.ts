@@ -33,24 +33,6 @@ export const ZOOM_LEVEL_200 = Math.log(2) / Math.log(1.2)
 /** The OS window every measurement in this suite is pinned to (`--window-size`). */
 export const WINDOW_SIZE = { width: 1440, height: 900 } as const
 
-/** Measured certificate for a clean profile at {@link WINDOW_SIZE}: no zoom applied. */
-export const CLEAN_WINDOW = {
-  innerWidth: 1440,
-  innerHeight: 813,
-  outerWidth: 1440,
-  outerHeight: 900,
-  devicePixelRatio: 1,
-} as const
-
-/** Measured certificate for the same window at 200% page zoom: layout viewport halved. */
-export const ZOOMED_WINDOW = {
-  innerWidth: 720,
-  innerHeight: 406,
-  outerWidth: 1440,
-  outerHeight: 900,
-  devicePixelRatio: 2,
-} as const
-
 /** The app's desktop gate, `createMediaQuery("(min-width: 768px)")`. */
 export const DESKTOP_MEDIA_QUERY = "(min-width: 768px)"
 

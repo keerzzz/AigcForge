@@ -8,6 +8,7 @@ import type {
   PermissionOverrideGetResponse,
   ProjectNotFoundError,
   SchedulePendingResponse,
+  SessionCompositionResponse,
   SessionMessagesResponse,
   SessionNotFoundError,
   V2PermissionGrantListResponse,
@@ -55,6 +56,9 @@ export interface MockServerConfig {
    * Returned cursors are opaque fixture tokens. A known token whose anchor belongs
    * to another session returns an empty page, matching the canonical store. */
   canonicalMessages?: (input: MockCanonicalMessageQuery) => SessionMessagesResponse
+  /** Frozen snapshots for declared Custom sessions. Unseeded snapshots retain
+   * the real typed 404, including for ordinary non-Custom sessions. */
+  compositions?: Record<string, SessionCompositionResponse>
   vcsDiff?: unknown[]
   messageDelay?: number
   onMessages?: (input: { sessionID: string; before?: string; phase: "start" | "end" }) => void
@@ -288,8 +292,11 @@ export async function mockAigcfrogeServer(page: Page, config: MockServerConfig) 
     if (sessionProjectionMatch && route.request().method() === "GET") {
       const session = config.sessions.find((s) => s.id === sessionProjectionMatch[1])
       if (!session) return notFound(route, `Session not found: ${sessionProjectionMatch[1]}`)
-      if (sessionProjectionMatch[2] === "composition")
+      if (sessionProjectionMatch[2] === "composition") {
+        const snapshot = config.compositions?.[session.id]
+        if (snapshot) return json(route, snapshot)
         return notFound(route, `Snapshot not found for session ${session.id}`)
+      }
       return json(route, { enabled: false } satisfies PermissionOverrideGetResponse)
     }
 

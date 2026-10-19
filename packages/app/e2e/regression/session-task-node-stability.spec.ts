@@ -3,7 +3,7 @@ import { base64Encode } from "@aigcfroge/core/util/encode"
 import { createTimelineSseTransport } from "../performance/timeline/session-timeline-sse"
 import { fixture, pageMessages } from "../smoke/session-timeline.fixture"
 import { mockAigcfrogeServer } from "../utils/mock-server"
-import { trackPageErrors } from "../utils/errors"
+import { snapshotMisses, trackPageErrors } from "../utils/errors"
 import { pinEnglishUI } from "../utils/locale"
 import { expectSessionTitle } from "../utils/waits"
 
@@ -60,7 +60,7 @@ const tasks = [
     ? "Server reconnect preserves the open Task checkbox focus and DOM identity"
     : `Task updates preserve DOM identity, local expansion, scroll and draft (${kind} SSE)`
   test(title, async ({ page }, info) => {
-    const errors = trackPageErrors(page)
+    const errors = trackPageErrors(page, snapshotMisses(fixture.directory, [sessionID]))
     const events: EventPayload[] = []
     const requests: { path: string; method: string; at: number }[] = []
     const observations: unknown[] = []
@@ -288,7 +288,7 @@ const tasks = [
 })
 
 test("Explicit Agent selection still changes the choice and restores Composer focus", async ({ page }, info) => {
-  const errors = trackPageErrors(page)
+  const errors = trackPageErrors(page, snapshotMisses(fixture.directory, [sessionID]))
   const observations: unknown[] = []
   await pinEnglishUI(page)
   await page.setViewportSize({ width: 1280, height: 800 })

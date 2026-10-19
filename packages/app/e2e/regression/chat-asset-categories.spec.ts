@@ -161,10 +161,16 @@ test("keeps the counts across an A to B to A mode round trip, without doubling t
   const afterFirstRead = requests.length
   expect(afterFirstRead).toBeGreaterThanOrEqual(categories.length)
 
-  await page.goto("/mode/coding")
+  // Exercise the persistent SPA owner. page.goto reloads the document and
+  // measures two fresh application bootstraps instead of a mode round trip.
+  const rail = page.getByRole("navigation")
+  const document = await page.locator("html").elementHandle()
+  await rail.getByRole("button", { name: "Coding", exact: true }).click()
   await expectAppVisible(page.locator('[data-mode-main="coding"]'))
-  await page.goto("/mode/chat")
+  await rail.getByRole("button", { name: "Chat", exact: true }).click()
   await expectAppVisible(page.locator('[data-mode-main="chat"]'))
+  expect(await page.locator("html").evaluate((node, original) => node.isSameNode(original), document)).toBe(true)
+  await document?.dispose()
 
   // Recovery, measured as "one round, not two": the counts come back on the same
   // resource, and the round trip costs at most one pass over the seven lists. The

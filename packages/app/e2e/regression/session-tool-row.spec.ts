@@ -16,8 +16,8 @@ import { expectSessionTitle, gotoWhenReady } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
 import { PRESENTATION_EXPECTED } from "../presentation-matrix"
 // Both harnesses export test; this alias distinguishes the real-zoom fixture.
-import { test as zoomTest } from "../zoom/fixtures"
-import { WINDOW_SIZE, ZOOMED_WINDOW, ZOOM_HOST } from "../zoom/zoom-profile"
+import { expectPageZoom, measureWindow, test as zoomTest } from "../zoom/fixtures"
+import { ZOOM_HOST } from "../zoom/zoom-profile"
 
 const directory = "C:/Aigcfroge/ToolRowRegression"
 const projectID = "proj_tool_row_regression"
@@ -647,25 +647,17 @@ test(
 
 zoomTest(
   "AI-TDD-S05-R07 real 200% page zoom keeps the production history action reachable",
-  async ({ page }, testInfo) => {
+  async ({ page, unzoomedWindow }, testInfo) => {
     const base = testInfo.project.use.baseURL
     if (!base || new URL(base).hostname !== ZOOM_HOST) throw new Error("The real-zoom fixture requires its seeded host")
     await pinEnglishUI(page)
     const part = longTask()
     await install(page, [part], { sessions: [session(), session("ses_tool_row_child", "Child tool session")] })
     await open(page)
-    const certificate = await page.evaluate(() => ({
-      innerWidth,
-      outerWidth,
-      devicePixelRatio,
-      scale: visualViewport?.scale,
-    }))
-    expect(certificate.innerWidth).toBe(ZOOMED_WINDOW.innerWidth)
-    expect(certificate.outerWidth).toBe(WINDOW_SIZE.width)
-    expect(certificate.devicePixelRatio).toBe(ZOOMED_WINDOW.devicePixelRatio)
-    expect(certificate.scale).toBe(1)
+    const certificate = await measureWindow(page)
+    expectPageZoom(certificate, unzoomedWindow, 2)
     await testInfo.attach("tool-row-real-zoom.json", {
-      body: JSON.stringify(certificate),
+      body: JSON.stringify({ unzoomed: unzoomedWindow, zoomed: certificate }),
       contentType: "application/json",
     })
     await expectReachableAction(page, part)

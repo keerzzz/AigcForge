@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { fixture, pageMessages } from "./session-timeline.fixture"
-import { trackPageErrors, expectNoSmokeErrors } from "../utils/errors"
+import { snapshotMisses, trackPageErrors, expectNoSmokeErrors } from "../utils/errors"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { APP_READY_TIMEOUT, expectAppVisible, expectSessionTitle } from "../utils/waits"
 import { pinEnglishUI } from "../utils/locale"
@@ -340,7 +340,7 @@ test.describe("smoke: session timeline", () => {
   })
 
   test("renders seeded timeline in order while paging through history", async ({ page }) => {
-    const errors = trackPageErrors(page)
+    const errors = trackPageErrors(page, snapshotMisses(fixture.directory, [fixture.sourceID, fixture.targetID]))
     await mockAigcfrogeServer(page, {
       sessions: fixture.sessions,
       provider: fixture.provider,

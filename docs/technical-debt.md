@@ -1833,6 +1833,20 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **处理**：夹具持有一个 real interval，并在 `afterAll` 清理；断言仍要求 Bun 自身触发 50ms deadline、完成原 scope finalizer、恢复 Custom flag，并保留 cleanup defect。没有增加被测截止时间，也没有替换生产或测试 helper 的取消逻辑。当前 Linux Core 5 个、后端 isolated/shared 10 个场景通过；Windows 结果等待新一轮 CI。
 - **技术债 — Owner: test infrastructure。** 该保活只服务于固定 Bun 版本的隔离 deadline 测试。解锁条件：升级后的 Bun 在 Windows 上无需应用 timer 也能执行这些 deadline/finalizer 用例，再删除保活并通过 Core 与后端两种 helper 的真实 Windows 回归。Windows 修复尚未取得新 CI 结果前不得记为已验证。
 
+### 15.81 2026-10-19 PR #129 E2E 夹具与平台校准
+
+首轮 Windows E2E 为 **18 fail / 452 pass**；Linux 首轮在取消前也出现同类错误，不能记为完整结果。本轮按共同边界修复测试，未改生产 Session/timeline 代码。
+
+- **已接受的 composition 404 保持真实**：`useSessionSnapshotCommands`（`packages/app/src/utils/session-commands.ts:36`）仍读取非 Custom 快照，服务端 `composition`（`packages/aigcfroge/src/server/routes/instance/httpapi/handlers/session.ts:1158`）对不存在快照返回 typed 404。这是 §15.56/§15.76 的接受余量，不在本轮宣称修复。`trackPageErrors`（`packages/app/e2e/utils/errors.ts:9`）只把调用方明确列出的完整 URL + 精确 404 网络错误记为 `[expected-browser-error]`，逐条保留到日志；未知 Session、不同目录、500、应用错误仍失败。真实浏览器反例同时验证这四个边界及 typed 404 body。原 Agent Hub 的 `200 {}` 覆盖已删除。
+- **Custom 正常场景补齐快照**：共享 mock 允许按 Session ID 提供类型化 composition；未提供的快照继续返回原 typed 404。Workflow Custom 用例提供有效 V2 快照，Work 用例保留已知快照缺失。没有将所有未匹配请求改成成功响应。
+- **项目规模种子一致**：Location 匹配由共享 mock 的最长 worktree 前缀规则（`packages/app/e2e/utils/mock-server.ts:191`）决定。规模用例复用既有 `projects` 配置，从同一 registry entries 生成项目列表；不放宽未知目录保护。0、50、500、2000 项均完成渲染和交互，page/console errors 均为 0。
+- **资产往返测真实导航**：原 `page.goto` 执行两次完整文档加载；现在点击 `ModeSwitcher` 的模式按钮，并验证同一 document 节点仍在。资源 owner 是 `ModeWorkspace`（`packages/app/src/pages/mode-workspace.tsx:74`）下的 `ChatAssetsProvider`，其 active 输入冻结规则在 `packages/app/src/components/chat/chat-assets.tsx:100`。保持既有最多七次重读的接受界限，没有抬高请求预算或新增缓存。
+- **真实缩放按本机内容区校准**：Windows 首轮实测 712 CSS px，原断言硬编码 Linux 的 720。复用持久 Chromium profile，从 hostless `about:blank` 记录未缩放窗口；`expectPageZoom`（`packages/app/e2e/zoom/fixtures.ts:110`）验证同一外部窗口、内容区宽高比例、DPR 倍率与 `visualViewport.scale=1`。独立 clean-profile 对照、200% 重排和 Work/Assistant 面板可达性继续执行，没有改用 viewport/CDP 缩放模拟。
+
+**本地独立批次（均 exit 0）**：委派/Workflow/资产 12 pass；Task/历史分页/缩放/投影及错误反例 12 pass；项目规模/Agent Hub 5 pass；独立真实缩放 2 pass；App E2E contracts 56 pass / 190 assertions；App typecheck 通过。最初定位 404 的单例为 1 fail，单独记账，不与修复后通过数相加。证据在 `/home/keer/.codex/artifacts/agent-ui-tdd-remediation-20261019/` 的 `ci-e2e-*.log`、`ci-native-zoom-evidence/` 和 `gates.jsonl`。
+
+**仍开放 — Owner: CI / 当前交付。** Windows 校准与 §15.80 的真实 Windows 生命周期验证仍以最新提交的 CI 为准；必需检查、PR 合并、main 保全同步和六平台实际发布尚未完成。解锁条件：对应最新 SHA 的检查及发布产物证据，不以这些 Linux 本地通过替代。§15.73/§15.76 接受余量以及外部模型、OAuth、安装/升级/迁移实机边界保持原义。
+
 ## 16. 本机 CLI 发现与惰性初始化验证边界（2026-09-29）
 
 来源：`local-cli-discovery` 续办与 `CLAUDE.md` 复审。以下实机验证不能由单元测试、临时 Node bundle 或拦截接口响应的浏览器用例替代。

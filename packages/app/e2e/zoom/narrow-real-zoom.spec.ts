@@ -12,20 +12,20 @@
  * 2. 200% — a seeded profile must measure the zoomed window, and only then is the product
  *    contract asserted: at real 200% page zoom the mode-specific panels stay reachable.
  *
- * A real 200% zoom on a 1440x900 window leaves a 720px layout viewport.
+ * A real 200% zoom on a 1440x900 window leaves a narrow layout viewport.
  * The mode-panel entry must keep Work and Assistant panels reachable after
  * the desktop media query switches to the narrow presentation.
  */
 import { writeFileSync } from "node:fs"
 import type { SessionMessagesResponse } from "@aigcfroge/sdk/v2/client"
-import { expect, test, type Page, type TestInfo } from "./fixtures"
+import { expect, expectPageZoom, measureWindow, test, type Page, type TestInfo, type ZoomFixtures } from "./fixtures"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer } from "../utils/mock-server"
 import { pinEnglishUI } from "../utils/locale"
 import { expectAppVisible } from "../utils/waits"
-import { CLEAN_WINDOW, DESKTOP_MEDIA_QUERY, WINDOW_SIZE, ZOOMED_WINDOW, ZOOM_HOST } from "./zoom-profile"
+import { DESKTOP_MEDIA_QUERY, ZOOM_HOST } from "./zoom-profile"
 
-/** A 1200px-wide block fits a 1440px viewport and cannot fit a 720px one. */
+/** A 1200px-wide block fits the unzoomed content area and overflows at 200%. */
 const REFLOW_PROBE_WIDTH = 1200
 
 /**
@@ -44,34 +44,6 @@ const REFLOW_PROBE_WIDTH = 1200
 const CERTIFICATE_PATH = "/zoom-certificate.html"
 const CERTIFICATE_HTML =
   "<!doctype html><html><head><meta charset='utf-8'><title>zoom certificate</title></head><body></body></html>"
-
-interface WindowCertificate {
-  innerWidth: number
-  innerHeight: number
-  outerWidth: number
-  outerHeight: number
-  devicePixelRatio: number
-  mq768: boolean
-  visualViewportWidth: number | undefined
-  screenWidth: number
-  screenHeight: number
-}
-
-async function measureWindow(page: Page): Promise<WindowCertificate> {
-  return page.evaluate((query) => {
-    return {
-      innerWidth: window.innerWidth,
-      innerHeight: window.innerHeight,
-      outerWidth: window.outerWidth,
-      outerHeight: window.outerHeight,
-      devicePixelRatio: window.devicePixelRatio,
-      mq768: window.matchMedia(query).matches,
-      visualViewportWidth: window.visualViewport?.width,
-      screenWidth: window.screen.width,
-      screenHeight: window.screen.height,
-    }
-  }, DESKTOP_MEDIA_QUERY)
-}
 
 /**
  * The reflow certificate: a zoomed layout viewport has to reflow its content, which is
@@ -143,36 +115,35 @@ async function measureCertificate(page: Page, testInfo: TestInfo, name: string) 
 test.describe("control: the seed is what zooms, not the window", () => {
   test.use({ seedZoom: false })
 
-  test("a clean profile measures an unzoomed window at 1440x900", async ({ page }, testInfo) => {
+  test("a clean profile measures an unzoomed window at 1440x900", async ({ page, unzoomedWindow }, testInfo) => {
     const { window, reflow } = await measureCertificate(page, testInfo, "window-certificate-control")
+    await attachCertificate(testInfo, "window-unzoomed-control", unzoomedWindow)
 
-    expect(window.innerWidth, `clean profile, ${WINDOW_SIZE.width}x${WINDOW_SIZE.height} window: ${raw(window)}`).toBe(
-      CLEAN_WINDOW.innerWidth,
-    )
-    expect(window.outerWidth, `clean profile window width: ${raw(window)}`).toBe(CLEAN_WINDOW.outerWidth)
-    expect(window.devicePixelRatio, `clean profile DPR: ${raw(window)}`).toBe(CLEAN_WINDOW.devicePixelRatio)
+    expectPageZoom(window, unzoomedWindow, 1)
     expect(window.mq768, `clean profile ${DESKTOP_MEDIA_QUERY}: ${raw(window)}`).toBe(true)
 
     // The same probe that overflows at 200% must NOT overflow here, or the reflow
     // certificate in the zoomed test would not discriminate.
-    expect(reflow.overflows, `a ${REFLOW_PROBE_WIDTH}px block must fit a 1440px viewport: ${raw(reflow)}`).toBe(false)
+    expect(reflow.overflows, `a ${REFLOW_PROBE_WIDTH}px block must fit the unzoomed viewport: ${raw(reflow)}`).toBe(
+      false,
+    )
   })
 })
 
 test.describe("200% page zoom", () => {
-  test("a seeded profile zooms, reflows, and must keep the mode panels reachable", async ({ page }, testInfo) => {
+  test("a seeded profile zooms, reflows, and must keep the mode panels reachable", async ({
+    page,
+    unzoomedWindow,
+  }, testInfo) => {
     await test.step("the browser is really zoomed (asserted before any app UI)", async () => {
       const { window, reflow } = await measureCertificate(page, testInfo, "window-certificate-200")
+      await attachCertificate(testInfo, "window-unzoomed-baseline", unzoomedWindow)
 
-      expect(window.innerWidth, `200% page zoom shrinks the layout viewport: ${raw(window)}`).toBe(
-        ZOOMED_WINDOW.innerWidth,
+      expectPageZoom(window, unzoomedWindow, 2)
+      expect(window.mq768, `768px media query must reflow at a narrow layout viewport: ${raw(window)}`).toBe(false)
+      expect(reflow.overflows, `a ${REFLOW_PROBE_WIDTH}px block cannot fit the zoomed viewport: ${raw(reflow)}`).toBe(
+        true,
       )
-      expect(window.outerWidth, `the OS window must not change when the page zooms: ${raw(window)}`).toBe(
-        ZOOMED_WINDOW.outerWidth,
-      )
-      expect(window.devicePixelRatio, `200% page zoom doubles DPR: ${raw(window)}`).toBe(ZOOMED_WINDOW.devicePixelRatio)
-      expect(window.mq768, `768px media query must reflow at a 720px layout viewport: ${raw(window)}`).toBe(false)
-      expect(reflow.overflows, `a ${REFLOW_PROBE_WIDTH}px block cannot fit a 720px viewport: ${raw(reflow)}`).toBe(true)
     })
 
     const reachability = await test.step("the product contract: mode panels at real 200% zoom", async () => {
@@ -199,10 +170,10 @@ test.describe("200% page zoom", () => {
 
       // The app page must genuinely be the zoomed one, or the measurement below would
       // be about a different browser state than the certificate above.
-      const appWindow = await openSession(page, testInfo, workSessionID, WORK_TITLE)
+      const appWindow = await openSession(page, testInfo, workSessionID, WORK_TITLE, unzoomedWindow)
       const work = await measureArtifactPanel(page)
 
-      await openSession(page, testInfo, assistantSessionID, ASSISTANT_TITLE)
+      await openSession(page, testInfo, assistantSessionID, ASSISTANT_TITLE, unzoomedWindow)
       const assistant = await measureAssistantPanel(page)
 
       const measured = { appWindow, work, assistant }
@@ -211,7 +182,7 @@ test.describe("200% page zoom", () => {
     })
 
     // `expect.soft` so BOTH modes are reported in one run instead of the first failure
-    // hiding the second. The panel is closed by default at a 720px layout viewport, so
+    // hiding the second. The panel is closed by default at a narrow layout viewport, so
     // reachability means the narrow entry exists AND reveals it — asserting the panel
     // without the entry would pass for a panel nothing can open.
     expect
@@ -355,7 +326,13 @@ async function gotoApp(page: Page, baseURL: string, path: string) {
 }
 
 /** Opens the session and returns the app page's own zoomed window certificate. */
-async function openSession(page: Page, testInfo: TestInfo, sessionID: string, title: string) {
+async function openSession(
+  page: Page,
+  testInfo: TestInfo,
+  sessionID: string,
+  title: string,
+  unzoomed: ZoomFixtures["unzoomedWindow"],
+) {
   const baseURL = testInfo.project.use.baseURL
   if (!baseURL) throw new Error("e2e/zoom requires a baseURL")
   await gotoApp(page, baseURL, canonicalPath(sessionID))
@@ -364,9 +341,7 @@ async function openSession(page: Page, testInfo: TestInfo, sessionID: string, ti
   const appWindow = { sessionID, title, url: page.url(), ...window }
   // The session must actually be rendered, or "the panel is missing" would be
   // indistinguishable from "the page never loaded".
-  expect(appWindow.innerWidth, `app page at 200% zoom should still be 720px wide: ${raw(appWindow)}`).toBe(
-    ZOOMED_WINDOW.innerWidth,
-  )
+  expectPageZoom(window, unzoomed, 2)
   expect(appWindow.mq768, `app page media query at 200% zoom: ${raw(appWindow)}`).toBe(false)
   return appWindow
 }
@@ -374,7 +349,7 @@ async function openSession(page: Page, testInfo: TestInfo, sessionID: string, ti
 /**
  * Open the session's mode content panel through the narrow entry.
  *
- * At 200% zoom the layout viewport is 720px, so the panel is in its narrow presentation and
+ * At 200% zoom the layout viewport is below 768px, so the panel is in its narrow presentation and
  * closed by default; the entry is what makes it reachable. Returns whether the entry existed,
  * so a missing entry is reported as a missing entry rather than as a missing panel.
  */

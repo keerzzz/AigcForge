@@ -19,8 +19,8 @@
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { chromium, test as base, type BrowserContext, type Page, type TestInfo } from "@playwright/test"
-import { seedZoomProfile, WINDOW_SIZE, ZOOM_HOST, ZOOM_LEVEL_200 } from "./zoom-profile"
+import { chromium, expect, test as base, type BrowserContext, type Page, type TestInfo } from "@playwright/test"
+import { DESKTOP_MEDIA_QUERY, seedZoomProfile, WINDOW_SIZE, ZOOM_HOST, ZOOM_LEVEL_200 } from "./zoom-profile"
 
 // Re-exported so specs import their whole test surface from one module.
 export { expect } from "@playwright/test"
@@ -31,6 +31,7 @@ export interface ZoomFixtures {
   seedZoom: boolean
   context: BrowserContext
   page: Page
+  unzoomedWindow: Awaited<ReturnType<typeof measureWindow>>
 }
 
 export const test = base.extend<ZoomFixtures>({
@@ -79,7 +80,49 @@ export const test = base.extend<ZoomFixtures>({
     await use(page)
     await captureFailureScreenshot(testInfo, page)
   },
+
+  unzoomedWindow: async ({ page }, use) => {
+    // The hostless initial document has no per-host zoom. Measure the real
+    // content area: Windows window borders consume width that Linux does not.
+    expect(page.url()).toBe("about:blank")
+    await use(await measureWindow(page))
+  },
 })
+
+export function measureWindow(page: Page) {
+  return page.evaluate(
+    (query) => ({
+      innerWidth,
+      innerHeight,
+      outerWidth,
+      outerHeight,
+      devicePixelRatio,
+      mq768: matchMedia(query).matches,
+      visualViewportWidth: visualViewport?.width,
+      visualViewportScale: visualViewport?.scale,
+      screenWidth: screen.width,
+      screenHeight: screen.height,
+    }),
+    DESKTOP_MEDIA_QUERY,
+  )
+}
+
+export function expectPageZoom(
+  window: Awaited<ReturnType<typeof measureWindow>>,
+  unzoomed: Awaited<ReturnType<typeof measureWindow>>,
+  factor: 1 | 2,
+) {
+  expect(unzoomed.outerWidth).toBe(WINDOW_SIZE.width)
+  expect(unzoomed.outerHeight).toBe(WINDOW_SIZE.height)
+  expect(window.outerWidth).toBe(unzoomed.outerWidth)
+  expect(window.outerHeight).toBe(unzoomed.outerHeight)
+  // inner dimensions round to whole CSS pixels after real page zoom.
+  expect(Math.abs(window.innerWidth * factor - unzoomed.innerWidth)).toBeLessThan(factor)
+  expect(Math.abs(window.innerHeight * factor - unzoomed.innerHeight)).toBeLessThan(factor)
+  expect(window.devicePixelRatio).toBe(unzoomed.devicePixelRatio * factor)
+  expect(unzoomed.visualViewportScale).toBe(1)
+  expect(window.visualViewportScale).toBe(1)
+}
 
 async function captureFailureScreenshot(testInfo: TestInfo, page: Page) {
   if (testInfo.status === testInfo.expectedStatus) return
