@@ -94,13 +94,12 @@ jobs:
   e4:
     name: e4 (${{ matrix.settings.name }})
     # The real-backend harness builds the production app and boots a real backend,
-    # a real PTY and a real SQLite DB. It is deliberately NOT part of the PR gate:
-    # the E3 job already covers the browser surface there, and this job's value is
-    # the production chain plus the independent V2 and Custom variants.
+    # a real PTY and a real SQLite DB on PRs as well as dev/dispatch runs.
+    # Each run uses isolated HOME/config/data and a loopback test provider;
+    # no external provider credentials or existing services are required.
     #
     # Default and V2 run the full suite. Custom runs its positive runtime case
     # with the global V2 switch off, so Custom's own routing is exercised.
-    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:

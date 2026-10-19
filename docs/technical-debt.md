@@ -1847,6 +1847,11 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 
 **仍开放 — Owner: CI / 当前交付。** Windows 校准与 §15.80 的真实 Windows 生命周期验证仍以最新提交的 CI 为准；必需检查、PR 合并、main 保全同步和六平台实际发布尚未完成。解锁条件：对应最新 SHA 的检查及发布产物证据，不以这些 Linux 本地通过替代。§15.73/§15.76 接受余量以及外部模型、OAuth、安装/升级/迁移实机边界保持原义。
 
+### 15.82 2026-10-19 PR #129 恢复 E4 执行
+
+- **用户要求**：恢复 PR 中的 E4。删除 `test.yml` 的非 PR 限制，复用既有 default / V2 / Custom 三段串行 job；不改重试、超时、隔离后端或 provider 合同。`docs/testing.md` 同步现行正向 runtime 验证边界；§15.77 的旧 PR 集合描述仅为当时快照。
+- **仍开放 — Owner: CI / 当前交付。** 最新提交必须实际运行并通过 `e4 (linux)` 才可合并本 PR；解锁条件为同一 SHA 的 default、V2、Custom 三段结果及 teardown/manifest 证据。恢复调度本身不等于 E4 已通过，也不自动改变远端 branch protection。§15.73/§15.76 接受余量及外部模型、OAuth、安装/升级/迁移边界保持原义。
+
 ## 16. 本机 CLI 发现与惰性初始化验证边界（2026-09-29）
 
 来源：`local-cli-discovery` 续办与 `CLAUDE.md` 复审。以下实机验证不能由单元测试、临时 Node bundle 或拦截接口响应的浏览器用例替代。

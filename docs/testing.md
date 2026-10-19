@@ -112,23 +112,24 @@ CI 中（linux only）：coverage + auth 为硬门禁，effect 为 advisory。
 
 ## 8. CI 环节（GitHub Actions）
 
-| Workflow               | 触发          | 内容                                                                                                                     |
-| ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `ci.yml`               | PR / 分支     | Lint → Typecheck → `bun turbo test`                                                                                      |
-| `test.yml`             | PR / dev push | **unit × 2 OS**（linux+windows，40min 上限）+ **e2e × 2 OS** + HttpApi exerciser（coverage/auth 门禁 + effect advisory） |
-| `typecheck.yml`        | PR            | `bun typecheck`                                                                                                          |
-| `storybook.yml`        | PR            | `bun --cwd packages/storybook build`                                                                                     |
-| `pr-standards.yml`     | PR            | PR 标题 / 分支命名规范                                                                                                   |
-| `pr-management.yml` 等 | 事件/定时     | PR/issue 治理、beta 同步、发布、nix（非测试环节）                                                                        |
+| Workflow               | 触发                 | 内容                                                                                                                                           |
+| ---------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`               | PR / 分支            | Lint → Typecheck → `bun turbo test`                                                                                                            |
+| `test.yml`             | PR / dev push / 手动 | **unit × 2 OS**（Linux 40min / Windows 90min 上限）+ **e2e × 2 OS** + **E4 Linux** + HttpApi exerciser（coverage/auth 门禁 + effect advisory） |
+| `typecheck.yml`        | PR                   | `bun typecheck`                                                                                                                                |
+| `storybook.yml`        | PR                   | `bun --cwd packages/storybook build`                                                                                                           |
+| `pr-standards.yml`     | PR                   | PR 标题 / 分支命名规范                                                                                                                         |
+| `pr-management.yml` 等 | 事件/定时            | PR/issue 治理、beta 同步、发布、nix（非测试环节）                                                                                              |
 
 CI 注记：
 
-- Windows 上 aigcfroge:test 子进程密集约慢 2.9 倍，CI 设 40min；Windows 关 filewatcher（`AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER=true`）。
+- Windows 上 aigcfroge:test 子进程密集，unit 步骤上限为 90min（Linux 40min）；Windows 关 filewatcher（`AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER=true`）。
 - `check-compliance` / `check-standards` / `add-contributor-label` 为 PR 治理 checks（非测试）。
 
 ### 8.1 E4（真实后端 harness）与契约门禁（S6 接线）
 
-- **E4 独立 job，不进 PR 必跑集合**：`test.yml` 的 `e4` job 只在非 PR（push / workflow_dispatch）触发，跑两个 variant——默认运行时（产品链）与 `E4_V2_RUNTIME=1`（V2 现状 spec 的唯一执行环境；那里的 green 表示 V2 缺口仍在，见该 spec 头注释）。PR 上的浏览器面由 `e2e` job 的 E3 套件覆盖。
+- **E4 独立 job，PR 也执行**：`test.yml` 的 `e4 (linux)` 随 PR、dev push 和 workflow_dispatch 执行。三个步骤串行运行：默认运行时完整套件、`E4_V2_RUNTIME=1` 完整套件、`E4_V2_RUNTIME=0 E4_CUSTOM_MODE=1` 的 `canonical-runtime.spec.ts`。每段保持 `workers=1`、`retries=0` 和 45min 上限；失败不会被跳过条件或重试掩盖。本次 PR #129 合并前须确认最新 SHA 的 E4 成功；工作流执行范围与远端 branch protection 的 required checks 是独立配置。
+- **验证边界**：现行 canonical runtime 用例验证 V2/Custom 正向回合、完成回合的 reload 与隔离后端 restart。harness 构建生产 App，并使用真实后端、PTY、SQLite 与 loopback 测试 provider；独立 HOME/XDG/配置及环境白名单避免读取用户凭据或复用用户服务。这些结果不代表真实外部模型、OAuth、桌面安装/升级/迁移实机验证；§15.73/§15.76 已接受余量继续单独记账。
 - **证据必须上传**：job 把 `E4_RUN_DIR` 指到 workspace 内的 `packages/app/e2e/real/run-evidence/`，因此每个 variant 的 `manifest.json`、`teardown-gate.json`、`orchestrator.log` 都作为 artifact 上传（失败时另含 `test-results`）。手工跑时不会上传，所以本地证据要自己归档——S0–S5 的基线在 `/media/win_data/aigcfroge-shell-closure-*`；S6 的四个轮次（E3 全套、E4 双 variant、exerciser 三模式、benchmark）在 `/media/win_data/aigcfroge-shell-closure-s6/`，目录里的 README 记录每个 run dir 对应哪个 variant，不要凭目录名猜（`manifest.json` 的 `v2Runtime` 是唯一权威）。
 - **B2 双后端/Location 矩阵（显式 opt-in）**：在 `packages/app` 内运行 `E4_DUAL_BACKEND=1 bun run test:e2e:real --project=chromium-real --workers=1 --retries=0 --trace=on`。复用同一 E4 orchestrator，额外启动隔离 HOME/配置/SQLite 的 peer 后端；两个测试目录在两个真实后端上形成四个 scope。该 variant 只发现 `session-decision-scope.spec.ts` 与 manifest 门禁，不运行重启场景；默认 E4 不启动 peer，也不发现本矩阵。
 - **真实故障注入边界**：矩阵通过已有 loopback provider 的 `question` / `permission` 场景触发实际工具和 pending owner；浏览器只用 CDP 暂停真实决策 POST，放行真实 CORS preflight，不替换 API 响应或 SSE 数据。核对 12 个有向 SPA 草稿切换、跨 scope 回复负例、延迟提交、重复回复与取消后的 API/DOM 状态。peer 纳入原 teardown 端口、进程组和目录残留检查；用 `E4_RUN_DIR` 与 Playwright `--output` 指定需保留的证据目录。它不代表 native V2 provider 执行、跨 OS/真实终端或五模式完整 E4 验收。
