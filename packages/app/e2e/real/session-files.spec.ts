@@ -49,10 +49,14 @@ test("searches, reads, and isolates files in a real workspace", async ({ request
   const root = seedFiles()
   const relative = path.relative(e4m.workspaceDir, path.join(root, "alpha.md"))
 
-  // 1. Search finds the seeded files by name.
-  const found = await findFile(request, "alpha.md")
-  expect(Array.isArray(found), "find/file returns a list").toBe(true)
-  expect(JSON.stringify(found)).toContain("alpha.md")
+  // 1. The native index observes filesystem writes asynchronously.
+  await expect
+    .poll(async () => {
+      const found = await findFile(request, "alpha.md")
+      expect(Array.isArray(found), "find/file returns a list").toBe(true)
+      return found
+    })
+    .toContain(relative.replaceAll("\\", "/"))
 
   // 2. Read returns the real bytes, decoding to the file's text.
   const read = await request.get(`${e4m.backendUrl}/file/content?${query()}&path=${encodeURIComponent(relative)}`, {

@@ -12,5 +12,6 @@
     "../playwright.config.ts",
     "../vite.config.ts",
     "../vite.js"
-  ]
+  ],
+  "exclude": ["real/run-evidence", "real/test-results", "real/playwright-report", "test-results", "playwright-report"]
 }

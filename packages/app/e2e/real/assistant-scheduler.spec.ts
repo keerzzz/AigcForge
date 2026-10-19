@@ -17,6 +17,8 @@ test("Assistant reminder: new chat first send, daemon delivery and inbox read pe
   page,
   request,
 }, testInfo) => {
+  // Cover the 45s future due time, one 60s daemon cycle, and the UI/reload checks.
+  test.setTimeout(180_000)
   const runtime = e4()
   expect(runtime.v2Runtime).toBe(false)
   const headers = { "x-aigcfroge-directory": runtime.workspaceDir }
@@ -64,6 +66,12 @@ test("Assistant reminder: new chat first send, daemon delivery and inbox read pe
   const content = `E4 Assistant reminder ${path.basename(runtime.runDir)}`
   const dueAt = Date.now() + 45_000
   const providerURL = `http://127.0.0.1:${runtime.providerPort}`
+  const providerCalls = async () =>
+    (await records(await request.get(`${providerURL}/e4/provider-requests`), "requests")).filter(
+      (row) => typeof row.path === "string" && row.path.endsWith("/chat/completions"),
+    )
+  // The provider ledger belongs to the whole run, including earlier history cases.
+  const callsBefore = (await providerCalls()).length
   const configure = await request.post(
     `${providerURL}/e4/provider-failures?mode=reminder-confirm&count=1&content=${encodeURIComponent(content)}&dueAt=${dueAt}`,
   )
@@ -129,17 +137,13 @@ test("Assistant reminder: new chat first send, daemon delivery and inbox read pe
   expect(await records(await request.get(inboxURL, { headers }))).toEqual([])
   expect(await records(await request.get(scheduleURL, { headers }))).toEqual([])
 
-  const providerCalls = async () =>
-    (await records(await request.get(`${providerURL}/e4/provider-requests`), "requests")).filter(
-      (row) => typeof row.path === "string" && row.path.endsWith("/chat/completions"),
-    )
-  await expect.poll(async () => (await providerCalls()).length).toBe(1)
-  const first = (await providerCalls())[0]
+  await expect.poll(async () => (await providerCalls()).length - callsBefore).toBe(1)
+  const first = (await providerCalls())[callsBefore]
   await testInfo.attach("assistant-provider-before-confirmation", {
     body: JSON.stringify(first),
     contentType: "application/json",
   })
-  expect(first).toMatchObject({ model: "e4-deterministic", authenticated: true })
+  expect(first).toMatchObject({ model: "e4-deterministic", authenticated: true, scenario: "reminder-confirm" })
   expect(first?.toolNames).toContain("reminder_create")
   for (const name of ["bash", "edit", "task"]) expect(first?.toolNames).not.toContain(name)
   await expect(
@@ -186,9 +190,9 @@ test("Assistant reminder: new chat first send, daemon delivery and inbox read pe
   expect(reminder.dueAt).toBeGreaterThan(reminder.createdAt)
   await expect
     .poll(async () =>
-      (await providerCalls()).some(
-        (row) => Array.isArray(row.toolResultIDs) && row.toolResultIDs.includes("call_e4_read_workspace"),
-      ),
+      (await providerCalls())
+        .slice(callsBefore)
+        .some((row) => Array.isArray(row.toolResultIDs) && row.toolResultIDs.includes("call_e4_read_workspace")),
     )
     .toBe(true)
   const admissions = await records(await request.get(`${providerURL}/e4/admission?sessionID=${sessionID}`), "rows")
@@ -200,7 +204,7 @@ test("Assistant reminder: new chat first send, daemon delivery and inbox read pe
   await expect(page.getByText("E4 deterministic response", { exact: true }).first()).toBeVisible()
   await testInfo.attach("assistant-admissions", { body: JSON.stringify(admissions), contentType: "application/json" })
   await testInfo.attach("assistant-provider-calls", {
-    body: JSON.stringify(await providerCalls()),
+    body: JSON.stringify((await providerCalls()).slice(callsBefore)),
     contentType: "application/json",
   })
   const messages = await request.get(`${runtime.backendUrl}/api/session/${sessionID}/message${query}`, { headers })
@@ -220,9 +224,9 @@ test("Assistant reminder: new chat first send, daemon delivery and inbox read pe
   ).toBe(true)
 
   // SchedulerCore.daemon scans/ticks once per minute. Cross-process service
-  // events need not wake its EventV2 instance, so wait for its own DB rescan.
-  // The existing 120s E4 test budget is unchanged; no sleep, clock shim, restart,
-  // direct delivery insert or test-owned daemon can satisfy this assertion.
+  // events need not wake its EventV2 instance. Bound the wait from dueAt, so a
+  // cycle immediately before the future due time cannot consume the budget.
+  // No sleep, clock shim, restart, direct delivery insert or test-owned daemon.
   await expect
     .poll(
       async () => {
@@ -237,7 +241,7 @@ test("Assistant reminder: new chat first send, daemon delivery and inbox read pe
       },
       {
         message: "real daemon completes the reminder and delivers it exactly once",
-        timeout: 70_000,
+        timeout: Math.max(1, reminder.dueAt + 70_000 - Date.now()),
         intervals: [250, 500, 1_000],
       },
     )

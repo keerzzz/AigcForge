@@ -47,6 +47,14 @@ Object.assign(process.env, env)
 
 export default defineConfig({
   testDir: here,
+  // Earlier variants retain repository copies and traces below testDir.
+  // They are evidence, never additional Playwright test sources.
+  testIgnore: [
+    "**/run-evidence/**",
+    "**/test-results/**",
+    "**/playwright-report/**",
+    ...(dualBackend ? [] : ["**/session-decision-scope.spec.ts"]),
+  ],
   ...(dualBackend
     ? {
         testMatch: [
@@ -57,7 +65,7 @@ export default defineConfig({
           "**/manifest.spec.ts",
         ],
       }
-    : { testIgnore: ["**/session-decision-scope.spec.ts"] }),
+    : {}),
   outputDir: path.join(here, "test-results"),
   timeout: 120_000,
   expect: { timeout: 15_000 },
