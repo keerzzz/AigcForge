@@ -1826,6 +1826,13 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **本地门禁**：App 1484 unit + 3 virtualizer + 56 E2E contracts、TUI 230 pass / 1 既有 skip；全仓 lint（含格式、增量与未等待断言检查）和 16 个 typecheck 任务全部退出 0。HTTP coverage 登记 335 场景、306 operation，auth 335 pass，均无 missing/skip。HTTP exerciser 仅改写配置文件末尾换行，已恢复预运行原字节。完整后端功能套件与跨平台结果仍由必需远端 CI 验证，不以 coverage/auth 代替。原始结果见同目录 `gates.jsonl`。
 - **交付状态**：远端合并、本地 main 保全同步、版本 PR 与六平台签名发布继续由当前交付负责人跟进；未有产物证据前不记为已发布。§15.73/§15.76 的已接受余量保持原义。
 
+### 15.80 2026-10-19 PR #129 Windows 生命周期夹具计时
+
+- **来源**：PR #129 首轮 `unit (windows)`（run `39196273799`）中 Core 的 4 个 deadline 生命周期用例超时；普通 failure 用例通过。后端复用同一夹具，也出现相同超时，随后整个 Turbo 批次因 Core 失败退出。
+- **共享边界**：`packages/core/test/lib/effect-lifecycle.ts` 为 Core、后端 isolated/shared helper 生成隔离子进程。Bun 1.3.14 的 `BunTest.updateMinTimeout`（上游 `src/test_runner/bun_test.zig:573`）只将内部 deadline 插入 timer heap；Windows `Timer.All.ensureUVTimer`（上游 `src/runtime/timer/Timer.zig:125`）仅在 `active_timer_count > 0` 时保持 libuv timer 引用。只有未完成 Deferred 的子进程没有应用计时器，CI 现象与该引用缺口一致。
+- **处理**：夹具持有一个 real interval，并在 `afterAll` 清理；断言仍要求 Bun 自身触发 50ms deadline、完成原 scope finalizer、恢复 Custom flag，并保留 cleanup defect。没有增加被测截止时间，也没有替换生产或测试 helper 的取消逻辑。当前 Linux Core 5 个、后端 isolated/shared 10 个场景通过；Windows 结果等待新一轮 CI。
+- **技术债 — Owner: test infrastructure。** 该保活只服务于固定 Bun 版本的隔离 deadline 测试。解锁条件：升级后的 Bun 在 Windows 上无需应用 timer 也能执行这些 deadline/finalizer 用例，再删除保活并通过 Core 与后端两种 helper 的真实 Windows 回归。Windows 修复尚未取得新 CI 结果前不得记为已验证。
+
 ## 16. 本机 CLI 发现与惰性初始化验证边界（2026-09-29）
 
 来源：`local-cli-discovery` 续办与 `CLAUDE.md` 复审。以下实机验证不能由单元测试、临时 Node bundle 或拦截接口响应的浏览器用例替代。

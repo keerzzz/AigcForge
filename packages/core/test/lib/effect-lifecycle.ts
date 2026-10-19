@@ -59,6 +59,9 @@ const release = Deferred.makeUnsafe<void>()
 const finalized = Deferred.makeUnsafe<void>()
 const events: string[] = []
 let ordinal = 0
+// Bun 1.3.14 leaves its Windows test-deadline timer unreferenced. Keep the real
+// loop alive while Deferred waits so the runner can fire the tested deadline.
+const keepAlive = setInterval(() => {}, 1000)
 process.env.AIGCFROGE_CUSTOM_MODE = "false"
 const state = Layer.effectDiscard(
   Effect.gen(function* () {
@@ -109,6 +112,7 @@ second[method]("next test owns its state after prior cleanup", () =>
   }),
 )
 afterAll(() => {
+  clearInterval(keepAlive)
   console.log("LIFECYCLE_TRACE=" + JSON.stringify({ events, custom: process.env.AIGCFROGE_CUSTOM_MODE }))
 })
 `
