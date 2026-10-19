@@ -139,4 +139,59 @@ describe("canonical Task CLI formatter", () => {
       },
     })
   })
+
+  test("legacy todo input remains visible in readonly details and history", () => {
+    const part = completed(tasks)
+    if (part.state.status !== "completed") throw new Error("expected a completed Task fixture")
+    const legacy = {
+      ...part,
+      state: {
+        ...part.state,
+        input: { todos: [{ content: "Legacy input", status: "completed" }] },
+        metadata: {},
+      },
+    }
+    expect(toolInlineInfo(legacy).body).toBe("[✓] Legacy input")
+    expect(toolEntryBody(commit(legacy), "")).toMatchObject({
+      snapshot: { items: [{ content: "Legacy input", status: "completed" }] },
+    })
+  })
+
+  test("legacy output snapshots override legacy input, including an empty snapshot", () => {
+    const part = completed(tasks)
+    if (part.state.status !== "completed") throw new Error("expected a completed Task fixture")
+    const legacy = {
+      ...part,
+      state: {
+        ...part.state,
+        input: { todos: [{ content: "Legacy input", status: "pending" }] },
+        metadata: { todos: [{ content: "Legacy result", status: "completed" }] },
+      },
+    }
+    expect(toolInlineInfo(legacy).body).toBe("[✓] Legacy result")
+    expect(toolEntryBody(commit(legacy), "")).toMatchObject({
+      snapshot: { items: [{ content: "Legacy result", status: "completed" }] },
+    })
+    const empty = { ...legacy, state: { ...legacy.state, metadata: { todos: [] } } }
+    expect(toolInlineInfo(empty).body).toBe("")
+    expect(toolEntryBody(commit(empty), "")).toMatchObject({ snapshot: { items: [] } })
+  })
+
+  test("empty canonical snapshots never revive legacy rows", () => {
+    const part = completed([])
+    if (part.state.status !== "completed") throw new Error("expected a completed Task fixture")
+    const legacy = [{ content: "Obsolete legacy row", status: "pending" }]
+    const snapshot = {
+      ...part,
+      state: { ...part.state, input: { todos: legacy }, metadata: { tasks: [], todos: legacy } },
+    }
+    expect(toolInlineInfo(snapshot).body).toBe("")
+    expect(toolEntryBody(commit(snapshot), "")).toMatchObject({ snapshot: { items: [] } })
+    const input = {
+      ...snapshot,
+      state: { ...snapshot.state, input: { tasks: [], todos: legacy }, metadata: { todos: legacy } },
+    }
+    expect(toolInlineInfo(input).body).toBe("")
+    expect(toolEntryBody(commit(input), "")).toMatchObject({ snapshot: { items: [] } })
+  })
 })

@@ -374,12 +374,23 @@ function runTask(p: ToolProps<typeof TaskTool>): ToolInline {
   }
 }
 
+// Historical todowrite parts predate the canonical `tasks` field and carry
+// legacy `todos` in input or metadata instead. Resolve the first present array
+// so an explicit empty snapshot still wins over an older source.
+function todoRows(p: ToolProps<typeof TodoWriteTool>): { status?: string; content?: string }[] {
+  const rows = [p.frame.meta.tasks, p.frame.input.tasks, p.frame.meta.todos, p.frame.input.todos].find((source) =>
+    Array.isArray(source),
+  )
+
+  return list<{ status?: string; content?: string }>(rows)
+}
+
 function runTodo(p: ToolProps<typeof TodoWriteTool>): ToolInline {
   return {
     icon: "#",
     title: "Todos",
     mode: "block",
-    body: list<{ status?: string; content?: string }>(p.metadata.tasks ?? p.input.tasks)
+    body: todoRows(p)
       .flatMap((item) => {
         const body = typeof item?.content === "string" ? item.content : ""
         if (!body) {
@@ -583,7 +594,7 @@ function snapTask(p: ToolProps<typeof TaskTool>): ToolSnapshot {
 }
 
 function snapTodo(p: ToolProps<typeof TodoWriteTool>): ToolSnapshot {
-  const items = list<{ status?: string; content?: string }>(p.metadata.tasks ?? p.input.tasks).flatMap((item) => {
+  const items = todoRows(p).flatMap((item) => {
     const content = typeof item?.content === "string" ? item.content : ""
     if (!content) {
       return []
@@ -793,7 +804,7 @@ function scrollTodoStart(_: ToolProps<typeof TodoWriteTool>): string {
 }
 
 function scrollTodoFinal(p: ToolProps<typeof TodoWriteTool>): string {
-  const items = list<{ status?: string }>(p.input.tasks)
+  const items = todoRows(p)
   const time = span(p.frame.state)
   if (items.length === 0) {
     if (!time) {
