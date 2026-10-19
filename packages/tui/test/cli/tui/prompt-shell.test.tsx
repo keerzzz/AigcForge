@@ -29,7 +29,13 @@ import { TestTuiContexts } from "../../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../../fixture/tui-runtime"
 import { createFetch, directory, eventSource, json } from "../../fixture/tui-sdk"
 
-async function mountShell(root: string, mode: ProductMode, canonicalSessionModes: ProductMode[], reject = false) {
+async function mountShell(
+  root: string,
+  mode: ProductMode,
+  canonicalSessionModes: ProductMode[],
+  reject = false,
+  response?: Promise<void>,
+) {
   await Bun.write(`${root}/kv.json`, JSON.stringify({ animations_enabled: false }))
   const calls = createFetch((url) => {
     if (url.pathname === "/config/providers")
@@ -58,6 +64,7 @@ async function mountShell(root: string, mode: ProductMode, canonicalSessionModes
     if (url.pathname.endsWith("/shell")) {
       requests.push({ path: url.pathname, body: await request.json() })
       received.resolve()
+      await response
       return reject
         ? json({ name: "InvalidRequestError", message: "Shell rejected" }, { status: 400 })
         : json({ id: "input-shell" })
@@ -141,6 +148,7 @@ async function mountShell(root: string, mode: ProductMode, canonicalSessionModes
   const app = await testRender(() => <Harness />)
   await ready.promise
   if (!prompt) throw new Error("Prompt ref unavailable")
+  prompt.reset()
   prompt.focus()
   app.mockInput.pressKey("!")
   prompt.set({ input: "printf canonical", parts: [] })
@@ -161,6 +169,7 @@ test.each(["assistant", "custom", "coding"] as const)(
       await fixture.submitted
       expect(fixture.prompt.current.input).toBe("")
     } finally {
+      fixture.prompt.reset()
       fixture.app.renderer.destroy()
     }
   },
@@ -180,6 +189,7 @@ test("Prompt preserves the V1 Shell payload for the server's default runtime", a
     ])
     await fixture.submitted
   } finally {
+    fixture.prompt.reset()
     fixture.app.renderer.destroy()
   }
 })
@@ -194,6 +204,29 @@ test("Prompt retains a rejected canonical Shell draft and reports the error", as
     expect(fixture.prompt.current.input).toBe("printf canonical")
     expect(fixture.requests).toHaveLength(1)
   } finally {
+    fixture.prompt.reset()
+    fixture.app.renderer.destroy()
+  }
+})
+
+test("Prompt preserves edits made while Shell admission is pending and submits once", async () => {
+  await using tmp = await tmpdir()
+  const response = Promise.withResolvers<void>()
+  const fixture = await mountShell(tmp.path, "assistant", ["assistant"], false, response.promise)
+  try {
+    fixture.prompt.submit()
+    await fixture.received
+    fixture.prompt.set({ input: "next command", parts: [] })
+    fixture.prompt.submit()
+    response.resolve()
+    await fixture.submitted
+    expect(fixture.requests).toEqual([
+      { path: "/api/session/session-shell/shell", body: { command: "printf canonical" } },
+    ])
+    expect(fixture.prompt.current.input).toBe("next command")
+  } finally {
+    response.resolve()
+    fixture.prompt.reset()
     fixture.app.renderer.destroy()
   }
 })

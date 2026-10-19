@@ -1017,6 +1017,7 @@ export function Prompt(props: PromptProps) {
       sessionID = res.data.id
     }
 
+    const submittedPrompt = structuredClone(unwrap(store.prompt))
     const inputText = expandTrackedPastedText(
       store.prompt.input,
       input.extmarks.getAllForTypeId(promptPartTypeId).flatMap((extmark) => {
@@ -1073,7 +1074,6 @@ export function Prompt(props: PromptProps) {
         toast.show({ title: "Failed to send shell command", message: errorMessage(error), variant: "error" })
         return false
       }
-      setStore("mode", "normal")
     } else if (
       inputText.startsWith("/") &&
       sync.data.command.some((x) => x.name === inputText.split("\n")[0].split(" ")[0].slice(1))
@@ -1126,15 +1126,20 @@ export function Prompt(props: PromptProps) {
       if (editorParts.length > 0) editor.markSelectionSent()
     }
     history.append({
-      ...store.prompt,
+      ...submittedPrompt,
       mode: currentMode,
     })
-    input.extmarks.clear()
-    setStore("prompt", {
-      input: "",
-      parts: [],
-    })
-    setStore("extmarkToPartIndex", new Map())
+    // Shell admission can finish after the user edits or replaces the draft.
+    if (store.mode === currentMode && JSON.stringify(store.prompt) === JSON.stringify(submittedPrompt)) {
+      if (currentMode === "shell") setStore("mode", "normal")
+      input.extmarks.clear()
+      setStore("prompt", {
+        input: "",
+        parts: [],
+      })
+      setStore("extmarkToPartIndex", new Map())
+      input.clear()
+    }
     props.onSubmit?.()
 
     // temporary hack to make sure the message is sent
@@ -1147,7 +1152,6 @@ export function Prompt(props: PromptProps) {
         })
       }, 50)
     }
-    input.clear()
     if (finishMoveProgress) move.finishSubmit()
     return true
   }
