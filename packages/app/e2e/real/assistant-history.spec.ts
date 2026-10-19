@@ -18,6 +18,63 @@ import { pinEnglishUI } from "../utils/locale"
 
 test.skip(() => e4().v2Runtime, "Default Assistant history contract")
 
+test("Assistant Shell submits through canonical admission and preserves its output on reload", async ({
+  page,
+  request,
+}, testInfo) => {
+  const runtime = e4()
+  const headers = { "x-aigcfroge-directory": runtime.workspaceDir }
+  const created = await request.post(`${runtime.backendUrl}/session`, {
+    headers,
+    data: { location: { directory: runtime.workspaceDir }, title: "Canonical Shell", mode: "assistant" },
+  })
+  expect(created.ok()).toBeTruthy()
+  const body: unknown = await created.json()
+  if (!isRecord(body)) throw new Error("Session creation returned no object")
+  const sessionID = stringField(body, "id", "Shell session")
+  try {
+    await pinEnglishUI(page)
+    seedRealBackend(page, runtime.backendUrl)
+    await page.goto(`/server/${base64Encode(runtime.backendUrl)}/session/${sessionID}`)
+    const composer = page.locator('[data-component="session-prompt-dock"] [data-component="prompt-input"]')
+    await expect(composer).toBeVisible()
+    await expect(page.locator('[data-action="prompt-model"]')).toContainText("E4 Deterministic")
+    await composer.press("!")
+    await composer.fill("echo E4_SHELL_RESULT")
+    const [admission] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname === `/api/session/${sessionID}/shell`,
+      ),
+      composer.press("Enter"),
+    ])
+    expect(admission.status()).toBe(200)
+    expect(admission.request().postDataJSON()).toEqual({ command: "echo E4_SHELL_RESULT" })
+    await expect
+      .poll(
+        async () => (await canonicalMessages(request, sessionID)).find((message) => message.type === "shell")?.output,
+      )
+      .toContain("E4_SHELL_RESULT")
+    const completed = await canonicalMessages(request, sessionID)
+    const tool = page.locator('[data-component="tool-part-wrapper"]')
+    await expect(tool).toHaveCount(1)
+    await expect(tool).toContainText("Completed")
+    const trigger = tool.locator('[data-slot="collapsible-trigger"]').first()
+    if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click()
+    await expect(tool.locator('[data-slot="bash-pre"]')).toContainText("E4_SHELL_RESULT")
+    await page.reload()
+    await expect(tool).toHaveCount(1)
+    await expect(tool).toContainText("Completed")
+    if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click()
+    await expect(tool.locator('[data-slot="bash-pre"]')).toContainText("E4_SHELL_RESULT")
+    expect(await canonicalMessages(request, sessionID)).toEqual(completed)
+    await testInfo.attach("canonical-shell", { body: await page.screenshot(), contentType: "image/png" })
+  } finally {
+    expect((await request.delete(`${runtime.backendUrl}/session/${sessionID}`, { headers })).ok()).toBeTruthy()
+  }
+})
+
 test("imported Assistant history survives a browser turn, reload and completed-turn backend restart", async ({
   page,
   request,

@@ -1052,15 +1052,27 @@ export function Prompt(props: PromptProps) {
 
     if (store.mode === "shell") {
       move.startSubmit()
-      void sdk.client.session.shell({
-        sessionID,
-        agent: agent.name,
-        model: {
-          providerID: selectedModel.providerID,
-          modelID: selectedModel.modelID,
-        },
-        command: inputText,
-      })
+      try {
+        const capabilities = await sdk.client.experimental.capabilities.get(
+          { workspace: workspaceID },
+          { throwOnError: true },
+        )
+        await (capabilities.data.canonicalSessionModes.includes(workspaceSession?.mode ?? "coding")
+          ? sdk.client.v2.session.shell({ sessionID, command: inputText }, { throwOnError: true })
+          : sdk.client.session.shell(
+              {
+                sessionID,
+                agent: agent.name,
+                model: { providerID: selectedModel.providerID, modelID: selectedModel.modelID },
+                command: inputText,
+              },
+              { throwOnError: true },
+            ))
+      } catch (error) {
+        if (finishMoveProgress) move.finishSubmit()
+        toast.show({ title: "Failed to send shell command", message: errorMessage(error), variant: "error" })
+        return false
+      }
       setStore("mode", "normal")
     } else if (
       inputText.startsWith("/") &&

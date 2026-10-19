@@ -18,6 +18,16 @@ export const UnknownError = Schema.Struct({
   message: Schema.String,
 }).annotate({ identifier: "Session.Error.Unknown" })
 
+export class InterruptedError extends Schema.Class<InterruptedError>("Session.Error.Interrupted")({
+  type: Schema.Literal("interrupted"),
+  message: Schema.String,
+}) {}
+
+export const AssistantError = Schema.Union([UnknownError, InterruptedError])
+  .pipe(Schema.toTaggedUnion("type"))
+  .annotate({ identifier: "Session.Error" })
+export type AssistantError = UnknownError | InterruptedError
+
 const Base = {
   id: ID,
   metadata: Schema.Record(Schema.String, Schema.Unknown).pipe(Schema.optional),
@@ -174,7 +184,7 @@ export const Assistant = Schema.Struct({
     reasoning: Schema.Finite,
     cache: Schema.Struct({ read: Schema.Finite, write: Schema.Finite }),
   }).pipe(Schema.optional),
-  error: UnknownError.pipe(Schema.optional),
+  error: AssistantError.pipe(Schema.optional),
   time: Schema.Struct({
     created: DateTimeUtcFromMillis,
     completed: DateTimeUtcFromMillis.pipe(Schema.optional),

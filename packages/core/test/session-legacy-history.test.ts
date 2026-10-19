@@ -31,7 +31,7 @@ const it = testEffect(
   ).pipe(Layer.provide(SessionComposition.defaultLayer)),
 )
 
-const seed = Effect.fnUntraced(function* (name: string) {
+const seed = Effect.fnUntraced(function* (name: string, error?: SessionV1.Assistant["error"]) {
   const db = (yield* Database.Service).db
   const sessionID = SessionV2.ID.make(`ses_legacy_${name}`)
   yield* db
@@ -78,7 +78,8 @@ const seed = Effect.fnUntraced(function* (name: string) {
             time: { created: 2, completed: 3 },
             cost: 2,
             tokens: { input: 10, output: 5, reasoning: 0, cache: { read: 0, write: 0 } },
-            finish: "stop",
+            finish: error ? undefined : "stop",
+            error,
           } satisfies Omit<SessionV1.Assistant, "id" | "sessionID">),
         },
       },
@@ -169,6 +170,91 @@ describe("Assistant legacy history adoption", () => {
       expect(after.length).toBe(before.length)
     }),
   )
+
+  for (const fixture of [
+    {
+      name: "provider_error_detail",
+      error: new SessionV1.APIError({
+        message: "Provider denied this request: quota exhausted",
+        isRetryable: false,
+      }).toObject(),
+      expected: { type: "unknown", message: "Provider denied this request: quota exhausted" },
+    },
+    {
+      name: "typed_interruption",
+      error: new SessionV1.AbortedError({ message: "Provider turn interrupted" }).toObject(),
+      expected: { type: "interrupted", message: "Provider turn interrupted" },
+    },
+    {
+      name: "ordinary_error_with_interruption_text",
+      error: new SessionV1.APIError({ message: "Provider turn interrupted", isRetryable: false }).toObject(),
+      expected: { type: "unknown", message: "Provider turn interrupted" },
+    },
+    {
+      name: "error_without_message",
+      error: new SessionV1.OutputLengthError({}).toObject(),
+      expected: { type: "unknown", message: "MessageOutputLengthError" },
+    },
+  ]) {
+    it.effect(`preserves ${fixture.name} through legacy adoption and replay`, () =>
+      Effect.gen(function* () {
+        const seeded = yield* seed(fixture.name, fixture.error)
+        const sessions = yield* SessionV2.Service
+        yield* sessions.get(seeded.sessionID)
+        const expected = [
+          { type: "user", text: "Old question" },
+          {
+            type: "assistant",
+            id: SessionMessage.ID.make(seeded.assistant),
+            finish: "error",
+            error: fixture.expected,
+            content: [{ type: "text", text: "Old answer" }],
+          },
+        ]
+        expect(yield* sessions.messages({ sessionID: seeded.sessionID, order: "asc" })).toMatchObject(expected)
+        const db = (yield* Database.Service).db
+        const recorded = yield* db
+          .select()
+          .from(EventTable)
+          .where(eq(EventTable.aggregate_id, seeded.sessionID))
+          .orderBy(asc(EventTable.seq))
+          .all()
+          .pipe(Effect.orDie)
+        expect(
+          recorded.filter((event) => event.type === EventV2.versionedType(SessionEvent.HistoryImported.type, 1)),
+        ).toMatchObject([
+          { data: { message: { id: seeded.user, type: "user" } } },
+          { data: { message: { id: seeded.assistant, type: "assistant", error: fixture.expected } } },
+        ])
+        const events = yield* EventV2.Service
+        yield* events.remove(seeded.sessionID)
+        yield* db
+          .delete(SessionMessageTable)
+          .where(eq(SessionMessageTable.session_id, seeded.sessionID))
+          .run()
+          .pipe(Effect.orDie)
+        yield* events.replayAll(
+          recorded.map((event) => ({
+            id: event.id,
+            aggregateID: event.aggregate_id,
+            seq: event.seq,
+            type: event.type,
+            data: event.data,
+          })),
+        )
+
+        expect(yield* sessions.messages({ sessionID: seeded.sessionID, order: "asc" })).toMatchObject(expected)
+        expect(yield* SessionHistory.loadForRunner(db, seeded.sessionID, 0)).toMatchObject(expected)
+        const source = yield* db
+          .select()
+          .from(MessageTable)
+          .where(eq(MessageTable.id, seeded.assistant))
+          .get()
+          .pipe(Effect.orDie)
+        expect(source?.data).toMatchObject({ error: fixture.error })
+      }),
+    )
+  }
 
   it.effect("rolls back the whole import when a later projection fails", () =>
     Effect.gen(function* () {
@@ -390,12 +476,12 @@ describe("Assistant legacy history adoption", () => {
               type: "assistant",
               id: SessionMessage.ID.make(seeded.assistant),
               finish: "stop",
-              error: { type: "unknown", message: "APIError" },
+              error: { type: "unknown", message: "Summary failed" },
               content: [{ type: "text", text: "Old answer" }],
             })
             const messages = yield* (yield* SessionV2.Service).messages({ sessionID: seeded.sessionID, order: "asc" })
             expect(messages.map((message) => message.type)).toEqual(["user", "assistant"])
-            expect(messages[1]).toMatchObject({ error: { type: "unknown", message: "APIError" } })
+            expect(messages[1]).toMatchObject({ error: { type: "unknown", message: "Summary failed" } })
           }
         }),
       )

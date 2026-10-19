@@ -33813,7 +33813,7 @@
                         "pattern": "^msg_"
                       },
                       "error": {
-                        "$ref": "#/components/schemas/SessionErrorUnknown"
+                        "$ref": "#/components/schemas/SessionError"
                       }
                     },
                     "required": ["timestamp", "sessionID", "assistantMessageID", "error"],
@@ -43322,6 +43322,30 @@
         "required": ["type", "id", "name", "state", "time"],
         "additionalProperties": false
       },
+      "SessionErrorInterrupted": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["interrupted"]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "message"],
+        "additionalProperties": false
+      },
+      "SessionError": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SessionErrorUnknown"
+          },
+          {
+            "$ref": "#/components/schemas/SessionErrorInterrupted"
+          }
+        ]
+      },
       "SessionMessageAssistant": {
         "type": "object",
         "properties": {
@@ -43432,7 +43456,7 @@
             "additionalProperties": false
           },
           "error": {
-            "$ref": "#/components/schemas/SessionErrorUnknown"
+            "$ref": "#/components/schemas/SessionError"
           }
         },
         "required": ["id", "time", "type", "agent", "model", "content"],
@@ -47625,7 +47649,7 @@
                     "pattern": "^msg_"
                   },
                   "error": {
-                    "$ref": "#/components/schemas/SessionErrorUnknown"
+                    "$ref": "#/components/schemas/SessionError"
                   }
                 },
                 "required": ["timestamp", "sessionID", "assistantMessageID", "error"],
@@ -62042,7 +62066,7 @@
                 "pattern": "^msg_"
               },
               "error": {
-                "$ref": "#/components/schemas/SessionErrorUnknown"
+                "$ref": "#/components/schemas/SessionError"
               }
             },
             "required": ["timestamp", "sessionID", "assistantMessageID", "error"],
@@ -68973,7 +68997,7 @@
                 "pattern": "^msg_"
               },
               "error": {
-                "$ref": "#/components/schemas/SessionErrorUnknown"
+                "$ref": "#/components/schemas/SessionError"
               }
             },
             "required": ["timestamp", "sessionID", "assistantMessageID", "error"],

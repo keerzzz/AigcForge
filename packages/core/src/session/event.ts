@@ -264,7 +264,7 @@ export namespace Step {
     schema: {
       ...Base,
       assistantMessageID: SessionMessageID.ID,
-      error: UnknownError,
+      error: SessionMessage.AssistantError,
     },
   })
   export type Failed = typeof Failed.Type

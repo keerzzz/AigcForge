@@ -1799,3 +1799,12 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **本轮新跑门禁（HEAD `7bfedb98b`）**：App typecheck（含 e2e tsconfig）exit0；`LINT_BASE_REF=260e8275b` 增量 lint exit0（413 文件 / 46,715 新增行）；`git diff --check` exit0；修正后的格式检查 exit0（444 个仍存在的改动文件）；ledger 契约 11 pass；**未跑**全仓 `bun turbo typecheck`/`bun turbo test`/全量 lint/CI e2e/Windows/macOS/packaged/real provider（原因与归属见 `gates.md`）。
 - **风险（详见 `risks.md`）**：分支落后 origin/main 2 提交且 `#127` 与 agent/history 面相交，需 rebase/merge 后重跑门禁；无 linked issue；无 UI 截图/录屏；PR 体量大但按批次交审；本地 main 不得作为 PR 基础。
 - **授权状态**：全部提交仍为本地，**未 push、未建 PR、未发布/灰度**；S09 退出要求“最终 diff 获批 + 用户授权 commit/push/PR”，当前在等待用户审阅。下一步只能：用户审阅 diff/证据 → 批准后再执行 rebase、建 issue、push/PR（或继续本地补证）。
+
+### 15.78 2026-10-19 S09 审批修复与远端交付（进行中）
+
+- **授权续接**：原聊天 `01a14f34-2ae1-74c0-aadc-7d01947c88b9` 的目标已更新为：审批修复通过后提交 PR、跟进修复至合并、同步本地 main、按 Git 工作流发布桌面端。此前 §15.77 的“等待授权”是历史状态。
+- **审批问题**：F01 App/TUI Shell 发送器与 canonical 历史投影；F02 中断分类；F03 TUI Task GET/SSE 时序；F04 `todowrite` 历史行；F05 legacy 错误详情；F06 CLI canonical Task 格式化。修复复用现有 admission、ToolPart、TaskWriteTool 和 hydration tracker，不新增存储或平行接口。
+- **R06 更正**：§15.1 的 App 证据不能代替 TUI。TUI 现有消息回读 tracker 纳入 Task 事件；空快照也是更新，失败 GET 保留重试，bootstrap/卸载使旧回读失效，旧请求清理不得删除新 tracker。
+- **测试夹具修正**：TUI Shell 补齐真实 `/config/providers` 合同；TUI hydration 使用现行 `/task` 路由，移除过时 `/todo` 夹具。最初超时不记作有效 RED；修正后取得实际断言失败。CLI 数组预期修正为完整快照，避免以错误 fixture 限制实现。
+- **证据**：`/home/keer/.codex/artifacts/agent-ui-tdd-remediation-20261019/` 保存每批命令、退出码和原始日志。旧审批与本轮 RED 保留。最终汇总由 `gates.jsonl` 生成，不以历史通过替代修复后执行。
+- **开放交付项**：浏览器/E4 与生产性能复测（Owner：App/QA；unlock：当前修复的真实执行结果）；main 冲突集成与 CI（Owner：当前交付；unlock：修复提交与远端检查）；本地 main 保全同步（Owner：当前交付；unlock：远端合并且原本地提交/文档有可恢复副本）；桌面多平台发布（Owner：Release CI；unlock：合并后 CI 与签名/产物校验通过）。§15.73/§15.76 接受的余量不因本轮局部通过而改写为已完成。

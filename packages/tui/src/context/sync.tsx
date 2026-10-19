@@ -28,7 +28,7 @@ import { useTuiStartup } from "./runtime"
 import { createSimpleContext } from "./helper"
 import { useExit } from "./exit"
 import { useArgs } from "./args"
-import { batch, onMount } from "solid-js"
+import { batch, onCleanup, onMount } from "solid-js"
 import path from "path"
 import { useKV } from "./kv"
 
@@ -141,7 +141,8 @@ export const {
 
     const fullSyncedSessions = new Set<string>()
     const syncingSessions = new Map<string, Promise<void>>()
-    const hydratingSessions = new Map<string, { messages: Set<string>; parts: Set<string> }>()
+    const hydratingSessions = new Map<string, { messages: Set<string>; parts: Set<string>; tasks: boolean }>()
+    onCleanup(() => hydratingSessions.clear())
     const touchMessage = (sessionID: string, messageID: string) => {
       hydratingSessions.get(sessionID)?.messages.add(messageID)
     }
@@ -245,9 +246,12 @@ export const {
           break
         }
 
-        case "task.updated":
+        case "task.updated": {
+          const tracker = hydratingSessions.get(event.properties.sessionID)
+          if (tracker) tracker.tasks = true
           setStore("task", event.properties.sessionID, event.properties.tasks)
           break
+        }
 
         case "session.diff":
           setStore("session_diff", event.properties.sessionID, event.properties.diff)
@@ -433,6 +437,9 @@ export const {
     const args = useArgs()
 
     async function bootstrap(input: { fatal?: boolean } = {}) {
+      fullSyncedSessions.clear()
+      syncingSessions.clear()
+      hydratingSessions.clear()
       const fatal = input.fatal ?? true
       const workspace = project.workspace.current()
       const projectPromise = project.sync()
@@ -579,21 +586,22 @@ export const {
           if (fullSyncedSessions.has(sessionID)) return
           const syncing = syncingSessions.get(sessionID)
           if (syncing) return syncing
-          const tracker = { messages: new Set<string>(), parts: new Set<string>() }
+          const tracker = { messages: new Set<string>(), parts: new Set<string>(), tasks: false }
           hydratingSessions.set(sessionID, tracker)
           const task = (async () => {
             const [session, messages, task, diff] = await Promise.all([
               sdk.client.session.get({ sessionID }, { throwOnError: true }),
               sdk.client.session.messages({ sessionID, limit: 100 }),
-              sdk.client.session.task.get({ sessionID }),
+              sdk.client.session.task.get({ sessionID }, { throwOnError: true }),
               sdk.client.session.diff({ sessionID }),
             ])
+            if (hydratingSessions.get(sessionID) !== tracker) return
             setStore(
               produce((draft) => {
                 const match = search(draft.session, sessionID, (s) => s.id)
                 if (match.found) draft.session[match.index] = session.data
                 if (!match.found) draft.session.splice(match.index, 0, session.data)
-                draft.task[sessionID] = task.data ?? []
+                if (!tracker.tasks) draft.task[sessionID] = task.data ?? []
                 const currentMessages = draft.message[sessionID] ?? []
                 const infos = (messages.data ?? []).flatMap((message) => {
                   if (!tracker.messages.has(message.info.id)) return [message.info]
@@ -642,6 +650,7 @@ export const {
             )
             fullSyncedSessions.add(sessionID)
           })().finally(() => {
+            if (hydratingSessions.get(sessionID) !== tracker) return
             syncingSessions.delete(sessionID)
             hydratingSessions.delete(sessionID)
           })

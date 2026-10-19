@@ -1,5 +1,11 @@
 # V2 Schema Changelog
 
+## 2026-10-19: Assistant Interruption Classification
+
+- Canonical assistant errors and `session.next.step.failed.1` accept `{ type: "interrupted", message }` alongside the existing `unknown` variant. The runner records typed interruption after flushing partial content; ordinary provider failures retain `unknown`.
+- Legacy Assistant history adoption preserves actionable error messages and maps only `MessageAbortedError` to `interrupted`. Existing `unknown` records remain readable and are not reclassified by message text.
+- The experimental event family retains its version; no table or migration changes. SDK and OpenAPI follow the canonical Schema generator.
+
 ## 2026-10-12: Custom Session Identity and Delegation Gates
 
 - Existing Custom Session IDs are adopted under the runtime kill switch; the generic creation ban still applies to new Custom roots.

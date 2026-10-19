@@ -3,7 +3,7 @@ import { onCleanup, onMount, Show, type JSX } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { render } from "solid-js/web"
 import { BasicTool } from "@aigcfroge/session-ui/basic-tool"
-import { Part } from "@aigcfroge/session-ui/message-part"
+import { Part, renderable } from "@aigcfroge/session-ui/message-part"
 import { DataProvider } from "@aigcfroge/session-ui/context/data"
 import { I18nProvider, type UiI18n } from "@aigcfroge/ui/context/i18n"
 import type { AssistantMessage, QuestionV2Info, SessionTaskInfo, ToolPart } from "@aigcfroge/sdk/v2"
@@ -931,7 +931,7 @@ describe("AI-TDD-S05-R06 production registry state transitions", () => {
     expect(fixture.container.querySelectorAll("button, [aria-expanded]").length).toBe(0)
   })
 
-  test("a canonical taskwrite transitions to a compact readonly invocation snapshot", () => {
+  test.each(["todowrite", "taskwrite"])("%s transitions to a compact readonly invocation snapshot", (tool) => {
     const snapshot = {
       id: "tsk_component_history",
       sessionID: "ses_component_tools",
@@ -943,14 +943,16 @@ describe("AI-TDD-S05-R06 production registry state transitions", () => {
       updatedAt: 1,
     } satisfies SessionTaskInfo
     const input = { tasks: [{ content: snapshot.content, status: snapshot.status, priority: snapshot.priority }] }
-    const fixture = mountToolPart(toolPart("taskwrite", { status: "running", input, time: { start: 1 } }))
+    const running = toolPart(tool, { status: "running", input, time: { start: 1 } })
+    expect(renderable(running)).toBe(true)
+    const fixture = mountToolPart(running)
     expect(/\bRunning\b/i.test(fixture.container.textContent ?? "")).toBe(true)
     fixture.update(
-      toolPart("taskwrite", {
+      toolPart(tool, {
         status: "completed",
         input,
         output: JSON.stringify([snapshot]),
-        title: "taskwrite",
+        title: tool,
         metadata: { tasks: [snapshot] },
         time: { start: 1, end: 2 },
       }),
@@ -964,7 +966,33 @@ describe("AI-TDD-S05-R06 production registry state transitions", () => {
     expect(fixture.container.querySelector('[data-slot="collapsible-content"]')?.textContent).toContain(
       snapshot.content,
     )
-    expect(fixture.container.querySelectorAll('form, textarea, [contenteditable="true"]').length).toBe(0)
+    expect(
+      fixture.container.querySelectorAll(
+        'form, textarea, [contenteditable="true"], input[type="checkbox"], [role="checkbox"]',
+      ).length,
+    ).toBe(0)
+  })
+
+  test("the retained todowrite result snapshot wins over its older input without exposing editing controls", () => {
+    const part = toolPart("todowrite", {
+      status: "completed",
+      input: { tasks: [{ content: "Requested before the tool completed", status: "pending" }] },
+      metadata: { tasks: [{ content: "Recorded at tool completion", status: "completed" }] },
+      output: "[]",
+      title: "todowrite",
+      time: { start: 1, end: 2 },
+    })
+    expect(renderable(part)).toBe(true)
+    const fixture = mountToolPart(part)
+    const trigger = fixture.container.querySelector<HTMLButtonElement>('[data-slot="collapsible-trigger"]')
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false")
+    trigger?.click()
+    const content = fixture.container.querySelector('[data-slot="collapsible-content"]')
+    expect(content?.textContent).toContain("Recorded at tool completion")
+    expect(content?.textContent).not.toContain("Requested before the tool completed")
+    expect(
+      fixture.container.querySelectorAll('input, [role="checkbox"], form, textarea, [contenteditable="true"]').length,
+    ).toBe(0)
   })
 })
 

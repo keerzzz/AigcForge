@@ -231,7 +231,16 @@ function canonicalMessage(
     finish: info.finish ?? (info.error ? "error" : "stop"),
     cost: info.cost,
     tokens: info.tokens,
-    ...(info.error ? { error: { type: "unknown", message: info.error.name } } : {}),
+    ...(info.error
+      ? {
+          error: SessionV1.AbortedError.isInstance(info.error)
+            ? new SessionMessage.InterruptedError({ type: "interrupted", message: info.error.data.message })
+            : {
+                type: "unknown",
+                message: "message" in info.error.data ? info.error.data.message : info.error.name,
+              },
+        }
+      : {}),
     content: parts.flatMap((part): SessionMessage.AssistantContent[] => {
       if (part.type === "text")
         return [{ type: "text", id: part.id, text: part.text === "" && signed ? " " : part.text }]

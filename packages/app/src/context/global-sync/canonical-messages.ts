@@ -63,6 +63,59 @@ export function project(session: Session, messages: SessionMessage[]) {
       })
       continue
     }
+    if (message.type === "shell") {
+      const assistantID = `${message.id}_shell`
+      const selected = { providerID: model?.providerID ?? "", modelID: model?.id ?? "", variant: model?.variant }
+      rows.push(
+        {
+          info: { id: message.id, sessionID: session.id, role: "user", time: message.time, agent, model: selected },
+          parts: [],
+        },
+        {
+          info: {
+            id: assistantID,
+            sessionID: session.id,
+            role: "assistant",
+            time: message.time,
+            parentID: message.id,
+            agent,
+            mode: agent,
+            ...selected,
+            path: { cwd: session.directory, root: session.directory },
+            cost: 0,
+            tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            finish: message.time.completed === undefined ? undefined : "stop",
+          },
+          parts: [
+            {
+              id: `${message.id}_shell_tool`,
+              sessionID: session.id,
+              messageID: assistantID,
+              type: "tool",
+              callID: message.callID,
+              tool: "bash",
+              state:
+                message.time.completed === undefined
+                  ? {
+                      status: "running",
+                      input: { command: message.command },
+                      metadata: { output: message.output },
+                      time: { start: message.time.created },
+                    }
+                  : {
+                      status: "completed",
+                      input: { command: message.command },
+                      output: message.output,
+                      title: "bash",
+                      metadata: {},
+                      time: { start: message.time.created, end: message.time.completed },
+                    },
+            },
+          ],
+        },
+      )
+      continue
+    }
     if (message.type !== "assistant") continue
     rows.push({
       info: {
@@ -80,7 +133,12 @@ export function project(session: Session, messages: SessionMessage[]) {
         cost: message.cost ?? 0,
         tokens: message.tokens ?? { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         finish: message.finish,
-        error: message.error ? { name: "UnknownError", data: { message: message.error.message } } : undefined,
+        error: message.error
+          ? {
+              name: message.error.type === "interrupted" ? "MessageAbortedError" : "UnknownError",
+              data: { message: message.error.message },
+            }
+          : undefined,
       },
       parts: message.content.map((content, index): Part => {
         const base = {
@@ -147,12 +205,21 @@ export async function page(
     if (!data || data.data.length === 0)
       return { ...project(session, messages.toReversed()), cursor: undefined, complete: true, canonical: true as const }
     messages.push(...data.data)
-    visible += data.data.filter((message) => message.type === "user" || message.type === "assistant").length
+    visible += data.data.reduce(
+      (count, message) =>
+        count + (message.type === "shell" ? 2 : message.type === "user" || message.type === "assistant" ? 1 : 0),
+      0,
+    )
     cursor = data.cursor.next
     const oldest = messages.findLast((message) => message.type === "user" || message.type === "assistant")
+    const boundary = messages.findLast(
+      (message) => message.type === "user" || message.type === "assistant" || message.type === "shell",
+    )
     if (
       !cursor ||
-      (visible >= limit && oldest?.type === "user" && (!through || messages.some((message) => message.id === through)))
+      (visible >= limit &&
+        (boundary?.type === "user" || (boundary?.type === "shell" && oldest?.type !== "assistant")) &&
+        (!through || messages.some((message) => message.id === through)))
     )
       return { ...project(session, messages.toReversed()), cursor, complete: !cursor, canonical: true as const }
   }

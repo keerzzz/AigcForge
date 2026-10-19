@@ -3,11 +3,13 @@ import type {
   AssistantMessage,
   EventMessagePartUpdated,
   EventMessageUpdated,
+  EventSessionNextShellEnded,
   Part,
   SessionTaskInfo,
   ToolPart,
   UserMessage,
 } from "@aigcfroge/sdk/v2"
+import type { SessionMessage } from "@aigcfroge/sdk/v2/client"
 import { base64Encode } from "@aigcfroge/core/util/encode"
 import { mockAigcfrogeServer, type MockServerConfig } from "../utils/mock-server"
 import { expectSessionTitle, gotoWhenReady } from "../utils/waits"
@@ -285,6 +287,74 @@ test.describe("AI-TDD-S05 production tool rows", () => {
     await expect(trigger).toHaveAttribute("aria-expanded", "false")
   })
 
+  test("R03 canonical Shell-only history keeps its command and output across Ended refresh and reload", async ({
+    page,
+  }) => {
+    const shell = {
+      id: "msg_canonical_shell_history",
+      type: "shell",
+      callID: "call_canonical_shell_history",
+      command: "print canonical report",
+      output: "",
+      time: { created },
+    } satisfies SessionMessage
+    const history: SessionMessage[] = [shell]
+    const reads: string[] = []
+    const fixture = await install(page, [], {
+      sessions: [{ ...session(), mode: "assistant", agent: "assistant-orchestrator" }],
+      sessionStatus: { [sessionID]: { type: "busy" } },
+      pageMessages: () => ({ items: [] }),
+      canonicalMessages: (query) => {
+        reads.push(query.sessionID)
+        return { data: history.toReversed(), cursor: {} }
+      },
+    })
+    await open(page)
+    const tool = page.locator('[data-component="tool-part-wrapper"]')
+    await expect(tool).toHaveCount(1)
+    await expect(tool.locator('[data-slot="basic-tool-tool-indicator"] use')).toHaveAttribute(
+      "href",
+      "#aigcfroge-icon-console",
+    )
+    await expect(tool).toContainText("Running")
+    await expand(tool)
+    await expect(tool.locator('[data-slot="bash-pre"]')).toHaveText(`$ ${shell.command}`)
+    const identity = await tool.getAttribute("data-timeline-part-id")
+    if (!identity) throw new Error("Expected the canonical Shell part identity")
+    const requests = reads.length
+    history[0] = {
+      ...shell,
+      output: "first canonical line\nlast canonical line\nexit code 0",
+      time: { created, completed: created + 200 },
+    }
+    fixture.events.push({
+      directory,
+      payload: {
+        id: "evt_canonical_shell_ended",
+        type: "session.next.shell.ended",
+        properties: {
+          sessionID,
+          callID: shell.callID,
+          timestamp: created + 200,
+          output: "first canonical line\nlast canonical line\nexit code 0",
+        },
+      } satisfies EventSessionNextShellEnded,
+    })
+    await expect.poll(() => reads.length).toBeGreaterThan(requests)
+    await expect(tool).toHaveAttribute("data-timeline-part-id", identity)
+    await expect(tool).toContainText("Completed")
+    await expect(tool.locator('[data-slot="bash-pre"]')).toHaveText(
+      `$ ${shell.command}\n\nfirst canonical line\nlast canonical line\nexit code 0`,
+    )
+    await page.reload()
+    await expectSessionTitle(page, title)
+    await expect(tool).toHaveAttribute("data-timeline-part-id", identity)
+    await expand(tool)
+    await expect(tool.locator('[data-slot="bash-pre"]')).toHaveText(
+      `$ ${shell.command}\n\nfirst canonical line\nlast canonical line\nexit code 0`,
+    )
+  })
+
   test("R03 the production deferred Diff remains readable after collapse and reopening", async ({ page }) => {
     const part = call("edit", { filePath: "src/tool-row.ts" }, "Edited src/tool-row.ts", {
       filediff: {
@@ -448,12 +518,45 @@ test.describe("AI-TDD-S05 production tool rows", () => {
     })
   })
 
-  test("R06 historical todowrite stays retired rather than becoming an online task writer", async ({ page }) => {
-    const retired = call("todowrite", { tasks: [snapshot] }, JSON.stringify([snapshot]), { tasks: [snapshot] })
+  test("R06 retained todowrite history is expandable and never follows or edits the live Task state", async ({
+    page,
+  }) => {
+    const part = call("todowrite", { tasks: [snapshot] }, JSON.stringify([snapshot]), { tasks: [snapshot] })
     const skill = call("skill", { name: "review" })
-    await install(page, [retired, skill])
+    const writes: string[] = []
+    page.on("request", (request) => {
+      if (request.method() === "GET") return
+      if (/\/(?:task|todo)(?:\/|$)/.test(new URL(request.url()).pathname)) writes.push(request.url())
+    })
+    const fixture = await install(page, [part, skill], {
+      tasks: [{ ...snapshot, content: "Current Task differs from the recorded invocation", revision: 2 }],
+      sessionStatus: { [sessionID]: { type: "busy" } },
+    })
     await open(page)
-    await expect(row(page, retired)).toHaveCount(0)
+    const tool = row(page, part)
+    const trigger = tool.locator('[data-slot="collapsible-trigger"]').first()
+    await expect(tool).toBeVisible()
+    await expect(trigger).toHaveAttribute("aria-expanded", "false")
+    await trigger.focus()
+    await trigger.press("Enter")
+    await expect(trigger).toHaveAttribute("aria-expanded", "true")
+    await expect(tool.locator('[data-slot="collapsible-content"]').first()).toContainText(snapshot.content)
+    await expect(tool).not.toContainText("Current Task differs from the recorded invocation")
+    await expect(tool.locator('input, [role="checkbox"], form, textarea, [contenteditable=true]')).toHaveCount(0)
+    fixture.config.tasks = [{ ...snapshot, content: "A later canonical Task edit", status: "completed", revision: 3 }]
+    fixture.events.push({
+      directory,
+      payload: { type: "task.updated", properties: { sessionID, tasks: fixture.config.tasks } },
+    })
+    await expect(page.locator('[data-component="session-todo-progress-stats"]')).toHaveText("1/1")
+    await expect(tool).toContainText(snapshot.content)
+    await expect(tool).not.toContainText("A later canonical Task edit")
+    await page.reload()
+    await expectSessionTitle(page, title)
+    await expand(tool)
+    await expect(tool).toContainText(snapshot.content)
+    await expect(tool).not.toContainText("A later canonical Task edit")
+    expect(writes).toEqual([])
     await expect(row(page, skill)).toBeVisible()
     await expect(row(page, skill).locator("button, [aria-expanded]")).toHaveCount(0)
   })

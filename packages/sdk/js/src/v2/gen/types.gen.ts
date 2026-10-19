@@ -1858,7 +1858,7 @@ export type GlobalEvent = {
           timestamp: number
           sessionID: string
           assistantMessageID: string
-          error: SessionErrorUnknown
+          error: SessionError
         }
       }
     | {
@@ -4824,6 +4824,13 @@ export type SessionMessageAssistantTool = {
   }
 }
 
+export type SessionErrorInterrupted = {
+  type: "interrupted"
+  message: string
+}
+
+export type SessionError = SessionErrorUnknown | SessionErrorInterrupted
+
 export type SessionMessageAssistant = {
   id: string
   metadata?: {
@@ -4856,7 +4863,7 @@ export type SessionMessageAssistant = {
       write: number
     }
   }
-  error?: SessionErrorUnknown
+  error?: SessionError
 }
 
 export type SessionMessageCompaction = {
@@ -5901,7 +5908,7 @@ export type SyncEventSessionNextStepFailed = {
       timestamp: number
       sessionID: string
       assistantMessageID: string
-      error: SessionErrorUnknown
+      error: SessionError
     }
   }
 }
@@ -10097,7 +10104,7 @@ export type V2EventSessionNextStepFailed = {
     timestamp: number
     sessionID: string
     assistantMessageID: string
-    error: SessionErrorUnknown
+    error: SessionError
   }
 }
 
@@ -12121,7 +12128,7 @@ export type EventSessionNextStepFailed = {
     timestamp: number
     sessionID: string
     assistantMessageID: string
-    error: SessionErrorUnknown
+    error: SessionError
   }
 }
 

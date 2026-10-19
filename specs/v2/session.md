@@ -76,9 +76,13 @@ The local runner issues one explicit `llm.stream(request)` per provider turn, pr
 
 Projected hosted tools preserve call-side and settlement-side provider metadata separately so settlement and interruption recovery cannot erase continuation identifiers. Provider-native reasoning and provider metadata replay only while the historical assistant model matches the selected continuation model; after a model switch, visible reasoning text remains ordinary assistant text and provider-native metadata is omitted.
 
+An interrupted provider turn flushes partial content and records an assistant error with `type: "interrupted"` through `session.next.step.failed.1`. Provider failures remain `type: "unknown"`, even when their message text mentions interruption. Replay and client presentation preserve this classification; clients must not infer termination reasons from error text.
+
 ## Legacy Assistant History Adoption
 
 Canonical reads and prompt admission may adopt a legacy Assistant transcript. Adoption preserves its source rows and message/tool identities, records the imported history once, and does not execute historical tools or charge historical usage again. Repeated reads and exact prompt retries must not duplicate the imported transcript.
+
+Adoption retains each legacy error's message when present, falling back to its error name only when it has no message. A legacy `MessageAbortedError` becomes a canonical `interrupted` error; other legacy errors remain `unknown` regardless of their text.
 
 The current compatibility boundary atomically rejects mixed V1/canonical conversation history, legacy per-prompt system instructions, compaction with retained `tail_start_id`, and unmaterialized remote/tool attachments. Rejection leaves both source history and existing canonical state unchanged and admits no new input. It must not guess a cross-source ordering, promote old instructions into permanent privileged context, truncate a retained tail, or fetch historical remote content using ambient credentials. Supporting these shapes requires the explicit contracts tracked in the coverage manifest.
 

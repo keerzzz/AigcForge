@@ -379,7 +379,7 @@ function runTodo(p: ToolProps<typeof TodoWriteTool>): ToolInline {
     icon: "#",
     title: "Todos",
     mode: "block",
-    body: list<{ status?: string; content?: string }>(p.frame.input.todos)
+    body: list<{ status?: string; content?: string }>(p.metadata.tasks ?? p.input.tasks)
       .flatMap((item) => {
         const body = typeof item?.content === "string" ? item.content : ""
         if (!body) {
@@ -583,7 +583,7 @@ function snapTask(p: ToolProps<typeof TaskTool>): ToolSnapshot {
 }
 
 function snapTodo(p: ToolProps<typeof TodoWriteTool>): ToolSnapshot {
-  const items = list<{ status?: string; content?: string }>(p.frame.input.todos).flatMap((item) => {
+  const items = list<{ status?: string; content?: string }>(p.metadata.tasks ?? p.input.tasks).flatMap((item) => {
     const content = typeof item?.content === "string" ? item.content : ""
     if (!content) {
       return []
