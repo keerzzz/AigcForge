@@ -1,0 +1,7 @@
+f174e0300 fix(app): preserve session panel icons outside rail
+9ae07926f docs(plan): record brand mode icon checkpoints and evidence
+35402fdf9 feat(app): add quiet rail active indicator with single accent
+046bd9827 fix(ui): apply approved 1px rail icon strokes
+9adfdf6e6 feat(ui): add decoupled rail mode icons with 16px geometry
+e02392ce1 docs(plan): add brand-mode-icons new-session handoff prompt
+e57f09992 docs(plan): record brand mode icons approval and preview
