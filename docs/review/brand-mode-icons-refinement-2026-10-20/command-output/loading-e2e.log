@@ -1,0 +1,24 @@
+$ playwright test "e2e/regression/brand-splash.spec.ts"
+[warmup] / 2393ms modules=679
+[warmup] /mode/chat 2778ms modules=679
+[warmup] /mode/coding 3272ms modules=679
+[warmup] /mode/work 2797ms modules=679
+[warmup] /mode/assistant 3252ms modules=679
+[warmup] /mode/custom 2732ms modules=679
+[warmup] /server/warmup/session/warmup 3242ms modules=679
+
+Running 4 tests using 1 worker
+
+[1A[2K(node:1158717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1158717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/4] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (light)
+[1A[2K[2/4] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (dark)
+[1A[2K[3/4] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (narrow)
+[1A[2K[4/4] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (reduced-motion)
+[1A[2K  4 passed (25.3s)

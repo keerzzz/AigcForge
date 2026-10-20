@@ -1,0 +1,92 @@
+$ playwright test "e2e/regression/global-shell.spec.ts" "e2e/regression/brand-splash.spec.ts"
+[warmup] / 2346ms modules=679
+[warmup] /mode/chat 3312ms modules=679
+[warmup] /mode/coding 2961ms modules=679
+[warmup] /mode/work 2781ms modules=679
+[warmup] /mode/assistant 3249ms modules=679
+[warmup] /mode/custom 2780ms modules=679
+[warmup] /server/warmup/session/warmup 3210ms modules=679
+
+Running 20 tests using 2 workers
+
+[1A[2K(node:1160958) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1160959) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1160958) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1160959) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/20] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (light)
+[1A[2K[2/20] [chromium] › e2e/regression/global-shell.spec.ts:136:3 › global shell: mode switcher rail › renders five distinct registered rail icon symbols
+[1A[2K[3/20] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (dark)
+[1A[2K[4/20] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (narrow)
+[1A[2K[5/20] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (reduced-motion)
+[1A[2K[6/20] [chromium] › e2e/regression/global-shell.spec.ts:160:3 › global shell: mode switcher rail › preserves the assistant reminder glyph inside the mode surface
+[1A[2K[7/20] [chromium] › e2e/regression/global-shell.spec.ts:170:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+[1A[2K[8/20] [chromium] › e2e/regression/global-shell.spec.ts:204:3 › global shell: mode switcher rail › renders all five mode buttons and presses exactly the active one
+[1A[2K[9/20] [chromium] › e2e/regression/global-shell.spec.ts:216:3 › global shell: mode switcher rail › clicking each mode navigates and swaps the visible sidebar and main slots
+[1A[2K[10/20] [chromium] › e2e/regression/global-shell.spec.ts:230:3 › global shell: mode switcher rail › the assistant icon shows the pending schedule count as a rail badge
+[1A[2K[11/20] [chromium] › e2e/regression/global-shell.spec.ts:248:3 › global shell: titlebar history › mod+[ and mod+] traverse the in-app history stack
+[1A[2K[12/20] [chromium] › e2e/regression/global-shell.spec.ts:268:3 › global shell: multi-session tabs › opening a second session adds a tab each and switches between them
+[1A[2K[13/20] [chromium] › e2e/regression/global-shell.spec.ts:281:3 › global shell: multi-session tabs › closing a background tab keeps the active session and URL
+[1A[2K[14/20] [chromium] › e2e/regression/global-shell.spec.ts:295:3 › global shell: multi-session tabs › closing the active tab navigates to the remaining one
+[1A[2K[15/20] [chromium] › e2e/regression/global-shell.spec.ts:311:3 › global shell: multi-session tabs › closing the final active tab returns focus to Home
+[1A[2K[16/20] [chromium] › e2e/regression/global-shell.spec.ts:321:3 › global shell: multi-session tabs › clicking Home twice returns to the last session tab
+[1A[2K[17/20] [chromium] › e2e/regression/global-shell.spec.ts:332:3 › global shell: multi-session tabs › the new-session button on a session route opens a draft tab that closes back to the session
+[1A[2K  1) [chromium] › e2e/regression/global-shell.spec.ts:332:3 › global shell: multi-session tabs › the new-session button on a session route opens a draft tab that closes back to the session
+
+    Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: [32m/session\/ses_global_shell_a$/[39m
+    Received string:  [31m"http://127.0.0.1:3000/new-session?draftId=aaaaeabf-36d3-45b9-81c1-f4852bc129ab"[39m
+    Timeout: 10000ms
+
+    Call log:
+    [2m  - Expect "toHaveURL" with timeout 10000ms[22m
+    [2m    14 × unexpected value "http://127.0.0.1:3000/new-session?draftId=aaaaeabf-36d3-45b9-81c1-f4852bc129ab"[22m
+
+
+      385 |
+      386 |     await page.keyboard.press("ControlOrMeta+w")
+    > 387 |     await expect(page).toHaveURL(new RegExp(`session/${sessionA}$`))
+          |                        ^
+      388 |     await expectSessionTitle(page, titleA)
+      389 |   })
+      390 | })
+        at /home/keer/workspace/aigcfroge/packages/app/e2e/regression/global-shell.spec.ts:387:24
+
+    attachment #3: screenshot (image/png) ──────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-c3b8b--closes-back-to-the-session-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: video (video/webm) ──────────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-c3b8b--closes-back-to-the-session-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: e2e/test-results/regression-global-shell-gl-c3b8b--closes-back-to-the-session-chromium/error-context.md
+
+
+[1A[2K(node:1162414) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1162414) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[18/20] [chromium] › e2e/regression/global-shell.spec.ts:393:3 › global shell: dirty draft route guard › closing a dirty draft confirms before removing it
+[1A[2K[19/20] [chromium] › e2e/regression/global-shell.spec.ts:418:3 › global shell: dirty draft route guard › leaving with unsent composer content asks, Stay returns, Leave leaves
+[1A[2K[20/20] [chromium] › e2e/regression/global-shell.spec.ts:442:3 › global shell: status bar › shows the connection trigger and opens the metrics popover
+[1A[2K  1 failed
+    [chromium] › e2e/regression/global-shell.spec.ts:332:3 › global shell: multi-session tabs › the new-session button on a session route opens a draft tab that closes back to the session
+  19 passed (1.4m)
+error: script "test:e2e" exited with code 1

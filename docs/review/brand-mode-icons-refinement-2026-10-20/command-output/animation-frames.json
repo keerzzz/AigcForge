@@ -1,0 +1,457 @@
+{
+  "errors": [],
+  "frames": [
+    {
+      "time": 0,
+      "samples": [
+        {
+          "tone": "light",
+          "width": 160,
+          "height": 160,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.821644, -0.174646, 0.174646, 0.821644, -38, 16)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.821644, 0.174646, -0.174646, 0.821644, 38, 16)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.84, 0, 0, 0.84, 0, -42)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.84, 0, 0, 0.84, 0, 30)",
+              "opacity": "0"
+            }
+          ]
+        },
+        {
+          "tone": "light",
+          "width": 64,
+          "height": 80,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.821644, -0.174646, 0.174646, 0.821644, -38, 16)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.821644, 0.174646, -0.174646, 0.821644, 38, 16)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.84, 0, 0, 0.84, 0, -42)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.84, 0, 0, 0.84, 0, 30)",
+              "opacity": "0"
+            }
+          ]
+        },
+        {
+          "tone": "dark",
+          "width": 160,
+          "height": 160,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.821644, -0.174646, 0.174646, 0.821644, -38, 16)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.821644, 0.174646, -0.174646, 0.821644, 38, 16)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.84, 0, 0, 0.84, 0, -42)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.84, 0, 0, 0.84, 0, 30)",
+              "opacity": "0"
+            }
+          ]
+        },
+        {
+          "tone": "dark",
+          "width": 64,
+          "height": 80,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.821644, -0.174646, 0.174646, 0.821644, -38, 16)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.821644, 0.174646, -0.174646, 0.821644, 38, 16)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.84, 0, 0, 0.84, 0, -42)",
+              "opacity": "0"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.84, 0, 0, 0.84, 0, 30)",
+              "opacity": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "time": 150,
+      "samples": [
+        {
+          "tone": "light",
+          "width": 160,
+          "height": 160,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.93451, -0.0764615, 0.0764615, 0.93451, -14.8121, 6.23669)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.93451, 0.0764615, -0.0764615, 0.93451, 14.8121, 6.23669)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.937633, 0, 0, 0.937633, 0, -16.3713)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.937633, 0, 0, 0.937633, 0, 11.6938)",
+              "opacity": "0.610207"
+            }
+          ]
+        },
+        {
+          "tone": "light",
+          "width": 64,
+          "height": 80,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.93451, -0.0764615, 0.0764615, 0.93451, -14.8121, 6.23669)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.93451, 0.0764615, -0.0764615, 0.93451, 14.8121, 6.23669)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.937633, 0, 0, 0.937633, 0, -16.3713)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.937633, 0, 0, 0.937633, 0, 11.6938)",
+              "opacity": "0.610207"
+            }
+          ]
+        },
+        {
+          "tone": "dark",
+          "width": 160,
+          "height": 160,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.93451, -0.0764615, 0.0764615, 0.93451, -14.8121, 6.23669)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.93451, 0.0764615, -0.0764615, 0.93451, 14.8121, 6.23669)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.937633, 0, 0, 0.937633, 0, -16.3713)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.937633, 0, 0, 0.937633, 0, 11.6938)",
+              "opacity": "0.610207"
+            }
+          ]
+        },
+        {
+          "tone": "dark",
+          "width": 64,
+          "height": 80,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.93451, -0.0764615, 0.0764615, 0.93451, -14.8121, 6.23669)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.93451, 0.0764615, -0.0764615, 0.93451, 14.8121, 6.23669)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.937633, 0, 0, 0.937633, 0, -16.3713)",
+              "opacity": "0.610207"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.937633, 0, 0, 0.937633, 0, 11.6938)",
+              "opacity": "0.610207"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "time": 550,
+      "samples": [
+        {
+          "tone": "light",
+          "width": 160,
+          "height": 160,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.995467, -0.00588385, 0.00588385, 0.995467, -1.07239, 0.451534)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.995467, 0.00588385, -0.00588385, 0.995467, 1.07239, 0.451534)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.995485, 0, 0, 0.995485, 0, -1.18528)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.995485, 0, 0, 0.995485, 0, 0.846627)",
+              "opacity": "0.971779"
+            }
+          ]
+        },
+        {
+          "tone": "light",
+          "width": 64,
+          "height": 80,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.995467, -0.00588385, 0.00588385, 0.995467, -1.07239, 0.451534)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.995467, 0.00588385, -0.00588385, 0.995467, 1.07239, 0.451534)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.995485, 0, 0, 0.995485, 0, -1.18528)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.995485, 0, 0, 0.995485, 0, 0.846627)",
+              "opacity": "0.971779"
+            }
+          ]
+        },
+        {
+          "tone": "dark",
+          "width": 160,
+          "height": 160,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.995467, -0.00588385, 0.00588385, 0.995467, -1.07239, 0.451534)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.995467, 0.00588385, -0.00588385, 0.995467, 1.07239, 0.451534)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.995485, 0, 0, 0.995485, 0, -1.18528)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.995485, 0, 0, 0.995485, 0, 0.846627)",
+              "opacity": "0.971779"
+            }
+          ]
+        },
+        {
+          "tone": "dark",
+          "width": 64,
+          "height": 80,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(0.995467, -0.00588385, 0.00588385, 0.995467, -1.07239, 0.451534)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(0.995467, 0.00588385, -0.00588385, 0.995467, 1.07239, 0.451534)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(0.995485, 0, 0, 0.995485, 0, -1.18528)",
+              "opacity": "0.971779"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(0.995485, 0, 0, 0.995485, 0, 0.846627)",
+              "opacity": "0.971779"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "time": 1100,
+      "samples": [
+        {
+          "tone": "light",
+          "width": 160,
+          "height": 160,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "tone": "light",
+          "width": 64,
+          "height": 80,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "tone": "dark",
+          "width": 160,
+          "height": 160,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "tone": "dark",
+          "width": 64,
+          "height": 80,
+          "parts": [
+            {
+              "slot": "logo-splash-a",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-g",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-i",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            },
+            {
+              "slot": "logo-splash-c",
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
