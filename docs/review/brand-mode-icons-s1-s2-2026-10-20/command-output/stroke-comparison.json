@@ -1,243 +1,123 @@
 {
   "cells": [
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     },
     {
-      "actual": [
-        "1px",
-        "1px",
-        "1px"
-      ],
+      "actual": ["1px", "1px", "1px"],
       "stroke": "1"
     },
     {
-      "actual": [
-        "1.25px",
-        "1.25px",
-        "1.25px"
-      ],
+      "actual": ["1.25px", "1.25px", "1.25px"],
       "stroke": "1.25"
     },
     {
-      "actual": [
-        "1.5px",
-        "1.5px",
-        "1.5px"
-      ],
+      "actual": ["1.5px", "1.5px", "1.5px"],
       "stroke": "1.5"
     }
   ],
