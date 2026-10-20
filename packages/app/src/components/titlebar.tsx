@@ -984,7 +984,7 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
             // entry does and the reference stays valid either way.
             aria-controls={`session-mode-panel-${mode.currentMode}`}
             state={mode.contentPanelOpen ? "pressed" : undefined}
-            icon={<IconV2 name={modeDefinition(mode.currentMode).icon} />}
+            icon={<IconV2 name={`mode-${mode.currentMode}`} />}
             aria-label={language.t(mode.contentPanelOpen ? "session.panel.hide" : "session.panel.show")}
             aria-expanded={mode.contentPanelOpen}
             onClick={() => mode.toggleContentPanel()}
