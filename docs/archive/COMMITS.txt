@@ -1,0 +1,52 @@
+docs-archive manifest
+source: local-docs-checkpoint 37bbf11cd (48 commits, 2026-10-16..2026-10-17)
+full history: tag docs-checkpoint-20261017
+
+1c9367fd9 2026-10-16 docs(research): finalize upstream v2 alignment plan with re-review fixes F1-F7
+d37d13e7e 2026-10-16 docs(research): mark R0 window complete on v2-dev
+43bf4cf93 2026-10-16 docs(research): record R1a completion in alignment plan
+fa5698f50 2026-10-16 docs(research): record R1b slice 1 completion
+dec3f3498 2026-10-16 docs(research): record R1b batches 2-3 progress
+96b0507ec 2026-10-16 docs(research): record R1b batch 4 progress (13/37 groups)
+0b7ddf622 2026-10-16 docs(research): record R1b batch 5 progress (18/35 groups)
+11a6dab00 2026-10-16 docs(research): record R1b batch 6 progress (21/35 groups)
+cb3b88311 2026-10-16 docs(research): record R1b batch 7 progress (24/35 groups)
+3a757243c 2026-10-16 docs(research): close server test triage in alignment plan
+a8e80fd43 2026-10-16 docs(research): record R1b batch 8 progress
+ef94bda28 2026-10-16 docs(research): record R1b batch 9 progress
+892d4558c 2026-10-16 docs(research): record tui ruling and R1b roadmap
+fc96bedd6 2026-10-16 docs(research): record R1b batch 10 progress
+ea56a7a59 2026-10-16 docs(research): record R1b batch 11 progress
+c792d4fa9 2026-10-16 docs(research): record R1b batch 12 progress
+ae1e188cb 2026-10-16 docs(research): finalize R1b ledger and session manifest
+3393445c0 2026-10-16 docs(research): record R1b batch 13 progress
+64050fb80 2026-10-16 docs(research): mark R1b contract surface fully delivered
+76531e6bb 2026-10-16 docs(research): open R2 window with slice 2.1 manifest
+5d320e9e2 2026-10-16 docs(research): refine R2 slice 2.1 execution order
+5295a7b71 2026-10-16 docs(research): record R2 slice 2.1 first wave
+f16be8972 2026-10-16 docs(research): record slice 2.2 opening
+4daec90ec 2026-10-16 docs(research): record slice 2.2 delivery
+ce1e77473 2026-10-16 docs(research): record slice 2.3 leaf domains delivery
+e418fd55d 2026-10-16 docs(research): record slice 2.3 second ring delivery
+c0e867aec 2026-10-16 docs(research): record slice 2.3 third ring first wave
+6a9450db7 2026-10-16 docs(research): record slice 2.3 third ring body
+5efeb3e4a 2026-10-16 docs(research): record slice 2.3 third ring finale
+6646b4848 2026-10-16 docs(research): record slice 2.4 first wave
+475ac62b5 2026-10-16 docs(research): record mcp binding delivery
+0e4d2b96c 2026-10-16 docs(research): record mcp leaf modules
+f4e6dfbc1 2026-10-16 docs(research): record session summary suite
+dc5234427 2026-10-16 docs(research): record session utility clusters
+d93afc454 2026-10-16 docs(research): record kb and task clusters
+341a78176 2026-10-16 docs(research): record composition and workflow surface
+3a303a143 2026-10-16 docs(research): record small clusters
+5b876f2b6 2026-10-16 docs(research): record session identity hub
+7419cfdd2 2026-10-17 docs(research): record v1 modules
+72d4aedb9 2026-10-17 docs(research): record grant/path-identity registration
+cc55e6a1d 2026-10-17 docs(research): record tool flow dependency archaeology
+c139e04cb 2026-10-17 docs(research): record cli adapter leaves
+a58ceb23d 2026-10-17 docs(research): record mcp connection chain arbitration
+200c98625 2026-10-17 docs: record tool-flow session windows and branch approval
+75ee27fbd 2026-10-17 docs(research): record full-repo verification pass
+53fa15166 2026-10-19 docs: clarify output standard in CLAUDE.md
+e35edc3be 2026-10-19 docs(review): record v2 branch independent review and remediation plan
+37bbf11cd 2026-10-19 docs(research): record test portfolio debate and lead verdict

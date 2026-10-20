@@ -1,0 +1,545 @@
+{
+  "date": "2026-09-30",
+  "status": "APPROVED_FOR_SCOPED_IMPLEMENTATION",
+  "scope": "Static document/contract approval only; first implementation batch B1; no product tests run",
+  "repositoryRoot": "/home/keer/workspace/aigcfroge",
+  "mainRef": "refs/heads/main",
+  "mainBaseCommit": "260e8275b9b0af9d0b445e5acfb6f4d3545eac7b",
+  "observedSourceHead": "5097f185ddb9bbbe6e09fb674e69f04dd9a22b4b",
+  "observedSourceBranch": "local-cli-discovery",
+  "planSha256": "23ee8ddcc012a76fe72540ccbda0e5178cd2130c4e3c0db4daa8151dcee657c5",
+  "approvalReportSha256": "761c7a18d67f6e74837386934d0be552d27947db96bf177c11fe7d8e2f095bfb",
+  "executionPromptSha256": "9f324efa019244e5004a236b9fee7f94b749538cc87013c11aa50a93f24318c5",
+  "validation": {
+    "sliceCards": 10,
+    "caseIDs": 63,
+    "uniqueCaseIDs": 63,
+    "localLinks": 91,
+    "bashSyntaxBlocks": 15,
+    "trailingWhitespaceErrors": 0,
+    "errors": [],
+    "productTestsRun": false
+  },
+  "historicalSourceHashComparison": [
+    {
+      "path": "/home/keer/.gemini/antigravity/builtin/skills/antigravity_guide/references/app.md",
+      "sha256": "5adba0e3ca6dbf08d7ad1c2b136f88c067e175b454f0179fc7aa3c4783d9f5ab",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/README.md",
+      "sha256": "0f5516be2acde776f05572cbc8c3093c90549afe04ce118e11157d073d5d15f4",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.module.css",
+      "sha256": "4177256462b4cde12c43eabc6433216bf2747cefcf911a93b4d1f1a2568011cc",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-conversation/src/client/skeleton/TodoPanel.tsx",
+      "sha256": "8be70f4479c1984ca7e58ea089d0121b42855bb8dc5f16b05b2e643c4bbe3d55",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-input-trigger/src/types.ts",
+      "sha256": "02a37e5a80517253681791ccfc5e5f08c927fbc15a6db5e8cb1726aa4e269237",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-plan/src/client/index.ts",
+      "sha256": "6bec502a2c800cf01b2c7ee2515dfd539b37d810ff03e542b1cea7c697d72dc3",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-subagent/src/client/index.ts",
+      "sha256": "cfdc9e6275d7f21e970238eeaa8f2cce4662cabe1817ac684050fdde8f720f73",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-tool/src/client/tool/components/QuestionToolRow.tsx",
+      "sha256": "89882e7c1fd7e3abc8f2d967d3e125c29ed19ffd3ab59084a82fd14f06b62149",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-tool/src/client/tool/components/ToolRow.tsx",
+      "sha256": "718c89ef9ec70728372b490215c28987d12d8f74aeea38741dd628008d04eba6",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/subagent/subagent-claude-code/package.json",
+      "sha256": "3d1cde9922f9424cc7987e40e5ffb435ae2e4742c51d6c8d2788df76eff62f30",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/Documents/web/deepseek-harness-master/packages/subagent/subagent-codex/package.json",
+      "sha256": "e8c5a4ca84e929638c19ba119473b358dc620794089ab1bafad05dc098be6a15",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/AGENTS.md",
+      "sha256": "f98021eade27c4afd79ada77f2e249623dc88aaaec88d974642e3e070ec7a0ba",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/ARCHITECTURE.md",
+      "sha256": "523decbf3b91ddec59e5411475315acaad603aafddd453263164d32f9f357bd3",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/CLAUDE.md",
+      "sha256": "5d33b236f497dbdff64c96a965f30129bd176095cfa2118313aa4d8cfc062318",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/CONTEXT.md",
+      "sha256": "fb514fc469991e11e351f34806b9a603029331776b964f4429254021405dc9fc",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/DESIGN.md",
+      "sha256": "8c1dd8fc5e0a18b8d5bf1805e7363f4d329be839c094f2c6d2fd509ac5de7d3f",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/docs/plan/s9a-work-review-lifecycle-contract.md",
+      "sha256": "f223a96054c50647d595cfe15b75a78a4b112948fb41c5c5f856879c3c653553",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/docs/plan/todo-task-system-upgrade.md",
+      "sha256": "e37ae9970a64236c0d08044f7c3d4f77f0b8331e9bec872e1207f530fcb19c30",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/docs/research/agent/ZCode-Antigravity-DeepSeekHarness智能体交互与UI体系深度调研.md",
+      "sha256": "3ac362c8e8290c033825d464ede7b8a1a84e26ea0ef7f5b127e16b74012a1579",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/prompt-input.tsx",
+      "sha256": "ff40787c4a33ec6e836266c63a2443e6f7e1405185a40cb72cf365753accd539",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/prompt-input/build-request-parts.ts",
+      "sha256": "c145e165af909d3e446f8144cc3d919cd2bbf8fe9e6a5bf3282ab639d961ea32",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/context/global-sync/permission-pending.ts",
+      "sha256": "3d0f4d0ad3d1fc78a998e3d3e950bac09ac9ae92612e64aac887d921cf7c4067",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/context/mode.tsx",
+      "sha256": "d7f80ac3182edf00752697bf081665351add80d2ce9534c6f3809ac6d5a148f8",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-region.tsx",
+      "sha256": "336ab18c788d8f6d25b8b377be00ca6c52d459930bc40a5785e289e0c6284ee0",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/composer/session-composer-state.ts",
+      "sha256": "812a02cad383933c212324cc641a09b718e4c5b33462a05ef4c10e4b3cd53fb0",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.test.ts",
+      "sha256": "ebbd3a045c3bea4c597da0b7d13a426af3568ad5c6f4425df1336be86ca6aea7",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/timeline/session-todo-progress-model.ts",
+      "sha256": "9b3f078c0cf829d7b5f5f722eb8fe6c38c2c792e07976a7a125b2291120b1275",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/core/src/permission.ts",
+      "sha256": "55b10850feb3598e6d27c3959451f9a96b1c37516e2088f04020de4aa60ea805",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/core/src/question.ts",
+      "sha256": "823a916b3921270e651ec3948d33e8e6233eaefbe7cef33319087f15184144e5",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/task.ts",
+      "sha256": "f24097e76b8018c5c697fe4aa390b37780222bcc4a71b5f9ca04a37ff8a63e46",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/todo.ts",
+      "sha256": "818983696fd20479d952702b7eb7f51d64c2e6fbb77d41f617d4a63f095ec303",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/core/src/session/work-review.ts",
+      "sha256": "2964f8b386ebf36422026a0a209e6a3b3edfb81e710214e6eeb839fc54090af7",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/core/src/tool/task.ts",
+      "sha256": "f7d510fb4feb1851320220d6a90c44a61ecf0edce10264309762dc21c081080b",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/schema/src/product-mode.ts",
+      "sha256": "5c21c1d8b5a30bb5351f27853e0d3e800490bce1063502fbea79b349d8caed36",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/schema/src/session-task.ts",
+      "sha256": "784fe591c006f6abbcd8609698be83a9a9255ef834ad269fc9d57e06f599c1e3",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/basic-tool.tsx",
+      "sha256": "f49140b459cc1e4d58077d50a6267a1542fc28eff5d6f681e9567360b45694c6",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/components/message-part.tsx",
+      "sha256": "9196e2c2930c51100dd13efac51dee16c2bfa45bc553a3376c02e144470e8979",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/session-ui/src/v2/components/basic-tool-v2.tsx",
+      "sha256": "c52623c036812ffc246bd551fc33054117508855344df4ad39291417cbb13105",
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/ui/src/v2/components/icon.tsx",
+      "sha256": "66a73a4c353c2deecc9119a70425d9c27632031a4ea0ce4c90f3faced42a6809",
+      "matchesHistoricalAudit": true
+    }
+  ],
+  "mainAuditSampleComparison": [
+    {
+      "path": "AGENTS.md",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "CONTEXT.md",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "DESIGN.md",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "docs/plan/s9a-work-review-lifecycle-contract.md",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "docs/plan/todo-task-system-upgrade.md",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "docs/research/agent/ZCode-Antigravity-DeepSeekHarness智能体交互与UI体系深度调研.md",
+      "existsOnMain": false,
+      "matchesHistoricalAudit": false
+    },
+    {
+      "path": "packages/app/src/components/prompt-input.tsx",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/app/src/components/prompt-input/build-request-parts.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/app/src/context/global-sync/permission-pending.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/app/src/context/mode.tsx",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/app/src/pages/session/composer/session-composer-region.tsx",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/app/src/pages/session/composer/session-composer-state.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/app/src/pages/session/timeline/session-todo-progress-model.test.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/app/src/pages/session/timeline/session-todo-progress-model.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/core/src/permission.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/core/src/question.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/core/src/session/task.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/core/src/session/todo.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/core/src/session/work-review.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/core/src/tool/task.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/schema/src/product-mode.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/schema/src/session-task.ts",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/session-ui/src/components/basic-tool.tsx",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/session-ui/src/components/message-part.tsx",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/session-ui/src/v2/components/basic-tool-v2.tsx",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    },
+    {
+      "path": "packages/ui/src/v2/components/icon.tsx",
+      "existsOnMain": true,
+      "matchesHistoricalAudit": true
+    }
+  ],
+  "referencedExistingProductFileComparison": [
+    {
+      "path": "packages/app/e2e/coverage-manifest.json",
+      "sha256": "37a0eddff590c426b0660156c3c551093e1640320fca55cab30c2740115a6718",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/e2e/real/fixture.ts",
+      "sha256": "69be1db06542a4c18a6a718f978d11b53303c0f0f4c6dfc33dd05169a00415a8",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/e2e/real/orchestrator.ts",
+      "sha256": "f6327e3ed2eb220582c2dedf0e22c9ca5b1400c91af9d9712022f1436d263979",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/e2e/real/v2-admission-gap.spec.ts",
+      "sha256": "91823398abe1e9c5d1e15ecdeef559ca1d80f7ceaf7c3291c2e6ab529c7c8bd8",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/components/asset-load-error.test.tsx",
+      "sha256": "5eb3c025ebeb3994646755cd63813541d8246e7e9dbf9faecd34dd1374cae283",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/components/prompt-input.tsx",
+      "sha256": "ff40787c4a33ec6e836266c63a2443e6f7e1405185a40cb72cf365753accd539",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/components/prompt-input/slash-popover.tsx",
+      "sha256": "413a9f041938474a7321a762572539d498828bc612258b36293f8b8e254eff7b",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/context/global-sync/permission-pending.ts",
+      "sha256": "3d0f4d0ad3d1fc78a998e3d3e950bac09ac9ae92612e64aac887d921cf7c4067",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/pages/session/composer/session-composer-region.tsx",
+      "sha256": "336ab18c788d8f6d25b8b377be00ca6c52d459930bc40a5785e289e0c6284ee0",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/pages/session/composer/session-composer-state.ts",
+      "sha256": "812a02cad383933c212324cc641a09b718e4c5b33462a05ef4c10e4b3cd53fb0",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/pages/session/composer/session-question-dock.tsx",
+      "sha256": "8283d8789af9020e30e2d1f82a25613abf5a3903a028795387898dd988b25b00",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/pages/session/composer/session-request-tree.ts",
+      "sha256": "3403a164f4b2713e7ca7d67efe9b4322a6bf65dfdf274c9c783a9fce94c3f13e",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/pages/session/timeline/agent-task-hub-model.ts",
+      "sha256": "3d536cc15ec8d78a280e53cc23a6bb69615160ac5e89a0bc6638c2d7a6fc0ee6",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/pages/session/timeline/agent-task-hub.tsx",
+      "sha256": "203c4fe1107384ea168a2290f4ac28d28ef327b75436729fd706eea5203f724a",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/pages/session/timeline/delegation-panel-model.ts",
+      "sha256": "904adcdc729da600909507a00e98c464c2655f60b4aaca06e3d303ad4b5d9429",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/app/src/pages/work-artifact-panel.tsx",
+      "sha256": "5379f5fa64e60ae3150da47cb302c46a1f5cbdcfd0b28cb1fe11d0b364b45bbf",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/core/src/location-layer.ts",
+      "sha256": "ca43132b4f3186ea1c2ff85500f68a94fa1872b2543301d10e1a3ab60167ba49",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/core/src/permission.ts",
+      "sha256": "55b10850feb3598e6d27c3959451f9a96b1c37516e2088f04020de4aa60ea805",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/core/src/question.ts",
+      "sha256": "823a916b3921270e651ec3948d33e8e6233eaefbe7cef33319087f15184144e5",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/core/src/session/artifact.ts",
+      "sha256": "2c6bf54972dc52e7bc93db2ac61914805c0180b77c9e725cc32db887954002e2",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/core/src/session/info.ts",
+      "sha256": "0e98d88a4cafbb56bb809b83a9968157f096a0a1f57df3d08c98c464008553b4",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/core/src/session/work-review.ts",
+      "sha256": "2964f8b386ebf36422026a0a209e6a3b3edfb81e710214e6eeb839fc54090af7",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/core/test/lib/effect.ts",
+      "sha256": "6759c17a3634641683037a5867c4dd439333358d071699132e8706daae2582b5",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/schema/src/session.ts",
+      "sha256": "bad94d1c8d67f8b4192873ebe2401758807625f950e937a400379cf13b963d99",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/schema/src/work-review.ts",
+      "sha256": "2ef6426a982bcc7e3160928b5acdd5fb65f6b80339c46cf91bd5df602a6721cd",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/server/src/groups/session.ts",
+      "sha256": "1d16ecb5db5157d304b73806f82887b2b707a75e313ecacdd2ae47f5affc0221",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/server/src/handlers/session.ts",
+      "sha256": "d54ea023de5ad7f5d4c78ed9544a3bfa0916d94653994234b5b7e62fa75d171d",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/server/src/middleware/authorization.ts",
+      "sha256": "4b7ef1af780163d46cf8a5e26c4c39c38755b63dff636d70f4ec7be2220b8124",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/server/src/middleware/session-location.ts",
+      "sha256": "9702c432975bdfcafb375378a2a155e1b4a08e07be069746403c15e21d0adcf5",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/session-ui/src/components/basic-tool.tsx",
+      "sha256": "f49140b459cc1e4d58077d50a6267a1542fc28eff5d6f681e9567360b45694c6",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/session-ui/src/components/message-part.tsx",
+      "sha256": "9196e2c2930c51100dd13efac51dee16c2bfa45bc553a3376c02e144470e8979",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/session-ui/src/context/data.tsx",
+      "sha256": "07e4ccd2a2fe7bd78340468494aaea480bc036e90a4d351cd07e767222030b9b",
+      "matchesMain": true
+    },
+    {
+      "path": "packages/ui/src/v2/components/icon.tsx",
+      "sha256": "66a73a4c353c2deecc9119a70425d9c27632031a4ea0ce4c90f3faced42a6809",
+      "matchesMain": true
+    }
+  ],
+  "gitChecks": {
+    "git diff --exit-code HEAD --": {
+      "exitCode": 0,
+      "output": ""
+    },
+    "git diff --check": {
+      "exitCode": 0,
+      "output": ""
+    }
+  },
+  "notes": [
+    "Hashes cover the listed subset, not the entire repository.",
+    "ARCHITECTURE CLI section differs on main; reviewed explicitly. Historical untracked research is not present on main.",
+    "The original dirty checkout is not the implementation base. No branch/worktree was created in this document-only task.",
+    "Future execution must rerun S00 against the new branch from the pinned local main."
+  ]
+}
