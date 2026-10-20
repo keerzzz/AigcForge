@@ -44,6 +44,15 @@
 
 同日附加确认：rail-chat 定稿「对话气泡 + 三点」；顶点改为自适应前景（亮色深点 / 深色白点）。
 
+### 实施阶段视觉修订（2026-10-20，覆盖先前描边批准值）
+
+用户反馈真实导轨图标偏粗。提供相同生产几何的亮/暗 × 14/16/20px × stroke 1.0/1.25/1.5 并排预览后，用户明确选择「采用 1.0」。
+
+- 五个 rail 图标及 `rail-assistant-micro` 统一显式 `stroke-width="1"`；坐标、圆头端点、圆角连接、实心耳朵/书签/三点/旋钮不变。
+- 14/16/20px 对应描边 0.875/1/1.25 CSS px；此前 1.5 是首次视觉批准的历史值，现由本修订覆盖。
+- S2 指示条仍为 2×20px 单一强调色；S3 冻结状态不变。
+- 新证据与审批回执：[实施证据](../review/brand-mode-icons-s1-s2-2026-10-20/README.md)。历史审批预览与 01–12 截图保留，不当作当前描边真源。
+
 ### 切片裁决
 
 | 切片 | 审批状态 | 开工条件 |
@@ -90,7 +99,7 @@
 
 - **来源校正**：「变体 1 智库手账 (Classic BC) 宽体修正版」是**计划自造复合名**；工件的真实拆分是 `schedule_memory_fusion.html` 的"变体 1: 智库手账 (Classic BC)"+"结构 1: 轴颈台座 (Pedestal) · 黄金 5:8 比例 · 首推"（`wider_assistant_structure.html`，2026-10-05T13:39:43Z，最新工件）。
 - **用户指令链**：B 夹板头（433）→ C 记忆卡片身体（446）→ 身体更宽、结构更合理（456）→ 采用变体 1（468）。**最终 16px 几何由助手在 2026-10-07 自审后适配，用户未复核**，需由高保真预览确认。
-- **16 网格几何**（`viewBox 0 0 16 16`，stroke 1.5，Assistant 部件见 §3.1）：
+- **16 网格几何**（`viewBox 0 0 16 16`，stroke 1.0，Assistant 部件见 §3.1）：
   - 宽体 body 归一化后与工件结构 1 **精确一致**（artifact 84 宽 : head 48 → 16 网格 12 : 7，body:head ≈ 1.71；工件原文"黄金 5:8"指 head:body = 1:1.6，差异来自 16 网格取整，需在预览中目检）；
   - 头部由工件归一化 y≈1.6、高≈6；双耳为 1.1×2.2 圆角实心耳；时钟 r≈1.7，指针按 20px 可读性简化为 `M8 3.9V4.5H9`；
   - 轴颈固定为**垂直连接** `M8 7.6V8.5`（修复早期水平线悬空问题）；
@@ -164,7 +173,7 @@
 
 ### 2.1 目标
 
-1. **G1 导航图标重塑**：5 个高辨识度、几何独立的 rail 图标（16 网格、stroke 1.5、20px 实渲），与内页 `mode-*` 解耦。
+1. **G1 导航图标重塑**：5 个高辨识度、几何独立的 rail 图标（16 网格、stroke 1.0、20px 实渲），与内页 `mode-*` 解耦。
 2. **G2 Assistant 定型**：按 §3.1 的宽体手账几何落地，并在 20px/14px 双尺寸提供可读形态。
 3. **G3 宁静激活指示**：`mode-switcher.css` + 2px 单一强调色指示条，零位移、无 glow、无渐变。
 4. **G4 主品牌全景收敛**：Mark/Splash 采用方案 04 工件几何与 token 映射；Web favicon 含 -v3 全套与 manifest；桌面资产按实际盘点交付。
@@ -183,9 +192,9 @@
 
 ## 3. 视觉规范与几何真源（Visual Specifications）
 
-### 3.1 导航轨五模式图标（16×16，stroke 1.5，currentColor）
+### 3.1 导航轨五模式图标（16×16，stroke 1.0，currentColor）
 
-> 真源：`sidebar_interactive_preview.html` 的 **24×24 / stroke 2–2.5** 线性图标；下表是 16 网格适配后的最终值（20px rail 渲染时约合 1.875px 视觉描边，与工件 22px 下 ≈1.83px 对齐）。所有图标 `fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"`，注意单独声明的 fill 除外。
+> 真源：`sidebar_interactive_preview.html` 的 **24×24 / stroke 2–2.5** 线性图标；下表是 16 网格适配后的最终值（2026-10-20 实施阶段用户复核真实组件后选择 stroke 1.0；20px rail 渲染时约合 1.25 CSS px 描边，主动减轻小尺寸厚重感，不再追求与工件描边等粗）。所有图标 `fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"`，注意单独声明的 fill 除外。
 
 ```xml
 <!-- 1. rail-chat：对话气泡 + 三点省略号（2026-10-20 按用户反馈替换旧版终端提示符 >_） -->
@@ -247,7 +256,7 @@
 
 - 14px 时仅 Assistant 切换到 `rail-assistant-micro`；其余图标 20px/16px/14px 共用同一几何。
 - **rail-chat 例外**：2026-10-20 用户反馈旧版"终端提示符 >_"读作终端而非对话，已改为**对话气泡 + 三点省略号**（新设计，不再引用工件 24 网格源）；其余四枚仍为工件 24 网格的 16px 适配。
-- 图标未继承工件 24 网格的 stroke 粗细，**必须显式写 `stroke-width="1.5"`**（默认 1 在 20px 下视觉偏细约 32%）。
+- 图标未继承工件 24 网格的 stroke 粗细，**必须显式写 `stroke-width="1"`**（2026-10-20 用户在 1.0 / 1.25 / 1.5 并排预览中选择 1.0；实心部件与所有坐标保持不变）。
 
 ### 3.2 激活光轨（Rail Active Indicator，新设计）
 
@@ -298,7 +307,7 @@
   - 5 个 rail 按钮内 `use[href]` 的 symbol id 以 `#aigcfroge-v2-icon-rail-` 开头且互不相同；不得是 `plus` fallback（`icon.tsx:126`）；
   - 回归断言：`/mode/assistant` 内页仍使用 `mode-assistant`（该断言在变更前即为绿，属回归保护，不计 RED）。
 - **GREEN**：`icon.tsx` 注入 5 个键（§3.1）；`mode.tsx` 的 `icon` 指向 `rail-*`；`mode.test.ts:26` 改为 `expect(definition.icon).toBe("rail-" + definition.id)`。
-- **REFACTOR/证据**：14/16/20px × 亮/暗 × 5 图标渲染矩阵截图（预览 HTML 已提供基线），确认 stroke 1.5 与微缩变体。
+- **REFACTOR/证据**：14/16/20px × 亮/暗 × 5 图标渲染矩阵截图（预览 HTML 已提供基线），确认 stroke 1.0 与微缩变体。
 - **门禁**：`bun --cwd packages/app test:unit:file src/context/mode.test.ts`；`bun --cwd packages/app test:e2e e2e/regression/global-shell.spec.ts`；ui/app typecheck。
 
 ### S2：导轨激活光轨状态重构（有条件通过）

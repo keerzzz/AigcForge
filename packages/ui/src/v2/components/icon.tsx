@@ -87,27 +87,27 @@ const icons = {
   },
   "rail-chat": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5H4A1.5 1.5 0 0 0 2.5 4v6A1.5 1.5 0 0 0 4 11.5h1.2v2.4l2.9-2.4H12A1.5 1.5 0 0 0 13.5 10V4A1.5 1.5 0 0 0 12 2.5Z"/><circle cx="5.2" cy="7" r="0.85" fill="currentColor" stroke="none"/><circle cx="8" cy="7" r="0.85" fill="currentColor" stroke="none"/><circle cx="10.8" cy="7" r="0.85" fill="currentColor" stroke="none"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5H4A1.5 1.5 0 0 0 2.5 4v6A1.5 1.5 0 0 0 4 11.5h1.2v2.4l2.9-2.4H12A1.5 1.5 0 0 0 13.5 10V4A1.5 1.5 0 0 0 12 2.5Z"/><circle cx="5.2" cy="7" r="0.85" fill="currentColor" stroke="none"/><circle cx="8" cy="7" r="0.85" fill="currentColor" stroke="none"/><circle cx="10.8" cy="7" r="0.85" fill="currentColor" stroke="none"/></g>`,
   },
   "rail-coding": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.33 4L1.33 8L5.33 12M10.67 4L14.67 8L10.67 12M9.33 2.67L6.67 13.33"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M5.33 4L1.33 8L5.33 12M10.67 4L14.67 8L10.67 12M9.33 2.67L6.67 13.33"/></g>`,
   },
   "rail-work": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="4.67" height="4.67" rx="1.33"/><rect x="9.33" y="2" width="4.67" height="4.67" rx="1.33"/><rect x="2" y="9.33" width="4.67" height="4.67" rx="1.33"/><rect x="9.33" y="9.33" width="4.67" height="4.67" rx="1.33"/><path d="M10.67 11.67L11.67 12.67L13.33 11"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="4.67" height="4.67" rx="1.33"/><rect x="9.33" y="2" width="4.67" height="4.67" rx="1.33"/><rect x="2" y="9.33" width="4.67" height="4.67" rx="1.33"/><rect x="9.33" y="9.33" width="4.67" height="4.67" rx="1.33"/><path d="M10.67 11.67L11.67 12.67L13.33 11"/></g>`,
   },
   "rail-assistant": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="4.5" y="1.6" width="7" height="6" rx="1.5"/><circle cx="8" cy="4.5" r="1.7"/><path d="M8 3.9V4.5H9"/><path d="M8 7.6V8.5"/><rect x="2" y="8.5" width="12" height="6" rx="1.5"/><path d="M4.5 10.6H8M4.5 12.4H6.8"/><path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="currentColor" stroke="none"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="4.5" y="1.6" width="7" height="6" rx="1.5"/><circle cx="8" cy="4.5" r="1.7"/><path d="M8 3.9V4.5H9"/><path d="M8 7.6V8.5"/><rect x="2" y="8.5" width="12" height="6" rx="1.5"/><path d="M4.5 10.6H8M4.5 12.4H6.8"/><path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="currentColor" stroke="none"/></g>`,
   },
   "rail-assistant-micro": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="4.5" y="1.6" width="7" height="6" rx="1.5"/><circle cx="8" cy="4.5" r="1.5"/><circle cx="8" cy="4.5" r="0.55" fill="currentColor" stroke="none"/><path d="M8 7.6V8.5"/><rect x="2" y="8.5" width="12" height="6" rx="1.5"/><path d="M4.5 10.8H7.6"/><path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="currentColor" stroke="none"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="4.5" y="1.6" width="7" height="6" rx="1.5"/><circle cx="8" cy="4.5" r="1.5"/><circle cx="8" cy="4.5" r="0.55" fill="currentColor" stroke="none"/><path d="M8 7.6V8.5"/><rect x="2" y="8.5" width="12" height="6" rx="1.5"/><path d="M4.5 10.8H7.6"/><path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="currentColor" stroke="none"/></g>`,
   },
   "rail-custom": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.67 4H13.33M2.67 8H13.33M2.67 12H13.33"/><circle cx="5.33" cy="4" r="1.67" fill="currentColor"/><circle cx="10.67" cy="8" r="1.67" fill="currentColor"/><circle cx="6.67" cy="12" r="1.67" fill="currentColor"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M2.67 4H13.33M2.67 8H13.33M2.67 12H13.33"/><circle cx="5.33" cy="4" r="1.67" fill="currentColor"/><circle cx="10.67" cy="8" r="1.67" fill="currentColor"/><circle cx="6.67" cy="12" r="1.67" fill="currentColor"/></g>`,
   },
 }
 

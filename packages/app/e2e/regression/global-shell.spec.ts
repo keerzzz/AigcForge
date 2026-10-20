@@ -143,6 +143,10 @@ test.describe("global shell: mode switcher rail", () => {
       await expect(icon).toHaveCount(1)
       await expect(icon).toHaveAttribute("href", `#aigcfroge-v2-icon-rail-${mode.slot}`)
       await expect(page.locator(`symbol[id="aigcfroge-v2-icon-rail-${mode.slot}"]`)).toHaveCount(1)
+      await expect(page.locator(`symbol[id="aigcfroge-v2-icon-rail-${mode.slot}"] > g`)).toHaveCSS(
+        "stroke-width",
+        "1px",
+      )
     }
 
     const symbols = await Promise.all(
