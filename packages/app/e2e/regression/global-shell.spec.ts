@@ -167,6 +167,14 @@ test.describe("global shell: mode switcher rail", () => {
     ).toHaveAttribute("href", "#aigcfroge-v2-icon-mode-assistant")
   })
 
+  test("preserves the session panel glyph outside the rail", async ({ page }) => {
+    await page.setViewportSize({ width: 700, height: 844 })
+    await openSession(page, sessionA, titleA)
+
+    await expect(page.locator("#session-mode-panel-toggle use")).toHaveAttribute("href", "#aigcfroge-v2-icon-mode-chat")
+    await expect(modeButton(page, "Chat").locator("use")).toHaveAttribute("href", "#aigcfroge-v2-icon-rail-chat")
+  })
+
   test("moves one active indicator with the route without moving the mode buttons", async ({ page }) => {
     await installServerMock(page)
     await page.goto("/mode/coding")
