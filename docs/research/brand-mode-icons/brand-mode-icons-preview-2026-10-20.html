@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>品牌 Logo 与五模式导轨 · 高保真预览（2026-10-20 修订）</title>
+<script>
+  /* 主题须在首次绘制前确定：?theme=light|dark，缺省 dark */
+  (function () {
+    var p = new URLSearchParams(location.search).get("theme");
+    document.documentElement.setAttribute("data-theme", p === "light" ? "light" : "dark");
+  })();
+</script>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   01 · V2 设计 Token（数值对齐 packages/ui/src/v2/styles/theme.css）
+   页面、深色卡片、浅色卡片共用同一套变量：颜色只认 Token，禁止硬编码。
+   ══════════════════════════════════════════════════════════════════ */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --page-max: 1400px;
+  --radius-card: 10px;
+  --t-fast: 150ms ease;
+  --nav-h: 40px;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --v2-background-bg-base: #ffffff;
+  --v2-background-bg-deep: #fafafa;
+  --v2-background-bg-layer-01: #fafafa;
+  --v2-background-bg-layer-02: #f2f2f2;
+  --v2-border-border-base: rgba(0, 0, 0, 0.10);
+  --v2-border-border-muted: rgba(0, 0, 0, 0.08);
+  --v2-text-text-base: #161616;
+  --v2-text-text-muted: #5c5c5c;
+  --v2-text-text-faint: #808080;
+  --v2-text-text-contrast: #ffffff;
+  --v2-icon-icon-base: #3a3a3a;
+  --v2-icon-icon-muted: #808080;
+  --v2-icon-icon-accent: #3b5cf6;
+  --v2-avatar-bg-blue: #3250df;
+  --v2-avatar-bg-cyan: #0096b8;
+  --v2-border-border-focus: #7698fd;
+  --logo-c-mix: color-mix(in srgb, var(--v2-avatar-bg-cyan) 55%, var(--v2-text-text-contrast));
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  /* 对齐 theme.css [data-color-scheme="dark"]（active dark block，非注释掉的 prefers-color-scheme 副本） */
+  --v2-background-bg-base: #161616;   /* grey-1100 */
+  --v2-background-bg-deep: #080808;   /* grey-1200 */
+  --v2-background-bg-layer-01: #242424; /* grey-1000 */
+  --v2-background-bg-layer-02: #2e2e2e; /* grey-900 */
+  --v2-border-border-base: rgba(255, 255, 255, 0.10);
+  --v2-border-border-muted: rgba(255, 255, 255, 0.08);
+  --v2-text-text-base: #fafafa;       /* grey-100 */
+  --v2-text-text-muted: #aeaeae;      /* grey-500 */
+  --v2-text-text-faint: #808080;      /* grey-600 */
+  --v2-text-text-contrast: #ffffff;   /* grey-50 */
+  --v2-icon-icon-base: #dbdbdb;       /* grey-400 */
+  --v2-icon-icon-muted: #808080;      /* grey-600 */
+  --v2-icon-icon-accent: #a2bcff;     /* blue-400 */
+  --v2-avatar-bg-blue: #263fa9;       /* dark avatar blue */
+  --v2-avatar-bg-cyan: #005a6e;       /* dark avatar cyan */
+  --v2-border-border-focus: #7698fd;  /* blue-500 */
+  --logo-c-mix: color-mix(in srgb, var(--v2-avatar-bg-cyan) 55%, var(--v2-text-text-contrast));
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   02 · 基础与排版
+   ══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--v2-text-text-base);
+  background: var(--v2-background-bg-deep);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: color-mix(in srgb, var(--v2-icon-icon-accent) 30%, transparent); }
+h1, h2, h3, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+code, pre { font-family: var(--font-mono); font-size: 11px; }
+code { font-size: 10.5px; }
+:where(a, button, input, summary):focus-visible {
+  outline: 2px solid var(--v2-border-border-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.mono { font-family: var(--font-mono); }
+.faint { color: var(--v2-text-text-faint); }
+.muted { color: var(--v2-text-text-muted); }
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 32px 32px 64px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   03 · 页头 / 裁决摘要 / 章节导航
+   ══════════════════════════════════════════════════════════════════ */
+.page-header { padding-top: 8px; }
+.ph-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--v2-text-text-faint);
+}
+.page-title {
+  margin-top: 8px;
+  font-size: 26px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--v2-text-text-base);
+}
+.page-title .dot { color: var(--v2-icon-icon-accent); padding: 0 2px; }
+.page-subtitle { margin-top: 8px; font-size: 13px; color: var(--v2-text-text-muted); }
+.ph-actions { display: flex; align-items: center; gap: 8px; flex: none; padding-top: 16px; }
+.btn-theme {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 12px;
+  border: 1px solid var(--v2-border-border-base);
+  border-radius: 8px;
+  background: var(--v2-background-bg-base);
+  color: var(--v2-text-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.btn-theme:hover { background: var(--v2-background-bg-layer-01); color: var(--v2-text-text-base); }
+.btn-theme svg { width: 14px; height: 14px; }
+.btn-theme[data-current="dark"] .icon-sun,
+.btn-theme[data-current="light"] .icon-moon { display: none; }
+.ph-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px;
+  border: 1px solid var(--v2-border-border-base);
+  border-radius: 999px;
+  background: var(--v2-background-bg-base);
+  color: var(--v2-text-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.chip .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--v2-text-text-faint); flex: none; }
+.chip-ok .chip-dot { background: var(--v2-icon-icon-accent); }
+.chip-stop .chip-dot { background: var(--v2-icon-icon-muted); }
+.chip-ok { color: var(--v2-text-text-base); }
+.ph-note {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--v2-text-text-faint);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.ph-note::before {
+  content: ""; width: 4px; height: 4px; border-radius: 1px;
+  background: var(--v2-icon-icon-muted);
+}
+.decision-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  margin-top: 24px;
+  border: 1px solid var(--v2-border-border-base);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--v2-background-bg-base);
+}
+.decision {
+  padding: 16px;
+  border-left: 1px solid var(--v2-border-border-muted);
+  min-width: 0;
+}
+.decision:first-child { border-left: 0; }
+.d-key { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--v2-text-text-faint); }
+.d-title { margin-top: 4px; font-size: 12px; font-weight: 600; color: var(--v2-text-text-base); }
+.d-desc { margin-top: 4px; font-size: 11px; line-height: 1.6; color: var(--v2-text-text-muted); }
+.subnav {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  margin-top: 24px; padding: 8px 0;
+  background: var(--v2-background-bg-deep);
+  border-bottom: 1px solid var(--v2-border-border-muted);
+}
+.subnav a {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 6px;
+  font-size: 11px; color: var(--v2-text-text-muted);
+  text-decoration: none;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.subnav a:hover { background: var(--v2-background-bg-layer-01); color: var(--v2-text-text-base); }
+.subnav .num { font-family: var(--font-mono); font-size: 10px; color: var(--v2-text-text-faint); }
+
+/* ══════════════════════════════════════════════════════════════════
+   04 · 章节骨架 / 通用卡片
+   ══════════════════════════════════════════════════════════════════ */
+main > section { margin-top: 48px; scroll-margin-top: 64px; }
+.sec-head {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--v2-border-border-muted);
+}
+.sec-index { font-family: var(--font-mono); font-size: 12px; color: var(--v2-text-text-faint); padding-top: 3px; }
+.sec-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; font-size: 18px; font-weight: 600; color: var(--v2-text-text-base); }
+.sec-sub { font-size: 12px; font-weight: 400; color: var(--v2-text-text-muted); }
+.sec-desc { margin-top: 6px; max-width: 920px; font-size: 12px; line-height: 1.7; color: var(--v2-text-text-muted); }
+.sec-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 11px; color: var(--v2-text-text-faint); text-align: right; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.card {
+  background: var(--v2-background-bg-base);
+  border: 1px solid var(--v2-border-border-base);
+  border-radius: var(--radius-card);
+  padding: 16px 20px;
+  min-width: 0;
+}
+.card-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 16px;
+  font-size: 12px; font-weight: 600; color: var(--v2-text-text-base);
+}
+.card-head .spacer { margin-left: auto; }
+.tag {
+  display: inline-flex; align-items: center;
+  height: 20px; padding: 0 7px;
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 4px;
+  background: var(--v2-background-bg-layer-01);
+  color: var(--v2-text-text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.tag-accent { color: var(--v2-text-text-base); border-color: var(--v2-border-border-base); background: var(--v2-background-bg-layer-02); }
+.card-note { font-size: 11px; line-height: 1.7; color: var(--v2-text-text-muted); }
+.card-note + .card-note { margin-top: 4px; }
+.inline-code {
+  font-family: var(--font-mono); font-size: 10.5px;
+  padding: 1px 5px; border-radius: 4px;
+  background: var(--v2-background-bg-layer-01);
+  border: 1px solid var(--v2-border-border-muted);
+  color: var(--v2-text-text-muted);
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   05 · 主品牌 Mark（方案 04 · 100 网格）
+   ══════════════════════════════════════════════════════════════════ */
+.theme-card { padding: 20px; }
+.theme-card[data-theme="light"] { border-color: var(--v2-border-border-base); }
+.ladder-top {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 32px; flex-wrap: wrap;
+  padding: 8px 0 24px;
+}
+.logo-cell { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.size-label { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.size-label b { font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--v2-text-text-base); }
+.size-label span { font-size: 10px; color: var(--v2-text-text-faint); }
+.ladder-small-row {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding-top: 20px;
+  border-top: 1px dashed var(--v2-border-border-muted);
+}
+.ladder-small-row .logo-cell { flex: 1 1 0; }
+.token-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
+  margin-top: 16px; padding-top: 16px;
+  border-top: 1px solid var(--v2-border-border-muted);
+  font-size: 10.5px; color: var(--v2-text-text-faint);
+}
+.token-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.token-legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.lockup-card { display: flex; align-items: center; gap: 16px; padding: 20px 24px; }
+.lockup-card .lockup-logo { width: 32px; height: 32px; flex: none; }
+.wordmark {
+  font-size: 15px; font-weight: 700; letter-spacing: 0.22em;
+  color: var(--v2-text-text-base); line-height: 1;
+}
+.lockup-meta { margin-left: auto; font-size: 10.5px; color: var(--v2-text-text-faint); text-align: right; line-height: 1.6; }
+.candidates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.candidate {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 16px 12px;
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 8px;
+  background: var(--v2-background-bg-layer-01);
+  min-width: 0;
+}
+.candidate[data-recommended="true"] { border-color: var(--v2-border-border-base); background: var(--v2-background-bg-base); }
+.candidate .cand-svg { width: 100px; height: 100px; }
+.cand-label { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.cand-label b { font-size: 11px; font-weight: 600; color: var(--v2-text-text-base); }
+.cand-label span { font-size: 10px; color: var(--v2-text-text-muted); line-height: 1.5; }
+.cand-code {
+  font-family: var(--font-mono); font-size: 9.5px; line-height: 1.5;
+  color: var(--v2-text-text-faint); text-align: center;
+  word-break: break-word;
+}
+.rec-tag {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+  border-radius: 999px;
+  background: var(--v2-background-bg-layer-02);
+  border: 1px solid var(--v2-border-border-base);
+  color: var(--v2-text-text-base);
+  font-size: 10px; font-weight: 400;
+  white-space: nowrap;
+}
+.baseline-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.baseline-card { display: flex; gap: 20px; align-items: center; }
+.baseline-logo { width: 72px; height: 72px; flex: none; }
+.baseline-copy { min-width: 0; }
+.baseline-copy p { font-size: 11px; line-height: 1.7; color: var(--v2-text-text-muted); }
+.baseline-copy p + p { margin-top: 4px; }
+.baseline-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.baseline-list li { font-size: 11px; line-height: 1.6; color: var(--v2-text-text-muted); padding-left: 12px; position: relative; }
+.baseline-list li::before { content: "·"; position: absolute; left: 2px; color: var(--v2-text-text-faint); }
+
+/* ══════════════════════════════════════════════════════════════════
+   06 · 五图标 Rail 规格表
+   ══════════════════════════════════════════════════════════════════ */
+.icon-sheet {
+  margin-top: 16px;
+  padding: 0;
+  overflow: hidden;
+}
+.icon-sheet-head, .icon-row {
+  display: grid;
+  grid-template-columns: 128px 100px 68px 68px 152px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 16px 20px;
+}
+.icon-sheet-head {
+  padding-top: 10px; padding-bottom: 10px;
+  background: var(--v2-background-bg-layer-01);
+  border-bottom: 1px solid var(--v2-border-border-muted);
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--v2-text-text-faint);
+  font-family: var(--font-mono);
+}
+.icon-row + .icon-row { border-top: 1px solid var(--v2-border-border-muted); }
+.icon-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.icon-name code { font-size: 11.5px; color: var(--v2-text-text-base); white-space: nowrap; }
+.icon-name span { font-size: 10px; color: var(--v2-text-text-faint); }
+.icon-cell { display: flex; align-items: center; gap: 8px; }
+.tile {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  background: var(--v2-background-bg-layer-01);
+  color: var(--v2-icon-icon-muted);
+  flex: none;
+}
+.tile-active { background: var(--v2-background-bg-layer-02); color: var(--v2-icon-icon-base); }
+.tile-quiet { background: var(--v2-background-bg-base); border: 1px solid var(--v2-border-border-muted); }
+.tile svg { width: 20px; height: 20px; display: block; }
+.px-label { font-family: var(--font-mono); font-size: 10px; color: var(--v2-text-text-faint); }
+.zoom-cell { justify-content: flex-start; }
+.zoom {
+  width: 128px; height: 128px; display: block;
+  color: var(--v2-icon-icon-base);
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 6px;
+  background: var(--v2-background-bg-base);
+}
+.icon-note { font-size: 11px; line-height: 1.7; color: var(--v2-text-text-muted); }
+.icon-note code { font-size: 10px; color: var(--v2-text-text-base); }
+.icon-note .tag { margin-left: 4px; }
+.baseline-icons { margin-top: 16px; }
+.before-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.before-item {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 8px;
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 8px;
+  background: var(--v2-background-bg-layer-01);
+  min-width: 0;
+}
+.before-item code { font-size: 10px; color: var(--v2-text-text-faint); white-space: nowrap; }
+.note-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.note-box {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--v2-background-bg-layer-01);
+  border: 1px solid var(--v2-border-border-muted);
+  font-size: 11px; line-height: 1.7; color: var(--v2-text-text-muted);
+}
+.note-box b { color: var(--v2-text-text-base); font-weight: 600; }
+.eq { display: block; margin-top: 4px; font-family: var(--font-mono); font-size: 10.5px; color: var(--v2-text-text-base); }
+.stroke-demo { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.stroke-demo .tile { background: var(--v2-background-bg-base); border: 1px solid var(--v2-border-border-muted); }
+
+/* ══════════════════════════════════════════════════════════════════
+   07 · Assistant 图标标注
+   ══════════════════════════════════════════════════════════════════ */
+.assistant-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 16px; margin-top: 16px; }
+.board-wrap {
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 8px;
+  background: var(--v2-background-bg-deep);
+  padding: 8px;
+}
+.assistant-board { display: block; width: 100%; height: auto; color: var(--v2-icon-icon-base); }
+.side-stack { display: flex; flex-direction: column; gap: 16px; }
+.size-compare { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+.size-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.size-item .tile { width: 40px; height: 40px; }
+.size-item .micro-tile { width: 28px; height: 28px; border-radius: 6px; }
+.size-meta { display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; }
+.size-meta b { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; color: var(--v2-text-text-base); }
+.size-meta span { font-size: 9.5px; color: var(--v2-text-text-faint); }
+.spec-rows { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--v2-border-border-muted); border-radius: 8px; overflow: hidden; }
+.spec-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 8px 12px; background: var(--v2-background-bg-base); }
+.spec-row + .spec-row { border-top: 1px solid var(--v2-border-border-muted); }
+.spec-key { font-size: 10.5px; color: var(--v2-text-text-faint); }
+.spec-val { font-family: var(--font-mono); font-size: 10.5px; color: var(--v2-text-text-muted); }
+.micro-note { font-size: 11px; line-height: 1.7; color: var(--v2-text-text-muted); }
+.micro-note b { color: var(--v2-text-text-base); font-weight: 600; }
+
+/* ══════════════════════════════════════════════════════════════════
+   08 · 应用外壳 Mock（窗口 / 导轨 / 侧栏 / 主区）
+   ══════════════════════════════════════════════════════════════════ */
+.mock-frame {
+  width: 100%;
+  max-width: 1360px;
+  height: 860px;
+  margin: 16px auto 0;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--v2-border-border-base);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--v2-background-bg-base);
+}
+.window-titlebar {
+  height: 40px; flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--v2-border-border-base);
+  background: var(--v2-background-bg-base);
+}
+.tb-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tb-mark { width: 16px; height: 16px; flex: none; }
+.tb-brand { font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--v2-text-text-muted); }
+.tb-sep { width: 1px; height: 14px; background: var(--v2-border-border-muted); margin: 0 2px; flex: none; }
+.tb-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px;
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 6px;
+  background: var(--v2-background-bg-layer-01);
+  font-size: 12px; color: var(--v2-text-text-base);
+  white-space: nowrap;
+}
+.tb-tab svg { width: 14px; height: 14px; color: var(--v2-icon-icon-muted); }
+.tb-right { display: flex; align-items: center; gap: 4px; flex: none; }
+.tb-ctrl {
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  color: var(--v2-icon-icon-muted);
+  border-radius: 4px;
+}
+.tb-ctrl svg { width: 12px; height: 12px; }
+.shell-body {
+  display: grid;
+  grid-template-columns: 64px 264px minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ── 左侧主导轨 64px ── */
+.rail {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-right: 1px solid var(--v2-border-border-base);
+  background: var(--v2-background-bg-base);
+  min-height: 0;
+}
+.rail-group { display: flex; flex-direction: column; gap: 4px; align-items: center; width: 100%; }
+.rail-btn {
+  position: relative;
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--v2-icon-icon-muted);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.rail-btn:hover { background: var(--v2-background-bg-layer-01); color: var(--v2-icon-icon-base); }
+.rail-btn[aria-pressed="true"], .rail-btn[data-state="active"] { background: var(--v2-background-bg-layer-02); color: var(--v2-icon-icon-base); }
+.rail-indicator {
+  position: absolute;
+  left: -4px; top: 50%;
+  width: 2px; height: 20px;
+  border-radius: 1px;
+  background: var(--v2-icon-icon-accent);
+  opacity: 0;
+  transform: translateY(-50%) scaleY(0.6);
+  transform-origin: center;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+.rail-btn[aria-pressed="true"] .rail-indicator, .rail-btn[data-state="active"] .rail-indicator { opacity: 1; transform: translateY(-50%) scaleY(1); }
+.rail-icon { display: block; width: 20px; height: 20px; }
+.rail-badge {
+  position: absolute; top: 1px; right: 1px;
+  width: 18px; height: 18px;
+  border-radius: 9px;
+  border: 1px solid var(--v2-border-border-muted);
+  background: var(--v2-background-bg-deep);
+  color: var(--v2-text-text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px; line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+.rail-spacer { flex: 1 1 auto; }
+.rail-bottom { display: flex; flex-direction: column; gap: 4px; align-items: center; width: 100%; }
+.rail-btn-sm .rail-icon { width: 16px; height: 16px; }
+
+/* ── 次级侧栏 264px ── */
+.sidebar {
+  display: flex; flex-direction: column;
+  gap: 12px;
+  padding: 12px 10px;
+  border-right: 1px solid var(--v2-border-border-base);
+  background: var(--v2-background-bg-deep);
+  min-width: 0; min-height: 0;
+  overflow: hidden;
+}
+.sb-head { display: flex; gap: 10px; align-items: flex-start; padding: 4px 4px 0; }
+.sb-mode-icon { width: 18px; height: 18px; flex: none; margin-top: 1px; color: var(--v2-icon-icon-base); }
+.sb-mode { display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-weight: 600; color: var(--v2-text-text-base); }
+.sb-mode .zh { font-size: 11px; font-weight: 400; color: var(--v2-text-text-faint); }
+.sb-mode-desc { margin-top: 2px; font-size: 11px; line-height: 1.5; color: var(--v2-text-text-muted); }
+.sb-section { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; margin-top: 4px; }
+.sb-section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--v2-text-text-faint); font-family: var(--font-mono); }
+.sb-new {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 5px;
+  background: transparent; color: var(--v2-icon-icon-muted);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.sb-new:hover { background: var(--v2-background-bg-layer-01); color: var(--v2-icon-icon-base); }
+.sb-new svg { width: 14px; height: 14px; }
+.sb-rows { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.sb-row {
+  display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; align-items: center;
+  width: 100%; height: 34px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--v2-text-text-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.sb-row:hover { background: var(--v2-background-bg-layer-01); }
+.sb-row.is-active { background: var(--v2-background-bg-layer-01); border-color: var(--v2-border-border-muted); color: var(--v2-text-text-base); }
+.sb-row .row-icon { width: 14px; height: 14px; color: var(--v2-icon-icon-muted); }
+.sb-row.is-active .row-icon { color: var(--v2-icon-icon-base); }
+.row-title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-row.is-active .row-title { color: var(--v2-text-text-base); }
+.row-time { font-size: 10px; color: var(--v2-text-text-faint); white-space: nowrap; font-family: var(--font-mono); }
+
+/* ── 主工作区 ── */
+.main-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--v2-background-bg-base); }
+.main-head {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--v2-border-border-muted);
+  flex: none;
+}
+.main-mode-icon { width: 20px; height: 20px; flex: none; margin-top: 2px; color: var(--v2-icon-icon-base); }
+.main-head-text { min-width: 0; }
+.main-title { display: flex; align-items: baseline; gap: 8px; font-size: 16px; font-weight: 600; color: var(--v2-text-text-base); }
+.main-mode-zh { font-size: 12px; font-weight: 400; color: var(--v2-text-text-faint); }
+.main-desc { margin-top: 4px; font-size: 12px; color: var(--v2-text-text-muted); }
+.main-actions { margin-left: auto; display: flex; gap: 8px; flex: none; }
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--v2-border-border-base);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--v2-text-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.btn-ghost:hover { background: var(--v2-background-bg-layer-01); color: var(--v2-text-text-base); }
+.main-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 20px 24px; }
+.body-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--v2-text-text-base); }
+.body-heading .tag { margin-left: 0; }
+.ph-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: stretch; }
+.ph-card {
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 190px;
+  padding: 12px;
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 8px;
+  background: var(--v2-background-bg-layer-01);
+}
+.ph-card.tone-a { background: var(--v2-background-bg-layer-01); }
+.ph-card.tone-b { background: var(--v2-background-bg-deep); }
+.ph-card.tone-c { background: var(--v2-background-bg-layer-02); }
+.ph-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--v2-text-text-muted); }
+.ph-card-head .mono { font-size: 9.5px; color: var(--v2-text-text-faint); }
+.skeleton { display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; padding-top: 6px; }
+.skeleton-line { height: 6px; border-radius: 3px; background: var(--v2-border-border-base); }
+.skeleton-line.w-90 { width: 90%; }
+.skeleton-line.w-75 { width: 75%; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-45 { width: 45%; }
+.ph-code {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--v2-border-border-muted);
+  border-radius: 6px;
+  background: var(--v2-background-bg-base);
+  color: var(--v2-text-text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tasks { display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; padding-top: 2px; }
+.task { display: flex; align-items: center; gap: 8px; font-size: 11px; line-height: 1.5; color: var(--v2-text-text-muted); }
+.task-box {
+  width: 12px; height: 12px; flex: none;
+  display: grid; place-items: center;
+  border: 1px solid var(--v2-border-border-base);
+  border-radius: 3px;
+}
+.task-box svg { width: 8px; height: 8px; color: var(--v2-icon-icon-muted); opacity: 0; }
+.task.done .task-box { background: var(--v2-background-bg-layer-02); }
+.task.done .task-box svg { opacity: 1; }
+.task.done .task-label { color: var(--v2-text-text-faint); }
+.mock-caption { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; font-size: 11px; color: var(--v2-text-text-faint); }
+.mock-caption .tag { text-transform: none; }
+.mock-caption .hint { margin-left: auto; }
+
+/* ══════════════════════════════════════════════════════════════════
+   09 · 规格表 / 检查清单 / 页脚
+   ══════════════════════════════════════════════════════════════════ */
+.spec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.spec-block { min-width: 0; }
+.spec-block h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 12px; font-weight: 600; color: var(--v2-text-text-base); }
+.table-wrap { border: 1px solid var(--v2-border-border-muted); border-radius: 8px; overflow-x: auto; background: var(--v2-background-bg-base); }
+table { width: 100%; border-collapse: collapse; }
+th {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--v2-border-border-muted);
+  background: var(--v2-background-bg-layer-01);
+  color: var(--v2-text-text-faint);
+  font-size: 10px; font-weight: 500; letter-spacing: 0.04em; text-align: left; white-space: nowrap;
+}
+td {
+  padding: 8px 12px;
+  border-top: 1px solid var(--v2-border-border-muted);
+  color: var(--v2-text-text-muted);
+  font-size: 11px;
+  vertical-align: middle;
+}
+tbody tr:first-child td { border-top: 0; }
+td code, .tok-name { font-family: var(--font-mono); font-size: 10.5px; color: var(--v2-text-text-base); white-space: nowrap; }
+td.num { font-family: var(--font-mono); white-space: nowrap; }
+.tok-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.tok-cell .hex { font-family: var(--font-mono); font-size: 9.5px; color: var(--v2-text-text-muted); }
+.sw {
+  width: 14px; height: 14px; flex: none;
+  border-radius: 3px;
+  border: 1px solid var(--v2-border-border-base);
+  box-shadow: inset 0 0 0 1px var(--v2-border-border-muted);
+}
+.tok-usage { color: var(--v2-text-text-muted); }
+.a11y-list { display: flex; flex-direction: column; gap: 10px; }
+.a11y-list li { position: relative; padding-left: 18px; font-size: 11.5px; line-height: 1.7; color: var(--v2-text-text-muted); }
+.a11y-list li::before {
+  content: ""; position: absolute; left: 2px; top: 7px;
+  width: 6px; height: 6px; border-radius: 2px;
+  background: var(--v2-icon-icon-muted);
+}
+.a11y-list li b { color: var(--v2-text-text-base); font-weight: 600; }
+.state-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--v2-border-border-muted);
+  border-radius: 0 6px 6px 0;
+  background: var(--v2-background-bg-layer-01);
+  font-size: 11px; line-height: 1.7; color: var(--v2-text-text-muted);
+}
+.state-note b { color: var(--v2-text-text-base); font-weight: 600; }
+.checklist { margin-top: 16px; border: 1px solid var(--v2-border-border-base); border-radius: var(--radius-card); background: var(--v2-background-bg-base); overflow: hidden; }
+.checklist-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--v2-border-border-muted);
+  background: var(--v2-background-bg-base);
+}
+.checklist-head h3 { font-size: 13px; font-weight: 600; color: var(--v2-text-text-base); }
+.checklist-head .check-status { margin-left: auto; font-size: 11px; color: var(--v2-text-text-muted); font-family: var(--font-mono); }
+.check-item {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 12px; align-items: start;
+  padding: 14px 20px;
+  border-top: 1px solid var(--v2-border-border-muted);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.check-item:first-of-type { border-top: 0; }
+.check-item:hover { background: var(--v2-background-bg-layer-01); }
+.check-box { position: relative; width: 18px; height: 18px; margin-top: 1px; flex: none; }
+.check-box input {
+  position: absolute; inset: 0; margin: 0;
+  appearance: none; -webkit-appearance: none;
+  border: 1px solid var(--v2-border-border-base);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.check-box svg {
+  position: absolute; left: 3px; top: 3px;
+  width: 12px; height: 12px;
+  color: var(--v2-background-bg-base);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-fast);
+}
+.check-box input:checked { background: var(--v2-icon-icon-accent); border-color: var(--v2-icon-icon-accent); }
+.check-box input:checked + svg { opacity: 1; }
+.check-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.check-copy b { font-size: 12px; font-weight: 600; color: var(--v2-text-text-base); }
+.check-copy span { font-size: 11px; line-height: 1.65; color: var(--v2-text-text-muted); }
+.check-tag { flex: none; align-self: center; }
+.check-meta { margin-top: 8px; font-size: 10.5px; color: var(--v2-text-text-faint); text-align: right; }
+.page-footer {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  margin-top: 48px; padding-top: 16px;
+  border-top: 1px solid var(--v2-border-border-muted);
+  font-size: 11px; line-height: 1.8; color: var(--v2-text-text-faint);
+}
+.page-footer a { text-decoration: underline; text-underline-offset: 2px; }
+.page-footer .footer-mark { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; }
+
+/* ══════════════════════════════════════════════════════════════════
+   10 · 响应式（≈1100px 仍保持两栏 + 完整外壳）与动效降级
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .page { padding: 24px 24px 56px; }
+  .assistant-layout { grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr); }
+}
+@media (max-width: 1180px) {
+  .shell-body { grid-template-columns: 64px 232px minmax(0, 1fr); }
+  .icon-sheet-head, .icon-row { grid-template-columns: 116px 92px 60px 60px 136px minmax(0, 1fr); gap: 8px; padding: 16px; }
+  .zoom { width: 120px; height: 120px; }
+  .assistant-layout { grid-template-columns: 1fr; }
+  .spec-grid { grid-template-columns: 1fr; }
+  .baseline-grid { grid-template-columns: 1fr; }
+  .decision-strip { grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); }
+}
+@media (max-width: 1100px) {
+  .page-title { font-size: 24px; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .candidates { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .main-actions { flex-wrap: wrap; }
+  .sb-mode-desc { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   11 · 预览补充：通用堆叠 / Logo 与标注字号
+   ══════════════════════════════════════════════════════════════════ */
+.logo-svg, .logo-cell svg { display: block; }
+.stack { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.stack > .card, .stack > .baseline-grid { margin-top: 0; }
+.board-caption {
+  display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  margin-top: 8px; font-size: 10.5px; color: var(--v2-text-text-faint);
+}
+.assistant-board text { font-family: var(--font-sans); }
+.board-label { fill: var(--v2-text-text-base); font-size: 13px; font-weight: 600; }
+.board-label-en { fill: var(--v2-text-text-faint); font-size: 9px; font-family: var(--font-mono); }
+.board-line { fill: none; stroke: var(--v2-border-border-base); stroke-width: 1; }
+.board-anchor { fill: var(--v2-icon-icon-accent); }
+.gridline { fill: none; stroke: var(--v2-border-border-muted); stroke-width: 0.06; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <defs>
+    <pattern id="unit-grid" width="1" height="1" patternUnits="userSpaceOnUse">
+      <path d="M1 0V1M0 1H1" fill="none" stroke="var(--v2-border-border-muted)" stroke-width="0.06"/>
+    </pattern>
+  </defs>
+
+  <!-- 主品牌 Mark · 方案 04 · 100 网格 -->
+  <symbol id="mk-full" viewBox="0 0 100 100">
+    <polygon points="48,16 16,74 38,74 48,54" fill="var(--v2-avatar-bg-blue)"/>
+    <polygon points="52,16 52,54 62,54 62,62 52,62 52,74 84,74" fill="var(--v2-avatar-bg-cyan)"/>
+    <circle cx="50" cy="14" r="4" fill="var(--v2-text-text-base)"/>
+    <path d="M22 82 C32 88 68 88 78 82 C78 82 66 85 50 85 C34 85 22 82 22 82 Z" fill="var(--logo-c-mix)"/>
+  </symbol>
+  <symbol id="mk-standard" viewBox="0 0 100 100">
+    <polygon points="48,16 16,74 38,74 48,54" fill="var(--v2-avatar-bg-blue)"/>
+    <polygon points="52,16 52,54 62,54 62,62 52,62 52,74 84,74" fill="var(--v2-avatar-bg-cyan)"/>
+    <circle cx="50" cy="14" r="4" fill="var(--v2-text-text-base)"/>
+  </symbol>
+  <symbol id="mk-compact" viewBox="0 0 100 100">
+    <polygon points="48,16 16,74 40,74 48,54" fill="var(--v2-avatar-bg-blue)"/>
+    <polygon points="52,16 52,74 84,74" fill="var(--v2-avatar-bg-cyan)"/>
+  </symbol>
+  <!-- 现状基线 · repo 43997011e logo.tsx Mark -->
+  <symbol id="mk-baseline" viewBox="0 0 24 24">
+    <path d="M12 2L4 18H8L12 9.5V2Z" fill="var(--v2-avatar-bg-blue)" opacity="0.75"/>
+    <path d="M12 2V9.5L16 18H20L12 2Z" fill="var(--v2-avatar-bg-cyan)" opacity="0.6"/>
+    <path d="M6 18C6 20.2 9 21.5 12 21.5C15 21.5 18 20.2 18 18H15C15 19 13.5 19.5 12 19.5C10.5 19.5 9 19 9 18H6Z" fill="var(--v2-avatar-bg-cyan)" opacity="0.85"/>
+    <path d="M11 6H13V18.5H11V6Z" fill="var(--v2-text-text-contrast)"/>
+  </symbol>
+
+  <!-- rail-* · 16 网格 · stroke 1.5 · round caps/joins · currentColor -->
+  <symbol id="rail-chat" viewBox="0 0 16 16">
+    <path d="M12 2.5H4A1.5 1.5 0 0 0 2.5 4v6A1.5 1.5 0 0 0 4 11.5h1.2v2.4l2.9-2.4H12A1.5 1.5 0 0 0 13.5 10V4A1.5 1.5 0 0 0 12 2.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="5.2" cy="7" r="0.85" fill="currentColor"/>
+    <circle cx="8" cy="7" r="0.85" fill="currentColor"/>
+    <circle cx="10.8" cy="7" r="0.85" fill="currentColor"/>
+  </symbol>
+  <symbol id="rail-coding" viewBox="0 0 16 16">
+    <path d="M5.33 4L1.33 8L5.33 12M10.67 4L14.67 8L10.67 12M9.33 2.67L6.67 13.33" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="rail-work" viewBox="0 0 16 16">
+    <rect x="2" y="2" width="4.67" height="4.67" rx="1.33" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <rect x="9.33" y="2" width="4.67" height="4.67" rx="1.33" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <rect x="2" y="9.33" width="4.67" height="4.67" rx="1.33" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <rect x="9.33" y="9.33" width="4.67" height="4.67" rx="1.33" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M10.67 11.67L11.67 12.67L13.33 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="rail-assistant" viewBox="0 0 16 16">
+    <rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor"/>
+    <rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor"/>
+    <rect x="4.5" y="1.6" width="7" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <circle cx="8" cy="4.5" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M8 3.9V4.5H9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M8 7.6V8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <rect x="2" y="8.5" width="12" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M4.5 10.6H8M4.5 12.4H6.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="currentColor"/>
+  </symbol>
+  <symbol id="rail-assistant-micro" viewBox="0 0 16 16">
+    <rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor"/>
+    <rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor"/>
+    <rect x="4.5" y="1.6" width="7" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <circle cx="8" cy="4.5" r="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <circle cx="8" cy="4.5" r="0.55" fill="currentColor"/>
+    <path d="M8 7.6V8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <rect x="2" y="8.5" width="12" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M4.5 10.8H7.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="currentColor"/>
+  </symbol>
+  <symbol id="rail-custom" viewBox="0 0 16 16">
+    <path d="M2.67 4H13.33M2.67 8H13.33M2.67 12H13.33" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="5.33" cy="4" r="1.67" fill="currentColor"/>
+    <circle cx="10.67" cy="8" r="1.67" fill="currentColor"/>
+    <circle cx="6.67" cy="12" r="1.67" fill="currentColor"/>
+  </symbol>
+
+  <!-- 现状 mode-* · 内页复用键，保持不动 -->
+  <symbol id="mode-chat" viewBox="0 0 16 16">
+    <path d="M1.5 14.5L3 11.5C1.917 10.167 1.5 8.833 1.5 7.5C1.5 4.167 4.5 1.5 8 1.5C11.5 1.5 14.5 4.167 14.5 7.5C14.5 10.833 11.5 13.5 8 13.5L1.5 14.5Z" fill="none" stroke="currentColor"/>
+  </symbol>
+  <symbol id="mode-coding" viewBox="0 0 16 16">
+    <path d="M10 4L14 8L10 12M6 12L2 8L6 4" fill="none" stroke="currentColor" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="mode-work" viewBox="0 0 16 16">
+    <path d="M2.5 3.5H13.5V13.5H2.5V3.5Z" fill="none" stroke="currentColor"/>
+    <path d="M5.5 1.5V4.5M10.5 1.5V4.5" fill="none" stroke="currentColor"/>
+    <path d="M5.5 7.5L7.5 9.5L10.5 6.5" fill="none" stroke="currentColor" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="mode-assistant" viewBox="0 0 16 16">
+    <path d="M8 1.5V3.5M14.5 8H12.5M3.5 8H1.5M12 4L10.5 5.5M4 12L5.5 10.5M12 12L10.5 10.5M4 4L5.5 5.5M8 12.5V14.5" fill="none" stroke="currentColor" stroke-linejoin="round"/>
+    <circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor"/>
+  </symbol>
+  <symbol id="mode-custom" viewBox="0 0 16 16">
+    <path d="M2.5 5.5H13.5M2.5 10.5H13.5M5.5 3.5V7.5M10.5 8.5V12.5" fill="none" stroke="currentColor" stroke-linecap="round"/>
+    <circle cx="5.5" cy="5.5" r="1.5" fill="currentColor"/>
+    <circle cx="10.5" cy="10.5" r="1.5" fill="currentColor"/>
+  </symbol>
+
+  <!-- 辅助图标 -->
+  <symbol id="icon-help" viewBox="0 0 16 16">
+    <path d="M6.33345 6.33349V5.00015H9.66679V7.00015L8.00015 8.00015V9.66679M8.27485 11.6819H7.71897M14.4446 8.00011C14.4446 11.5593 11.5593 14.4446 8.00011 14.4446C4.44094 14.4446 1.55566 11.5593 1.55566 8.00011C1.55566 4.44094 4.44094 1.55566 8.00011 1.55566C11.5593 1.55566 14.4446 4.44094 14.4446 8.00011Z" fill="none" stroke="currentColor" stroke-linecap="square"/>
+  </symbol>
+  <symbol id="icon-settings" viewBox="0 0 16 16">
+    <path d="M7.99998 1.3335L14 4.66683V11.3335L7.99998 14.6668L2 11.3335V4.66683L7.99998 1.3335Z" fill="none" stroke="currentColor"/>
+    <path d="M9.99998 8.00016C9.99998 9.10476 9.10458 10.0002 7.99998 10.0002C6.89538 10.0002 5.99998 9.10476 5.99998 8.00016C5.99998 6.89556 6.89538 6.00016 7.99998 6.00016C9.10458 6.00016 9.99998 6.89556 9.99998 8.00016Z" fill="none" stroke="currentColor"/>
+  </symbol>
+  <symbol id="icon-plus" viewBox="0 0 16 16">
+    <path d="M8 2.88867V13.1109M2.88867 8H13.1109" fill="none" stroke="currentColor" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="icon-check-mini" viewBox="0 0 12 12">
+    <path d="M2.5 6.2L5 8.7L9.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="icon-min" viewBox="0 0 16 16">
+    <path d="M3 8H13" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="icon-close" viewBox="0 0 16 16">
+    <path d="M4 4L12 12M12 4L4 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<div class="page">
+  <header class="page-header">
+    <div class="ph-top">
+      <div>
+        <p class="eyebrow">Approval preview · Revised plan · 2026-10-20</p>
+        <h1 class="page-title">品牌 Logo 与五模式导轨<span class="dot">·</span>高保真预览</h1>
+        <p class="page-subtitle">实施计划 brand-mode-icons（2026-10-20 修订） · 视觉确认 4/4</p>
+      </div>
+      <div class="ph-actions">
+        <button class="btn-theme" id="theme-toggle" type="button" data-current="dark" aria-label="切换到浅色主题">
+          <svg class="icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+          <svg class="icon-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 1V2.5M8 13.5V15M1 8H2.5M13.5 8H15M3.05 3.05L4.1 4.1M11.9 11.9L12.95 12.95M3.05 12.95L4.1 11.9M11.9 4.1L12.95 3.05" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <span id="theme-text">深色</span>
+        </button>
+      </div>
+    </div>
+    <div class="ph-meta">
+      <span class="chip chip-ok"><span class="chip-dot"></span>S1 / S2 有条件通过</span>
+      <span class="chip chip-stop"><span class="chip-dot"></span>S3 退回修订</span>
+      <span class="chip chip-ok"><span class="chip-dot"></span>D1 / D2 / D4 / D5 · 视觉确认 4/4（2026-10-20）</span>
+      <span class="ph-note">本页仅用于方案审批，不是产品代码</span>
+    </div>
+
+    <div class="decision-strip" aria-label="修订后的设计裁决摘要">
+      <div class="decision">
+        <div class="d-key">D1</div>
+        <div class="d-title">单一强调色</div>
+        <div class="d-desc">2 × 20px 激活条，用 --v2-icon-icon-accent；收回 per-mode 色 / glow / pulse。</div>
+      </div>
+      <div class="decision">
+        <div class="d-key">D2</div>
+        <div class="d-title">rail-* 图标解耦</div>
+        <div class="d-desc">16 网格 · stroke 1.5；内页 mode-* 复用键保持原样。</div>
+      </div>
+      <div class="decision">
+        <div class="d-key">D3</div>
+        <div class="d-title">分支与工作区</div>
+        <div class="d-desc">基于 43997011e 的 brand-mode-icons；计划已修订，本分支待提交。</div>
+      </div>
+      <div class="decision">
+        <div class="d-key">D4</div>
+        <div class="d-title">Assistant 智库手账</div>
+        <div class="d-desc">宽体 12 × 6 手账 + 夹板头 / 时钟 / 轴颈；14px 微缩兜底。</div>
+      </div>
+      <div class="decision">
+        <div class="d-key">D5</div>
+        <div class="d-title">主品牌方案 04</div>
+        <div class="d-desc">100 网格淬火熔炉鼎；A + G + 顶点 + C 底座，C 候选 2 已采纳。</div>
+      </div>
+    </div>
+
+    <nav class="subnav" aria-label="本页章节导航">
+      <a href="#brand"><span class="num">02</span>主品牌 Mark</a>
+      <a href="#icons"><span class="num">03</span>五图标 rail-*</a>
+      <a href="#assistant"><span class="num">04</span>Assistant 细节</a>
+      <a href="#shell"><span class="num">05</span>真实应用外壳</a>
+      <a href="#specs"><span class="num">06</span>规格与确认</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ═════════════════ 02 · 主品牌 Mark ═════════════════ -->
+    <section id="brand" aria-labelledby="brand-title">
+      <header class="sec-head">
+        <div class="sec-index">02</div>
+        <div>
+          <h2 class="sec-title" id="brand-title">主品牌 Mark<span class="sec-sub">方案 04 · 淬火金字塔与熔炉鼎</span></h2>
+          <p class="sec-desc">几何以工件 <span class="inline-code">professional_logo_redesign.html</span> 方案 04 / <span class="inline-code">opt4.svg</span> 为准：viewBox <span class="inline-code">0 0 100 100</span>，A 面 / G 面 / 顶点 / C 底座四个层级。小尺寸按 100 / 48 / 32 / 24 三档简化规则派生。D5 不使用旧的梯度 logo.tsx 路径。<b>2026-10-20 修正：顶点原绑定 --v2-text-text-contrast（明暗都近白），亮色下不可见；改为自适应前景 --v2-text-text-base（浅色深点 / 深色白点）。</b></p>
+        </div>
+        <div class="sec-side"><span class="tag">D5</span><span>100 网格 · 4 层几何</span></div>
+      </header>
+
+      <div class="grid-2">
+        <div class="card theme-card" data-theme="light">
+          <div class="card-head">尺寸阶梯<span class="tag">浅色主题</span><span class="spacer"></span><span class="tag">viewBox 100</span></div>
+          <div class="ladder">
+            <div class="ladder-top">
+              <div class="logo-cell">
+                <svg class="logo-svg" width="160" height="160" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>160</b><span>完整 · A + G + 点 + C</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="100" height="100" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>100</b><span>完整 · A + G + 点 + C</span></div>
+              </div>
+            </div>
+            <div class="ladder-small-row">
+              <div class="logo-cell">
+                <svg class="logo-svg" width="48" height="48" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-standard"/></svg>
+                <div class="size-label"><b>48</b><span>资产 · 标准</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="32" height="32" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-standard"/></svg>
+                <div class="size-label"><b>32</b><span>资产 · 标准</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="24" height="24" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-compact"/></svg>
+                <div class="size-label"><b>24</b><span>资产 · 紧凑</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="20" height="20" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-compact"/></svg>
+                <div class="size-label"><b>20</b><span>资产 · 紧凑</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="16" height="16" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-compact"/></svg>
+                <div class="size-label"><b>16</b><span>资产 · 16</span></div>
+              </div>
+            </div>
+            <div class="ladder-small-row" style="margin-top: 16px;">
+              <div class="logo-cell">
+                <svg class="logo-svg" width="56" height="56" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>56</b><span>应用内 Mark · 完整</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="40" height="40" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>40</b><span>应用内 Mark · 完整</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="64" height="80" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>64×80</b><span>Splash 实渲（app.tsx:584）</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="48" height="60" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>48×60</b><span>Splash 实渲（app.tsx:623）</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="token-legend">
+            <span><i style="background: var(--v2-avatar-bg-blue)"></i>A 面 · --v2-avatar-bg-blue</span>
+            <span><i style="background: var(--v2-avatar-bg-cyan)"></i>G 面 · --v2-avatar-bg-cyan</span>
+            <span><i style="background: var(--v2-text-text-base)"></i>顶点 · --v2-text-text-base（自适应）</span>
+            <span><i style="background: var(--logo-c-mix)"></i>C 底座 · 候选 2</span>
+          </div>
+        </div>
+
+        <div class="card theme-card" data-theme="dark">
+          <div class="card-head">尺寸阶梯<span class="tag">深色主题</span><span class="spacer"></span><span class="tag">viewBox 100</span></div>
+          <div class="ladder">
+            <div class="ladder-top">
+              <div class="logo-cell">
+                <svg class="logo-svg" width="160" height="160" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>160</b><span>完整 · A + G + 点 + C</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="100" height="100" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>100</b><span>完整 · A + G + 点 + C</span></div>
+              </div>
+            </div>
+            <div class="ladder-small-row">
+              <div class="logo-cell">
+                <svg class="logo-svg" width="48" height="48" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-standard"/></svg>
+                <div class="size-label"><b>48</b><span>资产 · 标准</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="32" height="32" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-standard"/></svg>
+                <div class="size-label"><b>32</b><span>资产 · 标准</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="24" height="24" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-compact"/></svg>
+                <div class="size-label"><b>24</b><span>资产 · 紧凑</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="20" height="20" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-compact"/></svg>
+                <div class="size-label"><b>20</b><span>资产 · 紧凑</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="16" height="16" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-compact"/></svg>
+                <div class="size-label"><b>16</b><span>资产 · 16</span></div>
+              </div>
+            </div>
+            <div class="ladder-small-row" style="margin-top: 16px;">
+              <div class="logo-cell">
+                <svg class="logo-svg" width="56" height="56" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>56</b><span>应用内 Mark · 完整</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="40" height="40" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>40</b><span>应用内 Mark · 完整</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="64" height="80" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>64×80</b><span>Splash 实渲（app.tsx:584）</span></div>
+              </div>
+              <div class="logo-cell">
+                <svg class="logo-svg" width="48" height="60" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#mk-full"/></svg>
+                <div class="size-label"><b>48×60</b><span>Splash 实渲（app.tsx:623）</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="token-legend">
+            <span><i style="background: var(--v2-avatar-bg-blue)"></i>A 面 · --v2-avatar-bg-blue</span>
+            <span><i style="background: var(--v2-avatar-bg-cyan)"></i>G 面 · --v2-avatar-bg-cyan</span>
+            <span><i style="background: var(--v2-text-text-base)"></i>顶点 · --v2-text-text-base（自适应）</span>
+            <span><i style="background: var(--logo-c-mix)"></i>C 底座 · 候选 2</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card lockup-card" data-theme="light">
+          <svg class="lockup-logo" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-standard"/></svg>
+          <span class="wordmark">AIGCFORGE</span>
+          <span class="lockup-meta">标准形态 · Mark 32px + 字标<br>字标为系统字体示意</span>
+        </div>
+        <div class="card lockup-card" data-theme="dark">
+          <svg class="lockup-logo" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-standard"/></svg>
+          <span class="wordmark">AIGCFORGE</span>
+          <span class="lockup-meta">标准形态 · Mark 32px + 字标<br>字标为系统字体示意</span>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card" data-theme="dark">
+          <div class="card-head">C 底座决策<span class="tag">已确认 · 2026-10-20</span><span class="spacer"></span><span class="rec-tag">已采纳 · 候选 2</span></div>
+          <div class="candidates">
+            <div class="candidate">
+              <svg class="cand-svg" viewBox="0 0 100 100" aria-hidden="true">
+                <polygon points="48,16 16,74 38,74 48,54" fill="var(--v2-avatar-bg-blue)"/>
+                <polygon points="52,16 52,54 62,54 62,62 52,62 52,74 84,74" fill="var(--v2-avatar-bg-cyan)"/>
+                <circle cx="50" cy="14" r="4" fill="var(--v2-text-text-base)"/>
+                <path d="M22 82 C32 88 68 88 78 82 C78 82 66 85 50 85 C34 85 22 82 22 82 Z" fill="var(--v2-avatar-bg-cyan)"/>
+              </svg>
+              <div class="cand-label"><b>候选 1 · 实色</b><span>直接使用现有 avatar token</span></div>
+              <div class="cand-code">fill: var(--v2-avatar-bg-cyan)</div>
+            </div>
+            <div class="candidate" data-recommended="true">
+              <svg class="cand-svg" viewBox="0 0 100 100" aria-hidden="true">
+                <polygon points="48,16 16,74 38,74 48,54" fill="var(--v2-avatar-bg-blue)"/>
+                <polygon points="52,16 52,54 62,54 62,62 52,62 52,74 84,74" fill="var(--v2-avatar-bg-cyan)"/>
+                <circle cx="50" cy="14" r="4" fill="var(--v2-text-text-base)"/>
+                <path d="M22 82 C32 88 68 88 78 82 C78 82 66 85 50 85 C34 85 22 82 22 82 Z" fill="var(--logo-c-mix)"/>
+              </svg>
+              <div class="cand-label"><b>候选 2 · 55% 混白</b><span>底座更轻，不与 G 面抢层级</span></div>
+              <div class="cand-code">color-mix(cyan 55%, text-contrast)</div>
+            </div>
+            <div class="candidate">
+              <svg class="cand-svg" viewBox="0 0 100 100" aria-hidden="true">
+                <polygon points="48,16 16,74 38,74 48,54" fill="var(--v2-avatar-bg-blue)"/>
+                <polygon points="52,16 52,54 62,54 62,62 52,62 52,74 84,74" fill="var(--v2-avatar-bg-cyan)"/>
+                <circle cx="50" cy="14" r="4" fill="var(--v2-text-text-base)"/>
+                <path d="M22 82 C32 88 68 88 78 82 C78 82 66 85 50 85 C34 85 22 82 22 82 Z" fill="#67E8F9"/>
+              </svg>
+              <div class="cand-label"><b>候选 3 · 工件原色</b><span>固定 hex，仅作参考对照</span></div>
+              <div class="cand-code">#67E8F9 · 不入 Token / 不推荐</div>
+            </div>
+          </div>
+          <p class="card-note" style="margin-top: 16px">候选 2 使用 <span class="inline-code">color-mix()</span> 从现有 token 派生，不新增品牌色；浅色、深色主题下均比实色 C 底座低一个视觉层级。候选 3 的 <span class="inline-code">#67E8F9</span> 是工件静态色，按 DESIGN.md 的第三方/静态资产约束只做展示，不进入产品 Token。</p>
+        </div>
+
+        <div class="baseline-grid" data-theme="dark">
+          <div class="card baseline-card">
+            <svg class="baseline-logo" viewBox="0 0 24 24" aria-hidden="true"><use href="#mk-baseline"/></svg>
+            <div class="baseline-copy">
+              <div class="card-head" style="margin-bottom: 8px">现状 43997011e<span class="spacer"></span><span class="tag">repo logo.tsx</span></div>
+              <p>viewBox <span class="inline-code">0 0 24 24</span>，4 条 path 叠加 opacity；中心 I 柱使用 <span class="inline-code">--v2-text-text-contrast</span>。</p>
+              <ul class="baseline-list">
+                <li>与方案 04 的 100 网格多边形不是同一套几何</li>
+                <li>旧梯度路径（计划 §3.3 曾引用）已弃用，未在本预览中出现</li>
+                <li>对比用途：保留一个基线参照，不进入新一轮实现</li>
+              </ul>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">小尺寸简化规则<span class="spacer"></span><span class="tag">规则待批准</span></div>
+            <ul class="baseline-list" style="margin-top: 0">
+              <li><b>160 / 100px</b>：完整形态，A + G + 顶点 + C 底座</li>
+              <li><b>48 / 32px</b>：去掉 C 底座，保留 A + G + 顶点</li>
+              <li><b>24 / 20 / 16px</b>：紧凑双面轮廓，去掉顶点与底座</li>
+            </ul>
+            <p class="card-note" style="margin-top: 12px">100 网格是唯一设计源。上表 16–48px 三档简化只用于 <b>favicon / 桌面资产母版</b>，不改变组件输出：应用内 <code>Mark</code> 固定使用完整形态（40 / 56px），<code>Splash</code> 固定使用完整形态（实渲 64×80 / 48×60，非 100px 直出）。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════════ 03 · 导航轨五图标 ═════════════════ -->
+    <section id="icons" aria-labelledby="icons-title">
+      <header class="sec-head">
+        <div class="sec-index">03</div>
+        <div>
+          <h2 class="sec-title" id="icons-title">导航轨五图标<span class="sec-sub">rail-* · 16 网格 · stroke 1.5</span></h2>
+          <p class="sec-desc">新增五个独立图标键：<span class="inline-code">rail-chat</span> / <span class="inline-code">rail-coding</span> / <span class="inline-code">rail-work</span> / <span class="inline-code">rail-assistant</span> / <span class="inline-code">rail-custom</span>。统一 16 × 16 viewBox、stroke 1.5、圆头端点与圆角连接、currentColor；rail 中渲染 20px，置于 40px 按钮。内页复用的 <span class="inline-code">mode-*</span> 不随本轮改动。<b>注：rail-chat 为 2026-10-20 反馈后的新设计（气泡 + 三点）；其余四枚为工件 24 网格的 16px 适配。</b></p>
+        </div>
+        <div class="sec-side"><span class="tag">D2</span><span>20 / 16 / 14px · 8× 网格</span></div>
+      </header>
+
+      <div class="card icon-sheet">
+        <div class="icon-sheet-head" aria-hidden="true">
+          <div>图标键</div>
+          <div>20px · 40px 按钮</div>
+          <div>16px</div>
+          <div>14px</div>
+          <div>8× 放大 · 16 单位网格</div>
+          <div>几何说明</div>
+        </div>
+
+        <div class="icon-row">
+          <div class="icon-name"><code>rail-chat</code><span>对话 Chat</span></div>
+          <div class="icon-cell">
+            <span class="tile"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="rail-chat 20px"><use href="#rail-chat"/></svg></span>
+          </div>
+          <div class="icon-cell">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-chat"/></svg>
+            <span class="px-label">16</span>
+          </div>
+          <div class="icon-cell">
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-chat"/></svg>
+            <span class="px-label">14</span>
+          </div>
+          <div class="zoom-cell">
+            <svg class="zoom" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="url(#unit-grid)"/><use href="#rail-chat"/></svg>
+          </div>
+          <div class="icon-note">对话气泡 + 三点省略号，明确表达“对话 / 消息”；<b>旧版 >_ 提示符按 2026-10-20 反馈废弃</b>（它会读成终端）。与 <code>mode-chat</code> 的圆气泡在轮廓与内部元素上均不同。</div>
+        </div>
+
+        <div class="icon-row">
+          <div class="icon-name"><code>rail-coding</code><span>编程 Coding</span></div>
+          <div class="icon-cell">
+            <span class="tile"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="rail-coding 20px"><use href="#rail-coding"/></svg></span>
+          </div>
+          <div class="icon-cell">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-coding"/></svg>
+            <span class="px-label">16</span>
+          </div>
+          <div class="icon-cell">
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-coding"/></svg>
+            <span class="px-label">14</span>
+          </div>
+          <div class="zoom-cell">
+            <svg class="zoom" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="url(#unit-grid)"/><use href="#rail-coding"/></svg>
+          </div>
+          <div class="icon-note">双尖括号 + 斜杠；斜杠端点 2.67 / 13.33 收进基线，三笔在 16 网格中对称。</div>
+        </div>
+
+        <div class="icon-row">
+          <div class="icon-name"><code>rail-work</code><span>工作 Work</span></div>
+          <div class="icon-cell">
+            <span class="tile"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="rail-work 20px"><use href="#rail-work"/></svg></span>
+          </div>
+          <div class="icon-cell">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-work"/></svg>
+            <span class="px-label">16</span>
+          </div>
+          <div class="icon-cell">
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-work"/></svg>
+            <span class="px-label">14</span>
+          </div>
+          <div class="zoom-cell">
+            <svg class="zoom" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="url(#unit-grid)"/><use href="#rail-work"/></svg>
+          </div>
+          <div class="icon-note">四宫格任务板 + 对勾；<code>rx 1.33</code> 与 40px 按钮的 8px 圆角节奏一致，强调“多任务编排”。</div>
+        </div>
+
+        <div class="icon-row">
+          <div class="icon-name"><code>rail-assistant</code><span>助手 Assistant</span></div>
+          <div class="icon-cell">
+            <span class="tile tile-active"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="rail-assistant 20px"><use href="#rail-assistant"/></svg></span>
+          </div>
+          <div class="icon-cell">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-assistant"/></svg>
+            <span class="px-label">16</span>
+          </div>
+          <div class="icon-cell">
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-assistant-micro"/></svg>
+            <span class="px-label">14 微缩</span>
+          </div>
+          <div class="zoom-cell">
+            <svg class="zoom" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="url(#unit-grid)"/><use href="#rail-assistant"/></svg>
+          </div>
+          <div class="icon-note">夹板头 + 时钟 + 轴颈 + 宽体手账 + 书签；14px 切换为微缩变体（圆环 + 中心点、一条条纹）。细节见 04。<span class="tag">D4</span></div>
+        </div>
+
+        <div class="icon-row">
+          <div class="icon-name"><code>rail-custom</code><span>自定义 Custom</span></div>
+          <div class="icon-cell">
+            <span class="tile"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="rail-custom 20px"><use href="#rail-custom"/></svg></span>
+          </div>
+          <div class="icon-cell">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-custom"/></svg>
+            <span class="px-label">16</span>
+          </div>
+          <div class="icon-cell">
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" style="color: var(--v2-icon-icon-base)"><use href="#rail-custom"/></svg>
+            <span class="px-label">14</span>
+          </div>
+          <div class="zoom-cell">
+            <svg class="zoom" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="url(#unit-grid)"/><use href="#rail-custom"/></svg>
+          </div>
+          <div class="icon-note">三条滑轨 + 三枚旋钮，旋钮 5.33 / 10.67 / 6.67 交错；与 <code>mode-custom</code> 的 5.5 / 10.5 位置故意区分。</div>
+        </div>
+      </div>
+
+      <div class="card baseline-icons">
+        <div class="card-head">现状 mode-*（内页复用键，保持不动）<span class="spacer"></span><span class="tag">baseline 43997011e</span></div>
+        <div class="before-grid">
+          <div class="before-item">
+            <span class="tile tile-quiet"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="mode-chat 现状 20px"><use href="#mode-chat"/></svg></span>
+            <code>mode-chat</code>
+          </div>
+          <div class="before-item">
+            <span class="tile tile-quiet"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="mode-coding 现状 20px"><use href="#mode-coding"/></svg></span>
+            <code>mode-coding</code>
+          </div>
+          <div class="before-item">
+            <span class="tile tile-quiet"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="mode-work 现状 20px"><use href="#mode-work"/></svg></span>
+            <code>mode-work</code>
+          </div>
+          <div class="before-item">
+            <span class="tile tile-quiet"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="mode-assistant 现状 20px"><use href="#mode-assistant"/></svg></span>
+            <code>mode-assistant</code>
+          </div>
+          <div class="before-item">
+            <span class="tile tile-quiet"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="mode-custom 现状 20px"><use href="#mode-custom"/></svg></span>
+            <code>mode-custom</code>
+          </div>
+        </div>
+        <p class="card-note" style="margin-top: 12px">现状为默认 <span class="inline-code">stroke-width: 1</span> 的 16 网格图标；内页 11 个文件 / 21 处继续引用这五个键，D2 只解耦 rail 与内页，不修改旧几何。</p>
+
+        <div class="note-grid">
+          <div class="note-box">
+            <b>描边换算</b>
+            <span class="eq">rail：1.5 × 20 / 16 = 1.875px 设备像素</span>
+            <span class="eq">工件：2.0 × 22 / 24 ≈ 1.833px 设备像素</span>
+            差异 ≈ 0.04px，20px 导轨中视觉粗细与工件一致；14px 时 stroke ≈ 1.3125px，允许亚像素，不单独改 stroke。
+          </div>
+          <div class="note-box">
+            <b>实现约定</b>
+            <span class="eq">viewBox="0 0 16 16"</span>
+            <span class="eq">stroke="currentColor" stroke-width="1.5"</span>
+            <span class="eq">stroke-linecap="round" stroke-linejoin="round"</span>
+            默认 <code>fill="none"</code>；耳朵、书签、旋钮等实心细节单独 <code>fill="currentColor"</code>。rail 按钮尺寸固定 40px，图标 20px，不随悬停位移。
+          </div>
+        </div>
+      </div>
+    </section>
+
+<!-- ═════════════════ 04 · Assistant 图标细节 ═════════════════ -->
+    <section id="assistant" aria-labelledby="assistant-title">
+      <header class="sec-head">
+        <div class="sec-index">04</div>
+        <div>
+          <h2 class="sec-title" id="assistant-title">Assistant 图标<span class="sec-sub">智库手账 · 宽体修正 · 20px / 14px</span></h2>
+          <p class="sec-desc">16 网格适配自工件 <span class="inline-code">wider_assistant_structure.html</span> 的结构 1「轴颈台座 · 首推」（2026-10-05T13:39:43Z，最新工件）。宽体 body 归一化后与工件一致（12 × 6 对应工件 84 × 42；body : head ≈ 1.71）。用户在 step 433/446/456 指定了方向（B 夹板头 + C 卡片身 + 更宽更合理），最终 16px 几何为本计划适配值，需要在本页目检确认。</p>
+        </div>
+        <div class="sec-side"><span class="tag">D4</span><span>16 网格 · stroke 1.5</span></div>
+      </header>
+
+      <div class="assistant-layout">
+        <div class="card board-wrap">
+          <svg class="assistant-board" viewBox="0 0 680 440" role="img" aria-label="rail-assistant 几何放大图，16 单位网格">
+            <g transform="translate(180,40) scale(20)">
+              <rect x="0" y="0" width="16" height="16" fill="url(#unit-grid)"/>
+              <g fill="none" stroke="var(--v2-icon-icon-base)" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="var(--v2-icon-icon-base)" stroke="none"/>
+                <rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="var(--v2-icon-icon-base)" stroke="none"/>
+                <rect x="4.5" y="1.6" width="7" height="6" rx="1.5"/>
+                <circle cx="8" cy="4.5" r="1.7"/>
+                <path d="M8 3.9V4.5H9"/>
+                <path d="M8 7.6V8.5"/>
+                <rect x="2" y="8.5" width="12" height="6" rx="1.5"/>
+                <path d="M4.5 10.6H8M4.5 12.4H6.8"/>
+                <path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="var(--v2-icon-icon-base)" stroke="none"/>
+              </g>
+            </g>
+            <!-- 尺寸标注 -->
+            <path d="M180 412H500" fill="none" stroke="var(--v2-border-border-base)" stroke-width="1"/>
+            <path d="M180 406V418M500 406V418" fill="none" stroke="var(--v2-border-border-base)" stroke-width="1"/>
+            <text x="340" y="432" text-anchor="middle" style="fill: var(--v2-text-text-faint); font-size: 11px; font-family: var(--font-mono)">16 单位 · 20px 渲染时 1 单位 = 1.25px · stroke 1.5</text>
+            <text x="180" y="26" text-anchor="start" style="fill: var(--v2-text-text-faint); font-size: 11px; font-family: var(--font-mono)">rail-assistant · viewBox 0 0 16 16</text>
+          </svg>
+          <div class="board-legend" style="display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; font-size:10.5px; color:var(--v2-text-text-muted); line-height:1.7">
+            <span>① 双挂耳 1.1 × 2.2（实心）</span>
+            <span>② 夹板头 7 × 6 r1.5</span>
+            <span>③ 时钟 r1.7 + 指针</span>
+            <span>④ 垂直轴颈 M8 7.6V8.5</span>
+            <span>⑤ 宽体手账 12 × 6</span>
+            <span>⑥ 2 条记忆条纹</span>
+            <span>⑦ 书签带（实心）</span>
+          </div>
+          <div class="board-caption">
+            <span>坐标系：1 格 = 1 单位；图标实际渲染 20px（40px 按钮）</span>
+            <span>工件真源：wider_v1_pedestal.svg</span>
+          </div>
+        </div>
+
+        <div class="side-stack">
+          <div class="card">
+            <div class="card-head">尺寸对照<span class="spacer"></span><span class="tag">20 / 16 / 14</span></div>
+            <div class="size-compare">
+              <div class="size-item">
+                <span class="tile"><svg width="20" height="20" viewBox="0 0 16 16" role="img" aria-label="rail-assistant 20px"><use href="#rail-assistant"/></svg></span>
+                <div class="size-meta"><b>20px</b><span>rail 实渲</span></div>
+              </div>
+              <div class="size-item">
+                <span class="tile tile-quiet"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-assistant"/></svg></span>
+                <div class="size-meta"><b>16px</b><span>次级场景</span></div>
+              </div>
+              <div class="size-item">
+                <span class="tile micro-tile tile-quiet"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-assistant-micro"/></svg></span>
+                <div class="size-meta"><b>14px</b><span>微缩兜底</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">几何参数<span class="spacer"></span><span class="tag">16 grid</span></div>
+            <div class="spec-rows">
+              <div class="spec-row"><span class="spec-key">头部夹板</span><span class="spec-val">rect 4.5,1.6 · 7 × 6 · rx 1.5</span></div>
+              <div class="spec-row"><span class="spec-key">双挂耳</span><span class="spec-val">5.9 / 9, 0.1 · 1.1 × 2.2 · filled</span></div>
+              <div class="spec-row"><span class="spec-key">时钟</span><span class="spec-val">cx 8 cy 4.5 r 1.7 · 指针 M8 3.9V4.5H9</span></div>
+              <div class="spec-row"><span class="spec-key">轴颈</span><span class="spec-val">M8 7.6V8.5（垂直刚性连接）</span></div>
+              <div class="spec-row"><span class="spec-key">宽体手账</span><span class="spec-val">rect 2,8.5 · 12 × 6 · rx 1.5</span></div>
+              <div class="spec-row"><span class="spec-key">条纹 / 书签</span><span class="spec-val">2 条 · M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z</span></div>
+            </div>
+          </div>
+
+          <div class="note-box micro-note">
+            <b>14px 微缩规则</b>
+            时钟只保留圆环（r1.4）+ 中心点，去掉指针与第二条纹；双耳与书签保留。理由是 14px 下 1 单位 ≈ 0.875px，指针与第二条纹会糊成噪点。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════════ 05 · 真实应用外壳 ═════════════════ -->
+    <section id="shell" aria-labelledby="shell-title">
+      <header class="sec-head">
+        <div class="sec-index">05</div>
+        <div>
+          <h2 class="sec-title" id="shell-title">真实应用外壳<span class="sec-sub">64px 导轨 · 2 × 20px 单一强调色 · 可交互</span></h2>
+          <p class="sec-desc">按当前 <span class="inline-code">mode-switcher.tsx</span> 的尺寸关系搭建：64px 导轨、40px 按钮、20px 图标、4px 间距、264px 次级侧栏。激活态由 <span class="inline-code">aria-pressed</span> + <span class="inline-code">data-state</span> 驱动 2px 强调条（150ms 过渡，绝对定位，零位移）。点击导轨切换模式；Assistant 按钮带待办角标。</p>
+        </div>
+        <div class="sec-side"><span class="tag">D1</span><span>可交互 · 单一强调色</span></div>
+      </header>
+
+      <div class="mock-frame" id="app-mock" data-mode="coding">
+        <div class="window-titlebar">
+          <div class="tb-left">
+            <svg class="tb-mark" viewBox="0 0 100 100" aria-hidden="true"><use href="#mk-full"/></svg>
+            <span class="tb-brand">AIGCFORGE</span>
+            <span class="tb-sep"></span>
+            <span class="tb-tab"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-coding"/></svg><span id="tb-tab-label">Coding · 品牌导轨收敛</span></span>
+          </div>
+          <div class="tb-right">
+            <span class="tb-ctrl" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#icon-min"/></svg></span>
+            <span class="tb-ctrl" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#icon-close"/></svg></span>
+          </div>
+        </div>
+
+        <div class="shell-body">
+          <nav class="rail" data-component="mode-switcher" aria-label="Mode switcher">
+            <div class="rail-group">
+              <button class="rail-btn" type="button" data-slot="rail-item" data-mode="chat" data-state="inactive" aria-label="Chat" aria-pressed="false">
+                <span class="rail-indicator" aria-hidden="true"></span>
+                <svg class="rail-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-chat"/></svg>
+              </button>
+              <button class="rail-btn" type="button" data-slot="rail-item" data-mode="coding" data-state="active" aria-label="Coding" aria-pressed="true">
+                <span class="rail-indicator" aria-hidden="true"></span>
+                <svg class="rail-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-coding"/></svg>
+              </button>
+              <button class="rail-btn" type="button" data-slot="rail-item" data-mode="work" data-state="inactive" aria-label="Work" aria-pressed="false">
+                <span class="rail-indicator" aria-hidden="true"></span>
+                <svg class="rail-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-work"/></svg>
+              </button>
+              <button class="rail-btn" type="button" data-slot="rail-item" data-mode="assistant" data-state="inactive" aria-label="Assistant" aria-pressed="false">
+                <span class="rail-indicator" aria-hidden="true"></span>
+                <svg class="rail-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-assistant"/></svg>
+                <span class="rail-badge">3</span>
+              </button>
+              <button class="rail-btn" type="button" data-slot="rail-item" data-mode="custom" data-state="inactive" aria-label="Custom" aria-pressed="false">
+                <span class="rail-indicator" aria-hidden="true"></span>
+                <svg class="rail-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-custom"/></svg>
+              </button>
+            </div>
+            <div class="rail-spacer"></div>
+            <div class="rail-bottom">
+              <button class="rail-btn rail-btn-sm" type="button" aria-label="Help">
+                <svg class="rail-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-help"/></svg>
+              </button>
+              <button class="rail-btn rail-btn-sm" type="button" aria-label="Settings">
+                <svg class="rail-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-settings"/></svg>
+              </button>
+            </div>
+          </nav>
+
+          <aside class="sidebar" aria-label="模式侧栏">
+            <div class="sb-head">
+              <svg class="sb-mode-icon" id="sb-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-coding"/></svg>
+              <div>
+                <div class="sb-mode"><span id="sb-mode-en">Coding</span><span class="zh" id="sb-mode-zh">编程</span></div>
+                <p class="sb-mode-desc" id="sb-mode-desc">读写代码、文件与终端，保持工程上下文。</p>
+              </div>
+            </div>
+            <div class="sb-section">
+              <span class="sb-section-label">SESSIONS</span>
+              <button class="sb-new" type="button" aria-label="新建会话"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-plus"/></svg></button>
+            </div>
+            <div class="sb-rows">
+              <div class="sb-row is-active" role="button" tabindex="0">
+                <svg class="row-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-coding"/></svg>
+                <span class="row-title">品牌导轨收敛 · 计划复核</span>
+                <span class="row-time">09:12</span>
+              </div>
+              <div class="sb-row" role="button" tabindex="0">
+                <svg class="row-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-coding"/></svg>
+                <span class="row-title">rail-icon 描边对比</span>
+                <span class="row-time">昨天</span>
+              </div>
+              <div class="sb-row" role="button" tabindex="0">
+                <svg class="row-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-coding"/></svg>
+                <span class="row-title">favicon 生成命令整理</span>
+                <span class="row-time">周一</span>
+              </div>
+              <div class="sb-row" role="button" tabindex="0">
+                <svg class="row-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-coding"/></svg>
+                <span class="row-title">Splash 与 Mark 对齐检查</span>
+                <span class="row-time">10-18</span>
+              </div>
+            </div>
+          </aside>
+
+          <div class="main-pane">
+            <div class="main-head">
+              <svg class="main-mode-icon" id="main-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#rail-coding"/></svg>
+              <div class="main-head-text">
+                <div class="main-title"><span id="main-mode-en">Coding</span><span class="main-mode-zh" id="main-mode-zh">编程</span></div>
+                <p class="main-desc" id="main-desc">读写代码、文件与终端，保持工程上下文。</p>
+              </div>
+              <div class="main-actions">
+                <button class="btn-ghost" type="button"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-plus"/></svg>新建任务</button>
+                <button class="btn-ghost" type="button">设置</button>
+              </div>
+            </div>
+            <div class="main-body">
+              <div class="body-heading">模式内容占位<span class="tag" id="body-mode-tag">coding</span><span class="spacer" style="margin-left:auto"></span><span class="tag">mock only</span></div>
+              <div class="ph-grid">
+                <div class="ph-card tone-a">
+                  <div class="ph-card-head"><span>会话摘要</span><span class="mono">session.md</span></div>
+                  <div class="skeleton">
+                    <div class="skeleton-line w-90"></div>
+                    <div class="skeleton-line w-75"></div>
+                    <div class="skeleton-line w-60"></div>
+                    <div class="skeleton-line w-45"></div>
+                  </div>
+                </div>
+                <div class="ph-card tone-b">
+                  <div class="ph-card-head"><span>代码 / 差异</span><span class="mono">diff</span></div>
+                  <pre class="ph-code">rail-btn[data-active="true"] {
+  /* 2px · --v2-icon-icon-accent */
+  background: var(--v2-background-bg-layer-02);
+}
+
+.tile { width: 40px; height: 40px; }</pre>
+                </div>
+                <div class="ph-card tone-c">
+                  <div class="ph-card-head"><span>任务</span><span class="mono">3 / 5</span></div>
+                  <div class="tasks">
+                    <div class="task done"><span class="task-box"><svg viewBox="0 0 12 12" aria-hidden="true"><use href="#icon-check-mini"/></svg></span><span class="task-label">修订实施计划</span></div>
+                    <div class="task done"><span class="task-box"><svg viewBox="0 0 12 12" aria-hidden="true"><use href="#icon-check-mini"/></svg></span><span class="task-label">生成高保真预览</span></div>
+                    <div class="task"><span class="task-box"><svg viewBox="0 0 12 12" aria-hidden="true"><use href="#icon-check-mini"/></svg></span><span class="task-label">S1 RED 断言</span></div>
+                    <div class="task"><span class="task-box"><svg viewBox="0 0 12 12" aria-hidden="true"><use href="#icon-check-mini"/></svg></span><span class="task-label">S2 指示光轨</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mock-caption">
+        <span class="tag">rail 64px</span>
+        <span class="tag">button 40px</span>
+        <span class="tag">icon 20px</span>
+        <span class="tag">indicator 2 × 20px</span>
+        <span class="tag">sidebar 264px</span>
+        <span class="tag">data-component / data-slot / data-state</span>
+        <span class="hint">预览把 data-* 挂在原生 button；真实 IconButtonV2 会覆盖同名属性，必须挂在 wrapper</span>
+      </div>
+    </section>
+
+    <!-- ═════════════════ 06 · 规格与确认 ═════════════════ -->
+    <section id="specs" aria-labelledby="specs-title">
+      <header class="sec-head">
+        <div class="sec-index">06</div>
+        <div>
+          <h2 class="sec-title" id="specs-title">规格与确认<span class="sec-sub">Token · 尺寸 · 无障碍 · 待确认清单</span></h2>
+          <p class="sec-desc">下列 Token 取值来自 <span class="inline-code">packages/ui/src/v2/styles/theme.css</span> 与 <span class="inline-code">colors.css</span>。DOM 内联 SVG 只使用 Token / color-mix；栅格资产（favicon、桌面图标）必须输出 resolved hex，并在生成脚本注释中记录映射（DESIGN.md:47 第三方约束例外）。</p>
+        </div>
+        <div class="sec-side"><span class="tag">S1 / S2</span><span>规格基线</span></div>
+      </header>
+
+      <div class="spec-grid">
+        <div class="card spec-block">
+          <h3>激活与外壳 Token</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Token</th><th>用途</th><th>Light</th><th>Dark</th></tr></thead>
+              <tbody>
+                <tr><td class="tok-name">--v2-icon-icon-accent</td><td class="tok-usage">2px 激活指示条</td><td><span class="tok-cell"><i class="sw" style="background:#3b5cf6"></i><span class="hex">#3b5cf6</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#a2bcff"></i><span class="hex">#a2bcff</span></span></td></tr>
+                <tr><td class="tok-name">--v2-background-bg-base</td><td class="tok-usage">导轨 / 窗口底色</td><td><span class="tok-cell"><i class="sw" style="background:#ffffff"></i><span class="hex">#ffffff</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#161616"></i><span class="hex">#161616</span></span></td></tr>
+                <tr><td class="tok-name">--v2-background-bg-deep</td><td class="tok-usage">侧栏 / 角标底色</td><td><span class="tok-cell"><i class="sw" style="background:#fafafa"></i><span class="hex">#fafafa</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#080808"></i><span class="hex">#080808</span></span></td></tr>
+                <tr><td class="tok-name">--v2-background-bg-layer-01</td><td class="tok-usage">hover / 行底</td><td><span class="tok-cell"><i class="sw" style="background:#fafafa"></i><span class="hex">#fafafa</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#242424"></i><span class="hex">#242424</span></span></td></tr>
+                <tr><td class="tok-name">--v2-background-bg-layer-02</td><td class="tok-usage">激活按钮底</td><td><span class="tok-cell"><i class="sw" style="background:#f2f2f2"></i><span class="hex">#f2f2f2</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#2e2e2e"></i><span class="hex">#2e2e2e</span></span></td></tr>
+                <tr><td class="tok-name">--v2-icon-icon-muted</td><td class="tok-usage">未激活图标</td><td><span class="tok-cell"><i class="sw" style="background:#808080"></i><span class="hex">#808080</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#808080"></i><span class="hex">#808080</span></span></td></tr>
+                <tr><td class="tok-name">--v2-border-border-base</td><td class="tok-usage">分隔线</td><td><span class="tok-cell"><i class="sw" style="background:rgba(0,0,0,.1)"></i><span class="hex">black 10%</span></span></td><td><span class="tok-cell"><i class="sw" style="background:rgba(255,255,255,.1)"></i><span class="hex">white 10%</span></span></td></tr>
+                <tr><td class="tok-name">--v2-border-border-focus</td><td class="tok-usage">focus-visible</td><td><span class="tok-cell"><i class="sw" style="background:#7698fd"></i><span class="hex">#7698fd</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#7698fd"></i><span class="hex">#7698fd</span></span></td></tr>
+                <tr><td class="tok-name">--v2-avatar-bg-blue</td><td class="tok-usage">Mark A 面</td><td><span class="tok-cell"><i class="sw" style="background:#3250df"></i><span class="hex">#3250df</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#263fa9"></i><span class="hex">#263fa9</span></span></td></tr>
+                <tr><td class="tok-name">--v2-avatar-bg-cyan</td><td class="tok-usage">Mark G 面 / C 底座基底</td><td><span class="tok-cell"><i class="sw" style="background:#0096b8"></i><span class="hex">#0096b8</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#005a6e"></i><span class="hex">#005a6e</span></span></td></tr>
+                <tr><td class="tok-name">--v2-text-text-base</td><td class="tok-usage">Mark 顶点（自适应前景）</td><td><span class="tok-cell"><i class="sw" style="background:#161616"></i><span class="hex">#161616</span></span></td><td><span class="tok-cell"><i class="sw" style="background:#fafafa"></i><span class="hex">#fafafa</span></span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card spec-block">
+          <h3>品牌 Token 与尺寸矩阵</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>元素</th><th>尺寸 / 规则</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td class="tok-name">rail 宽度</td><td class="num">64px</td><td class="tok-usage">与 <code>mode-switcher.tsx</code> 的 <code>w-16</code> 一致</td></tr>
+                <tr><td class="tok-name">rail button</td><td class="num">40 × 40px</td><td class="tok-usage"><code>size-10</code> + <code>rounded-lg</code></td></tr>
+                <tr><td class="tok-name">rail icon</td><td class="num">20px</td><td class="tok-usage"><code>Icon size="large"</code></td></tr>
+                <tr><td class="tok-name">激活条</td><td class="num">2 × 20px</td><td class="tok-usage">绝对定位，150ms，无位移</td></tr>
+                <tr><td class="tok-name">Mark 完整</td><td class="num">100 / 160px</td><td class="tok-usage">A + G + 顶点 + C 底座</td></tr>
+                <tr><td class="tok-name">Mark 标准</td><td class="num">32 / 48px</td><td class="tok-usage">A + G + 顶点</td></tr>
+                <tr><td class="tok-name">Mark 紧凑</td><td class="num">16 / 20 / 24px</td><td class="tok-usage">A + G 双面（favicon）</td></tr>
+                <tr><td class="tok-name">Assistant 微缩</td><td class="num">14px</td><td class="tok-usage">圆环 + 中心点，单条纹</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="state-note"><b>对比度基线</b>：文本 4.5:1、非文本 UI 3:1（DESIGN.md:94）。顶点白点在 A/G 面上；C 底座候选 2 需在浅色主题下用 DevTools 实测，<b>不宣称 token 会在亮底自动翻转深色</b>。</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3 style="font-size:12px;font-weight:600;color:var(--v2-text-text-base);margin-bottom:12px">无障碍与状态</h3>
+        <ul class="a11y-list">
+          <li><b>aria-pressed</b> 保留在 rail 按钮上；激活态同时由 2px 指示条与按钮底色表达，不只依赖颜色（WCAG 1.4.1）。</li>
+          <li><b>图标按钮</b> 必须带 <code>aria-label</code>（现有 ModeSwitcher 已满足）；指示条 <code>aria-hidden="true"</code>。</li>
+          <li><b>键盘</b> 全部可聚焦，focus-visible 使用 <code>--v2-border-border-focus</code>；无点击位移、无 hover 抖动。</li>
+          <li><b>主题</b> 亮/暗两套 token 均已在本页切换验证；禁止 per-mode 彩虹色、glow、渐变。</li>
+        </ul>
+      </div>
+
+      <div class="checklist">
+        <div class="checklist-head">
+          <h3>确认清单（2026-10-20 用户已勾选 4/4）</h3>
+          <span class="check-status" id="check-status">4 / 4 已确认（2026-10-20）</span>
+        </div>
+        <label class="check-item">
+          <span class="check-box"><input type="checkbox" checked><svg viewBox="0 0 12 12" aria-hidden="true"><use href="#icon-check-mini"/></svg></span>
+          <span class="check-copy"><b>C 底座采用候选 2（color-mix）</b><span>color-mix(in srgb, var(--v2-avatar-bg-cyan) 55%, var(--v2-text-text-contrast))；若你更想要工件原色 #67E8F9 或纯 cyan，请在回复中说明。</span></span>
+          <span class="tag check-tag">推荐</span>
+        </label>
+        <label class="check-item">
+          <span class="check-box"><input type="checkbox" checked><svg viewBox="0 0 12 12" aria-hidden="true"><use href="#icon-check-mini"/></svg></span>
+          <span class="check-copy"><b>小尺寸 Mark 简化规则</b><span>16/20/24px 仅 A+G 双面；32/48px A+G+顶点；100px 起完整含 C 底座（对应工件尺寸带的简化逻辑）。</span></span>
+          <span class="tag check-tag">视觉</span>
+        </label>
+        <label class="check-item">
+          <span class="check-box"><input type="checkbox" checked><svg viewBox="0 0 12 12" aria-hidden="true"><use href="#icon-check-mini"/></svg></span>
+          <span class="check-copy"><b>rail 图标统一 stroke 1.5 + 14px 微缩</b><span>20px 渲染 ≈ 1.875px，匹配工件 22px 下 ≈ 1.83px；14px Assistant 切换微缩变体。</span></span>
+          <span class="tag check-tag">D2 / D4</span>
+        </label>
+        <label class="check-item">
+          <span class="check-box"><input type="checkbox" checked><svg viewBox="0 0 12 12" aria-hidden="true"><use href="#icon-check-mini"/></svg></span>
+          <span class="check-copy"><b>收回 per-mode 3.5px / 12% 柔光 / 呼吸脉冲</b><span>确认激活态改为 2px 单一强调色（D1）；呼吸脉冲保留在技术债台账，不在本轮实施。</span></span>
+          <span class="tag check-tag">D1</span>
+        </label>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    <div>
+      2026-10-20 · 依据 <a href="../../plan/brand-mode-icons-2026-10-20.md">docs/plan/brand-mode-icons-2026-10-20.md</a> 与 <a href="../../review/brand-mode-icons-plan-approval-2026-10-20.md">docs/review/brand-mode-icons-plan-approval-2026-10-20.md</a> · 预览文件不进入产品代码
+    </div>
+    <div class="footer-mark">aigcfroge · brand-mode-icons · approval preview</div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var root = document.documentElement;
+  var toggle = document.getElementById("theme-toggle");
+  var themeText = document.getElementById("theme-text");
+
+  function syncTheme() {
+    var theme = root.getAttribute("data-theme") || "dark";
+    if (toggle) {
+      toggle.setAttribute("data-current", theme);
+      toggle.setAttribute("aria-label", theme === "dark" ? "切换到浅色主题" : "切换到深色主题");
+    }
+    if (themeText) themeText.textContent = theme === "dark" ? "深色" : "浅色";
+  }
+
+  if (toggle) {
+    toggle.addEventListener("click", function () {
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try {
+        var url = new URL(location.href);
+        url.searchParams.set("theme", next);
+        history.replaceState(null, "", url.toString());
+      } catch (error) {
+        /* file:// 或旧浏览器：忽略 URL 同步失败，主题仍然生效 */
+      }
+      syncTheme();
+    });
+  }
+  syncTheme();
+
+  var MODES = {
+    chat: { en: "Chat", zh: "对话", desc: "围绕当前上下文的轻量对话与问答。", icon: "rail-chat" },
+    coding: { en: "Coding", zh: "编程", desc: "读写代码、文件与终端，保持工程上下文。", icon: "rail-coding" },
+    work: { en: "Work", zh: "工作", desc: "多任务流水线与后台作业编排。", icon: "rail-work" },
+    assistant: { en: "Assistant", zh: "助手", desc: "日程、提醒与个人记忆的手账式管理。", icon: "rail-assistant" },
+    custom: { en: "Custom", zh: "自定义", desc: "以组合快照定义专属智能体工作流。", icon: "rail-custom" }
+  };
+
+  function setText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function setIcon(id, symbolId) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var use = el.querySelector("use");
+    if (use) use.setAttribute("href", "#" + symbolId);
+  }
+
+  var mock = document.getElementById("app-mock");
+  var railButtons = Array.prototype.slice.call(document.querySelectorAll(".rail-btn[data-mode]"));
+  var rowIcons = Array.prototype.slice.call(document.querySelectorAll(".sb-row .row-icon use"));
+
+  function setMode(mode) {
+    var config = MODES[mode];
+    if (!config) return;
+    railButtons.forEach(function (button) {
+      var active = button.getAttribute("data-mode") === mode;
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      button.setAttribute("data-state", active ? "active" : "inactive");
+    });
+    if (mock) mock.setAttribute("data-mode", mode);
+    setIcon("sb-icon", config.icon);
+    setIcon("main-icon", config.icon);
+    rowIcons.forEach(function (use) {
+      use.setAttribute("href", "#" + config.icon);
+    });
+    setText("sb-mode-en", config.en);
+    setText("sb-mode-zh", config.zh);
+    setText("sb-mode-desc", config.desc);
+    setText("main-mode-en", config.en);
+    setText("main-mode-zh", config.zh);
+    setText("main-desc", config.desc);
+    setText("body-mode-tag", mode);
+    setText("tb-tab-label", config.en + " · 品牌导轨收敛");
+  }
+
+  railButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      setMode(button.getAttribute("data-mode"));
+    });
+  });
+  setMode("coding");
+
+  var checks = Array.prototype.slice.call(document.querySelectorAll(".check-item input[type=checkbox]"));
+  var checkStatus = document.getElementById("check-status");
+  function syncChecks() {
+    var done = checks.filter(function (input) { return input.checked; }).length;
+    if (checkStatus) checkStatus.textContent = done + " / " + checks.length + " 已确认" + (done === checks.length ? "（2026-10-20）" : "");
+  }
+  checks.forEach(function (input) {
+    input.addEventListener("change", syncChecks);
+  });
+  syncChecks();
+})();
+</script>
+</body>
+</html>
