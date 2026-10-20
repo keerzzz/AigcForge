@@ -1898,7 +1898,6 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 
 **集成状态（2026-10-19）**：§17 保留 main 的历史诊断；本分支已把 drift 与 SDK 统一到 `packages/script/src/openapi.ts` 的独立 CLI 生成边界，快照使用 `packages/sdk/openapi.json`。合并后生成器与同进程 public-contract/SDK/drift 回归已经通过（46 pass，原始日志见 §15.79）；旧的第二份 snapshot 保持删除。此结论证明当前生成边界隔离有效，不宣称已经修复上游 Effect 全局状态。
 
-
 ## 18. brand-mode-icons 延后范围与验证边界（2026-10-20）
 
 来源：[实施计划](plan/brand-mode-icons-2026-10-20.md) §7 与 [S1/S2/S4 实施证据](review/brand-mode-icons-s1-s2-2026-10-20/README.md)。S1/S2 为当前交付范围；下列项未交付，不以默认亮暗截图或 mock e2e 宣称闭环。

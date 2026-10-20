@@ -55,12 +55,12 @@
 
 ### 切片裁决
 
-| 切片 | 审批状态 | 开工条件 |
-| :-- | :-- | :-- |
-| S0 | 通过 | 提交本计划 + review 记录后重跑基线命令 |
-| S1 / S2 | **有条件通过** | 完成 §4 对应 P1 项；RED 证据入报告 |
-| S3 | **退回重写后单独审批** | 本版已重写，但品牌几何/资产产物需先经高保真预览确认，再单独走审批 |
-| S4 | 通过 | 补 UI 包测试与缺口登记 |
+| 切片    | 审批状态               | 开工条件                                                          |
+| :------ | :--------------------- | :---------------------------------------------------------------- |
+| S0      | 通过                   | 提交本计划 + review 记录后重跑基线命令                            |
+| S1 / S2 | **有条件通过**         | 完成 §4 对应 P1 项；RED 证据入报告                                |
+| S3      | **退回重写后单独审批** | 本版已重写，但品牌几何/资产产物需先经高保真预览确认，再单独走审批 |
+| S4      | 通过                   | 补 UI 包测试与缺口登记                                            |
 
 ---
 
@@ -124,25 +124,25 @@
 
 ### 1.1 事实真源实测矩阵（2026-10-20，43997011e）
 
-| 检验项 | 源码真源位置 | 实测状态（已复核） | 对应裁决 |
-| :--- | :--- | :--- | :--- |
-| 导航轨图标注册 | `packages/app/src/context/mode.tsx:7-48` | 5 个 `mode-*` 键（:11/:19/:27/:35/:43） | D2 |
-| 模式契约测试 | `packages/app/src/context/mode.test.ts:19,26` | 唯一性 + `icon === "mode-"+id`；共 5 个 test | D2 |
-| 内页复用 | 11 文件 / 21 处 | 精确复算通过（见 §0.2 列表） | D2 |
-| 导轨按钮现状 | `packages/app/src/components/mode-switcher.tsx:46-54` | `IconButtonV2` + `variant={active() ? "neutral" : "ghost-muted"}`，无专用 CSS | D1/D2 |
-| 激活判定 | `mode-switcher.tsx:42` | `location.pathname !== "/" && mode.currentMode === item.id`（pathname 只作 home 守卫） | §5 |
-| 导轨 e2e 现状 | `packages/app/e2e/regression/global-shell.spec.ts:135-177` | 可见性、aria-pressed、路由与 badge；符号 id 断言有先例 | S1/S2 |
-| Icon 渲染 | `packages/ui/src/v2/components/icon.tsx:90-145` | sprite `aigcfroge-v2-icon-<name>`、`<use href>`、尺寸 14/16/20、未知键回退 `plus` | S1 |
-| 当前 Mark/Splash/Logo | `packages/ui/src/components/logo.tsx` | Mark :8-32、Splash :34-61、Logo 字标 :63-100；已扁平 + token 化，无 gradient/filter；slots `logo-mark-a/g/c/i`、`logo-splash-a/g/c/i` | D5/S3 |
-| 加载态 | `app.tsx:584,623`、`desktop/src/renderer/index.tsx:344` | `<Splash class="w-16 h-20 opacity-50 animate-pulse">`；**无 SplashLoader** | D5/S3 |
-| 品牌 token | `packages/ui/src/v2/styles/theme.css` | accent :31/:149、border-focus :39/:156、avatar blue/cyan :73/:81（暗色 :398/:406）、text-contrast :22/:141 | D1/D5 |
-| 主题规模 | `packages/ui/src/theme/themes/` | 37 套，各含 light/dark → 74 调色板 | D1 |
-| 无自动对比度门禁 | `DESIGN.md:94` | 原文确认 | D1 |
-| Favicon 真源 | `packages/ui/src/assets/favicon/` | `packages/app/public/*` 为 symlink；**活体引用为 -v3 套件**（`index.html:10-13`、`favicon.tsx:6-8`、`entry.tsx:72` 远程）；`site.webmanifest` 仍写 "OpenCode"/#080808 | S3 |
-| 桌面图标 | `packages/desktop/icons/{dev,beta,prod}` | 每渠道 53 个文件（共 160 跟踪，含 `icon.icns`/`icon.ico`/`dock.png`/Square*Logo/StoreLogo/android/ios）；`copy-icons.ts` → `resources/icons`；README 依赖 macOS Image2Icon 生成 icns | S3 |
-| 资产工具链 | 仓库 | 无 master SVG、无生成脚本、无 `app-icon.png`；ImageMagick 6.9.12 可用但不支持 ICNS | S3 |
-| 测试盲区 | 仓库 | `packages/ui` 仅 4 个测试；e2e 无 `toHaveScreenshot`/视觉基线 | S3 |
-| 协议脚本 | 仓库 | `test:unit:file`/`test:e2e` 脚本存在；`script/lint-changed.ts`、`check-refs.sh` 存在；`packages/ui/AGENTS.md` **不存在**（不再引用） | S4 |
+| 检验项                | 源码真源位置                                               | 实测状态（已复核）                                                                                                                                                                    | 对应裁决 |
+| :-------------------- | :--------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------- |
+| 导航轨图标注册        | `packages/app/src/context/mode.tsx:7-48`                   | 5 个 `mode-*` 键（:11/:19/:27/:35/:43）                                                                                                                                               | D2       |
+| 模式契约测试          | `packages/app/src/context/mode.test.ts:19,26`              | 唯一性 + `icon === "mode-"+id`；共 5 个 test                                                                                                                                          | D2       |
+| 内页复用              | 11 文件 / 21 处                                            | 精确复算通过（见 §0.2 列表）                                                                                                                                                          | D2       |
+| 导轨按钮现状          | `packages/app/src/components/mode-switcher.tsx:46-54`      | `IconButtonV2` + `variant={active() ? "neutral" : "ghost-muted"}`，无专用 CSS                                                                                                         | D1/D2    |
+| 激活判定              | `mode-switcher.tsx:42`                                     | `location.pathname !== "/" && mode.currentMode === item.id`（pathname 只作 home 守卫）                                                                                                | §5       |
+| 导轨 e2e 现状         | `packages/app/e2e/regression/global-shell.spec.ts:135-177` | 可见性、aria-pressed、路由与 badge；符号 id 断言有先例                                                                                                                                | S1/S2    |
+| Icon 渲染             | `packages/ui/src/v2/components/icon.tsx:90-145`            | sprite `aigcfroge-v2-icon-<name>`、`<use href>`、尺寸 14/16/20、未知键回退 `plus`                                                                                                     | S1       |
+| 当前 Mark/Splash/Logo | `packages/ui/src/components/logo.tsx`                      | Mark :8-32、Splash :34-61、Logo 字标 :63-100；已扁平 + token 化，无 gradient/filter；slots `logo-mark-a/g/c/i`、`logo-splash-a/g/c/i`                                                 | D5/S3    |
+| 加载态                | `app.tsx:584,623`、`desktop/src/renderer/index.tsx:344`    | `<Splash class="w-16 h-20 opacity-50 animate-pulse">`；**无 SplashLoader**                                                                                                            | D5/S3    |
+| 品牌 token            | `packages/ui/src/v2/styles/theme.css`                      | accent :31/:149、border-focus :39/:156、avatar blue/cyan :73/:81（暗色 :398/:406）、text-contrast :22/:141                                                                            | D1/D5    |
+| 主题规模              | `packages/ui/src/theme/themes/`                            | 37 套，各含 light/dark → 74 调色板                                                                                                                                                    | D1       |
+| 无自动对比度门禁      | `DESIGN.md:94`                                             | 原文确认                                                                                                                                                                              | D1       |
+| Favicon 真源          | `packages/ui/src/assets/favicon/`                          | `packages/app/public/*` 为 symlink；**活体引用为 -v3 套件**（`index.html:10-13`、`favicon.tsx:6-8`、`entry.tsx:72` 远程）；`site.webmanifest` 仍写 "OpenCode"/#080808                 | S3       |
+| 桌面图标              | `packages/desktop/icons/{dev,beta,prod}`                   | 每渠道 53 个文件（共 160 跟踪，含 `icon.icns`/`icon.ico`/`dock.png`/Square\*Logo/StoreLogo/android/ios）；`copy-icons.ts` → `resources/icons`；README 依赖 macOS Image2Icon 生成 icns | S3       |
+| 资产工具链            | 仓库                                                       | 无 master SVG、无生成脚本、无 `app-icon.png`；ImageMagick 6.9.12 可用但不支持 ICNS                                                                                                    | S3       |
+| 测试盲区              | 仓库                                                       | `packages/ui` 仅 4 个测试；e2e 无 `toHaveScreenshot`/视觉基线                                                                                                                         | S3       |
+| 协议脚本              | 仓库                                                       | `test:unit:file`/`test:e2e` 脚本存在；`script/lint-changed.ts`、`check-refs.sh` 存在；`packages/ui/AGENTS.md` **不存在**（不再引用）                                                  | S4       |
 
 ### 1.2 影响面（Blast Radius）
 
@@ -159,13 +159,13 @@
 
 ### 1.3 门禁准入条件（G0–G4）
 
-| Gate | 条件 | 验证命令 | 状态 |
-| :--- | :--- | :--- | :--- |
-| **G0 基线** | 计划与审批记录已提交；工作树无无关改动；记录 typecheck/lint 基线 | `git rev-parse HEAD origin/main`；`git status --short`；`bun --cwd packages/app typecheck` | 待提交计划后复核 |
-| **G1 图标解耦** | 5 个 `rail-*` 注册；21 处 `mode-*` 零改动；符号级 e2e 通过（typecheck 不能兜底） | `bun --cwd packages/app test:unit:file src/context/mode.test.ts` + `bun --cwd packages/app test:e2e e2e/regression/global-shell.spec.ts` | S1 |
-| **G2 激活光轨** | `data-state`/指示器由 CSS 驱动，无布局位移；单激活互斥；亮暗主题可见 | 同上 e2e + 截图证据 | S2 |
-| **G3 品牌统一** | Mark/Splash/Web favicon（含 -v3）/manifest/social-share 与桌面 PNG/ICO/dock 更新；`.icns` 与 tiles 按 §7 延期 | `bun --cwd packages/app typecheck` + 预览截图矩阵 + 资产清单核对 | S3（重审后） |
-| **G4 全量门禁** | 多包 typecheck、受影响包测试、lint、协议引用检查 | `bun --cwd packages/{ui,app,desktop} typecheck`、`bun --cwd packages/ui test`、`bun --cwd packages/app test`、`LINT_BASE_REF=origin/main bun run script/lint-changed.ts`、`bash .aigcfroge/skills/protocols/scripts/check-refs.sh` | S4 |
+| Gate            | 条件                                                                                                          | 验证命令                                                                                                                                                                                                                           | 状态             |
+| :-------------- | :------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------- |
+| **G0 基线**     | 计划与审批记录已提交；工作树无无关改动；记录 typecheck/lint 基线                                              | `git rev-parse HEAD origin/main`；`git status --short`；`bun --cwd packages/app typecheck`                                                                                                                                         | 待提交计划后复核 |
+| **G1 图标解耦** | 5 个 `rail-*` 注册；21 处 `mode-*` 零改动；符号级 e2e 通过（typecheck 不能兜底）                              | `bun --cwd packages/app test:unit:file src/context/mode.test.ts` + `bun --cwd packages/app test:e2e e2e/regression/global-shell.spec.ts`                                                                                           | S1               |
+| **G2 激活光轨** | `data-state`/指示器由 CSS 驱动，无布局位移；单激活互斥；亮暗主题可见                                          | 同上 e2e + 截图证据                                                                                                                                                                                                                | S2               |
+| **G3 品牌统一** | Mark/Splash/Web favicon（含 -v3）/manifest/social-share 与桌面 PNG/ICO/dock 更新；`.icns` 与 tiles 按 §7 延期 | `bun --cwd packages/app typecheck` + 预览截图矩阵 + 资产清单核对                                                                                                                                                                   | S3（重审后）     |
+| **G4 全量门禁** | 多包 typecheck、受影响包测试、lint、协议引用检查                                                              | `bun --cwd packages/{ui,app,desktop} typecheck`、`bun --cwd packages/ui test`、`bun --cwd packages/app test`、`LINT_BASE_REF=origin/main bun run script/lint-changed.ts`、`bash .aigcfroge/skills/protocols/scripts/check-refs.sh` | S4               |
 
 ---
 
@@ -255,7 +255,7 @@
 ```
 
 - 14px 时仅 Assistant 切换到 `rail-assistant-micro`；其余图标 20px/16px/14px 共用同一几何。
-- **rail-chat 例外**：2026-10-20 用户反馈旧版"终端提示符 >_"读作终端而非对话，已改为**对话气泡 + 三点省略号**（新设计，不再引用工件 24 网格源）；其余四枚仍为工件 24 网格的 16px 适配。
+- **rail-chat 例外**：2026-10-20 用户反馈旧版"终端提示符 >\_"读作终端而非对话，已改为**对话气泡 + 三点省略号**（新设计，不再引用工件 24 网格源）；其余四枚仍为工件 24 网格的 16px 适配。
 - 图标未继承工件 24 网格的 stroke 粗细，**必须显式写 `stroke-width="1"`**（2026-10-20 用户在 1.0 / 1.25 / 1.5 并排预览中选择 1.0；实心部件与所有坐标保持不变）。
 
 ### 3.2 激活光轨（Rail Active Indicator，新设计）
@@ -264,7 +264,7 @@
   - `nav[data-component="mode-switcher"]`（现有 nav 上新增）
   - 每个条目 wrapper：`div[data-slot="rail-item"][data-mode="<id>"][data-state="active|inactive"]`
   - 指示器：`<span data-slot="active-indicator" aria-hidden="true">`，绝对定位、脱离文档流。
-  - **禁止**把上述 data-* 传给 `IconButtonV2`：它会在 spread 后覆盖 `data-component`/`data-state`（icon-button-v2.tsx:23,27；titlebar.tsx:950-951 同类陷阱）。
+  - **禁止**把上述 data-\* 传给 `IconButtonV2`：它会在 spread 后覆盖 `data-component`/`data-state`（icon-button-v2.tsx:23,27；titlebar.tsx:950-951 同类陷阱）。
 - **样式（packages/app/src/components/mode-switcher.css，同名 co-located）**：
   - 宽度 `2px`，高度 `20px`，圆角 `1px`，垂直居中于 entry，贴 rail 内容左缘；
   - 颜色 `var(--v2-icon-icon-accent)`；
@@ -286,7 +286,7 @@
 - **应用内 Mark（40px / 56px）**：组件固定使用**完整形态**（A + G + 顶点 + C），与 §0.5 一致；`logo.css` 的 `aspect-ratio` 改为 `1/1`（新几何 bbox 68×74，接近方形）。
 - **静态资产母版三档（仅资产生成，不改组件输出）**：16/20/24 紧凑（A `48,16 16,74 40,74 48,54` + G `52,16 52,74 84,74`，无顶点/底座）；32/48 标准（A+G+顶点，无 C）；100/160 完整（含 C）。
 - **Splash**：使用同一完整 100 网格几何；实际 class 渲染尺寸为 64×80（`app.tsx:584`）与 48×60（`app.tsx:623`），非 100px 直出。
-- **颜色**：DOM 内联 SVG 全部走 token/color-mix，**不写 hex fallback**；静态资产必须写成 resolved hex（DESIGN.md:47 例外），映射表固定为：A=`#3250df`（暗 `#263fa9`）、G=`#0096b8`（暗 `#005a6e`）、**顶点=`var(--v2-text-text-base)`（浅色 `#161616` / 深色 `#fafafa`，自适应前景）**、C=`color-mix(cyan 55%, text-contrast)` 的静态等价色（由母版生成脚本计算并注释）。**C 底座采用候选 2（55% 混白），已于 2026-10-20 视觉确认。****2026-10-20 修正**：顶点不再使用 `--v2-text-text-contrast`（明暗主题都近白，亮色下不可见）。
+- **颜色**：DOM 内联 SVG 全部走 token/color-mix，**不写 hex fallback**；静态资产必须写成 resolved hex（DESIGN.md:47 例外），映射表固定为：A=`#3250df`（暗 `#263fa9`）、G=`#0096b8`（暗 `#005a6e`）、**顶点=`var(--v2-text-text-base)`（浅色 `#161616` / 深色 `#fafafa`，自适应前景）**、C=`color-mix(cyan 55%, text-contrast)` 的静态等价色（由母版生成脚本计算并注释）。**C 底座采用候选 2（55% 混白），已于 2026-10-20 视觉确认。\*\***2026-10-20 修正\*\*：顶点不再使用 `--v2-text-text-contrast`（明暗主题都近白，亮色下不可见）。
 - **Logo 字标**：当前 `Logo`（`logo.tsx:63-100`）已扁平、token 化，本轮**不改几何**；保留 `Mark`/`Splash`/`Logo` 三个导出名与调用点（`app.tsx:10,584,623`、`desktop/src/renderer/index.tsx:29,344`、`session-new-view.tsx`、`session-side-panel.tsx`、`pages/error.tsx`）。
 - **静态资产母版与产物（S3）**：
   - 新增 `packages/ui/src/assets/brand/mark-master.svg`（100 网格完整形态）与 `mark-compact.svg`（紧凑形态）；生成脚本本轮以文档化 ImageMagick 命令执行，脚本化登记为债务。
@@ -299,10 +299,12 @@
 ## 4. 切片实施计划（S0–S4）
 
 ### S0：工作区环境与基线门禁
+
 - 提交本计划 + 审批记录（`docs(plan)`）；`git status --short` 应只剩已提交前的暂存改动。
 - 记录基线：`bun --cwd packages/{ui,app,desktop} typecheck`、`bun --cwd packages/ui test`、`bun --cwd packages/app test:unit:file src/context/mode.test.ts` 的实际输出。
 
 ### S1：导航轨五模式图标入驻与解耦（有条件通过）
+
 - **RED**：扩充 `global-shell.spec.ts`：
   - 5 个 rail 按钮内 `use[href]` 的 symbol id 以 `#aigcfroge-v2-icon-rail-` 开头且互不相同；不得是 `plus` fallback（`icon.tsx:126`）；
   - 回归断言：`/mode/assistant` 内页仍使用 `mode-assistant`（该断言在变更前即为绿，属回归保护，不计 RED）。
@@ -311,12 +313,14 @@
 - **门禁**：`bun --cwd packages/app test:unit:file src/context/mode.test.ts`；`bun --cwd packages/app test:e2e e2e/regression/global-shell.spec.ts`；ui/app typecheck。
 
 ### S2：导轨激活光轨状态重构（有条件通过）
+
 - **RED**：e2e 断言 `nav[data-component="mode-switcher"]`、`[data-slot="rail-item"]` 的 `data-mode`/`data-state` 互斥切换、`[data-slot="active-indicator"]` 存在、`aria-pressed` 与路由一致、切换时按钮 bounding-box 不变（零位移）。
 - **GREEN**：新增 `mode-switcher.css` 并 import；nav 与 wrapper 注入 §3.2 属性；渲染指示器 span；保留 `IconButtonV2` 的 variant 逻辑与 badge。
 - **REFACTOR**：亮/暗主题对比度目检；高对比度模式下可见性；focus-visible 轮廓。
 - **门禁**：同 S1 e2e + app typecheck + 截图证据。
 
 ### S3：主品牌 Logo 全渠道收敛（退回修订，重审后执行）
+
 - **资产切片，无自动化 RED**：以高保真预览 + 截图矩阵作为验收；在 `packages/app/e2e/coverage-manifest.json` 或技术债台账登记"无视觉回归门禁"的缺口（owner + unlock + 来源）。
 - **Web**：按 §3.3 更新 `logo.tsx` Mark/Splash、`logo.css`、`mark-master.svg`/`mark-compact.svg`、`assets/favicon/`（含 -v3）、`site.webmanifest`、social-share；验证 `packages/app/public` symlink 自动生效。
 - **Desktop**：重生成 PNG/ICO/dock/Square/StoreLogo；`copy-icons.ts` 链路核对；`.icns` 与 android/ios 延期。
@@ -324,6 +328,7 @@
 - **门禁**：ui/app/desktop typecheck；资产清单逐项核对；预览截图入 `docs/review/` 证据。
 
 ### S4：全量集成门禁
+
 1. `bun --cwd packages/ui typecheck`
 2. `bun --cwd packages/app typecheck`（含 e2e tsconfig）
 3. `bun --cwd packages/desktop typecheck`
@@ -332,6 +337,7 @@
 6. `bun --cwd packages/app test:e2e e2e/regression/global-shell.spec.ts`
 7. `LINT_BASE_REF=origin/main bun run script/lint-changed.ts`
 8. `bash .aigcfroge/skills/protocols/scripts/check-refs.sh`
+
 - 人工矩阵：亮/暗主题导轨；14/16/20px Assistant 可读性；Splash 过渡；favicon 实际生效。
 
 ---
@@ -356,14 +362,14 @@ stateDiagram-v2
 
 ## 6. 风险评估与回滚
 
-| 风险 | 等级 | 触发 | 缓解 |
-| :--- | :--- | :--- | :--- |
-| R1 14px Assistant 细节糊化 | 中 | 14px 小尺寸 | 切换 `rail-assistant-micro`（圆环+点、单条纹）；预览确认 |
-| R2 桌面图标缓存/不一致 | 低 | 打包后旧图标 | `copy-icons.ts` 重建；`dock.png` 与打包产物对齐；重启验证 |
-| R3 亮色主题对比度 | 中 | 顶点/C 底座落在浅背景 | 顶点改用自适应前景 `--v2-text-text-base`（浅色 #161616 / 深色 #fafafa，已按用户反馈修正）；C 用 color-mix 提亮并做 DevTools 对比度实测；不宣称 token 会自动翻转深色 |
-| R4 DOM token 与静态资产色漂移 | 中 | 栅格资产用固定 hex | 生成脚本输出 token→hex 映射表并注释（DESIGN.md:47 例外） |
-| R5 .icns/tiles 未交付 | 中 | macOS/Windows 打包 | §7 登记延期，附 owner/解锁条件，不阻塞 Web/S1/S2 |
-| R6 无自动化视觉回归 | 中 | 资产型改动 | 截图矩阵 + coverage-manifest/债务登记；后续补视觉基线 |
+| 风险                          | 等级 | 触发                  | 缓解                                                                                                                                                                |
+| :---------------------------- | :--- | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R1 14px Assistant 细节糊化    | 中   | 14px 小尺寸           | 切换 `rail-assistant-micro`（圆环+点、单条纹）；预览确认                                                                                                            |
+| R2 桌面图标缓存/不一致        | 低   | 打包后旧图标          | `copy-icons.ts` 重建；`dock.png` 与打包产物对齐；重启验证                                                                                                           |
+| R3 亮色主题对比度             | 中   | 顶点/C 底座落在浅背景 | 顶点改用自适应前景 `--v2-text-text-base`（浅色 #161616 / 深色 #fafafa，已按用户反馈修正）；C 用 color-mix 提亮并做 DevTools 对比度实测；不宣称 token 会自动翻转深色 |
+| R4 DOM token 与静态资产色漂移 | 中   | 栅格资产用固定 hex    | 生成脚本输出 token→hex 映射表并注释（DESIGN.md:47 例外）                                                                                                            |
+| R5 .icns/tiles 未交付         | 中   | macOS/Windows 打包    | §7 登记延期，附 owner/解锁条件，不阻塞 Web/S1/S2                                                                                                                    |
+| R6 无自动化视觉回归           | 中   | 资产型改动            | 截图矩阵 + coverage-manifest/债务登记；后续补视觉基线                                                                                                               |
 
 - **回滚**：S1/S2/S3 各自独立 commit，可单切片 revert；S3 单独 PR。
 - **发布门禁**：S1/S2 的 e2e 红绿证据必须贴命令输出；S3 资产验收需截图；不得只跑 typecheck 就宣称完成。
@@ -372,17 +378,17 @@ stateDiagram-v2
 
 ## 7. 未交付范围与技术债务登记
 
-| 事项 | 归属 | 来源/触发条件 | 解锁条件 / 后续 |
-| :--- | :--- | :--- | :--- |
-| macOS `.icns` 与 Windows Store tiles 重生成 | Desktop/Tooling | 本计划 S3；本机 ImageMagick 不支持 ICNS、README 依赖 macOS Image2Icon | 在 macOS 构建机用 Image2Icon/icnsutil 生成，或引入可复现工具后补交付 |
-| 静态资产生成脚本（master SVG → 全尺寸） | Tooling/Script | 本计划 S3；当前仅文档化 convert 命令 | 沉淀 `script/generate-brand-assets.ts` 后并入 CI |
-| 视觉回归门禁（toHaveScreenshot/Storybook a11y） | QA/App | S3 无自动化 RED；M3 历史缺口 | 建立稳定截图基线后，把 S3 资产纳入门禁 |
-| 旧 brand-splash-redesign（06872530f）代码迁移 | App | 用户 step 768"所有内容"语义未定；当前 clone 无该 commit | 用户确认需要后单独立项（含 splash-loader 设计决策） |
-| per-mode 主题色板扩展 | Design System | D1 决策；无自动对比度门禁 | 37×明暗对比度审计工具建立后再评估 |
-| 执行中呼吸脉冲 | App | 2026-10-05 预览承诺；跨模式状态订阅与 `whenActive` 冲突 | 专项 PRD 评估 |
-| 模式快捷键 ⌘1–5 | App Shell | 仓库不存在任何绑定 | 快捷键冲突检测专项 |
-| v2 图标 Storybook 故事 | UI | `packages/ui` 无 icon/logo 测试 | 与视觉回归门禁一并补齐 |
-| `packages/ui/AGENTS.md`（计划曾引用但不存在） | Docs | 2026-10-20 审批发现 | 需要时新建或从协议依据删除（本版已删除） |
+| 事项                                            | 归属            | 来源/触发条件                                                         | 解锁条件 / 后续                                                      |
+| :---------------------------------------------- | :-------------- | :-------------------------------------------------------------------- | :------------------------------------------------------------------- |
+| macOS `.icns` 与 Windows Store tiles 重生成     | Desktop/Tooling | 本计划 S3；本机 ImageMagick 不支持 ICNS、README 依赖 macOS Image2Icon | 在 macOS 构建机用 Image2Icon/icnsutil 生成，或引入可复现工具后补交付 |
+| 静态资产生成脚本（master SVG → 全尺寸）         | Tooling/Script  | 本计划 S3；当前仅文档化 convert 命令                                  | 沉淀 `script/generate-brand-assets.ts` 后并入 CI                     |
+| 视觉回归门禁（toHaveScreenshot/Storybook a11y） | QA/App          | S3 无自动化 RED；M3 历史缺口                                          | 建立稳定截图基线后，把 S3 资产纳入门禁                               |
+| 旧 brand-splash-redesign（06872530f）代码迁移   | App             | 用户 step 768"所有内容"语义未定；当前 clone 无该 commit               | 用户确认需要后单独立项（含 splash-loader 设计决策）                  |
+| per-mode 主题色板扩展                           | Design System   | D1 决策；无自动对比度门禁                                             | 37×明暗对比度审计工具建立后再评估                                    |
+| 执行中呼吸脉冲                                  | App             | 2026-10-05 预览承诺；跨模式状态订阅与 `whenActive` 冲突               | 专项 PRD 评估                                                        |
+| 模式快捷键 ⌘1–5                                 | App Shell       | 仓库不存在任何绑定                                                    | 快捷键冲突检测专项                                                   |
+| v2 图标 Storybook 故事                          | UI              | `packages/ui` 无 icon/logo 测试                                       | 与视觉回归门禁一并补齐                                               |
+| `packages/ui/AGENTS.md`（计划曾引用但不存在）   | Docs            | 2026-10-20 审批发现                                                   | 需要时新建或从协议依据删除（本版已删除）                             |
 
 ---
 
@@ -414,7 +420,8 @@ stateDiagram-v2
 
 ```markdown
 ### 复查结论
-- **影响文件**：packages/ui/src/v2/components/icon.tsx；packages/app/src/context/mode.tsx；mode.test.ts；components/mode-switcher.tsx；components/mode-switcher.css（新）；packages/ui/src/components/logo.tsx；logo.css；packages/ui/src/assets/{brand,favicon}/*；packages/app/{index.html,public/*}；packages/desktop/icons/*；packages/app/e2e/regression/global-shell.spec.ts
+
+- **影响文件**：packages/ui/src/v2/components/icon.tsx；packages/app/src/context/mode.tsx；mode.test.ts；components/mode-switcher.tsx；components/mode-switcher.css（新）；packages/ui/src/components/logo.tsx；logo.css；packages/ui/src/assets/{brand,favicon}/_；packages/app/{index.html,public/_}；packages/desktop/icons/\*；packages/app/e2e/regression/global-shell.spec.ts
 - **命中 skills**：reuse-first-refactor / frontend-theming / quality-to-pr
 - **安全门禁**：无网络/协议/存储改动；纯展示层与静态资产；aria 与对比度复核
 - **工程门禁**：[ ] ui typecheck [ ] app typecheck [ ] desktop typecheck [ ] ui test [ ] app unit [ ] app e2e [ ] lint-changed [ ] check-refs
