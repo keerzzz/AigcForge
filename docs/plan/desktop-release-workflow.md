@@ -1,6 +1,6 @@
 # 桌面端发布流程（desktop draft）
 
-> 状态：`desktop-draft` 已在真实 Actions 端到端跑通并人工发布 v0.0.2；自动发布链路（ADR-26）已实现但**默认关闭**，待启用契约满足后才生效。
+> 状态：`desktop-draft` 已在真实 Actions 端到端跑通并人工发布 v0.0.2；自动发布链路（ADR-26）已实现并已启用。2026-10-19 自动 `publish` 链路对 v0.0.6 完整跑通：版本 PR #131 → 六平台构建 → 同源校验 → 自动公开（24 资产，未签名），见 §7。
 > 范围：复用 `.github/workflows/publish.yml`，不新增平行构建逻辑，不删除 npm / Docker / AUR 发布能力。
 
 ## 1. 当前入口
@@ -90,10 +90,10 @@ gh workflow run publish.yml --repo keerzzz/AigcForge --ref main -f release_mode=
 
 ## 7. 尚未交付
 
-- 真实安装 / 升级 / 数据迁移的实机验收证据与自动门禁。
-- 启用契约（§5.1）：Variable 已切至 `publish`，`AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true` 已显式启用。v0.0.4 已由自动 `workflow_run`（run `36362665383`）完成「版本 PR #111 → 5 平台构建 → 同源校验 → 自动公开」，19 个资产，`target_commitish=049eda162`。**未闭环：** 产物未签名（仓库没有 macOS / Windows 签名凭据），真实安装 / 升级 / 数据迁移验收仍未完成。详见 [technical-debt §12](../technical-debt.md)。
-- 自动公开的发布说明由**没有 release 凭据的独立 `changelog` job** 生成，并作为 `release-notes` artifact 传给 `version` job；`version` job 只读取成品，读取失败时回退确定性提交清单。结构由 [`.github/RELEASE_NOTES_TEMPLATE.md`](../../.github/RELEASE_NOTES_TEMPLATE.md) 固定为 `## English` + `## 中文` 双语；生成后必须同时出现两个标题才会上传。**待验证：** 下一次真实 `workflow_run` 需要证明 AI changelog 成功、双语结构完整、权限隔离生效且失败回退可用。
-- macOS Intel（x64）已恢复：矩阵改用 GitHub 标准 `macos-15-intel`（`macos-13` 已退役），`finalize-desktop-draft` 重新要求 x64 `latest-mac.yml`。**待验证：** 下一次 desktop-draft 需要证明 6 平台全部产出。
+- 真实安装 / 升级 / 数据迁移的实机验收证据与自动门禁。v0.0.6 已自动公开，但该验收仍未执行。
+- 启用契约（§5.1）：Variable 已切至 `publish`，`AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true` 已显式启用。v0.0.4 已由自动 `workflow_run`（run `36362665383`）完成「版本 PR #111 → 5 平台构建 → 同源校验 → 自动公开」，19 个资产，`target_commitish=049eda162`。**未闭环：** 产物未签名（仓库没有 macOS / Windows 签名凭据），真实安装 / 升级 / 数据迁移验收仍未完成。详见 [technical-debt §12](../technical-debt.md)。2026-10-19 v0.0.6 由自动 run `39272798152` 完成 6 平台 / 24 资产公开（`target_commitish=69617090c`），仍未签名。
+- 自动公开的发布说明由**没有 release 凭据的独立 `changelog` job** 生成，并作为 `release-notes` artifact 传给 `version` job；`version` job 只读取成品，读取失败时回退确定性提交清单。结构由 [`.github/RELEASE_NOTES_TEMPLATE.md`](../../.github/RELEASE_NOTES_TEMPLATE.md) 固定为 `## English` + `## 中文` 双语；生成后必须同时出现两个标题才会上传。**已验证（v0.0.6，2026-10-19）：** 真实 `workflow_run` 的 release body 同时含 `## English` 与 `## 中文`，并含 community contributor 段。
+- macOS Intel（x64）已恢复：矩阵改用 GitHub 标准 `macos-15-intel`（`macos-13` 已退役），`finalize-desktop-draft` 重新要求 x64 `latest-mac.yml`。**已验证（v0.0.6，2026-10-19）：** 6 平台构建全部成功，24 个资产与 4 个 `latest*.yml` 通过 `finalize-desktop-draft` 校验。
 - 历史 v0.0.2 的标签与构建来源差异保留不追溯。
 
 这些项不能在本切片中宣称已闭环；每次关闭前按 `AGENTS.md` 的 Slice Checkpoints 记录 owner 与解锁条件。

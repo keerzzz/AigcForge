@@ -1808,7 +1808,7 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **R06 更正**：§15.1 的 App 证据不能代替 TUI。TUI 现有消息回读 tracker 纳入 Task 事件；空快照也是更新，失败 GET 保留重试，bootstrap/卸载使旧回读失效，旧请求清理不得删除新 tracker。
 - **测试夹具修正**：TUI Shell 补齐真实 `/config/providers` 合同；TUI hydration 使用现行 `/task` 路由，移除过时 `/todo` 夹具。最初超时不记作有效 RED；修正后取得实际断言失败。CLI 数组预期修正为完整快照，避免以错误 fixture 限制实现。
 - **证据**：`/home/keer/.codex/artifacts/agent-ui-tdd-remediation-20261019/` 保存每批命令、退出码和原始日志。旧审批与本轮 RED 保留。最终汇总由 `gates.jsonl` 生成，不以历史通过替代修复后执行。
-- **开放交付项**：浏览器/E4 与生产性能复测（Owner：App/QA；unlock：当前修复的真实执行结果）；main 冲突集成与 CI（Owner：当前交付；unlock：修复提交与远端检查）；本地 main 保全同步（Owner：当前交付；unlock：远端合并且原本地提交/文档有可恢复副本）；桌面多平台发布（Owner：Release CI；unlock：合并后 CI 与签名/产物校验通过）。§15.73/§15.76 接受的余量不因本轮局部通过而改写为已完成。
+- **交付终态（2026-10-19）**：四项开放交付项按真实终态收口：浏览器/E4 与生产性能复测在 PR #129 远端 CI 完成（E4 三段 `32/10/1` pass、teardown 通过，run `39228216971`）；main 集成与 CI 通过（merge commit `ae10e5051`，CI run `39236540298` success）；本地 main 保全同步完成（原 45 个仅本地 docs 提交保存为分支 `main-preserved-20261019`、tag `backup-main-20261019` 与 45 份 patch，本地 `main` 已与 `origin/main` 一致）；桌面多平台发布由自动链路完成 v0.0.6（见 §15.85）。§15.73/§15.76 接受的余量保持原义。
 
 ### 15.79 2026-10-19 修复后集成验证
 
@@ -1824,14 +1824,14 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 | 流式完成时间         | 3105.1 |     3697.6 |     3142.8 |     3234.1 |
 
 - **本地门禁**：App 1484 unit + 3 virtualizer + 56 E2E contracts、TUI 230 pass / 1 既有 skip；全仓 lint（含格式、增量与未等待断言检查）和 16 个 typecheck 任务全部退出 0。HTTP coverage 登记 335 场景、306 operation，auth 335 pass，均无 missing/skip。HTTP exerciser 仅改写配置文件末尾换行，已恢复预运行原字节。完整后端功能套件与跨平台结果仍由必需远端 CI 验证，不以 coverage/auth 代替。原始结果见同目录 `gates.jsonl`。
-- **交付状态**：远端合并、本地 main 保全同步、版本 PR 与六平台签名发布继续由当前交付负责人跟进；未有产物证据前不记为已发布。§15.73/§15.76 的已接受余量保持原义。
+- **交付状态（2026-10-19 收口）**：PR #129 已合并（merge commit `ae10e5051`），必需检查全部 success，本地 main 已同步。版本 PR #131 与 v0.0.6 六平台发布由 ADR-26 自动链路完成（见 §15.85）。签名凭据仍未配置，本次为显式允许的未签名产物。§15.73/§15.76 的已接受余量保持原义。
 
 ### 15.80 2026-10-19 PR #129 Windows 生命周期夹具计时
 
 - **来源**：PR #129 首轮 `unit (windows)`（run `39196273799`）中 Core 的 4 个 deadline 生命周期用例超时；普通 failure 用例通过。后端复用同一夹具，也出现相同超时，随后整个 Turbo 批次因 Core 失败退出。
 - **共享边界**：`packages/core/test/lib/effect-lifecycle.ts` 为 Core、后端 isolated/shared helper 生成隔离子进程。Bun 1.3.14 的 `BunTest.updateMinTimeout`（上游 `src/test_runner/bun_test.zig:573`）只将内部 deadline 插入 timer heap；Windows `Timer.All.ensureUVTimer`（上游 `src/runtime/timer/Timer.zig:125`）仅在 `active_timer_count > 0` 时保持 libuv timer 引用。只有未完成 Deferred 的子进程没有应用计时器，CI 现象与该引用缺口一致。
-- **处理**：夹具持有一个 real interval，并在 `afterAll` 清理；断言仍要求 Bun 自身触发 50ms deadline、完成原 scope finalizer、恢复 Custom flag，并保留 cleanup defect。没有增加被测截止时间，也没有替换生产或测试 helper 的取消逻辑。当前 Linux Core 5 个、后端 isolated/shared 10 个场景通过；Windows 结果等待新一轮 CI。
-- **技术债 — Owner: test infrastructure。** 该保活只服务于固定 Bun 版本的隔离 deadline 测试。解锁条件：升级后的 Bun 在 Windows 上无需应用 timer 也能执行这些 deadline/finalizer 用例，再删除保活并通过 Core 与后端两种 helper 的真实 Windows 回归。Windows 修复尚未取得新 CI 结果前不得记为已验证。
+- **处理**：夹具持有一个 real interval，并在 `afterAll` 清理；断言仍要求 Bun 自身触发 50ms deadline、完成原 scope finalizer、恢复 Custom flag，并保留 cleanup defect。没有增加被测截止时间，也没有替换生产或测试 helper 的取消逻辑。当前 Linux Core 5 个、后端 isolated/shared 10 个场景通过；Windows 结果已由 PR #129 合并前 CI（run `39228216971`，`unit (windows)` success）与合并后 main CI（run `39236540298`）、v0.0.6 版本 PR 的真实 `unit (windows)` 通过，Core deadline 用例与后端 isolated/shared 场景均绿。
+- **技术债 — Owner: test infrastructure。** 该保活只服务于固定 Bun 版本的隔离 deadline 测试，Windows 修复已于 2026-10-19 取得真实 CI 通过，但保活成本仍在。解锁条件：升级后的 Bun 在 Windows 上无需应用 timer 也能执行这些 deadline/finalizer 用例，再删除保活并通过 Core 与后端两种 helper 的真实 Windows 回归。
 
 ### 15.81 2026-10-19 PR #129 E2E 夹具与平台校准
 
@@ -1845,12 +1845,12 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 
 **本地独立批次（均 exit 0）**：委派/Workflow/资产 12 pass；Task/历史分页/缩放/投影及错误反例 12 pass；项目规模/Agent Hub 5 pass；独立真实缩放 2 pass；App E2E contracts 56 pass / 190 assertions；App typecheck 通过。最初定位 404 的单例为 1 fail，单独记账，不与修复后通过数相加。证据在 `/home/keer/.codex/artifacts/agent-ui-tdd-remediation-20261019/` 的 `ci-e2e-*.log`、`ci-native-zoom-evidence/` 和 `gates.jsonl`。
 
-**仍开放 — Owner: CI / 当前交付。** Windows 校准与 §15.80 的真实 Windows 生命周期验证仍以最新提交的 CI 为准；必需检查、PR 合并、main 保全同步和六平台实际发布尚未完成。解锁条件：对应最新 SHA 的检查及发布产物证据，不以这些 Linux 本地通过替代。§15.73/§15.76 接受余量以及外部模型、OAuth、安装/升级/迁移实机边界保持原义。
+**收口（2026-10-19）。** Windows 校准与 §15.80 的真实 Windows 生命周期验证已由 PR #129 合并前与 v0.0.6 版本 PR 的必需检查通过；PR 合并、本地 main 同步与六平台发布完成（见 §15.85）。仍开放：外部模型/OAuth、安装/升级/迁移实机验收与签名产物。§15.73/§15.76 接受余量以及这些边界保持原义。
 
 ### 15.82 2026-10-19 PR #129 恢复 E4 执行
 
 - **用户要求**：恢复 PR 中的 E4。删除 `test.yml` 的非 PR 限制，复用既有 default / V2 / Custom 三段串行 job；不改重试、超时、隔离后端或 provider 合同。`docs/testing.md` 同步现行正向 runtime 验证边界；§15.77 的旧 PR 集合描述仅为当时快照。
-- **仍开放 — Owner: CI / 当前交付。** 最新提交必须实际运行并通过 `e4 (linux)` 才可合并本 PR；解锁条件为同一 SHA 的 default、V2、Custom 三段结果及 teardown/manifest 证据。恢复调度本身不等于 E4 已通过，也不自动改变远端 branch protection。§15.73/§15.76 接受余量及外部模型、OAuth、安装/升级/迁移边界保持原义。
+- **已闭环（2026-10-19）**：`e4 (linux)` 在 PR #129 合并前真实运行并通过三段串行：default `32 passed / 5 skipped / 0 failed`、V2 `10 / 27 / 0`、Custom `1 / 1 / 0`，三段 teardown gate 通过（run `39228216971`，job `117979620369`）。该结果不改变 branch protection：E4 仍非必需 context。§15.73/§15.76 接受余量及外部模型、OAuth、安装/升级/迁移边界保持原义。
 
 ### 15.83 2026-10-19 PR #129 E4 顺序与异步边界修复
 
@@ -1860,7 +1860,7 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **提醒等待截止点**：`SchedulerCore.daemon`（`packages/core/src/session/schedule-core.ts:99`）每分钟重新 arm 后 tick。提醒设在约 45s 后，旧的 70s 轮询从确认后开始，可能早于到期后的下一次 tick。改为固定截止 `dueAt + 70s`，该用例总预算为 180s，覆盖未来到期、一个 daemon 周期及 UI/read/reload。修复后实际投递在创建后 84,926ms、到期后 41,803ms，完成状态与唯一 delivery 均经真实 API 验证；没有更改生产调度、插入 delivery 或启动测试 daemon。
 - **本地结果**：原顺序复现为 5 pass / 1 fail；计数修复后又暴露投递等待不足，为 5 pass / 1 fail；修正截止后，同一 history → reminder → files 批次 6 pass，teardown 通过。失败与后续通过独立保存在 `gates.jsonl`，不相加。
 - **串行 variant 的测试发现**：首次本地 V2 完整补验在收集阶段失败：上一段 `run-evidence` 中缓存的 Effect 仓库 `.test.ts` 被当成 E4 源码加载。配置现在排除生成的 `run-evidence` / `test-results` / `playwright-report` 目录，保留现有 default 和 dual 的用例集合。新增回归在三个目录放入一旦导入即抛错的 spec，用真实 Playwright `--list` 验证 single / dual 都不会导入它们；配置契约 7 pass。最初命令路径未匹配和隔离临时目录权限错误均保留为失败收据，不算产品 RED。
-- **仍开放 — Owner: CI / 当前交付。** V2 / Custom 补验、最新提交完整 CI、PR 合并、main 保全同步与实际桌面发布仍按真实终态解锁。§15.73/§15.76 接受余量保持原义。
+- **已闭环（2026-10-19）**：V2 / Custom 复验与最新 SHA 完整 CI 均已完成；PR #129 于 2026-10-19T10:18:37Z 合并（`ae10e5051`），本地 main 已同步，六平台 v0.0.6 已发布（见 §15.85）。§15.73/§15.76 接受余量保持原义。
 
 ### 15.84 2026-10-19 PR #129 必需检查回归（CLI legacy todo 历史）与 E4 复跑
 
@@ -1870,7 +1870,17 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **证据边界**：`packages/app/e2e/tsconfig.json` 现排除 `run-evidence` / `test-results` / `playwright-report`，避免本地生成证据被当作 e2e 源码编译（此前本地 E4 后 App typecheck 假红；CI 独立 checkout 不受影响）。
 - **本地门禁**：上述两测试文件 0 fail；`bun --cwd packages/aigcfroge typecheck` 与 `bun --cwd packages/app typecheck` exit 0；`LINT_BASE_REF=origin/main bun run script/lint-changed.ts` 428 文件通过；SDK 重新生成后 `git diff --exit-code -- packages/sdk packages/sdk/js/src` exit 0。
 - **E4 复跑**：以 CI 命令按 default → V2 → Custom 串行复跑：default `32 pass / 5 skip / 0 fail`（6.4m）、V2 `10 pass / 27 skip / 0 fail`（1.6m）、Custom `1 pass / 1 skip / 0 fail`（1.3m），三段 teardown gate 均通过；`session-files` 索引轮询与 `assistant-scheduler` 提醒/请求归属修复均通过。首轮复跑曾在 “Add project” 目录选择器因本地残留 `run-evidence/*/workspace` 造成 basename 歧义而 strict-mode 失败（31 pass / 1 fail）；该歧义来自本地历史证据目录，CI 全新 checkout 每阶段只有一个 workspace，且 V2/Custom 阶段不运行该用例，故保留为本地夹具脆弱性，不改选择器合同。
-- **仍开放 — Owner: CI / 当前交付。** 上述结果为本地隔离复跑，不等于远端已通过；最新 SHA 的完整 CI（含 `unit (windows)` 与三段 E4）仍需真实结果，合并后 main 保全同步与实际桌面发布继续按终态解锁。§15.82/§15.83 的开放项与 §15.73/§15.76 接受余量保持原义。
+- **已闭环（2026-10-19）**：最新 SHA（`b42a9efa2`）的完整远端 CI 全绿（8 项检查 success，run `39228217042` / `39228216971`）；PR 合并、本地 main 同步与 v0.0.6 发布完成（见 §15.85）。§15.82/§15.83 的开放项与 §15.73/§15.76 接受余量保持原义。
+
+### 15.85 2026-10-19 PR #129 合并、v0.0.6 自动发布与抖动记账
+
+- **合并**：PR #129（head `b42a9efa2`）于 2026-10-19T10:18:37Z 以 merge commit `ae10e5051` 合并，8 项检查全绿。本地 `main` 原 45 个仅本地 docs 提交保存为分支 `main-preserved-20261019`、tag `backup-main-20261019` 与 45 份 patch（`/home/keer/aigcfroge-backup-20261019/`），随后 `main` 同步远端；发布合并后再次同步到 `69617090c`。
+- **自动发布**：合并后 CI（run `39236540298`）成功触发 publish `prepare`，机器人创建版本 PR #131（`chore(release): prepare v0.0.6`，只改版本字段与 bun.lock）并启用 auto-merge。
+- **required-check 抖动**：版本 PR #131 首轮 `unit (linux)` 在 `packages/aigcfroge/test/tool/question.test.ts:96` 的固定 2s `awaitWithTimeout` 超时；`unit (windows)` 先出现 Bun 1.3.14 段错误（51m27s 后崩溃），重跑又出现 `packages/aigcfroge/test/control-plane/workspace.test.ts:1229` 真实定时器用例超时。attempt 2/3 后通过并自动合并为 `69617090c`（run `39241658402`，job `118023676221` / `118023676520` / `118050406844`）。
+- **main CI 抖动**：合并后的 main CI（run `39265367125`）首轮在 `packages/tui/test/cli/tui/diff-viewer.test.tsx:270` 失败：`waitForCommand` 固定 10×25ms 轮询后静默返回，断言拿到 `undefined`，导致 publish 被跳过；重跑 attempt 2 成功后 publish 自动重触发为 run `39272798152`。全程未使用 admin bypass。
+- **发布结果**：v0.0.6 于 2026-10-19T15:06:29Z 公开，target `69617090c`，24 个资产（mac x64/arm64 dmg+zip+app.tar.gz+blockmap、win x64/arm64 nsis+blockmap、linux x64/arm64 AppImage/deb/rpm、4 个 `latest*.yml`）。Release body 为 `## English` + `## 中文` 双语结构并含 community contributor 段。
+- **未签名公开**：仓库没有 Apple/Azure 签名凭据，`AIGCFROGE_ALLOW_UNSIGNED_RELEASE=true` 是既有显式例外；macOS/Windows 产物未签名、未公证。签名与真实安装/升级/数据迁移实机验收仍是开放项。
+- **测试基建债 — Owner: CI / S8。** 三处固定预算等待需改为有界就绪断言或显式失败：`question.test.ts:96` 的 2s `awaitWithTimeout`、`workspace.test.ts:1229` 的真实定时器用例、`diff-viewer.test.tsx` 的 `waitForCommand` 静默轮询。解锁条件：三处改为就绪信号/失败断言并通过 `unit (linux)` 与 `unit (windows)` 真实 CI，同时满足 §15.80 的 Windows timer 约束。Windows Bun 段错误属上游缺陷，保留为已知风险。
 
 ## 16. 本机 CLI 发现与惰性初始化验证边界（2026-09-29）
 
