@@ -133,6 +133,36 @@ const tabs = (page: Page) => page.locator('[data-slot="titlebar-tabs"]')
 const homeButton = (page: Page) => page.getByRole("button", { name: "Home", exact: true })
 
 test.describe("global shell: mode switcher rail", () => {
+  test("renders five distinct registered rail icon symbols", async ({ page }) => {
+    await installServerMock(page)
+    await page.goto("/mode/coding")
+    await expectAppVisible(page.locator("[data-mode-workspace]"))
+
+    for (const mode of MODES) {
+      const icon = modeButton(page, mode.label).locator("use[href]")
+      await expect(icon).toHaveCount(1)
+      await expect(icon).toHaveAttribute("href", `#aigcfroge-v2-icon-rail-${mode.slot}`)
+      await expect(page.locator(`symbol[id="aigcfroge-v2-icon-rail-${mode.slot}"]`)).toHaveCount(1)
+    }
+
+    const symbols = await Promise.all(
+      MODES.map((mode) => modeButton(page, mode.label).locator("use[href]").getAttribute("href")),
+    )
+    expect(new Set(symbols).size).toBe(5)
+    expect(symbols.every((symbol) => symbol?.startsWith("#aigcfroge-v2-icon-rail-"))).toBe(true)
+    expect(symbols).not.toContain("#aigcfroge-v2-icon-plus")
+  })
+
+  test("preserves the assistant reminder glyph inside the mode surface", async ({ page }) => {
+    await installServerMock(page)
+    await page.goto("/mode/assistant")
+    await expectAppVisible(page.locator("[data-mode-workspace]"))
+
+    await expect(
+      page.locator('[data-mode-sidebar="assistant"] [data-nav-section="reminders"] > button use').nth(1),
+    ).toHaveAttribute("href", "#aigcfroge-v2-icon-mode-assistant")
+  })
+
   test("renders all five mode buttons and presses exactly the active one", async ({ page }) => {
     await installServerMock(page)
     await page.goto("/mode/coding")
