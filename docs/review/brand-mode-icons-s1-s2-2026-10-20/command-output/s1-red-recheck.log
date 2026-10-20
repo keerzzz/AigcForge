@@ -1,0 +1,69 @@
+$ playwright test "e2e/regression/global-shell.spec.ts" --grep "distinct registered rail|preserves the assistant"
+[warmup] / 2316ms modules=677
+[warmup] /mode/chat 3397ms modules=677
+[warmup] /mode/coding 3324ms modules=677
+[warmup] /mode/work 2946ms modules=677
+[warmup] /mode/assistant 3367ms modules=677
+[warmup] /mode/custom 3459ms modules=677
+[warmup] /server/warmup/session/warmup 3675ms modules=677
+
+Running 2 tests using 1 worker
+
+(node:276335) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:276335) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/2] [chromium] › e2e/regression/global-shell.spec.ts:136:3 › global shell: mode switcher rail › renders five distinct registered rail icon symbols
+  1) [chromium] › e2e/regression/global-shell.spec.ts:136:3 › global shell: mode switcher rail › renders five distinct registered rail icon symbols
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('nav[aria-label="Mode switcher"]').getByRole('button', { name: 'Chat', exact: true }).locator('use[href]')
+    Expected: "#aigcfroge-v2-icon-rail-chat"
+    Received: "#aigcfroge-v2-icon-mode-chat"
+    Timeout:  10000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 10000ms
+      - waiting for locator('nav[aria-label="Mode switcher"]').getByRole('button', { name: 'Chat', exact: true }).locator('use[href]')
+        14 × locator resolved to <use href="#aigcfroge-v2-icon-mode-chat"></use>
+           - unexpected value "#aigcfroge-v2-icon-mode-chat"
+
+
+      142 |       const icon = modeButton(page, mode.label).locator("use[href]")
+      143 |       await expect(icon).toHaveCount(1)
+    > 144 |       await expect(icon).toHaveAttribute("href", `#aigcfroge-v2-icon-rail-${mode.slot}`)
+          |                          ^
+      145 |       await expect(page.locator(`symbol[id="aigcfroge-v2-icon-rail-${mode.slot}"]`)).toHaveCount(1)
+      146 |     }
+      147 |
+        at /home/keer/workspace/aigcfroge/packages/app/e2e/regression/global-shell.spec.ts:144:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-7f6f7-egistered-rail-icon-symbols-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-7f6f7-egistered-rail-icon-symbols-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: e2e/test-results/regression-global-shell-gl-7f6f7-egistered-rail-icon-symbols-chromium/error-context.md
+
+
+(node:276901) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:276901) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/2] [chromium] › e2e/regression/global-shell.spec.ts:156:3 › global shell: mode switcher rail › preserves the assistant reminder glyph inside the mode surface
+  1 failed
+    [chromium] › e2e/regression/global-shell.spec.ts:136:3 › global shell: mode switcher rail › renders five distinct registered rail icon symbols
+  1 passed (41.5s)
+error: script "test:e2e" exited with code 1

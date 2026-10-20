@@ -1,0 +1,4 @@
+Old icon dictionary prefix unchanged from e02392ce1.
+Changed package files stay within the S1/S2 allowlist.
+S3 assets and in-page consumers have zero changes.
+Task-created temporary pages and browser bridge removed.

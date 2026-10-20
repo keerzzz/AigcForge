@@ -1,0 +1,4 @@
+$ LINT_BASE_REF=origin/main bun run script/lint-changed.ts
+Incremental lint passed: 5 changed files, 4336 added lines
+
+Exit code: 0
