@@ -1,0 +1,315 @@
+{
+  "ready": true,
+  "marks": [
+    {
+      "tone": "light",
+      "bounds": {
+        "x": 41.65625,
+        "y": 825.796875,
+        "width": 40,
+        "height": 40,
+        "top": 825.796875,
+        "right": 81.65625,
+        "bottom": 865.796875,
+        "left": 41.65625
+      },
+      "viewBox": "0 0 100 100",
+      "geometry": [
+        {
+          "tag": "polygon",
+          "slot": "logo-mark-a",
+          "points": "48,16 16,74 38,74 48,54",
+          "d": null,
+          "fill": "rgb(50, 80, 223)"
+        },
+        {
+          "tag": "polygon",
+          "slot": "logo-mark-g",
+          "points": "52,16 52,54 62,54 62,62 52,62 52,74 84,74",
+          "d": null,
+          "fill": "rgb(0, 150, 184)"
+        },
+        {
+          "tag": "circle",
+          "slot": "logo-mark-i",
+          "points": null,
+          "d": null,
+          "fill": "rgb(22, 22, 22)"
+        },
+        {
+          "tag": "path",
+          "slot": "logo-mark-c",
+          "points": null,
+          "d": "M22 82 C32 88 68 88 78 82 C78 82 66 85 50 85 C34 85 22 82 22 82 Z",
+          "fill": "color(srgb 0.45 0.773529 0.846863)"
+        }
+      ]
+    },
+    {
+      "tone": "light",
+      "bounds": {
+        "x": 132.984375,
+        "y": 817.796875,
+        "width": 56,
+        "height": 56,
+        "top": 817.796875,
+        "right": 188.984375,
+        "bottom": 873.796875,
+        "left": 132.984375
+      },
+      "viewBox": "0 0 100 100",
+      "geometry": [
+        {
+          "tag": "polygon",
+          "slot": "logo-mark-a",
+          "points": "48,16 16,74 38,74 48,54",
+          "d": null,
+          "fill": "rgb(50, 80, 223)"
+        },
+        {
+          "tag": "polygon",
+          "slot": "logo-mark-g",
+          "points": "52,16 52,54 62,54 62,62 52,62 52,74 84,74",
+          "d": null,
+          "fill": "rgb(0, 150, 184)"
+        },
+        {
+          "tag": "circle",
+          "slot": "logo-mark-i",
+          "points": null,
+          "d": null,
+          "fill": "rgb(22, 22, 22)"
+        },
+        {
+          "tag": "path",
+          "slot": "logo-mark-c",
+          "points": null,
+          "d": "M22 82 C32 88 68 88 78 82 C78 82 66 85 50 85 C34 85 22 82 22 82 Z",
+          "fill": "color(srgb 0.45 0.773529 0.846863)"
+        }
+      ]
+    },
+    {
+      "tone": "dark",
+      "bounds": {
+        "x": 41.65625,
+        "y": 1792.59375,
+        "width": 40,
+        "height": 40,
+        "top": 1792.59375,
+        "right": 81.65625,
+        "bottom": 1832.59375,
+        "left": 41.65625
+      },
+      "viewBox": "0 0 100 100",
+      "geometry": [
+        {
+          "tag": "polygon",
+          "slot": "logo-mark-a",
+          "points": "48,16 16,74 38,74 48,54",
+          "d": null,
+          "fill": "rgb(38, 63, 169)"
+        },
+        {
+          "tag": "polygon",
+          "slot": "logo-mark-g",
+          "points": "52,16 52,54 62,54 62,62 52,62 52,74 84,74",
+          "d": null,
+          "fill": "rgb(0, 90, 110)"
+        },
+        {
+          "tag": "circle",
+          "slot": "logo-mark-i",
+          "points": null,
+          "d": null,
+          "fill": "rgb(250, 250, 250)"
+        },
+        {
+          "tag": "path",
+          "slot": "logo-mark-c",
+          "points": null,
+          "d": "M22 82 C32 88 68 88 78 82 C78 82 66 85 50 85 C34 85 22 82 22 82 Z",
+          "fill": "color(srgb 0.45 0.644118 0.687255)"
+        }
+      ]
+    },
+    {
+      "tone": "dark",
+      "bounds": {
+        "x": 132.984375,
+        "y": 1784.59375,
+        "width": 56,
+        "height": 56,
+        "top": 1784.59375,
+        "right": 188.984375,
+        "bottom": 1840.59375,
+        "left": 132.984375
+      },
+      "viewBox": "0 0 100 100",
+      "geometry": [
+        {
+          "tag": "polygon",
+          "slot": "logo-mark-a",
+          "points": "48,16 16,74 38,74 48,54",
+          "d": null,
+          "fill": "rgb(38, 63, 169)"
+        },
+        {
+          "tag": "polygon",
+          "slot": "logo-mark-g",
+          "points": "52,16 52,54 62,54 62,62 52,62 52,74 84,74",
+          "d": null,
+          "fill": "rgb(0, 90, 110)"
+        },
+        {
+          "tag": "circle",
+          "slot": "logo-mark-i",
+          "points": null,
+          "d": null,
+          "fill": "rgb(250, 250, 250)"
+        },
+        {
+          "tag": "path",
+          "slot": "logo-mark-c",
+          "points": null,
+          "d": "M22 82 C32 88 68 88 78 82 C78 82 66 85 50 85 C34 85 22 82 22 82 Z",
+          "fill": "color(srgb 0.45 0.644118 0.687255)"
+        }
+      ]
+    }
+  ],
+  "splashes": [
+    {
+      "tone": "light",
+      "bounds": {
+        "x": 235.859375,
+        "y": 805.796875,
+        "width": 64,
+        "height": 80,
+        "top": 805.796875,
+        "right": 299.859375,
+        "bottom": 885.796875,
+        "left": 235.859375
+      }
+    },
+    {
+      "tone": "light",
+      "bounds": {
+        "x": 358.265625,
+        "y": 815.796875,
+        "width": 48,
+        "height": 60,
+        "top": 815.796875,
+        "right": 406.265625,
+        "bottom": 875.796875,
+        "left": 358.265625
+      }
+    },
+    {
+      "tone": "dark",
+      "bounds": {
+        "x": 235.859375,
+        "y": 1772.59375,
+        "width": 64,
+        "height": 80,
+        "top": 1772.59375,
+        "right": 299.859375,
+        "bottom": 1852.59375,
+        "left": 235.859375
+      }
+    },
+    {
+      "tone": "dark",
+      "bounds": {
+        "x": 358.265625,
+        "y": 1782.59375,
+        "width": 48,
+        "height": 60,
+        "top": 1782.59375,
+        "right": 406.265625,
+        "bottom": 1842.59375,
+        "left": 358.265625
+      }
+    }
+  ],
+  "staticSizes": [
+    {
+      "specified": "16",
+      "actual": 16
+    },
+    {
+      "specified": "20",
+      "actual": 20
+    },
+    {
+      "specified": "24",
+      "actual": 24
+    },
+    {
+      "specified": "32",
+      "actual": 32
+    },
+    {
+      "specified": "48",
+      "actual": 48
+    },
+    {
+      "specified": "100",
+      "actual": 100
+    },
+    {
+      "specified": "160",
+      "actual": 160
+    },
+    {
+      "specified": "512",
+      "actual": 512
+    },
+    {
+      "specified": "16",
+      "actual": 16
+    },
+    {
+      "specified": "20",
+      "actual": 20
+    },
+    {
+      "specified": "24",
+      "actual": 24
+    },
+    {
+      "specified": "32",
+      "actual": 32
+    },
+    {
+      "specified": "48",
+      "actual": 48
+    },
+    {
+      "specified": "100",
+      "actual": 100
+    },
+    {
+      "specified": "160",
+      "actual": 160
+    },
+    {
+      "specified": "512",
+      "actual": 512
+    }
+  ],
+  "wordmarks": [
+    {
+      "tone": "light",
+      "paths": 16,
+      "fill": "rgb(22, 22, 22)",
+      "eBottom": true
+    },
+    {
+      "tone": "dark",
+      "paths": 16,
+      "fill": "rgb(250, 250, 250)",
+      "eBottom": true
+    }
+  ]
+}

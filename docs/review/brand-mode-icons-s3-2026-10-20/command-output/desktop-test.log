@@ -1,0 +1,11 @@
+$ bun test ./src ./electron-builder.config.test.ts --timeout 30000 --only-failures
+bun test v1.3.14 (0d9b296a)
+
+src/main/shell-env.test.ts:
+[server] Shell env probe failed for /nonexistent/shell -il: ENOENT: no such file or directory, posix_spawn '/nonexistent/shell'
+[server] Shell env probe failed for /nonexistent/shell -l: ENOENT: no such file or directory, posix_spawn '/nonexistent/shell'
+
+ 60 pass
+ 0 fail
+ 136 expect() calls
+Ran 60 tests across 11 files. [930.00ms]

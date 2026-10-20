@@ -1898,23 +1898,25 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 
 **集成状态（2026-10-19）**：§17 保留 main 的历史诊断；本分支已把 drift 与 SDK 统一到 `packages/script/src/openapi.ts` 的独立 CLI 生成边界，快照使用 `packages/sdk/openapi.json`。合并后生成器与同进程 public-contract/SDK/drift 回归已经通过（46 pass，原始日志见 §15.79）；旧的第二份 snapshot 保持删除。此结论证明当前生成边界隔离有效，不宣称已经修复上游 Effect 全局状态。
 
-
 ## 18. brand-mode-icons 延后范围与验证边界（2026-10-20）
 
-来源：[实施计划](plan/brand-mode-icons-2026-10-20.md) §7 与 [S1/S2/S4 实施证据](review/brand-mode-icons-s1-s2-2026-10-20/README.md)。S1/S2 为当前交付范围；下列项未交付，不以默认亮暗截图或 mock e2e 宣称闭环。
+来源：[实施计划](plan/brand-mode-icons-2026-10-20.md) §7、[S1/S2/S4 实施证据](review/brand-mode-icons-s1-s2-2026-10-20/README.md) 与 [S3 实施证据](review/brand-mode-icons-s3-2026-10-20/README.md)。S1/S2 已验收；S3 已实现并完成本地门禁。用户截图确认 Linux Dock 已显示方案 04；新建会话亮暗证据来自真实页面与 mock 后端。下列剩余项未交付，不以这些结果宣称跨平台发布验收闭环。
 
-| 事项                                                                 | Owner                        | 来源 / 触发条件                                   | 解锁条件                                                                        |
-| -------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
-| S3 品牌资产收敛（Mark/Splash/favicon/manifest/desktop/social-share） | Design / UI / Desktop        | 计划 S3 审批退回；当前冻结                        | 用户独立批准 Web 与桌面资产视觉后，按 S3 单独实施和验收                         |
-| macOS `.icns` 与 Windows Store tiles 重生成                          | Desktop / Tooling            | 计划 §7；本机 ImageMagick 不支持 ICNS             | 在 macOS 构建机使用 Image2Icon/icnsutil，或建立可复现工具；产物经各平台打包验证 |
-| 静态资产生成脚本（master SVG → 全尺寸）                              | Tooling / Script             | 计划 §7；当前只有文档化命令                       | S3 批准后统一 master 与 token 映射，再生成资产并并入 CI                         |
-| 自动视觉回归基线及 Storybook a11y                                    | QA / App / UI                | 计划 §7；本批只有人工截图与行为断言               | 用户批准稳定截图基线后，将 S1/S2 与未来 S3 纳入自动门禁                         |
-| v2 图标 Storybook 故事                                               | UI                           | 计划 §7；共享 v2 icon 尚无 story                  | 与视觉回归基线一起覆盖五模式、micro、14/16/20px 及亮暗                          |
-| 37 套主题、真实系统高对比/减少动态、桌面安装包                       | Design System / QA / Desktop | 本批只验证默认亮暗和 Chromium 媒体模拟；未打包    | 建立全主题对比度矩阵，并在各目标系统和实际安装包完成视觉/键盘验收               |
-| 旧 brand-splash-redesign（06872530f）代码迁移                        | App                          | 计划 §7；需求语义未定、当前 clone 无该 commit     | 用户确认需要后单独立项并决定 splash-loader 设计                                 |
-| per-mode 主题色板扩展                                                | Design System                | 计划 §7；D1 已收回多色激活方案                    | 建立 37×明暗对比度审计后，由用户重新批准；当前维持单一 accent                   |
-| 执行中呼吸脉冲                                                       | App                          | 计划 §7；已收回脉冲，跨模式订阅与 whenActive 冲突 | 专项 PRD 和用户批准后评估；当前不引入                                           |
-| 模式快捷键 ⌘1–5                                                      | App Shell                    | 计划 §7；当前无绑定                               | 快捷键冲突检测专项完成并确认映射                                                |
-| `packages/ui/AGENTS.md`                                              | Docs                         | 计划 §7；原引用文件不存在，计划已删除无效引用     | 仅在确有包级强化规则需要时新建，或继续使用根协议                                |
+| 事项                                           | Owner                        | 来源 / 触发条件                                        | 解锁条件                                                            |
+| ---------------------------------------------- | ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------- |
+| S3 品牌资产实机发布验收                        | Design / UI / Desktop        | Linux 开发版 Dock 用户截图已取得；其余为组件/页面截图  | 用户完成 S3 视觉验收，并在目标系统安装包复验                        |
+| macOS/Windows 安装包与 Android/iOS 资产        | Desktop / QA                 | S3 已重生成 ICNS/ICO/Square/StoreLogo；mobile 目录保留 | 各目标系统打包验收；移动端接入时生成 mobile 资产                    |
+| 静态品牌资产生成 CI 漂移检查                   | Tooling / Script             | S3 已提供统一 Bun/ImageMagick/Pillow 脚本              | CI 固定工具版本并重生成检查 diff                                    |
+| 社交图生成对 Logo JSX 格式的依赖               | Tooling / UI                 | 生成器从 Logo 提取静态 g/path，避免维护另一份字标几何  | 修改 Logo 结构时同步生成与审核；需要动态 JSX 时改用共享静态几何入口 |
+| 真实启动 Splash 过渡录屏                       | Desktop / QA                 | 已验证生产 Splash 组件；本轮未捕获完整桌面启动过程     | 在干净验收配置下捕获加载至主页的连续过程                            |
+| 旧历史阻断桌面真实新建会话验收                 | Session Core / QA            | 开发配置两条旧 Session 返回 unsupported-history 400    | 独立排查旧历史兼容性，或在独立验收配置下验证新建页；保全原历史      |
+| 自动视觉回归基线及 Storybook a11y              | QA / App / UI                | 计划 §7；本批只有人工截图与行为断言                    | 用户批准稳定截图基线后，将 S1/S2/S3 纳入自动门禁                    |
+| v2 图标 Storybook 故事                         | UI                           | 计划 §7；共享 v2 icon 尚无 story                       | 与视觉回归基线一起覆盖五模式、micro、14/16/20px 及亮暗              |
+| 37 套主题、真实系统高对比/减少动态、桌面安装包 | Design System / QA / Desktop | 本批只验证默认亮暗和 Chromium 媒体模拟；未打包         | 建立全主题对比度矩阵，并在各目标系统和实际安装包完成视觉/键盘验收   |
+| 旧 brand-splash-redesign（06872530f）代码迁移  | App                          | 计划 §7；需求语义未定、当前 clone 无该 commit          | 用户确认需要后单独立项并决定 splash-loader 设计                     |
+| per-mode 主题色板扩展                          | Design System                | 计划 §7；D1 已收回多色激活方案                         | 建立 37×明暗对比度审计后，由用户重新批准；当前维持单一 accent       |
+| 执行中呼吸脉冲                                 | App                          | 计划 §7；已收回脉冲，跨模式订阅与 whenActive 冲突      | 专项 PRD 和用户批准后评估；当前不引入                               |
+| 模式快捷键 ⌘1–5                                | App Shell                    | 计划 §7；当前无绑定                                    | 快捷键冲突检测专项完成并确认映射                                    |
+| `packages/ui/AGENTS.md`                        | Docs                         | 计划 §7；原引用文件不存在，计划已删除无效引用          | 仅在确有包级强化规则需要时新建，或继续使用根协议                    |
 
 基线观察：真实 large IconButtonV2 是 28×28px，审批预览画为 40×40px；本批保留生产尺寸且验证切换无布局位移。后续若调整点击目标，由 App Shell / Design 单独批准，不与描边修订合并。

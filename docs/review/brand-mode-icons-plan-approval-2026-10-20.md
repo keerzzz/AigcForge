@@ -21,13 +21,13 @@
 
 **有条件通过（CONDITIONAL APPROVAL）——按切片分级：**
 
-| 范围 | 结论 | 含义 |
-| :-- | :-- | :-- |
-| **方向 D1–D5** | ✅ 批准（文字与来源修正后生效） | 单一强调色、`rail-*` 解耦、新基线分支、Assistant 智库手账方向、主品牌方案 04 方向成立 |
-| **S0 / S4** | ✅ 通过（P2 文字修订） | 基线门禁与集成门禁可实现 |
-| **S1 / S2** | ✅ 通过（条件式，先完成 P1 修订） | 实现路径、TDD 断言、DOM/CSS 方案均可行；几何与指标规格需补全 |
-| **S3** | ⛔ **退回重写，不得按现文实施** | 依赖不存在的组件，Logo 几何来源错误，资产范围不完整 |
-| **整个计划开工前提** | ⚠️ **3 个 P0 必须修订入档** | 否则本审批不成立（见第三节） |
+| 范围                 | 结论                              | 含义                                                                                  |
+| :------------------- | :-------------------------------- | :------------------------------------------------------------------------------------ |
+| **方向 D1–D5**       | ✅ 批准（文字与来源修正后生效）   | 单一强调色、`rail-*` 解耦、新基线分支、Assistant 智库手账方向、主品牌方案 04 方向成立 |
+| **S0 / S4**          | ✅ 通过（P2 文字修订）            | 基线门禁与集成门禁可实现                                                              |
+| **S1 / S2**          | ✅ 通过（条件式，先完成 P1 修订） | 实现路径、TDD 断言、DOM/CSS 方案均可行；几何与指标规格需补全                          |
+| **S3**               | ⛔ **退回重写，不得按现文实施**   | 依赖不存在的组件，Logo 几何来源错误，资产范围不完整                                   |
+| **整个计划开工前提** | ⚠️ **3 个 P0 必须修订入档**       | 否则本审批不成立（见第三节）                                                          |
 
 **一句话结论**：产品方向对、S1/S2 工程路径可信；但计划文本把"助手提案 + 系统工件自动审批"写成了"用户设计评审共识"，并且 S3 描述的是旧硬盘工作区里已不存在的 `splash-loader` 与旧版梯度 Logo。**先修订 P0，再按 S1 → S2 →（S3 重写后单独审批）→ S4 执行。**
 
@@ -35,16 +35,16 @@
 
 ## 二、用户意图追溯（对话真源 vs 计划）
 
-| 用户指令（step） | 计划落点 | 判定 |
-| :-- | :-- | :-- |
-| 「我还是喜欢方案4」（350） | D5 / §3.3 / S3（方案 04 淬火金字塔与熔炉鼎方向） | 方向符合；**但 §3.3 的具体路径不是用户看过的方案 04 工件**，见 P0-3 |
-| 「5 个三角型…还是不使用统一的骨架」（387） | D2 / §3.1（5 个独立轮廓） | ✅ 符合 |
-| 「个人助手模式的 icon 不合理」（413） | D4（废弃雷达/天线） | ✅ 符合 |
-| B 夹板头（433）、C 记忆卡片身体（446）、身体更宽更合理（456）、变体 1 Classic BC（468） | D4 / §0.4 / §3.1-icon-4 | 方向符合；**最终轴颈、12 单元宽体比例、时钟简化由助手在 2026-10-07 自审（517）后确定，用户从未复核** |
-| 「高级产品总监…选择单一强调色，还是每个模式一个颜色」（518） | D1（单一强调色 + `--v2-icon-icon-accent`） | **委派成立，但属助手代理裁决，无用户追认**；§0.1「65%+ 日均在线时长」无数据来源（助手自己的 drafting brief 写明 "this is a judgment call, not telemetry data"，checkpoint 539） |
-| 「整体都做，但切换到新工作区…计划保存 docs/plan…对齐文档格式」（518） | D3 / header / S0–S4 | ✅ 符合 |
-| 项目地址 `/home/keer/workspace/aigcfroge`、机械盘弃用（629/733） | header / D3 | ✅ 符合 |
-| 从 `main` 建新分支移动修改，「我需要审批」（768） | D3 / G0 | 分支已建、计划未提交；**审批请求从未获得用户答复**（794 请求，810 结束） |
+| 用户指令（step）                                                                        | 计划落点                                         | 判定                                                                                                                                                                            |
+| :-------------------------------------------------------------------------------------- | :----------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 「我还是喜欢方案4」（350）                                                              | D5 / §3.3 / S3（方案 04 淬火金字塔与熔炉鼎方向） | 方向符合；**但 §3.3 的具体路径不是用户看过的方案 04 工件**，见 P0-3                                                                                                             |
+| 「5 个三角型…还是不使用统一的骨架」（387）                                              | D2 / §3.1（5 个独立轮廓）                        | ✅ 符合                                                                                                                                                                         |
+| 「个人助手模式的 icon 不合理」（413）                                                   | D4（废弃雷达/天线）                              | ✅ 符合                                                                                                                                                                         |
+| B 夹板头（433）、C 记忆卡片身体（446）、身体更宽更合理（456）、变体 1 Classic BC（468） | D4 / §0.4 / §3.1-icon-4                          | 方向符合；**最终轴颈、12 单元宽体比例、时钟简化由助手在 2026-10-07 自审（517）后确定，用户从未复核**                                                                            |
+| 「高级产品总监…选择单一强调色，还是每个模式一个颜色」（518）                            | D1（单一强调色 + `--v2-icon-icon-accent`）       | **委派成立，但属助手代理裁决，无用户追认**；§0.1「65%+ 日均在线时长」无数据来源（助手自己的 drafting brief 写明 "this is a judgment call, not telemetry data"，checkpoint 539） |
+| 「整体都做，但切换到新工作区…计划保存 docs/plan…对齐文档格式」（518）                   | D3 / header / S0–S4                              | ✅ 符合                                                                                                                                                                         |
+| 项目地址 `/home/keer/workspace/aigcfroge`、机械盘弃用（629/733）                        | header / D3                                      | ✅ 符合                                                                                                                                                                         |
+| 从 `main` 建新分支移动修改，「我需要审批」（768）                                       | D3 / G0                                          | 分支已建、计划未提交；**审批请求从未获得用户答复**（794 请求，810 结束）                                                                                                        |
 
 **来源性事实（P0-1 证据）**：会话中 9 条 `SYSTEM` 消息（step 318/336/377/399/407/429/441/454/464）是 Antigravity 的**工件评审策略自动审批**（"The user has automatically approved the artifact through their review policy"），不是用户设计决策。助手在 339/380/402/432/442/455/467 把它转述为「用户已自动审批通过」；而 step 381（20 秒后）用户说「还是看不到 logo」，403 说「你先给我预览一下哦」，768 说「我需要审批」。仓库与工件库中均不存在名为「设计评审共识记录」的文件（全库 grep 只命中了本计划自身）。
 
@@ -86,16 +86,16 @@
 
 ## 四、P1 修订清单（对应切片开工前完成）
 
-| # | 问题 | 证据 / 位置 | 要求 |
-| :-- | :-- | :-- | :-- |
-| P1-1 | §3.1 五图标并非工件原样，且缺描边规格 | 工件为 `sidebar_interactive_preview.html` 的 **24×24、stroke-width 2/2.2/2.5** 线性图标；计划是约 ×2/3 的手动 16px 重绘（chat 圆角改直角、custom 旋钮 6.67→7.5 等）；转换到 20px 渲染时按默认 stroke 1 会比工件视觉细约 32% | 补明确 `stroke-width`/linecap 决策、24→16 推导说明、渲染尺寸（rail 实际 20px，14/16/20 小尺寸）与 14/20px 视觉验证步骤；承认这是 draft spike（checkpoint 539），S1 内产出渲染证据 |
-| P1-2 | Assistant 16px 微缩形态未决 | 工件 `schedule_memory_fusion.html` 变体 3 明确"专为 16/22px 极限微缩…仅保留 2 条条纹与书签"；宽体结构 1 只在 24px 实测；计划在 16 网格保留耳朵+时钟+指针+颈+2 条纹+书签，但 rail 实际 20px | 采用微缩变体或给出 20px 实测证据；R1 的 14px 兜底需升级为必做验证 |
-| P1-3 | §3.2 指标形态自相矛盾 | 计划 218 行允许 `[data-slot="active-indicator"]` **或** `::before`，278/284 行 RED 却断言 slot 元素存在 | 二选一并统一 RED/GREEN；标记必须落在 `div.relative` wrapper 或 `nav` 上，不能传给 `IconButtonV2`（它会在 spread 后覆盖 `data-component`/`data-state`，icon-button-v2.tsx:23,27；titlebar.tsx:950-951 有同类陷阱注释）；补 `aria-hidden` |
-| P1-4 | §3.2 是**新设计**而非工件保真 | 工件为"3px/3.5px 模式专属色 + 10px glow + 12% 柔光 + 1.5s 呼吸"；2px 单一强调色只存在于 2026-10-07 会话记录，无更新后的工件 | 明示 §3.2 为 D1 新设计；记录"收回此前展示的 per-mode/glow/pulse 规格"；移除 `var(--token, fallback)` 与 2px 的硬编码矛盾（计划 96 行 vs 235–238/293 行） |
-| P1-5 | R3 缓解措施错误 | `--v2-text-text-contrast` 在**明暗两种主题都近白**（light=#ffffff，dark=#fafafa，theme.css:22/141；mapping.ts:18/93），不会"亮底自动翻转深色" | 将 R3 改为真实风险并给方案：改用自适应 token（如 `--v2-text-text-base`/`--v2-icon-icon-contrast`）或对 I 柱在浅色背景做对比度实测与描边处理 |
-| P1-6 | 活体 favicon 与品牌文本未覆盖 | `packages/app/index.html:10-13` 与 `favicon.tsx:6-8` 只引用 **`-v3`** 文件；`site.webmanifest` 仍是 `OpenCode` / #080808；`entry.tsx:72` 远程引用 `-v3`；`social-share.png` 仍被 og:image 引用 | S3 favicon 清单补 `-v3` 全套 + 修改 `site.webmanifest` 名称/主题色 + `social-share`；明确静态色值来源（CSS var 无法栅格化，需给出 resolved hex 映射并注明 DESIGN.md:47 第三方约束） |
-| P1-7 | 桌面资产范围不完整，工具链不成立 | `packages/desktop/icons/{dev,beta,prod}` 共 160 个跟踪文件：`icon.icns`、`icon.ico`、`dock.png`、Square*Logo×8、StoreLogo、android/ios；`convert` 6.9.12 **不能写 ICNS**；README 依赖 macOS Image2Icon；仓库无 `app-icon.png`/生成脚本 | S3 桌面范围升级为显式决定：哪些格式本轮交付、`.icns` 与 tiles 如何延期（owner + unlock 登记）；补主源图与可复现生成命令（或登记为债务）；保持 `copy-icons.ts` → `resources/icons` → `dock.png` 链路 |
-| P1-8 | 事实引用与门禁细节漂移 | D2 行号：assistant-nav-tree 实为 88/97（计划 90,99），work-secondary-sidebar 实为 137/143（计划 134,140）；logo.tsx Mark/Splash 实为 8-32/34-61（计划"13-67"）；"实测 5 pass, 893ms" 无本次实跑记录；计划 9 行引用的 `packages/ui/AGENTS.md` 不存在；§5 的 active 判定实际是 `currentMode === item.id` + `pathname !== "/"` 守卫（mode-switcher.tsx:42），不是 pathname 比对；37 主题各含 light/dark，per-mode 色组合应约 370 而非 185；S4 缺 `bun --cwd packages/ui test`；G0 声称 clean 但计划未跟踪 | 逐条更新行号/数字/表述；补 ui 包测试；提交计划后再宣告 G0（或把 G0 状态改为"待提交"）；`bun typecheck` 替代裸 `turbo typecheck` 字样 |
+| #    | 问题                                  | 证据 / 位置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 要求                                                                                                                                                                                                                                    |
+| :--- | :------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1-1 | §3.1 五图标并非工件原样，且缺描边规格 | 工件为 `sidebar_interactive_preview.html` 的 **24×24、stroke-width 2/2.2/2.5** 线性图标；计划是约 ×2/3 的手动 16px 重绘（chat 圆角改直角、custom 旋钮 6.67→7.5 等）；转换到 20px 渲染时按默认 stroke 1 会比工件视觉细约 32%                                                                                                                                                                                                                                                                            | 补明确 `stroke-width`/linecap 决策、24→16 推导说明、渲染尺寸（rail 实际 20px，14/16/20 小尺寸）与 14/20px 视觉验证步骤；承认这是 draft spike（checkpoint 539），S1 内产出渲染证据                                                       |
+| P1-2 | Assistant 16px 微缩形态未决           | 工件 `schedule_memory_fusion.html` 变体 3 明确"专为 16/22px 极限微缩…仅保留 2 条条纹与书签"；宽体结构 1 只在 24px 实测；计划在 16 网格保留耳朵+时钟+指针+颈+2 条纹+书签，但 rail 实际 20px                                                                                                                                                                                                                                                                                                             | 采用微缩变体或给出 20px 实测证据；R1 的 14px 兜底需升级为必做验证                                                                                                                                                                       |
+| P1-3 | §3.2 指标形态自相矛盾                 | 计划 218 行允许 `[data-slot="active-indicator"]` **或** `::before`，278/284 行 RED 却断言 slot 元素存在                                                                                                                                                                                                                                                                                                                                                                                                | 二选一并统一 RED/GREEN；标记必须落在 `div.relative` wrapper 或 `nav` 上，不能传给 `IconButtonV2`（它会在 spread 后覆盖 `data-component`/`data-state`，icon-button-v2.tsx:23,27；titlebar.tsx:950-951 有同类陷阱注释）；补 `aria-hidden` |
+| P1-4 | §3.2 是**新设计**而非工件保真         | 工件为"3px/3.5px 模式专属色 + 10px glow + 12% 柔光 + 1.5s 呼吸"；2px 单一强调色只存在于 2026-10-07 会话记录，无更新后的工件                                                                                                                                                                                                                                                                                                                                                                            | 明示 §3.2 为 D1 新设计；记录"收回此前展示的 per-mode/glow/pulse 规格"；移除 `var(--token, fallback)` 与 2px 的硬编码矛盾（计划 96 行 vs 235–238/293 行）                                                                                |
+| P1-5 | R3 缓解措施错误                       | `--v2-text-text-contrast` 在**明暗两种主题都近白**（light=#ffffff，dark=#fafafa，theme.css:22/141；mapping.ts:18/93），不会"亮底自动翻转深色"                                                                                                                                                                                                                                                                                                                                                          | 将 R3 改为真实风险并给方案：改用自适应 token（如 `--v2-text-text-base`/`--v2-icon-icon-contrast`）或对 I 柱在浅色背景做对比度实测与描边处理                                                                                             |
+| P1-6 | 活体 favicon 与品牌文本未覆盖         | `packages/app/index.html:10-13` 与 `favicon.tsx:6-8` 只引用 **`-v3`** 文件；`site.webmanifest` 仍是 `OpenCode` / #080808；`entry.tsx:72` 远程引用 `-v3`；`social-share.png` 仍被 og:image 引用                                                                                                                                                                                                                                                                                                         | S3 favicon 清单补 `-v3` 全套 + 修改 `site.webmanifest` 名称/主题色 + `social-share`；明确静态色值来源（CSS var 无法栅格化，需给出 resolved hex 映射并注明 DESIGN.md:47 第三方约束）                                                     |
+| P1-7 | 桌面资产范围不完整，工具链不成立      | `packages/desktop/icons/{dev,beta,prod}` 共 160 个跟踪文件：`icon.icns`、`icon.ico`、`dock.png`、Square\*Logo×8、StoreLogo、android/ios；`convert` 6.9.12 **不能写 ICNS**；README 依赖 macOS Image2Icon；仓库无 `app-icon.png`/生成脚本                                                                                                                                                                                                                                                                | S3 桌面范围升级为显式决定：哪些格式本轮交付、`.icns` 与 tiles 如何延期（owner + unlock 登记）；补主源图与可复现生成命令（或登记为债务）；保持 `copy-icons.ts` → `resources/icons` → `dock.png` 链路                                     |
+| P1-8 | 事实引用与门禁细节漂移                | D2 行号：assistant-nav-tree 实为 88/97（计划 90,99），work-secondary-sidebar 实为 137/143（计划 134,140）；logo.tsx Mark/Splash 实为 8-32/34-61（计划"13-67"）；"实测 5 pass, 893ms" 无本次实跑记录；计划 9 行引用的 `packages/ui/AGENTS.md` 不存在；§5 的 active 判定实际是 `currentMode === item.id` + `pathname !== "/"` 守卫（mode-switcher.tsx:42），不是 pathname 比对；37 主题各含 light/dark，per-mode 色组合应约 370 而非 185；S4 缺 `bun --cwd packages/ui test`；G0 声称 clean 但计划未跟踪 | 逐条更新行号/数字/表述；补 ui 包测试；提交计划后再宣告 G0（或把 G0 状态改为"待提交"）；`bun typecheck` 替代裸 `turbo typecheck` 字样                                                                                                    |
 
 ---
 
@@ -105,25 +105,25 @@
 2. **S1/S2 可实现**：`mode-switcher.tsx:46-54` 现状、`wrapper div.relative`（:45）、`aria-pressed`（:52）与 e2e `global-shell.spec.ts:135-177` 均与计划相符；S1 RED 真实且只能由生产代码满足（未知键会回退 `plus`，icon.tsx:126；注意 typecheck 抓不到漏注册，必须跑 e2e）；S2 新属性为加法式，零位移可行。计划中的 e2e 命令形式已核对为有效（Playwright 1.59.1 将参数按正则匹配绝对路径；更推荐包内相对路径形式）。
 3. **Token / 主题 / 规范**：`--v2-icon-icon-accent`（theme.css:31/149）、`--v2-border-border-focus`、`--v2-avatar-bg-blue/cyan`、`--v2-text-text-contrast` 均存在；37 套主题核实；`DESIGN.md:94` 无自动对比度门禁属实；同名 CSS + `data-component/data-slot/data-state` 是既有约定（titlebar.css 等先例）；`docs/testing.md §10` 支持 S1/S2 的 DOM 行为断言。
 4. **资产与工具**：`packages/app/public/*` favicon 为 symlink（git mode 120000）属实；`convert` 可用；桌面 `icons/{dev,beta,prod}`、`copy-icons.ts`、`dock.png`/`app.dock.setIcon` 链路属实；分支命名与提交类型合规。
-5. **前次审批（2026-10-07 step 517）闭环**：B1（mode-* 波及 6 文件）→ D2 已闭环；B2（轴颈几何错误）→ `M8 7.5V8.5` 已闭环；B3（硬编码色）→ 部分闭环（token 化，但 fallback/静态资产仍违）；B4（品牌多来源）→ 部分闭环且**因基线漂移而重新打开**（splash-loader/favicon -v3/字标/桌面）；M1 呼吸脉冲→已登记 §7；M2 ⌘ 快捷键→已删除；M3 视觉验证缺口→部分（S1/S2 有 DOM 断言，但无截图基线/S3 无 RED）。
+5. **前次审批（2026-10-07 step 517）闭环**：B1（mode-\* 波及 6 文件）→ D2 已闭环；B2（轴颈几何错误）→ `M8 7.5V8.5` 已闭环；B3（硬编码色）→ 部分闭环（token 化，但 fallback/静态资产仍违）；B4（品牌多来源）→ 部分闭环且**因基线漂移而重新打开**（splash-loader/favicon -v3/字标/桌面）；M1 呼吸脉冲→已登记 §7；M2 ⌘ 快捷键→已删除；M3 视觉验证缺口→部分（S1/S2 有 DOM 断言，但无截图基线/S3 无 RED）。
 
 ---
 
 ## 六、设计资产保真度（摘要）
 
-| 项目 | 结论 | 关键差距 |
-| :-- | :-- | :-- |
+| 项目              | 结论                                                                                 | 关键差距                                                                                                                                                                                     |
+| :---------------- | :----------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | D4 Assistant 图标 | **NEAR-MATCH** 最终工件 `wider_v1_pedestal.svg`（结构 1 轴颈台座 · 首推，13:39:43Z） | 宽体 body 归一化后与计划完全一致（2/8.5/12/6）；头部压扁 0.86u、耳朵/轴颈由实心圆角矩形改为 1px 描边；"变体1 智库手账 Classic BC 宽体修正版"是计划自造复合名，工件无此标题；bc_v1 窄体不匹配 |
-| §3.1 五图标 | **NEAR-MATCH**（手动 16px 重绘） | 源为 24×24 线性图标；chat 直角化、prompt 角度、custom 旋钮位移、描边未继承；工件无 16 viewBox 矢量 |
-| §3.2 激活光轨 | **新设计（非工件）** | 工件是 3px/3.5px 模式色 + glow + tint + pulse；2px 单一强调色只在会话记录中，需按 P1-4 重标 |
-| §3.3 Logo | **MISMATCH / 来源错误（P0-3）** | 计划路径 = 旧梯度 logo.tsx/favicon.svg；方案 04 工件是 100 网格多边形 + 白点；fallback 色既非工件也非 token |
-| 多尺寸形态 | 工件有明确的小尺寸简化（16/32/48 去掉 C 底座、G 简化）；计划对所有尺寸用同一组 path | S3 需补尺寸分级规则 |
+| §3.1 五图标       | **NEAR-MATCH**（手动 16px 重绘）                                                     | 源为 24×24 线性图标；chat 直角化、prompt 角度、custom 旋钮位移、描边未继承；工件无 16 viewBox 矢量                                                                                           |
+| §3.2 激活光轨     | **新设计（非工件）**                                                                 | 工件是 3px/3.5px 模式色 + glow + tint + pulse；2px 单一强调色只在会话记录中，需按 P1-4 重标                                                                                                  |
+| §3.3 Logo         | **MISMATCH / 来源错误（P0-3）**                                                      | 计划路径 = 旧梯度 logo.tsx/favicon.svg；方案 04 工件是 100 网格多边形 + 白点；fallback 色既非工件也非 token                                                                                  |
+| 多尺寸形态        | 工件有明确的小尺寸简化（16/32/48 去掉 C 底座、G 简化）；计划对所有尺寸用同一组 path  | S3 需补尺寸分级规则                                                                                                                                                                          |
 
 ---
 
 ## 七、门禁与证据（本次审批已执行 / 未执行）
 
-**已执行（只读）**：`git rev-parse HEAD origin/main`（审批时均 6b72b057b；迁移后均 43997011e）、`git status --short`、`git log/show`、`diff --no-index`（两版计划）、`grep` 精确计数（mode-* 21/11、token、SplashLoader、favicon、icns 等）、逐文件读取（mode.tsx/mode.test.ts/mode-switcher.tsx/icon.tsx/logo.tsx/favicon.tsx/theme.css/global-shell.spec.ts 等）、`node -e` 读 package scripts、Playwright CLI 参数语义核对、`command -v convert` 与 ImageMagick 格式表、工件库 44 个内联 SVG + 30 个独立 SVG 的路径/颜色精确比对、对话 814 条记录的用户指令与审批状态取证。
+**已执行（只读）**：`git rev-parse HEAD origin/main`（审批时均 6b72b057b；迁移后均 43997011e）、`git status --short`、`git log/show`、`diff --no-index`（两版计划）、`grep` 精确计数（mode-\* 21/11、token、SplashLoader、favicon、icns 等）、逐文件读取（mode.tsx/mode.test.ts/mode-switcher.tsx/icon.tsx/logo.tsx/favicon.tsx/theme.css/global-shell.spec.ts 等）、`node -e` 读 package scripts、Playwright CLI 参数语义核对、`command -v convert` 与 ImageMagick 格式表、工件库 44 个内联 SVG + 30 个独立 SVG 的路径/颜色精确比对、对话 814 条记录的用户指令与审批状态取证。
 
 **未执行（UNVERIFIED，按计划应在各切片内补证）**：typecheck / 单测 / e2e / 构建 / 资产生成 / 像素渲染对比 / 浅色主题实际对比度 / `/mode/assistant` mock fixture 兼容性 / 旧 commit `06872530f`（当前 clone 不存在，只能经 transcript 取证）。
 
@@ -173,33 +173,31 @@
 3. rail 图标统一 stroke 1.5 + 14px Assistant 微缩；
 4. 确认收回 per-mode 3.5px/12% 柔光/呼吸脉冲，采用 2px 单一强调色。
 
-
-
 ---
 
 ## 复核与修复记录（2026-10-20，独立工件复核后）
 
 独立复核（task-8）对照修订计划与工件后给出结论：Logo 几何 PASS、五图标 PASS（微缩 PARTIAL）、Assistant PASS、指示器 PASS（DOM 契约 PARTIAL）、来源 PASS、Token 亮色 PASS / **暗色 FAIL**、Mark 尺寸规则 PARTIAL。Lead 已按复核结果修复并复验：
 
-| 复核发现 | 修复 | 复验 |
-| :--- | :--- | :--- |
+| 复核发现                                                                                                                                                      | 修复                                                                                                                                                                                                                           | 复验                                                                             |
+| :------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------- |
 | P1-1 预览暗色 token 抄了 theme.css 中**注释掉的 prefers-color-scheme** 副本，8 个值与生产不符（如 bg-base #242424→应为 #161616、avatar blue #3250df→#263fa9） | 预览 `[data-theme="dark"]` 全部改为 active `[data-color-scheme="dark"]` 值（bg-base #161616 / bg-deep #080808 / layer-01 #242424 / layer-02 #2e2e2e / text #fafafa / contrast #ffffff / avatar #263fa9·#005a6e）；Token 表同步 | Playwright 读取 computedStyle：9 个 token 全部匹配 active dark；0 console errors |
-| P1-2 计划 §3.3 的 32–48 标准规则与 §0.5 的 40–56 完整规则冲突；预览缺 40/56 行 | 计划改为：应用内 Mark（40/56px）固定完整形态；16–48px 简化仅用于静态资产母版（16/20/24 紧凑、32/48 标准、100/160 完整）；预览新增 56/40 应用内 Mark 与 64×80 / 48×60 Splash 实渲行，并修正"160px 用于 splash"的误述 | 预览新增行渲染正常；计划 §3.3 与 §0.5 一致 |
-| P2 微缩符号与计划不一致（r1.4/0.5/10.6H8 vs 1.5/0.55/10.8H7.6） | 预览对齐计划值 | DOM 断言通过 |
-| P2 外壳未体现 §3.2 data-* 契约 | nav 增加 `data-component="mode-switcher"`，按钮增加 `data-slot="rail-item"`/`data-mode`/`data-state`；JS 同步切换；caption 注明真实 IconButtonV2 需 wrapper 承载 | 切换后 `data-state` 互斥迁移，指示器 opacity=1 |
-| P2 "用户只确认了"表述过强 | 改为"用户指定了方向（step 433/446/456）" | — |
-| P2 缺 Splash 预览 | 品牌章节新增 Splash 实渲尺寸（64×80 / 48×60） | 已渲染 |
+| P1-2 计划 §3.3 的 32–48 标准规则与 §0.5 的 40–56 完整规则冲突；预览缺 40/56 行                                                                                | 计划改为：应用内 Mark（40/56px）固定完整形态；16–48px 简化仅用于静态资产母版（16/20/24 紧凑、32/48 标准、100/160 完整）；预览新增 56/40 应用内 Mark 与 64×80 / 48×60 Splash 实渲行，并修正"160px 用于 splash"的误述            | 预览新增行渲染正常；计划 §3.3 与 §0.5 一致                                       |
+| P2 微缩符号与计划不一致（r1.4/0.5/10.6H8 vs 1.5/0.55/10.8H7.6）                                                                                               | 预览对齐计划值                                                                                                                                                                                                                 | DOM 断言通过                                                                     |
+| P2 外壳未体现 §3.2 data-\* 契约                                                                                                                               | nav 增加 `data-component="mode-switcher"`，按钮增加 `data-slot="rail-item"`/`data-mode`/`data-state`；JS 同步切换；caption 注明真实 IconButtonV2 需 wrapper 承载                                                               | 切换后 `data-state` 互斥迁移，指示器 opacity=1                                   |
+| P2 "用户只确认了"表述过强                                                                                                                                     | 改为"用户指定了方向（step 433/446/456）"                                                                                                                                                                                       | —                                                                                |
+| P2 缺 Splash 预览                                                                                                                                             | 品牌章节新增 Splash 实渲尺寸（64×80 / 48×60）                                                                                                                                                                                  | 已渲染                                                                           |
 
 **⑥ 2026-10-20 视觉反馈修订（rail-chat）**
 
 用户反馈：旧版 rail-chat 使用 `>_` 提示符，"完全看不到是 chat 的功能，感觉是终端"。已改为**对话气泡 + 三点省略号**（新设计，非工件原样），并在预览中实测三版候选：
 
-| 候选 | 结果 |
-| :--- | :--- |
-| 旧版 bubble + `>_` | 废弃（终端语义） |
-| **A 气泡 + 三点** | **采用**：20/16/14px 均可辨识，与 coding/work/custom 轮廓差异明确 |
-| B 双气泡 + 三点 | 不采用：20px 下两气泡重叠发糊，14px 不可辨 |
-| C 气泡 + 消息线 | 不采用：更像"批注/备注"，对话语义弱于三点 |
+| 候选               | 结果                                                              |
+| :----------------- | :---------------------------------------------------------------- |
+| 旧版 bubble + `>_` | 废弃（终端语义）                                                  |
+| **A 气泡 + 三点**  | **采用**：20/16/14px 均可辨识，与 coding/work/custom 轮廓差异明确 |
+| B 双气泡 + 三点    | 不采用：20px 下两气泡重叠发糊，14px 不可辨                        |
+| C 气泡 + 消息线    | 不采用：更像"批注/备注"，对话语义弱于三点                         |
 
 - 计划 §3.1 已同步新几何，并注明"rail-chat 为用户反馈后的新设计，其余四枚仍为工件 16px 适配"。
 - 预览 `#rail-chat`、§03 说明、真实外壳导轨均已更新；截图 `10-chat-icon-options.png`。
@@ -214,25 +212,22 @@
 - 复验：Playwright 读取 computedStyle：dark `--v2-text-text-base=#fafafa`、light `#161616`；亮/暗品牌章节截图确认顶点可见（`02-brand-dark.png` / `03-brand-light.png`）；0 console errors。
 - 静态资产注意（S3）：favicon.svg 可用内嵌 `prefers-color-scheme` 媒体查询切换顶点色；栅格资产需固定色值（建议透明底 + 深色点，或在生成脚本中输出亮/暗两套，列入 S3 资审）。
 
-
-
 **⑧ 视觉确认回执（2026-10-20，用户勾选 4/4）**
 
 用户提交审批预览截图：确认清单 **4 / 4 已确认**，并选择 **C 底座候选 2（55% 混白）**。
 
-| 确认项 | 结论 |
-| :--- | :--- |
-| C 底座 | **候选 2**：`color-mix(in srgb, var(--v2-avatar-bg-cyan) 55%, var(--v2-text-text-contrast))`；浅色约 #73c5d8、深色约 #73a4af（sRGB 55% 混合，随主题 token 变化），均比实色低一个视觉层级 |
-| 小尺寸 Mark | 16/20/24 紧凑（A+G）、32/48 标准（A+G+顶点）、100/160 完整（含 C）；仅用于资产母版 |
-| rail 图标 | 统一 stroke 1.5；14px Assistant 切换微缩变体 |
-| 激活态 | 收回 per-mode 3.5px / 12% 柔光 / 呼吸脉冲，采用 2px 单一强调色 |
+| 确认项      | 结论                                                                                                                                                                                     |
+| :---------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C 底座      | **候选 2**：`color-mix(in srgb, var(--v2-avatar-bg-cyan) 55%, var(--v2-text-text-contrast))`；浅色约 #73c5d8、深色约 #73a4af（sRGB 55% 混合，随主题 token 变化），均比实色低一个视觉层级 |
+| 小尺寸 Mark | 16/20/24 紧凑（A+G）、32/48 标准（A+G+顶点）、100/160 完整（含 C）；仅用于资产母版                                                                                                       |
+| rail 图标   | 统一 stroke 1.5；14px Assistant 切换微缩变体                                                                                                                                             |
+| 激活态      | 收回 per-mode 3.5px / 12% 柔光 / 呼吸脉冲，采用 2px 单一强调色                                                                                                                           |
 
 同日已确认：rail-chat 采用「气泡 + 三点」；Mark 顶点改用自适应前景。
 
 - 计划头部状态更新为「视觉确认完成（2026-10-20）— S1/S2 可开工；S3 退回修订后单独审批」。
 - 预览页已标记确认状态（4/4、候选 2 已采纳）；截图 `11-c-base-confirmed.png`、`12-checklist-confirmed.png`。
 - **S1/S2 的开工条件现已全部满足**；剩余步骤：提交 `docs(plan)`（计划 + 本记录 + 预览 + 截图）→ S1 RED。
-
 
 ---
 
@@ -243,7 +238,7 @@
 - 分支重建：删除旧 `brand-mode-icons`（原指向 `6b72b057b`），从 `43997011e` 重建并切换；计划、审批记录、预览与截图随工作树迁移（未跟踪状态保留，随后提交）。
 - 文档回写：计划「实施基线」与 §0.2/§0.3/§1.1 的 commit 引用更新为 `43997011e`；旧 plan `2026-10-07` 现已在 main 入仓，对照路径更新；预览中的基线标签同步。
 - 结论：**基线迁移不改变任何已审批事实与视觉方案**；S1/S2 开工条件继续成立。
-**当前预览状态**：单文件 `docs/research/brand-mode-icons/brand-mode-icons-preview-2026-10-20.html`；Playwright 实测 0 console errors；暗/亮主题 token 与采集值一致；rail 64px / 按钮 40px / 图标 20px / 激活条 2×20px；主题切换、模式切换、确认清单联动均正常。截图更新于 `docs/research/brand-mode-icons/screenshots/`。
+  **当前预览状态**：单文件 `docs/research/brand-mode-icons/brand-mode-icons-preview-2026-10-20.html`；Playwright 实测 0 console errors；暗/亮主题 token 与采集值一致；rail 64px / 按钮 40px / 图标 20px / 激活条 2×20px；主题切换、模式切换、确认清单联动均正常。截图更新于 `docs/research/brand-mode-icons/screenshots/`。
 
 **仍未验证**：像素级对比度实测、真实组件（IconButtonV2/Solid）接入后的 DOM 行为、favicon/桌面资产实际生成——分别留待 S1/S2/S3 的 RED/GREEN 与视觉验收。
 
@@ -260,3 +255,17 @@
 本回执覆盖先前 ⑧ 的「stroke 1.5」一项：五个 `rail-*` 与 `rail-assistant-micro` 统一显式 `stroke-width="1"`；20px 下描边为 1.25 CSS px。所有几何坐标、实心细节、微缩选择规则、S2 指示条规格和 S3 冻结状态保持原批准内容。
 
 证据：[描边对比](brand-mode-icons-s1-s2-2026-10-20/screenshots/stroke-comparison.png)；[实施报告](brand-mode-icons-s1-s2-2026-10-20/README.md)。首次审批 HTML/截图保持历史原样，当前描边以本回执及实施计划修订节为准。
+
+## ⑪ S1/S2 验收及 S3 实施授权（2026-10-20）
+
+用户在本轮明确：「注意，我们的S1和S2没有问题，可以继续剩下的任务，我看桌面图标和DOCK图标都没有修改呢，以及新建会话的背景还有OPENCODE的内容。」
+
+该直接指令确认 S1/S2 验收，并授权实施修订计划 S3。此前冻结作为历史审批状态保留，本轮不再适用。采用已确认方案 04 与 C 底座候选 2；不改 rail 描边 1.0 和 S2 规格。
+
+新增定位证据：`NewSessionDesignView` 调用 `WordmarkV2`，OpenCode 是 SVG 八个字母路径。用现有 `Logo` 复用替换；Mark/Splash、Web、桌面/Dock 统一生成。Pillow 本机编码器补齐 ICNS；mobile 和跨平台安装包验收继续登记。
+
+## ⑫ 新建会话字标修订（2026-10-20）
+
+用户反馈 AI 后的 GC 不能分开，允许将 GC 缩小并移到 AI 右下角；同时指出最后一位看起来是 F，应为 E。按该直接授权修改现有 `Logo`：GC 缩放 0.6，紧贴 AI 右侧并与底线对齐；E 补底横。`WordmarkV2` 和社交分享图继续复用同一字标；该反馈覆盖原「Logo 不改几何」限制。
+
+用户还明确同意把系统 Dock 固定的 OpenCode 入口替换为当前 AIGCFORGE 开发版。已创建用户级 launcher 和桌面快捷方式，系统原 OpenCode 安装保留；Dock 固定列表第 10 位指向新 launcher。

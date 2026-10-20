@@ -1,0 +1,14 @@
+$ bun test --conditions=browser --preload ./happydom.ts src/context/mode.test.ts
+bun test v1.3.14 (0d9b296a)
+
+src/context/mode.test.ts:
+(pass) product mode > accepts only built-in modes [0.20ms]
+(pass) product mode > keeps every navigation and presentation field in one registry [0.40ms]
+(pass) product mode > binds chat/work/coding drafts to meta and assistant drafts to assistant-orchestrator (2026-08-11 + plan §3.3) [0.14ms]
+(pass) product mode > the definitions and the schema mode union cover each other [8.21ms]
+(pass) product mode > custom has no draft path [0.19ms]
+
+ 5 pass
+ 0 fail
+ 53 expect() calls
+Ran 5 tests across 1 file. [2.33s]
