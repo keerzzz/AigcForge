@@ -3,977 +3,398 @@
   "assets": [
     {
       "path": "packages/desktop/icons/beta/128x128.png",
-      "size": [
-        128,
-        128
-      ],
+      "size": [128, 128],
       "sha256": "82cef7903e8f088cc1b20dc0414d718298dceb8ca93b40c5c1bb84b80ca03fdb",
-      "alpha_bbox": [
-        20,
-        12,
-        108,
-        112
-      ]
+      "alpha_bbox": [20, 12, 108, 112]
     },
     {
       "path": "packages/desktop/icons/beta/128x128@2x.png",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "4c69546575930ea0689fae47bd33f2c69e782a26b1c59103f5108577c4d13d17",
-      "alpha_bbox": [
-        40,
-        25,
-        216,
-        223
-      ]
+      "alpha_bbox": [40, 25, 216, 223]
     },
     {
       "path": "packages/desktop/icons/beta/32x32.png",
-      "size": [
-        32,
-        32
-      ],
+      "size": [32, 32],
       "sha256": "6ccab627908872850f6baa4b7b37bc5a6bbc904666146284cd1983d5b6454154",
-      "alpha_bbox": [
-        4,
-        2,
-        28,
-        25
-      ]
+      "alpha_bbox": [4, 2, 28, 25]
     },
     {
       "path": "packages/desktop/icons/beta/64x64.png",
-      "size": [
-        64,
-        64
-      ],
+      "size": [64, 64],
       "sha256": "ee5cccab70a19e598911ae1b8f392721e51e0520dd7812a1b1f56bd51543f49e",
-      "alpha_bbox": [
-        10,
-        6,
-        55,
-        56
-      ]
+      "alpha_bbox": [10, 6, 55, 56]
     },
     {
       "path": "packages/desktop/icons/beta/Square107x107Logo.png",
-      "size": [
-        107,
-        107
-      ],
+      "size": [107, 107],
       "sha256": "a1bd64cd09808d33fd01471aa642b0b107fa5302ff94090eaf4927d131db4dd0",
-      "alpha_bbox": [
-        16,
-        10,
-        91,
-        94
-      ]
+      "alpha_bbox": [16, 10, 91, 94]
     },
     {
       "path": "packages/desktop/icons/beta/Square142x142Logo.png",
-      "size": [
-        142,
-        142
-      ],
+      "size": [142, 142],
       "sha256": "db42da51fb89b38602960500a3912adbac335920f78e1872ee0b626561bd8409",
-      "alpha_bbox": [
-        22,
-        13,
-        120,
-        124
-      ]
+      "alpha_bbox": [22, 13, 120, 124]
     },
     {
       "path": "packages/desktop/icons/beta/Square150x150Logo.png",
-      "size": [
-        150,
-        150
-      ],
+      "size": [150, 150],
       "sha256": "3c91ce96e93e34c684b7cc70bdb1d364159c2a4ec58e058e6acdb9cfab7d7d6d",
-      "alpha_bbox": [
-        23,
-        14,
-        127,
-        131
-      ]
+      "alpha_bbox": [23, 14, 127, 131]
     },
     {
       "path": "packages/desktop/icons/beta/Square284x284Logo.png",
-      "size": [
-        284,
-        284
-      ],
+      "size": [284, 284],
       "sha256": "1207462516165ca2902b7c319780c8c8521324bbc0f08f5dcd201c997b351674",
-      "alpha_bbox": [
-        45,
-        28,
-        240,
-        247
-      ]
+      "alpha_bbox": [45, 28, 240, 247]
     },
     {
       "path": "packages/desktop/icons/beta/Square30x30Logo.png",
-      "size": [
-        30,
-        30
-      ],
+      "size": [30, 30],
       "sha256": "8268ef72b26b241e90fe39f671cb74e78e754177ea544599ad9aa2e7a36d7653",
-      "alpha_bbox": [
-        4,
-        2,
-        26,
-        23
-      ]
+      "alpha_bbox": [4, 2, 26, 23]
     },
     {
       "path": "packages/desktop/icons/beta/Square310x310Logo.png",
-      "size": [
-        310,
-        310
-      ],
+      "size": [310, 310],
       "sha256": "7918eac1d02e50e8e2d2be5494af1bf16f99a1d72be98aa10ef7904e912d32e6",
-      "alpha_bbox": [
-        49,
-        30,
-        261,
-        269
-      ]
+      "alpha_bbox": [49, 30, 261, 269]
     },
     {
       "path": "packages/desktop/icons/beta/Square44x44Logo.png",
-      "size": [
-        44,
-        44
-      ],
+      "size": [44, 44],
       "sha256": "972b20791fae3d6b6b263566a060f0e3d9e5b4eca776c9e5125f5888fba0f8fc",
-      "alpha_bbox": [
-        6,
-        4,
-        38,
-        34
-      ]
+      "alpha_bbox": [6, 4, 38, 34]
     },
     {
       "path": "packages/desktop/icons/beta/Square71x71Logo.png",
-      "size": [
-        71,
-        71
-      ],
+      "size": [71, 71],
       "sha256": "50bebc5907ee8fa944d69798d447a4b84c06af0d4e3238f6fb29ff60058156da",
-      "alpha_bbox": [
-        11,
-        6,
-        61,
-        62
-      ]
+      "alpha_bbox": [11, 6, 61, 62]
     },
     {
       "path": "packages/desktop/icons/beta/Square89x89Logo.png",
-      "size": [
-        89,
-        89
-      ],
+      "size": [89, 89],
       "sha256": "e950e552817cd1165b4032b132d5d6b256beb7793383ee8d6ed970bd9e96efc0",
-      "alpha_bbox": [
-        14,
-        8,
-        76,
-        78
-      ]
+      "alpha_bbox": [14, 8, 76, 78]
     },
     {
       "path": "packages/desktop/icons/beta/StoreLogo.png",
-      "size": [
-        50,
-        50
-      ],
+      "size": [50, 50],
       "sha256": "6703ae6be2256e42f0598a4b3d94722a1bde6485ae4a239e51045ffc9c5fbe88",
-      "alpha_bbox": [
-        7,
-        4,
-        43,
-        44
-      ]
+      "alpha_bbox": [7, 4, 43, 44]
     },
     {
       "path": "packages/desktop/icons/beta/dock.png",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "4c69546575930ea0689fae47bd33f2c69e782a26b1c59103f5108577c4d13d17",
-      "alpha_bbox": [
-        40,
-        25,
-        216,
-        223
-      ]
+      "alpha_bbox": [40, 25, 216, 223]
     },
     {
       "path": "packages/desktop/icons/beta/icon.icns",
-      "size": [
-        1024,
-        1024
-      ],
+      "size": [1024, 1024],
       "sha256": "82889b579000c1675976b3d596a2dbe1a414a4c17feaa11ec39f798ce3113c7f",
       "frames": [
-        [
-          512,
-          512,
-          2
-        ],
-        [
-          512,
-          512,
-          1
-        ],
-        [
-          256,
-          256,
-          2
-        ],
-        [
-          256,
-          256,
-          1
-        ],
-        [
-          128,
-          128,
-          2
-        ],
-        [
-          128,
-          128,
-          1
-        ],
-        [
-          32,
-          32,
-          2
-        ],
-        [
-          16,
-          16,
-          2
-        ]
+        [512, 512, 2],
+        [512, 512, 1],
+        [256, 256, 2],
+        [256, 256, 1],
+        [128, 128, 2],
+        [128, 128, 1],
+        [32, 32, 2],
+        [16, 16, 2]
       ],
       "dock_pixel_match": true
     },
     {
       "path": "packages/desktop/icons/beta/icon.ico",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "28771ed0665e457e2abe436f0226c6dc9c146bfd9c9653bbadf0fd5a94488b89",
       "frames": [
-        [
-          16,
-          16
-        ],
-        [
-          20,
-          20
-        ],
-        [
-          24,
-          24
-        ],
-        [
-          32,
-          32
-        ],
-        [
-          48,
-          48
-        ],
-        [
-          64,
-          64
-        ],
-        [
-          128,
-          128
-        ],
-        [
-          256,
-          256
-        ]
+        [16, 16],
+        [20, 20],
+        [24, 24],
+        [32, 32],
+        [48, 48],
+        [64, 64],
+        [128, 128],
+        [256, 256]
       ]
     },
     {
       "path": "packages/desktop/icons/beta/icon.png",
-      "size": [
-        512,
-        512
-      ],
+      "size": [512, 512],
       "sha256": "ec2ab89cfe3a2b706e35e268835f5ed42a365b4a03204cdd504cbc80b5310121",
-      "alpha_bbox": [
-        81,
-        50,
-        431,
-        444
-      ]
+      "alpha_bbox": [81, 50, 431, 444]
     },
     {
       "path": "packages/desktop/icons/dev/128x128.png",
-      "size": [
-        128,
-        128
-      ],
+      "size": [128, 128],
       "sha256": "82cef7903e8f088cc1b20dc0414d718298dceb8ca93b40c5c1bb84b80ca03fdb",
-      "alpha_bbox": [
-        20,
-        12,
-        108,
-        112
-      ]
+      "alpha_bbox": [20, 12, 108, 112]
     },
     {
       "path": "packages/desktop/icons/dev/128x128@2x.png",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "4c69546575930ea0689fae47bd33f2c69e782a26b1c59103f5108577c4d13d17",
-      "alpha_bbox": [
-        40,
-        25,
-        216,
-        223
-      ]
+      "alpha_bbox": [40, 25, 216, 223]
     },
     {
       "path": "packages/desktop/icons/dev/32x32.png",
-      "size": [
-        32,
-        32
-      ],
+      "size": [32, 32],
       "sha256": "6ccab627908872850f6baa4b7b37bc5a6bbc904666146284cd1983d5b6454154",
-      "alpha_bbox": [
-        4,
-        2,
-        28,
-        25
-      ]
+      "alpha_bbox": [4, 2, 28, 25]
     },
     {
       "path": "packages/desktop/icons/dev/64x64.png",
-      "size": [
-        64,
-        64
-      ],
+      "size": [64, 64],
       "sha256": "ee5cccab70a19e598911ae1b8f392721e51e0520dd7812a1b1f56bd51543f49e",
-      "alpha_bbox": [
-        10,
-        6,
-        55,
-        56
-      ]
+      "alpha_bbox": [10, 6, 55, 56]
     },
     {
       "path": "packages/desktop/icons/dev/Square107x107Logo.png",
-      "size": [
-        107,
-        107
-      ],
+      "size": [107, 107],
       "sha256": "a1bd64cd09808d33fd01471aa642b0b107fa5302ff94090eaf4927d131db4dd0",
-      "alpha_bbox": [
-        16,
-        10,
-        91,
-        94
-      ]
+      "alpha_bbox": [16, 10, 91, 94]
     },
     {
       "path": "packages/desktop/icons/dev/Square142x142Logo.png",
-      "size": [
-        142,
-        142
-      ],
+      "size": [142, 142],
       "sha256": "db42da51fb89b38602960500a3912adbac335920f78e1872ee0b626561bd8409",
-      "alpha_bbox": [
-        22,
-        13,
-        120,
-        124
-      ]
+      "alpha_bbox": [22, 13, 120, 124]
     },
     {
       "path": "packages/desktop/icons/dev/Square150x150Logo.png",
-      "size": [
-        150,
-        150
-      ],
+      "size": [150, 150],
       "sha256": "3c91ce96e93e34c684b7cc70bdb1d364159c2a4ec58e058e6acdb9cfab7d7d6d",
-      "alpha_bbox": [
-        23,
-        14,
-        127,
-        131
-      ]
+      "alpha_bbox": [23, 14, 127, 131]
     },
     {
       "path": "packages/desktop/icons/dev/Square284x284Logo.png",
-      "size": [
-        284,
-        284
-      ],
+      "size": [284, 284],
       "sha256": "1207462516165ca2902b7c319780c8c8521324bbc0f08f5dcd201c997b351674",
-      "alpha_bbox": [
-        45,
-        28,
-        240,
-        247
-      ]
+      "alpha_bbox": [45, 28, 240, 247]
     },
     {
       "path": "packages/desktop/icons/dev/Square30x30Logo.png",
-      "size": [
-        30,
-        30
-      ],
+      "size": [30, 30],
       "sha256": "8268ef72b26b241e90fe39f671cb74e78e754177ea544599ad9aa2e7a36d7653",
-      "alpha_bbox": [
-        4,
-        2,
-        26,
-        23
-      ]
+      "alpha_bbox": [4, 2, 26, 23]
     },
     {
       "path": "packages/desktop/icons/dev/Square310x310Logo.png",
-      "size": [
-        310,
-        310
-      ],
+      "size": [310, 310],
       "sha256": "7918eac1d02e50e8e2d2be5494af1bf16f99a1d72be98aa10ef7904e912d32e6",
-      "alpha_bbox": [
-        49,
-        30,
-        261,
-        269
-      ]
+      "alpha_bbox": [49, 30, 261, 269]
     },
     {
       "path": "packages/desktop/icons/dev/Square44x44Logo.png",
-      "size": [
-        44,
-        44
-      ],
+      "size": [44, 44],
       "sha256": "972b20791fae3d6b6b263566a060f0e3d9e5b4eca776c9e5125f5888fba0f8fc",
-      "alpha_bbox": [
-        6,
-        4,
-        38,
-        34
-      ]
+      "alpha_bbox": [6, 4, 38, 34]
     },
     {
       "path": "packages/desktop/icons/dev/Square71x71Logo.png",
-      "size": [
-        71,
-        71
-      ],
+      "size": [71, 71],
       "sha256": "50bebc5907ee8fa944d69798d447a4b84c06af0d4e3238f6fb29ff60058156da",
-      "alpha_bbox": [
-        11,
-        6,
-        61,
-        62
-      ]
+      "alpha_bbox": [11, 6, 61, 62]
     },
     {
       "path": "packages/desktop/icons/dev/Square89x89Logo.png",
-      "size": [
-        89,
-        89
-      ],
+      "size": [89, 89],
       "sha256": "e950e552817cd1165b4032b132d5d6b256beb7793383ee8d6ed970bd9e96efc0",
-      "alpha_bbox": [
-        14,
-        8,
-        76,
-        78
-      ]
+      "alpha_bbox": [14, 8, 76, 78]
     },
     {
       "path": "packages/desktop/icons/dev/StoreLogo.png",
-      "size": [
-        50,
-        50
-      ],
+      "size": [50, 50],
       "sha256": "6703ae6be2256e42f0598a4b3d94722a1bde6485ae4a239e51045ffc9c5fbe88",
-      "alpha_bbox": [
-        7,
-        4,
-        43,
-        44
-      ]
+      "alpha_bbox": [7, 4, 43, 44]
     },
     {
       "path": "packages/desktop/icons/dev/dock.png",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "4c69546575930ea0689fae47bd33f2c69e782a26b1c59103f5108577c4d13d17",
-      "alpha_bbox": [
-        40,
-        25,
-        216,
-        223
-      ]
+      "alpha_bbox": [40, 25, 216, 223]
     },
     {
       "path": "packages/desktop/icons/dev/icon.icns",
-      "size": [
-        1024,
-        1024
-      ],
+      "size": [1024, 1024],
       "sha256": "82889b579000c1675976b3d596a2dbe1a414a4c17feaa11ec39f798ce3113c7f",
       "frames": [
-        [
-          512,
-          512,
-          2
-        ],
-        [
-          512,
-          512,
-          1
-        ],
-        [
-          256,
-          256,
-          2
-        ],
-        [
-          256,
-          256,
-          1
-        ],
-        [
-          128,
-          128,
-          2
-        ],
-        [
-          128,
-          128,
-          1
-        ],
-        [
-          32,
-          32,
-          2
-        ],
-        [
-          16,
-          16,
-          2
-        ]
+        [512, 512, 2],
+        [512, 512, 1],
+        [256, 256, 2],
+        [256, 256, 1],
+        [128, 128, 2],
+        [128, 128, 1],
+        [32, 32, 2],
+        [16, 16, 2]
       ],
       "dock_pixel_match": true
     },
     {
       "path": "packages/desktop/icons/dev/icon.ico",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "28771ed0665e457e2abe436f0226c6dc9c146bfd9c9653bbadf0fd5a94488b89",
       "frames": [
-        [
-          16,
-          16
-        ],
-        [
-          20,
-          20
-        ],
-        [
-          24,
-          24
-        ],
-        [
-          32,
-          32
-        ],
-        [
-          48,
-          48
-        ],
-        [
-          64,
-          64
-        ],
-        [
-          128,
-          128
-        ],
-        [
-          256,
-          256
-        ]
+        [16, 16],
+        [20, 20],
+        [24, 24],
+        [32, 32],
+        [48, 48],
+        [64, 64],
+        [128, 128],
+        [256, 256]
       ]
     },
     {
       "path": "packages/desktop/icons/dev/icon.png",
-      "size": [
-        512,
-        512
-      ],
+      "size": [512, 512],
       "sha256": "ec2ab89cfe3a2b706e35e268835f5ed42a365b4a03204cdd504cbc80b5310121",
-      "alpha_bbox": [
-        81,
-        50,
-        431,
-        444
-      ]
+      "alpha_bbox": [81, 50, 431, 444]
     },
     {
       "path": "packages/desktop/icons/prod/128x128.png",
-      "size": [
-        128,
-        128
-      ],
+      "size": [128, 128],
       "sha256": "82cef7903e8f088cc1b20dc0414d718298dceb8ca93b40c5c1bb84b80ca03fdb",
-      "alpha_bbox": [
-        20,
-        12,
-        108,
-        112
-      ]
+      "alpha_bbox": [20, 12, 108, 112]
     },
     {
       "path": "packages/desktop/icons/prod/128x128@2x.png",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "4c69546575930ea0689fae47bd33f2c69e782a26b1c59103f5108577c4d13d17",
-      "alpha_bbox": [
-        40,
-        25,
-        216,
-        223
-      ]
+      "alpha_bbox": [40, 25, 216, 223]
     },
     {
       "path": "packages/desktop/icons/prod/32x32.png",
-      "size": [
-        32,
-        32
-      ],
+      "size": [32, 32],
       "sha256": "6ccab627908872850f6baa4b7b37bc5a6bbc904666146284cd1983d5b6454154",
-      "alpha_bbox": [
-        4,
-        2,
-        28,
-        25
-      ]
+      "alpha_bbox": [4, 2, 28, 25]
     },
     {
       "path": "packages/desktop/icons/prod/64x64.png",
-      "size": [
-        64,
-        64
-      ],
+      "size": [64, 64],
       "sha256": "ee5cccab70a19e598911ae1b8f392721e51e0520dd7812a1b1f56bd51543f49e",
-      "alpha_bbox": [
-        10,
-        6,
-        55,
-        56
-      ]
+      "alpha_bbox": [10, 6, 55, 56]
     },
     {
       "path": "packages/desktop/icons/prod/Square107x107Logo.png",
-      "size": [
-        107,
-        107
-      ],
+      "size": [107, 107],
       "sha256": "a1bd64cd09808d33fd01471aa642b0b107fa5302ff94090eaf4927d131db4dd0",
-      "alpha_bbox": [
-        16,
-        10,
-        91,
-        94
-      ]
+      "alpha_bbox": [16, 10, 91, 94]
     },
     {
       "path": "packages/desktop/icons/prod/Square142x142Logo.png",
-      "size": [
-        142,
-        142
-      ],
+      "size": [142, 142],
       "sha256": "db42da51fb89b38602960500a3912adbac335920f78e1872ee0b626561bd8409",
-      "alpha_bbox": [
-        22,
-        13,
-        120,
-        124
-      ]
+      "alpha_bbox": [22, 13, 120, 124]
     },
     {
       "path": "packages/desktop/icons/prod/Square150x150Logo.png",
-      "size": [
-        150,
-        150
-      ],
+      "size": [150, 150],
       "sha256": "3c91ce96e93e34c684b7cc70bdb1d364159c2a4ec58e058e6acdb9cfab7d7d6d",
-      "alpha_bbox": [
-        23,
-        14,
-        127,
-        131
-      ]
+      "alpha_bbox": [23, 14, 127, 131]
     },
     {
       "path": "packages/desktop/icons/prod/Square284x284Logo.png",
-      "size": [
-        284,
-        284
-      ],
+      "size": [284, 284],
       "sha256": "1207462516165ca2902b7c319780c8c8521324bbc0f08f5dcd201c997b351674",
-      "alpha_bbox": [
-        45,
-        28,
-        240,
-        247
-      ]
+      "alpha_bbox": [45, 28, 240, 247]
     },
     {
       "path": "packages/desktop/icons/prod/Square30x30Logo.png",
-      "size": [
-        30,
-        30
-      ],
+      "size": [30, 30],
       "sha256": "8268ef72b26b241e90fe39f671cb74e78e754177ea544599ad9aa2e7a36d7653",
-      "alpha_bbox": [
-        4,
-        2,
-        26,
-        23
-      ]
+      "alpha_bbox": [4, 2, 26, 23]
     },
     {
       "path": "packages/desktop/icons/prod/Square310x310Logo.png",
-      "size": [
-        310,
-        310
-      ],
+      "size": [310, 310],
       "sha256": "7918eac1d02e50e8e2d2be5494af1bf16f99a1d72be98aa10ef7904e912d32e6",
-      "alpha_bbox": [
-        49,
-        30,
-        261,
-        269
-      ]
+      "alpha_bbox": [49, 30, 261, 269]
     },
     {
       "path": "packages/desktop/icons/prod/Square44x44Logo.png",
-      "size": [
-        44,
-        44
-      ],
+      "size": [44, 44],
       "sha256": "972b20791fae3d6b6b263566a060f0e3d9e5b4eca776c9e5125f5888fba0f8fc",
-      "alpha_bbox": [
-        6,
-        4,
-        38,
-        34
-      ]
+      "alpha_bbox": [6, 4, 38, 34]
     },
     {
       "path": "packages/desktop/icons/prod/Square71x71Logo.png",
-      "size": [
-        71,
-        71
-      ],
+      "size": [71, 71],
       "sha256": "50bebc5907ee8fa944d69798d447a4b84c06af0d4e3238f6fb29ff60058156da",
-      "alpha_bbox": [
-        11,
-        6,
-        61,
-        62
-      ]
+      "alpha_bbox": [11, 6, 61, 62]
     },
     {
       "path": "packages/desktop/icons/prod/Square89x89Logo.png",
-      "size": [
-        89,
-        89
-      ],
+      "size": [89, 89],
       "sha256": "e950e552817cd1165b4032b132d5d6b256beb7793383ee8d6ed970bd9e96efc0",
-      "alpha_bbox": [
-        14,
-        8,
-        76,
-        78
-      ]
+      "alpha_bbox": [14, 8, 76, 78]
     },
     {
       "path": "packages/desktop/icons/prod/StoreLogo.png",
-      "size": [
-        50,
-        50
-      ],
+      "size": [50, 50],
       "sha256": "6703ae6be2256e42f0598a4b3d94722a1bde6485ae4a239e51045ffc9c5fbe88",
-      "alpha_bbox": [
-        7,
-        4,
-        43,
-        44
-      ]
+      "alpha_bbox": [7, 4, 43, 44]
     },
     {
       "path": "packages/desktop/icons/prod/dock.png",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "4c69546575930ea0689fae47bd33f2c69e782a26b1c59103f5108577c4d13d17",
-      "alpha_bbox": [
-        40,
-        25,
-        216,
-        223
-      ]
+      "alpha_bbox": [40, 25, 216, 223]
     },
     {
       "path": "packages/desktop/icons/prod/icon.icns",
-      "size": [
-        1024,
-        1024
-      ],
+      "size": [1024, 1024],
       "sha256": "82889b579000c1675976b3d596a2dbe1a414a4c17feaa11ec39f798ce3113c7f",
       "frames": [
-        [
-          512,
-          512,
-          2
-        ],
-        [
-          512,
-          512,
-          1
-        ],
-        [
-          256,
-          256,
-          2
-        ],
-        [
-          256,
-          256,
-          1
-        ],
-        [
-          128,
-          128,
-          2
-        ],
-        [
-          128,
-          128,
-          1
-        ],
-        [
-          32,
-          32,
-          2
-        ],
-        [
-          16,
-          16,
-          2
-        ]
+        [512, 512, 2],
+        [512, 512, 1],
+        [256, 256, 2],
+        [256, 256, 1],
+        [128, 128, 2],
+        [128, 128, 1],
+        [32, 32, 2],
+        [16, 16, 2]
       ],
       "dock_pixel_match": true
     },
     {
       "path": "packages/desktop/icons/prod/icon.ico",
-      "size": [
-        256,
-        256
-      ],
+      "size": [256, 256],
       "sha256": "28771ed0665e457e2abe436f0226c6dc9c146bfd9c9653bbadf0fd5a94488b89",
       "frames": [
-        [
-          16,
-          16
-        ],
-        [
-          20,
-          20
-        ],
-        [
-          24,
-          24
-        ],
-        [
-          32,
-          32
-        ],
-        [
-          48,
-          48
-        ],
-        [
-          64,
-          64
-        ],
-        [
-          128,
-          128
-        ],
-        [
-          256,
-          256
-        ]
+        [16, 16],
+        [20, 20],
+        [24, 24],
+        [32, 32],
+        [48, 48],
+        [64, 64],
+        [128, 128],
+        [256, 256]
       ]
     },
     {
       "path": "packages/desktop/icons/prod/icon.png",
-      "size": [
-        512,
-        512
-      ],
+      "size": [512, 512],
       "sha256": "ec2ab89cfe3a2b706e35e268835f5ed42a365b4a03204cdd504cbc80b5310121",
-      "alpha_bbox": [
-        81,
-        50,
-        431,
-        444
-      ]
+      "alpha_bbox": [81, 50, 431, 444]
     },
     {
       "path": "packages/ui/src/assets/images/social-share-zen.png",
-      "size": [
-        1200,
-        630
-      ],
+      "size": [1200, 630],
       "sha256": "0f5794f8e8d8c04cbe3315c5e082f62443cbddee2e172a2093ac790f29d2be1a"
     },
     {
       "path": "packages/ui/src/assets/images/social-share-black.png",
-      "size": [
-        1280,
-        721
-      ],
+      "size": [1280, 721],
       "sha256": "233253ffcd2593f4854cdd779ca8158fd10233ed061a9236fdef4b5eab69717f"
     },
     {
       "path": "packages/ui/src/assets/images/social-share.png",
-      "size": [
-        1280,
-        721
-      ],
+      "size": [1280, 721],
       "sha256": "d6fc145500b3c3fef8c7ac13be9ac0a675f1e9e5f559b070b375edcecc9ee571"
     }
   ],

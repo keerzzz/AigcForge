@@ -1,0 +1,2081 @@
+$ oxlint && bun run script/format.ts --check && bun run script/lint-changed.ts && bun run script/check-unawaited-assertions.ts
+
+  ! eslint(no-unused-vars): Identifier 'provideInstance' is imported but never used.
+   ,-[packages/aigcfroge/test/session/session-permission-tier.test.ts:7:10]
+ 6 | import { SessionProjector } from "@aigcfroge/core/session/projector"
+ 7 | import { provideInstance, testInstanceStoreLayer } from "../fixture/fixture"
+   :          ^^^^^^^|^^^^^^^
+   :                 `-- 'provideInstance' is imported here
+ 8 | import { testEffect } from "../lib/effect"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Type 'Mode' is imported but never used.
+    ,-[packages/app/src/pages/layout/helpers.test.ts:27:15]
+ 26 | import { ServerConnection } from "@/context/server"
+ 27 | import type { Mode } from "@/context/mode"
+    :               ^^|^
+    :                 `-- 'Mode' is imported here
+ 28 | import type { DraftTab } from "@/context/tabs"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'titleIndex' is declared but never used. Unused variables should start with a '_'.
+     ,-[packages/app/src/pages/session/assistant-kb-tab.tsx:110:9]
+ 109 |
+ 110 |   const titleIndex = createMemo(() => new Set(notes().map((note) => note.title)))
+     :         ^^^^^|^^^^
+     :              `-- 'titleIndex' is declared here
+ 111 |
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'Icon' is imported but never used.
+   ,-[packages/app/src/pages/work-artifact-panel.tsx:3:10]
+ 2 | import { useLanguage } from "@/context/language"
+ 3 | import { Icon } from "@aigcfroge/ui/v2/icon"
+   :          ^^|^
+   :            `-- 'Icon' is imported here
+ 4 | import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'settings' is declared but never used. Unused variables should start with a '_'.
+    ,-[packages/app/src/pages/session/composer/session-composer-region.tsx:73:9]
+ 72 |   const providers = useProviders()
+ 73 |   const settings = useSettings()
+    :         ^^^^|^^^
+    :             `-- 'settings' is declared here
+ 74 |   const server = useServer()
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Type 'Mode' is imported but never used.
+   ,-[packages/app/src/pages/layout/helpers.ts:8:26]
+ 7 | import type { ServerConnection } from "@/context/server"
+ 8 | import { modeDraft, type Mode } from "@/context/mode"
+   :                          ^^|^
+   :                            `-- 'Mode' is imported here
+ 9 | import type { DraftTab } from "@/context/tabs"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'setSearchParams' is declared but never used. Unused variables should start with a '_'.
+     ,-[packages/app/src/pages/session.tsx:124:24]
+ 123 |   const terminal = useTerminal()
+ 124 |   const [searchParams, setSearchParams] = useSearchParams<{ prompt?: string; insert?: string; insertKind?: string }>()
+     :                        ^^^^^^^|^^^^^^^
+     :                               `-- 'setSearchParams' is declared here
+ 125 |   const [suggestion, setSuggestion] = createStore(freshRepeatState())
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'For' is imported but never used.
+   ,-[packages/app/src/pages/session/session-side-panel.tsx:1:10]
+ 1 | import { For, Match, Show, Switch, createEffect, createMemo, onCleanup, type JSX } from "solid-js"
+   :          ^|^
+   :           `-- 'For' is imported here
+ 2 | import { createMediaQuery } from "@solid-primitives/media"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'ServerConnection' is imported but never used.
+   ,-[packages/app/src/context/layout.tsx:8:10]
+ 7 | import { useServerSDK } from "./server-sdk"
+ 8 | import { ServerConnection, useServer } from "./server"
+   :          ^^^^^^^^|^^^^^^^
+   :                  `-- 'ServerConnection' is imported here
+ 9 | import { usePlatform } from "./platform"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'first' is declared but never used. Unused variables should start with a '_'.
+      ,-[packages/aigcfroge/test/permission/next.test.ts:1194:11]
+ 1193 |
+ 1194 |     const first = yield* permission
+      :           ^^|^^
+      :             `-- 'first' is declared here
+ 1195 |       .ask({
+      `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'second' is declared but never used. Unused variables should start with a '_'.
+      ,-[packages/aigcfroge/test/permission/next.test.ts:1207:11]
+ 1206 |
+ 1207 |     const second = yield* permission
+      :           ^^^|^^
+      :              `-- 'second' is declared here
+ 1208 |       .ask({
+      `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-empty-pattern): Empty object binding pattern
+    ,-[packages/desktop/e2e/desktop-launch.spec.ts:30:68]
+ 29 |
+ 30 | test("launches the real desktop stack with isolated state", async ({}, testInfo) => {
+    :                                                                    ^^
+ 31 |   const port = await unusedLoopbackPort()
+    `----
+  help: Passing `null` or `undefined` will result in runtime error because `null` and `undefined` cannot be destructured.
+
+  ! eslint(no-unused-vars): Identifier 'Icon' is imported but never used.
+   ,-[packages/app/src/pages/session/assistant-session-panel.tsx:4:10]
+ 3 | import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
+ 4 | import { Icon } from "@aigcfroge/ui/v2/icon"
+   :          ^^|^
+   :            `-- 'Icon' is imported here
+ 5 | import { ButtonV2 } from "@aigcfroge/ui/v2/button-v2"
+   `----
+  help: Consider removing this import.
+
+  ! eslint-plugin-unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily.
+     ,-[packages/aigcfroge/test/control-plane/workspace.test.ts:114:24]
+ 113 | function closeEventStreams() {
+ 114 |   for (const close of [...openEventStreams]) close()
+     :                        ^^^
+ 115 | }
+     `----
+  help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+
+  ! eslint-plugin-unicorn(no-invalid-fetch-options): "body" is not allowed when method is "GET"
+     ,-[packages/script/src/release.ts:372:7]
+ 371 |       },
+ 372 |       body: body === undefined ? undefined : JSON.stringify(body),
+     :       ^^^^
+ 373 |       signal: AbortSignal.timeout(30_000),
+     `----
+
+  ! eslint(no-useless-escape): Unnecessary escape character '['
+    ,-[packages/app/src/components/assistant-note-editor-model.ts:40:27]
+ 39 |   const seen = new Set<string>()
+ 40 |   const pattern = /\[\[([^\[\]\n]+)\]\]/g
+    :                           ^^
+ 41 |   for (const match of text.matchAll(pattern)) {
+    `----
+  help: Replace `\[` with `[`.
+
+  ! eslint-plugin-unicorn(no-useless-spread): Using a spread operator here creates a new object unnecessarily.
+     ,-[packages/aigcfroge/test/server/httpapi-unsupported-history.test.ts:195:17]
+ 194 |         time_updated: 0,
+ 195 |         data: { ...{ text: "Private canonical source marker.", time: { created: 0 } } },
+     :                 ^^^
+ 196 |       })
+     `----
+  help: Consider removing the spread operator.
+
+  ! eslint-plugin-unicorn(no-useless-spread): Using a spread operator here creates a new object unnecessarily.
+     ,-[packages/aigcfroge/test/server/httpapi-unsupported-history.test.ts:207:38]
+ 206 |         .update(MessageTable)
+ 207 |         .set({ data: { ...user.data, ...{ system: "Private legacy system marker." } } })
+     :                                      ^^^
+ 208 |         .where(eq(MessageTable.id, seeded.user))
+     `----
+  help: Consider removing the spread operator.
+
+  ! eslint-plugin-unicorn(no-useless-spread): Using a spread operator here creates a new object unnecessarily.
+     ,-[packages/aigcfroge/test/server/httpapi-unsupported-history.test.ts:228:41]
+ 227 |       .update(MessageTable)
+ 228 |       .set({ data: { ...assistant.data, ...{ summary: true } } })
+     :                                         ^^^
+ 229 |       .where(eq(MessageTable.id, seeded.assistant))
+     `----
+  help: Consider removing the spread operator.
+
+  ! eslint(no-unused-vars): Function 'defer' is declared but never used.
+    ,-[packages/aigcfroge/test/server/httpapi-custom-composition-upgrade.test.ts:74:10]
+ 73 |
+ 74 | function defer<T>() {
+    :          ^^|^^
+    :            `-- 'defer' is declared here
+ 75 |   let resolve!: (value: T | PromiseLike<T>) => void
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'KBNote' is imported but never used.
+    ,-[packages/core/test/kb-service.test.ts:10:10]
+  9 | import { KBService } from "@aigcfroge/core/session/kb-service"
+ 10 | import { KBNote } from "@aigcfroge/schema/kb-note"
+    :          ^^^|^^
+    :             `-- 'KBNote' is imported here
+ 11 | import { pollWithTimeout, testEffect } from "./lib/effect"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'AbsolutePath' is imported but never used.
+    ,-[packages/aigcfroge/test/server/httpapi-session.test.ts:38:10]
+ 37 | import { ProviderV2 } from "@aigcfroge/core/provider"
+ 38 | import { AbsolutePath } from "@aigcfroge/core/schema"
+    :          ^^^^^^|^^^^^
+    :                `-- 'AbsolutePath' is imported here
+ 39 | import * as DateTime from "effect/DateTime"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'SessionComposition' is imported but never used.
+   ,-[packages/core/test/session-runner-custom-composition.test.ts:8:10]
+ 7 | import { ProductModeAgentPolicy } from "@aigcfroge/core/product-mode-agent-policy"
+ 8 | import { SessionComposition } from "@aigcfroge/core/session/composition"
+   :          ^^^^^^^^^|^^^^^^^^
+   :                   `-- 'SessionComposition' is imported here
+ 9 | import { SessionMessage } from "@aigcfroge/core/session/message"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'SessionSchema' is imported but never used.
+    ,-[packages/core/test/session-runner-custom-composition.test.ts:10:10]
+  9 | import { SessionMessage } from "@aigcfroge/core/session/message"
+ 10 | import { SessionSchema } from "@aigcfroge/core/session/schema"
+    :          ^^^^^^|^^^^^^
+    :                `-- 'SessionSchema' is imported here
+ 11 | import { SessionV2 } from "@aigcfroge/core/session"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-useless-escape): Unnecessary escape character '['
+    ,-[packages/core/src/kb/link.ts:9:26]
+  8 |
+  9 | const WIKILINK = /\[\[([^\[\]]+?)\]\]/g
+    :                          ^^
+ 10 |
+    `----
+  help: Replace `\[` with `[`.
+
+  ! eslint-plugin-unicorn(no-useless-spread): Using a spread operator here creates a new array unnecessarily.
+     ,-[packages/core/src/workflow/workflow-run.ts:497:39]
+ 496 |             changed = false
+ 497 |             for (const descendant of [...abandoned]) {
+     :                                       ^^^
+ 498 |               const live = (predecessors.get(descendant) ?? []).some(
+     `----
+  help: `for…of` can iterate over iterable, it's unnecessary to convert to an array.
+
+  ! eslint(preserve-caught-error): There is no cause error attached to this new thrown error.
+     ,-[packages/schema/src/mcp-scope.ts:205:5]
+ 204 |     if (redacted === message) throw error
+ 205 |     throw new Error(redacted)
+     :     ^^^^^^^^^^^^^^^^^^^^^^^^^
+ 206 |   }
+     `----
+  help: Preserve the original error by using the `cause` property when re-throwing errors.
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/schema/test/handoff-policy.test.ts:65:69]
+ 64 |     const plan = planHandoff({ ...base, send: true })
+ 65 |     expect(plan).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+    :                                                                     ^^^^
+ 66 |     expect(await record(plan)).toEqual(["confirm", "reject:escalation"])
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+    ,-[packages/schema/test/handoff-policy.test.ts:76:69]
+ 75 |     const plan = planHandoff(base)
+ 76 |     expect(plan).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-prefill" })
+    :                                                                     ^^^^
+ 77 |     expect(await record(plan, true)).toEqual(["confirm", "switchAgent", "prefill"])
+    `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/schema/test/handoff-policy.test.ts:173:69]
+ 172 |     })
+ 173 |     expect(plan).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+     :                                                                     ^^^^
+ 174 |   })
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/schema/test/handoff-policy.test.ts:185:69]
+ 184 |     })
+ 185 |     expect(plan).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+     :                                                                     ^^^^
+ 186 |   })
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/schema/test/handoff-policy.test.ts:199:58]
+ 198 |       }),
+ 199 |     ).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+     :                                                          ^^^^
+ 200 |
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/schema/test/handoff-policy.test.ts:211:58]
+ 210 |       }),
+ 211 |     ).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+     :                                                          ^^^^
+ 212 |   })
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/schema/test/handoff-policy.test.ts:224:58]
+ 223 |       }),
+ 224 |     ).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+     :                                                          ^^^^
+ 225 |
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/schema/test/handoff-policy.test.ts:236:58]
+ 235 |       }),
+ 236 |     ).toEqual({ action: "confirm", reason: "escalation", then: "switch-and-send" })
+     :                                                          ^^^^
+ 237 |   })
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint(no-unused-vars): Variable 'installDriver' is declared but never used. Unused variables should start with a '_'.
+     ,-[packages/core/test/custom-mode-security.test.ts:222:11]
+ 221 |   describe("Tier 1 Gate: Task Tool Precheck in Custom Mode", () => {
+ 222 |     const installDriver = (sessionService: SessionV2.Interface) => {
+     :           ^^^^^^|^^^^^^
+     :                 `-- 'installDriver' is declared here
+ 223 |       const facade: TaskDriver.SessionFacade = {
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint-plugin-unicorn(no-thenable): Do not add `then` to an object.
+     ,-[packages/schema/src/handoff.ts:219:55]
+ 218 |   ) {
+ 219 |     return { action: "confirm", reason: "escalation", then: intent }
+     :                                                       ^^^^
+ 220 |   }
+     `----
+  help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+
+  ! eslint(no-unused-vars): Identifier 'JsonSchema' is imported but never used.
+    ,-[packages/core/src/mcp/connection.ts:10:3]
+  9 |   Exit,
+ 10 |   JsonSchema,
+    :   ^^^^^|^^^^
+    :        `-- 'JsonSchema' is imported here
+ 11 |   Layer,
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'McpScope' is imported but never used.
+    ,-[packages/core/test/composition-resolver.test.ts:22:10]
+ 21 | import { ToolDefinition } from "@aigcfroge/llm"
+ 22 | import { McpScope } from "@aigcfroge/schema/mcp-scope"
+    :          ^^^^|^^^
+    :              `-- 'McpScope' is imported here
+ 23 | import { location } from "./fixture/location"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Parameter 'i' is declared but never used. Unused parameters should start with a '_'.
+      ,-[packages/core/test/composition-resolver.test.ts:1410:59]
+ 1409 |             const resolver = yield* CompositionResolver.Service
+ 1410 |             const agents = Array.from({ length: 17 }, (_, i) => ({
+      :                                                           |
+      :                                                           `-- 'i' is declared here
+ 1411 |               kind: "agent" as const,
+      `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-useless-escape): Unnecessary escape character '-'
+    ,-[packages/session-ui/src/components/markdown-cache.tsx:18:80]
+ 17 | const ALLOWED_URI_REGEXP =
+ 18 |   /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|kb):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+    :                                                                                ^^
+ 19 | const config = {
+    `----
+  help: Replace `\-` with `-`.
+
+  ! eslint(no-unused-vars): Identifier 'createMemo' is imported but never used.
+   ,-[packages/app/src/components/assistant-feature-sidebar.tsx:1:10]
+ 1 | import { createMemo } from "solid-js"
+   :          ^^^^^|^^^^
+   :               `-- 'createMemo' is imported here
+ 2 | import { useModeDirectory } from "@/pages/mode-workspace-context"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'formatServerError' is imported but never used.
+    ,-[packages/app/src/components/prompt-input/submit.ts:25:10]
+ 24 | import { setCursorPosition } from "./editor-dom"
+ 25 | import { formatServerError } from "@/utils/server-errors"
+    :          ^^^^^^^^|^^^^^^^^
+    :                  `-- 'formatServerError' is imported here
+ 26 | import { ScopedKey } from "@/utils/server-scope"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Parameter 'meta' is declared but never used. Unused parameters should start with a '_'.
+    ,-[packages/core/test/system-context-correction-facts.test.ts:41:15]
+ 40 |
+ 41 | const load = (meta = {}) =>
+    :               ^^|^
+    :                 `-- 'meta' is declared here
+ 42 |   Effect.gen(function* () {
+    `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-unused-vars): Identifier 'onMount' is imported but never used.
+    ,-[packages/session-ui/src/components/message-part.tsx:10:3]
+  9 |   Match,
+ 10 |   onMount,
+    :   ^^^|^^^
+    :      `-- 'onMount' is imported here
+ 11 |   Show,
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Type 'Mode' is imported but never used.
+    ,-[packages/app/src/components/mode-location-new-session.tsx:12:15]
+ 11 | import { useModeDirectory } from "@/pages/mode-workspace-context"
+ 12 | import type { Mode } from "@/context/mode"
+    :               ^^|^
+    :                 `-- 'Mode' is imported here
+ 13 | import { ServerConnection, useServer } from "@/context/server"
+    `----
+  help: Consider removing this import.
+
+  ! eslint-plugin-unicorn(no-new-array): Do not use `new Array(singleArgument)`.
+     ,-[packages/core/test/session-identity.test.ts:112:50]
+ 111 | // fixture honest about that boundary without fabricating seven asset shapes.
+ 112 | const assets = (count: number) => Effect.succeed(new Array<never>(count))
+     :                                                  ^^^^^^^^^^^^^^^^^^^^^^^
+ 113 |
+     `----
+  help: It's not clear whether the argument is meant to be the length of the array or the only element. If the argument is the array's length, consider using `Array.from({ length: n })`. If the argument is the only element, use `[element]`.
+
+  ! eslint(no-unused-vars): Variable 'sync' is declared but never used. Unused variables should start with a '_'.
+    ,-[packages/app/src/components/mode-surfaces.tsx:47:9]
+ 46 | function useChatFeatureData() {
+ 47 |   const sync = useServerSync()
+    :         ^^|^
+    :           `-- 'sync' is declared here
+ 48 |   const { conn, ctx, directory } = useModeDirectory()
+    `----
+  help: Consider removing this declaration.
+
+  ! eslint(preserve-caught-error): There is no cause error attached to this new thrown error.
+     ,-[packages/app/e2e/regression/workflow-runtime.spec.ts:305:5]
+ 304 |         // bare locator timeout hides that, so surface the page errors with it.
+ 305 | ,->     throw new Error(
+ 306 | |         `${error instanceof Error ? error.message : String(error)}\npage errors:\n${pageErrors.join("\n") || "(none)"}`,
+ 307 | `->     )
+ 308 |       }
+     `----
+  help: Preserve the original error by using the `cause` property when re-throwing errors.
+
+  ! eslint-plugin-unicorn(no-useless-spread): `Set` accepts an iterable, so it's unnecessary to convert the iterable to an array.
+     ,-[packages/app/e2e/regression/custom-builder-states.spec.ts:303:41]
+ 302 |     // paper over a server error with a fake asset.
+ 303 |     const state = wire({ fail: new Set([...ASSET_PATHS]) })
+     :                                         ^^^
+ 304 |     await openMode(page, state, "custom")
+     `----
+  help: Consider removing the spread operator.
+
+  ! eslint(no-unused-vars): Variable 'WIKILINK' is declared but never used. Unused variables should start with a '_'.
+   ,-[packages/app/src/components/assistant-wikilink-decorate.test.ts:7:7]
+ 6 |
+ 7 | const WIKILINK = /\[\[([^[\]\n]+)\]\]/g
+   :       ^^^^|^^^
+   :           `-- 'WIKILINK' is declared here
+ 8 |
+   `----
+  help: Consider removing this declaration.
+
+  ! eslint-plugin-unicorn(prefer-string-starts-ends-with): Prefer String#startsWith over a regex with a caret.
+    ,-[packages/app/e2e/regression/assistant-session-scope.spec.ts:75:76]
+ 74 |     if (request.method() !== "GET") return
+ 75 |     if (/^\/(?:kb|memory|schedule|delivery)(?:\/|$)/.test(url.pathname) || /^\/api\/session\//.test(url.pathname)) {
+    :                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^
+ 76 |       reads.push({ server: url.origin, path: url.pathname })
+    `----
+  help: Replace `/^\/api\/session\//.test(url.pathname)` with `url.pathname.startsWith('/api/session/')`.
+
+  ! eslint(no-unused-vars): Identifier 'stable' is imported but never used.
+    ,-[packages/aigcfroge/test/server/httpapi-exercise/index.ts:37:60]
+ 36 | import { Hash } from "@aigcfroge/core/util/hash"
+ 37 | import { array, boolean, check, isRecord, message, object, stable } from "./assertions"
+    :                                                            ^^^|^^
+    :                                                               `-- 'stable' is imported here
+ 38 | import { controlledPtyInput, http, route } from "./dsl"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Cause' is imported but never used.
+   ,-[packages/core/test/mcp-connection.test.ts:2:10]
+ 1 | import { describe, expect } from "bun:test"
+ 2 | import { Cause, Deferred, Effect, Exit, Fiber, Layer, Option, Schema } from "effect"
+   :          ^^|^^
+   :            `-- 'Cause' is imported here
+ 3 | import * as TestClock from "effect/testing/TestClock"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Exit' is imported but never used.
+   ,-[packages/core/test/mcp-connection.test.ts:2:35]
+ 1 | import { describe, expect } from "bun:test"
+ 2 | import { Cause, Deferred, Effect, Exit, Fiber, Layer, Option, Schema } from "effect"
+   :                                   ^^|^
+   :                                     `-- 'Exit' is imported here
+ 3 | import * as TestClock from "effect/testing/TestClock"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Option' is imported but never used.
+   ,-[packages/core/test/mcp-connection.test.ts:2:55]
+ 1 | import { describe, expect } from "bun:test"
+ 2 | import { Cause, Deferred, Effect, Exit, Fiber, Layer, Option, Schema } from "effect"
+   :                                                       ^^^|^^
+   :                                                          `-- 'Option' is imported here
+ 3 | import * as TestClock from "effect/testing/TestClock"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'FSUtil' is imported but never used.
+   ,-[packages/core/test/mcp-connection.test.ts:7:10]
+ 6 | import { CredentialScanner } from "@aigcfroge/core/credential-scanner"
+ 7 | import { FSUtil } from "@aigcfroge/core/fs-util"
+   :          ^^^|^^
+   :             `-- 'FSUtil' is imported here
+ 8 | import { Global } from "@aigcfroge/core/global"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Global' is imported but never used.
+   ,-[packages/core/test/mcp-connection.test.ts:8:10]
+ 7 | import { FSUtil } from "@aigcfroge/core/fs-util"
+ 8 | import { Global } from "@aigcfroge/core/global"
+   :          ^^^|^^
+   :             `-- 'Global' is imported here
+ 9 | import { McpConnection } from "@aigcfroge/core/mcp/connection"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Exit' is imported but never used.
+   ,-[packages/core/src/session.ts:4:28]
+ 3 |
+ 4 | import { DateTime, Effect, Exit, Layer, Schema, Context, Stream, Option } from "effect"
+   :                            ^^|^
+   :                              `-- 'Exit' is imported here
+ 5 | import { ListAnchor } from "@aigcfroge/schema/session"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'navigate' is declared but never used. Unused variables should start with a '_'.
+     ,-[packages/app/src/pages/home-overview.tsx:424:9]
+ 423 |   const global = useGlobal()
+ 424 |   const navigate = useNavigate()
+     :         ^^^^|^^^
+     :             `-- 'navigate' is declared here
+ 425 |   const server = useServer()
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'tabs' is declared but never used. Unused variables should start with a '_'.
+     ,-[packages/app/src/pages/home-overview.tsx:427:9]
+ 426 |   const language = useLanguage()
+ 427 |   const tabs = useTabs()
+     :         ^^|^
+     :           `-- 'tabs' is declared here
+ 428 |   const mode = useMode()
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'mode' is declared but never used. Unused variables should start with a '_'.
+     ,-[packages/app/src/pages/home-overview.tsx:428:9]
+ 427 |   const tabs = useTabs()
+ 428 |   const mode = useMode()
+     :         ^^|^
+     :           `-- 'mode' is declared here
+ 429 |   const dialog = useDialog()
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'Schedule' is imported but never used.
+    ,-[packages/core/test/schedule-service.test.ts:9:10]
+  8 | import { AbsolutePath } from "@aigcfroge/core/schema"
+  9 | import { Schedule } from "@aigcfroge/schema/schedule"
+    :          ^^^^|^^^
+    :              `-- 'Schedule' is imported here
+ 10 | import { SessionV2 } from "@aigcfroge/core/session"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'db' is declared but never used. Unused variables should start with a '_'.
+     ,-[packages/core/test/custom-child-provider-turn.test.ts:291:15]
+ 290 |       response = textResponse("text-prov", "Done")
+ 291 |       const { db } = yield* Database.Service
+     :               ^|
+     :                `-- 'db' is declared here
+ 292 |       const parentID = SessionV2.ID.make("ses_prov_root")
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Variable 'fiber' is declared but never used. Unused variables should start with a '_'.
+     ,-[packages/core/test/permission.test.ts:480:13]
+ 479 |       // 同一 owner 驱动执行授权：edit 为 ask → assert 进入 Permission Dock。
+ 480 |       const fiber = yield* service
+     :             ^^|^^
+     :               `-- 'fiber' is declared here
+ 481 |         .assert({ ...assertion(), action: "edit", resources: ["foo.ts"] })
+     `----
+  help: Consider removing this declaration.
+
+  ! eslint(no-unused-vars): Identifier 'Cause' is imported but never used.
+   ,-[packages/core/test/session-runner-verifier.test.ts:3:10]
+ 2 | import { asc, eq } from "drizzle-orm"
+ 3 | import { Cause, DateTime, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+   :          ^^|^^
+   :            `-- 'Cause' is imported here
+ 4 | import { LLMClient, LLMError, LLMEvent, Model, type LLMRequest, type LLMClientShape } from "@aigcfroge/llm"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'DateTime' is imported but never used.
+   ,-[packages/core/test/session-runner-verifier.test.ts:3:17]
+ 2 | import { asc, eq } from "drizzle-orm"
+ 3 | import { Cause, DateTime, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+   :                 ^^^^|^^^
+   :                     `-- 'DateTime' is imported here
+ 4 | import { LLMClient, LLMError, LLMEvent, Model, type LLMRequest, type LLMClientShape } from "@aigcfroge/llm"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Exit' is imported but never used.
+   ,-[packages/core/test/session-runner-verifier.test.ts:3:35]
+ 2 | import { asc, eq } from "drizzle-orm"
+ 3 | import { Cause, DateTime, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+   :                                   ^^|^
+   :                                     `-- 'Exit' is imported here
+ 4 | import { LLMClient, LLMError, LLMEvent, Model, type LLMRequest, type LLMClientShape } from "@aigcfroge/llm"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'Fiber' is imported but never used.
+   ,-[packages/core/test/session-runner-verifier.test.ts:3:41]
+ 2 | import { asc, eq } from "drizzle-orm"
+ 3 | import { Cause, DateTime, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+   :                                         ^^|^^
+   :                                           `-- 'Fiber' is imported here
+ 4 | import { LLMClient, LLMError, LLMEvent, Model, type LLMRequest, type LLMClientShape } from "@aigcfroge/llm"
+   `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Identifier 'LLMError' is imported but never used.
+   ,-[packages/core/test/session-runner-verifier.test.ts:4:21]
+ 3 | import { Cause, DateTime, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+ 4 | import { LLMClient, LLMError, LLMEvent, Model, type LLMRequest, type LLMClientShape } from "@aigcfroge/llm"
+   :                     ^^^^|^^^
+   :                         `-- 'LLMError' is imported here
+ 5 | import * as OpenAIChat from "@aigcfroge/llm/protocols/openai-chat"
+   `----
+  help: Consider removing this import.
+
+  ! eslint-plugin-unicorn(no-useless-spread): Using a spread operator here creates a new object unnecessarily.
+     ,-[packages/core/test/session-legacy-history.test.ts:515:46]
+ 514 |                 .update(MessageTable)
+ 515 |                 .set({ data: { ...user.data, ...{ system: "Legacy system instruction" } } })
+     :                                              ^^^
+ 516 |                 .where(eq(MessageTable.id, seeded.user))
+     `----
+  help: Consider removing the spread operator.
+
+  ! eslint-plugin-unicorn(no-useless-spread): Using a spread operator here creates a new object unnecessarily.
+     ,-[packages/core/test/session-legacy-history.test.ts:540:51]
+ 539 |                 .update(MessageTable)
+ 540 |                 .set({ data: { ...assistant.data, ...{ summary: true } } })
+     :                                                   ^^^
+ 541 |                 .where(eq(MessageTable.id, seeded.assistant))
+     `----
+  help: Consider removing the spread operator.
+
+  ! eslint(no-unused-vars): Identifier 'SessionTable' is imported but never used.
+    ,-[packages/core/test/permission-session-override.test.ts:12:10]
+ 11 | import { SessionProjector } from "@aigcfroge/core/session/projector"
+ 12 | import { SessionTable } from "@aigcfroge/core/session/sql"
+    :          ^^^^^^|^^^^^
+    :                `-- 'SessionTable' is imported here
+ 13 | import { SessionExecution } from "@aigcfroge/core/session/execution"
+    `----
+  help: Consider removing this import.
+
+  ! eslint(no-unused-vars): Variable 'presence' is declared but never used. Unused variables should start with a '_'.
+    ,-[packages/core/test/permission-ask-bounds.test.ts:88:13]
+ 87 |     Effect.gen(function* () {
+ 88 |       const presence = yield* ApprovalPresence.Service
+    :             ^^^^|^^^
+    :                 `-- 'presence' is declared here
+ 89 |       // No responder is bound for this runtime: the fact source reports zero.
+    `----
+  help: Consider removing this declaration.
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/script/src/release.test.ts:232:57]
+ 231 |     expect(() => Release.candidate(null)).toThrow()
+ 232 |     expect(() => Release.marker(new Release.Candidate({ ...data, base: "main" }))).toThrow("SHA")
+     :                                                         ^^^^^^^
+ 233 |   })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/script/src/release.ts:586:45]
+ 585 |   const pulls = await github.pullsFor(input.sha)
+ 586 |   if (pulls.length !== 1) return new Plan({ ...input, mode: "skip", reason: "not one merged main PR" })
+     :                                             ^^^^^^^^
+ 587 |   const pull = pulls[0]
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/script/src/release.ts:607:25]
+ 606 |       if (!done || done.draft) throw new Failure({ reason: "Latest release state is inconsistent" })
+ 607 |       return new Plan({ ...input, mode: "skip", version: metadata.version, reason: "already published" })
+     :                         ^^^^^^^^
+ 608 |     }
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/script/src/release.ts:613:7]
+ 612 |     return new Plan({
+ 613 |       ...input,
+     :       ^^^^^^^^
+ 614 |       mode: automation === "publish" ? "desktop-release" : "desktop-draft",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/script/src/release.ts:621:23]
+ 620 |   if (tip !== input.sha)
+ 621 |     return new Plan({ ...input, mode: "skip", reason: "superseded main CI; wait for the current tip" })
+     :                       ^^^^^^^^
+ 622 |   version(pkg.version)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/script/src/release.ts:624:23]
+ 623 |   if (semver.gt(pkg.version, latest.tag_name.slice(1)))
+ 624 |     return new Plan({ ...input, mode: "skip", reason: "an earlier version candidate is not published yet" })
+     :                       ^^^^^^^^
+ 625 |   if (pkg.version !== latest.tag_name.slice(1))
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/script/src/release.ts:630:50]
+ 629 |   const changes = await changesSince(root, github, base, input.sha)
+ 630 |   if (changes.kind === "none") return new Plan({ ...input, mode: "skip", reason: "no desktop-affecting changes" })
+     :                                                  ^^^^^^^^
+ 631 |   return new Plan({
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/script/src/release.ts:632:5]
+ 631 |   return new Plan({
+ 632 |     ...input,
+     :     ^^^^^^^^
+ 633 |     version: next(pkg.version, changes.kind),
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-conversion): This type conversion does not change the type or value of the expression.
+     ,-[packages/aigcfroge/src/server/routes/instance/httpapi/handlers/instance.ts:150:59]
+ 149 |         ...entry,
+ 150 |         primaryModes: ProductModeAgentPolicy.primaryModes(String(entry.name)),
+     :                                                           ^^^^^^ ^^^^^|^^^^
+     :                                                              |        `-- This expression already has type 'string'.
+ 151 |       }))
+     `----
+
+  ! typescript-eslint(no-redundant-type-constituents): 'unknown' overrides all other types in this union type.
+    ,-[packages/aigcfroge/src/server/routes/instance/httpapi/handlers/delegation.ts:20:41]
+ 19 |
+ 20 | const apiError = (error: ServiceError | unknown) =>
+    :                                         ^^^^^^^
+ 21 |   new InvalidRequestError({ message: error instanceof Error ? error.message : String(error) })
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/aigcfroge/test/agent/agent.test.ts:747:23]
+ 746 |     expect(meta).toBeDefined()
+ 747 |     const rules = meta!.permission
+     :                  ^^|^^^
+     :                    `-- This expression already has the type '{ name: string; description?: string | undefined; mode: "all" | "primary" | "subagent"; source?: "external-cli" | "native" | undefined; native?: boolean | undefined; hidden?: boolean | undefined; ... 10 more ...; originRelativePath?: string | undefined; }'
+ 748 |     expect(rules.some((rule) => rule.permission === "*" && rule.pattern === "*" && rule.action === "allow")).toBe(false)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+    ,-[packages/aigcfroge/test/cli/run/task-formatter.test.ts:18:5]
+ 17 |   input.tasks.map((task, index) => ({
+ 18 |     ...task,
+    :     ^^^^^^^
+ 19 |     id: `tsk_formatter_${index}`,
+    `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+    ,-[packages/aigcfroge/test/cli/run/task-formatter.test.ts:90:9]
+ 89 |     const snapshot = Schema.decodeUnknownSync(Schema.Array(SessionTask.Info))([
+ 90 |       { ...tasks[0], content: "Stored invocation result", status: "failed", revision: 2 },
+    :         ^^^^^^^^^^^
+ 91 |     ])
+    `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/aigcfroge/test/cli/run/task-formatter.test.ts:128:9]
+ 127 |     const later = Schema.decodeUnknownSync(Schema.Array(SessionTask.Info))([
+ 128 |       { ...tasks[0], content: "Later authoritative edit", status: "cancelled", revision: 3 },
+     :         ^^^^^^^^^^^
+ 129 |     ])
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+    ,-[packages/aigcfroge/test/server/httpapi-custom-child.test.ts:93:36]
+ 92 |           const frozen = yield* snapshot(dir, child.id)
+ 93 |           expect(frozen).toEqual({ ...custom.snapshot, sessionID: child.id })
+    :                                    ^^^^^^^^^^^^^^^^^^
+ 94 |           expect(yield* snapshot(dir, child.id)).toEqual(frozen)
+    `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/aigcfroge/test/server/httpapi-custom-child.test.ts:285:36]
+ 284 |           const frozen = yield* snapshot(dir, child.id)
+ 285 |           expect(frozen).toEqual({ ...custom.snapshot, sessionID: child.id })
+     :                                    ^^^^^^^^^^^^^^^^^^
+ 286 |           const childHistory = yield* messages(dir, child.id)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/aigcfroge/test/server/httpapi-custom-child.test.ts:428:60]
+ 427 |           expect((yield* readChildren(dir, custom.session.id)).map((child) => child.id)).toEqual([input.id])
+ 428 |           expect(yield* snapshot(dir, input.id)).toEqual({ ...custom.snapshot, sessionID: input.id })
+     :                                                            ^^^^^^^^^^^^^^^^^^
+ 429 |           expect(yield* llm.calls).toBe(0)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/aigcfroge/test/server/httpapi-custom-child.test.ts:547:12]
+ 546 |   })
+ 547 |   return { ...custom, snapshot: persisted, agent }
+     :            ^^^^^^^^^
+ 548 | })
+     `----
+
+  ! typescript-eslint(require-array-sort-compare): Require 'compare' argument.
+     ,-[packages/aigcfroge/test/server/httpapi-decision-ownership.test.ts:230:12]
+ 229 |     )
+ 230 |     expect(responses.map((response) => response.status).sort()).toEqual([204, 404])
+     :            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 231 |     expect(terminal).toHaveLength(1)
+     `----
+
+  ! typescript-eslint(require-array-sort-compare): Require 'compare' argument.
+     ,-[packages/aigcfroge/test/server/httpapi-decision-ownership.test.ts:291:12]
+ 290 |     )
+ 291 |     expect(responses.map((response) => response.status).sort()).toEqual([200, 404])
+     :            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 292 |     expect(yield* owner.grants.list()).toHaveLength(1)
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-arguments): This is the default value for this type parameter, so it can be omitted.
+    ,-[packages/aigcfroge/test/server/httpapi-prompt-async-v2.test.ts:30:83]
+ 29 | // observe the handler's durable writes.
+ 30 | const runDb = <A>(body: (db: Database.Interface["db"]) => Effect.Effect<A, never, never>) =>
+    :                                                                                   ^^^^^
+ 31 |   Effect.runPromise(
+    `----
+
+  ! typescript-eslint(require-array-sort-compare): Require 'compare' argument.
+     ,-[packages/aigcfroge/test/server/httpapi-work-review.test.ts:395:14]
+ 394 |       )
+ 395 |       expect(responses.map((response) => response.status).sort()).toEqual([200, 409])
+     :              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 396 |       const winner = responses.find((response) => response.status === 200)
+     `----
+
+  ! typescript-eslint(no-base-to-string): 'input' may use Object's default stringification format ('[object Object]') when stringified.
+    ,-[packages/aigcfroge/test/session/runner-auth-bridge.test.ts:33:39]
+ 32 |                         directory: instance?.directory,
+ 33 |                         input: String(input),
+    :                                       ^^^^^
+ 34 |                         method: init?.method,
+    `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript-eslint(no-unnecessary-type-arguments): This is the default value for this type parameter, so it can be omitted.
+     ,-[packages/core/src/event.ts:156:102]
+ 155 |
+ 156 | export type Transaction = SQLiteEffectTransaction<EffectSQLiteQueryEffectHKT, EffectSQLiteRunResult, EmptyRelations>
+     :                                                                                                      ^^^^^^^^^^^^^^
+ 157 |
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/review.ts:181:5]
+ 180 |   return new Delegation.Info({
+ 181 |     ...delegation,
+     :     ^^^^^^^^^^^^^
+ 182 |     rejectionBlocked: false,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:208:80]
+ 207 |   )
+ 208 |   const withStatus = (status: TurnInfo["status"]) => new Delegation.TurnInfo({ ...turn, status, updatedAt })
+     :                                                                                ^^^^^^^
+ 209 |
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:242:34]
+ 241 |     if (delegation.status !== "approved" && !canTransition(delegation.status, "approved")) return delegation
+ 242 |     return new Delegation.Info({ ...delegation, status: "approved" })
+     :                                  ^^^^^^^^^^^^^
+ 243 |   }
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:248:7]
+ 247 |     return new Delegation.Info({
+ 248 |       ...delegation,
+     :       ^^^^^^^^^^^^^
+ 249 |       status: nextStatus,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:391:11]
+ 390 |         delegation = new Delegation.Info({
+ 391 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 392 |           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:422:11]
+ 421 |         new Delegation.ParticipantInfo({
+ 422 |           ...participant,
+     :           ^^^^^^^^^^^^^^
+ 423 |           phase: nextPhase,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:432:11]
+ 431 |         delegation = new Delegation.Info({
+ 432 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 433 |           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:450:11]
+ 449 |         new Delegation.ParticipantInfo({
+ 450 |           ...p,
+     :           ^^^^
+ 451 |           lastActivityAt: data.timestamp,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:457:11]
+ 456 |         delegation = new Delegation.Info({
+ 457 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 458 |           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:478:11]
+ 477 |         new Delegation.ParticipantInfo({
+ 478 |           ...p,
+     :           ^^^^
+ 479 |           phase: "closed",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:487:11]
+ 486 |         delegation = new Delegation.Info({
+ 487 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 488 |           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:533:11]
+ 532 |         delegation = new Delegation.Info({
+ 533 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 534 |           status: nextStatus,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:564:11]
+ 563 |         delegation = new Delegation.Info({
+ 564 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 565 |           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:597:13]
+ 596 |           new Delegation.ParticipantInfo({
+ 597 |             ...participant,
+     :             ^^^^^^^^^^^^^^
+ 598 |             phase: "active",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:607:11]
+ 606 |         delegation = new Delegation.Info({
+ 607 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 608 |           status: delegation.status === "failed" && data.attempt > 1 ? "running" : delegation.status,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:640:11]
+ 639 |         delegation = new Delegation.Info({
+ 640 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 641 |           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:693:15]
+ 692 |             new Delegation.ParticipantInfo({
+ 693 |               ...failedParticipant,
+     :               ^^^^^^^^^^^^^^^^^^^^
+ 694 |               phase: "failed",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:709:13]
+ 708 |           delegation = new Delegation.Info({
+ 709 |             ...delegation,
+     :             ^^^^^^^^^^^^^
+ 710 |             status: "failed",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:716:13]
+ 715 |           delegation = new Delegation.Info({
+ 716 |             ...delegation,
+     :             ^^^^^^^^^^^^^
+ 717 |             lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:749:11]
+ 748 |         delegation = new Delegation.Info({
+ 749 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 750 |           status: "recovery_required",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:791:9]
+ 790 |       delegation = new Delegation.Info({
+ 791 |         ...currentDelegation,
+     :         ^^^^^^^^^^^^^^^^^^^^
+ 792 |         status: nextStatus,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:800:11]
+ 799 |         new Delegation.TurnInfo({
+ 800 |           ...turn,
+     :           ^^^^^^^
+ 801 |           revisionDigest: data.revisionDigest,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:828:11]
+ 827 |         delegation = new Delegation.Info({
+ 828 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 829 |           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:856:11]
+ 855 |         delegation = new Delegation.Info({
+ 856 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 857 |           status: "changes_requested",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:885:11]
+ 884 |         delegation = new Delegation.Info({
+ 885 |           ...delegation,
+     :           ^^^^^^^^^^^^^
+ 886 |           rejectionBlocked: true,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:910:9]
+ 909 |       delegation = new Delegation.Info({
+ 910 |         ...currentDelegation,
+     :         ^^^^^^^^^^^^^^^^^^^^
+ 911 |         rejectionBlocked: false,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:928:9]
+ 927 |       delegation = new Delegation.Info({
+ 928 |         ...currentDelegation,
+     :         ^^^^^^^^^^^^^^^^^^^^
+ 929 |         status: "closing",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:957:9]
+ 956 |       delegation = new Delegation.Info({
+ 957 |         ...currentDelegation,
+     :         ^^^^^^^^^^^^^^^^^^^^
+ 958 |         status: "completed",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:975:9]
+ 974 |       delegation = new Delegation.Info({
+ 975 |         ...currentDelegation,
+     :         ^^^^^^^^^^^^^^^^^^^^
+ 976 |         status: "cancelled",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/src/delegation/fold.ts:992:9]
+ 991 |       delegation = new Delegation.Info({
+ 992 |         ...currentDelegation,
+     :         ^^^^^^^^^^^^^^^^^^^^
+ 993 |         status: "archived",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+      ,-[packages/core/src/delegation/fold.ts:1011:9]
+ 1010 |       delegation = new Delegation.Info({
+ 1011 |         ...currentDelegation,
+      :         ^^^^^^^^^^^^^^^^^^^^
+ 1012 |         lastActivityAt: Math.max(currentDelegation.lastActivityAt, data.timestamp),
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-conversion): This type conversion does not change the type or value of the expression.
+     ,-[packages/core/src/session/store.ts:146:53]
+ 145 |     .pipe(Effect.orDie)
+ 146 |   return new Map(rows.map((row) => [String(row.id), String(row.mode)]))
+     :                                                     ^^^^^^ ^^^^|^^^
+     :                                                        |       `-- This expression already has type '"assistant" | "chat" | "coding" | "custom" | "work"'.
+ 147 | })
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-conversion): This type conversion does not change the type or value of the expression.
+     ,-[packages/core/src/session/runner/llm.ts:621:35]
+ 620 |         const bound = snapshot.data.agents.find(
+ 621 |           (entry) => entry.id === String(agentID) || entry.name === String(agentID),
+     :                                   ^^^^^^ ^^^|^^^
+     :                                      |      `-- This expression already has type 'string'.
+ 622 |         )
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-conversion): This type conversion does not change the type or value of the expression.
+     ,-[packages/core/src/session/runner/llm.ts:621:69]
+ 620 |         const bound = snapshot.data.agents.find(
+ 621 |           (entry) => entry.id === String(agentID) || entry.name === String(agentID),
+     :                                                                     ^^^^^^ ^^^|^^^
+     :                                                                        |      `-- This expression already has type 'string'.
+ 622 |         )
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-conversion): This type conversion does not change the type or value of the expression.
+     ,-[packages/core/src/session/runner/llm.ts:631:20]
+ 630 |             sessionID,
+ 631 |             agent: String(agentID),
+     :                    ^^^^^^ ^^^|^^^
+     :                       |      `-- This expression already has type 'string'.
+ 632 |             expectedRelativePath: bound.relativePath,
+     `----
+
+  ! typescript-eslint(restrict-template-expressions): Invalid type used in template literal expression.
+     ,-[packages/core/src/tool/codex-app-server.ts:870:93]
+ 869 |                 pending.delete(id)
+ 870 |                 return yield* Effect.fail(new Error(`Failed to write to app-server stdin: ${error}`))
+     :                                                                                             ^^|^^^
+     :                                                                                               `-- Type: PlatformError
+ 871 |               }),
+     `----
+
+  ! typescript-eslint(restrict-template-expressions): Invalid type used in template literal expression.
+     ,-[packages/core/src/tool/codex-app-server.ts:876:88]
+ 875 |           return yield* Schema.decodeUnknownEffect(decoder)(result).pipe(
+ 876 |             Effect.mapError((error) => new Error(`Schema decode error for ${method}: ${error}`)),
+     :                                                                                        ^^|^^^
+     :                                                                                          `-- Type: SchemaError
+ 877 |           )
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+    ,-[packages/core/test/cli-sdk-adapters.test.ts:38:45]
+ 37 |     )
+ 38 |     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+    :                              ^^^^^^^|^^^^^^^^
+    :                                     `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 39 |     expect(result.status).toBe("success")
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+    ,-[packages/core/test/cli-sdk-adapters.test.ts:45:45]
+ 44 |     const adapter = makeClaudeCodeSdkAdapter(streamSdk([{ type: "result", is_error: true, result: "boom" }]))
+ 45 |     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+    :                              ^^^^^^^|^^^^^^^^
+    :                                     `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 46 |     expect(result.status).toBe("failed")
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+    ,-[packages/core/test/cli-sdk-adapters.test.ts:56:30]
+ 55 |     )
+ 56 |     await run(adapter.execute!({ prompt: "x", cwd: "/p", resumeId: "ext_1" }))
+    :               ^^^^^^^|^^^^^^^^
+    :                      `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 57 |     expect(seenResume).toBe("ext_1")
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+    ,-[packages/core/test/cli-sdk-adapters.test.ts:69:22]
+ 67 |         const decisions: string[] = []
+ 68 | ,->     await run(
+ 69 | |->       adapter.execute!({
+    : `---                     ^
+    : `---- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 70 |             prompt: "x",
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/cli-sdk-adapters.test.ts:99:45]
+  98 |     )
+  99 |     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+     :                              ^^^^^^^|^^^^^^^^
+     :                                     `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 100 |     expect(persistSession).toBe(true)
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/cli-sdk-adapters.test.ts:108:45]
+ 107 |     )
+ 108 |     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+     :                              ^^^^^^^|^^^^^^^^
+     :                                     `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 109 |     expect(result.status).toBe("failed")
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/cli-sdk-adapters.test.ts:120:45]
+ 119 |     )
+ 120 |     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+     :                              ^^^^^^^|^^^^^^^^
+     :                                     `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 121 |     expect(result.sessionId).toBe("ses_abc")
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/cli-sdk-adapters.test.ts:206:45]
+ 205 |     const adapter = makeCodexSdkAdapter(sdk)
+ 206 |     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+     :                              ^^^^^^^|^^^^^^^^
+     :                                     `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 207 |     expect(result.status).toBe("success")
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/cli-sdk-adapters.test.ts:224:30]
+ 223 |     const adapter = makeCodexSdkAdapter(sdk)
+ 224 |     await run(adapter.execute!({ prompt: "x", cwd: "/p", resumeId: "thread_1" }))
+     :               ^^^^^^^|^^^^^^^^
+     :                      `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 225 |     expect(resumed).toBe("thread_1")
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/cli-sdk-adapters.test.ts:233:62]
+ 232 |     }
+ 233 |     const result = await run(makeCodexSdkAdapter(sdk).execute!({ prompt: "x", cwd: "/p" }))
+     :                              ^^^^^^^^^^^^^^^^|^^^^^^^^^^^^^^^^
+     :                                              `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 234 |     expect(result.status).toBe("failed")
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/cli-sdk-adapters.test.ts:244:45]
+ 243 |     const adapter = makeCodexSdkAdapter(sdk)
+ 244 |     const result = await run(adapter.execute!({ prompt: "x", cwd: "/p" }))
+     :                              ^^^^^^^|^^^^^^^^
+     :                                     `-- This expression already has the type '(input: { prompt: string; cwd: string; resumeId?: string | undefined; timeoutMs?: number | undefined; canUseTool?: SdkPermissionHandler | undefined; onProgress?: ((progress: ToolCallProgress) => void) | undefined; }) => Effect<...>'
+ 245 |     expect(result.sessionId).toBe("thread_9")
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-arguments): This is the default value for this type parameter, so it can be omitted.
+     ,-[packages/core/src/session.ts:396:47]
+ 395 |       Effect.gen(function* () {
+ 396 |         const context = yield* Effect.context<never>()
+     :                                               ^^^^^
+ 397 |         const directResolver = Context.getOption(context, CompositionResolver.Service)
+     `----
+
+  ! typescript-eslint(require-array-sort-compare): Require 'compare' argument.
+     ,-[packages/core/test/composition-resolver.test.ts:500:18]
+ 499 |           expect(unconnected.every((d) => d.severity === "error")).toBe(true)
+ 500 |           expect(unconnected.map((d) => d.path).toSorted()).toEqual(["ghost-prompt.md", "ghost-tools/SKILL.md"])
+     :                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 501 |           // Unconnected assets must not silently land in the plan output
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-parameters): Type parameter T is used only once in the function signature.
+    ,-[packages/core/test/delegation-codex-app-server.test.ts:34:21]
+ 33 | // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- mock helper
+ 34 | const asResponse = <T>(val: unknown): T => val as T
+    :                     ^                 |
+    :                     |                 `-- This is the only usage of type parameter T in the signature.
+ 35 |
+    `----
+
+  ! typescript-eslint(restrict-template-expressions): Invalid type used in template literal expression.
+     ,-[packages/core/test/delegation-codex-app-server.test.ts:606:81]
+ 605 |                 try: () => Schema.decodeUnknownSync(responseSchema)(rawMalformed),
+ 606 |                 catch: (err) => new Error(`Schema decode error for ${method}: ${err}`),
+     :                                                                                 ^|^^
+     :                                                                                  `-- Type: unknown
+ 607 |               })
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-arguments): This is the default value for this type parameter, so it can be omitted.
+     ,-[packages/core/test/mcp-connection.test.ts:139:47]
+ 138 | type Probe = { readonly failed: boolean; readonly tag?: string; readonly reason?: string }
+ 139 | const probe = <A, E>(eff: Effect.Effect<A, E, never>): Effect.Effect<Probe> =>
+     :                                               ^^^^^
+ 140 |   eff.pipe(
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+      ,-[packages/core/test/mcp-connection.test.ts:1092:36]
+ 1091 |         yield* waitDead(loser)
+ 1092 |         expect(yield* alive(live[0]!.pid!)).toBe(true)
+      :                             ^^^|^^^^
+      :                                `-- This expression already has the type 'ConnInfo'
+ 1093 |       }
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/permission-ask-bounds.test.ts:217:51]
+ 216 |       expect(pending).toHaveLength(1)
+ 217 |       yield* service.reply({ requestID: pending[0]!.id, reply: "once" })
+     :                                        ^^^^^|^^^^^^
+     :                                             `-- This expression already has the type '{ readonly sessionID: string & Brand<"SessionID">; readonly action: string; readonly resources: readonly string[]; readonly save?: readonly string[] | undefined; readonly metadata?: { readonly [x: string]: unknown; } | undefined; readonly source?: { ...; } | undefined; readonly id: string & Brand<...>; }'
+ 218 |       expect(yield* service.forSession(sessionID)).toHaveLength(0)
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/permission-ask-bounds.test.ts:298:51]
+ 297 |       // than removing the capability.
+ 298 |       yield* service.reply({ requestID: pending[0]!.id, reply: "once" })
+     :                                        ^^^^^|^^^^^^
+     :                                             `-- This expression already has the type '{ readonly sessionID: string & Brand<"SessionID">; readonly action: string; readonly resources: readonly string[]; readonly save?: readonly string[] | undefined; readonly metadata?: { readonly [x: string]: unknown; } | undefined; readonly source?: { ...; } | undefined; readonly id: string & Brand<...>; }'
+ 299 |       expect(yield* service.forSession(sessionID)).toHaveLength(0)
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/permission-grants.test.ts:207:51]
+ 206 |       // Replying settles the surfaced prompt.
+ 207 |       yield* service.reply({ requestID: pending[0]!.id, reply: "reject" })
+     :                                        ^^^^^|^^^^^^
+     :                                             `-- This expression already has the type '{ readonly sessionID: string & Brand<"SessionID">; readonly action: string; readonly resources: readonly string[]; readonly save?: readonly string[] | undefined; readonly metadata?: { readonly [x: string]: unknown; } | undefined; readonly source?: { ...; } | undefined; readonly id: string & Brand<...>; }'
+ 208 |       expect(yield* service.forSession(sessionID)).toHaveLength(0)
+     `----
+
+  ! typescript-eslint(no-base-to-string): 'input' may use Object's default stringification format ('[object Object]') when stringified.
+     ,-[packages/core/test/session-runner-auth.test.ts:138:64]
+ 137 |         fetch: async (input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) => {
+ 138 |           calls.push(`${providerID}:${ref?.directory}:${String(input)}`)
+     :                                                                ^^^^^
+ 139 |           expect(init?.signal).toBeDefined()
+     `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+      ,-[packages/core/test/session-task-service.test.ts:1493:17]
+ 1492 |             tasks: [
+ 1493 |               { ...a, status: "completed" },
+      :                 ^^^^
+ 1494 |               { ...b, status: "completed" },
+      `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+      ,-[packages/core/test/session-task-service.test.ts:1494:17]
+ 1493 |               { ...a, status: "completed" },
+ 1494 |               { ...b, status: "completed" },
+      :                 ^^^^
+ 1495 |             ],
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/core/test/tool-path-containment.test.ts:155:47]
+ 154 |       expect(searched).toHaveLength(1)
+ 155 |       expect(FSUtil.contains(root, searched[0]!)).toBe(true)
+     :                                   ^^^^^^|^^^^^^
+     :                                         `-- This expression already has the type 'string'
+ 156 |     }),
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/test/work-review-service.test.ts:297:21]
+ 296 |           reason: "artifact_unavailable",
+ 297 |           review: { ...opened.review },
+     :                     ^^^^^^^^^^^^^^^^
+ 298 |         })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/test/work-review-service.test.ts:300:55]
+ 299 |         const after = yield* db.select().from(SessionTable).where(eq(SessionTable.id, value.session.id)).get()
+ 300 |         expect(after?.metadata?.workReview).toEqual({ ...opened.review })
+     :                                                       ^^^^^^^^^^^^^^^^
+ 301 |         expect(after?.metadata?.workArtifact).toEqual(before?.metadata?.workArtifact)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/test/work-review-service.test.ts:340:57]
+ 339 |           const after = yield* db.select().from(SessionTable).where(eq(SessionTable.id, value.session.id)).get()
+ 340 |           expect(after?.metadata?.workReview).toEqual({ ...reopened.review })
+     :                                                         ^^^^^^^^^^^^^^^^^^
+ 341 |           expect(after?.metadata?.workArtifact).toEqual(before?.metadata?.workArtifact)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/core/test/work-review-service.test.ts:419:51]
+ 418 |       expect(row?.metadata?.workArtifact).toEqual({ artifact: artifact.artifact, revision: artifact.revision })
+ 419 |       expect(row?.metadata?.workReview).toEqual({ ...current.review })
+     :                                                   ^^^^^^^^^^^^^^^^^
+ 420 |       // Apply wins coordination: the old command must fail before changing the open review.
+     `----
+
+  ! typescript-eslint(no-unnecessary-boolean-literal-compare): This expression unnecessarily compares a boolean value to a boolean instead of using it directly.
+    ,-[packages/schema/src/product-mode.ts:48:51]
+ 47 |   const table: Readonly<Record<string, boolean>> = GENERIC_CREATION
+ 48 |   return Object.hasOwn(GENERIC_CREATION, mode) && table[mode] === true
+    :                                                   ^^^^^^^^^^^^^^^^^^^^
+ 49 | }
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/schema/test/composition.test.ts:428:38]
+ 427 |         catalog: catalogOrder,
+ 428 |         auditToolNames: [canonical[0]!],
+     :                          ^^^^^^|^^^^^^
+     :                                `-- This expression already has the type 'string'
+ 429 |       })
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/schema/test/composition.test.ts:435:31]
+ 434 |       const result = Composition.mcpAuditMatchesCatalog({
+ 435 |         catalog: [canonical[0]!],
+     :                   ^^^^^^|^^^^^^
+     :                         `-- This expression already has the type 'string'
+ 436 |         auditToolNames: [canonical[0]!, "mcp_git_other"],
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/schema/test/composition.test.ts:436:38]
+ 435 |         catalog: [canonical[0]!],
+ 436 |         auditToolNames: [canonical[0]!, "mcp_git_other"],
+     :                          ^^^^^^|^^^^^^
+     :                                `-- This expression already has the type 'string'
+ 437 |       })
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/schema/test/custom-profile.test.ts:225:36]
+ 224 |       expect(decoded.mcpBindings).toHaveLength(1)
+ 225 |       expect(decoded.mcpBindings[0]!.serverName).toBe("probe")
+     :              ^^^^^^^^^^^|^^^^^^^^^^^
+     :                         `-- This expression already has the type 'McpServerBinding'
+ 226 |       expect(decoded.mcpBindings[0]!.url).toBe("https://example.com/mcp")
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/schema/test/custom-profile.test.ts:226:36]
+ 225 |       expect(decoded.mcpBindings[0]!.serverName).toBe("probe")
+ 226 |       expect(decoded.mcpBindings[0]!.url).toBe("https://example.com/mcp")
+     :              ^^^^^^^^^^^|^^^^^^^^^^^
+     :                         `-- This expression already has the type 'McpServerBinding'
+ 227 |     })
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/app/e2e/regression/approval-center.spec.ts:212:46]
+ 211 |     expect(state.reads).toHaveLength(1)
+ 212 |     const pendingUrl = new URL(state.reads[0]!)
+     :                                ^^^^^^^|^^^^^^^
+     :                                       `-- This expression already has the type 'string'
+ 213 |     expect(pendingUrl.searchParams.get("location[directory]")).toBe(directory)
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/app/e2e/regression/approval-center.spec.ts:309:36]
+ 308 |       await expect(trigger(page)).toHaveAttribute("aria-label", "Pending approvals: 1")
+ 309 |       expect(new URL(state.reads[0]!).searchParams.get("location[directory]")).toBe(directory)
+     :                      ^^^^^^^|^^^^^^^
+     :                             `-- This expression already has the type 'string'
+ 310 |
+     `----
+
+  ! typescript-eslint(no-base-to-string): 'body.requestID ?? ""' will use Object's default stringification format ('[object Object]') when stringified.
+     ,-[packages/app/e2e/regression/workflow-runtime.spec.ts:410:19]
+ 409 |     expect(typeof body.requestID).toBe("string")
+ 410 |     expect(String(body.requestID ?? "")).not.toHaveLength(0)
+     :                   ^^^^^^^^^^^^^^^^^^^^
+ 411 |
+     `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since the receiver accepts the original type of the expression.
+    ,-[script/check-unawaited-assertions.ts:88:54]
+ 87 |     const lineIndex = lineStarts.findLastIndex((offset) => offset <= start)
+ 88 |     const prefix = source.slice(lineStarts[lineIndex]!, start)
+    :                                                      ^
+ 89 |     // `.rejects` quoted inside a comment reads as a chain to the paren walk.
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since the receiver accepts the original type of the expression.
+    ,-[script/check-unawaited-assertions.ts:93:52]
+ 92 |     if (CONSUMED.test(prefix)) continue
+ 93 |     const line = source.slice(lineStarts[lineIndex]!, source.indexOf("\n", start))
+    :                                                    ^
+ 94 |     violations.push(`${file}:${lineIndex + 1}: ${line.trim()}`)
+    `----
+
+  ! typescript-eslint(no-unnecessary-boolean-literal-compare): This expression unnecessarily compares a boolean value to a boolean instead of using it directly.
+     ,-[packages/app/src/context/permission.tsx:299:16]
+ 298 |       overrideEnabled(sessionID: string) {
+ 299 |         return override[sessionID] === true
+     :                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 300 |       },
+     `----
+
+  ! typescript-eslint(no-redundant-type-constituents): home is overridden by string in this union type.
+    ,-[packages/app/src/context/tabs.tsx:48:20]
+ 47 |   token: symbol
+ 48 |   target: string | "home"
+    :                    ^^^^^^
+ 49 | }
+    `----
+
+  ! typescript-eslint(no-redundant-type-constituents): 'unknown' overrides all other types in this union type.
+    ,-[packages/app/src/components/asset-list-status.ts:12:11]
+ 11 | export function assetListStatus(input: {
+ 12 |   source: unknown | undefined
+    :           ^^^^^^^
+ 13 |   settledSource: unknown | undefined
+    `----
+
+  ! typescript-eslint(no-redundant-type-constituents): 'unknown' overrides all other types in this union type.
+    ,-[packages/app/src/components/asset-list-status.ts:13:18]
+ 12 |   source: unknown | undefined
+ 13 |   settledSource: unknown | undefined
+    :                  ^^^^^^^
+ 14 |   state: AssetListResourceState
+    `----
+
+  ! typescript-eslint(no-redundant-type-constituents): 'unknown' overrides all other types in this union type.
+    ,-[packages/app/src/components/custom/custom-asset-catalog.ts:83:11]
+ 82 | export function catalogStatus(input: {
+ 83 |   source: unknown | undefined
+    :           ^^^^^^^
+ 84 |   settledSource: unknown | undefined
+    `----
+
+  ! typescript-eslint(no-redundant-type-constituents): 'unknown' overrides all other types in this union type.
+    ,-[packages/app/src/components/custom/custom-asset-catalog.ts:84:18]
+ 83 |   source: unknown | undefined
+ 84 |   settledSource: unknown | undefined
+    :                  ^^^^^^^
+ 85 |   state: AssetListResourceState
+    `----
+
+  ! typescript-eslint(no-base-to-string): 'err' may use Object's default stringification format ('[object Object]') when stringified.
+    ,-[packages/app/src/components/custom/custom-plan-state.ts:64:98]
+ 63 |   const fallbackMessage =
+ 64 |     typeof err === "object" && err !== null ? undefined : err === undefined ? undefined : String(err)
+    :                                                                                                  ^^^
+ 65 |   const message =
+    `----
+  help: Consider picking a property (e.g. `user.name`), using a formatter (or `JSON.stringify`), or implementing a custom `toString()`/`toLocaleString()` on the type.
+
+  ! typescript-eslint(no-floating-promises): Promises must be awaited, add void operator to ignore.
+     ,-[packages/app/src/pages/mode-workspace-slots.tsx:542:13]
+ 541 |                 console.error("Failed to delete asset:", err)
+ 542 | ,->             dialog.show(() => (
+ 543 | |                 <div class="p-4 text-v2-state-fg-danger text-13-regular">
+ 544 | |                   {message ?? language.t("promptAsset.error.deleteFailed")}
+ 545 | |                 </div>
+ 546 | `->             ))
+ 547 |                 return false
+     `----
+  help: The promise must end with a call to .catch, or end with a call to .then with a rejection handler, or be explicitly marked as ignored with the `void` operator.
+
+  ! typescript-eslint(no-unnecessary-boolean-literal-compare): This expression unnecessarily compares a boolean value to a boolean instead of using it directly.
+    ,-[packages/app/src/components/route-error-surface.tsx:30:15]
+ 29 |       .catch(() => false)
+ 30 |     setCopied(written === true)
+    :               ^^^^^^^^^^^^^^^^
+ 31 |   }
+    `----
+
+  ! typescript-eslint(no-floating-promises): Promises must be awaited, add void operator to ignore.
+     ,-[packages/app/src/components/approval-center.tsx:133:5]
+ 132 |         void loadGrants()
+ 133 | ,->     dialog.show(() => (
+ 134 | |         <ApprovalDialog requests={pending} state={state} onSubmit={submit} onReload={loadGrants} onRevoke={revoke} />
+ 135 | `->     ))
+ 136 |       }
+     `----
+  help: The promise must end with a call to .catch, or end with a call to .then with a rejection handler, or be explicitly marked as ignored with the `void` operator.
+
+  ! typescript-eslint(no-floating-promises): Promises must be awaited, add void operator to ignore.
+    ,-[packages/app/src/pages/session/handoff-confirm.tsx:37:5]
+ 36 |         const [remember, setRemember] = createSignal(false)
+ 37 | ,->     dialog.push(
+ 38 | |         () => (
+ 39 | |           <Dialog title={language.t("session.handoff.confirm.title")} class="mx-auto w-full max-w-[480px]">
+ 40 | |             <p data-slot="handoff-confirm-body">{language.t("session.handoff.confirm.body", { agent })}</p>
+ 41 | |             <div class="flex items-center gap-2 py-1">
+ 42 | |               <CheckboxV2
+ 43 | |                 data-slot="handoff-confirm-remember"
+ 44 | |                 checked={remember()}
+ 45 | |                 onChange={setRemember}
+ 46 | |                 label={language.t("session.handoff.confirm.remember")}
+ 47 | |               />
+ 48 | |             </div>
+ 49 | |             <div data-slot="handoff-confirm-actions" class="flex justify-end gap-2">
+ 50 | |               <Button variant="ghost" size="normal" onClick={() => dialog.close()}>
+ 51 | |                 {language.t("common.cancel")}
+ 52 | |               </Button>
+ 53 | |               <Button
+ 54 | |                 variant="secondary"
+ 55 | |                 size="normal"
+ 56 | |                 disabled={pending()}
+ 57 | |                 onClick={() => {
+ 58 | |                   setPending(true)
+ 59 | |                   resolve({ approved: true, remember: remember() })
+ 60 | |                   dialog.close()
+ 61 | |                 }}
+ 62 | |               >
+ 63 | |                 {language.t("session.handoff.confirm.approve")}
+ 64 | |               </Button>
+ 65 | |             </div>
+ 66 | |           </Dialog>
+ 67 | |         ),
+ 68 | |         () => resolve({ approved: false, remember: false }),
+ 69 | `->     )
+ 70 |       })
+    `----
+  help: The promise must end with a call to .catch, or end with a call to .then with a rejection handler, or be explicitly marked as ignored with the `void` operator.
+
+  ! typescript-eslint(no-floating-promises): Promises must be awaited, add void operator to ignore.
+    ,-[packages/app/src/pages/session/composer/session-permission-override-dialog.tsx:58:5]
+ 57 |         setAcknowledged(false)
+ 58 | ,->     dialog.push(() => (
+ 59 | |         <Dialog title={language.t("permission.override.confirm.title")} class="w-full max-w-[480px] mx-auto">
+ 60 | |           <p data-slot="permission-override-confirm-body">{language.t("permission.override.confirm.body")}</p>
+ 61 | |           <label>
+ 62 | |             <input
+ 63 | |               type="checkbox"
+ 64 | |               data-slot="permission-override-acknowledge"
+ 65 | |               checked={acknowledged()}
+ 66 | |               onChange={(event) => setAcknowledged(event.currentTarget.checked)}
+ 67 | |             />
+ 68 | |             {language.t("permission.override.confirm.acknowledge")}
+ 69 | |           </label>
+ 70 | |           <div data-slot="permission-override-confirm-actions">
+ 71 | |             <Button variant="ghost" size="normal" onClick={() => dialog.close()}>
+ 72 | |               {language.t("permission.override.cancel")}
+ 73 | |             </Button>
+ 74 | |             <Button variant="secondary" size="normal" disabled={!acknowledged()} onClick={confirm}>
+ 75 | |               {language.t("permission.override.confirm.enable")}
+ 76 | |             </Button>
+ 77 | |           </div>
+ 78 | |         </Dialog>
+ 79 | `->     ))
+ 80 |       }
+    `----
+  help: The promise must end with a call to .catch, or end with a call to .then with a rejection handler, or be explicitly marked as ignored with the `void` operator.
+
+  ! typescript-eslint(no-meaningless-void-operator): void operator shouldn't be used on void; it should convey that a return value is being ignored
+    ,-[packages/app/src/pages/session/assistant-session-panel-open.ts:22:3]
+ 21 |   args.assistant.setTarget(args.itemId)
+ 22 |   void args.tabs.open(args.kind)
+    :   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 23 |   args.tabs.setActive(args.kind)
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-arguments): This value can be trivially inferred for this type parameter, so it can be omitted.
+    ,-[packages/app/src/pages/session/assistant-kb-tab.tsx:23:52]
+ 22 |   const [tagFilter, setTagFilter] = createSignal<string | undefined>()
+ 23 |   const [selectedID, setSelectedID] = createSignal<string | undefined>(props.target)
+    :                                                    ^^^^^^^^^^^^^^^^^^
+ 24 |
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+     ,-[packages/app/src/pages/session/workflow-runtime-panel.tsx:137:37]
+ 136 |         {(loaded) => {
+ 137 |           const run = () => loaded()!
+     :                            ^^^^|^^^^^
+     :                                `-- This expression already has the type 'WorkflowAssetWorkflowRunInfo'
+ 138 |           return (
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+    ,-[packages/app/src/components/assistant-nav-model.test.ts:26:26]
+ 25 |     expect(tree).toHaveLength(1)
+ 26 |     const work = tree[0] as KbTagNode
+    :                  ^^^|^^^ ^^^^^^|^^^^^^
+    :                     |          `-- Casting it to 'KbTagNode' is unnecessary
+    :                     `-- This expression already has the type 'KbTagNode'
+ 27 |     expect(work.tag).toBe("work")
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.
+    ,-[packages/app/src/components/assistant-nav-model.test.ts:54:26]
+ 53 |     expect(tree).toHaveLength(1)
+ 54 |     const work = tree[0] as KbTagNode
+    :                  ^^^|^^^ ^^^^^^|^^^^^^
+    :                     |          `-- Casting it to 'KbTagNode' is unnecessary
+    :                     `-- This expression already has the type 'KbTagNode'
+ 55 |     expect(work.count).toBe(2)
+    `----
+
+  ! typescript-eslint(no-floating-promises): Promises must be awaited, add void operator to ignore.
+     ,-[packages/app/src/context/directory-sync.test.ts:177:5]
+ 176 |     const first = await fixture.next()
+ 177 |     fixture.owner.refresh("/a", "ses_a")
+     :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 178 |     fixture.owner.set("ses_a", [])
+     `----
+  help: The promise must end with a call to .catch, or end with a call to .then with a rejection handler, or be explicitly marked as ignored with the `void` operator.
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/server-sync.test.ts:326:19]
+ 325 |                 workReview: {
+ 326 |                   ...older.workReview,
+     :                   ^^^^^^^^^^^^^^^^^^^
+ 327 |                   state: "resolved",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/server-sync.test.ts:336:25]
+ 335 |         expect(context.store.session[0]).toMatchObject({
+ 336 |           workReview: { ...newest.workReview },
+     :                         ^^^^^^^^^^^^^^^^^^^^
+ 337 |           title: "late GET title",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/server-sync.test.ts:381:21]
+ 380 |                   workReview: {
+ 381 |                     ...incoming.workReview,
+     :                     ^^^^^^^^^^^^^^^^^^^^^^
+ 382 |                     state: "resolved",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/server-sync.test.ts:391:72]
+ 390 |         await pending
+ 391 |         expect(context.store.session[0]).toMatchObject({ workReview: { ...newest.workReview }, title: "page title" })
+     :                                                                        ^^^^^^^^^^^^^^^^^^^^
+ 392 |       } finally {
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/server-sync.test.ts:419:23]
+ 418 |                     workReview: {
+ 419 |                       ...incoming.workReview,
+     :                       ^^^^^^^^^^^^^^^^^^^^^^
+ 420 |                       state: "resolved",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/server-sync.test.ts:430:27]
+ 429 |           expect(context.store.session[0]).toMatchObject({
+ 430 |             workReview: { ...newest.workReview },
+     :                           ^^^^^^^^^^^^^^^^^^^^
+ 431 |             title: "bootstrap title",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/server-sync.test.ts:493:72]
+ 492 |         await pending
+ 493 |         expect(context.store.session[0]).toMatchObject({ workReview: { ...authoritative.workReview } })
+     :                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 494 |       } finally {
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/bootstrap.test.ts:510:46]
+ 509 |     expect(await context.started.promise).toBe("ses_a")
+ 510 |     const session = reviewSession("ses_a", { ...review(2) })
+     :                                              ^^^^^^^^^^^^
+ 511 |     context.response.resolve({ data: session })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/bootstrap.test.ts:528:60]
+ 527 |         data: {
+ 528 |           ...reviewSession("ses_a", kind === "invalid" ? { ...review(9), artifactID: "" } : older),
+     :                                                            ^^^^^^^^^^^^
+ 529 |           title: "network title",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/bootstrap.test.ts:546:64]
+ 545 |       type: "work.review.updated",
+ 546 |       properties: { sessionID: "ses_a", revision: 4, review: { ...newest } },
+     :                                                                ^^^^^^^^^
+ 547 |     })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/utils.test.ts:160:20]
+ 159 |   test("R11: decodes canonical plain JSON, not only a Schema.Class instance", () => {
+ 160 |     const wire = { ...review(2) }
+     :                    ^^^^^^^^^^^^
+ 161 |     expect(Object.getPrototypeOf(wire)).toBe(Object.prototype)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/utils.test.ts:166:46]
+ 165 |   test("R12: a higher revision wins even when its timestamp is lower", () => {
+ 166 |     const current = reviewSession("ses_a", { ...review(2), updatedAt: 999 })
+     :                                              ^^^^^^^^^^^^
+ 167 |     const incoming = reviewSession("ses_a", { ...review(3), updatedAt: 1 })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/utils.test.ts:167:47]
+ 166 |     const current = reviewSession("ses_a", { ...review(2), updatedAt: 999 })
+ 167 |     const incoming = reviewSession("ses_a", { ...review(3), updatedAt: 1 })
+     :                                               ^^^^^^^^^^^^
+ 168 |     expect(mergeSessionReview(current, incoming).workReview).toEqual(incoming.workReview)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/utils.test.ts:169:42]
+ 168 |     expect(mergeSessionReview(current, incoming).workReview).toEqual(incoming.workReview)
+ 169 |     expect(current.workReview).toEqual({ ...review(2), updatedAt: 999 })
+     :                                          ^^^^^^^^^^^^
+ 170 |   })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/utils.test.ts:175:26]
+ 174 |     (kind) => {
+ 175 |       const accepted = { ...review(5, "resolved") }
+     :                          ^^^^^^^^^^^^^^^^^^^^^^^^
+ 176 |       // Corrupt only the wire input to the merge boundary, not the typed Session fixture.
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/utils.test.ts:183:17]
+ 182 |             : {
+ 183 |                 ...review(kind === "equal" ? 5 : kind === "invalid" ? 9 : 2),
+     :                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 184 |                 artifactID: kind === "invalid" ? "" : "artifact-b",
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/utils.test.ts:207:69]
+ 206 |     expect(
+ 207 |       mergeSessionReview({ ...reviewSession("ses_a"), workReview: { ...review(99), artifactID: "" } }, incoming)
+     :                                                                     ^^^^^^^^^^^^^
+ 208 |         .workReview,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/utils.test.ts:214:65]
+ 213 |     // Strip required wire fields after Schema construction so the negative case reaches the decoder.
+ 214 |     const incoming = { ...reviewSession("ses_a"), workReview: { ...review(2), [field]: undefined } }
+     :                                                                 ^^^^^^^^^^^^
+ 215 |     expect(mergeSessionReview(undefined, incoming)).toMatchObject({ id: "ses_a", workReview: undefined })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:902:79]
+ 901 |       type: "work.review.updated",
+ 902 |       properties: { sessionID: "ses_a", revision: current.revision, review: { ...current } },
+     :                                                                               ^^^^^^^^^^
+ 903 |     })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:915:64]
+ 914 |       type: "work.review.updated",
+ 915 |       properties: { sessionID: "ses_a", revision: 4, review: { ...newest } },
+     :                                                                ^^^^^^^^^
+ 916 |     })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:922:79]
+ 921 |         type: "work.review.updated",
+ 922 |         properties: { sessionID: "ses_a", revision: older.revision, review: { ...older, updatedAt: 999 } },
+     :                                                                               ^^^^^^^^
+ 923 |       })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:932:64]
+ 931 |       type: "work.review.updated",
+ 932 |       properties: { sessionID: "ses_a", revision: 2, review: { ...review(2), updatedAt: 1 } },
+     :                                                                ^^^^^^^^^^^^
+ 933 |     })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:944:63]
+ 943 |         type: "work.review.updated",
+ 944 |         properties: { sessionID: "ses_a", revision, review: { ...review(2) } },
+     :                                                               ^^^^^^^^^^^^
+ 945 |       })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:965:55]
+ 964 |       type: "work.review.updated",
+ 965 |       properties: { sessionID, revision: 2, review: { ...review(2) } },
+     :                                                       ^^^^^^^^^^^^
+ 966 |     })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:976:7]
+ 975 |     {},
+ 976 |     { ...review(2), artifactID: "" },
+     :       ^^^^^^^^^^^^
+ 977 |     { ...review(2), revision: 0 },
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:977:7]
+ 976 |     { ...review(2), artifactID: "" },
+ 977 |     { ...review(2), revision: 0 },
+     :       ^^^^^^^^^^^^
+ 978 |     { ...review(2), revision: undefined },
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:978:7]
+ 977 |     { ...review(2), revision: 0 },
+ 978 |     { ...review(2), revision: undefined },
+     :       ^^^^^^^^^^^^
+ 979 |     { ...review(2), state: "approved" },
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:979:7]
+ 978 |     { ...review(2), revision: undefined },
+ 979 |     { ...review(2), state: "approved" },
+     :       ^^^^^^^^^^^^
+ 980 |     { ...review(2), artifactRevision: "invalid" },
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:980:7]
+ 979 |     { ...review(2), state: "approved" },
+ 980 |     { ...review(2), artifactRevision: "invalid" },
+     :       ^^^^^^^^^^^^
+ 981 |   ])("R12: malformed canonical Review %p is rejected", (body) => {
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/context/global-sync/event-reducer.test.ts:997:19]
+ 996 |             : kind === "invalid"
+ 997 |               ? { ...review(8), artifactID: "" }
+     :                   ^^^^^^^^^^^^
+ 998 |               : review(kind === "equal" ? 5 : 2, "open", "artifact-b")
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+      ,-[packages/app/src/context/global-sync/event-reducer.test.ts:1021:72]
+ 1020 |         type,
+ 1021 |         properties: { info: { ...reviewSession("ses_a"), workReview: { ...review(2), artifactID: "" } } },
+      :                                                                        ^^^^^^^^^^^^
+ 1022 |       })
+      `----
+
+  ! typescript-eslint(no-unnecessary-type-arguments): This is the default value for this type parameter, so it can be omitted.
+     ,-[packages/app/src/pages/mode-slot-active.test.ts:199:41]
+ 198 |   })
+ 199 |   const results: UseQueryResult<string, Error>[] = []
+     :                                         ^^^^^
+ 200 |   const owner = createRoot((dispose) => {
+     `----
+
+  ! typescript-eslint(no-unnecessary-type-conversion): This type conversion does not change the type or value of the expression.
+    ,-[packages/app/src/pages/session/file-tab-strip.stories.tsx:24:59]
+ 23 |   return (
+ 24 |     <TabsV2 value={active()} onChange={(tab) => setActive(String(tab))}>
+    :                                                           ^^^^^^ ^|^
+    :                                                              |    `-- This expression already has type 'string'.
+ 25 |       <SessionFileTabStrip
+    `----
+
+  ! typescript-eslint(no-unnecessary-type-parameters): Type parameter T is used only once in the function signature.
+     ,-[packages/app/src/pages/work-review-panel.test.tsx:105:18]
+ 104 |
+ 105 | function element<T extends HTMLElement = HTMLElement>(container: HTMLElement, selector: string): T {
+     :                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                             |
+     :                                   |                                                              `-- This is the only usage of type parameter T in the signature.
+ 106 |   const found = container.querySelector<T>(selector)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/pages/work-review-panel.test.tsx:189:36]
+ 188 |     const fixture = mount({
+ 189 |       read: new WorkReview.Ready({ ...ready(state), artifact: nextArtifact, current: false }),
+     :                                    ^^^^^^^^^^^^^^^
+ 190 |     })
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/pages/work-review-panel.test.tsx:205:53]
+ 204 |     const fixture = mount({ read: ready("resolved"), actions: ["reopen"] })
+ 205 |     fixture.setProps("read", new WorkReview.Ready({ ...ready("resolved"), artifact: nextArtifact, current: false }))
+     :                                                     ^^^^^^^^^^^^^^^^^^^^
+ 206 |     expect(field(fixture.container, "current-artifact-revision").textContent).toBe(nextArtifact.artifactRevision)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/pages/work-review-panel.test.tsx:400:53]
+ 399 |     fixture.setProps("loading", true)
+ 400 |     fixture.setProps("read", new WorkReview.Ready({ ...ready("resolved"), artifact: nextArtifact, current: false }))
+     :                                                     ^^^^^^^^^^^^^^^^^^^^
+ 401 |     fixture.setProps("loading", false)
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/pages/work-review-panel.test.tsx:420:9]
+ 419 |       read: new WorkReview.Ready({
+ 420 |         ...read,
+     :         ^^^^^^^
+ 421 |         artifact: long,
+     `----
+
+  ! typescript-eslint(no-misused-spread): Using the spread operator on class instances will lose their class prototype.
+     ,-[packages/app/src/pages/work-review-panel.test.tsx:423:11]
+ 422 |         review: new WorkReview.Review({
+ 423 |           ...read.review,
+     :           ^^^^^^^^^^^^^^
+ 424 |           artifactID: long.artifactID,
+     `----
+
+Found 231 warnings and 0 errors.
+Finished in 50.1s on 3220 files with 127 rules using 12 threads.
+Checking formatting...
+All matched files use Prettier code style!
+Incremental lint passed: 9 changed files, 5283 added lines
+No unawaited assertions. Scanned 918 test files, 129 expect(...).rejects/.resolves chains.

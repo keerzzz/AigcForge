@@ -442,9 +442,10 @@ stateDiagram-v2
 - [x] S3 亮/暗 × 尺寸截图矩阵与 favicon 实际路径证据已归档
 - [x] 延期项与新发现的验证缺口已登记（§7 / 技术债 §18），含 owner、来源与解锁条件
 - [x] 运行时使用 token；批准的几何/计时集中于局部变量，静态 resolved hex 按 §3.3 注释
-- [ ] 分开创建 S1/S2 与 S3 PR，按本节的分支依赖交付；S3 保持 draft
+- [x] 分开创建 S1/S2 PR [#136](https://github.com/keerzzz/AigcForge/pull/136) 与 S3 draft PR [#137](https://github.com/keerzzz/AigcForge/pull/137)，按本节的分支依赖交付
 - [x] 分别关联 rail Issue [#134](https://github.com/keerzzz/AigcForge/issues/134) 与品牌 Issue [#135](https://github.com/keerzzz/AigcForge/issues/135)（按模板创建，PR 使用 `Closes #N`）
-- [ ] 两条远端分支、PR base/head/Issue 与 CI 状态 readback
+- [x] 两条远端分支、PR base/head/Issue 与 CI 状态 readback；首轮 CI 格式失败已定位，修复后新一轮结果继续跟踪
+- [ ] 修复后的远端 CI 全部门禁通过
 - [ ] S3 最终用户视觉验收及实机发布（技术债 §18；draft PR 不关闭此项）
 
 远端目标：`keerzzz/AigcForge`；S1/S2 base 为 `main`，S3 初始 base 为 `mode-rail-icons`。分拆是 §6/§8 原定的独立评审要求；本轮采用堆叠 PR，避免重写已验证提交。上游 `anomalyco/opencode` 仅作来源，不是交付目标。

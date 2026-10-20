@@ -18,7 +18,7 @@
 | S4 包级与全仓门禁                             | 本地通过                             | 下表本轮输出与精修包级/desktop build/smoke 日志；远端 CI 另行 readback                                                                                  |
 | S3 品牌实际对比度                             | 已补测；可读性待 Design/UI 验收      | 下节记录实际背景和 opacity 后值，不以导轨结果宣称品牌通过                                                                                               |
 | §7 所有延期项                                 | 已登记，仍开放                       | [技术债 §18](../../technical-debt.md)逐项含 Owner、来源与解锁条件；未把延期转换为完成                                                                   |
-| §8 S3 单独 PR、Issue、push、CI                | 交付中                               | S1/S2 `mode-rail-icons` → `main`；S3 `brand-mode-icons` → `mode-rail-icons`，独立 draft；合并前改回 main 并完成最终验收                                 |
+| §8 S3 单独 PR、Issue、push、CI                | PR 已创建；首轮 CI 格式失败，修复中  | S1/S2 #136 `mode-rail-icons` → `main`；S3 #137 `brand-mode-icons` → `mode-rail-icons`，独立 draft；最终视觉与修复后的 CI 仍开放                         |
 | 独立 Bugbot                                   | 新实例完成评审；P2 已修复并复核      | 原实例 Azure resource HTTP 400 不计通过；新实例发现标题栏误用 rail glyph，末轮定向复核确认已修复、无新增 finding，见下节                                |
 
 ## 本轮最小验证
@@ -64,4 +64,12 @@ Desktop 60/60、构建、xvfb 冒烟与 177 文件重生成引用修复前[精�
 
 ## 远端交付
 
-目标仓库 `keerzzz/AigcForge`。按实施计划分开创建两个 PR，不重写已验证的提交历史。S3 最终视觉与发布未闭环，因此独立品牌 PR 保持 draft；计划中的开放项保留明确状态。PR URL、Issue、head/base 与 CI 在 readback 后回写。
+目标仓库 `keerzzz/AigcForge`。两个 PR 已创建并 readback：导轨 [#136](https://github.com/keerzzz/AigcForge/pull/136) 为 `mode-rail-icons` → `main`、非 draft，正文 `Closes #134`；品牌 [#137](https://github.com/keerzzz/AigcForge/pull/137) 为 `brand-mode-icons` → `mode-rail-icons`、draft，正文 `Closes #135`。最初远端 HEAD 分别为 `cdffd5f06` / `19ecc9ffd`，与 `git ls-remote` 一致，见[导轨 readback](command-output/rail-pr-initial-readback.json)与[品牌 readback](command-output/brand-pr-initial-readback.json)。远端品牌 PR 文件清单没有 titlebar 或 mode-switcher 差异；完整范围按 Git diff 核对，GitHub 文件响应有分页限制，不以响应数量作总文件数。
+
+首轮规范、合规和贡献者标签检查通过；CI `Lint, Test, and Typecheck` 在全仓 Prettier 门禁失败，后续类型、OpenAPI 与 Test 步骤没有执行。导轨 7 个文档/证据文件未格式化，品牌另有两个 S3 文件；局部格式检查未覆盖这些文件。原始[导轨失败日志](command-output/rail-ci-format-failure.log)与[品牌失败日志](command-output/brand-ci-format-failure.log)保留。
+
+导轨格式修复 `54500300f` 只改上述 7 文件，两个 JSON 解析结果相同，[全仓格式门禁](command-output/rail-format-fixed.log) exit 0。品牌 merge `682b12a9e` 保留当前 S3 计划内容并接入共同格式修复；S3 的 HTML 和 asset-audit JSON 同步格式化，JSON 解析结果相同。所有包源码与已验证的 `851db3cf7` 一致。CI 修复是证据格式化，没有新增实现技术债；新一轮远端门禁完成前不宣称 CI 通过。
+
+修复后本地 `LINT_BASE_REF=mode-rail-icons bun run lint` 整条链路 exit 0：全仓 oxlint 231 warnings / 0 errors、全仓格式通过、增量 lint 9 changed files / 5283 added lines、918 个测试文件中的 129 条异步断言检查通过。见[完整输出](command-output/full-lint-fixed.log)。没有通过忽略文件或绕过门禁隐藏格式失败。
+
+S3 最终视觉与发布未闭环，品牌 PR 保持 draft；导轨合并后再将品牌 base 改为 `main`。本轮没有合并 PR 或发布。
