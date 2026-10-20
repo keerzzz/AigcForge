@@ -1,0 +1,5 @@
+729c536f9 docs: include standalone rail verification in brand stack
+cdffd5f06 docs(app): record standalone rail delivery verification
+d7103f4fc chore: stack brand changes on mode rail branch
+f174e0300 fix(app): preserve session panel icons outside rail
+851db3cf7 fix(app): preserve session panel icons outside rail

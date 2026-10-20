@@ -1,0 +1,36 @@
+{
+  "background": "#121212",
+  "parentOpacity": 0.5,
+  "parts": [
+    {
+      "compositeContrast": 1.3309546982433258,
+      "compositeForeground": "#1c295e",
+      "foreground": "#263fa9",
+      "intrinsicContrast": 2.0252820934455245,
+      "slot": "logo-splash-a"
+    },
+    {
+      "compositeContrast": 1.373835668028041,
+      "compositeForeground": "#093640",
+      "foreground": "#005a6e",
+      "intrinsicContrast": 2.194072520519139,
+      "slot": "logo-splash-g"
+    },
+    {
+      "compositeContrast": 4.664723583607354,
+      "compositeForeground": "#868686",
+      "foreground": "#fafafa",
+      "intrinsicContrast": 15.982697044507953,
+      "slot": "logo-splash-i"
+    },
+    {
+      "compositeContrast": 2.387649990743637,
+      "compositeForeground": "#435b61",
+      "foreground": "#73a4af",
+      "intrinsicContrast": 6.066507874566288,
+      "slot": "logo-splash-c"
+    }
+  ],
+  "source": "production Splash + ThemeProvider + App CSS",
+  "tone": "dark"
+}
