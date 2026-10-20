@@ -15,11 +15,13 @@ export const Mark = (props: { class?: string }) => {
   )
 }
 
-export const Splash = (props: Pick<ComponentProps<"svg">, "ref" | "class">) => {
+export const Splash = (props: Pick<ComponentProps<"svg">, "ref" | "class"> & { animate?: boolean }) => {
   return (
     <svg
       ref={props.ref}
       data-component="logo-splash"
+      data-motion={props.animate ? "assemble" : undefined}
+      aria-hidden="true"
       classList={{ [props.class ?? ""]: !!props.class }}
       viewBox="0 0 100 100"
       fill="none"
@@ -69,8 +71,12 @@ export const Logo = (props: { class?: string }) => {
           <path d="M104 6 H124 V12 H110 V36 H104 Z" />
           <path d="M110 19 H122 V25 H110 Z" />
           <path fill-rule="evenodd" d="M130 6 H150 V36 H130 Z M134 12 H146 V30 H134 Z" />
-          <path d="M156 6 H172 V20 H162 V22 H156 V6 Z" />
-          <path d="M160 24 H166 V27 H162 V31 H166 V36 H160 V31 H154 V24 Z" />
+          <path
+            data-slot="logo-r-bowl"
+            fill-rule="evenodd"
+            d="M156 6 H176 V24 H162 V36 H156 Z M162 12 H170 V18 H162 Z"
+          />
+          <path data-slot="logo-r-leg" d="M163 22 H171 L179 36 H171 Z" />
           <path d="M182 6 H202 V12 H188 V30 H202 V36 H182 Z" />
           <path d="M195 20 H202 V26 H195 Z" />
           <path d="M208 6 H228 V12 H214 V36 H208 Z" />

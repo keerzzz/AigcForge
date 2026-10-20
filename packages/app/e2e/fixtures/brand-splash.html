@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shared splash fixture</title>
+  </head>
+  <body>
+    <div id="root" class="h-dvh w-screen flex items-center justify-center bg-background-base"></div>
+    <script type="module">
+      import { render } from "solid-js/web"
+      import { Splash } from "../../../ui/src/components/logo.tsx"
+      import { ThemeProvider } from "../../../ui/src/theme/context.tsx"
+      import "../../src/index.css"
+
+      render(
+        () =>
+          ThemeProvider({
+            get children() {
+              return Splash({ animate: true, class: "w-16 h-20 opacity-50" })
+            },
+          }),
+        document.getElementById("root"),
+      )
+    </script>
+  </body>
+</html>

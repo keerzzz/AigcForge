@@ -348,6 +348,16 @@ test.describe("global shell: multi-session tabs", () => {
     await expect(wordmark.locator("svg")).toHaveAttribute("viewBox", "0 0 204 42")
     await expect(wordmark.locator('[data-slot="logo-gc"]')).toHaveAttribute("transform", "translate(5 14.4) scale(.6)")
     await expect(wordmark.locator('[data-slot="logo-e-bottom"]')).toBeAttached()
+    const rBowl = wordmark.locator('[data-slot="logo-r-bowl"]')
+    const rLeg = wordmark.locator('[data-slot="logo-r-leg"]')
+    await expect(rBowl).toHaveCSS("fill-rule", "evenodd")
+    expect(
+      await rBowl.evaluate((path: SVGPathElement) => ({
+        stem: path.isPointInFill(new DOMPoint(159, 15)),
+        counter: path.isPointInFill(new DOMPoint(166, 15)),
+      })),
+    ).toEqual({ stem: true, counter: false })
+    expect(await rLeg.evaluate((path: SVGPathElement) => path.isPointInFill(new DOMPoint(174, 33)))).toBe(true)
     await expect(wordmark.locator("path")).toHaveCount(16)
     await expect(wordmark.locator("filter, linearGradient, mask")).toHaveCount(0)
     const ai = await wordmark.locator('[data-slot="logo-ai"]').boundingBox()
@@ -370,6 +380,8 @@ test.describe("global shell: multi-session tabs", () => {
     await page.locator('[data-slot="select-v2-content"]').getByText("Dark", { exact: true }).click()
     await page.keyboard.press("Escape")
     await expect(settingsDialog).toHaveCount(0)
+    // Focus returns only after the dialog stack releases its shortcut lock.
+    await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeFocused()
     await expect(wordmark.locator("path").first()).toHaveCSS("fill", "rgb(250, 250, 250)")
     await testInfo.attach("new-session-brand-dark", { body: await page.screenshot(), contentType: "image/png" })
 
