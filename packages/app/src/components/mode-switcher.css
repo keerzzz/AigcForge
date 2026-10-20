@@ -1,0 +1,42 @@
+[data-component="mode-switcher"] {
+  /* Fixed geometry and timing approved in brand-mode-icons-2026-10-20.md §3.2. */
+  --v2-mode-switcher-indicator-width: 2px;
+  --v2-mode-switcher-indicator-height: 20px;
+  --v2-mode-switcher-indicator-radius: 1px;
+  --v2-mode-switcher-indicator-duration: 150ms;
+}
+
+[data-component="mode-switcher"] [data-slot="active-indicator"] {
+  position: absolute;
+  pointer-events: none;
+  inset-inline-start: calc(-2 * var(--v2-mode-switcher-indicator-width));
+  top: 50%;
+  width: var(--v2-mode-switcher-indicator-width);
+  height: var(--v2-mode-switcher-indicator-height);
+  border-radius: var(--v2-mode-switcher-indicator-radius);
+  background-color: var(--v2-icon-icon-accent);
+  opacity: 0;
+  transform: translateY(-50%) scaleY(0.6);
+  transform-origin: center;
+  transition:
+    opacity var(--v2-mode-switcher-indicator-duration) ease,
+    transform var(--v2-mode-switcher-indicator-duration) ease;
+}
+
+[data-component="mode-switcher"] [data-slot="rail-item"][data-state="active"] [data-slot="active-indicator"] {
+  opacity: 1;
+  transform: translateY(-50%) scaleY(1);
+}
+
+@media (forced-colors: active) {
+  [data-component="mode-switcher"] [data-slot="active-indicator"] {
+    /* Use the user's system foreground when accent colors are replaced. */
+    background-color: CanvasText;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-component="mode-switcher"] [data-slot="active-indicator"] {
+    transition: none;
+  }
+}

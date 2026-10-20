@@ -1,0 +1,11 @@
+{
+  "documentWidth": 390,
+  "locale": "zh",
+  "rails": [
+    {
+      "visible": true,
+      "width": 64
+    }
+  ],
+  "width": 390
+}
