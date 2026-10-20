@@ -1,0 +1,21 @@
+# fork 侧移植权威清单（策略 A）：git diff --name-status 83e3651f6..HEAD -- <18 个现行包>
+# 口径：A=新增 M=修改 D=删除（删除仅为包内清理）。移植时以本清单为准，不用双向 changed-*.txt。
+#
+544 core
+496 app
+384 aigcfroge
+75 ui
+66 schema
+57 tui
+41 session-ui
+37 desktop
+22 llm
+20 server
+16 sdk
+9 script
+6 plugin
+5 storybook
+2 http-recorder
+1 enterprise
+1 effect-sqlite-node
+1 effect-drizzle-sqlite
