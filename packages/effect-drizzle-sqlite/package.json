@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "name": "@aigcfroge/effect-drizzle-sqlite",
   "type": "module",
   "license": "MIT",
