@@ -1,0 +1,584 @@
+﻿2026-10-20T23:17:21.4744038Z Current runner version: '2.338.0'
+2026-10-20T23:17:21.4760198Z ##[group]Runner Image Provisioner
+2026-10-20T23:17:21.4760707Z Hosted Compute Agent
+2026-10-20T23:17:21.4761120Z Version: 20261012.601
+2026-10-20T23:17:21.4761521Z Commit: f3dc54e1fb89da6852db922499a0233137369e1d
+2026-10-20T23:17:21.4761931Z Build Date: 2026-10-12T17:48:21Z
+2026-10-20T23:17:21.4762397Z Worker ID: {2713f432-f174-422a-b8d4-29c5b5decf79}
+2026-10-20T23:17:21.4762801Z Region: centralus
+2026-10-20T23:17:21.4763172Z Cloud: Azure
+2026-10-20T23:17:21.4763522Z ##[endgroup]
+2026-10-20T23:17:21.4764223Z ##[group]Operating System
+2026-10-20T23:17:21.4764758Z Ubuntu
+2026-10-20T23:17:21.4765063Z 24.04.5
+2026-10-20T23:17:21.4765389Z LTS
+2026-10-20T23:17:21.4765733Z ##[endgroup]
+2026-10-20T23:17:21.4766056Z ##[group]Runner Image
+2026-10-20T23:17:21.4766468Z Image: ubuntu-24.04
+2026-10-20T23:17:21.4766802Z Version: 20261012.334.1
+2026-10-20T23:17:21.4767588Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-20T23:17:21.4768420Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+2026-10-20T23:17:21.4769003Z ##[endgroup]
+2026-10-20T23:17:21.4769666Z ##[group]GITHUB_TOKEN Permissions
+2026-10-20T23:17:21.4771010Z Contents: read
+2026-10-20T23:17:21.4771348Z Metadata: read
+2026-10-20T23:17:21.4771724Z Packages: read
+2026-10-20T23:17:21.4772062Z ##[endgroup]
+2026-10-20T23:17:21.4773277Z Secret source: Actions
+2026-10-20T23:17:21.4773883Z Cache mode: write
+2026-10-20T23:17:21.4774581Z Prepare workflow directory
+2026-10-20T23:17:21.5070814Z Prepare all required actions
+2026-10-20T23:17:21.5102105Z Getting action download info
+2026-10-20T23:17:21.7159541Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-20T23:17:22.0929662Z Complete job name: Lint, Test, and Typecheck
+2026-10-20T23:17:22.1503195Z ##[group]Run actions/checkout@v4
+2026-10-20T23:17:22.1503671Z with:
+2026-10-20T23:17:22.1503950Z   fetch-depth: 0
+2026-10-20T23:17:22.1504227Z   repository: keerzzz/AigcForge
+2026-10-20T23:17:22.1506633Z   token: ***
+2026-10-20T23:17:22.1506889Z   ssh-strict: true
+2026-10-20T23:17:22.1507148Z   ssh-user: git
+2026-10-20T23:17:22.1507413Z   persist-credentials: true
+2026-10-20T23:17:22.1507706Z   clean: true
+2026-10-20T23:17:22.1507978Z   sparse-checkout-cone-mode: true
+2026-10-20T23:17:22.1508287Z   fetch-tags: false
+2026-10-20T23:17:22.1508553Z   show-progress: true
+2026-10-20T23:17:22.1508827Z   lfs: false
+2026-10-20T23:17:22.1509080Z   submodules: false
+2026-10-20T23:17:22.1509362Z   set-safe-directory: true
+2026-10-20T23:17:22.1509664Z   allow-unsafe-pr-checkout: false
+2026-10-20T23:17:22.1510055Z ##[endgroup]
+2026-10-20T23:17:22.2168999Z Syncing repository: keerzzz/AigcForge
+2026-10-20T23:17:22.2170441Z ##[group]Getting Git version info
+2026-10-20T23:17:22.2170934Z Working directory is '/home/runner/work/AigcForge/AigcForge'
+2026-10-20T23:17:22.2171666Z [command]/usr/bin/git version
+2026-10-20T23:17:22.2244552Z git version 2.55.0
+2026-10-20T23:17:22.2272644Z ##[endgroup]
+2026-10-20T23:17:22.2288904Z Temporarily overriding HOME='/home/runner/work/_temp/6466eff8-b483-4d8d-9030-3ba57d295ecd' before making global git config changes
+2026-10-20T23:17:22.2290175Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T23:17:22.2294218Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/AigcForge/AigcForge
+2026-10-20T23:17:22.2349068Z Deleting the contents of '/home/runner/work/AigcForge/AigcForge'
+2026-10-20T23:17:22.2351855Z ##[group]Initializing the repository
+2026-10-20T23:17:22.2355430Z [command]/usr/bin/git init /home/runner/work/AigcForge/AigcForge
+2026-10-20T23:17:22.2642039Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-20T23:17:22.2643403Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-20T23:17:22.2648956Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-20T23:17:22.2650328Z hint: call:
+2026-10-20T23:17:22.2650881Z hint:
+2026-10-20T23:17:22.2651541Z hint: 	git config --global init.defaultBranch <name>
+2026-10-20T23:17:22.2652253Z hint:
+2026-10-20T23:17:22.2652955Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-20T23:17:22.2653940Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-20T23:17:22.2655001Z hint:
+2026-10-20T23:17:22.2655518Z hint: 	git branch -m <name>
+2026-10-20T23:17:22.2656085Z hint:
+2026-10-20T23:17:22.2656780Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-20T23:17:22.2658056Z Initialized empty Git repository in /home/runner/work/AigcForge/AigcForge/.git/
+2026-10-20T23:17:22.2660436Z [command]/usr/bin/git remote add origin https://github.com/keerzzz/AigcForge
+2026-10-20T23:17:22.3077460Z ##[endgroup]
+2026-10-20T23:17:22.3078165Z ##[group]Disabling automatic garbage collection
+2026-10-20T23:17:22.3080197Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-20T23:17:22.3413347Z ##[endgroup]
+2026-10-20T23:17:22.3415486Z ##[group]Setting up auth
+2026-10-20T23:17:22.3427182Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T23:17:22.3489008Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T23:17:22.3861861Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T23:17:22.3887437Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T23:17:22.4056318Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T23:17:22.4084274Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T23:17:22.4257252Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-20T23:17:22.4435877Z ##[endgroup]
+2026-10-20T23:17:22.4436930Z ##[group]Fetching the repository
+2026-10-20T23:17:22.4443724Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/* +0316167dcbaca73bfdca584ab09d01448a43c520:refs/remotes/pull/136/merge
+2026-10-20T23:17:25.8432650Z From https://github.com/keerzzz/AigcForge
+2026-10-20T23:17:25.8434241Z  * [new branch]        anti-hallucination                       -> origin/anti-hallucination
+2026-10-20T23:17:25.8435779Z  * [new branch]        brand-mode-icons                         -> origin/brand-mode-icons
+2026-10-20T23:17:25.8437179Z  * [new branch]        bump-version                             -> origin/bump-version
+2026-10-20T23:17:25.8438523Z  * [new branch]        bun-invocations                          -> origin/bun-invocations
+2026-10-20T23:17:25.8440079Z  * [new branch]        composer-model-visibility                -> origin/composer-model-visibility
+2026-10-20T23:17:25.8441745Z  * [new branch]        composer-permission-shield               -> origin/composer-permission-shield
+2026-10-20T23:17:25.8443638Z  * [new branch]        delegation-runtime                       -> origin/delegation-runtime
+2026-10-20T23:17:25.8445182Z  * [new branch]        desktop-auto-release                     -> origin/desktop-auto-release
+2026-10-20T23:17:25.8446612Z  * [new branch]        desktop-build-memory                     -> origin/desktop-build-memory
+2026-10-20T23:17:25.8447984Z  * [new branch]        desktop-e2e-fixes                        -> origin/desktop-e2e-fixes
+2026-10-20T23:17:25.8449604Z  * [new branch]        desktop-release-docs                     -> origin/desktop-release-docs
+2026-10-20T23:17:25.8451136Z  * [new branch]        desktop-release-flow                     -> origin/desktop-release-flow
+2026-10-20T23:17:25.8452879Z  * [new branch]        desktop-startup-perf                     -> origin/desktop-startup-perf
+2026-10-20T23:17:25.8454547Z  * [new branch]        diagnose-ai-run                          -> origin/diagnose-ai-run
+2026-10-20T23:17:25.8456102Z  * [new branch]        docs-archive                             -> origin/docs-archive
+2026-10-20T23:17:25.8457762Z  * [new branch]        docs-desktop-release-state               -> origin/docs-desktop-release-state
+2026-10-20T23:17:25.8459468Z  * [new branch]        docs-v2-baseline                         -> origin/docs-v2-baseline
+2026-10-20T23:17:25.8460926Z  * [new branch]        drop-macos-x64                           -> origin/drop-macos-x64
+2026-10-20T23:17:25.8462514Z  * [new branch]        exerciser-auth-runtime                   -> origin/exerciser-auth-runtime
+2026-10-20T23:17:25.8464129Z  * [new branch]        external-cli-fix                         -> origin/external-cli-fix
+2026-10-20T23:17:25.8465774Z  * [new branch]        five-mode-tdd                            -> origin/five-mode-tdd
+2026-10-20T23:17:25.8467305Z  * [new branch]        five-mode-ux                             -> origin/five-mode-ux
+2026-10-20T23:17:25.8468910Z  * [new branch]        fix-bot-completion                       -> origin/fix-bot-completion
+2026-10-20T23:17:25.8470619Z  * [new branch]        fix-changelog-agent                      -> origin/fix-changelog-agent
+2026-10-20T23:17:25.8472358Z  * [new branch]        fix-flaky-fs-find-test                   -> origin/fix-flaky-fs-find-test
+2026-10-20T23:17:25.8474070Z  * [new branch]        fix-lockfile-drift                       -> origin/fix-lockfile-drift
+2026-10-20T23:17:25.8475922Z  * [new branch]        fix-release-draft-race                   -> origin/fix-release-draft-race
+2026-10-20T23:17:25.8477748Z  * [new branch]        fix-workspace-sync                       -> origin/fix-workspace-sync
+2026-10-20T23:17:25.8479484Z  * [new branch]        global-shell-e2e                         -> origin/global-shell-e2e
+2026-10-20T23:17:25.8481228Z  * [new branch]        hard-quota-retry                         -> origin/hard-quota-retry
+2026-10-20T23:17:25.8482813Z  * [new branch]        harden-issue-bots                        -> origin/harden-issue-bots
+2026-10-20T23:17:25.8484523Z  * [new branch]        m3-mcp-approval                          -> origin/m3-mcp-approval
+2026-10-20T23:17:25.8486109Z  * [new branch]        m3-review-fixes                          -> origin/m3-review-fixes
+2026-10-20T23:17:25.8487794Z  * [new branch]        main                                     -> origin/main
+2026-10-20T23:17:25.8489340Z  * [new branch]        main-approval                            -> origin/main-approval
+2026-10-20T23:17:25.8491021Z  * [new branch]        mode-rail-icons                          -> origin/mode-rail-icons
+2026-10-20T23:17:25.8493427Z  * [new branch]        performance-harness                      -> origin/performance-harness
+2026-10-20T23:17:25.8495276Z  * [new branch]        pr-1-adr-15-chat-m1                      -> origin/pr-1-adr-15-chat-m1
+2026-10-20T23:17:25.8496934Z  * [new branch]        pr-2-chat-m2                             -> origin/pr-2-chat-m2
+2026-10-20T23:17:25.8498508Z  * [new branch]        pr-3-chat-m3                             -> origin/pr-3-chat-m3
+2026-10-20T23:17:25.8499979Z  * [new branch]        pr-4-chat-m4                             -> origin/pr-4-chat-m4
+2026-10-20T23:17:25.8501437Z  * [new branch]        pr-5-m5-to-m7                            -> origin/pr-5-m5-to-m7
+2026-10-20T23:17:25.8502940Z  * [new branch]        pr-6-security-infra                      -> origin/pr-6-security-infra
+2026-10-20T23:17:25.8504719Z  * [new branch]        pr-7-import-parser-session               -> origin/pr-7-import-parser-session
+2026-10-20T23:17:25.8506408Z  * [new branch]        provider-discover                        -> origin/provider-discover
+2026-10-20T23:17:25.8507920Z  * [new branch]        qa-closure                               -> origin/qa-closure
+2026-10-20T23:17:25.8510127Z  * [new branch]        release-exec-bit                         -> origin/release-exec-bit
+2026-10-20T23:17:25.8512373Z  * [new branch]        release-notes-fallback                   -> origin/release-notes-fallback
+2026-10-20T23:17:25.8514850Z  * [new branch]        release-notes-optional                   -> origin/release-notes-optional
+2026-10-20T23:17:25.8517185Z  * [new branch]        release-timeout-fix                      -> origin/release-timeout-fix
+2026-10-20T23:17:25.8519115Z  * [new branch]        review-cleanup-fixes                     -> origin/review-cleanup-fixes
+2026-10-20T23:17:25.8521146Z  * [new branch]        review-guardrails                        -> origin/review-guardrails
+2026-10-20T23:17:25.8523322Z  * [new branch]        secure-review-tools                      -> origin/secure-review-tools
+2026-10-20T23:17:25.8525205Z  * [new branch]        storybook-baseline-fix                   -> origin/storybook-baseline-fix
+2026-10-20T23:17:25.8526874Z  * [new branch]        sync-release-lockfile                    -> origin/sync-release-lockfile
+2026-10-20T23:17:25.8528493Z  * [new branch]        tmp-core-pre-main                        -> origin/tmp-core-pre-main
+2026-10-20T23:17:25.8530173Z  * [new branch]        unsigned-mac-package                     -> origin/unsigned-mac-package
+2026-10-20T23:17:25.8531764Z  * [new branch]        windows-shell-tests                      -> origin/windows-shell-tests
+2026-10-20T23:17:25.8533371Z  * [new branch]        work-session-sidebar                     -> origin/work-session-sidebar
+2026-10-20T23:17:25.8535263Z  * [new branch]        workflow-slimming                        -> origin/workflow-slimming
+2026-10-20T23:17:25.8536815Z  * [new tag]           docs-checkpoint-20261017                 -> docs-checkpoint-20261017
+2026-10-20T23:17:25.8538506Z  * [new tag]           v0.0.1                                   -> v0.0.1
+2026-10-20T23:17:25.8539960Z  * [new tag]           v0.0.2                                   -> v0.0.2
+2026-10-20T23:17:25.8541074Z  * [new tag]           v0.0.3                                   -> v0.0.3
+2026-10-20T23:17:25.8542212Z  * [new tag]           v0.0.4                                   -> v0.0.4
+2026-10-20T23:17:25.8543372Z  * [new tag]           v0.0.5                                   -> v0.0.5
+2026-10-20T23:17:25.8544661Z  * [new tag]           v0.0.6                                   -> v0.0.6
+2026-10-20T23:17:25.8545914Z  * [new ref]           0316167dcbaca73bfdca584ab09d01448a43c520 -> pull/136/merge
+2026-10-20T23:17:25.8548669Z ##[endgroup]
+2026-10-20T23:17:25.8549729Z ##[group]Determining the checkout info
+2026-10-20T23:17:25.8550901Z ##[endgroup]
+2026-10-20T23:17:25.8551589Z [command]/usr/bin/git sparse-checkout disable
+2026-10-20T23:17:25.8553529Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-20T23:17:25.8555982Z ##[group]Checking out the ref
+2026-10-20T23:17:25.8557044Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/136/merge
+2026-10-20T23:17:26.1775131Z Note: switching to 'refs/remotes/pull/136/merge'.
+2026-10-20T23:17:26.1775454Z
+2026-10-20T23:17:26.1775639Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-20T23:17:26.1776085Z changes and commit them, and you can discard any commits you make in this
+2026-10-20T23:17:26.1776501Z state without impacting any branches by switching back to a branch.
+2026-10-20T23:17:26.1776754Z
+2026-10-20T23:17:26.1776917Z If you want to create a new branch to retain commits you create, you may
+2026-10-20T23:17:26.1777319Z do so (now or later) by using -c with the switch command. Example:
+2026-10-20T23:17:26.1777545Z
+2026-10-20T23:17:26.1777646Z   git switch -c <new-branch-name>
+2026-10-20T23:17:26.1777800Z
+2026-10-20T23:17:26.1777903Z Or undo this operation with:
+2026-10-20T23:17:26.1778095Z
+2026-10-20T23:17:26.1778175Z   git switch -
+2026-10-20T23:17:26.1778280Z
+2026-10-20T23:17:26.1778764Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-20T23:17:26.1779043Z
+2026-10-20T23:17:26.1779341Z HEAD is now at 0316167d Merge cdffd5f06d97fb2e7d92f622012db152e95403c5 into 43997011e39410aab33f5c16b5876c9f46e58e2c
+2026-10-20T23:17:26.1799949Z ##[endgroup]
+2026-10-20T23:17:26.1841955Z [command]/usr/bin/git log -1 --format=%H
+2026-10-20T23:17:26.1866045Z 0316167dcbaca73bfdca584ab09d01448a43c520
+2026-10-20T23:17:26.2087085Z Prepare all required actions
+2026-10-20T23:17:26.2087411Z Getting action download info
+2026-10-20T23:17:26.3144155Z Download action repository 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6' (SHA:0c5077e51419868618aeaa5fe8019c62421857d6)
+2026-10-20T23:17:26.7027087Z Download action repository 'actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-10-20T23:17:26.8524175Z ##[group]Run ./.github/actions/setup-bun
+2026-10-20T23:17:26.8524470Z with:
+2026-10-20T23:17:26.8524578Z ##[endgroup]
+2026-10-20T23:17:26.8561685Z ##[start-action display=Setup Bun;id=__self.__oven-sh_setup-bun]
+2026-10-20T23:17:26.8613658Z ##[group]Run oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+2026-10-20T23:17:26.8613862Z with:
+2026-10-20T23:17:26.8613984Z   bun-version-file: package.json
+2026-10-20T23:17:26.8614121Z   no-cache: false
+2026-10-20T23:17:26.8615602Z   token: ***
+2026-10-20T23:17:26.8615710Z ##[endgroup]
+2026-10-20T23:17:26.9566088Z Obtained version 1.3.14 from package.json
+2026-10-20T23:17:27.0966840Z Cache hit for: bun-fR4r1tsFeXfPQkusQwkKD2kGnsE=
+2026-10-20T23:17:27.8866145Z Received 33843769 of 33843769 (100.0%), 52.0 MBs/sec
+2026-10-20T23:17:27.8869197Z Cache Size: ~32 MB (33843769 B)
+2026-10-20T23:17:27.8887962Z [command]/usr/bin/tar -xf /home/runner/work/_temp/f2f7beb1-978e-4097-bbb8-dbd2528833e4/cache.tzst -P -C /home/runner/work/AigcForge/AigcForge --use-compress-program unzstd
+2026-10-20T23:17:27.9822470Z Cache restored successfully
+2026-10-20T23:17:27.9842305Z [command]/home/runner/.bun/bin/bun --revision
+2026-10-20T23:17:27.9877489Z 1.3.14+0d9b296af
+2026-10-20T23:17:27.9888325Z Using a cached version of Bun: 1.3.14+0d9b296af
+2026-10-20T23:17:27.9967528Z ##[end-action id=__self.__oven-sh_setup-bun;outcome=success;conclusion=success;duration_ms=1140]
+2026-10-20T23:17:27.9969509Z ##[start-action display=Get cache directory;id=__self.cache]
+2026-10-20T23:17:27.9994910Z ##[group]Run echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+2026-10-20T23:17:27.9995178Z echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+2026-10-20T23:17:28.0215730Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-20T23:17:28.0215945Z ##[endgroup]
+2026-10-20T23:17:28.0344114Z ##[end-action id=__self.cache;outcome=success;conclusion=success;duration_ms=37]
+2026-10-20T23:17:28.0348492Z ##[start-action display=Restore Bun dependencies;id=__self.bun-cache]
+2026-10-20T23:17:28.2789174Z ##[group]Run actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+2026-10-20T23:17:28.2789387Z with:
+2026-10-20T23:17:28.2789529Z   path: /home/runner/.bun/install/cache
+2026-10-20T23:17:28.2789758Z   key: Linux-bun-664703f0a5e5f7bb698aa8097c0d611eeb5fc172547993a9a9a87f10b5a73912
+2026-10-20T23:17:28.2790014Z   restore-keys: Linux-bun-
+
+2026-10-20T23:17:28.2790153Z   enableCrossOsArchive: false
+2026-10-20T23:17:28.2790294Z   fail-on-cache-miss: false
+2026-10-20T23:17:28.2790422Z   lookup-only: false
+2026-10-20T23:17:28.2790551Z ##[endgroup]
+2026-10-20T23:17:28.3422012Z (node:2109) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T23:17:28.3422403Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T23:17:28.4534638Z Cache hit for restore-key: Linux-bun-18e810dbca51787b8f773042361b6d4a78d815f704dcd3898d653264ca1b0075
+2026-10-20T23:17:28.4629546Z (node:2109) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-20T23:17:29.6288336Z Received 109051904 of 588144756 (18.5%), 104.0 MBs/sec
+2026-10-20T23:17:30.6416701Z Received 268435456 of 588144756 (45.6%), 127.2 MBs/sec
+2026-10-20T23:17:31.6421236Z Received 432013312 of 588144756 (73.5%), 136.7 MBs/sec
+2026-10-20T23:17:32.4305558Z Received 588144756 of 588144756 (100.0%), 147.6 MBs/sec
+2026-10-20T23:17:32.4306723Z Cache Size: ~561 MB (588144756 B)
+2026-10-20T23:17:32.4356080Z [command]/usr/bin/tar -xf /home/runner/work/_temp/4d9f6e61-2152-4a78-ae2c-82261e9714f2/cache.tzst -P -C /home/runner/work/AigcForge/AigcForge --use-compress-program unzstd
+2026-10-20T23:17:44.3787735Z Cache restored successfully
+2026-10-20T23:17:44.4059739Z Cache restored from key: Linux-bun-18e810dbca51787b8f773042361b6d4a78d815f704dcd3898d653264ca1b0075
+2026-10-20T23:17:44.4169475Z ##[end-action id=__self.bun-cache;outcome=success;conclusion=success;duration_ms=16382]
+2026-10-20T23:17:44.4172122Z ##[start-action display=Install setuptools for distutils compatibility;id=__self.__run]
+2026-10-20T23:17:44.4226364Z ##[group]Run python3 -m pip install setuptools || pip install setuptools || true
+2026-10-20T23:17:44.4226697Z python3 -m pip install setuptools || pip install setuptools || true
+2026-10-20T23:17:44.4276672Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-20T23:17:44.4276858Z ##[endgroup]
+2026-10-20T23:17:45.5436114Z Defaulting to user installation because normal site-packages is not writeable
+2026-10-20T23:17:46.3051866Z Requirement already satisfied: setuptools in /usr/lib/python3/dist-packages (68.1.2)
+2026-10-20T23:17:46.5028472Z ##[end-action id=__self.__run;outcome=success;conclusion=success;duration_ms=2085]
+2026-10-20T23:17:46.5030328Z ##[start-action display=Install dependencies;id=__self.__run_2]
+2026-10-20T23:17:46.5419725Z ##[group]Run if [ "$RUNNER_OS" = "Windows" ]; then
+2026-10-20T23:17:46.5419963Z if [ "$RUNNER_OS" = "Windows" ]; then
+2026-10-20T23:17:46.5420146Z   bun install --linker hoisted
+2026-10-20T23:17:46.5420325Z else
+2026-10-20T23:17:46.5420446Z   bun install
+2026-10-20T23:17:46.5420573Z fi
+2026-10-20T23:17:46.5471598Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-20T23:17:46.5471794Z ##[endgroup]
+2026-10-20T23:17:46.6085087Z bun install v1.3.14 (0d9b296a)
+2026-10-20T23:17:46.6367608Z Resolving dependencies
+2026-10-20T23:17:48.9170526Z Resolved, downloaded and extracted [35]
+2026-10-20T23:17:54.8961808Z Saved lockfile
+2026-10-20T23:17:54.8962001Z
+2026-10-20T23:17:54.8962110Z $ bun run --cwd packages/core fix-node-pty
+2026-10-20T23:17:54.8993122Z $ bun run script/fix-node-pty.ts
+2026-10-20T23:17:54.9164190Z $ husky
+2026-10-20T23:17:54.9449833Z
+2026-10-20T23:17:54.9455079Z + @actions/artifact@5.0.1
+2026-10-20T23:17:54.9475054Z + @tsconfig/bun@1.0.9
+2026-10-20T23:17:54.9475303Z + @types/mime-types@3.0.1
+2026-10-20T23:17:54.9475558Z + @typescript/native-preview@7.0.0-dev.20251207.1
+2026-10-20T23:17:54.9475867Z + glob@13.0.5
+2026-10-20T23:17:54.9476037Z + husky@9.1.7
+2026-10-20T23:17:54.9476201Z + oxlint@1.60.0
+2026-10-20T23:17:54.9476389Z + oxlint-tsgolint@0.21.0
+2026-10-20T23:17:54.9476586Z + prettier@3.6.2
+2026-10-20T23:17:54.9476760Z + semver@7.8.5
+2026-10-20T23:17:54.9476927Z + turbo@2.9.14
+2026-10-20T23:17:54.9477125Z + @aigcfroge/plugin@workspace:packages/plugin
+2026-10-20T23:17:54.9477441Z + @aigcfroge/script@workspace:packages/script
+2026-10-20T23:17:54.9477652Z + @aigcfroge/sdk@workspace:packages/sdk/js
+2026-10-20T23:17:54.9477815Z + typescript@5.8.2 (v7.0.2 available)
+2026-10-20T23:17:54.9477918Z
+2026-10-20T23:17:54.9477979Z 1553 packages installed [8.34s]
+2026-10-20T23:17:54.9749678Z ##[end-action id=__self.__run_2;outcome=success;conclusion=success;duration_ms=8471]
+2026-10-20T23:17:54.9751514Z ##[start-action display=Save Bun dependencies;id=__self.__actions_cache]
+2026-10-20T23:17:54.9761805Z ##[end-action id=__self.__actions_cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-20T23:17:54.9787487Z ##[group]Run bun install
+2026-10-20T23:17:54.9787652Z bun install
+2026-10-20T23:17:54.9839108Z shell: /usr/bin/bash -e {0}
+2026-10-20T23:17:54.9839251Z ##[endgroup]
+2026-10-20T23:17:54.9921849Z bun install v1.3.14 (0d9b296a)
+2026-10-20T23:17:55.0195699Z Resolving dependencies
+2026-10-20T23:17:55.4891333Z Resolved, downloaded and extracted [13]
+2026-10-20T23:17:55.5225915Z Saved lockfile
+2026-10-20T23:17:55.5226059Z
+2026-10-20T23:17:55.5229263Z $ bun run --cwd packages/core fix-node-pty
+2026-10-20T23:17:55.5264960Z $ bun run script/fix-node-pty.ts
+2026-10-20T23:17:55.5427546Z $ husky
+2026-10-20T23:17:55.5734263Z
+2026-10-20T23:17:55.5735087Z Checked 1764 installs across 1778 packages (no changes) [582.00ms]
+2026-10-20T23:17:55.5825992Z ##[group]Run bun run lint
+2026-10-20T23:17:55.5826166Z bun run lint
+2026-10-20T23:17:55.5877242Z shell: /usr/bin/bash -e {0}
+2026-10-20T23:17:55.5877387Z env:
+2026-10-20T23:17:55.5877530Z   LINT_BASE_REF: 43997011e39410aab33f5c16b5876c9f46e58e2c
+2026-10-20T23:17:55.5877719Z ##[endgroup]
+2026-10-20T23:17:55.5957990Z $ oxlint && bun run script/format.ts --check && bun run script/lint-changed.ts && bun run script/check-unawaited-assertions.ts
+2026-10-20T23:18:24.3935329Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3941062Z ##[warning]Variable 'sync' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3941964Z ##[warning]There is no cause error attached to this new thrown error.
+2026-10-20T23:18:24.3942648Z ##[warning]There is no cause error attached to this new thrown error.
+2026-10-20T23:18:24.3943535Z ##[warning]Identifier 'formatServerError' is imported but never used.
+2026-10-20T23:18:24.3944778Z ##[warning]Prefer String#startsWith over a regex with a caret.
+2026-10-20T23:18:24.3945468Z ##[warning]Identifier 'createMemo' is imported but never used.
+2026-10-20T23:18:24.3946117Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3946746Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3947359Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3947964Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3948563Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3949143Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3949782Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3950357Z ##[warning]Do not add `then` to an object.
+2026-10-20T23:18:24.3951110Z ##[warning]Variable 'WIKILINK' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3951820Z ##[warning]Unnecessary escape character '['
+2026-10-20T23:18:24.3952441Z ##[warning]"body" is not allowed when method is "GET"
+2026-10-20T23:18:24.3953086Z ##[warning]Type 'Mode' is imported but never used.
+2026-10-20T23:18:24.3954022Z ##[warning]Empty object binding pattern
+2026-10-20T23:18:24.3954832Z ##[warning]Identifier 'provideInstance' is imported but never used.
+2026-10-20T23:18:24.3955592Z ##[warning]Using a spread operator here creates a new array unnecessarily.
+2026-10-20T23:18:24.3956283Z ##[warning]Identifier 'Exit' is imported but never used.
+2026-10-20T23:18:24.3956902Z ##[warning]Unnecessary escape character '['
+2026-10-20T23:18:24.3957504Z ##[warning]Unnecessary escape character '-'
+2026-10-20T23:18:24.3958172Z ##[warning]Using a spread operator here creates a new array unnecessarily.
+2026-10-20T23:18:24.3958997Z ##[warning]Variable 'first' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3959828Z ##[warning]Variable 'second' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3960607Z ##[warning]Identifier 'JsonSchema' is imported but never used.
+2026-10-20T23:18:24.3961268Z ##[warning]Identifier 'Cause' is imported but never used.
+2026-10-20T23:18:24.3962154Z ##[warning]Identifier 'Exit' is imported but never used.
+2026-10-20T23:18:24.3963000Z ##[warning]Identifier 'Option' is imported but never used.
+2026-10-20T23:18:24.3963664Z ##[warning]Identifier 'FSUtil' is imported but never used.
+2026-10-20T23:18:24.3964807Z ##[warning]Identifier 'Global' is imported but never used.
+2026-10-20T23:18:24.3965581Z ##[warning]Parameter 'meta' is declared but never used. Unused parameters should start with a '_'.
+2026-10-20T23:18:24.3966293Z ##[warning]Identifier 'stable' is imported but never used.
+2026-10-20T23:18:24.3966979Z ##[warning]Identifier 'SessionComposition' is imported but never used.
+2026-10-20T23:18:24.3967669Z ##[warning]Identifier 'SessionSchema' is imported but never used.
+2026-10-20T23:18:24.3968313Z ##[warning]Function 'defer' is declared but never used.
+2026-10-20T23:18:24.3969254Z ##[warning]Variable 'db' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3969978Z ##[warning]Identifier 'AbsolutePath' is imported but never used.
+2026-10-20T23:18:24.3970682Z ##[warning]Using a spread operator here creates a new object unnecessarily.
+2026-10-20T23:18:24.3971403Z ##[warning]Using a spread operator here creates a new object unnecessarily.
+2026-10-20T23:18:24.3972118Z ##[warning]Using a spread operator here creates a new object unnecessarily.
+2026-10-20T23:18:24.3972888Z ##[warning]`Set` accepts an iterable, so it's unnecessary to convert the iterable to an array.
+2026-10-20T23:18:24.3973603Z ##[warning]Identifier 'SessionTable' is imported but never used.
+2026-10-20T23:18:24.3974683Z ##[warning]Identifier 'McpScope' is imported but never used.
+2026-10-20T23:18:24.3975778Z ##[warning]Parameter 'i' is declared but never used. Unused parameters should start with a '_'.
+2026-10-20T23:18:24.3976711Z ##[warning]Identifier 'Schedule' is imported but never used.
+2026-10-20T23:18:24.3977868Z ##[warning]Variable 'presence' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3979071Z ##[warning]Using a spread operator here creates a new object unnecessarily.
+2026-10-20T23:18:24.3980263Z ##[warning]Using a spread operator here creates a new object unnecessarily.
+2026-10-20T23:18:24.3981575Z ##[warning]Variable 'fiber' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3982773Z ##[warning]Identifier 'KBNote' is imported but never used.
+2026-10-20T23:18:24.3984110Z ##[warning]Variable 'installDriver' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3985531Z ##[warning]Do not use `new Array(singleArgument)`.
+2026-10-20T23:18:24.3986884Z ##[warning]Variable 'titleIndex' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3988090Z ##[warning]Identifier 'Cause' is imported but never used.
+2026-10-20T23:18:24.3989160Z ##[warning]Identifier 'DateTime' is imported but never used.
+2026-10-20T23:18:24.3990247Z ##[warning]Identifier 'Exit' is imported but never used.
+2026-10-20T23:18:24.3991399Z ##[warning]Identifier 'Fiber' is imported but never used.
+2026-10-20T23:18:24.3992669Z ##[warning]Identifier 'LLMError' is imported but never used.
+2026-10-20T23:18:24.3994036Z ##[warning]Variable 'navigate' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3995534Z ##[warning]Variable 'tabs' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3996860Z ##[warning]Variable 'mode' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3998159Z ##[warning]Variable 'settings' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.3999250Z ##[warning]Identifier 'Icon' is imported but never used.
+2026-10-20T23:18:24.4000330Z ##[warning]Identifier 'ServerConnection' is imported but never used.
+2026-10-20T23:18:24.4000993Z ##[warning]Identifier 'Icon' is imported but never used.
+2026-10-20T23:18:24.4001618Z ##[warning]Identifier 'For' is imported but never used.
+2026-10-20T23:18:24.4002259Z ##[warning]Identifier 'onMount' is imported but never used.
+2026-10-20T23:18:24.4003056Z ##[warning]Variable 'setSearchParams' is declared but never used. Unused variables should start with a '_'.
+2026-10-20T23:18:24.4003921Z ##[warning]Type 'Mode' is imported but never used.
+2026-10-20T23:18:24.4004812Z ##[warning]Type 'Mode' is imported but never used.
+2026-10-20T23:18:24.4005696Z ##[warning]This is the default value for this type parameter, so it can be omitted.
+2026-10-20T23:18:24.4006940Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4008074Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4057811Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4058901Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4059739Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4060523Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4061298Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4062072Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4062848Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4063625Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4064616Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4065852Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4066835Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4067867Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4068754Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4070047Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4071346Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4072653Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4073923Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4075325Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4076628Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4077920Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4079236Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4080542Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4081853Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4083175Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4084649Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4085973Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4087255Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4088612Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4089903Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4091185Z ##[warning]This type conversion does not change the type or value of the expression.
+2026-10-20T23:18:24.4092639Z ##[warning]This type conversion does not change the type or value of the expression.
+2026-10-20T23:18:24.4093887Z ##[warning]This type conversion does not change the type or value of the expression.
+2026-10-20T23:18:24.4095287Z ##[warning]This type conversion does not change the type or value of the expression.
+2026-10-20T23:18:24.4096428Z ##[warning]Invalid type used in template literal expression.
+2026-10-20T23:18:24.4097496Z ##[warning]Invalid type used in template literal expression.
+2026-10-20T23:18:24.4098671Z ##[warning]This is the default value for this type parameter, so it can be omitted.
+2026-10-20T23:18:24.4099970Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4101454Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4102788Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4104161Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4105588Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4106927Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4108256Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4109581Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4110913Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4112243Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4113570Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4114748Z ##[warning]Require 'compare' argument.
+2026-10-20T23:18:24.4115831Z ##[warning]Type parameter T is used only once in the function signature.
+2026-10-20T23:18:24.4116935Z ##[warning]Invalid type used in template literal expression.
+2026-10-20T23:18:24.4118105Z ##[warning]This is the default value for this type parameter, so it can be omitted.
+2026-10-20T23:18:24.4119403Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4120848Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4122189Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4123521Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4125108Z ##[warning]'input' may use Object's default stringification format ('[object Object]') when stringified.
+2026-10-20T23:18:24.4126481Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4127766Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4129074Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4130371Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4131649Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4132936Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4134255Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4135654Z ##[warning]This type conversion does not change the type or value of the expression.
+2026-10-20T23:18:24.4136824Z ##[warning]'unknown' overrides all other types in this union type.
+2026-10-20T23:18:24.4138076Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4139527Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4140817Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4142103Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4143389Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4144760Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4146174Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4147463Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4148545Z ##[warning]Require 'compare' argument.
+2026-10-20T23:18:24.4149494Z ##[warning]Require 'compare' argument.
+2026-10-20T23:18:24.4150619Z ##[warning]This is the default value for this type parameter, so it can be omitted.
+2026-10-20T23:18:24.4151674Z ##[warning]Require 'compare' argument.
+2026-10-20T23:18:24.4152955Z ##[warning]'input' may use Object's default stringification format ('[object Object]') when stringified.
+2026-10-20T23:18:24.4154291Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4155709Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4156610Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4157474Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4158352Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4159656Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4160972Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4162303Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4163269Z ##[warning]This expression unnecessarily compares a boolean value to a boolean instead of using it directly.
+2026-10-20T23:18:24.4164090Z ##[warning]home is overridden by string in this union type.
+2026-10-20T23:18:24.4164978Z ##[warning]'unknown' overrides all other types in this union type.
+2026-10-20T23:18:24.4165747Z ##[warning]'unknown' overrides all other types in this union type.
+2026-10-20T23:18:24.4166509Z ##[warning]'unknown' overrides all other types in this union type.
+2026-10-20T23:18:24.4167287Z ##[warning]'unknown' overrides all other types in this union type.
+2026-10-20T23:18:24.4168158Z ##[warning]'err' may use Object's default stringification format ('[object Object]') when stringified.
+2026-10-20T23:18:24.4169010Z ##[warning]Promises must be awaited, add void operator to ignore.
+2026-10-20T23:18:24.4169916Z ##[warning]This expression unnecessarily compares a boolean value to a boolean instead of using it directly.
+2026-10-20T23:18:24.4170764Z ##[warning]Promises must be awaited, add void operator to ignore.
+2026-10-20T23:18:24.4171530Z ##[warning]Promises must be awaited, add void operator to ignore.
+2026-10-20T23:18:24.4172295Z ##[warning]Promises must be awaited, add void operator to ignore.
+2026-10-20T23:18:24.4173243Z ##[warning]void operator shouldn't be used on void; it should convey that a return value is being ignored
+2026-10-20T23:18:24.4174158Z ##[warning]This value can be trivially inferred for this type parameter, so it can be omitted.
+2026-10-20T23:18:24.4175251Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4176165Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4177055Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4178029Z ##[warning]Promises must be awaited, add void operator to ignore.
+2026-10-20T23:18:24.4178859Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4179734Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4180599Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4181537Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4182706Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4184032Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4185555Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4186837Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4188117Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4189461Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4190716Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4192034Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4193309Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4194718Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4195985Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4197248Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4198530Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4199835Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4201106Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4202357Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4203165Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4203970Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4205128Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4205953Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4206817Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4207615Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4208405Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4209191Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4209976Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4210765Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4211556Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4212339Z ##[warning]This is the default value for this type parameter, so it can be omitted.
+2026-10-20T23:18:24.4213210Z ##[warning]This type conversion does not change the type or value of the expression.
+2026-10-20T23:18:24.4213966Z ##[warning]Type parameter T is used only once in the function signature.
+2026-10-20T23:18:24.4215021Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4215806Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4216589Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4217371Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4218156Z ##[warning]Using the spread operator on class instances will lose their class prototype.
+2026-10-20T23:18:24.4219117Z ##[warning]This expression unnecessarily compares a boolean value to a boolean instead of using it directly.
+2026-10-20T23:18:24.4219966Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4220786Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4221600Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4222409Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4223249Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4224062Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4224993Z ##[warning]This assertion is unnecessary since it does not change the type of the expression.
+2026-10-20T23:18:24.4225889Z ##[warning]'body.requestID ?? ""' will use Object's default stringification format ('[object Object]') when stringified.
+2026-10-20T23:18:24.4226860Z ##[warning]This assertion is unnecessary since the receiver accepts the original type of the expression.
+2026-10-20T23:18:24.4227734Z ##[warning]This assertion is unnecessary since the receiver accepts the original type of the expression.
+2026-10-20T23:18:24.4228165Z
+2026-10-20T23:18:24.4228230Z Found 231 warnings and 0 errors.
+2026-10-20T23:18:24.4228415Z Finished in 28.8s on 3216 files with 127 rules using 4 threads.
+2026-10-20T23:18:24.4770878Z Checking formatting...
+2026-10-20T23:18:27.1219707Z [warn] docs/plan/brand-mode-icons-2026-10-20.md
+2026-10-20T23:18:27.1474182Z [warn] docs/plan/brand-mode-icons-session-prompt-2026-10-20.md
+2026-10-20T23:18:32.9060261Z [warn] docs/research/brand-mode-icons/brand-mode-icons-preview-2026-10-20.html
+2026-10-20T23:18:33.8545010Z [warn] docs/review/brand-mode-icons-plan-approval-2026-10-20.md
+2026-10-20T23:18:33.8806622Z [warn] docs/review/brand-mode-icons-s1-s2-2026-10-20/command-output/s2-forced-colors.json
+2026-10-20T23:18:33.9036404Z [warn] docs/review/brand-mode-icons-s1-s2-2026-10-20/command-output/stroke-comparison.json
+2026-10-20T23:18:35.8076718Z [warn] docs/technical-debt.md
+2026-10-20T23:19:10.3453360Z [warn] Code style issues found in 7 files. Run Prettier with --write to fix.
+2026-10-20T23:19:10.4384858Z error: "prettier" exited with code 1
+2026-10-20T23:19:10.4397853Z ShellError: Failed with exit code 1
+2026-10-20T23:19:10.4398142Z  exitCode: 1,
+2026-10-20T23:19:10.4398319Z    stdout: "Checking formatting...\n",
+2026-10-20T23:19:10.4399843Z    stderr: "[\u001B[33mwarn\u001B[39m] docs/plan/brand-mode-icons-2026-10-20.md\n[\u001B[33mwarn\u001B[39m] docs/plan/brand-mode-icons-session-prompt-2026-10-20.md\n[\u001B[33mwarn\u001B[39m] docs/research/brand-mode-icons/brand-mode-icons-preview-2026-10-20.html\n[\u001B[33mwarn\u001B[39m] docs/review/brand-mode-icons-plan-approval-2026-10-20.md\n[\u001B[33mwarn\u001B[39m] docs/review/brand-mode-icons-s1-s2-2026-10-20/command-output/s2-forced-colors.json\n[\u001B[33mwarn\u001B[39m] docs/review/brand-mode-icons-s1-s2-2026-10-20/command-output/stroke-comparison.json\n[\u001B[33mwarn\u001B[39m] docs/technical-debt.md\n[\u001B[33mwarn\u001B[39m] Code style issues found in 7 files. Run Prettier with --write to fix.\nerror: \"prettier\" exited with code 1\n",
+2026-10-20T23:19:10.4402037Z
+2026-10-20T23:19:10.4402104Z       at ShellPromise (unknown:75:16)
+2026-10-20T23:19:10.4402261Z       at BunShell2 (unknown:191:36)
+2026-10-20T23:19:10.4402363Z
+2026-10-20T23:19:10.4402418Z Bun v1.3.14 (Linux x64)
+2026-10-20T23:19:10.4422209Z error: script "lint" exited with code 1
+2026-10-20T23:19:10.4438637Z ##[error]Process completed with exit code 1.
+2026-10-20T23:19:10.4516647Z Post job cleanup.
+2026-10-20T23:19:10.4518786Z ##[start-action display=Setup Bun;id=__6373b2a3-08d3-4744-ab73-0330cab129d6.__oven-sh_setup-bun]
+2026-10-20T23:19:10.4520093Z ##[end-action id=__6373b2a3-08d3-4744-ab73-0330cab129d6.__oven-sh_setup-bun;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-20T23:19:10.4560194Z Post job cleanup.
+2026-10-20T23:19:10.5086800Z [command]/usr/bin/git version
+2026-10-20T23:19:10.5121080Z git version 2.55.0
+2026-10-20T23:19:10.5143616Z Temporarily overriding HOME='/home/runner/work/_temp/1f4bdb3d-98ba-4de5-a68f-f68cb1f34c13' before making global git config changes
+2026-10-20T23:19:10.5144483Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T23:19:10.5147129Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/AigcForge/AigcForge
+2026-10-20T23:19:10.5177316Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T23:19:10.5202704Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T23:19:10.5400103Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T23:19:10.5425278Z http.https://github.com/.extraheader
+2026-10-20T23:19:10.5433615Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-20T23:19:10.5463413Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T23:19:10.5669466Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T23:19:10.5702628Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T23:19:10.5992425Z Cleaning up orphan processes
+2026-10-20T23:19:10.6209908Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830, actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

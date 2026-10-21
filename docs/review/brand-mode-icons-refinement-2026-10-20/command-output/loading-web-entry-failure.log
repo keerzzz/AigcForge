@@ -1,0 +1,189 @@
+$ playwright test "e2e/regression/global-shell.spec.ts" --grep "loading brand"
+[warmup] / 5737ms modules=679
+[warmup] /mode/chat 2934ms modules=679
+[warmup] /mode/coding 2972ms modules=679
+[warmup] /mode/work 2363ms modules=679
+[warmup] /mode/assistant 3317ms modules=679
+[warmup] /mode/custom 3437ms modules=679
+[warmup] /server/warmup/session/warmup 3332ms modules=679
+
+Running 4 tests using 1 worker
+
+[1A[2K(node:1153078) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1153078) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/4] [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (light)
+[1A[2K  1) [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (light)
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-component="logo-splash"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('[data-component="logo-splash"]')[22m
+
+
+      154 |         await page.goto("/mode/coding", { waitUntil: "domcontentloaded" })
+      155 |         const splash = page.locator('[data-component="logo-splash"]')
+    > 156 |         await expect(splash).toBeVisible()
+          |                              ^
+      157 |         await expect(splash).toHaveAttribute("data-motion", "assemble")
+      158 |         await expect(splash).toHaveAttribute("aria-hidden", "true")
+      159 |         await expect(page.locator("html")).toHaveAttribute("data-color-scheme", scenario.colorScheme)
+        at /home/keer/workspace/aigcfroge/packages/app/e2e/regression/global-shell.spec.ts:156:30
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-1cc86-nd-releases-the-gate-light--chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-1cc86-nd-releases-the-gate-light--chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: e2e/test-results/regression-global-shell-gl-1cc86-nd-releases-the-gate-light--chromium/error-context.md
+
+
+[1A[2K(node:1153690) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1153690) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[2/4] [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (dark)
+[1A[2K  2) [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (dark)
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-component="logo-splash"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('[data-component="logo-splash"]')[22m
+
+
+      154 |         await page.goto("/mode/coding", { waitUntil: "domcontentloaded" })
+      155 |         const splash = page.locator('[data-component="logo-splash"]')
+    > 156 |         await expect(splash).toBeVisible()
+          |                              ^
+      157 |         await expect(splash).toHaveAttribute("data-motion", "assemble")
+      158 |         await expect(splash).toHaveAttribute("aria-hidden", "true")
+      159 |         await expect(page.locator("html")).toHaveAttribute("data-color-scheme", scenario.colorScheme)
+        at /home/keer/workspace/aigcfroge/packages/app/e2e/regression/global-shell.spec.ts:156:30
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-c61d1-and-releases-the-gate-dark--chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-c61d1-and-releases-the-gate-dark--chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: e2e/test-results/regression-global-shell-gl-c61d1-and-releases-the-gate-dark--chromium/error-context.md
+
+
+[1A[2K(node:1154113) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1154113) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[3/4] [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (narrow)
+[1A[2K  3) [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (narrow)
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-component="logo-splash"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('[data-component="logo-splash"]')[22m
+
+
+      154 |         await page.goto("/mode/coding", { waitUntil: "domcontentloaded" })
+      155 |         const splash = page.locator('[data-component="logo-splash"]')
+    > 156 |         await expect(splash).toBeVisible()
+          |                              ^
+      157 |         await expect(splash).toHaveAttribute("data-motion", "assemble")
+      158 |         await expect(splash).toHaveAttribute("aria-hidden", "true")
+      159 |         await expect(page.locator("html")).toHaveAttribute("data-color-scheme", scenario.colorScheme)
+        at /home/keer/workspace/aigcfroge/packages/app/e2e/regression/global-shell.spec.ts:156:30
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-0d545-d-releases-the-gate-narrow--chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-0d545-d-releases-the-gate-narrow--chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: e2e/test-results/regression-global-shell-gl-0d545-d-releases-the-gate-narrow--chromium/error-context.md
+
+
+[1A[2K(node:1154557) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:1154557) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[4/4] [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (reduced-motion)
+[1A[2K  4) [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (reduced-motion)
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-component="logo-splash"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('[data-component="logo-splash"]')[22m
+
+
+      154 |         await page.goto("/mode/coding", { waitUntil: "domcontentloaded" })
+      155 |         const splash = page.locator('[data-component="logo-splash"]')
+    > 156 |         await expect(splash).toBeVisible()
+          |                              ^
+      157 |         await expect(splash).toHaveAttribute("data-motion", "assemble")
+      158 |         await expect(splash).toHaveAttribute("aria-hidden", "true")
+      159 |         await expect(page.locator("html")).toHaveAttribute("data-color-scheme", scenario.colorScheme)
+        at /home/keer/workspace/aigcfroge/packages/app/e2e/regression/global-shell.spec.ts:156:30
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-ab351-es-the-gate-reduced-motion--chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-ab351-es-the-gate-reduced-motion--chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: e2e/test-results/regression-global-shell-gl-ab351-es-the-gate-reduced-motion--chromium/error-context.md
+
+
+[1A[2K  4 failed
+    [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (light)
+    [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (dark)
+    [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (narrow)
+    [chromium] › e2e/regression/global-shell.spec.ts:142:5 › global shell: loading brand › assembles the connection splash and releases the gate (reduced-motion)
+error: script "test:e2e" exited with code 1

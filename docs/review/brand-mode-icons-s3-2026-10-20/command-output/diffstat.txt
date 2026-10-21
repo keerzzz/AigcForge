@@ -1,0 +1,78 @@
+ packages/app/e2e/regression/global-shell.spec.ts   |  34 +++-
+ packages/desktop/icons/README.md                   |  21 +--
+ packages/desktop/icons/beta/128x128.png            | Bin 10186 -> 2311 bytes
+ packages/desktop/icons/beta/128x128@2x.png         | Bin 36252 -> 4296 bytes
+ packages/desktop/icons/beta/32x32.png              | Bin 1309 -> 656 bytes
+ packages/desktop/icons/beta/64x64.png              | Bin 3587 -> 1313 bytes
+ packages/desktop/icons/beta/Square107x107Logo.png  | Bin 7562 -> 1962 bytes
+ packages/desktop/icons/beta/Square142x142Logo.png  | Bin 12279 -> 2523 bytes
+ packages/desktop/icons/beta/Square150x150Logo.png  | Bin 13445 -> 2664 bytes
+ packages/desktop/icons/beta/Square284x284Logo.png  | Bin 45201 -> 5578 bytes
+ packages/desktop/icons/beta/Square30x30Logo.png    | Bin 1281 -> 590 bytes
+ packages/desktop/icons/beta/Square310x310Logo.png  | Bin 54725 -> 5947 bytes
+ packages/desktop/icons/beta/Square44x44Logo.png    | Bin 2167 -> 843 bytes
+ packages/desktop/icons/beta/Square71x71Logo.png    | Bin 4121 -> 1429 bytes
+ packages/desktop/icons/beta/Square89x89Logo.png    | Bin 5782 -> 1731 bytes
+ packages/desktop/icons/beta/StoreLogo.png          | Bin 2559 -> 1113 bytes
+ packages/desktop/icons/beta/dock.png               | Bin 33332 -> 4296 bytes
+ packages/desktop/icons/beta/icon.icns              | Bin 882048 -> 56659 bytes
+ packages/desktop/icons/beta/icon.ico               | Bin 49612 -> 108182 bytes
+ packages/desktop/icons/beta/icon.png               | Bin 172485 -> 10130 bytes
+ packages/desktop/icons/dev/128x128.png             | Bin 16568 -> 2311 bytes
+ packages/desktop/icons/dev/128x128@2x.png          | Bin 59884 -> 4296 bytes
+ packages/desktop/icons/dev/32x32.png               | Bin 1973 -> 656 bytes
+ packages/desktop/icons/dev/64x64.png               | Bin 5469 -> 1313 bytes
+ packages/desktop/icons/dev/Square107x107Logo.png   | Bin 12116 -> 1962 bytes
+ packages/desktop/icons/dev/Square142x142Logo.png   | Bin 19936 -> 2523 bytes
+ packages/desktop/icons/dev/Square150x150Logo.png   | Bin 21988 -> 2664 bytes
+ packages/desktop/icons/dev/Square284x284Logo.png   | Bin 74022 -> 5578 bytes
+ packages/desktop/icons/dev/Square30x30Logo.png     | Bin 1786 -> 590 bytes
+ packages/desktop/icons/dev/Square310x310Logo.png   | Bin 89075 -> 5947 bytes
+ packages/desktop/icons/dev/Square44x44Logo.png     | Bin 3211 -> 843 bytes
+ packages/desktop/icons/dev/Square71x71Logo.png     | Bin 6370 -> 1429 bytes
+ packages/desktop/icons/dev/Square89x89Logo.png     | Bin 9316 -> 1731 bytes
+ packages/desktop/icons/dev/StoreLogo.png           | Bin 3862 -> 1113 bytes
+ packages/desktop/icons/dev/dock.png                | Bin 50483 -> 4296 bytes
+ packages/desktop/icons/dev/icon.icns               | Bin 1187792 -> 56659 bytes
+ packages/desktop/icons/dev/icon.ico                | Bin 73182 -> 108182 bytes
+ packages/desktop/icons/dev/icon.png                | Bin 264014 -> 10130 bytes
+ packages/desktop/icons/prod/128x128.png            | Bin 9013 -> 2311 bytes
+ packages/desktop/icons/prod/128x128@2x.png         | Bin 36840 -> 4296 bytes
+ packages/desktop/icons/prod/32x32.png              | Bin 1255 -> 656 bytes
+ packages/desktop/icons/prod/64x64.png              | Bin 2971 -> 1313 bytes
+ packages/desktop/icons/prod/Square107x107Logo.png  | Bin 6441 -> 1962 bytes
+ packages/desktop/icons/prod/Square142x142Logo.png  | Bin 10850 -> 2523 bytes
+ packages/desktop/icons/prod/Square150x150Logo.png  | Bin 12036 -> 2664 bytes
+ packages/desktop/icons/prod/Square284x284Logo.png  | Bin 47137 -> 5578 bytes
+ packages/desktop/icons/prod/Square30x30Logo.png    | Bin 1109 -> 590 bytes
+ packages/desktop/icons/prod/Square310x310Logo.png  | Bin 58165 -> 5947 bytes
+ packages/desktop/icons/prod/Square44x44Logo.png    | Bin 1827 -> 843 bytes
+ packages/desktop/icons/prod/Square71x71Logo.png    | Bin 3405 -> 1429 bytes
+ packages/desktop/icons/prod/Square89x89Logo.png    | Bin 4760 -> 1731 bytes
+ packages/desktop/icons/prod/StoreLogo.png          | Bin 2186 -> 1113 bytes
+ packages/desktop/icons/prod/dock.png               | Bin 38916 -> 4296 bytes
+ packages/desktop/icons/prod/icon.icns              | Bin 1010901 -> 56659 bytes
+ packages/desktop/icons/prod/icon.ico               | Bin 47600 -> 108182 bytes
+ packages/desktop/icons/prod/icon.png               | Bin 190179 -> 10130 bytes
+ packages/ui/script/generate-brand-assets.ts        | 174 +++++++++++++++++++++
+ packages/ui/src/assets/brand/geometry.ts           |  13 ++
+ packages/ui/src/assets/brand/mark-compact.svg      |  10 ++
+ packages/ui/src/assets/brand/mark-master.svg       |  10 ++
+ .../ui/src/assets/favicon/apple-touch-icon-v3.png  | Bin 1541 -> 3702 bytes
+ .../ui/src/assets/favicon/apple-touch-icon.png     | Bin 1541 -> 3702 bytes
+ .../ui/src/assets/favicon/favicon-96x96-v3.png     | Bin 536 -> 1835 bytes
+ packages/ui/src/assets/favicon/favicon-96x96.png   | Bin 536 -> 1835 bytes
+ packages/ui/src/assets/favicon/favicon-v3.ico      | Bin 15086 -> 108182 bytes
+ packages/ui/src/assets/favicon/favicon-v3.svg      |  18 ++-
+ packages/ui/src/assets/favicon/favicon.ico         | Bin 15086 -> 108182 bytes
+ packages/ui/src/assets/favicon/favicon.svg         |  18 ++-
+ packages/ui/src/assets/favicon/site.webmanifest    |   8 +-
+ .../assets/favicon/web-app-manifest-192x192.png    | Bin 1601 -> 3921 bytes
+ .../assets/favicon/web-app-manifest-512x512.png    | Bin 7194 -> 13411 bytes
+ .../ui/src/assets/images/social-share-black.png    | Bin 32559 -> 11953 bytes
+ packages/ui/src/assets/images/social-share-zen.png | Bin 21918 -> 11059 bytes
+ packages/ui/src/assets/images/social-share.png     | Bin 14238 -> 11935 bytes
+ packages/ui/src/components/logo.css                |   2 +-
+ packages/ui/src/components/logo.tsx                | 101 +++++-------
+ packages/ui/src/v2/components/wordmark-v2.tsx      |  88 +----------
+ 77 files changed, 327 insertions(+), 170 deletions(-)

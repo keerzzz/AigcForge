@@ -1,0 +1,36 @@
+$ playwright test "e2e/regression/global-shell.spec.ts"
+[warmup] / 2620ms modules=679
+[warmup] /mode/chat 3523ms modules=679
+[warmup] /mode/coding 2907ms modules=679
+[warmup] /mode/work 3073ms modules=679
+[warmup] /mode/assistant 3436ms modules=679
+[warmup] /mode/custom 3429ms modules=679
+[warmup] /server/warmup/session/warmup 4336ms modules=679
+
+Running 16 tests using 1 worker
+
+(node:630802) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:630802) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/16] [chromium] › e2e/regression/global-shell.spec.ts:136:3 › global shell: mode switcher rail › renders five distinct registered rail icon symbols
+[2/16] [chromium] › e2e/regression/global-shell.spec.ts:160:3 › global shell: mode switcher rail › preserves the assistant reminder glyph inside the mode surface
+[3/16] [chromium] › e2e/regression/global-shell.spec.ts:170:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+[4/16] [chromium] › e2e/regression/global-shell.spec.ts:204:3 › global shell: mode switcher rail › renders all five mode buttons and presses exactly the active one
+[5/16] [chromium] › e2e/regression/global-shell.spec.ts:216:3 › global shell: mode switcher rail › clicking each mode navigates and swaps the visible sidebar and main slots
+[6/16] [chromium] › e2e/regression/global-shell.spec.ts:230:3 › global shell: mode switcher rail › the assistant icon shows the pending schedule count as a rail badge
+[7/16] [chromium] › e2e/regression/global-shell.spec.ts:248:3 › global shell: titlebar history › mod+[ and mod+] traverse the in-app history stack
+[8/16] [chromium] › e2e/regression/global-shell.spec.ts:268:3 › global shell: multi-session tabs › opening a second session adds a tab each and switches between them
+[9/16] [chromium] › e2e/regression/global-shell.spec.ts:281:3 › global shell: multi-session tabs › closing a background tab keeps the active session and URL
+[10/16] [chromium] › e2e/regression/global-shell.spec.ts:295:3 › global shell: multi-session tabs › closing the active tab navigates to the remaining one
+[11/16] [chromium] › e2e/regression/global-shell.spec.ts:311:3 › global shell: multi-session tabs › closing the final active tab returns focus to Home
+[12/16] [chromium] › e2e/regression/global-shell.spec.ts:321:3 › global shell: multi-session tabs › clicking Home twice returns to the last session tab
+[13/16] [chromium] › e2e/regression/global-shell.spec.ts:332:3 › global shell: multi-session tabs › the new-session button on a session route opens a draft tab that closes back to the session
+[14/16] [chromium] › e2e/regression/global-shell.spec.ts:351:3 › global shell: dirty draft route guard › closing a dirty draft confirms before removing it
+[15/16] [chromium] › e2e/regression/global-shell.spec.ts:376:3 › global shell: dirty draft route guard › leaving with unsent composer content asks, Stay returns, Leave leaves
+[16/16] [chromium] › e2e/regression/global-shell.spec.ts:400:3 › global shell: status bar › shows the connection trigger and opens the metrics popover
+  16 passed (1.3m)

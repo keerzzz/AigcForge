@@ -1,0 +1,44 @@
+$ bun turbo typecheck
+• turbo 2.9.14
+
+   • Packages in scope: @aigcfroge/app, @aigcfroge/core, @aigcfroge/desktop, @aigcfroge/effect-drizzle-sqlite, @aigcfroge/effect-sqlite-node, @aigcfroge/http-recorder, @aigcfroge/llm, @aigcfroge/plugin, @aigcfroge/schema, @aigcfroge/script, @aigcfroge/sdk, @aigcfroge/server, @aigcfroge/session-ui, @aigcfroge/storybook, @aigcfroge/tui, @aigcfroge/ui, aigcfroge
+   • Running typecheck in 17 packages
+   • Remote caching disabled
+
+@aigcfroge/ui:typecheck: cache hit, replaying logs 036202a1a5f3853c
+@aigcfroge/core:typecheck: cache hit, replaying logs 3f2d398653b08275
+@aigcfroge/ui:typecheck: $ tsgo --noEmit
+@aigcfroge/schema:typecheck: cache hit, replaying logs b14d84af14f6dbe3
+@aigcfroge/tui:typecheck: cache hit, replaying logs 7deee459cc494cfa
+@aigcfroge/desktop:typecheck: cache hit, replaying logs 9a4882c35961c394
+@aigcfroge/effect-sqlite-node:typecheck: cache hit, replaying logs 35d32901e3d6694a
+@aigcfroge/schema:typecheck: $ tsgo --noEmit
+@aigcfroge/effect-drizzle-sqlite:typecheck: cache hit, replaying logs b2b75c3009f594d9
+@aigcfroge/script:typecheck: cache hit, replaying logs 365ba8178e86aafa
+@aigcfroge/tui:typecheck: $ tsgo --noEmit
+@aigcfroge/core:typecheck: $ tsgo --noEmit
+@aigcfroge/llm:typecheck: cache hit, replaying logs a27a2e62f7ac91f1
+@aigcfroge/app:typecheck: cache miss, executing dca93b8a7a1b381e
+@aigcfroge/effect-sqlite-node:typecheck: $ tsgo --noEmit
+@aigcfroge/desktop:typecheck: $ tsgo -b && tsgo --noEmit -p e2e/tsconfig.json
+@aigcfroge/http-recorder:typecheck: cache hit, replaying logs d8136fabce2f51bb
+@aigcfroge/effect-drizzle-sqlite:typecheck: $ tsgo --noEmit
+@aigcfroge/llm:typecheck: $ tsgo --noEmit
+@aigcfroge/script:typecheck: $ tsgo --noEmit
+@aigcfroge/http-recorder:typecheck: $ tsgo --noEmit
+@aigcfroge/sdk:typecheck: cache hit, replaying logs ed342486d3660879
+@aigcfroge/session-ui:typecheck: cache hit, replaying logs a15bcd94af2f949a
+@aigcfroge/server:typecheck: cache hit, replaying logs 7861a996b5d28e33
+aigcfroge:typecheck: cache hit, replaying logs 345186d1390d45a5
+@aigcfroge/sdk:typecheck: $ tsgo --noEmit
+@aigcfroge/plugin:typecheck: cache hit, replaying logs ce1e1205c7252e30
+@aigcfroge/server:typecheck: $ tsgo --noEmit
+aigcfroge:typecheck: $ tsgo --noEmit
+@aigcfroge/session-ui:typecheck: $ tsgo --noEmit
+@aigcfroge/plugin:typecheck: $ tsgo --noEmit
+@aigcfroge/app:typecheck: $ tsgo -b && tsgo --noEmit -p e2e/tsconfig.json
+
+ Tasks:    16 successful, 16 total
+Cached:    15 cached, 16 total
+  Time:    2.306s
+

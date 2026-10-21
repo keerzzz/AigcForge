@@ -1,0 +1,21 @@
+$ playwright test "e2e/regression/global-shell.spec.ts" --grep "the new-session button"
+[warmup] / 4932ms modules=679
+[warmup] /mode/chat 3007ms modules=679
+[warmup] /mode/coding 3405ms modules=679
+[warmup] /mode/work 2866ms modules=679
+[warmup] /mode/assistant 3301ms modules=679
+[warmup] /mode/custom 3183ms modules=679
+[warmup] /server/warmup/session/warmup 3392ms modules=679
+
+Running 1 test using 1 worker
+
+(node:819208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:819208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/1] [chromium] › e2e/regression/global-shell.spec.ts:332:3 › global shell: multi-session tabs › the new-session button on a session route opens a draft tab that closes back to the session
+  1 passed (32.6s)

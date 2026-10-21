@@ -1,0 +1,22 @@
+{
+  "base": "9ae07926fb1c89e1fd5e186734431487f3cb72cd",
+  "source_files": [
+    "packages/app/e2e/regression/global-shell.spec.ts",
+    "packages/ui/src/components/logo.css",
+    "packages/ui/src/components/logo.tsx",
+    "packages/ui/src/v2/components/wordmark-v2.tsx",
+    "packages/ui/script/generate-brand-assets.ts",
+    "packages/ui/src/assets/brand/geometry.ts"
+  ],
+  "allowed_scope_only": true,
+  "s1_s2_protected_unchanged": [
+    "packages/ui/src/v2/components/icon.tsx",
+    "packages/app/src/context/mode.tsx",
+    "packages/app/src/context/mode.test.ts",
+    "packages/app/src/components/mode-switcher.tsx",
+    "packages/app/src/components/mode-switcher.css"
+  ],
+  "mobile_unchanged": true,
+  "network_storage_session_timeline_sources_changed": false,
+  "evidence_token_pattern_scan": "no matches"
+}

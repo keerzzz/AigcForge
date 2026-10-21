@@ -1,0 +1,48 @@
+$ playwright test "e2e/regression/global-shell.spec.ts" "e2e/regression/brand-splash.spec.ts"
+[warmup] / 13123ms modules=679
+[warmup] /mode/chat 4232ms modules=679
+[warmup] /mode/coding 3738ms modules=679
+[warmup] /mode/work 3501ms modules=679
+[warmup] /mode/assistant 3645ms modules=679
+[warmup] /mode/custom 3014ms modules=679
+[warmup] /server/warmup/session/warmup 3467ms modules=679
+
+Running 20 tests using 2 workers
+
+(node:1195697) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:1195698) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:1195698) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:1195697) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/20] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (light)
+[2/20] [chromium] › e2e/regression/global-shell.spec.ts:136:3 › global shell: mode switcher rail › renders five distinct registered rail icon symbols
+[3/20] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (dark)
+[4/20] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (narrow)
+[5/20] [chromium] › e2e/regression/brand-splash.spec.ts:10:5 › shared loading brand › assembles the splash and respects motion preferences (reduced-motion)
+[6/20] [chromium] › e2e/regression/global-shell.spec.ts:160:3 › global shell: mode switcher rail › preserves the assistant reminder glyph inside the mode surface
+[7/20] [chromium] › e2e/regression/global-shell.spec.ts:170:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+[8/20] [chromium] › e2e/regression/global-shell.spec.ts:204:3 › global shell: mode switcher rail › renders all five mode buttons and presses exactly the active one
+[9/20] [chromium] › e2e/regression/global-shell.spec.ts:216:3 › global shell: mode switcher rail › clicking each mode navigates and swaps the visible sidebar and main slots
+[10/20] [chromium] › e2e/regression/global-shell.spec.ts:230:3 › global shell: mode switcher rail › the assistant icon shows the pending schedule count as a rail badge
+[11/20] [chromium] › e2e/regression/global-shell.spec.ts:248:3 › global shell: titlebar history › mod+[ and mod+] traverse the in-app history stack
+[12/20] [chromium] › e2e/regression/global-shell.spec.ts:268:3 › global shell: multi-session tabs › opening a second session adds a tab each and switches between them
+[13/20] [chromium] › e2e/regression/global-shell.spec.ts:281:3 › global shell: multi-session tabs › closing a background tab keeps the active session and URL
+[14/20] [chromium] › e2e/regression/global-shell.spec.ts:295:3 › global shell: multi-session tabs › closing the active tab navigates to the remaining one
+[15/20] [chromium] › e2e/regression/global-shell.spec.ts:311:3 › global shell: multi-session tabs › closing the final active tab returns focus to Home
+[16/20] [chromium] › e2e/regression/global-shell.spec.ts:321:3 › global shell: multi-session tabs › clicking Home twice returns to the last session tab
+[17/20] [chromium] › e2e/regression/global-shell.spec.ts:332:3 › global shell: multi-session tabs › the new-session button on a session route opens a draft tab that closes back to the session
+[18/20] [chromium] › e2e/regression/global-shell.spec.ts:395:3 › global shell: dirty draft route guard › closing a dirty draft confirms before removing it
+[19/20] [chromium] › e2e/regression/global-shell.spec.ts:420:3 › global shell: dirty draft route guard › leaving with unsent composer content asks, Stay returns, Leave leaves
+[20/20] [chromium] › e2e/regression/global-shell.spec.ts:444:3 › global shell: status bar › shows the connection trigger and opens the metrics popover
+  20 passed (1.6m)

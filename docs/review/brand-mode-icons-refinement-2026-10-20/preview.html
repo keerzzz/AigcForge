@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>R 字形与加载汇聚验收</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #eee;
+        font: 14px system-ui;
+        color: #161616;
+      }
+      header {
+        padding: 24px 32px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 24px;
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      button {
+        padding: 8px 16px;
+        cursor: pointer;
+      }
+      input {
+        width: 240px;
+      }
+      .tone {
+        padding: 32px;
+        background: #fff;
+      }
+      .dark {
+        background: #161616;
+        color: #fafafa;
+      }
+      .samples {
+        display: flex;
+        align-items: center;
+        gap: 64px;
+        height: 240px;
+      }
+      figure {
+        margin: 0;
+        text-align: center;
+      }
+      .stage {
+        display: grid;
+        place-items: center;
+        height: 190px;
+        min-width: 190px;
+      }
+      figcaption {
+        opacity: 0.65;
+      }
+      .splash-large {
+        width: 160px;
+        height: 160px;
+      }
+      .splash-actual {
+        width: 64px;
+        height: 80px;
+        opacity: 0.5;
+      }
+      .wordmark {
+        width: 720px;
+        max-width: 100%;
+      }
+      .r {
+        width: 100px;
+        height: 150px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>R 字形与加载汇聚验收</h1>
+      <div class="controls">
+        <button type="button" id="replay">重播汇聚</button>
+        <label for="seek">逐帧查看</label>
+        <input type="range" id="seek" min="0" max="1100" step="10" value="1100" />
+        <output id="time" for="seek">1100 ms</output>
+      </div>
+      <p>直接渲染生产 Logo / Splash；左右两片、上方顶点、下方底座在 1.1 秒内归位。减少动态时直接显示完整图标。</p>
+    </header>
+    <section
+      class="tone"
+      data-tone="light"
+      style="
+        --v2-avatar-bg-blue: #3250df;
+        --v2-avatar-bg-cyan: #0096b8;
+        --v2-text-text-base: #161616;
+        --v2-text-text-contrast: #fff;
+      "
+    >
+      <h2>亮色</h2>
+      <div class="samples">
+        <figure>
+          <div class="stage" data-preview="large"></div>
+          <figcaption>160px 动画细节</figcaption>
+        </figure>
+        <figure>
+          <div class="stage" data-preview="actual"></div>
+          <figcaption>64×80 实际加载尺寸</figcaption>
+        </figure>
+        <figure>
+          <div class="stage" data-preview="r"></div>
+          <figcaption>R 局部</figcaption>
+        </figure>
+      </div>
+      <div data-preview="wordmark"></div>
+    </section>
+    <section
+      class="tone dark"
+      data-tone="dark"
+      style="
+        --v2-avatar-bg-blue: #263fa9;
+        --v2-avatar-bg-cyan: #005a6e;
+        --v2-text-text-base: #fafafa;
+        --v2-text-text-contrast: #fff;
+      "
+    >
+      <h2>暗色</h2>
+      <div class="samples">
+        <figure>
+          <div class="stage" data-preview="large"></div>
+          <figcaption>160px 动画细节</figcaption>
+        </figure>
+        <figure>
+          <div class="stage" data-preview="actual"></div>
+          <figcaption>64×80 实际加载尺寸</figcaption>
+        </figure>
+        <figure>
+          <div class="stage" data-preview="r"></div>
+          <figcaption>R 局部</figcaption>
+        </figure>
+      </div>
+      <div data-preview="wordmark"></div>
+    </section>
+    <script type="module">
+      import { render } from "/node_modules/.vite/deps/solid-js_web.js"
+      import { Logo, Splash } from "/@fs/home/keer/workspace/aigcfroge/packages/ui/src/components/logo.tsx"
+      import "/@fs/home/keer/workspace/aigcfroge/packages/ui/src/components/logo.css"
+      const dispose = []
+      const replay = () => {
+        dispose.splice(0).forEach((cleanup) => cleanup())
+        document.querySelectorAll("section").forEach((section) => {
+          for (const [key, cls] of [
+            ["large", "splash-large"],
+            ["actual", "splash-actual"],
+          ]) {
+            dispose.push(
+              render(() => Splash({ animate: true, class: cls }), section.querySelector(`[data-preview="${key}"]`)),
+            )
+          }
+        })
+      }
+      document.querySelectorAll("section").forEach((section) => {
+        render(() => Logo({ class: "wordmark" }), section.querySelector('[data-preview="wordmark"]'))
+        const r = Logo({ class: "r" })
+        r.setAttribute("viewBox", "122 3 30 36")
+        r.querySelector('[data-slot="logo-ai"]').remove()
+        r.querySelector('[data-slot="logo-gc"]').remove()
+        r.querySelectorAll("path").forEach((path) => {
+          if (!path.dataset.slot?.startsWith("logo-r-")) path.remove()
+        })
+        section.querySelector('[data-preview="r"]').append(r)
+      })
+      document.querySelector("#replay").addEventListener("click", replay)
+      document.querySelector("#seek").addEventListener("input", (event) => {
+        document.querySelectorAll('[data-component="logo-splash"]').forEach((splash) => {
+          splash.getAnimations({ subtree: true }).forEach((animation) => {
+            animation.pause()
+            animation.currentTime = Number(event.target.value)
+          })
+        })
+        document.querySelector("#time").value = `${event.target.value} ms`
+      })
+      replay()
+      window.previewReady = true
+    </script>
+  </body>
+</html>

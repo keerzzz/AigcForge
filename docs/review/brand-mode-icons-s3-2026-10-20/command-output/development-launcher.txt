@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=AIGCFORGE 开发版
+Comment=当前 brand-mode-icons 工作区桌面验收
+Exec=/home/keer/.bun/bin/bun --cwd /home/keer/workspace/aigcfroge/packages/desktop dev
+Path=/home/keer/workspace/aigcfroge
+Icon=/home/keer/workspace/aigcfroge/packages/desktop/icons/dev/icon.png
+Terminal=false
+StartupNotify=true
+StartupWMClass=aigcfroge-desktop
+Categories=Development;

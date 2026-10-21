@@ -1,4 +1,59 @@
 [data-component="logo-mark"] {
   width: 16px;
-  aspect-ratio: 4/5;
+  aspect-ratio: 1/1;
+}
+
+[data-component="logo-splash"][data-motion="assemble"] {
+  --v2-splash-assemble-duration: 1100ms;
+  --v2-splash-assemble-easing: cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible;
+
+  > [data-slot] {
+    transform-box: view-box;
+    transform-origin: center;
+    animation: logo-splash-assemble var(--v2-splash-assemble-duration) var(--v2-splash-assemble-easing) both;
+  }
+
+  [data-slot="logo-splash-a"] {
+    --v2-splash-enter-x: -38%;
+    --v2-splash-enter-y: 16%;
+    --v2-splash-enter-angle: -12deg;
+  }
+
+  [data-slot="logo-splash-g"] {
+    --v2-splash-enter-x: 38%;
+    --v2-splash-enter-y: 16%;
+    --v2-splash-enter-angle: 12deg;
+  }
+
+  [data-slot="logo-splash-i"] {
+    --v2-splash-enter-x: 0%;
+    --v2-splash-enter-y: -42%;
+    --v2-splash-enter-angle: 0deg;
+  }
+
+  [data-slot="logo-splash-c"] {
+    --v2-splash-enter-x: 0%;
+    --v2-splash-enter-y: 30%;
+    --v2-splash-enter-angle: 0deg;
+  }
+}
+
+@keyframes logo-splash-assemble {
+  from {
+    opacity: 0;
+    transform: translate(var(--v2-splash-enter-x), var(--v2-splash-enter-y)) scale(0.84)
+      rotate(var(--v2-splash-enter-angle));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-component="logo-splash"][data-motion="assemble"] > [data-slot] {
+    animation: none;
+  }
 }
