@@ -8,7 +8,7 @@ export const MODE_DEFINITIONS = [
   {
     id: "chat",
     href: "/mode/chat",
-    icon: "mode-chat",
+    icon: "rail-chat",
     labelKey: "mode.chat",
     descriptionKey: "mode.chat.description",
     surface: "chat",
@@ -16,7 +16,7 @@ export const MODE_DEFINITIONS = [
   {
     id: "coding",
     href: "/mode/coding",
-    icon: "mode-coding",
+    icon: "rail-coding",
     labelKey: "mode.coding",
     descriptionKey: "mode.coding.description",
     surface: "coding",
@@ -24,7 +24,7 @@ export const MODE_DEFINITIONS = [
   {
     id: "work",
     href: "/mode/work",
-    icon: "mode-work",
+    icon: "rail-work",
     labelKey: "mode.work",
     descriptionKey: "mode.work.description",
     surface: "work",
@@ -32,7 +32,7 @@ export const MODE_DEFINITIONS = [
   {
     id: "assistant",
     href: "/mode/assistant",
-    icon: "mode-assistant",
+    icon: "rail-assistant",
     labelKey: "mode.assistant",
     descriptionKey: "mode.assistant.description",
     surface: "assistant",
@@ -40,7 +40,7 @@ export const MODE_DEFINITIONS = [
   {
     id: "custom",
     href: "/mode/custom",
-    icon: "mode-custom",
+    icon: "rail-custom",
     labelKey: "mode.custom",
     descriptionKey: "mode.custom.description",
     surface: "custom",

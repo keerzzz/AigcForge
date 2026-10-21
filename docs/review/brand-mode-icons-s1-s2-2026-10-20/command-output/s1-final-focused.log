@@ -1,0 +1,22 @@
+$ playwright test "e2e/regression/global-shell.spec.ts" --grep "distinct registered rail|preserves the assistant"
+[warmup] / 3869ms modules=677
+[warmup] /mode/chat 3479ms modules=677
+[warmup] /mode/coding 3274ms modules=677
+[warmup] /mode/work 3745ms modules=677
+[warmup] /mode/assistant 4112ms modules=677
+[warmup] /mode/custom 3077ms modules=677
+[warmup] /server/warmup/session/warmup 3230ms modules=677
+
+Running 2 tests using 1 worker
+
+(node:309154) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:309154) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/2] [chromium] › e2e/regression/global-shell.spec.ts:136:3 › global shell: mode switcher rail › renders five distinct registered rail icon symbols
+[2/2] [chromium] › e2e/regression/global-shell.spec.ts:156:3 › global shell: mode switcher rail › preserves the assistant reminder glyph inside the mode surface
+  2 passed (35.1s)

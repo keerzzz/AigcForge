@@ -1,0 +1,36 @@
+{
+  "background": "rgb(22, 22, 22)",
+  "indicators": [
+    {
+      "color": "rgb(162, 188, 255)",
+      "mode": "chat",
+      "opacity": "0",
+      "state": "inactive"
+    },
+    {
+      "color": "rgb(162, 188, 255)",
+      "mode": "coding",
+      "opacity": "1",
+      "state": "active"
+    },
+    {
+      "color": "rgb(162, 188, 255)",
+      "mode": "work",
+      "opacity": "0",
+      "state": "inactive"
+    },
+    {
+      "color": "rgb(162, 188, 255)",
+      "mode": "assistant",
+      "opacity": "0",
+      "state": "inactive"
+    },
+    {
+      "color": "rgb(162, 188, 255)",
+      "mode": "custom",
+      "opacity": "0",
+      "state": "inactive"
+    }
+  ],
+  "theme": "dark"
+}

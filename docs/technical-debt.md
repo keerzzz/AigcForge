@@ -1897,3 +1897,23 @@ aigcfroge 后端完整套件（QA/CI）；Windows/macOS 打包与签名、`windo
 - **`PublicApi`（`packages/aigcfroge/src/server/routes/instance/httpapi/public.ts`）与 `Api`（`packages/server/src/api.ts` → `openapi()`）通过 `effect/unstable/httpapi` 的 `OpenApi.fromApi` 共享同一个全局组件 schema 注册表 — Owner: aigcfroge / server。** `httpapi-public-openapi.test.ts` 先导入并调用 `OpenApi.fromApi(PublicApi)`，这会把 `installation.update-available`/`installation.updated` 等事件 schema（`EventInstallationUpdate-available`、`EventInstallationUpdated`、`V2EventInstallationUpdate-available`、`V2EventInstallationUpdated`）注册进共享的 `effect/unstable/httpapi` schema 缓存；随后同进程内的 `openapi-drift.test.ts` 调用 `server/server.ts` 的 `openapi()` 构建独立的 `Api` spec 时，这些泄漏的 schema 一并混入其 `components.schemas` 与相关事件联合类型的 `anyOf`，导致其与已提交的 `packages/aigcfroge/test/server/openapi.snapshot.json` 产生 262 行差异，`OpenAPI contract > matches the checked-in snapshot` 失败。单独运行任一文件、或调换两者的导入顺序后先跑 `openapi-drift.test.ts` 均不复现；已用 `git stash` 对照 `main`（无本次改动）验证同样复现，确认是既有缺陷，与 `InstanceContextMiddleware`/`LocationMiddleware` 的本次改动无关。**未闭环：** 尚未定位 `effect/unstable/httpapi` 侧具体的全局可变状态（怀疑是 `OpenApi.annotations`/`Schema` 装饰在模块级完成、多次 `OpenApi.fromApi` 调用间未隔离）；也未评估是否需要在 vendor 的 `effect` 依赖之外自行加隔离，还是等上游修复。解锁条件：定位污染点后，要么给两个 API 的 schema 命名空间加前缀隔离，要么在 `bunfig.toml`/CI 里把这两个测试文件强制拆到不同的 `bun test` 进程（`--isolate` 未必覆盖模块级单例，需先验证），并补一条"两个 OpenApi 测试文件同进程运行不冲突"的回归用例。
 
 **集成状态（2026-10-19）**：§17 保留 main 的历史诊断；本分支已把 drift 与 SDK 统一到 `packages/script/src/openapi.ts` 的独立 CLI 生成边界，快照使用 `packages/sdk/openapi.json`。合并后生成器与同进程 public-contract/SDK/drift 回归已经通过（46 pass，原始日志见 §15.79）；旧的第二份 snapshot 保持删除。此结论证明当前生成边界隔离有效，不宣称已经修复上游 Effect 全局状态。
+
+## 18. brand-mode-icons 延后范围与验证边界（2026-10-20）
+
+来源：[实施计划](plan/brand-mode-icons-2026-10-20.md) §7 与 [S1/S2/S4 实施证据](review/brand-mode-icons-s1-s2-2026-10-20/README.md)。S1/S2 为当前交付范围；下列项未交付，不以默认亮暗截图或 mock e2e 宣称闭环。
+
+| 事项                                                                 | Owner                        | 来源 / 触发条件                                   | 解锁条件                                                                        |
+| -------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| S3 品牌资产收敛（Mark/Splash/favicon/manifest/desktop/social-share） | Design / UI / Desktop        | 计划 S3 审批退回；当前冻结                        | 用户独立批准 Web 与桌面资产视觉后，按 S3 单独实施和验收                         |
+| macOS `.icns` 与 Windows Store tiles 重生成                          | Desktop / Tooling            | 计划 §7；本机 ImageMagick 不支持 ICNS             | 在 macOS 构建机使用 Image2Icon/icnsutil，或建立可复现工具；产物经各平台打包验证 |
+| 静态资产生成脚本（master SVG → 全尺寸）                              | Tooling / Script             | 计划 §7；当前只有文档化命令                       | S3 批准后统一 master 与 token 映射，再生成资产并并入 CI                         |
+| 自动视觉回归基线及 Storybook a11y                                    | QA / App / UI                | 计划 §7；本批只有人工截图与行为断言               | 用户批准稳定截图基线后，将 S1/S2 与未来 S3 纳入自动门禁                         |
+| v2 图标 Storybook 故事                                               | UI                           | 计划 §7；共享 v2 icon 尚无 story                  | 与视觉回归基线一起覆盖五模式、micro、14/16/20px 及亮暗                          |
+| 37 套主题、真实系统高对比/减少动态、桌面安装包                       | Design System / QA / Desktop | 本批只验证默认亮暗和 Chromium 媒体模拟；未打包    | 建立全主题对比度矩阵，并在各目标系统和实际安装包完成视觉/键盘验收               |
+| 旧 brand-splash-redesign（06872530f）代码迁移                        | App                          | 计划 §7；需求语义未定、当前 clone 无该 commit     | 用户确认需要后单独立项并决定 splash-loader 设计                                 |
+| per-mode 主题色板扩展                                                | Design System                | 计划 §7；D1 已收回多色激活方案                    | 建立 37×明暗对比度审计后，由用户重新批准；当前维持单一 accent                   |
+| 执行中呼吸脉冲                                                       | App                          | 计划 §7；已收回脉冲，跨模式订阅与 whenActive 冲突 | 专项 PRD 和用户批准后评估；当前不引入                                           |
+| 模式快捷键 ⌘1–5                                                      | App Shell                    | 计划 §7；当前无绑定                               | 快捷键冲突检测专项完成并确认映射                                                |
+| `packages/ui/AGENTS.md`                                              | Docs                         | 计划 §7；原引用文件不存在，计划已删除无效引用     | 仅在确有包级强化规则需要时新建，或继续使用根协议                                |
+
+基线观察：真实 large IconButtonV2 是 28×28px，审批预览画为 40×40px；本批保留生产尺寸且验证切换无布局位移。后续若调整点击目标，由 App Shell / Design 单独批准，不与描边修订合并。

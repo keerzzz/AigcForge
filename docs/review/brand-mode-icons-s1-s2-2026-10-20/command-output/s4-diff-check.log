@@ -1,0 +1,3 @@
+$ git diff e02392ce1 --check
+
+Exit code: 0

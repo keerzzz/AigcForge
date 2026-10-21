@@ -11,6 +11,7 @@ import { DialogSettings } from "@/components/settings-v2"
 import { usePlatform } from "@/context/platform"
 import { useQuery } from "@tanstack/solid-query"
 import { assistantQueryOptions } from "@/utils/assistant-query"
+import "./mode-switcher.css"
 
 export function ModeSwitcher() {
   const mode = useMode()
@@ -33,6 +34,7 @@ export function ModeSwitcher() {
 
   return (
     <nav
+      data-component="mode-switcher"
       aria-label={language.t("mode.switcher")}
       class="flex w-16 shrink-0 flex-col items-center gap-1 border-r border-v2-border-border-base bg-v2-background-bg-base px-2 pt-3"
     >
@@ -42,7 +44,13 @@ export function ModeSwitcher() {
           const active = () => location.pathname !== "/" && mode.currentMode === item.id
           return (
             <TooltipV2 value={language.t(item.labelKey)} placement="right" gutter={8}>
-              <div class="relative">
+              <div
+                class="relative"
+                data-slot="rail-item"
+                data-mode={item.id}
+                data-state={active() ? "active" : "inactive"}
+              >
+                <span data-slot="active-indicator" aria-hidden="true" />
                 <IconButtonV2
                   variant={active() ? "neutral" : "ghost-muted"}
                   size="large"

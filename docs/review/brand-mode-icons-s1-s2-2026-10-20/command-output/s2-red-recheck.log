@@ -1,0 +1,57 @@
+$ playwright test "e2e/regression/global-shell.spec.ts" --grep "moves one active indicator"
+[warmup] / 2320ms modules=677
+[warmup] /mode/chat 3286ms modules=677
+[warmup] /mode/coding 3219ms modules=677
+[warmup] /mode/work 3277ms modules=677
+[warmup] /mode/assistant 3285ms modules=677
+[warmup] /mode/custom 3292ms modules=677
+[warmup] /server/warmup/session/warmup 3244ms modules=677
+
+Running 1 test using 1 worker
+
+(node:334284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:334284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/1] [chromium] › e2e/regression/global-shell.spec.ts:166:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+  1) [chromium] › e2e/regression/global-shell.spec.ts:166:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('nav[data-component="mode-switcher"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 10000ms
+      - waiting for locator('nav[data-component="mode-switcher"]')
+
+
+      170 |
+      171 |     const rail = page.locator('nav[data-component="mode-switcher"]')
+    > 172 |     await expect(rail).toBeVisible()
+          |                        ^
+      173 |     await expect(rail.locator('[data-slot="rail-item"]')).toHaveCount(5)
+      174 |     const boxes = await Promise.all(MODES.map((mode) => modeButton(page, mode.label).boundingBox()))
+      175 |     expect(boxes.every((box) => box !== null)).toBe(true)
+        at /home/keer/workspace/aigcfroge/packages/app/e2e/regression/global-shell.spec.ts:172:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-d32be-out-moving-the-mode-buttons-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-d32be-out-moving-the-mode-buttons-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: e2e/test-results/regression-global-shell-gl-d32be-out-moving-the-mode-buttons-chromium/error-context.md
+
+
+  1 failed
+    [chromium] › e2e/regression/global-shell.spec.ts:166:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+error: script "test:e2e" exited with code 1

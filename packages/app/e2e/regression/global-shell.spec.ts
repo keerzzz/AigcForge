@@ -133,6 +133,82 @@ const tabs = (page: Page) => page.locator('[data-slot="titlebar-tabs"]')
 const homeButton = (page: Page) => page.getByRole("button", { name: "Home", exact: true })
 
 test.describe("global shell: mode switcher rail", () => {
+  test("renders five distinct registered rail icon symbols", async ({ page }) => {
+    await installServerMock(page)
+    await page.goto("/mode/coding")
+    await expectAppVisible(page.locator("[data-mode-workspace]"))
+
+    for (const mode of MODES) {
+      const icon = modeButton(page, mode.label).locator("use[href]")
+      await expect(icon).toHaveCount(1)
+      await expect(icon).toHaveAttribute("href", `#aigcfroge-v2-icon-rail-${mode.slot}`)
+      await expect(page.locator(`symbol[id="aigcfroge-v2-icon-rail-${mode.slot}"]`)).toHaveCount(1)
+      await expect(page.locator(`symbol[id="aigcfroge-v2-icon-rail-${mode.slot}"] > g`)).toHaveCSS(
+        "stroke-width",
+        "1px",
+      )
+    }
+
+    const symbols = await Promise.all(
+      MODES.map((mode) => modeButton(page, mode.label).locator("use[href]").getAttribute("href")),
+    )
+    expect(new Set(symbols).size).toBe(5)
+    expect(symbols.every((symbol) => symbol?.startsWith("#aigcfroge-v2-icon-rail-"))).toBe(true)
+    expect(symbols).not.toContain("#aigcfroge-v2-icon-plus")
+  })
+
+  test("preserves the assistant reminder glyph inside the mode surface", async ({ page }) => {
+    await installServerMock(page)
+    await page.goto("/mode/assistant")
+    await expectAppVisible(page.locator("[data-mode-workspace]"))
+
+    await expect(
+      page.locator('[data-mode-sidebar="assistant"] [data-nav-section="reminders"] > button use').nth(1),
+    ).toHaveAttribute("href", "#aigcfroge-v2-icon-mode-assistant")
+  })
+
+  test("preserves the session panel glyph outside the rail", async ({ page }) => {
+    await page.setViewportSize({ width: 700, height: 844 })
+    await openSession(page, sessionA, titleA)
+
+    await expect(page.locator("#session-mode-panel-toggle use")).toHaveAttribute("href", "#aigcfroge-v2-icon-mode-chat")
+    await expect(modeButton(page, "Chat").locator("use")).toHaveAttribute("href", "#aigcfroge-v2-icon-rail-chat")
+  })
+
+  test("moves one active indicator with the route without moving the mode buttons", async ({ page }) => {
+    await installServerMock(page)
+    await page.goto("/mode/coding")
+    await expectAppVisible(page.locator("[data-mode-workspace]"))
+
+    const rail = page.locator('nav[data-component="mode-switcher"]')
+    await expect(rail).toBeVisible()
+    await expect(rail.locator('[data-slot="rail-item"]')).toHaveCount(5)
+    const boxes = await Promise.all(MODES.map((mode) => modeButton(page, mode.label).boundingBox()))
+    expect(boxes.every((box) => box !== null)).toBe(true)
+
+    for (const mode of MODES) {
+      await modeButton(page, mode.label).click()
+      await expect(page).toHaveURL(new RegExp(`${mode.href}$`))
+      await expect(rail.locator('[data-slot="rail-item"][data-state="active"]')).toHaveCount(1)
+      await expect(rail.locator('[data-slot="rail-item"][data-state="inactive"]')).toHaveCount(4)
+
+      for (const item of MODES) {
+        const wrapper = rail.locator(`[data-slot="rail-item"][data-mode="${item.slot}"]`)
+        const indicator = wrapper.locator('[data-slot="active-indicator"]')
+        await expect(wrapper).toHaveAttribute("data-state", item.slot === mode.slot ? "active" : "inactive")
+        await expect(modeButton(page, item.label)).toHaveAttribute("aria-pressed", String(item.slot === mode.slot))
+        await expect(indicator).toHaveCount(1)
+        await expect(indicator).toHaveAttribute("aria-hidden", "true")
+        await expect(indicator).toHaveCSS("position", "absolute")
+        await expect(indicator).toHaveCSS("width", "2px")
+        await expect(indicator).toHaveCSS("height", "20px")
+        await expect(indicator).toHaveCSS("opacity", item.slot === mode.slot ? "1" : "0")
+      }
+
+      expect(await Promise.all(MODES.map((item) => modeButton(page, item.label).boundingBox()))).toEqual(boxes)
+    }
+  })
+
   test("renders all five mode buttons and presses exactly the active one", async ({ page }) => {
     await installServerMock(page)
     await page.goto("/mode/coding")

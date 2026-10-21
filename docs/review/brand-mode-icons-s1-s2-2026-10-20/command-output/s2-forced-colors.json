@@ -1,0 +1,35 @@
+{
+  "forcedColors": true,
+  "items": [
+    {
+      "mode": "chat",
+      "state": "inactive",
+      "color": "rgb(0, 0, 0)",
+      "opacity": "0"
+    },
+    {
+      "mode": "coding",
+      "state": "active",
+      "color": "rgb(0, 0, 0)",
+      "opacity": "1"
+    },
+    {
+      "mode": "work",
+      "state": "inactive",
+      "color": "rgb(0, 0, 0)",
+      "opacity": "0"
+    },
+    {
+      "mode": "assistant",
+      "state": "inactive",
+      "color": "rgb(0, 0, 0)",
+      "opacity": "0"
+    },
+    {
+      "mode": "custom",
+      "state": "inactive",
+      "color": "rgb(0, 0, 0)",
+      "opacity": "0"
+    }
+  ]
+}

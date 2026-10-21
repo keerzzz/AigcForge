@@ -1,0 +1,81 @@
+$ playwright test "e2e/regression/global-shell.spec.ts"
+[warmup] / 2485ms modules=677
+[warmup] /mode/chat 3478ms modules=677
+[warmup] /mode/coding 3183ms modules=677
+[warmup] /mode/work 2686ms modules=677
+[warmup] /mode/assistant 3537ms modules=677
+[warmup] /mode/custom 3022ms modules=677
+[warmup] /server/warmup/session/warmup 2876ms modules=677
+
+Running 16 tests using 1 worker
+
+(node:326355) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:326355) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/16] [chromium] › e2e/regression/global-shell.spec.ts:136:3 › global shell: mode switcher rail › renders five distinct registered rail icon symbols
+[2/16] [chromium] › e2e/regression/global-shell.spec.ts:156:3 › global shell: mode switcher rail › preserves the assistant reminder glyph inside the mode surface
+[3/16] [chromium] › e2e/regression/global-shell.spec.ts:166:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+  1) [chromium] › e2e/regression/global-shell.spec.ts:166:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('nav[data-component="mode-switcher"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 10000ms
+      - waiting for locator('nav[data-component="mode-switcher"]')
+
+
+      170 |
+      171 |     const rail = page.locator('nav[data-component="mode-switcher"]')
+    > 172 |     await expect(rail).toBeVisible()
+          |                        ^
+      173 |     await expect(rail.locator('[data-slot="rail-item"]')).toHaveCount(5)
+      174 |     const boxes = await Promise.all(MODES.map((mode) => modeButton(page, mode.label).boundingBox()))
+      175 |     expect(boxes.every((box) => box !== null)).toBe(true)
+        at /home/keer/workspace/aigcfroge/packages/app/e2e/regression/global-shell.spec.ts:172:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-d32be-out-moving-the-mode-buttons-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    e2e/test-results/regression-global-shell-gl-d32be-out-moving-the-mode-buttons-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: e2e/test-results/regression-global-shell-gl-d32be-out-moving-the-mode-buttons-chromium/error-context.md
+
+
+(node:327152) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:327152) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[4/16] [chromium] › e2e/regression/global-shell.spec.ts:200:3 › global shell: mode switcher rail › renders all five mode buttons and presses exactly the active one
+[5/16] [chromium] › e2e/regression/global-shell.spec.ts:212:3 › global shell: mode switcher rail › clicking each mode navigates and swaps the visible sidebar and main slots
+[6/16] [chromium] › e2e/regression/global-shell.spec.ts:226:3 › global shell: mode switcher rail › the assistant icon shows the pending schedule count as a rail badge
+[7/16] [chromium] › e2e/regression/global-shell.spec.ts:244:3 › global shell: titlebar history › mod+[ and mod+] traverse the in-app history stack
+[8/16] [chromium] › e2e/regression/global-shell.spec.ts:264:3 › global shell: multi-session tabs › opening a second session adds a tab each and switches between them
+[9/16] [chromium] › e2e/regression/global-shell.spec.ts:277:3 › global shell: multi-session tabs › closing a background tab keeps the active session and URL
+[10/16] [chromium] › e2e/regression/global-shell.spec.ts:291:3 › global shell: multi-session tabs › closing the active tab navigates to the remaining one
+[11/16] [chromium] › e2e/regression/global-shell.spec.ts:307:3 › global shell: multi-session tabs › closing the final active tab returns focus to Home
+[12/16] [chromium] › e2e/regression/global-shell.spec.ts:317:3 › global shell: multi-session tabs › clicking Home twice returns to the last session tab
+[13/16] [chromium] › e2e/regression/global-shell.spec.ts:328:3 › global shell: multi-session tabs › the new-session button on a session route opens a draft tab that closes back to the session
+[14/16] [chromium] › e2e/regression/global-shell.spec.ts:347:3 › global shell: dirty draft route guard › closing a dirty draft confirms before removing it
+[15/16] [chromium] › e2e/regression/global-shell.spec.ts:372:3 › global shell: dirty draft route guard › leaving with unsent composer content asks, Stay returns, Leave leaves
+[16/16] [chromium] › e2e/regression/global-shell.spec.ts:396:3 › global shell: status bar › shows the connection trigger and opens the metrics popover
+  1 failed
+    [chromium] › e2e/regression/global-shell.spec.ts:166:3 › global shell: mode switcher rail › moves one active indicator with the route without moving the mode buttons
+  15 passed (1.4m)
+error: script "test:e2e" exited with code 1

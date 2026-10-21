@@ -1,0 +1,5 @@
+$ bun run prettier --check packages/ui/src/v2/components/icon.tsx packages/app/src/context/mode.tsx packages/app/src/context/mode.test.ts packages/app/src/components/mode-switcher.tsx packages/app/src/components/mode-switcher.css packages/app/e2e/regression/global-shell.spec.ts docs/review/brand-mode-icons-s1-s2-2026-10-20/README.md docs/review/brand-mode-icons-s1-s2-2026-10-20/checkpoint.md
+Checking formatting...
+All matched files use Prettier code style!
+
+Exit code: 0

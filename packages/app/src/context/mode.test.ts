@@ -23,7 +23,7 @@ describe("product mode", () => {
       expect(modeDefinition(definition.id)).toBe(definition)
       expect(modeHref(definition.id)).toBe(definition.href)
       expect(definition.href).toBe(`/mode/${definition.id}`)
-      expect(definition.icon).toBe(`mode-${definition.id}`)
+      expect(definition.icon).toBe(`rail-${definition.id}`)
       expect(definition.labelKey).toBe(`mode.${definition.id}`)
       expect(definition.descriptionKey).toBe(`mode.${definition.id}.description`)
       expect(definition.surface).toBe(definition.id)

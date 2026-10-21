@@ -1,0 +1,37 @@
+$ bash .aigcfroge/skills/protocols/scripts/check-refs.sh
+OK   CLAUDE.md
+OK   AGENTS.md
+OK   ARCHITECTURE.md
+OK   CONTEXT.md
+OK   DESIGN.md
+OK   packages/aigcfroge/AGENTS.md
+OK   packages/llm/AGENTS.md
+OK   packages/aigcfroge/src/server/routes/instance/httpapi/AGENTS.md
+OK   packages/aigcfroge/src/session/llm/AGENTS.md
+OK   packages/aigcfroge/test/AGENTS.md
+OK   packages/aigcfroge/test/server/AGENTS.md
+OK   packages/app/e2e/performance/AGENTS.md
+OK   packages/core/src/tool/AGENTS.md
+OK   packages/desktop/AGENTS.md
+OK   packages/effect-drizzle-sqlite/AGENTS.md
+OK   .aigcfroge/skills/effect/SKILL.md
+OK   .aigcfroge/skills/database/SKILL.md
+OK   .aigcfroge/skills/frontend-theming/SKILL.md
+OK   .aigcfroge/skills/protocols/SKILL.md
+OK   .aigcfroge/skills/enterprise-code-standard/SKILL.md
+OK   .aigcfroge/skills/reuse-first-refactor/SKILL.md
+OK   .aigcfroge/skills/quality-to-pr/SKILL.md
+OK   docs/prd/chat-mode-creation-layer.md
+OK   docs/architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md
+OK   packages/aigcfroge/specs/effect/migration.md
+OK   packages/aigcfroge/specs/effect/guide.md
+OK   specs/v2/session.md
+OK   specs/v2/provider-model.md
+OK   specs/v2/tools.md
+OK   docs/architecture/system-blueprint.md
+OK   packages/aigcfroge/test/EFFECT_TEST_MIGRATION.md
+OK   docs/plan/mode-module-switching-completion.md
+
+All 32 paths OK
+
+Exit code: 0
