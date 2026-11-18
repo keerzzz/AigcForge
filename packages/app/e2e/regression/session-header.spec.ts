@@ -24,7 +24,7 @@ import { fixture, mockStressTimeline } from "../utils/session-fixture"
 import { homeModeSessions, waitForHomeModeList } from "../utils/home-mode"
 import { expectSessionTitle } from "../utils/waits"
 import { mockRemoteServer, mockWorkspace, openSession } from "../utils/workspace"
-import { openAdvanced, openSidePanel } from "../utils/side-panel"
+import { attachSession, openAdvanced, openSidePanel } from "../utils/side-panel"
 
 const tabs = (page: Page) => page.locator('[data-slot="titlebar-tabs"] a')
 
@@ -415,16 +415,42 @@ for (const direction of ["ltr", "rtl"] as const) {
       await expectSessionTitle(page, fixture.expected.targetTitle)
       await expect(target).toHaveAttribute("aria-current", "page")
 
-      await sidebarProject.hover({ position: { x: 16, y: 10 } })
-      const bounds = await sidebarProject.boundingBox()
+      const pointerDown = await page.evaluateHandle(() => ({
+        result: new Promise<{
+          project: string | null
+          selected: string | null
+          expanded: string | null
+          background: string | null
+          url: string
+        }>((resolve) => {
+          // Window bubbling observes the row handler before the native click.
+          window.addEventListener(
+            "pointerdown",
+            (event) => {
+              const row =
+                event.target instanceof Element ? event.target.closest('[data-component="home-project-row"]') : null
 
-      if (!bounds) throw new Error("The sidebar project row must have bounds")
-      await page.mouse.move(bounds.x + 16, bounds.y + 10)
-      await page.mouse.down()
-      await expect(sidebarProject).toHaveAttribute("data-selected", "")
-      await expect(sidebarProject.locator("..")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
-      await expect(page).toHaveURL(new URL(sessionHref(fixture.targetID), page.url()).href)
-      await page.mouse.up()
+              resolve({
+                project: row?.textContent?.trim() ?? null,
+                selected: row?.getAttribute("data-selected") ?? null,
+                expanded: row?.getAttribute("aria-expanded") ?? null,
+                background: row?.parentElement ? getComputedStyle(row.parentElement).backgroundColor : null,
+                url: location.href,
+              })
+            },
+            { once: true },
+          )
+        }),
+      }))
+
+      await sidebarProject.click({ position: { x: 16, y: 10 } })
+      const pressed = await pointerDown.evaluate((value) => value.result)
+      await pointerDown.dispose()
+      expect(pressed.project).toBe(fixture.project.name)
+      expect(pressed.selected).toBe("")
+      expect(pressed.expanded).toBe("true")
+      expect(pressed.background).toBe("rgba(0, 0, 0, 0)")
+      expect(pressed.url).toBe(new URL(sessionHref(fixture.targetID), page.url()).href)
       await expect(sidebarProject).toHaveAttribute("aria-expanded", "false")
       await expect(projectIcon).toHaveAttribute("href", "#aigcfroge-v2-icon-folder")
       await expect(target).toBeHidden()
@@ -801,15 +827,7 @@ test.describe("session menu commands", () => {
       await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(current.id)
     }
 
-    await openSidePanel(page, "Task delegation")
-    await page
-      .getByRole("region", { name: "Task delegation", exact: true })
-      .getByRole("button", { name: "Attach session", exact: true })
-      .click()
-    await page
-      .getByRole("dialog", { name: "Open sessions", exact: true })
-      .getByRole("button", { name: "Remote fork source", exact: true })
-      .click()
+    await attachSession(page, { server: REMOTE_SERVER, sessionID: targetID, title: "Remote fork source" })
     const embedded = page.locator('[data-component="session-content-panel"]:visible')
     const embeddedMore = embedded.getByRole("button", { name: "More options", exact: true })
     await expect(embedded.getByRole("heading", { name: "Remote fork source", exact: true, level: 1 })).toBeVisible()
@@ -1487,21 +1505,31 @@ test.describe("session management", () => {
     await expect(second).toBeVisible()
 
     const externalDetails = external
-      .locator("details")
-      .filter({ has: page.getByText("external-thread-saved", { exact: true }) })
+      .locator(':scope > [data-slot="task-row-content"] [data-slot="task-disclosure"]')
+      .getByRole("button", { name: "Execution details", exact: true })
 
-    await externalDetails.locator(":scope > summary").click()
-    await expect(externalDetails).toHaveAttribute("open", "")
+    await expect(externalDetails).toHaveCount(1)
+    await expect(externalDetails).toHaveAttribute("aria-expanded", "false")
+    await externalDetails.click()
+    await expect(externalDetails).toHaveAttribute("aria-expanded", "true")
     await expect(external.getByText("external-thread-saved", { exact: true })).toBeVisible()
     await expect(external.getByRole("button", { name: "Open as main session", exact: true })).toHaveCount(0)
     await expect(first.getByRole("button", { name: "Retry delivery", exact: true })).toHaveCount(0)
     await expect(first.getByText("Attempt 2 · Completed", { exact: true })).toBeVisible()
+    const reviews = collaboration.getByRole("button", { name: "Review records", exact: true })
+    await expect(reviews).toHaveAttribute("aria-expanded", "false")
+    await reviews.click()
+    await expect(reviews).toHaveAttribute("aria-expanded", "true")
     await expect(collaboration).toContainText("Original retained review")
     await expect(collaboration).toContainText("Recorded reviews require attention")
     const previous = first.locator('[data-slot="delegation-receipt"]').filter({ hasText: "Previous attempt" })
     await expect(previous.getByRole("button", { name: "Retry delivery", exact: true })).toHaveCount(0)
     await previous.getByRole("button", { name: "Open full result", exact: true }).click()
     await expect(previous.locator("pre")).toHaveText(previousResult)
+    const previousDetails = previous.getByRole("button", { name: "Execution details", exact: true })
+    await expect(previousDetails).toHaveAttribute("aria-expanded", "false")
+    await previousDetails.click()
+    await expect(previousDetails).toHaveAttribute("aria-expanded", "true")
     await expect(previous.locator("code")).toHaveText("tsk_previous")
     await external.getByRole("button", { name: "Open full result", exact: true }).click()
     await expect(external.locator("pre")).toHaveText(externalResult)
@@ -1817,6 +1845,8 @@ test.describe("session management", () => {
             { sessionID: ids.parent, role: "orchestrator" },
             { sessionID: ids.first, role: "worker" },
             { sessionID: ids.formal, role: "worker" },
+            { sessionID: ids.linked, role: "worker" },
+            { sessionID: ids.workflow, role: "worker" },
           ],
         },
       },
@@ -1844,9 +1874,14 @@ test.describe("session management", () => {
     readback.sessions = workspace.sessions
     await page.goto(sessionHref(ids.parent))
     await expectSessionTitle(page, "SC02 collaboration sources")
-    await openSidePanel(page, "Task delegation")
-    const panel = page.locator('[data-component="session-delegation-panel"]')
-    const ordinary = panel.locator('[data-slot="subagent-group"]')
+    await openSidePanel(page, "Subagents")
+    const subagentPanel = page
+      .locator("#session-side-panel-subagents-tabpanel")
+      .locator('[data-component="session-delegation-panel"]')
+    const panel = page
+      .locator("#session-side-panel-collaborations-tabpanel")
+      .locator('[data-component="session-delegation-panel"]')
+    const ordinary = subagentPanel.locator('[data-slot="subagent-group"]')
     const child = (id: string) => ordinary.getByRole("article", { name: `Subagent: ${id}`, exact: true })
 
     const source = (messageID: string, callID: string) =>
@@ -1855,25 +1890,46 @@ test.describe("session management", () => {
         .filter({ has: page.getByText(messageID, { exact: true }) })
         .filter({ has: page.getByText(callID, { exact: true }) })
 
-    const related = panel.locator('[data-slot="collaboration-related-group"]')
+    const related = subagentPanel.locator('[data-slot="collaboration-related-group"]')
 
-    const relatedChild = (id: string) =>
+    const relatedChild = (title: string) =>
       related
         .locator('[data-slot="collaboration-related-session"]')
-        .filter({ has: page.getByText(id, { exact: true }) })
+        .filter({ has: page.getByRole("button", { name: title, exact: true }) })
 
-    await expect(ordinary.getByRole("heading", { name: "Subagents", exact: true })).toBeVisible()
-    await expect(panel.locator('[data-slot="task-empty"]')).toHaveCount(0)
-    await expect(panel.getByText("No saved collaborations.", { exact: true })).toHaveCount(0)
-    await expect(child(ids.first).getByRole("heading", { name: "Shared worker name", exact: true })).toBeVisible()
-    await expect(child(ids.second).getByRole("heading", { name: "Shared worker name", exact: true })).toBeVisible()
+    const openRecords = async (expectedGroups: number, expectedCalls: number) => {
+      const groups = ordinary.locator('[data-slot="subagent-call-records"] > [data-slot="collapsible-trigger"]')
+      await expect(groups).toHaveCount(expectedGroups)
+
+      for (const group of await groups.all()) {
+        if ((await group.getAttribute("aria-expanded")) !== "true") await group.click()
+        await expect(group).toHaveAttribute("aria-expanded", "true")
+      }
+
+      const calls = ordinary.locator(
+        '[data-slot="subagent-call"] [data-slot="task-disclosure"] > [data-slot="collapsible-trigger"]',
+      )
+      await expect(calls).toHaveCount(expectedCalls)
+
+      for (const call of await calls.all()) {
+        if ((await call.getAttribute("aria-expanded")) !== "true") await call.click()
+        await expect(call).toHaveAttribute("aria-expanded", "true")
+      }
+    }
+
+    await expect(subagentPanel.getByRole("heading", { name: "Subagents", exact: true })).toBeVisible()
+    await expect(subagentPanel.locator('[data-slot="task-empty"]')).toHaveCount(0)
+    await expect(subagentPanel.getByText("No child sessions yet.", { exact: true })).toHaveCount(0)
+    await expect(child(ids.first).getByRole("button", { name: "Shared worker name", exact: true })).toBeEnabled()
+    await expect(child(ids.second).getByRole("button", { name: "Shared worker name", exact: true })).toBeEnabled()
+    await openRecords(6, 8)
     await expect(child(ids.first).locator('[data-slot="subagent-call"]')).toHaveCount(2)
     const foreground = source(foregroundMessageID, "call_sc02_foreground")
     const background = source(backgroundMessageID, "call_sc02_background")
     await expect(foreground.getByText("Tool call: Completed", { exact: true })).toBeVisible()
     await expect(background.getByText("Tool call: Running", { exact: true })).toBeVisible()
-    await expect(child(ids.first).locator('[data-slot="subagent-session-status"]')).toHaveText("Session: Running")
-    await expect(child(ids.second).locator('[data-slot="subagent-session-status"]')).toHaveText("Session: Running")
+    await expect(child(ids.first).locator('[data-slot="subagent-session-status"]')).toHaveText("Running")
+    await expect(child(ids.second).locator('[data-slot="subagent-session-status"]')).toHaveText("Running")
     await expect(
       source(runningMessageID, "call_sc02_starting").getByText("Tool call: Starting", { exact: true }),
     ).toBeVisible()
@@ -1882,11 +1938,10 @@ test.describe("session management", () => {
     ).toHaveCount(0)
     await expect(source(runningMessageID, "call_sc02_wrong_parent")).toBeVisible()
     await expect(child(ids.foreign).getByRole("button", { name: "Open as main session", exact: true })).toHaveCount(0)
-    await expect(relatedChild(ids.foreign)).toHaveCount(0)
-    await expect(relatedChild(ids.linked)).toBeVisible()
-    await expect(relatedChild(ids.linked).getByText("Source not loaded", { exact: true })).toBeVisible()
-    await expect(relatedChild(ids.workflow).getByText("Workflow", { exact: true })).toBeVisible()
-    await expect(relatedChild(ids.formal).getByText("Task", { exact: true })).toBeVisible()
+    await expect(related.locator('[data-slot="collaboration-related-session"]')).toHaveCount(3)
+    await expect(relatedChild("Shared worker name")).toHaveCount(1)
+    await expect(relatedChild("Related run")).toHaveCount(1)
+    await expect(relatedChild("Formal participant child")).toHaveCount(1)
     await expect(child(ids.linked)).toHaveCount(0)
     await expect(child(ids.workflow)).toHaveCount(0)
     await expect(ordinary.getByRole("button", { name: /^(Stop|Interrupt|Retry)(?: session| worker)?$/ })).toHaveCount(0)
@@ -1904,12 +1959,40 @@ test.describe("session management", () => {
 
     releaseReadback.resolve()
     expect((await metadata).ok()).toBe(true)
-    await expect(child(ids.missing).getByRole("heading", { name: "Readback worker", exact: true })).toBeVisible()
+    await expect(child(ids.missing).getByRole("button", { name: "Readback worker", exact: true })).toBeEnabled()
     await expect(child(ids.missing).getByRole("button", { name: "Open as main session", exact: true })).toBeVisible()
     expect(readback.requests).toContain(ids.missing)
-    const firstOutput = foreground.locator('details[data-slot="delegation-result"]')
-    await firstOutput.locator("summary").click()
-    await expect(firstOutput).toHaveAttribute("open", "")
+
+    for (const target of [
+      { id: ids.linked, title: "Shared worker name" },
+      { id: ids.workflow, title: "Related run" },
+      { id: ids.formal, title: "Formal participant child" },
+    ]) {
+      await relatedChild(target.title).getByRole("button", { name: target.title, exact: true }).click()
+      const view = page
+        .locator("#session-side-panel-subagents-tabpanel")
+        .locator('[data-component="session-content-panel"]')
+      await expect(
+        view.locator('[data-slot="session-content-heading"]').getByRole("heading", { name: target.title, exact: true }),
+      ).toBeVisible()
+      const details = view
+        .locator('[data-slot="session-content-heading"] [data-slot="session-content-metadata"]')
+        .getByRole("button", { name: "Execution details", exact: true })
+      await expect(details).toHaveAttribute("aria-expanded", "false")
+      await details.click()
+      await expect(details).toHaveAttribute("aria-expanded", "true")
+      await expect(view.getByText(target.id, { exact: true })).toBeVisible()
+      await expect(page).toHaveURL(new URL(sessionHref(ids.parent), page.url()).href)
+      await view.getByRole("button", { name: "Back to subagents", exact: true }).click()
+      await expect(view).toHaveCount(0)
+      await expect(subagentPanel.getByRole("heading", { name: "Subagents", exact: true })).toBeVisible()
+    }
+
+    await openRecords(6, 8)
+    const firstOutput = foreground.locator('[data-slot="delegation-result"]')
+    const firstOutputTrigger = firstOutput.getByRole("button", { name: "Open original tool output", exact: true })
+    await firstOutputTrigger.click()
+    await expect(firstOutputTrigger).toHaveAttribute("aria-expanded", "true")
     await expect(firstOutput.locator("pre")).toHaveText(foregroundResult)
     backgroundTool.state = {
       status: "completed",
@@ -1934,16 +2017,16 @@ test.describe("session management", () => {
       },
     ])
     await expect(background.getByText("Tool call: Running in background", { exact: true })).toBeVisible()
-    await expect(child(ids.first).locator('[data-slot="subagent-session-status"]')).toHaveText("Session: Running")
-    await expect(firstOutput).toHaveAttribute("open", "")
+    await expect(child(ids.first).locator('[data-slot="subagent-session-status"]')).toHaveText("Running")
+    await expect(firstOutputTrigger).toHaveAttribute("aria-expanded", "true")
     await expect(firstOutput.locator("pre")).toHaveText(foregroundResult)
     const cancelled = source(runningMessageID, "call_sc02_cancelled")
     await expect(cancelled.getByText("Tool call: Error", { exact: true })).toBeVisible()
-    await cancelled.locator('[data-slot="delegation-result"] > summary').click()
+    await cancelled.getByRole("button", { name: "Open original tool output", exact: true }).click()
     await expect(cancelled.locator("pre")).toHaveText(cancelledResult)
     const startup = source(runningMessageID, "call_sc02_startup_error")
     await expect(startup.getByText("Tool call: Error", { exact: true })).toBeVisible()
-    await startup.locator('[data-slot="delegation-result"] > summary').click()
+    await startup.getByRole("button", { name: "Open original tool output", exact: true }).click()
     await expect(startup.locator("pre")).toHaveText(startupError)
     await expect(startup.getByRole("button", { name: "Open as main session", exact: true })).toHaveCount(0)
     await workspace.push([
@@ -1961,9 +2044,7 @@ test.describe("session management", () => {
         },
       },
     ])
-    await expect(child(ids.second).locator('[data-slot="subagent-session-status"]')).toHaveText(
-      "Session: Waiting for input",
-    )
+    await expect(child(ids.second).locator('[data-slot="subagent-session-status"]')).toHaveText("Waiting for input")
     await expect(cancelled.locator("pre")).toHaveText(cancelledResult)
     await workspace.push([
       {
@@ -1974,7 +2055,7 @@ test.describe("session management", () => {
         data: { sessionID: ids.second, requestID: "per_sc02", reply: "once" },
       },
     ])
-    await expect(child(ids.second).locator('[data-slot="subagent-session-status"]')).toHaveText("Session: Running")
+    await expect(child(ids.second).locator('[data-slot="subagent-session-status"]')).toHaveText("Running")
     delete activity[ids.first]
     await workspace.push([
       {
@@ -1985,7 +2066,7 @@ test.describe("session management", () => {
         data: { sessionID: ids.first },
       },
     ])
-    await expect(child(ids.first).locator('[data-slot="subagent-session-status"]')).toHaveText("Session: Idle")
+    await expect(child(ids.first).locator('[data-slot="subagent-session-status"]')).toHaveText("Idle")
     activity[ids.first] = { type: "busy" }
     await workspace.push([
       {
@@ -1996,10 +2077,10 @@ test.describe("session management", () => {
         data: { sessionID: ids.first },
       },
     ])
-    await expect(child(ids.first).locator('[data-slot="subagent-session-status"]')).toHaveText("Session: Running")
+    await expect(child(ids.first).locator('[data-slot="subagent-session-status"]')).toHaveText("Running")
     await expect(child(ids.first).locator('[data-slot="subagent-call"]')).toHaveCount(2)
     await expect(foreground.getByText("Tool call: Completed", { exact: true })).toBeVisible()
-    await expect(firstOutput).toHaveAttribute("open", "")
+    await expect(firstOutputTrigger).toHaveAttribute("aria-expanded", "true")
     delegations[ids.parent] = [
       {
         delegation: {
@@ -2035,40 +2116,77 @@ test.describe("session management", () => {
         softExpired: false,
       },
     ]
-    await panel.getByRole("button", { name: "Reload collaborations", exact: true }).click()
+    await subagentPanel.getByRole("button", { name: "Reload collaborations", exact: true }).click()
+    await expect(subagentPanel.getByRole("heading", { name: "Subagents", exact: true })).toBeVisible()
+    await expect(relatedChild("Formal participant child")).toHaveCount(0)
+    await expect(related.locator('[data-slot="collaboration-related-session"]')).toHaveCount(2)
+    await expect(relatedChild("Shared worker name")).toBeVisible()
+    await expect(relatedChild("Related run")).toBeVisible()
+    await expect(firstOutputTrigger).toHaveAttribute("aria-expanded", "true")
+    await expect(firstOutput.locator("pre")).toHaveText(foregroundResult)
+    await page.screenshot({ path: testInfo.outputPath("sc02-subagents-normal.png") })
+    await openSidePanel(page, "Task delegation")
     await expect(panel.getByRole("heading", { name: "Delegations", exact: true })).toBeVisible()
     await expect(panel.getByRole("heading", { name: "Saved formal collaboration", exact: true })).toBeVisible()
     await expect(panel.getByRole("listitem", { name: "Participant: build · par_sc02", exact: true })).toBeVisible()
-    await expect(ordinary.getByRole("heading", { name: "Subagents", exact: true })).toBeVisible()
-    await expect(relatedChild(ids.formal)).toHaveCount(0)
-    await expect(relatedChild(ids.linked)).toBeVisible()
-    await expect(relatedChild(ids.workflow)).toBeVisible()
-    await expect(firstOutput).toHaveAttribute("open", "")
-    await expect(firstOutput.locator("pre")).toHaveText(foregroundResult)
+    await expect(panel.locator('[data-slot="subagent-group"]')).toHaveCount(0)
     await page.screenshot({ path: testInfo.outputPath("sc02-collaborations-normal.png") })
 
     await openAdvanced(page)
     const meta = page.getByRole("region", { name: "Advanced management", exact: true })
-    const metaDetails = meta.locator('[data-slot="meta-recorded-details"]')
-    await metaDetails.locator(":scope > summary").click()
-    await expect(metaDetails).toHaveAttribute("open", "")
+    const metaDetails = meta
+      .locator('[data-slot="meta-recorded-details"]')
+      .getByRole("button", { name: "Execution details", exact: true })
+    await expect(metaDetails).toHaveAttribute("aria-expanded", "false")
+    await metaDetails.click()
+    await expect(metaDetails).toHaveAttribute("aria-expanded", "true")
     const attached = meta.getByRole("listitem", { name: `Session: ${ids.first}`, exact: true })
     await expect(attached.getByText("Session: Running", { exact: true })).toBeVisible()
     await expect(attached.getByText(foregroundMessageID, { exact: true })).toBeVisible()
     await expect(attached.getByText("call_sc02_foreground", { exact: true })).toBeVisible()
+    const linked = meta.getByRole("listitem", { name: `Session: ${ids.linked}`, exact: true })
+    await expect(linked.getByText(ids.linked, { exact: true })).toBeVisible()
+    await expect(linked.getByRole("button", { name: /^Open (Subagent|Task|Workflow) source$/ })).toHaveCount(0)
+    const workflow = meta.getByRole("listitem", { name: `Session: ${ids.workflow}`, exact: true })
+    await expect(workflow.getByText("Workflow", { exact: true })).toBeVisible()
+    await expect(workflow.getByText("wfr_sc02", { exact: true })).toBeVisible()
+    await expect(workflow.getByText("wsr_sc02", { exact: true })).toBeVisible()
+    await expect(workflow.getByText("msg_sc02_workflow", { exact: true })).toBeVisible()
     await attached.getByRole("button", { name: "Open Subagent source", exact: true }).click()
-    await expect(panel.getByRole("region", { name: "Selected collaboration source", exact: true })).toContainText(
-      foregroundMessageID,
+    const selectedSubagentSource = subagentPanel.getByRole("region", {
+      name: "Selected collaboration source",
+      exact: true,
+    })
+    await expect(page.locator("#review-panel").getByRole("tab", { name: "Subagents", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
     )
+    await expect(selectedSubagentSource.getByText(ids.parent, { exact: true })).toBeVisible()
+    await expect(selectedSubagentSource.getByText(foregroundMessageID, { exact: true })).toBeVisible()
+    await expect(selectedSubagentSource.getByText("call_sc02_foreground", { exact: true })).toBeVisible()
+    await openRecords(1, 1)
     await expect(child(ids.first).locator('[data-slot="subagent-call"]')).toHaveCount(1)
     await expect(foreground).toBeVisible()
     await expect(source(backgroundMessageID, "call_sc02_background")).toHaveCount(0)
-    await panel.getByRole("button", { name: "Show all collaborations", exact: true }).click()
+    await page.reload()
+    await expectSessionTitle(page, "SC02 collaboration sources")
+    await openSidePanel(page, "Subagents")
+    await expect(selectedSubagentSource.getByText(ids.parent, { exact: true })).toBeVisible()
+    await expect(selectedSubagentSource.getByText(foregroundMessageID, { exact: true })).toBeVisible()
+    await expect(selectedSubagentSource.getByText("call_sc02_foreground", { exact: true })).toBeVisible()
+    await openRecords(1, 1)
+    await firstOutputTrigger.click()
+    await expect(firstOutputTrigger).toHaveAttribute("aria-expanded", "true")
+    await expect(firstOutput.locator("pre")).toHaveText(foregroundResult)
+    await subagentPanel.getByRole("button", { name: "Show all collaborations", exact: true }).click()
+    await expect(selectedSubagentSource).toHaveCount(0)
+    await openRecords(6, 8)
     await expect(child(ids.first).locator('[data-slot="subagent-call"]')).toHaveCount(2)
 
     await openAdvanced(page)
-    await metaDetails.locator(":scope > summary").click()
-    await expect(metaDetails).toHaveAttribute("open", "")
+    await expect(metaDetails).toHaveAttribute("aria-expanded", "false")
+    await metaDetails.click()
+    await expect(metaDetails).toHaveAttribute("aria-expanded", "true")
     const formal = meta.getByRole("listitem", { name: `Session: ${ids.formal}`, exact: true })
     await expect(formal.getByText("Session: Idle", { exact: true })).toBeVisible()
     await formal.getByRole("button", { name: "Open Task source", exact: true }).click()
@@ -2081,14 +2199,17 @@ test.describe("session management", () => {
     )
     await expect(panel.locator('[data-slot="subagent-group"]')).toHaveCount(0)
     await panel.getByRole("button", { name: "Show all collaborations", exact: true }).click()
-    await expect(child(ids.first).locator('[data-slot="subagent-call"]')).toHaveCount(2)
+    await expect(selected).toHaveCount(0)
     await page.setViewportSize({ width: 390, height: 844 })
     await openSidePanel(page, "Task delegation")
-    await expect(ordinary.getByRole("heading", { name: "Subagents", exact: true })).toBeVisible()
     await expect(panel.getByRole("heading", { name: "Saved formal collaboration", exact: true })).toBeVisible()
+    await openSidePanel(page, "Subagents")
+    await expect(subagentPanel.getByRole("heading", { name: "Subagents", exact: true })).toBeVisible()
+    await openRecords(6, 8)
+    await expect(child(ids.first).locator('[data-slot="subagent-call"]')).toHaveCount(2)
 
-    if ((await firstOutput.getAttribute("open")) === null) await firstOutput.locator("summary").click()
-    await expect(firstOutput).toHaveAttribute("open", "")
+    if ((await firstOutputTrigger.getAttribute("aria-expanded")) !== "true") await firstOutputTrigger.click()
+    await expect(firstOutputTrigger).toHaveAttribute("aria-expanded", "true")
     await expect(firstOutput.locator("pre")).toHaveText(foregroundResult)
     await page.screenshot({ path: testInfo.outputPath("sc02-collaborations-narrow.png") })
   })
@@ -2400,9 +2521,12 @@ test.describe("session management", () => {
       ])
       await openAdvanced(page)
       const meta = page.getByRole("region", { name: "Advanced management", exact: true })
-      const metaDetails = meta.locator('[data-slot="meta-recorded-details"]')
-      await metaDetails.locator(":scope > summary").click()
-      await expect(metaDetails).toHaveAttribute("open", "")
+      const metaDetails = meta
+        .locator('[data-slot="meta-recorded-details"]')
+        .getByRole("button", { name: "Execution details", exact: true })
+      await expect(metaDetails).toHaveAttribute("aria-expanded", "false")
+      await metaDetails.click()
+      await expect(metaDetails).toHaveAttribute("aria-expanded", "true")
       await expect(meta.getByText("Current Meta owner", { exact: true })).toBeVisible()
       await expect(meta.getByText("Saved project API fact", { exact: true })).toBeVisible()
       await expect(meta.getByText("Meta total tokens", { exact: true }).locator("..")).toContainText("Unknown")

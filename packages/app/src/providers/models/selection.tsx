@@ -1083,8 +1083,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       },
       session: {
         ready: savedReady,
-        bindDraft(draftID: string) {
+        bindDraft(draftID: string, initialModel?: ModelKey) {
           setStore("draftID", draftID)
+          if (!savedReady() || !initialModel || saved.session[`draft:${draftID}`]) return
+
+          write({
+            model: initialModel,
+            variant: "type" in initialModel ? null : (initialModel.variant ?? null),
+          })
         },
         draftID: () => store.draftID,
         choices: () => scope()?.choices,

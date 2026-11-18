@@ -696,6 +696,7 @@ test("lists slash commands in their built-in order", async ({ page }) => {
     "/mcp",
     "/model",
     "/connect",
+    "/agent",
     "/btw",
   ])
 })
@@ -746,7 +747,7 @@ test("shows thinking on hover or a non-default selection while preserving keyboa
   const option = (name: string) => page.getByRole("menuitemradio", { name, exact: true })
 
   await page.mouse.move(0, 0)
-  await expect(control).toHaveText("default")
+  await expect(control).toHaveText("Default")
   await expect(control).toHaveCSS("opacity", "0")
   await expect(control).toHaveCSS("pointer-events", "none")
 
@@ -767,22 +768,24 @@ test("shows thinking on hover or a non-default selection while preserving keyboa
   await expect(control).toHaveCSS("opacity", "1")
 
   await control.click()
-  await option("default").click()
+  await option("Default").click()
   await input.click()
   await page.mouse.move(0, 0)
-  await expect(control).toHaveText("default")
+  await expect(control).toHaveText("Default")
   await expect(control).toHaveCSS("opacity", "0")
 
-  // The single-agent fixture has only Add and Model before the thinking trigger.
+  // The agent control stays between Add and Model in the composer toolbar.
   await page.keyboard.press("Tab")
   await expect(composer.getByRole("button", { name: "Add images and files" })).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(composer.getByRole("button", { name: "Choose agent", exact: true })).toBeFocused()
   await page.keyboard.press("Tab")
   await expect(composer.getByRole("button", { name: "Thinking Model" })).toBeFocused()
   await page.keyboard.press("Tab")
   await expect(control).toBeFocused()
   await expect(control).toHaveCSS("opacity", "1")
   await page.keyboard.press("Enter")
-  await expect(option("default")).toBeFocused()
+  await expect(option("Default")).toBeFocused()
   await expect(control).toHaveCSS("opacity", "1")
   await page.keyboard.press("Escape")
   await expect(control).toBeFocused()

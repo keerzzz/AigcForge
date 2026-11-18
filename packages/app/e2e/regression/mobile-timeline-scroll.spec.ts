@@ -83,7 +83,7 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
         await image.promise
         await route.fulfill({
           contentType: "image/svg+xml",
-          body: '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="600"><rect width="340" height="600" fill="steelblue"/></svg>',
+          body: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="600"><rect width="300" height="600" fill="steelblue"/></svg>',
         })
       })
       await setupTimeline(page, {

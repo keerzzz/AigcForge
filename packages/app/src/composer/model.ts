@@ -565,14 +565,20 @@ export function createComposerModel(
       variant: {
         options: () =>
           variants().map((value) => ({
-            id: JSON.stringify(value ?? null),
+            id: value === undefined ? "default" : JSON.stringify(value),
             label: value ?? language.t("common.default"),
           })),
-        current: () => JSON.stringify(adapter.controls().model.selection.variant.current() ?? null),
+        current: () => {
+          const value = adapter.controls().model.selection.variant.current()
+
+          return value === undefined ? "default" : JSON.stringify(value)
+        },
         onSelect: (value) =>
           adapter
             .controls()
-            .model.selection.variant.set(variants().find((item) => JSON.stringify(item ?? null) === value)),
+            .model.selection.variant.set(
+              variants().find((item) => (item === undefined ? "default" : JSON.stringify(item)) === value),
+            ),
         keybind: () => command.keybindParts("model.variant.cycle"),
       },
       submit: {

@@ -679,7 +679,8 @@ const setup: Setup<typeof definition> = (ctx) => {
               }) => {
                 const session = props.session
                 const source = input.source
-                const panel = source.kind === "workflow" ? "workflow" : "collaborations"
+                const panel =
+                  source.kind === "workflow" ? "workflow" : source.kind === "subagent" ? "subagents" : "collaborations"
 
                 if (source.kind === "workflow")
                   await ctx.stores.workflow(session).update((draft) => {
@@ -700,7 +701,7 @@ const setup: Setup<typeof definition> = (ctx) => {
 
                 if (ctx.signal.aborted) return
 
-                if (panel === "collaborations")
+                if (panel === "collaborations" || panel === "subagents")
                   await ctx.stores.views(session).update((draft) => {
                     draft.selected = undefined
                   })

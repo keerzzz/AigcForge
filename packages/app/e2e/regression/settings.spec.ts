@@ -1643,7 +1643,9 @@ test("clearing project fields sends explicit removal values", async ({ page }) =
 })
 
 test("the new session shortcut waits for a shortcut recording, then leaves settings", async ({ page }) => {
-  const { settings } = await open(page)
+  const { settings } = await open(page, {
+    seed: { storage: { "aigcfroge.global.dat:layout": { home: { sessionMode: "coding" } } } },
+  })
   await settings.getByRole("tab", { name: "Shortcuts", exact: true }).click()
   const binding = settings.locator('[data-keybind-id="tab.new"]')
   await binding.click()

@@ -40,7 +40,12 @@ export async function openSidePanel(page: Page, title: string) {
 export async function attachSession(page: Page, input: { server: string; sessionID: string; title: string }) {
   await openSidePanel(page, "Task delegation")
 
-  const attach = page
+  const panel = page.locator("#session-side-panel-collaborations-tabpanel")
+  const back = panel.getByRole("button", { name: "Back to collaborations", exact: true })
+
+  if (await back.count()) await back.click()
+
+  const attach = panel
     .getByRole("region", { name: "Task delegation", exact: true })
     .locator('[data-slot="session-content-sources"]')
     .getByRole("button", { name: "Attach session", exact: true })
@@ -57,6 +62,12 @@ export async function attachSession(page: Page, input: { server: string; session
   await expect(candidate).toBeEnabled()
   await candidate.click()
   await expect(picker).toHaveCount(0)
+  await expect(
+    page
+      .getByRole("region", { name: "Session views", exact: true })
+      .locator('[data-slot="session-content-heading"]')
+      .getByRole("heading", { name: input.title, exact: true }),
+  ).toBeVisible()
 }
 
 export async function openAdvanced(page: Page) {

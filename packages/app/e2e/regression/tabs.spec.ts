@@ -16,6 +16,7 @@ import { mockServers } from "../utils/mock-server"
 import { fixture, mockStressTimeline } from "../utils/session-fixture"
 import { fileNode, mockWorkspace, openSession } from "../utils/workspace"
 import { expectSessionTitle } from "../utils/waits"
+import { openSidePanel } from "../utils/side-panel"
 
 const a = { id: "ses_tab_a", title: "Tab A session" }
 
@@ -272,7 +273,7 @@ test("inactive tabs stay busy while work waits in their inbox, and pulse on a ne
     sessions: [a, b, c],
     inbox: [
       {
-        id: "inb_tab_b",
+        id: "msg_tab_b",
         sessionID: b.id,
         time: { created: 1 },
         type: "user",
@@ -281,7 +282,7 @@ test("inactive tabs stay busy while work waits in their inbox, and pulse on a ne
       },
       // Parked synthetic context, such as a user shell's output, waits without work.
       {
-        id: "inb_tab_c",
+        id: "msg_tab_c",
         sessionID: c.id,
         time: { created: 1 },
         type: "synthetic",
@@ -317,7 +318,7 @@ test("inactive tabs stay busy while work waits in their inbox, and pulse on a ne
       durable: { aggregateID: c.id, seq: 1, version: 1 },
       data: {
         sessionID: c.id,
-        inboxID: "inb_tab_c_prompt",
+        inboxID: "msg_tab_c_prompt",
         item: { type: "user", payload: { text: "Another client's prompt" }, delivery: "queue" },
       },
     } satisfies Extract<AigcForgeEvent, { type: "session.inbox.enqueued" }>,
@@ -533,7 +534,7 @@ test("each session tab shows its own file tab after a switch to a session in ano
   }
 
   const open = async (file: string) => {
-    await panel.getByRole("button", { name: "Open file" }).click()
+    await openSidePanel(page, "Open file")
     await panel.getByRole("button", { name: file, exact: true }).click()
     await shows(file)
   }

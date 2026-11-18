@@ -46,7 +46,7 @@ test("mobile proposal menu switches the rendered provider without returning to t
 })
 
 test("mobile proposal commands select their own provider from the conversation", async ({ page }) => {
-  const { dialog, input } = await openCommandPalette(page)
+  const { dialog, input } = await openCommandPalette(page, false, "chat")
 
   const conversation = page.getByRole("tablist", { name: "Session view", exact: true }).getByRole("tab", {
     name: "Session",

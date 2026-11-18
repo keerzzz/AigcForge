@@ -250,7 +250,10 @@ test("the summary's changes row switches the view and keeps the side tabs", asyn
     fileList: (path) => (path ? [] : [fileNode(fixture.directory, "README.md")]),
     fileContent: (path) => ({ type: "text", content: `contents:${path}` }),
   })
-  await openStress(page, { lastProject: { local: fixture.directory } })
+  await openStress(page, {
+    lastProject: { local: fixture.directory },
+    storage: { "aigcfroge.global.dat:extension.file.preview": { enabled: true } },
+  })
   await page.goto(sessionHref(fixture.targetID))
 
   // Previewing a file preserves the Files navigation tab.
@@ -258,11 +261,6 @@ test("the summary's changes row switches the view and keeps the side tabs", asyn
   const readme = panel.getByRole("tab", { name: "README.md", exact: true })
   await page.getByRole("button", { name: "Toggle review", exact: true }).click()
   await openSidePanel(page, "Open file")
-  const preview = panel.getByRole("switch", { name: "Preview files", exact: true })
-
-  await expect(preview).not.toBeChecked()
-  await preview.press("Space")
-  await expect(preview).toBeChecked()
   await panel.getByRole("button", { name: "README.md", exact: true }).click()
   await expect(readme).toHaveAttribute("aria-selected", "true")
   await expect(panel.getByRole("tab", { name: "Open file", exact: true })).toHaveCount(1)

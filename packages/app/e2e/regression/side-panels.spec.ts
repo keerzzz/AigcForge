@@ -2601,7 +2601,7 @@ test("the selected side panel owns the resize limit and preserves the requested 
   await page.setViewportSize({ width: 1440, height: 800 })
   await openSession(page, {
     name: "ActivePanelWidth",
-    sessions: [{ id: "ses_active_panel_width", title: "Active panel width" }],
+    sessions: [{ id: "ses_active_panel_width", title: "Active panel width", mode: "chat" }],
     vcsDiff: [fileDiff("changed.ts")],
     seed: { panes: { ses_active_panel_width: { sessionWidth: 450 } } },
   })
@@ -3213,6 +3213,7 @@ for (const item of [
     const a = { id: "ses_menu_" + item.kind + "_a", title: item.name + " Alpha", mode: "coding" }
     const b = { id: "ses_menu_" + item.kind + "_b", title: item.name + " Beta", mode: "chat" }
     const target = { scope: "location" as const, root: "/proposal-menu/.aigcfroge/" + item.kind + "s" }
+    const history = item.assets.history("menu_" + item.kind)
 
     const api = await SkillAssets.mock(page, {
       kind: item.kind,
@@ -3230,7 +3231,7 @@ for (const item of [
       name: "ProposalMenu" + item.name,
       directory: "/proposal-menu",
       sessions: [a, b],
-      pageMessages: pageMessagesFrom({ [a.id]: item.assets.history("menu_" + item.kind), [b.id]: [] }),
+      pageMessages: pageMessagesFrom({ [a.id]: history, [b.id]: [] }),
     })
     const title = item.name + " proposals"
     const panel = page.locator(`[data-component="${item.kind}-proposals-panel"]`)
@@ -3238,6 +3239,11 @@ for (const item of [
     const candidate = panel.locator('[data-component="skill-candidate"]')
 
     const composer = page.locator('[data-component="composer-editor"]')
+    await expect(
+      page.locator(
+        `[data-timeline-row="UserMessage"][data-message-id="${history.find((message) => message.type === "user")?.id}"]`,
+      ),
+    ).toBeVisible()
     await composer.press(item.shortcut)
     await expect(panel).toBeVisible()
     await expect(candidate).toHaveCount(1)
@@ -6914,6 +6920,13 @@ test.describe("Agent proposal panel", () => {
     const sessionID = "ses_agent_replace"
     const current = AgentAssets.info("b", "mode: subagent", "Existing instructions")
 
+    await openSession(page, {
+      name: "AgentReplace",
+      sessions: [{ id: sessionID, title: "Agent replacement" }],
+      pageMessages: pageMessagesFrom({ [sessionID]: AgentAssets.history("replace") }),
+      seed: { theme: { id: "oc-2", scheme: "dark" } },
+    })
+
     const api = await AgentAssets.mock(page, {
       apply: (_, attempt) =>
         attempt === 1
@@ -6923,12 +6936,6 @@ test.describe("Agent proposal panel", () => {
       content: () => ({ status: 200, json: current }),
     })
 
-    await openSession(page, {
-      name: "AgentReplace",
-      sessions: [{ id: sessionID, title: "Agent replacement" }],
-      pageMessages: pageMessagesFrom({ [sessionID]: AgentAssets.history("replace") }),
-      seed: { theme: { id: "oc-2", scheme: "dark" } },
-    })
     await page
       .locator('[data-slot="session-mobile-view-tabs"]')
       .getByRole("tab", { name: "More...", exact: true })
@@ -6964,6 +6971,12 @@ test.describe("Agent proposal panel", () => {
       handoffs: [{ label: "Build", agent: "build", prompt: "Implement the plan", send: false }],
     }
 
+    await openSession(page, {
+      name: "AgentHandoffs",
+      sessions: [{ id: sessionID, title: "Agent handoffs" }],
+      pageMessages: pageMessagesFrom({ [sessionID]: AgentAssets.history("handoffs") }),
+    })
+
     const api = await AgentAssets.mock(page, {
       apply: () => ({
         status: 409,
@@ -6973,11 +6986,6 @@ test.describe("Agent proposal panel", () => {
       content: () => ({ status: 200, json: current }),
     })
 
-    await openSession(page, {
-      name: "AgentHandoffs",
-      sessions: [{ id: sessionID, title: "Agent handoffs" }],
-      pageMessages: pageMessagesFrom({ [sessionID]: AgentAssets.history("handoffs") }),
-    })
     await openSidePanel(page, "Agent proposals")
     const panel = page.locator('[data-component="agent-proposals-panel"]')
     await panel.getByRole("button", { name: "Review save", exact: true }).click()
@@ -7383,6 +7391,12 @@ test.describe("Workflow proposal panel", () => {
       value: WorkflowAssets.info("b", WorkflowAssets.body().content.replace("extra: preserved", "extra: B")),
     }
 
+    await openSession(page, {
+      name: "WorkflowReplace",
+      sessions: [{ id: sessionID, title: "Workflow replacement" }],
+      pageMessages: pageMessagesFrom({ [sessionID]: WorkflowAssets.history("replace") }),
+      seed: { theme: { id: "oc-2", scheme: "dark" } },
+    })
     const api = await WorkflowAssets.mock(page, {
       apply: (_, attempt) => {
         if (attempt === 2)
@@ -7405,12 +7419,6 @@ test.describe("Workflow proposal panel", () => {
       content: () => ({ status: 200, json: current.value }),
     })
 
-    await openSession(page, {
-      name: "WorkflowReplace",
-      sessions: [{ id: sessionID, title: "Workflow replacement" }],
-      pageMessages: pageMessagesFrom({ [sessionID]: WorkflowAssets.history("replace") }),
-      seed: { theme: { id: "oc-2", scheme: "dark" } },
-    })
     await page
       .locator('[data-slot="session-mobile-view-tabs"]')
       .getByRole("tab", { name: "More...", exact: true })

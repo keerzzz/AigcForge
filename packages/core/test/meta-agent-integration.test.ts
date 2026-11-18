@@ -786,7 +786,7 @@ for (const status of ["unavailable", "unchecked"] as const)
         "mc04b-nonexistent-typechecker",
       )
       const saved = yield* mc04bWrite(fixture, `mc04b-${status}-write`, "export const value: string = 1\n")
-      expect(saved.mechanical.status).toBe(status)
+      expect(saved.mechanical.status, JSON.stringify({ mechanical: saved.mechanical, text: saved.text })).toBe(status)
       const result = yield* mc04bTask(fixture, `mc04b-${status}-task`, {
         description: "Consume the actual unavailable result",
         prompt: "Observe the saved result.",

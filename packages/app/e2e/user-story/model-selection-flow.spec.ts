@@ -3,6 +3,7 @@ import { provider, sessionHref } from "../utils/app"
 import { mockAigcForgeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
 import { openSession } from "../utils/workspace"
+import { selectGlobalMode } from "../utils/home-mode"
 
 const directory = "C:/AigcForge/NewProject"
 
@@ -72,7 +73,7 @@ test("creates a session in a new project and selects its model", async ({ page }
   })
 
   await page.goto("/")
-  const addProject = page.locator('[data-action="home-add-project-row"]')
+  const addProject = page.locator('[data-action="home-add-project"]')
   await expectAppVisible(addProject)
   await addProject.click()
   const picker = page.getByRole("dialog", { name: "Open project", exact: true })
@@ -96,6 +97,7 @@ test("creates a session in a new project and selects its model", async ({ page }
   await selectFolder.click()
   await expect(picker).toBeHidden()
 
+  await selectGlobalMode(page, "Coding")
   await page.locator('[data-action="home-new-session"]').click()
   await expectAppVisible(page.locator('[data-component="composer"]'))
 

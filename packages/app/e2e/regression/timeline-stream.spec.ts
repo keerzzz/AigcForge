@@ -892,7 +892,7 @@ test.describe("background shortcut", () => {
                 status: "completed",
                 input: { command: "sleep 120" },
                 content: [{ type: "text", text: "working" }],
-                metadata: { shellID: "shell_backgrounded", status: "running" },
+                metadata: { shellID: "sh_backgrounded", status: "running" },
               },
               time: { created: 2, completed: 3 },
             },
@@ -939,7 +939,7 @@ test.describe("background shortcut", () => {
       location: { directory },
       data: {
         info: {
-          id: "shell_backgrounded",
+          id: "sh_backgrounded",
           status: "running",
           command: "sleep 120",
           cwd: directory,
@@ -988,7 +988,7 @@ test.describe("background shortcut", () => {
     await expect(list).toBeVisible()
 
     const kill = page.waitForRequest(
-      (request) => request.method() === "DELETE" && new URL(request.url()).pathname === "/api/shell/shell_backgrounded",
+      (request) => request.method() === "DELETE" && new URL(request.url()).pathname === "/api/shell/sh_backgrounded",
     )
 
     await list.getByRole("menuitem", { name: /sleep 120/ }).hover()
@@ -1036,7 +1036,7 @@ test.describe("background shortcut", () => {
                 "shell",
                 "completed",
                 { command: "sleep 120" },
-                { output: "working", metadata: { shellID: "shell_far", status: "running" } },
+                { output: "working", metadata: { shellID: "sh_far", status: "running" } },
               ),
               // The open group outgrows the viewport, so aligning the group instead of the shell misses it.
               ...searches(42 - fixture.searches, fixture.searches),
@@ -1054,7 +1054,7 @@ test.describe("background shortcut", () => {
         location: { directory },
         data: {
           info: {
-            id: "shell_far",
+            id: "sh_far",
             status: "running",
             command: "sleep 120",
             cwd: directory,
@@ -1275,7 +1275,7 @@ test.describe("background shortcut", () => {
                 status: "completed",
                 input: { command: "sleep 120" },
                 content: [{ type: "text", text: "working" }],
-                metadata: { shellID: "shell_sibling", status: "running" },
+                metadata: { shellID: "sh_sibling", status: "running" },
               },
               time: { created: 2, completed: 3 },
             },
@@ -1319,7 +1319,7 @@ test.describe("background shortcut", () => {
       location: { directory },
       data: {
         info: {
-          id: "shell_sibling",
+          id: "sh_sibling",
           status: "running",
           command: "sleep 120",
           cwd: directory,

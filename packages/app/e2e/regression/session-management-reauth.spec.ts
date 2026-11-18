@@ -82,6 +82,7 @@ test("Workflow reloads its selected definition after SSH sign-in replaces the cl
   const panel = page.getByRole("region", { name: "Workflow run", exact: true })
   const selection = panel.getByRole("group", { name: "Workflow definition", exact: true }).getByRole("button")
   const definition = panel.locator(".workflow-definition")
+  const disclosure = definition.locator('[data-slot="collapsible-trigger"]')
   await expect(selection).toBeEnabled()
 
   const selected = page.waitForResponse(
@@ -96,6 +97,9 @@ test("Workflow reloads its selected definition after SSH sign-in replaces the cl
   await page.getByRole("option", { name: first.name, exact: true }).click()
   expect((await selected).status()).toBe(200)
   await expect(selection).toContainText(first.name)
+  await expect(disclosure).toContainText(first.name)
+  if ((await disclosure.getAttribute("aria-expanded")) !== "true") await disclosure.click()
+  await expect(disclosure).toHaveAttribute("aria-expanded", "true")
   await expect(definition).toContainText(first.revision)
 
   const reloaded = page.waitForResponse(
@@ -131,6 +135,9 @@ test("Workflow reloads its selected definition after SSH sign-in replaces the cl
   })
   await expect(panel).toBeVisible()
   await expect(selection).toContainText(next.name)
+  await expect(disclosure).toContainText(next.name)
+  if ((await disclosure.getAttribute("aria-expanded")) !== "true") await disclosure.click()
+  await expect(disclosure).toHaveAttribute("aria-expanded", "true")
   await expect(definition).toContainText(next.revision)
   await expect(definition).not.toContainText(first.revision)
   await expect(panel.getByRole("alert")).toHaveCount(0)

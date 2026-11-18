@@ -32,7 +32,7 @@ export function frozenSkills(
                 message: error instanceof Error ? error.message : String(error),
               }),
           })
-          const ownerRoot = skill.target?.root ?? SkillAssetPath.resolveOwnerRoot(directory)
+          const ownerRoot = path.resolve(skill.target?.root ?? SkillAssetPath.resolveOwnerRoot(directory))
           const filepath = path.resolve(ownerRoot, relativePath)
           return {
             id: SkillFile.id(ownerRoot, filepath),

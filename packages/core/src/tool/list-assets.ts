@@ -85,6 +85,13 @@ export const Plugin = {
                 return yield* new ToolFailure({
                   message: `Failed to list assets: Location root is not a directory: ${location.directory}`,
                 })
+              const owner = yield* fs
+                .stat(path.join(location.directory, ".aigcfroge"))
+                .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
+              if (owner && owner.type !== "Directory")
+                return yield* new ToolFailure({
+                  message: `Failed to list assets: Asset root is not a directory: ${path.join(location.directory, ".aigcfroge")}`,
+                })
               const all = (yield* Effect.forEach(Object.entries(KIND_DIRS), ([kind, config]) =>
                 fs.readDirectory(path.join(location.directory, config.dir)).pipe(
                   Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed([])),

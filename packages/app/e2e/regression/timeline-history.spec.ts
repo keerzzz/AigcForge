@@ -214,6 +214,7 @@ test.describe("timeline history", () => {
     completed.attempts![1]!.observations.push({ ...observation, event: { id: observed.id, seq: observed.durable.seq } })
     await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
     await successButton.click()
+    await expect(success).toHaveCount(0)
     const error = page.locator('[data-timeline-row="Error"][data-message-id="msg_failed_group"]')
     await expect(error).toContainText("All candidates failed")
     await error.getByRole("button", { name: "2 model attempts", exact: true }).click()
@@ -235,6 +236,7 @@ test.describe("timeline history", () => {
     await expect(failure).toContainText("request-failed-b")
     await expect(failure).toContainText("$0.005")
     await page.keyboard.press("Escape")
+    await expect(failure).toHaveCount(0)
     await timelineScroller(page).hover()
     await page.mouse.wheel(0, -100_000)
     await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
@@ -245,6 +247,7 @@ test.describe("timeline history", () => {
     await expect(actual.getByRole("heading")).toHaveText(physicalModel)
     await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
     await successButton.click()
+    await expect(success).toHaveCount(0)
     await page.mouse.wheel(0, 100_000)
     const idle = makeEvent("session.execution.failed", {
       sessionID,
@@ -338,7 +341,7 @@ test.describe("timeline history", () => {
     await expect.poll(positions).toEqual(before)
   })
 
-  test("mounts every part once and in order while paging to the start", async ({ page }) => {
+  test("mounts every part once and in order while paging to the start", async ({ page }, testInfo) => {
     test.setTimeout(240_000)
     const errors = trackPageErrors(page)
     const held: (() => void)[] = []
@@ -393,13 +396,29 @@ test.describe("timeline history", () => {
         element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -delta }))
         element.scrollTop -= delta
       }, state.mountedAbove)
+      const observed = { next: state }
       await expect
         .poll(async () => {
           const next = await visibleTimeline(page)
+          observed.next = next
 
           return held.length > 0 || (next.signature !== state.signature && next.covered)
         })
         .toBe(true)
+        .catch(async (error) => {
+          await testInfo.attach("timeline-paging-no-progress.json", {
+            body: JSON.stringify({
+              before: state,
+              after: observed.next,
+              held: held.length,
+              loads,
+              missingParts: expectedParts.filter((id) => !seenParts.has(id)),
+              missingMessages: expectedMessages.filter((id) => !seenMessages.has(id)),
+            }),
+            contentType: "application/json",
+          })
+          throw error
+        })
     }
 
     expect(expectedParts.filter((id) => !seenParts.has(id))).toEqual([])
@@ -676,6 +695,9 @@ function visibleTimeline(page: Page) {
       messages: messageIDs(messages),
       visibleMessages: messageIDs(messages.filter(inView)),
       scrollTop: Math.round(scroller.scrollTop),
+      scrollHeight: scroller.scrollHeight,
+      viewportTop: view.top,
+      firstRowTop,
       // Mounted rows reach the top edge, so the virtualizer has rendered this position. Below 200px the
       // timeline requests the next older page instead.
       covered: scroller.scrollTop < 200 || firstRowTop <= view.top + 1,

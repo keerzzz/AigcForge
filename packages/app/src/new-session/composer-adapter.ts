@@ -3,7 +3,7 @@ import { base64Encode } from "@aigcfroge/util/encode"
 import { ClientError, type SessionMessageUser } from "@aigcfroge/client/promise"
 import { Session } from "@aigcfroge/schema/session"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { onCleanup, startTransition } from "solid-js"
+import { createEffect, onCleanup, startTransition } from "solid-js"
 import type { NewSessionComposerAdapter } from "@/composer/adapter"
 import { useComposerState } from "@/composer/persistence"
 import { createComposerControls, createComposerModelSelection } from "@/composer/selection"
@@ -39,6 +39,10 @@ export function createNewSessionComposerAdapter(props: {
   const location = useWorkspaceLocation()
   const language = useLanguage()
   const model = createComposerModelSelection({ draftID: props.draftID })
+  createEffect(() => {
+    if (!prompt.ready() || !local.session.ready()) return
+    local.session.bindDraft(props.draftID, prompt.model.current())
+  })
   let disposed = false
   let generation = 0
   onCleanup(() => {

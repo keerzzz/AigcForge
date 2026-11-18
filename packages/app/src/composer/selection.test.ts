@@ -1636,9 +1636,10 @@ async function browserKeepers() {
 
   test("bound drafts restore their own Meta, executor, and raw efforts", () => {
     const f = fixture({ newSession: true })
-    const { local } = f.mount("draft_a")
-    local.model.set(key("b"))
-    local.model.variant.set("low")
+    f.prompt.model.set({ ...key("b"), variant: "low" })
+    const { local } = f.mount("draft_a", true)
+    expect(local.model.current()?.id).toBe("b")
+    expect(local.model.variant.current()).toBe("low")
     local.executor.set(executor("explore"))
     local.executor.model.set(key("c"))
     local.executor.model.variant.set("high")

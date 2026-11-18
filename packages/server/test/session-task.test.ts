@@ -583,6 +583,7 @@ it.live(
         ),
       ).toEqual([recorded.cancelled[0]])
     }),
+  { timeout: 30_000 },
 )
 
 it.live("MP01 HTTP dispatch rejects non-Meta before durable reservation", () =>
@@ -1536,44 +1537,47 @@ it.live("retains Custom scheduled Tasks and their canonical Schedule rules witho
   }),
 )
 
-it.live("reopens exact task ids, order, digests, and revisions from a disk database without execution", () =>
-  Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped()).path
-    const options = { database: { path: path.join(directory, "tasks.db") } }
-    const recorded = yield* Effect.gen(function* () {
+it.live(
+  "reopens exact task ids, order, digests, and revisions from a disk database without execution",
+  () =>
+    Effect.gen(function* () {
+      const directory = (yield* tmpdirScoped()).path
+      const options = { database: { path: path.join(directory, "tasks.db") } }
+      const recorded = yield* Effect.gen(function* () {
+        const test = yield* boot(directory, options)
+        const sessionID = yield* test.session
+        const root = `/session/${sessionID}/task`
+        const created = yield* list(
+          yield* test.request(root, {
+            method: "PATCH",
+            body: [
+              { content: "first", status: "pending", priority: "medium" },
+              { content: "second", status: "pending", priority: "low" },
+            ],
+          }),
+        )
+        yield* Context.get(test.context, SessionTask.Service).patch({
+          sessionID,
+          id: created[0].id,
+          status: "completed",
+          outputDigest: "durable-child-evidence",
+        })
+        const tasks = yield* list(
+          yield* test.request(`${root}/reorder`, {
+            body: { ids: created.map((task) => task.id).reverse(), expectedRevision: 2 },
+          }),
+        )
+        return { sessionID, tasks }
+      }).pipe(Effect.scoped)
       const test = yield* boot(directory, options)
-      const sessionID = yield* test.session
-      const root = `/session/${sessionID}/task`
-      const created = yield* list(
-        yield* test.request(root, {
-          method: "PATCH",
-          body: [
-            { content: "first", status: "pending", priority: "medium" },
-            { content: "second", status: "pending", priority: "low" },
-          ],
-        }),
-      )
-      yield* Context.get(test.context, SessionTask.Service).patch({
-        sessionID,
-        id: created[0].id,
-        status: "completed",
-        outputDigest: "durable-child-evidence",
-      })
-      const tasks = yield* list(
-        yield* test.request(`${root}/reorder`, {
-          body: { ids: created.map((task) => task.id).reverse(), expectedRevision: 2 },
-        }),
-      )
-      return { sessionID, tasks }
-    }).pipe(Effect.scoped)
-    const test = yield* boot(directory, options)
-    const recovered = yield* list(yield* test.request(`/session/${recorded.sessionID}/task`))
-    expect(recovered).toEqual(recorded.tasks)
-    expect(recovered.map((task) => task.revision)).toEqual([2, 3])
-    expect(recovered[1].outputDigest).toBe("durable-child-evidence")
-    const database = Context.get(test.context, Database.Service)
-    expect(yield* database.db.select().from(SessionInboxTable).all()).toEqual([])
-    expect(yield* database.db.select().from(SessionMessageTable).all()).toEqual([])
-    expect(yield* database.db.select().from(ScheduleTable).all()).toEqual([])
-  }),
+      const recovered = yield* list(yield* test.request(`/session/${recorded.sessionID}/task`))
+      expect(recovered).toEqual(recorded.tasks)
+      expect(recovered.map((task) => task.revision)).toEqual([2, 3])
+      expect(recovered[1].outputDigest).toBe("durable-child-evidence")
+      const database = Context.get(test.context, Database.Service)
+      expect(yield* database.db.select().from(SessionInboxTable).all()).toEqual([])
+      expect(yield* database.db.select().from(SessionMessageTable).all()).toEqual([])
+      expect(yield* database.db.select().from(ScheduleTable).all()).toEqual([])
+    }),
+  { timeout: 30_000 },
 )

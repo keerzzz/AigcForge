@@ -179,7 +179,7 @@ export function createSessionContent(input: {
       </>
     ),
     composerView: () => (
-      <Show when={composer.active()} keyed>
+      <Show when={input.visible() ? composer.active() : undefined} keyed>
         {(model) => (
           <ActiveSessionComposerRegion
             session={input.session}

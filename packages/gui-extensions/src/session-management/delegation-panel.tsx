@@ -58,7 +58,8 @@ export function DelegationPanel(props: Props) {
   const ctx = useExtension<typeof definition>()
 
   const server = () => {
-    const id = !props.childrenOnly ? ctx.stores.collaboration(props.session).value?.source?.serverID : undefined
+    const source = ctx.stores.collaboration(props.session).value?.source
+    const id = source && (source.source.kind === "subagent") === !!props.childrenOnly ? source.serverID : undefined
 
     return id ? ctx.servers.get(id) : props.session.server
   }
@@ -128,7 +129,11 @@ export function DelegationPanel(props: Props) {
 function DelegationContent(props: Props & { server: ServerRef }) {
   const ctx = useExtension<typeof definition>()
   const stored = () => ctx.stores.collaboration(props.session)
-  const source = () => (!props.childrenOnly ? stored().value?.source : undefined)
+  const source = () => {
+    const value = stored().value?.source
+
+    return value && (value.source.kind === "subagent") === !!props.childrenOnly ? value : undefined
+  }
   const targetID = () => source()?.sessionID ?? props.session.id
   const target = () => ctx.sessions.target({ server: props.server, sessionID: targetID() })
   const tasks = createMemo(() => props.server.data.session.task.list(targetID()) ?? [])

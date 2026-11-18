@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test"
+import type { ProductMode } from "@aigcfroge/schema/product-mode"
 import { NO_PROVIDER, project, sessionHref } from "./app"
 import { mockAigcForgeServer } from "./mock-server"
 import { APP_READY_TIMEOUT } from "./waits"
@@ -29,12 +30,12 @@ export function commandOption(dialog: Locator, title: string) {
   return dialog.getByRole("option").filter({ has: dialog.page().getByText(title, { exact: true }) })
 }
 
-export async function openCommandPalette(page: Page, home = false) {
+export async function openCommandPalette(page: Page, home = false, mode?: ProductMode.ID) {
   const mock = await mockAigcForgeServer(page, {
     directory: paletteSession.directory,
     project: project({ id: paletteSession.projectID, directory: paletteSession.directory, name: "command-palette" }),
     provider: NO_PROVIDER,
-    sessions: [paletteSession],
+    sessions: [{ ...paletteSession, ...(mode ? { mode } : {}) }],
     pageMessages: () => ({ items: [] }),
     findFiles: () => [],
   })

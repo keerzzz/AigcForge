@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import path from "node:path"
 import { Result, Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
 import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
@@ -83,25 +84,25 @@ describe("CompositionCatalog.frozenSkills", () => {
     })
 
   test("reuses file parsing IDs and preserves frozen bodies for flat and nested assets", () => {
-    const directory = "/project"
-    const ownerRoot = "/project/.aigcfroge/skills"
+    const directory = path.resolve("/project")
+    const ownerRoot = path.join(directory, ".aigcfroge/skills")
     const assets = [frozen("review.md"), frozen("tools/lint/SKILL.md", "Frozen nested instructions")]
     const result = CompositionCatalog.frozenSkills(directory, assets)
     expect(Result.isSuccess(result)).toBe(true)
     if (Result.isFailure(result)) throw result.failure
     expect(result.success).toEqual([
       {
-        id: SkillFile.id(ownerRoot, `${ownerRoot}/review.md`),
+        id: SkillFile.id(ownerRoot, path.join(ownerRoot, "review.md")),
         name: Skill.Name.make("Display name"),
         description: "Frozen description",
-        path: AbsolutePath.make(`${ownerRoot}/review.md`),
+        path: AbsolutePath.make(path.join(ownerRoot, "review.md")),
         content: "Frozen instructions",
       },
       {
-        id: SkillFile.id(ownerRoot, `${ownerRoot}/tools/lint/SKILL.md`),
+        id: SkillFile.id(ownerRoot, path.join(ownerRoot, "tools/lint/SKILL.md")),
         name: Skill.Name.make("Display name"),
         description: "Frozen description",
-        path: AbsolutePath.make(`${ownerRoot}/tools/lint/SKILL.md`),
+        path: AbsolutePath.make(path.join(ownerRoot, "tools/lint/SKILL.md")),
         content: "Frozen nested instructions",
       },
     ])
@@ -126,23 +127,33 @@ describe("CompositionCatalog.frozenSkills", () => {
 
   test("uses each frozen source root after adoption into another Location", () => {
     const targets = [
-      new AssetPlacement.Target({ scope: "global", root: AbsolutePath.make("/global/skills") }),
-      new AssetPlacement.Target({ scope: "project", root: AbsolutePath.make("/original/.aigcfroge/skills") }),
-      new AssetPlacement.Target({ scope: "location", root: AbsolutePath.make("/original/child/.aigcfroge/skills") }),
+      new AssetPlacement.Target({
+        scope: "global",
+        root: AbsolutePath.make(path.resolve("/global/skills") + path.sep),
+      }),
+      new AssetPlacement.Target({
+        scope: "project",
+        root: AbsolutePath.make(path.resolve("/original/.aigcfroge/skills")),
+      }),
+      new AssetPlacement.Target({
+        scope: "location",
+        root: AbsolutePath.make(path.resolve("/original/child/.aigcfroge/skills")),
+      }),
     ]
     targets.forEach((target) => {
+      const ownerRoot = path.resolve(target.root)
       const asset = frozen("review.md", `Frozen ${target.scope} body`, target)
       const result = CompositionCatalog.frozenSkills("/adopted", [asset])
       if (Result.isFailure(result)) throw result.failure
       expect(result.success[0]).toEqual({
-        id: SkillFile.id(target.root, `${target.root}/review.md`),
+        id: SkillFile.id(ownerRoot, path.join(ownerRoot, "review.md")),
         name: Skill.Name.make("Display name"),
         description: "Frozen description",
-        path: AbsolutePath.make(`${target.root}/review.md`),
+        path: AbsolutePath.make(path.join(target.root, "review.md")),
         content: `Frozen ${target.scope} body`,
       })
       expect(
-        SkillFile.parse(target.root, result.success[0].path, `---\nname: Display name\n---\n${asset.content}`),
+        SkillFile.parse(ownerRoot, result.success[0].path, `---\nname: Display name\n---\n${asset.content}`),
       ).toMatchObject({ _tag: "Parsed", skill: { id: result.success[0].id } })
     })
     const result = CompositionCatalog.frozenSkills("/adopted", [
@@ -151,8 +162,8 @@ describe("CompositionCatalog.frozenSkills", () => {
     ])
     if (Result.isFailure(result)) throw result.failure
     expect(result.success.map((skill) => skill.path)).toEqual([
-      AbsolutePath.make("/global/skills/review.md"),
-      AbsolutePath.make("/original/.aigcfroge/skills/lint/SKILL.md"),
+      AbsolutePath.make(path.join(targets[0].root, "review.md")),
+      AbsolutePath.make(path.join(targets[1].root, "lint/SKILL.md")),
     ])
     expect(result.success[0].content).toBe("")
   })

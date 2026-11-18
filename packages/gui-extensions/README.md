@@ -331,7 +331,7 @@ Each extension owns its launcher availability, combined with its display setting
 
 Review keeps its existing diff query active while the side region is open, so filesystem events update launcher availability even while the guide is selected. Proposal discovery reads the existing message store and keeps the parser and panel chunk lazy.
 
-The desktop File navigator remains as its own tab. Tree clicks open independent file tabs by default; its explicit **Preview files** switch opts into the existing replaceable preview slot. Double-click keeps a preview, and reopening the same path selects its existing tab. Closing the last file returns to an open File navigator. The switch uses a File-owned persisted preference and does not change the shared file-tree visibility preference. Narrow-screen file navigation retains its existing view switching.
+The desktop File navigator remains as its own tab. Tree clicks open independent file tabs by default; **Use temporary file tabs** in **Settings > Preferences** opts into the existing replaceable preview slot. Double-click keeps a preview, and reopening the same path selects its existing tab. Closing the last file returns to an open File navigator. The setting uses a File-owned persisted preference and does not change the shared file-tree visibility preference. Narrow-screen file navigation retains its existing view switching.
 
 The existing **Open in** application button lives in File and Review toolbars and still targets the workspace directory. Other modules and the new-tab guide do not show it. Both consumers share the File extension's existing request and installed-app cache.
 

@@ -273,7 +273,7 @@ for (const count of [0, 7, 8]) {
       return
     }
 
-    await search.fill("  CODE 06  ")
+    await search.fill("  FORGE 06  ")
     await expect(projects).toHaveCount(1)
     await expect(projects).toHaveAccessibleName("AigcForge 06")
     await search.fill("missing-project")

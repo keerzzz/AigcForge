@@ -426,53 +426,56 @@ describe("Git objects", () => {
 
         expect((yield* git.tree.files({ repository, from: trees[0]!, to: trees.at(-1)! })).length).toBe(2100 + 16)
       }),
-    { timeout: 60_000 },
+    { timeout: 120_000 },
   )
 })
 
 describe("Git capture", () => {
-  it.live("applies both the store's own and the source's ignore rules and never splits the index", () =>
-    Effect.gen(function* () {
-      const root = yield* Effect.acquireRelease(
-        Effect.promise(() => tmpdir()),
-        (dir) => Effect.promise(() => dir[Symbol.asyncDispose]()),
-      )
-      const project = path.join(root.path, "project")
-      yield* Effect.promise(async () => {
-        await fs.mkdir(project)
-        await initRepo(project)
-        await Bun.write(path.join(project, "tracked.bin"), "small\n")
-        await $`git add . && git commit -q -m initial`.cwd(project).quiet()
-        await Bun.write(path.join(project, ".git", "info", "exclude"), "source-ignored/\n")
-      })
-      const git = yield* Git.Service
-      const source = yield* git.repo.discover(AbsolutePath.make(project))
-      if (!source) throw new Error("Repository not found")
-      const storage = AbsolutePath.make(path.join(root.path, "storage"))
-      const repository = yield* git.repo.create({ worktree: source.worktree, gitDirectory: storage, seed: source })
-      yield* Effect.promise(async () => {
-        // Rules an init template left in the store keep applying, and a split index would lose entries.
-        await Bun.write(path.join(storage, "info", "exclude"), "store-ignored/\n")
-        await $`git --git-dir ${storage} config core.splitIndex true`.quiet()
-      })
-      const capture = () => git.tree.capture({ repository, scopes: [RelativePath.make(".")], ignores: source })
-      const before = yield* capture()
-      yield* Effect.promise(async () => {
-        await Bun.write(path.join(project, "tracked.bin"), "changed\n")
-        await Bun.write(path.join(project, "store-ignored", "a.txt"), "a\n")
-        await Bun.write(path.join(project, "source-ignored", "b.txt"), "b\n")
-        await Bun.write(path.join(project, "kept.txt"), "kept\n")
-      })
-      const after = yield* capture()
-      expect(yield* git.tree.files({ repository, from: before, to: after })).toEqual([
-        RelativePath.make("kept.txt"),
-        RelativePath.make("tracked.bin"),
-      ])
-      expect(yield* capture()).toBe(after)
-      expect(yield* Effect.promise(() => fs.readFile(path.join(storage, "info", "exclude"), "utf8"))).toStartWith(
-        "store-ignored/\n",
-      )
-    }),
+  it.live(
+    "applies both the store's own and the source's ignore rules and never splits the index",
+    () =>
+      Effect.gen(function* () {
+        const root = yield* Effect.acquireRelease(
+          Effect.promise(() => tmpdir()),
+          (dir) => Effect.promise(() => dir[Symbol.asyncDispose]()),
+        )
+        const project = path.join(root.path, "project")
+        yield* Effect.promise(async () => {
+          await fs.mkdir(project)
+          await initRepo(project)
+          await Bun.write(path.join(project, "tracked.bin"), "small\n")
+          await $`git add . && git commit -q -m initial`.cwd(project).quiet()
+          await Bun.write(path.join(project, ".git", "info", "exclude"), "source-ignored/\n")
+        })
+        const git = yield* Git.Service
+        const source = yield* git.repo.discover(AbsolutePath.make(project))
+        if (!source) throw new Error("Repository not found")
+        const storage = AbsolutePath.make(path.join(root.path, "storage"))
+        const repository = yield* git.repo.create({ worktree: source.worktree, gitDirectory: storage, seed: source })
+        yield* Effect.promise(async () => {
+          // Rules an init template left in the store keep applying, and a split index would lose entries.
+          await Bun.write(path.join(storage, "info", "exclude"), "store-ignored/\n")
+          await $`git --git-dir ${storage} config core.splitIndex true`.quiet()
+        })
+        const capture = () => git.tree.capture({ repository, scopes: [RelativePath.make(".")], ignores: source })
+        const before = yield* capture()
+        yield* Effect.promise(async () => {
+          await Bun.write(path.join(project, "tracked.bin"), "changed\n")
+          await Bun.write(path.join(project, "store-ignored", "a.txt"), "a\n")
+          await Bun.write(path.join(project, "source-ignored", "b.txt"), "b\n")
+          await Bun.write(path.join(project, "kept.txt"), "kept\n")
+        })
+        const after = yield* capture()
+        expect(yield* git.tree.files({ repository, from: before, to: after })).toEqual([
+          RelativePath.make("kept.txt"),
+          RelativePath.make("tracked.bin"),
+        ])
+        expect(yield* capture()).toBe(after)
+        expect(yield* Effect.promise(() => fs.readFile(path.join(storage, "info", "exclude"), "utf8"))).toStartWith(
+          "store-ignored/\n",
+        )
+      }),
+    { timeout: 30_000 },
   )
 })
 

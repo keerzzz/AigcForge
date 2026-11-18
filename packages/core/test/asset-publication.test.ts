@@ -155,7 +155,7 @@ describe("shared asset publication", () => {
           fs: FSUtil.Service.of({
             ...f.fs,
             scan: (pattern, options) =>
-              options?.cwd?.endsWith("/agents")
+              options?.cwd === path.join(f.location.directory, ".aigcfroge/agents")
                 ? Effect.fail(new FSUtil.FileSystemError({ method: "scan", cause: "source unavailable" }))
                 : f.fs.scan(pattern, options),
           }),

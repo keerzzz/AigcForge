@@ -1203,7 +1203,12 @@ async function expectHeaderClearOfToggle(page: Page, toggle: Locator, progress: 
 
   const clip = (await toggle.boundingBox())!
   // Header contents must make no difference to the pixels behind the fixed toggle.
-  expect(await page.screenshot({ clip })).toEqual(
-    await page.screenshot({ clip, style: ".session-review-v2-tabs-bar { visibility: hidden !important; }" }),
-  )
+  const visible = await page.screenshot({ clip })
+  const hidden = await page.screenshot({
+    clip,
+    style: ".session-review-v2-tabs-bar { visibility: hidden !important; }",
+  })
+  await test.info().attach(`review-header-visible-${progress}.png`, { body: visible, contentType: "image/png" })
+  await test.info().attach(`review-header-hidden-${progress}.png`, { body: hidden, contentType: "image/png" })
+  expect(visible).toEqual(hidden)
 }
