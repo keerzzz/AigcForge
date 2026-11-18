@@ -2610,7 +2610,7 @@ function verificationResponse(
       ? `\n<retained_judge_results>${JSON.stringify(Schema.encodeSync(Schema.toCodecJson(Schema.Array(RetainedJudgeResult)))(retained))}</retained_judge_results>`
       : ""
   const text = `${typeof result?.content === "string" ? `${result.content}\n` : ""}<task_verification>${JSON.stringify(encoded)}</task_verification>${restored}`
-  if (result?.output && "output" in result.output)
+  if (result?.output && "sessionID" in result.output && "output" in result.output)
     return { output: { ...result.output, output: text, verification }, content: text, metadata }
   return {
     output: {

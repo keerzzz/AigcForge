@@ -132,10 +132,12 @@ const SessionActive = Schema.Struct({
   type: Schema.Literal("running"),
 }).annotate({ identifier: "SessionActive" })
 
-const PublicSessionInfo = Schema.Struct({
-  ...Struct.omit(Session.Info.fields, ["location"]),
-  location: Location.PublicRef,
-}).annotate({ identifier: "Session.Info" })
+const PublicSessionInfo = Schema.revealCodec(
+  Schema.Struct({
+    ...Struct.omit(Session.Info.fields, ["location"]),
+    location: Location.PublicRef,
+  }).annotate({ identifier: "Session.Info" }),
+)
 
 const PublicSessionTransfer = Schema.Struct({
   info: PublicSessionInfo,
