@@ -1,8 +1,7 @@
 import type { FileSystem } from "@aigcfroge/core/filesystem"
 import { describe, expect } from "bun:test"
-import { LLMClient, LLMEvent, LanguageModel, type LLMRequest } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { Config } from "@aigcfroge/core/config"
+import { LLMClient, LLMEvent, type LLMRequest } from "@aigcfroge/ai"
+import { Agent } from "@aigcfroge/core/agent"
 import { Database } from "@aigcfroge/core/database/database"
 import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
 import { LayerNode } from "@aigcfroge/util/effect/layer-node"
@@ -10,26 +9,20 @@ import { Bus } from "@aigcfroge/core/bus"
 import { Location } from "@aigcfroge/core/location"
 import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
 import type { LocationServices } from "@aigcfroge/core/location-services"
+import { Plugin } from "@aigcfroge/core/plugin"
 import { Project } from "@aigcfroge/core/project"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { Session } from "@aigcfroge/core/session"
-import { SessionCompaction } from "@aigcfroge/core/session/compaction"
 import { SessionEvent } from "@aigcfroge/core/session/event"
 import { SessionMessage } from "@aigcfroge/core/session/message"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { Effect, Layer, LayerMap, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
 
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
-const model = LanguageModel.make({
-  id: "summary-model",
-  provider: "test",
-  route: OpenAIChat.route,
-})
 let requests: LLMRequest[] = []
 const client = Layer.mock(LLMClient.Service)({
   stream: (request: LLMRequest) => {
@@ -38,27 +31,16 @@ const client = Layer.mock(LLMClient.Service)({
   },
   generate: () => Effect.die("unused"),
 })
-const config = Layer.mock(Config.Service)({ entries: () => Effect.succeed([]) })
-const models = Layer.mock(SessionRunnerModel.Service)({
-  resolve: () =>
-    Effect.succeed(
-      SessionRunnerModel.resolved(model, {
-        capabilities: { tools: true, input: ["text", "image"], output: ["text"] },
-        cost: [],
-        limit: { context: 10_000, output: 1_000 },
-      }),
-    ),
-})
 const locations = Layer.effect(
   LocationServiceMap.Service,
   LayerMap.make(
     () =>
-      // The test only needs the compaction location service used by Session.compact.
+      // Manual compaction is admitted without executing the model.
       // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
-      SessionCompaction.layer.pipe(
-        Layer.provide(client),
-        Layer.provide(config),
-        Layer.provide(models),
+      Layer.mergeAll(
+        LayerNode.compile(Agent.node),
+        client,
+        Layer.mock(Plugin.Service, { awaitActivation: Effect.void }),
       ) as unknown as Layer.Layer<LocationServices, FileSystem.DirectoryNotFoundError>,
   ),
 )

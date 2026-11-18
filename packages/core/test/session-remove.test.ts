@@ -20,7 +20,7 @@ import { SessionEnvironment } from "@aigcfroge/core/session/environment"
 import { LocationServiceMap } from "@aigcfroge/core/location-services"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
-import { offlineModels } from "./fixture/models"
+import { createLegacySession, offlineModels } from "./fixture/models"
 import { tmpdirScoped } from "./fixture/tmpdir"
 
 const closed: Session.ID[] = []
@@ -47,6 +47,7 @@ const it = testEffect(
       SessionStore.node,
       SessionEnvironment.node,
       Session.node,
+      Project.node,
       Instance.node,
       LocationServiceMap.node,
     ]),
@@ -90,7 +91,7 @@ describe("Session.remove", () => {
       const temporary = yield* tmpdirScoped()
       const sessions = yield* Session.Service
       const locations = yield* LocationServiceMap.Service
-      const parent = yield* sessions.create({
+      const parent = yield* createLegacySession({
         location: Location.Ref.make({ directory: AbsolutePath.make(temporary.path) }),
       })
       const child = yield* sessions.create({ parentID: parent.id })

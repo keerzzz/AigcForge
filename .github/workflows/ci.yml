@@ -91,6 +91,10 @@ jobs:
           git config --global user.email "bot@aigcfroge.ai"
           git config --global user.name "aigcfroge"
 
+      - name: Install ripgrep on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes ripgrep
+
       - name: Install ripgrep on Windows
         if: runner.os == 'Windows'
         run: choco install ripgrep --yes --no-progress

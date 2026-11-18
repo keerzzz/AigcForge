@@ -30,6 +30,7 @@ import { toLLMMessages } from "@aigcfroge/core/session/runner/to-llm-message"
 import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
 import { Tool } from "@aigcfroge/core/tool"
 import { tempLocationLayer } from "./fixture/location"
+import { offlineModels } from "./fixture/models"
 import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { testEffect } from "./lib/effect"
 import { permissionLayer } from "./lib/permission"
@@ -79,6 +80,7 @@ const testLayer = AppNodeBuilder.build(
     Location.node.replace(tempLocationLayer),
     Permission.node.replace(permission),
     Config.node.replace(config),
+    offlineModels,
     Image.node.replace(imageLayer),
   ],
 )

@@ -16,7 +16,7 @@ import {
 import { mockServers, type MockAnswer } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 import { openDraft, openSession, openWorktreeDraft, type WorkspaceInput } from "../utils/workspace"
-import { openSidePanel } from "../utils/side-panel"
+import { attachSession } from "../utils/side-panel"
 
 const directory = "C:/AigcForge/WorkspacePending"
 
@@ -208,10 +208,7 @@ test("SC05 response Fork captures main and cross-server side targets without pro
 
   await tabLink(page, id).click()
   await expectSessionTitle(page, "Local response source")
-  await openSidePanel(page, "Task delegation")
-  const candidate = page.getByRole("article", { name: `Session: ${id}`, exact: true })
-  await expect(candidate).toContainText("Remote response source")
-  await candidate.getByRole("button", { name: "Attach session", exact: true }).click()
+  await attachSession(page, { server: REMOTE_SERVER, sessionID: id, title: "Remote response source" })
   const side = page.getByRole("region", { name: "Session views", exact: true })
   await expect(side.getByText("First remote answer", { exact: true })).toBeVisible()
   const sideFirst = side.locator('[data-component="text-part"]', { hasText: "First remote answer" })

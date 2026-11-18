@@ -30,7 +30,7 @@ import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { Global } from "@aigcfroge/util/global"
 import { tempGlobalLayer } from "./fixture/global"
-import { offlineModels } from "./fixture/models"
+import { createLegacySession, offlineModels } from "./fixture/models"
 import { tmpdirScoped } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
@@ -38,7 +38,7 @@ import { withCustomMode } from "./lib/product-mode"
 
 const it = testEffect(
   AppNodeBuilder.build(
-    LayerNode.group([Database.node, Bus.node, SessionProjector.node, SessionStore.node, Session.node]),
+    LayerNode.group([Database.node, Bus.node, Project.node, SessionProjector.node, SessionStore.node, Session.node]),
     [Project.node.replace(globalProjectNode), SessionExecution.node.replace(SessionExecution.noopLayer), offlineModels],
   ),
 )
@@ -47,6 +47,7 @@ const itWithActiveExecution = testEffect(
     LayerNode.group([
       Database.node,
       Bus.node,
+      Project.node,
       SessionProjector.node,
       SessionStore.node,
       SessionExecution.node,
@@ -83,7 +84,7 @@ const unavailableLocations = Layer.effect(
 )
 const itWithUnavailableDestination = testEffect(
   AppNodeBuilder.build(
-    LayerNode.group([Database.node, Bus.node, SessionProjector.node, SessionStore.node, Session.node]),
+    LayerNode.group([Database.node, Bus.node, Project.node, SessionProjector.node, SessionStore.node, Session.node]),
     [
       Project.node.replace(globalProjectNode),
       SessionExecution.node.replace(SessionExecution.noopLayer),
@@ -92,7 +93,7 @@ const itWithUnavailableDestination = testEffect(
   ),
 )
 const itWithExecution = testEffect(
-  AppNodeBuilder.build(LayerNode.group([Session.node, SessionExecution.node]), [
+  AppNodeBuilder.build(LayerNode.group([Session.node, SessionExecution.node, Project.node, Bus.node]), [
     Global.node.replace(tempGlobalLayer),
     offlineModels,
   ]),
@@ -370,7 +371,9 @@ describe("Session.move", () => {
             )
           const session = yield* Session.Service
           const execution = yield* SessionExecution.Service
-          const created = yield* session.create({ location: Location.Ref.make({ directory: source }) })
+          const created = yield* (broken ? createLegacySession : session.create)({
+            location: Location.Ref.make({ directory: source }),
+          })
 
           yield* session.move({ sessionID: created.id, directory: destination })
           yield* execution.awaitIdle(created.id)
@@ -473,9 +476,14 @@ describe("Session.move", () => {
               }),
             ),
           ]
-          const context = yield* Layer.build(AppNodeBuilder.build(Session.node, replacements))
+          const context = yield* Layer.build(
+            AppNodeBuilder.build(LayerNode.group([Session.node, Project.node, Bus.node]), replacements),
+          )
           const session = Context.get(context, Session.Service)
-          const created = yield* session.create({ id: selectedID, location: source })
+          const created = yield* (broken ? session.create : createLegacySession)({
+            id: selectedID,
+            location: source,
+          }).pipe(Effect.provide(context))
           const pending = yield* session.synthetic({
             sessionID: created.id,
             text: "Keep pending",
@@ -611,7 +619,7 @@ describe("Session.move", () => {
           const source = AbsolutePath.make(path.join(tmp.path, "source"))
           const destination = AbsolutePath.make(path.join(tmp.path, "destination"))
           yield* Effect.promise(() => Promise.all([mkdir(source), mkdir(destination)]))
-          const created = yield* session.create({ location: Location.Ref.make({ directory: source }) })
+          const created = yield* createLegacySession({ location: Location.Ref.make({ directory: source }) })
 
           const error = yield* session.move({ sessionID: created.id, directory: destination }).pipe(Effect.flip)
 
@@ -676,7 +684,7 @@ describe("Session.move", () => {
           const source = AbsolutePath.make(path.join(tmp.path, "source"))
           const destination = AbsolutePath.make(tmp.path)
           yield* Effect.promise(() => mkdir(source))
-          const created = yield* session.create({ location: Location.Ref.make({ directory: source }) })
+          const created = yield* createLegacySession({ location: Location.Ref.make({ directory: source }) })
 
           // Hold real execution open so the move cannot be consumed before admission is checked.
           yield* execution.wake(created.id)
@@ -710,7 +718,7 @@ describe("Session.move", () => {
           const bus = yield* Bus.Service
           const previous = AbsolutePath.make(path.join(tmp.path, "previous"))
           const destination = AbsolutePath.make(tmp.path)
-          const created = yield* session.create({ location: Location.Ref.make({ directory: previous }) })
+          const created = yield* createLegacySession({ location: Location.Ref.make({ directory: previous }) })
 
           // Moves are admitted through the inbox and applied by the drain;
           // publish the applied move directly since execution is a no-op here.

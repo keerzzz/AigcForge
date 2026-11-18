@@ -11,7 +11,7 @@ import { mockServers, type MockGoalMutation } from "../utils/mock-server"
 import { installSseTransport } from "../utils/sse-transport"
 import { expectSessionTitle } from "../utils/waits"
 import { mockWorkspace, type WorkspaceInput } from "../utils/workspace"
-import { openSidePanel } from "../utils/side-panel"
+import { attachSession } from "../utils/side-panel"
 
 const directory = "C:/AigcForge/RequestDocks"
 
@@ -108,14 +108,11 @@ test("SC03 responds only in the visible target owner and keeps late cross-server
   await main.locator('[data-component="composer-editor"]').fill("Source A remains editable")
 
   const attach = async (server: string) => {
-    await openSidePanel(page, "Task delegation")
-
-    const target = page
-      .locator('[data-slot="session-content-source"]')
-      .filter({ has: page.getByText(server, { exact: true }) })
-      .filter({ has: page.getByText(targetID, { exact: true }) })
-
-    await target.getByRole("button", { name: "Attach session", exact: true }).click()
+    await attachSession(page, {
+      server,
+      sessionID: targetID,
+      title: server === REMOTE_SERVER ? "Remote target" : "Local target",
+    })
   }
 
   await attach(REMOTE_SERVER)

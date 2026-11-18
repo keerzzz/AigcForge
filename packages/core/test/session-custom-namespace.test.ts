@@ -149,6 +149,12 @@ describe("Custom Code Mode namespace capture", () => {
         sessionID: workerID,
         reason: "tool_runtime_definition_mismatch",
       })
+      const agents = yield* Agent.Service
+      yield* agents.transform((editor) =>
+        editor.update(root.id, (info) => {
+          info.originKind = "builtin"
+        }),
+      )
       const live = yield* context.select(liveID)
       expect((yield* readInitial(live.instructions)).text).toContain("Billing operations")
       expect((yield* readInitial(selected.instructions)).text).toContain("Archival operations")

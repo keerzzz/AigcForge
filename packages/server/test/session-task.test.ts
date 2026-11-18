@@ -139,7 +139,7 @@ const listenUpdates = (bus: Bus.Interface) =>
 it.live("MP01 identity uses the stored Location graph and the selected Agent through the generated client", () =>
   Effect.gen(function* () {
     const directory = (yield* tmpdirScoped()).path
-    const alias = `${directory}/.`
+    const alias = `${directory}${path.sep}.`
     const other = (yield* tmpdirScoped()).path
     const test = yield* boot(directory)
     const locations = Context.get(test.context, LocationServiceMap.Service)
@@ -1228,7 +1228,7 @@ it.live("serves task CRUD for stored directory aliases while rejecting another L
   Effect.gen(function* () {
     const directory = (yield* tmpdirScoped()).path
     const other = (yield* tmpdirScoped()).path
-    const alias = `${directory}/.`
+    const alias = `${directory}${path.sep}.`
     const test = yield* boot(directory)
     const response = yield* test.request("/api/session", { body: { location: { directory: alias } } })
     expect(response.status).toBe(200)

@@ -753,7 +753,7 @@ for (const mode of ["chat", "coding", "work", "assistant"] as const)
 it.live("preserves a stored directory alias when creating and reading a Meta root", () =>
   Effect.gen(function* () {
     const test = yield* setup()
-    const location = Location.Ref.make({ directory: AbsolutePath.make(`${test.location.directory}/.`) })
+    const location = Location.Ref.make({ directory: AbsolutePath.make(`${test.location.directory}${path.sep}.`) })
     // The alias is a distinct Location graph on Linux; configure its actual catalog.
     yield* test.configureModels(location)
     const response = yield* Effect.promise(() =>

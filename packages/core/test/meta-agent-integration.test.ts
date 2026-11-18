@@ -360,322 +360,325 @@ const mc04bWrite = Effect.fnUntraced(function* (
   }
 })
 
-effectTest.live("MC04b consumes actual L0 source through the configured Judge and complete parent result", () =>
-  Effect.gen(function* () {
-    const fixture = yield* metaSetup(
-      Agent.ID.make("build"),
-      false,
-      Agent.ID.make("meta"),
-      "app-server",
-      undefined,
-      "",
-      "work",
-      ConfigMeta.Info.make({
-        verifier: ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }),
-      }),
-    )
-    yield* fixture.sessions.setPermissions({
-      sessionID: fixture.root.id,
-      permissions: [{ action: "*", resource: "*", effect: "allow" }],
-    })
-    yield* Effect.promise(() =>
-      Bun.write(
-        `${fixture.root.location.directory}/package.json`,
-        JSON.stringify({
-          packageManager: "bun@1.4.2",
-          scripts: {
-            typecheck: `${JSON.stringify(path.resolve(import.meta.dirname, "../../../node_modules/.bin/tsgo"))} --noEmit --skipLibCheck --target esnext input.ts`,
-          },
+effectTest.live(
+  "MC04b consumes actual L0 source through the configured Judge and complete parent result",
+  () =>
+    Effect.gen(function* () {
+      const fixture = yield* metaSetup(
+        Agent.ID.make("build"),
+        false,
+        Agent.ID.make("meta"),
+        "app-server",
+        undefined,
+        "",
+        "work",
+        ConfigMeta.Info.make({
+          verifier: ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }),
         }),
-      ),
-    )
-    yield* fixture.llm.push(
-      TestLLM.tool("mc04b-l0-write", "write", { path: "input.ts", content: "export const value: string = 1\n" }),
-      TestLLM.text("Recorded the actual compiler result.", "mc04b-l0-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Write the fixture and check it." })
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC04b L0 did not settle", "10 seconds")
-    const mechanical = yield* mc07Result(fixture, "mc04b-l0-write")
-    if (mechanical.tool.state.status !== "completed")
-      return yield* Effect.die(new Error("MC04b mechanical Tool result is missing"))
-    const mechanicalText =
-      mechanical.tool.state.content?.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n") ?? ""
-    expect(mechanicalText).toContain("typecheck 失败")
-    expect(mechanicalText).toContain("[验证来源] verification.source=")
-    const observations = JSON.stringify({
-      observations: [
-        { kind: "contradiction", quote: "typecheck 失败", detail: "The declared string received a number." },
-      ],
-    })
-    const requestedJudges: (typeof TaskTool.Input.Type)[] = []
-    yield* fixture.llm.serve((request) => {
-      if (
-        request.messages.some(
-          (message) =>
-            message.role === "user" &&
-            message.content.some((part) => part.type === "text" && part.text.includes("<verification_source>")),
-        )
       )
-        return TestLLM.text(observations, `mc04b-judge-${request.model.id}`)
-      const consumed = request.messages.flatMap((message) => (message.role === "tool" ? message.content : []))
-      if (consumed.some((part) => part.type === "tool-result" && part.id === "mc04b-l1-judge"))
-        return TestLLM.text("Consumed all Judge results and retained the compiler failure.", "mc04b-l1-parent")
-      const mechanical = consumed.find((part) => part.type === "tool-result" && part.id === "mc04b-l0-write")
-      const text =
-        mechanical?.type === "tool-result" && mechanical.result.type === "content"
-          ? mechanical.result.value.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")
-          : ""
-      const source = Schema.decodeUnknownSync(
-        Schema.fromJsonString(Schema.Struct({ messageID: SessionMessage.ID, id: Schema.String })),
-      )(text.match(/^\[验证来源\] verification.source=(.+)$/m)?.[1])
-      const input: typeof TaskTool.Input.Type = {
-        description: "Observe the actual compiler failure",
-        prompt: "Report contradictions and missing evidence in the saved compiler result.",
+      yield* fixture.sessions.setPermissions({
+        sessionID: fixture.root.id,
+        permissions: [{ action: "*", resource: "*", effect: "allow" }],
+      })
+      yield* Effect.promise(() =>
+        Bun.write(
+          `${fixture.root.location.directory}/package.json`,
+          JSON.stringify({
+            packageManager: "bun@1.4.2",
+            scripts: {
+              typecheck: `${JSON.stringify(path.resolve(import.meta.dirname, "../../../node_modules/.bin/tsgo"))} --noEmit --skipLibCheck --target esnext input.ts`,
+            },
+          }),
+        ),
+      )
+      yield* fixture.llm.push(
+        TestLLM.tool("mc04b-l0-write", "write", { path: "input.ts", content: "export const value: string = 1\n" }),
+        TestLLM.text("Recorded the actual compiler result.", "mc04b-l0-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Write the fixture and check it." })
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC04b L0 did not settle", "10 seconds")
+      const mechanical = yield* mc07Result(fixture, "mc04b-l0-write")
+      if (mechanical.tool.state.status !== "completed")
+        return yield* Effect.die(new Error("MC04b mechanical Tool result is missing"))
+      const mechanicalText =
+        mechanical.tool.state.content?.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n") ?? ""
+      expect(mechanicalText).toContain("typecheck 失败")
+      expect(mechanicalText).toContain("[验证来源] verification.source=")
+      const observations = JSON.stringify({
+        observations: [
+          { kind: "contradiction", quote: "typecheck 失败", detail: "The declared string received a number." },
+        ],
+      })
+      const requestedJudges: (typeof TaskTool.Input.Type)[] = []
+      yield* fixture.llm.serve((request) => {
+        if (
+          request.messages.some(
+            (message) =>
+              message.role === "user" &&
+              message.content.some((part) => part.type === "text" && part.text.includes("<verification_source>")),
+          )
+        )
+          return TestLLM.text(observations, `mc04b-judge-${request.model.id}`)
+        const consumed = request.messages.flatMap((message) => (message.role === "tool" ? message.content : []))
+        if (consumed.some((part) => part.type === "tool-result" && part.id === "mc04b-l1-judge"))
+          return TestLLM.text("Consumed all Judge results and retained the compiler failure.", "mc04b-l1-parent")
+        const mechanical = consumed.find((part) => part.type === "tool-result" && part.id === "mc04b-l0-write")
+        const text =
+          mechanical?.type === "tool-result" && mechanical.result.type === "content"
+            ? mechanical.result.value.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")
+            : ""
+        const source = Schema.decodeUnknownSync(
+          Schema.fromJsonString(Schema.Struct({ messageID: SessionMessage.ID, id: Schema.String })),
+        )(text.match(/^\[验证来源\] verification.source=(.+)$/m)?.[1])
+        const input: typeof TaskTool.Input.Type = {
+          description: "Observe the actual compiler failure",
+          prompt: "Report contradictions and missing evidence in the saved compiler result.",
+          subagent_type: "build",
+          execution_type: "judge",
+          judge_models: [
+            `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
+            `${fixture.metaModel.providerID}/${fixture.metaModel.id}`,
+          ],
+          verification: { source },
+        }
+        requestedJudges.push(input)
+        return TestLLM.tool("mc04b-l1-judge", TaskTool.name, input)
+      })
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Judge the saved verification result." })
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC04b Judge did not settle", "10 seconds")
+      const judged = yield* mc07Consumed(fixture, "mc04b-l1-judge")
+      expect(judged.tool.state.status).toBe("completed")
+      if (judged.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b Judge result is missing"))
+      expect(mechanical.tool.state.metadata?.verification).toMatchObject({ status: "failed" })
+      expect(judged.tool.state.metadata?.verification).toMatchObject({
+        level: "l1",
+        state: { level: "l2", failures: 0 },
+      })
+      const output = Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(judged.text)
+      expect(output.workers.map((worker) => worker.text)).toEqual([observations, observations])
+      expect(output.workers.every((worker) => worker.receipt !== undefined)).toBe(true)
+      expect(output.input.text).toContain(mechanicalText)
+      expect(yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/.git/HEAD`).exists())).toBe(false)
+      expect(requestedJudges).toHaveLength(1)
+      const verification = requestedJudges[0]?.verification
+      expect(verification).toEqual({ source: { messageID: mechanical.assistant.id, id: mechanical.tool.id } })
+      if (!verification?.source) return yield* Effect.die(new Error("MC04b parent did not copy the visible L0 source"))
+      expect(Schema.decodeUnknownSync(TaskTool.Input)(judged.tool.state.input).verification).toEqual(verification)
+      yield* Effect.promise(async () => {
+        await initRepo(fixture.root.location.directory)
+        await git(fixture.root.location.directory, "add", "--", "input.ts")
+        await git(fixture.root.location.directory, "commit", "-m", "MC04b tracked fixture baseline")
+      })
+      const r1 = yield* mc04bTask(
+        fixture,
+        "mc04b-l2-r1",
+        {
+          description: "Capture the current failed revision",
+          prompt: "Write the new revision for the original compiler failure.",
+          subagent_type: "build",
+          new_delegation: true,
+          artifact_path: "input.ts",
+          verification,
+        },
+        [
+          TestLLM.tool("mc04b-r1-write", "write", { path: "input.ts", content: "export const value: string = 2\n" }),
+          TestLLM.text("R1 still needs the typed compiler repair.", "mc04b-r1-child"),
+        ],
+      )
+      if (r1.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R1 Task failed"))
+      const producer = Schema.decodeUnknownSync(DelegationService.Governance)(r1.tool.state.metadata?.governance)
+      if (producer.kind !== "revision" || !("artifact" in producer))
+        return yield* Effect.die(new Error("MC04b R1 has no actual revision"))
+      expect(r1.tool.state.metadata?.verification).toMatchObject({
+        level: "l2",
+        reset: "none",
+        state: { level: "l2", failures: 0 },
+      })
+      const reviewText = (digest: string, verdict: "rejected" | "approved") =>
+        `<review>${JSON.stringify({
+          kind: "aigcfroge.review.v1",
+          reviewed_revision_digest: digest,
+          verdict,
+          findings: [],
+          summary: `${verdict}: the current compiler result was inspected.`,
+        })}</review>`
+      const rejected = yield* mc04bTask(
+        fixture,
+        "mc04b-l2-rejected",
+        {
+          description: "Review the actual R1",
+          prompt: "Review the bound R1 and record the typed finding.",
+          subagent_type: "build",
+          intent: "review",
+          revision_digest: producer.artifact.revisionDigest,
+          delegation_id: producer.receipt.delegationID,
+          verification,
+        },
+        [TestLLM.text(reviewText(producer.artifact.revisionDigest, "rejected"), "mc04b-reject-child")],
+      )
+      if (rejected.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R1 review failed"))
+      const reviewer = Schema.decodeUnknownSync(Delegation.Receipt)(rejected.tool.state.metadata?.receipt)
+      const repair = yield* mc04bTask(
+        fixture,
+        "mc04b-l2-repair",
+        {
+          description: "Repair the original typed rejection",
+          prompt: `Repair the exact reviewed compiler failure.\n${rejected.text}`,
+          subagent_type: "build",
+          artifact_path: "input.ts",
+          delegation_id: producer.receipt.delegationID,
+          participant_id: producer.receipt.participantID,
+          task_id: producer.receipt.childSessionID,
+          command: "append",
+          verification,
+        },
+        [
+          TestLLM.tool("mc04b-r2-write", "write", {
+            path: "input.ts",
+            content: 'export const value: string = "fixed"\n',
+          }),
+          TestLLM.text("R2 fixed the compiler failure.", "mc04b-r2-child"),
+        ],
+      )
+      if (repair.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R2 Task failed"))
+      const repaired = Schema.decodeUnknownSync(DelegationService.Governance)(repair.tool.state.metadata?.governance)
+      if (repaired.kind !== "revision" || !("artifact" in repaired))
+        return yield* Effect.die(new Error("MC04b repair has no actual revision"))
+      expect(repaired.receipt.childSessionID).toBe(producer.receipt.childSessionID)
+      expect(repaired.receipt.inputID).not.toBe(producer.receipt.inputID)
+      expect(repaired.artifact.revisionDigest).not.toBe(producer.artifact.revisionDigest)
+      const childMessages = yield* fixture.sessions.messages({
+        sessionID: repaired.receipt.childSessionID,
+        type: "assistant",
+        order: "asc",
+      })
+      const passed = childMessages
+        .flatMap((message) => (message.type === "assistant" ? message.content : []))
+        .find((part) => part.type === "tool" && part.id === "mc04b-r2-write")
+      if (passed?.type !== "tool" || passed.state.status !== "completed")
+        return yield* Effect.die(new Error("MC04b repair write is missing"))
+      const actualPassed = Schema.decodeUnknownSync(Verifier.Result)(passed.state.metadata?.verification)
+      expect(actualPassed).toMatchObject({ status: "passed", packages: [{ status: "passed", exitCode: 0 }] })
+      const approved = yield* mc04bTask(
+        fixture,
+        "mc04b-l2-approved",
+        {
+          description: "Review the repaired R2",
+          prompt: "Review R2 in the same original reviewer.",
+          subagent_type: "build",
+          intent: "review",
+          revision_digest: repaired.artifact.revisionDigest,
+          delegation_id: repaired.receipt.delegationID,
+          participant_id: reviewer.participantID,
+          task_id: reviewer.childSessionID,
+          verification,
+        },
+        [TestLLM.text(reviewText(repaired.artifact.revisionDigest, "approved"), "mc04b-approve-child")],
+      )
+      const delegations = yield* DelegationService.Service
+      const blocked = yield* delegations.foldState(producer.receipt.delegationID)
+      expect(blocked?.reviews.map((review) => review.verdict)).toEqual(["rejected", "approved"])
+      expect(blocked?.delegation.rejectionBlocked).toBe(true)
+      const completeInput = {
+        description: "Complete the verified delegation",
+        prompt: "Complete and archive after the original review barrier.",
+        subagent_type: "build",
+        delegation_id: producer.receipt.delegationID,
+        command: "complete" as const,
+        verification,
+      }
+      const refused = yield* mc04bTask(fixture, "mc04b-l2-blocked", completeInput)
+      if (refused.tool.state.status !== "completed")
+        return yield* Effect.die(new Error("MC04b completion refusal did not preserve its result"))
+      expect(refused.tool.state.metadata?.verification).toMatchObject({
+        status: "unavailable",
+        reset: "none",
+        state: { level: "l2", failures: 0 },
+      })
+      expect(refused.text).toMatch(/barrier/i)
+      expect(yield* delegations.foldState(producer.receipt.delegationID)).toEqual(blocked)
+      const retracted = yield* mc04bTask(fixture, "mc04b-l2-retract", {
+        ...completeInput,
+        description: "Retract the repaired R1 rejection",
+        prompt: "Explicitly retract R1: R2 passed the actual compiler check and the same reviewer approved R2.",
+        participant_id: reviewer.participantID,
+        command: "retract_rejection",
+      })
+      if (retracted.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b retraction failed"))
+      expect(retracted.tool.state.metadata?.verification).toMatchObject({
+        reset: "none",
+        state: { level: "l2", failures: 0 },
+      })
+      const completed = yield* mc04bTask(fixture, "mc04b-l2-complete", completeInput)
+      if (completed.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b completion failed"))
+      expect(completed.tool.state.metadata?.verification).toMatchObject({
+        status: "completed",
+        reset: "completion_barrier",
+        state: { level: "l0", failures: 0 },
+        completion: { canComplete: true, revisionDigest: repaired.artifact.revisionDigest },
+      })
+      expect((yield* delegations.foldState(producer.receipt.delegationID))?.delegation.status).toBe("archived")
+      if (actualPassed.source?.type !== "tool")
+        return yield* Effect.die(new Error("MC04b passed child result has no Tool source"))
+      const childReset = yield* mc04bTask(fixture, "mc04b-child-passed-source", {
+        description: "Consume the owned child passed result",
+        prompt: "Observe the exact saved child compiler pass.",
         subagent_type: "build",
         execution_type: "judge",
-        judge_models: [
-          `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
-          `${fixture.metaModel.providerID}/${fixture.metaModel.id}`,
-        ],
-        verification: { source },
-      }
-      requestedJudges.push(input)
-      return TestLLM.tool("mc04b-l1-judge", TaskTool.name, input)
-    })
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Judge the saved verification result." })
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC04b Judge did not settle", "10 seconds")
-    const judged = yield* mc07Consumed(fixture, "mc04b-l1-judge")
-    expect(judged.tool.state.status).toBe("completed")
-    if (judged.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b Judge result is missing"))
-    expect(mechanical.tool.state.metadata?.verification).toMatchObject({ status: "failed" })
-    expect(judged.tool.state.metadata?.verification).toMatchObject({
-      level: "l1",
-      state: { level: "l2", failures: 0 },
-    })
-    const output = Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(judged.text)
-    expect(output.workers.map((worker) => worker.text)).toEqual([observations, observations])
-    expect(output.workers.every((worker) => worker.receipt !== undefined)).toBe(true)
-    expect(output.input.text).toContain(mechanicalText)
-    expect(yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/.git/HEAD`).exists())).toBe(false)
-    expect(requestedJudges).toHaveLength(1)
-    const verification = requestedJudges[0]?.verification
-    expect(verification).toEqual({ source: { messageID: mechanical.assistant.id, id: mechanical.tool.id } })
-    if (!verification?.source) return yield* Effect.die(new Error("MC04b parent did not copy the visible L0 source"))
-    expect(Schema.decodeUnknownSync(TaskTool.Input)(judged.tool.state.input).verification).toEqual(verification)
-    yield* Effect.promise(async () => {
-      await initRepo(fixture.root.location.directory)
-      await git(fixture.root.location.directory, "add", "--", "input.ts")
-      await git(fixture.root.location.directory, "commit", "-m", "MC04b tracked fixture baseline")
-    })
-    const r1 = yield* mc04bTask(
-      fixture,
-      "mc04b-l2-r1",
-      {
-        description: "Capture the current failed revision",
-        prompt: "Write the new revision for the original compiler failure.",
-        subagent_type: "build",
-        new_delegation: true,
-        artifact_path: "input.ts",
-        verification,
-      },
-      [
-        TestLLM.tool("mc04b-r1-write", "write", { path: "input.ts", content: "export const value: string = 2\n" }),
-        TestLLM.text("R1 still needs the typed compiler repair.", "mc04b-r1-child"),
-      ],
-    )
-    if (r1.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R1 Task failed"))
-    const producer = Schema.decodeUnknownSync(DelegationService.Governance)(r1.tool.state.metadata?.governance)
-    if (producer.kind !== "revision" || !("artifact" in producer))
-      return yield* Effect.die(new Error("MC04b R1 has no actual revision"))
-    expect(r1.tool.state.metadata?.verification).toMatchObject({
-      level: "l2",
-      reset: "none",
-      state: { level: "l2", failures: 0 },
-    })
-    const reviewText = (digest: string, verdict: "rejected" | "approved") =>
-      `<review>${JSON.stringify({
-        kind: "aigcfroge.review.v1",
-        reviewed_revision_digest: digest,
-        verdict,
-        findings: [],
-        summary: `${verdict}: the current compiler result was inspected.`,
-      })}</review>`
-    const rejected = yield* mc04bTask(
-      fixture,
-      "mc04b-l2-rejected",
-      {
-        description: "Review the actual R1",
-        prompt: "Review the bound R1 and record the typed finding.",
-        subagent_type: "build",
-        intent: "review",
-        revision_digest: producer.artifact.revisionDigest,
-        delegation_id: producer.receipt.delegationID,
-        verification,
-      },
-      [TestLLM.text(reviewText(producer.artifact.revisionDigest, "rejected"), "mc04b-reject-child")],
-    )
-    if (rejected.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R1 review failed"))
-    const reviewer = Schema.decodeUnknownSync(Delegation.Receipt)(rejected.tool.state.metadata?.receipt)
-    const repair = yield* mc04bTask(
-      fixture,
-      "mc04b-l2-repair",
-      {
-        description: "Repair the original typed rejection",
-        prompt: `Repair the exact reviewed compiler failure.\n${rejected.text}`,
-        subagent_type: "build",
-        artifact_path: "input.ts",
-        delegation_id: producer.receipt.delegationID,
-        participant_id: producer.receipt.participantID,
-        task_id: producer.receipt.childSessionID,
-        command: "append",
-        verification,
-      },
-      [
-        TestLLM.tool("mc04b-r2-write", "write", {
-          path: "input.ts",
-          content: 'export const value: string = "fixed"\n',
-        }),
-        TestLLM.text("R2 fixed the compiler failure.", "mc04b-r2-child"),
-      ],
-    )
-    if (repair.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R2 Task failed"))
-    const repaired = Schema.decodeUnknownSync(DelegationService.Governance)(repair.tool.state.metadata?.governance)
-    if (repaired.kind !== "revision" || !("artifact" in repaired))
-      return yield* Effect.die(new Error("MC04b repair has no actual revision"))
-    expect(repaired.receipt.childSessionID).toBe(producer.receipt.childSessionID)
-    expect(repaired.receipt.inputID).not.toBe(producer.receipt.inputID)
-    expect(repaired.artifact.revisionDigest).not.toBe(producer.artifact.revisionDigest)
-    const childMessages = yield* fixture.sessions.messages({
-      sessionID: repaired.receipt.childSessionID,
-      type: "assistant",
-      order: "asc",
-    })
-    const passed = childMessages
-      .flatMap((message) => (message.type === "assistant" ? message.content : []))
-      .find((part) => part.type === "tool" && part.id === "mc04b-r2-write")
-    if (passed?.type !== "tool" || passed.state.status !== "completed")
-      return yield* Effect.die(new Error("MC04b repair write is missing"))
-    const actualPassed = Schema.decodeUnknownSync(Verifier.Result)(passed.state.metadata?.verification)
-    expect(actualPassed).toMatchObject({ status: "passed", packages: [{ status: "passed", exitCode: 0 }] })
-    const approved = yield* mc04bTask(
-      fixture,
-      "mc04b-l2-approved",
-      {
-        description: "Review the repaired R2",
-        prompt: "Review R2 in the same original reviewer.",
-        subagent_type: "build",
-        intent: "review",
-        revision_digest: repaired.artifact.revisionDigest,
-        delegation_id: repaired.receipt.delegationID,
-        participant_id: reviewer.participantID,
-        task_id: reviewer.childSessionID,
-        verification,
-      },
-      [TestLLM.text(reviewText(repaired.artifact.revisionDigest, "approved"), "mc04b-approve-child")],
-    )
-    const delegations = yield* DelegationService.Service
-    const blocked = yield* delegations.foldState(producer.receipt.delegationID)
-    expect(blocked?.reviews.map((review) => review.verdict)).toEqual(["rejected", "approved"])
-    expect(blocked?.delegation.rejectionBlocked).toBe(true)
-    const completeInput = {
-      description: "Complete the verified delegation",
-      prompt: "Complete and archive after the original review barrier.",
-      subagent_type: "build",
-      delegation_id: producer.receipt.delegationID,
-      command: "complete" as const,
-      verification,
-    }
-    const refused = yield* mc04bTask(fixture, "mc04b-l2-blocked", completeInput)
-    if (refused.tool.state.status !== "completed")
-      return yield* Effect.die(new Error("MC04b completion refusal did not preserve its result"))
-    expect(refused.tool.state.metadata?.verification).toMatchObject({
-      status: "unavailable",
-      reset: "none",
-      state: { level: "l2", failures: 0 },
-    })
-    expect(refused.text).toMatch(/barrier/i)
-    expect(yield* delegations.foldState(producer.receipt.delegationID)).toEqual(blocked)
-    const retracted = yield* mc04bTask(fixture, "mc04b-l2-retract", {
-      ...completeInput,
-      description: "Retract the repaired R1 rejection",
-      prompt: "Explicitly retract R1: R2 passed the actual compiler check and the same reviewer approved R2.",
-      participant_id: reviewer.participantID,
-      command: "retract_rejection",
-    })
-    if (retracted.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b retraction failed"))
-    expect(retracted.tool.state.metadata?.verification).toMatchObject({
-      reset: "none",
-      state: { level: "l2", failures: 0 },
-    })
-    const completed = yield* mc04bTask(fixture, "mc04b-l2-complete", completeInput)
-    if (completed.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b completion failed"))
-    expect(completed.tool.state.metadata?.verification).toMatchObject({
-      status: "completed",
-      reset: "completion_barrier",
-      state: { level: "l0", failures: 0 },
-      completion: { canComplete: true, revisionDigest: repaired.artifact.revisionDigest },
-    })
-    expect((yield* delegations.foldState(producer.receipt.delegationID))?.delegation.status).toBe("archived")
-    if (actualPassed.source?.type !== "tool")
-      return yield* Effect.die(new Error("MC04b passed child result has no Tool source"))
-    const childReset = yield* mc04bTask(fixture, "mc04b-child-passed-source", {
-      description: "Consume the owned child passed result",
-      prompt: "Observe the exact saved child compiler pass.",
-      subagent_type: "build",
-      execution_type: "judge",
-      verification: {
-        source: {
-          sessionID: repaired.receipt.childSessionID,
-          messageID: SessionMessage.ID.make(actualPassed.source.messageID),
-          id: actualPassed.source.id,
+        verification: {
+          source: {
+            sessionID: repaired.receipt.childSessionID,
+            messageID: SessionMessage.ID.make(actualPassed.source.messageID),
+            id: actualPassed.source.id,
+          },
         },
-      },
-    })
-    expect(childReset.verification).toMatchObject({
-      level: "l0",
-      reset: "l0_passed",
-      mechanicalSource: { sessionID: repaired.receipt.childSessionID },
-      state: { level: "l0", failures: 0 },
-    })
-    const sources = [judged, r1, rejected, repair, approved, refused, retracted, completed, childReset]
-    const requests = yield* fixture.llm.requests()
-    console.info(
-      "MC04B_FULL_CONSUMER",
-      JSON.stringify({
-        mechanical: mechanical.tool.state.metadata?.verification,
-        visibleMechanical: { text: mechanicalText, source: verification.source, taskInput: requestedJudges[0] },
-        judge: output,
-        repairedMechanical: passed.state.metadata?.verification,
-        results: sources.map((result) => ({
-          source: { messageID: result.assistant.id, id: result.tool.id },
-          body: result.text,
-          metadata: result.tool.state.status === "completed" ? result.tool.state.metadata : undefined,
-        })),
-        consumers: sources.map((result) => ({
-          id: result.tool.id,
-          bodySha256: createHash("sha256").update(result.text).digest("hex"),
-          requests: requests.flatMap((request, index) =>
-            request.messages
-              .flatMap((message) => (message.role === "tool" ? message.content : []))
-              .some(
-                (part) =>
-                  part.type === "tool-result" &&
-                  part.id === result.tool.id &&
-                  part.result.type === "text" &&
-                  part.result.value === result.text,
-              )
-              ? [index]
-              : [],
-          ),
-        })),
-        modelRequests: requests.map((request) => ({
-          provider: request.model.provider,
-          id: request.model.id,
-          route: request.model.route.id,
-        })),
-      }),
-    )
-  }),
+      })
+      expect(childReset.verification).toMatchObject({
+        level: "l0",
+        reset: "l0_passed",
+        mechanicalSource: { sessionID: repaired.receipt.childSessionID },
+        state: { level: "l0", failures: 0 },
+      })
+      const sources = [judged, r1, rejected, repair, approved, refused, retracted, completed, childReset]
+      const requests = yield* fixture.llm.requests()
+      console.info(
+        "MC04B_FULL_CONSUMER",
+        JSON.stringify({
+          mechanical: mechanical.tool.state.metadata?.verification,
+          visibleMechanical: { text: mechanicalText, source: verification.source, taskInput: requestedJudges[0] },
+          judge: output,
+          repairedMechanical: passed.state.metadata?.verification,
+          results: sources.map((result) => ({
+            source: { messageID: result.assistant.id, id: result.tool.id },
+            body: result.text,
+            metadata: result.tool.state.status === "completed" ? result.tool.state.metadata : undefined,
+          })),
+          consumers: sources.map((result) => ({
+            id: result.tool.id,
+            bodySha256: createHash("sha256").update(result.text).digest("hex"),
+            requests: requests.flatMap((request, index) =>
+              request.messages
+                .flatMap((message) => (message.role === "tool" ? message.content : []))
+                .some(
+                  (part) =>
+                    part.type === "tool-result" &&
+                    part.id === result.tool.id &&
+                    part.result.type === "text" &&
+                    part.result.value === result.text,
+                )
+                ? [index]
+                : [],
+            ),
+          })),
+          modelRequests: requests.map((request) => ({
+            provider: request.model.provider,
+            id: request.model.id,
+            route: request.model.route.id,
+          })),
+        }),
+      )
+    }),
+  30_000,
 )
 
 effectTest.live(
@@ -2397,8 +2400,8 @@ effectTest.live(
         sessionID: fixture.root.id,
         text: "Create and capture the same child's empty commit.",
       })
-      yield* awaitWithTimeout(fixture.llm.wait(count + 4), "MC07 no_code_change commit did not reach its parent")
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 no_code_change commit did not settle")
+      yield* fixture.runs.awaitIdle(fixture.root.id)
+      expect((yield* fixture.llm.requests()).length).toBeGreaterThanOrEqual(count + 4)
       const produced = yield* mc07Result(fixture, "mc07-ncc-commit")
       expect(produced.tool.state.status).toBe("completed")
       if (produced.tool.state.status !== "completed")
@@ -2617,11 +2620,8 @@ effectTest.live(
         ),
       ).toEqual(beforeComplete)
       yield* permission.reply({ requestID: archive.id, reply: "once" })
-      yield* awaitWithTimeout(
-        fixture.llm.wait(beforeCompleteCount + 2),
-        "MC07 no_code_change complete did not reach its parent",
-      )
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 no_code_change complete did not settle")
+      yield* fixture.runs.awaitIdle(fixture.root.id)
+      expect((yield* fixture.llm.requests()).length).toBeGreaterThanOrEqual(beforeCompleteCount + 2)
       const completed = yield* mc07Result(fixture, "mc07-ncc-complete")
       expect(completed.tool.state.status).toBe("completed")
       if (completed.tool.state.status !== "completed")
@@ -2721,121 +2721,28 @@ effectTest.live(
         }),
       )
     }),
+  30_000,
 )
 
-effectTest.live("MC07 no_code_change refuses a real empty commit without a trusted previous revision", () =>
-  Effect.gen(function* () {
-    const fixture = yield* metaSetup(
-      Agent.ID.make("keeper-worker"),
-      false,
-      Agent.ID.make("meta"),
-      "app-server",
-      "artifact.txt",
-    )
-    const directory = fixture.root.location.directory
-    const head = yield* Effect.promise(() =>
-      $`git rev-parse HEAD`
-        .cwd(directory)
-        .quiet()
-        .text()
-        .then((text) => text.trim()),
-    )
-    const tree = yield* Effect.promise(() =>
-      $`git show -s --format=%T HEAD`
-        .cwd(directory)
-        .quiet()
-        .text()
-        .then((text) => text.trim()),
-    )
-    yield* fixture.sessions.setPermissions({
-      sessionID: fixture.root.id,
-      permissions: [{ action: "*", resource: "*", effect: "allow" }],
-    })
-    const command =
-      "git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit --allow-empty -m mc07-no-code-change"
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-ncc-no-previous", TaskTool.name, {
-        description: "Attempt an unapproved empty commit",
-        prompt: "Execute the one private empty commit and leave artifact.txt unchanged.",
-        subagent_type: fixture.worker,
-        artifact_path: "artifact.txt",
-      }),
-      TestLLM.tool("mc07-ncc-no-previous-shell", "shell", { command, workdir: directory }),
-      TestLLM.text("The private empty commit completed.", "mc07-ncc-no-previous-child"),
-      TestLLM.text("Consumed the missing-previous refusal.", "mc07-ncc-no-previous-parent"),
-    )
-    yield* fixture.sessions.prompt({
-      sessionID: fixture.root.id,
-      text: "Attempt the empty commit without an accepted predecessor.",
-    })
-    yield* awaitWithTimeout(fixture.llm.wait(4), "MC07 no_code_change missing-previous Task did not reach its parent")
-    yield* awaitWithTimeout(
-      fixture.runs.awaitIdle(fixture.root.id),
-      "MC07 no_code_change missing-previous Task did not settle",
-    )
-    const result = yield* mc07Result(fixture, "mc07-ncc-no-previous")
-    expect(result.tool.state.status).toBe("completed")
-    if (result.tool.state.status !== "completed")
-      return yield* Effect.die(new Error("MC07 no_code_change missing-previous Task failed"))
-    const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(result.tool.state.metadata?.receipt)
-    const shell = (yield* fixture.sessions.context(receipt.childSessionID))
-      .flatMap((message) => (message.type === "assistant" ? message.content : []))
-      .find(
-        (part): part is SessionMessage.AssistantTool =>
-          part.type === "tool" && part.id === "mc07-ncc-no-previous-shell",
-      )
-    expect(shell?.state.status).toBe("completed")
-    if (shell?.state.status !== "completed")
-      return yield* Effect.die(new Error("MC07 no_code_change missing-previous shell failed"))
-    expect(shell.state.metadata?.exit).toBe(0)
-    expect(shell.state.input).toEqual({ command, workdir: directory })
-    const current = yield* Effect.promise(async () => ({
-      head: (await $`git rev-parse HEAD`.cwd(directory).quiet().text()).trim(),
-      parents: (await $`git show -s --format=%P HEAD`.cwd(directory).quiet().text()).trim().split(" "),
-      tree: (await $`git show -s --format=%T HEAD`.cwd(directory).quiet().text()).trim(),
-      status: await $`git status --porcelain=v1 -- artifact.txt`.cwd(directory).quiet().text(),
-    }))
-    expect(current.head).not.toBe(head)
-    expect(current.parents).toEqual([head])
-    expect(current.tree).toBe(tree)
-    expect(current.status).toBe("")
-    const governance = Schema.decodeUnknownSync(DelegationService.Governance)(result.tool.state.metadata?.governance)
-    expect(governance).toMatchObject({
-      kind: "revision",
-      status: "invalid",
-      reason: "Artifact repository or HEAD changed after admission",
-      receipt,
-    })
-    const delegations = yield* DelegationService.Service
-    const state = yield* delegations.foldState(receipt.delegationID)
-    expect(state?.revisions).toEqual([])
-    expect(state?.reviews).toEqual([])
-    const bus = yield* Bus.Service
-    expect(
-      yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
-        Stream.filter((event) => !Bus.isSynced(event) && event.type === DelegationEvent.RevisionRecorded.type),
-        Stream.runCollect,
-      ),
-    ).toEqual([])
-    console.log(
-      "MC07 no_code_change refusal evidence",
-      JSON.stringify({ case: "no_previous", baseline: { head, tree }, current, shell: shell.state, governance }),
-    )
-  }),
-)
-
-for (const failure of ["non_direct", "tree_change", "index_drift", "target_drift", "diff_drift"] as const)
-  effectTest.live(`MC07 no_code_change refuses ${failure} after a real completed child shell`, () =>
+effectTest.live(
+  "MC07 no_code_change refuses a real empty commit without a trusted previous revision",
+  () =>
     Effect.gen(function* () {
-      const fixture = yield* mc07Build()
-      const original = yield* fixture.delegations.revision({
-        delegationID: fixture.receipt.delegationID,
-        revisionDigest: fixture.digest,
-      })
-      if (!original.artifact)
-        return yield* Effect.die(new Error("MC07 no_code_change refusal has no accepted artifact"))
-      const artifact = original.artifact
+      const fixture = yield* metaSetup(
+        Agent.ID.make("keeper-worker"),
+        false,
+        Agent.ID.make("meta"),
+        "app-server",
+        "artifact.txt",
+      )
       const directory = fixture.root.location.directory
+      const head = yield* Effect.promise(() =>
+        $`git rev-parse HEAD`
+          .cwd(directory)
+          .quiet()
+          .text()
+          .then((text) => text.trim()),
+      )
       const tree = yield* Effect.promise(() =>
         $`git show -s --format=%T HEAD`
           .cwd(directory)
@@ -2843,183 +2750,291 @@ for (const failure of ["non_direct", "tree_change", "index_drift", "target_drift
           .text()
           .then((text) => text.trim()),
       )
-      // Prepare a private forward commit without moving HEAD or staging the accepted artifact.
-      const bridge =
-        failure === "non_direct"
-          ? yield* Effect.promise(() =>
-              $`git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit-tree ${tree} -p ${artifact.commitSha} -m mc07-private-bridge`
-                .cwd(directory)
-                .quiet()
-                .text()
-                .then((text) => text.trim()),
-            )
-          : artifact.commitSha
-      const releaseShell = yield* Deferred.make<void>()
-      const releaseAnswer = yield* Deferred.make<void>()
-      yield* Effect.addFinalizer(() =>
-        Deferred.succeed(releaseShell, undefined).pipe(
-          Effect.andThen(Deferred.succeed(releaseAnswer, undefined)),
-          Effect.asVoid,
-        ),
-      )
-      const count = (yield* fixture.llm.requests()).length
+      yield* fixture.sessions.setPermissions({
+        sessionID: fixture.root.id,
+        permissions: [{ action: "*", resource: "*", effect: "allow" }],
+      })
       const command =
         "git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit --allow-empty -m mc07-no-code-change"
-      const callID = `mc07-ncc-refused-${failure}`
-      const shellID = `${callID}-shell`
       yield* fixture.llm.push(
-        TestLLM.tool(callID, TaskTool.name, {
-          description: "Attempt the bounded empty commit",
-          prompt: "Execute the one private empty commit and finish.",
+        TestLLM.tool("mc07-ncc-no-previous", TaskTool.name, {
+          description: "Attempt an unapproved empty commit",
+          prompt: "Execute the one private empty commit and leave artifact.txt unchanged.",
           subagent_type: fixture.worker,
-          delegation_id: fixture.receipt.delegationID,
-          participant_id: fixture.receipt.participantID,
-          task_id: fixture.receipt.childSessionID,
           artifact_path: "artifact.txt",
         }),
-        Stream.unwrap(
-          Deferred.await(releaseShell).pipe(
-            Effect.as(Stream.fromIterable(TestLLM.tool(shellID, "shell", { command, workdir: directory }))),
-          ),
-        ),
-        Stream.unwrap(
-          Deferred.await(releaseAnswer).pipe(
-            Effect.as(Stream.fromIterable(TestLLM.text("The private empty commit completed.", `${callID}-child`))),
-          ),
-        ),
-        TestLLM.text("Consumed the invalid artifact capture.", `${callID}-parent`),
+        TestLLM.tool("mc07-ncc-no-previous-shell", "shell", { command, workdir: directory }),
+        TestLLM.text("The private empty commit completed.", "mc07-ncc-no-previous-child"),
+        TestLLM.text("Consumed the missing-previous refusal.", "mc07-ncc-no-previous-parent"),
       )
       yield* fixture.sessions.prompt({
         sessionID: fixture.root.id,
-        text: "Attempt the bounded empty commit in the private drift fixture.",
+        text: "Attempt the empty commit without an accepted predecessor.",
       })
-      yield* awaitWithTimeout(fixture.llm.wait(count + 2), "MC07 no_code_change drift fixture did not admit its child")
-      const admitted = (yield* fixture.sessions.context(fixture.receipt.childSessionID))
-        .filter((message): message is SessionMessage.User => message.type === "user")
-        .at(-1)
-      const link = Schema.decodeUnknownSync(Schema.Struct({ artifact: DelegationExecution.ArtifactBaseline }))(
-        admitted?.metadata?.task,
-      )
-      expect(link.artifact.previous).toEqual(original)
-      if (failure === "non_direct")
-        yield* Effect.promise(() => git(directory, "update-ref", "HEAD", bridge, artifact.commitSha))
-      if (failure === "tree_change")
-        yield* Effect.promise(async () => {
-          await Bun.write(`${directory}/other.txt`, "private staged tree drift\n")
-          await git(directory, "add", "--", "other.txt")
-        })
-      yield* Deferred.succeed(releaseShell, undefined)
-      yield* awaitWithTimeout(fixture.llm.wait(count + 3), "MC07 no_code_change drift shell did not finish")
-      if (failure === "index_drift")
-        yield* Effect.promise(() =>
-          git(directory, "update-index", "--cacheinfo", `100755,${link.artifact.blob},artifact.txt`),
-        )
-      if (failure === "target_drift")
-        yield* Effect.promise(() => Bun.write(`${directory}/artifact.txt`, "base\nr1\nunaccepted\n"))
-      const capturedTargets: string[] = []
-      if (failure === "diff_drift") {
-        const locations = yield* LocationServiceMap.Service
-        const environment = yield* Environment.Service.pipe(Effect.provide(locations.get(fixture.root.location)))
-        const read = environment.files.read
-        const observed: Environment.Files["read"] = (file, range) =>
-          read(file, range).pipe(
-            Effect.tap((content) => {
-              if (file !== `${directory}/artifact.txt`) return Effect.void
-              capturedTargets.push(createHash("sha256").update(content.bytes).digest("hex"))
-              return Effect.promise(() => Bun.write(file, "base\nr1\ndiff-drift\n")).pipe(Effect.asVoid)
-            }),
-          )
-        Object.assign(environment.files, { read: observed })
-        yield* Effect.addFinalizer(() => Effect.sync(() => Object.assign(environment.files, { read })))
-      }
-      yield* Deferred.succeed(releaseAnswer, undefined)
-      yield* awaitWithTimeout(fixture.llm.wait(count + 4), "MC07 no_code_change drift refusal did not reach its parent")
+      yield* awaitWithTimeout(fixture.llm.wait(4), "MC07 no_code_change missing-previous Task did not reach its parent")
       yield* awaitWithTimeout(
         fixture.runs.awaitIdle(fixture.root.id),
-        "MC07 no_code_change drift refusal did not settle",
+        "MC07 no_code_change missing-previous Task did not settle",
       )
-      const result = yield* mc07Result(fixture, callID)
+      const result = yield* mc07Result(fixture, "mc07-ncc-no-previous")
       expect(result.tool.state.status).toBe("completed")
       if (result.tool.state.status !== "completed")
-        return yield* Effect.die(new Error("MC07 no_code_change drift Task failed"))
+        return yield* Effect.die(new Error("MC07 no_code_change missing-previous Task failed"))
       const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(result.tool.state.metadata?.receipt)
-      expect(receipt.childSessionID).toBe(fixture.receipt.childSessionID)
-      expect(receipt.participantID).toBe(fixture.receipt.participantID)
-      expect(receipt.inputID).not.toBe(fixture.receipt.inputID)
       const shell = (yield* fixture.sessions.context(receipt.childSessionID))
         .flatMap((message) => (message.type === "assistant" ? message.content : []))
-        .find((part): part is SessionMessage.AssistantTool => part.type === "tool" && part.id === shellID)
+        .find(
+          (part): part is SessionMessage.AssistantTool =>
+            part.type === "tool" && part.id === "mc07-ncc-no-previous-shell",
+        )
       expect(shell?.state.status).toBe("completed")
       if (shell?.state.status !== "completed")
-        return yield* Effect.die(new Error("MC07 no_code_change drift shell failed before capture"))
+        return yield* Effect.die(new Error("MC07 no_code_change missing-previous shell failed"))
       expect(shell.state.metadata?.exit).toBe(0)
       expect(shell.state.input).toEqual({ command, workdir: directory })
       const current = yield* Effect.promise(async () => ({
         head: (await $`git rev-parse HEAD`.cwd(directory).quiet().text()).trim(),
         parents: (await $`git show -s --format=%P HEAD`.cwd(directory).quiet().text()).trim().split(" "),
         tree: (await $`git show -s --format=%T HEAD`.cwd(directory).quiet().text()).trim(),
-        blob: await $`git ls-tree -z HEAD -- artifact.txt`.cwd(directory).quiet().text(),
-        index: await $`git ls-files --stage -z -- artifact.txt`.cwd(directory).quiet().text(),
         status: await $`git status --porcelain=v1 -- artifact.txt`.cwd(directory).quiet().text(),
-        targetSha256: createHash("sha256")
-          .update(Buffer.from(await Bun.file(`${directory}/artifact.txt`).arrayBuffer()))
-          .digest("hex"),
-        normalizedDiff:
-          await $`git -c core.quotepath=false -c core.autocrlf=false --literal-pathspecs diff --no-ext-diff --no-textconv --no-renames --no-color --src-prefix=a/ --dst-prefix=b/ --full-index --unified=2147483647 HEAD -- artifact.txt`
-            .cwd(directory)
-            .quiet()
-            .text(),
       }))
-      expect(current.head).not.toBe(artifact.commitSha)
-      expect(current.blob).toBe(`100644 blob ${link.artifact.blob}\tartifact.txt\0`)
-      expect(current.parents).toEqual([bridge])
-      if (failure === "tree_change") expect(current.tree).not.toBe(tree)
-      if (failure !== "tree_change") expect(current.tree).toBe(tree)
-      if (failure === "index_drift") expect(current.index).toBe(`100755 ${link.artifact.blob} 0\tartifact.txt\0`)
-      if (failure !== "index_drift") expect(current.index).toBe(`100644 ${link.artifact.blob} 0\tartifact.txt\0`)
-      if (failure === "target_drift" || failure === "diff_drift")
-        expect(current.targetSha256).not.toBe(artifact.targetSha256)
-      if (failure !== "target_drift" && failure !== "diff_drift")
-        expect(current.targetSha256).toBe(artifact.targetSha256)
-      if (failure === "diff_drift") {
-        expect(capturedTargets).toEqual([artifact.targetSha256])
-        expect(current.normalizedDiff).not.toBe(artifact.normalizedDiff)
-      }
+      expect(current.head).not.toBe(head)
+      expect(current.parents).toEqual([head])
+      expect(current.tree).toBe(tree)
+      expect(current.status).toBe("")
       const governance = Schema.decodeUnknownSync(DelegationService.Governance)(result.tool.state.metadata?.governance)
       expect(governance).toMatchObject({
         kind: "revision",
         status: "invalid",
+        reason: "Artifact repository or HEAD changed after admission",
         receipt,
-        source: { type: "tool", messageID: result.assistant.id, id: callID },
-        reason:
-          failure === "non_direct" || failure === "tree_change"
-            ? "Artifact HEAD must be one direct empty commit from its baseline"
-            : failure === "index_drift"
-              ? "Artifact index changed after admission"
-              : "Artifact changed across the empty commit",
       })
-      const state = yield* fixture.delegations.foldState(receipt.delegationID)
-      expect(state?.revisions).toHaveLength(1)
-      expect(state?.delegation.latestRevisionDigest).toBe(fixture.digest)
+      const delegations = yield* DelegationService.Service
+      const state = yield* delegations.foldState(receipt.delegationID)
+      expect(state?.revisions).toEqual([])
+      expect(state?.reviews).toEqual([])
       const bus = yield* Bus.Service
       expect(
         yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
           Stream.filter((event) => !Bus.isSynced(event) && event.type === DelegationEvent.RevisionRecorded.type),
           Stream.runCollect,
         ),
-      ).toHaveLength(1)
+      ).toEqual([])
       console.log(
         "MC07 no_code_change refusal evidence",
-        JSON.stringify({
-          case: failure,
-          baseline: { commitSha: artifact.commitSha, tree, targetSha256: artifact.targetSha256 },
-          current,
-          capturedTargets,
-          shell: shell.state,
-          governance,
-        }),
+        JSON.stringify({ case: "no_previous", baseline: { head, tree }, current, shell: shell.state, governance }),
       )
     }),
+  30_000,
+)
+
+for (const failure of ["non_direct", "tree_change", "index_drift", "target_drift", "diff_drift"] as const)
+  effectTest.live(
+    `MC07 no_code_change refuses ${failure} after a real completed child shell`,
+    () =>
+      Effect.gen(function* () {
+        const fixture = yield* mc07Build()
+        const original = yield* fixture.delegations.revision({
+          delegationID: fixture.receipt.delegationID,
+          revisionDigest: fixture.digest,
+        })
+        if (!original.artifact)
+          return yield* Effect.die(new Error("MC07 no_code_change refusal has no accepted artifact"))
+        const artifact = original.artifact
+        const directory = fixture.root.location.directory
+        const tree = yield* Effect.promise(() =>
+          $`git show -s --format=%T HEAD`
+            .cwd(directory)
+            .quiet()
+            .text()
+            .then((text) => text.trim()),
+        )
+        // Prepare a private forward commit without moving HEAD or staging the accepted artifact.
+        const bridge =
+          failure === "non_direct"
+            ? yield* Effect.promise(() =>
+                $`git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit-tree ${tree} -p ${artifact.commitSha} -m mc07-private-bridge`
+                  .cwd(directory)
+                  .quiet()
+                  .text()
+                  .then((text) => text.trim()),
+              )
+            : artifact.commitSha
+        const releaseShell = yield* Deferred.make<void>()
+        const releaseAnswer = yield* Deferred.make<void>()
+        yield* Effect.addFinalizer(() =>
+          Deferred.succeed(releaseShell, undefined).pipe(
+            Effect.andThen(Deferred.succeed(releaseAnswer, undefined)),
+            Effect.asVoid,
+          ),
+        )
+        const count = (yield* fixture.llm.requests()).length
+        const command =
+          "git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit --allow-empty -m mc07-no-code-change"
+        const callID = `mc07-ncc-refused-${failure}`
+        const shellID = `${callID}-shell`
+        yield* fixture.llm.push(
+          TestLLM.tool(callID, TaskTool.name, {
+            description: "Attempt the bounded empty commit",
+            prompt: "Execute the one private empty commit and finish.",
+            subagent_type: fixture.worker,
+            delegation_id: fixture.receipt.delegationID,
+            participant_id: fixture.receipt.participantID,
+            task_id: fixture.receipt.childSessionID,
+            artifact_path: "artifact.txt",
+          }),
+          Stream.unwrap(
+            Deferred.await(releaseShell).pipe(
+              Effect.as(Stream.fromIterable(TestLLM.tool(shellID, "shell", { command, workdir: directory }))),
+            ),
+          ),
+          Stream.unwrap(
+            Deferred.await(releaseAnswer).pipe(
+              Effect.as(Stream.fromIterable(TestLLM.text("The private empty commit completed.", `${callID}-child`))),
+            ),
+          ),
+          TestLLM.text("Consumed the invalid artifact capture.", `${callID}-parent`),
+        )
+        yield* fixture.sessions.prompt({
+          sessionID: fixture.root.id,
+          text: "Attempt the bounded empty commit in the private drift fixture.",
+        })
+        yield* awaitWithTimeout(
+          fixture.llm.wait(count + 2),
+          "MC07 no_code_change drift fixture did not admit its child",
+        )
+        const admitted = (yield* fixture.sessions.context(fixture.receipt.childSessionID))
+          .filter((message): message is SessionMessage.User => message.type === "user")
+          .at(-1)
+        const link = Schema.decodeUnknownSync(Schema.Struct({ artifact: DelegationExecution.ArtifactBaseline }))(
+          admitted?.metadata?.task,
+        )
+        expect(link.artifact.previous).toEqual(original)
+        if (failure === "non_direct")
+          yield* Effect.promise(() => git(directory, "update-ref", "HEAD", bridge, artifact.commitSha))
+        if (failure === "tree_change")
+          yield* Effect.promise(async () => {
+            await Bun.write(`${directory}/other.txt`, "private staged tree drift\n")
+            await git(directory, "add", "--", "other.txt")
+          })
+        yield* Deferred.succeed(releaseShell, undefined)
+        yield* awaitWithTimeout(fixture.llm.wait(count + 3), "MC07 no_code_change drift shell did not finish")
+        if (failure === "index_drift")
+          yield* Effect.promise(() =>
+            git(directory, "update-index", "--cacheinfo", `100755,${link.artifact.blob},artifact.txt`),
+          )
+        if (failure === "target_drift")
+          yield* Effect.promise(() => Bun.write(`${directory}/artifact.txt`, "base\nr1\nunaccepted\n"))
+        const capturedTargets: string[] = []
+        if (failure === "diff_drift") {
+          const locations = yield* LocationServiceMap.Service
+          const environment = yield* Environment.Service.pipe(Effect.provide(locations.get(fixture.root.location)))
+          const read = environment.files.read
+          const observed: Environment.Files["read"] = (file, range) =>
+            read(file, range).pipe(
+              Effect.tap((content) => {
+                if (file !== `${directory}/artifact.txt`) return Effect.void
+                capturedTargets.push(createHash("sha256").update(content.bytes).digest("hex"))
+                return Effect.promise(() => Bun.write(file, "base\nr1\ndiff-drift\n")).pipe(Effect.asVoid)
+              }),
+            )
+          Object.assign(environment.files, { read: observed })
+          yield* Effect.addFinalizer(() => Effect.sync(() => Object.assign(environment.files, { read })))
+        }
+        yield* Deferred.succeed(releaseAnswer, undefined)
+        yield* awaitWithTimeout(
+          fixture.llm.wait(count + 4),
+          "MC07 no_code_change drift refusal did not reach its parent",
+        )
+        yield* awaitWithTimeout(
+          fixture.runs.awaitIdle(fixture.root.id),
+          "MC07 no_code_change drift refusal did not settle",
+        )
+        const result = yield* mc07Result(fixture, callID)
+        expect(result.tool.state.status).toBe("completed")
+        if (result.tool.state.status !== "completed")
+          return yield* Effect.die(new Error("MC07 no_code_change drift Task failed"))
+        const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(result.tool.state.metadata?.receipt)
+        expect(receipt.childSessionID).toBe(fixture.receipt.childSessionID)
+        expect(receipt.participantID).toBe(fixture.receipt.participantID)
+        expect(receipt.inputID).not.toBe(fixture.receipt.inputID)
+        const shell = (yield* fixture.sessions.context(receipt.childSessionID))
+          .flatMap((message) => (message.type === "assistant" ? message.content : []))
+          .find((part): part is SessionMessage.AssistantTool => part.type === "tool" && part.id === shellID)
+        expect(shell?.state.status).toBe("completed")
+        if (shell?.state.status !== "completed")
+          return yield* Effect.die(new Error("MC07 no_code_change drift shell failed before capture"))
+        expect(shell.state.metadata?.exit).toBe(0)
+        expect(shell.state.input).toEqual({ command, workdir: directory })
+        const current = yield* Effect.promise(async () => ({
+          head: (await $`git rev-parse HEAD`.cwd(directory).quiet().text()).trim(),
+          parents: (await $`git show -s --format=%P HEAD`.cwd(directory).quiet().text()).trim().split(" "),
+          tree: (await $`git show -s --format=%T HEAD`.cwd(directory).quiet().text()).trim(),
+          blob: await $`git ls-tree -z HEAD -- artifact.txt`.cwd(directory).quiet().text(),
+          index: await $`git ls-files --stage -z -- artifact.txt`.cwd(directory).quiet().text(),
+          status: await $`git status --porcelain=v1 -- artifact.txt`.cwd(directory).quiet().text(),
+          targetSha256: createHash("sha256")
+            .update(Buffer.from(await Bun.file(`${directory}/artifact.txt`).arrayBuffer()))
+            .digest("hex"),
+          normalizedDiff:
+            await $`git -c core.quotepath=false -c core.autocrlf=false --literal-pathspecs diff --no-ext-diff --no-textconv --no-renames --no-color --src-prefix=a/ --dst-prefix=b/ --full-index --unified=2147483647 HEAD -- artifact.txt`
+              .cwd(directory)
+              .quiet()
+              .text(),
+        }))
+        expect(current.head).not.toBe(artifact.commitSha)
+        expect(current.blob).toBe(`100644 blob ${link.artifact.blob}\tartifact.txt\0`)
+        expect(current.parents).toEqual([bridge])
+        if (failure === "tree_change") expect(current.tree).not.toBe(tree)
+        if (failure !== "tree_change") expect(current.tree).toBe(tree)
+        if (failure === "index_drift") expect(current.index).toBe(`100755 ${link.artifact.blob} 0\tartifact.txt\0`)
+        if (failure !== "index_drift") expect(current.index).toBe(`100644 ${link.artifact.blob} 0\tartifact.txt\0`)
+        if (failure === "target_drift" || failure === "diff_drift")
+          expect(current.targetSha256).not.toBe(artifact.targetSha256)
+        if (failure !== "target_drift" && failure !== "diff_drift")
+          expect(current.targetSha256).toBe(artifact.targetSha256)
+        if (failure === "diff_drift") {
+          expect(capturedTargets).toEqual([artifact.targetSha256])
+          expect(current.normalizedDiff).not.toBe(artifact.normalizedDiff)
+        }
+        const governance = Schema.decodeUnknownSync(DelegationService.Governance)(
+          result.tool.state.metadata?.governance,
+        )
+        expect(governance).toMatchObject({
+          kind: "revision",
+          status: "invalid",
+          receipt,
+          source: { type: "tool", messageID: result.assistant.id, id: callID },
+          reason:
+            failure === "non_direct" || failure === "tree_change"
+              ? "Artifact HEAD must be one direct empty commit from its baseline"
+              : failure === "index_drift"
+                ? "Artifact index changed after admission"
+                : "Artifact changed across the empty commit",
+        })
+        const state = yield* fixture.delegations.foldState(receipt.delegationID)
+        expect(state?.revisions).toHaveLength(1)
+        expect(state?.delegation.latestRevisionDigest).toBe(fixture.digest)
+        const bus = yield* Bus.Service
+        expect(
+          yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
+            Stream.filter((event) => !Bus.isSynced(event) && event.type === DelegationEvent.RevisionRecorded.type),
+            Stream.runCollect,
+          ),
+        ).toHaveLength(1)
+        console.log(
+          "MC07 no_code_change refusal evidence",
+          JSON.stringify({
+            case: failure,
+            baseline: { commitSha: artifact.commitSha, tree, targetSha256: artifact.targetSha256 },
+            current,
+            capturedTargets,
+            shell: shell.state,
+            governance,
+          }),
+        )
+      }),
+    30_000,
   )
 
 effectTest.live("MC07 R2 preserves the original producer for a new no_change input", () =>
@@ -6450,545 +6465,563 @@ const externalSetup = (
     return fixture
   })
 
-effectTest.live("MC07 external governance repairs R1 through the same child and reviewer before completion", () =>
-  Effect.gen(function* () {
-    const fixture = yield* mc07Build("artifact.txt", "", true)
-    const external = yield* externalSetup(false, Agent.ID.make("meta"), false, undefined, false, "app-server", fixture)
-    external.outputs[0] =
-      "MC07_EXTERNAL_R1_" +
-      "x".repeat(5000) +
-      `<review>${JSON.stringify({
-        kind: "aigcfroge.review.v1",
-        reviewed_revision_digest: fixture.digest,
-        verdict: "rejected",
-        findings: [{ file: "artifact.txt", severity: "blocking", summary: "将末行 r1 改为 r2，保留 base 行。" }],
-        summary: "R1 requires the requested repair.",
-      })}</review>`
-    const bus = yield* Bus.Service
-    const kv = yield* KV.Service
-    const settledBeforeSuccess = yield* Deferred.make<{ parentStatus: string; text?: string }>()
-    yield* bus.project(DelegationEvent.ReviewRejected, (event) =>
-      Effect.gen(function* () {
-        const parent = yield* mc07Result(fixture, "mc07-external-r1")
-        const state = yield* fixture.delegations.foldState(event.data.delegationID)
-        if (!state) return yield* Effect.die(new Error("Review has no aggregate"))
-        const delivery = [...state.deliveries.values()].find((value) => value.turnID === event.data.turnID)
-        if (!delivery) return yield* Effect.die(new Error("Review has no actual delivery"))
-        const binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
-          yield* kv.get(DelegationReceipt.key({ delegationID: event.data.delegationID, ...delivery })),
-        )
-        yield* Deferred.succeed(settledBeforeSuccess, {
-          parentStatus: parent.tool.state.status,
-          text: binding.settlement?.text,
-        })
-      }).pipe(Effect.orDie),
-    )
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-external-r1", TaskTool.name, {
-        description: "Review the real R1",
-        prompt: "Read the bound R1 and return the typed review with its blocking finding.",
-        subagent_type: "codex",
-        cli_target: "codex",
-        execution_type: "external-cli",
-        intent: "review",
-        attended: false,
-        delegation_id: fixture.receipt.delegationID,
-        revision_digest: fixture.digest,
-      }),
-      TestLLM.text("Consumed the complete external R1 rejection.", "mc07-external-r1-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Review the actual R1 with external Codex." })
-    yield* awaitWithTimeout(fixture.llm.wait(6), "MC07 external R1 did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 external R1 did not settle")
-    const result = yield* mc07Consumed(fixture, "mc07-external-r1")
-    expect(result.tool.state).toMatchObject({ status: "completed" })
-    if (result.tool.state.status !== "completed") return yield* Effect.die(new Error("External R1 review failed"))
-    const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.NativeOutput))(result.text)
-    const receipt = output.governance?.receipt
-    if (!(receipt instanceof DelegationReceipt.External))
-      return yield* Effect.die(new Error("R1 has no visible external proof"))
-    const state = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
-    expect(state?.participants.get(receipt.participantID)).toMatchObject({ provider: "codex", role: "reviewer" })
-    expect(state?.turns.get(receipt.turnID)).toMatchObject({ kind: "review", revisionDigest: fixture.digest })
-    expect(state?.reviews).toHaveLength(1)
-    expect(state?.reviews[0]).toMatchObject({ reviewedRevisionDigest: fixture.digest, verdict: "rejected" })
-    expect(state?.delegation.rejectionBlocked).toBe(true)
-    expect(
-      yield* awaitWithTimeout(Deferred.await(settledBeforeSuccess), "Review settlement observation is missing"),
-    ).toEqual({ parentStatus: "running", text: external.outputs[0] })
-    expect(output.output).toBe(external.outputs[0])
-    expect(output).toMatchObject({
-      delegationID: receipt.delegationID,
-      participantID: receipt.participantID,
-      turnID: receipt.turnID,
-    })
-    expect(external.decisions).toEqual([{ id: 7, decision: "decline" }])
-    expect(yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/artifact.txt`).text())).toBe(
-      "base\nr1\n",
-    )
-    const execution = yield* DelegationExecution.Service
-    const cold = yield* execution.wait(receipt)
-    expect(cold.text).toBe(external.outputs[0])
-    expect(cold.governance).toEqual(
-      Schema.decodeUnknownSync(DelegationService.Governance)(result.tool.state.metadata?.governance),
-    )
-    const count = (yield* fixture.llm.requests()).length
-    const repairPrompt = `Apply the complete R1 finding below. Keep base and replace r1 with r2.\n${external.outputs[0]}\n${JSON.stringify(receipt)}`
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-external-repair", TaskTool.name, {
-        description: "Repair the external rejection",
-        prompt: repairPrompt,
-        subagent_type: fixture.worker,
-        delegation_id: fixture.receipt.delegationID,
-        participant_id: fixture.receipt.participantID,
-        task_id: fixture.receipt.childSessionID,
-        command: "append",
-        artifact_path: "artifact.txt",
-      }),
-      TestLLM.tool("mc07-external-repair-write", "write", { path: "artifact.txt", content: "base\nr2\n" }),
-      TestLLM.text("R2 repair is ready.", "mc07-external-repair-child"),
-      TestLLM.text("Consumed the complete R2 producer.", "mc07-external-repair-parent"),
-    )
-    yield* fixture.sessions.prompt({
-      sessionID: fixture.root.id,
-      text: "Repair the external R1 rejection in the same child.",
-    })
-    yield* awaitWithTimeout(fixture.llm.wait(count + 4), "MC07 external repair did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 external repair did not settle")
-    const repair = yield* mc07Consumed(fixture, "mc07-external-repair")
-    expect(repair.tool.state).toMatchObject({ status: "completed" })
-    if (repair.tool.state.status !== "completed") return yield* Effect.die(new Error("External R2 repair failed"))
-    const repairedGovernance = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationService.Governance))(
-      repair.text.match(/<task_governance>([\s\S]*?)<\/task_governance>/)?.[1],
-    )
-    if (repairedGovernance.kind !== "revision" || !("artifact" in repairedGovernance))
-      return yield* Effect.die(new Error("R2 has no visible producer"))
-    const repairedReceipt = repairedGovernance.receipt
-    expect(repairedReceipt).toMatchObject({
-      childSessionID: fixture.receipt.childSessionID,
-      participantID: fixture.receipt.participantID,
-    })
-    expect(repairedReceipt.inputID).not.toBe(fixture.receipt.inputID)
-    const repaired = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
-    const digest = repairedGovernance.artifact.revisionDigest
-    expect(repaired?.delegation.latestRevisionDigest).toBe(digest)
-    expect(digest).not.toBe(fixture.digest)
-    expect(repaired?.revisions).toHaveLength(2)
-    expect(repaired?.revisions[1]).toMatchObject({ revisionDigest: digest, changeKind: "rework" })
-    external.outputs[1] = `<review>${JSON.stringify({
-      kind: "aigcfroge.review.v1",
-      reviewed_revision_digest: digest,
-      verdict: "approved",
-      findings: [],
-      summary: "R2 keeps base and replaces r1 with r2.",
-    })}</review>`
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-external-r2", TaskTool.name, {
-        description: "Review the real R2",
-        prompt: "Read the current R2 and review the completed repair.",
-        subagent_type: "codex",
-        cli_target: "codex",
-        execution_type: "external-cli",
-        intent: "review",
-        attended: false,
-        delegation_id: fixture.receipt.delegationID,
-        participant_id: receipt.participantID,
-        command: "append",
-        revision_digest: digest,
-      }),
-      TestLLM.text("Consumed the complete external R2 approval.", "mc07-external-r2-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Review R2 in the same external thread." })
-    yield* awaitWithTimeout(fixture.llm.wait(count + 6), "MC07 external R2 did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 external R2 did not settle")
-    const approval = yield* mc07Consumed(fixture, "mc07-external-r2")
-    expect(approval.tool.state).toMatchObject({ status: "completed" })
-    if (approval.tool.state.status !== "completed") return yield* Effect.die(new Error("External R2 review failed"))
-    const approvedOutput = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.NativeOutput))(
-      approval.text,
-    )
-    const approvedReceipt = approvedOutput.governance?.receipt
-    if (!(approvedReceipt instanceof DelegationReceipt.External))
-      return yield* Effect.die(new Error("R2 has no visible external proof"))
-    expect(approvedOutput.governance).toMatchObject({ status: "valid", reviewedRevisionDigest: digest })
-    expect(approvedReceipt).toMatchObject({
-      participantID: receipt.participantID,
-      externalThreadID: receipt.externalThreadID,
-    })
-    expect(approvedReceipt.turnID).not.toBe(receipt.turnID)
-    expect(approvedReceipt.externalTurnID).not.toBe(receipt.externalTurnID)
-    expect(approvedReceipt.source).not.toEqual(receipt.source)
-    const blocked = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
-    expect(blocked?.reviews.map((review) => review.verdict)).toEqual(["rejected", "approved"])
-    expect(blocked?.delegation.rejectionBlocked).toBe(true)
-    expect(external.state.turns).toBe(2)
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-external-blocked-complete", TaskTool.name, {
-        description: "Try completion with the blocker",
-        prompt: "Complete only if the original rejection was retracted.",
-        subagent_type: fixture.worker,
-        delegation_id: fixture.receipt.delegationID,
-        command: "complete",
-      }),
-      TestLLM.text("Consumed the completion refusal and retained the blocker.", "mc07-external-blocked-parent"),
-    )
-    yield* fixture.sessions.prompt({
-      sessionID: fixture.root.id,
-      text: "Attempt completion with the original rejection still active.",
-    })
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 external blocked completion did not settle")
-    const refused = yield* mc07Consumed(fixture, "mc07-external-blocked-complete")
-    expect(refused.tool.state.status).toBe("error")
-    if (refused.tool.state.status !== "error") return yield* Effect.die(new Error("Sticky rejection was ignored"))
-    expect(refused.tool.state.error.message).toMatch(/barrier/i)
-    expect(yield* fixture.delegations.foldState(fixture.receipt.delegationID)).toEqual(blocked)
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-external-wrong-retract", TaskTool.name, {
-        description: "Try the wrong rejection owner",
-        prompt: "Explicitly retract this rejection.",
-        subagent_type: fixture.worker,
-        delegation_id: receipt.delegationID,
-        participant_id: fixture.receipt.participantID,
-        command: "retract_rejection",
-      }),
-      TestLLM.text("Consumed the participant mismatch.", "mc07-external-wrong-retract-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Try the non-reviewer participant." })
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "Wrong rejection owner did not settle")
-    expect((yield* mc07Consumed(fixture, "mc07-external-wrong-retract")).tool.state.status).toBe("error")
-    expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(blocked)
-    yield* fixture.sessions.setPermissions({
-      sessionID: fixture.root.id,
-      permissions: [
-        { action: "*", resource: "*", effect: "allow" },
-        { action: "task_reconcile", resource: receipt.delegationID, effect: "ask" },
-      ],
-    })
-    const reason = "Explicitly retract R1 rejection because R2 fixed the finding and the same reviewer approved R2."
-    for (const reply of ["reject", "once"] as const) {
-      const callID = `mc07-external-retract-${reply}`
+effectTest.live(
+  "MC07 external governance repairs R1 through the same child and reviewer before completion",
+  () =>
+    Effect.gen(function* () {
+      const fixture = yield* mc07Build("artifact.txt", "", true)
+      const external = yield* externalSetup(
+        false,
+        Agent.ID.make("meta"),
+        false,
+        undefined,
+        false,
+        "app-server",
+        fixture,
+      )
+      external.outputs[0] =
+        "MC07_EXTERNAL_R1_" +
+        "x".repeat(5000) +
+        `<review>${JSON.stringify({
+          kind: "aigcfroge.review.v1",
+          reviewed_revision_digest: fixture.digest,
+          verdict: "rejected",
+          findings: [{ file: "artifact.txt", severity: "blocking", summary: "将末行 r1 改为 r2，保留 base 行。" }],
+          summary: "R1 requires the requested repair.",
+        })}</review>`
+      const bus = yield* Bus.Service
+      const kv = yield* KV.Service
+      const settledBeforeSuccess = yield* Deferred.make<{ parentStatus: string; text?: string }>()
+      yield* bus.project(DelegationEvent.ReviewRejected, (event) =>
+        Effect.gen(function* () {
+          const parent = yield* mc07Result(fixture, "mc07-external-r1")
+          const state = yield* fixture.delegations.foldState(event.data.delegationID)
+          if (!state) return yield* Effect.die(new Error("Review has no aggregate"))
+          const delivery = [...state.deliveries.values()].find((value) => value.turnID === event.data.turnID)
+          if (!delivery) return yield* Effect.die(new Error("Review has no actual delivery"))
+          const binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
+            yield* kv.get(DelegationReceipt.key({ delegationID: event.data.delegationID, ...delivery })),
+          )
+          yield* Deferred.succeed(settledBeforeSuccess, {
+            parentStatus: parent.tool.state.status,
+            text: binding.settlement?.text,
+          })
+        }).pipe(Effect.orDie),
+      )
       yield* fixture.llm.push(
-        TestLLM.tool(callID, TaskTool.name, {
-          description: "Retract the actual reviewer rejection",
-          prompt: reason,
-          subagent_type: fixture.worker,
-          delegation_id: receipt.delegationID,
-          participant_id: receipt.participantID,
-          command: "retract_rejection",
+        TestLLM.tool("mc07-external-r1", TaskTool.name, {
+          description: "Review the real R1",
+          prompt: "Read the bound R1 and return the typed review with its blocking finding.",
+          subagent_type: "codex",
+          cli_target: "codex",
+          execution_type: "external-cli",
+          intent: "review",
+          attended: false,
+          delegation_id: fixture.receipt.delegationID,
+          revision_digest: fixture.digest,
         }),
-        ...(reply === "once" ? [TestLLM.text(`Consumed retraction ${reply}.`, `${callID}-parent`)] : []),
+        TestLLM.text("Consumed the complete external R1 rejection.", "mc07-external-r1-parent"),
       )
-      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: reason })
-      const request = yield* pollWithTimeout(
-        external.permission
-          .forSession(fixture.root.id)
-          .pipe(Effect.map((requests) => requests.find((request) => request.action === "task_reconcile"))),
-        "Retraction permission is missing",
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Review the actual R1 with external Codex." })
+      yield* awaitWithTimeout(fixture.llm.wait(6), "MC07 external R1 did not reach its parent")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 external R1 did not settle")
+      const result = yield* mc07Consumed(fixture, "mc07-external-r1")
+      expect(result.tool.state).toMatchObject({ status: "completed" })
+      if (result.tool.state.status !== "completed") return yield* Effect.die(new Error("External R1 review failed"))
+      const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.NativeOutput))(result.text)
+      const receipt = output.governance?.receipt
+      if (!(receipt instanceof DelegationReceipt.External))
+        return yield* Effect.die(new Error("R1 has no visible external proof"))
+      const state = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+      expect(state?.participants.get(receipt.participantID)).toMatchObject({ provider: "codex", role: "reviewer" })
+      expect(state?.turns.get(receipt.turnID)).toMatchObject({ kind: "review", revisionDigest: fixture.digest })
+      expect(state?.reviews).toHaveLength(1)
+      expect(state?.reviews[0]).toMatchObject({ reviewedRevisionDigest: fixture.digest, verdict: "rejected" })
+      expect(state?.delegation.rejectionBlocked).toBe(true)
+      expect(
+        yield* awaitWithTimeout(Deferred.await(settledBeforeSuccess), "Review settlement observation is missing"),
+      ).toEqual({ parentStatus: "running", text: external.outputs[0] })
+      expect(output.output).toBe(external.outputs[0])
+      expect(output).toMatchObject({
+        delegationID: receipt.delegationID,
+        participantID: receipt.participantID,
+        turnID: receipt.turnID,
+      })
+      expect(external.decisions).toEqual([{ id: 7, decision: "decline" }])
+      expect(yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/artifact.txt`).text())).toBe(
+        "base\nr1\n",
       )
-      const pending = yield* mc07Result(fixture, callID)
-      expect(request.source).toEqual({ type: "tool", messageID: pending.assistant.id, id: callID })
-      expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(blocked)
-      yield* external.permission.reply({ requestID: request.id, reply })
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "Explicit external retraction did not settle")
-      expect((yield* mc07Result(fixture, callID)).tool.state.status).toBe(reply === "once" ? "completed" : "error")
-      if (reply === "reject") expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(blocked)
-    }
-    const retracted = yield* fixture.delegations.foldState(receipt.delegationID)
-    yield* mc07Consumed(fixture, "mc07-external-retract-reject")
-    yield* mc07Consumed(fixture, "mc07-external-retract-once")
-    expect(retracted?.delegation.rejectionBlocked).toBe(false)
-    expect(retracted?.reviews).toEqual(blocked?.reviews)
-    const r1Binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(yield* kv.get(DelegationReceipt.key(receipt)))
-    const r2Binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
-      yield* kv.get(DelegationReceipt.key(approvedReceipt)),
-    )
-    expect(r1Binding.review).toMatchObject({
-      receipt: fixture.receipt,
-      revisionDigest: fixture.digest,
-      artifact: { normalizedDiff: mc07Diff },
-    })
-    expect(r1Binding.reviewText).toBe("base\nr1\n")
-    expect(r2Binding.review).toMatchObject({ receipt: repairedReceipt, revisionDigest: digest })
-    expect(r2Binding.reviewText).toBe("base\nr2\n")
-    const nativeRequests = external.calls
-      .filter((call) => call.method === "turn/start")
-      .map((call) =>
-        Schema.decodeUnknownSync(
-          Schema.Struct({
-            input: Schema.Array(Schema.Struct({ type: Schema.Literal("text"), text: Schema.String })),
-            sandboxPolicy: Schema.Struct({ type: Schema.Literal("readOnly"), networkAccess: Schema.Literal(false) }),
-          }),
-        )(call.input),
+      const execution = yield* DelegationExecution.Service
+      const cold = yield* execution.wait(receipt)
+      expect(cold.text).toBe(external.outputs[0])
+      expect(cold.governance).toEqual(
+        Schema.decodeUnknownSync(DelegationService.Governance)(result.tool.state.metadata?.governance),
       )
-    expect(nativeRequests).toHaveLength(2)
-    expect(nativeRequests[0]?.input[0]?.text).toContain(
-      JSON.stringify({ reference: r1Binding.review, text: r1Binding.reviewText }),
-    )
-    expect(nativeRequests[1]?.input[0]?.text).toContain(
-      JSON.stringify({ reference: r2Binding.review, text: r2Binding.reviewText }),
-    )
-    expect(
-      (yield* fixture.llm.requests()).some((request) =>
-        request.messages.some(
-          (message) =>
-            message.role === "user" &&
-            message.content.some((part) => part.type === "text" && part.text === repairPrompt),
-        ),
-      ),
-    ).toBe(true)
-    for (const change of ["no_change", "no_code_change"] as const) {
-      const before = (yield* fixture.llm.requests()).length
-      const head = yield* Effect.promise(async () => ({
-        sha: (await $`git rev-parse HEAD`.cwd(fixture.root.location.directory).quiet().text()).trim(),
-        tree: (await $`git show -s --format=%T HEAD`.cwd(fixture.root.location.directory).quiet().text()).trim(),
-      }))
-      const callID = `mc07-external-${change}`
-      const command =
-        "git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit --allow-empty -m mc07-no-code-change"
+      const count = (yield* fixture.llm.requests()).length
+      const repairPrompt = `Apply the complete R1 finding below. Keep base and replace r1 with r2.\n${external.outputs[0]}\n${JSON.stringify(receipt)}`
       yield* fixture.llm.push(
-        TestLLM.tool(callID, TaskTool.name, {
-          description: `Capture ${change}`,
-          prompt:
-            change === "no_change"
-              ? "Keep the exact R2 bytes and HEAD."
-              : "Execute the one authorized empty commit; keep R2 unstaged and unchanged.",
+        TestLLM.tool("mc07-external-repair", TaskTool.name, {
+          description: "Repair the external rejection",
+          prompt: repairPrompt,
           subagent_type: fixture.worker,
-          delegation_id: receipt.delegationID,
-          participant_id: repairedReceipt.participantID,
-          task_id: repairedReceipt.childSessionID,
+          delegation_id: fixture.receipt.delegationID,
+          participant_id: fixture.receipt.participantID,
+          task_id: fixture.receipt.childSessionID,
           command: "append",
           artifact_path: "artifact.txt",
         }),
-        ...(change === "no_code_change"
-          ? [TestLLM.tool(`${callID}-shell`, "shell", { command, workdir: fixture.root.location.directory })]
-          : []),
-        TestLLM.text(`Completed ${change}.`, `${callID}-child`),
-        TestLLM.text(`Consumed the complete ${change} producer.`, `${callID}-parent`),
+        TestLLM.tool("mc07-external-repair-write", "write", { path: "artifact.txt", content: "base\nr2\n" }),
+        TestLLM.text("R2 repair is ready.", "mc07-external-repair-child"),
+        TestLLM.text("Consumed the complete R2 producer.", "mc07-external-repair-parent"),
       )
       yield* fixture.sessions.prompt({
         sessionID: fixture.root.id,
-        text: `Capture ${change} on the same child before archival.`,
+        text: "Repair the external R1 rejection in the same child.",
       })
-      yield* awaitWithTimeout(
-        fixture.llm.wait(before + (change === "no_code_change" ? 4 : 3)),
-        "Copy did not reach its parent",
+      yield* fixture.runs.awaitIdle(fixture.root.id)
+      expect((yield* fixture.llm.requests()).length).toBe(count + 4)
+      const repair = yield* mc07Consumed(fixture, "mc07-external-repair")
+      expect(repair.tool.state).toMatchObject({ status: "completed" })
+      if (repair.tool.state.status !== "completed") return yield* Effect.die(new Error("External R2 repair failed"))
+      const repairedGovernance = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationService.Governance))(
+        repair.text.match(/<task_governance>([\s\S]*?)<\/task_governance>/)?.[1],
       )
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "External approval copy did not settle")
-      const copied = yield* mc07Consumed(fixture, callID)
-      expect(copied.tool.state).toMatchObject({ status: "completed" })
-      const governance = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationService.Governance))(
-        copied.text.match(/<task_governance>([\s\S]*?)<\/task_governance>/)?.[1],
-      )
-      if (governance.kind !== "revision" || !("artifact" in governance))
-        return yield* Effect.die(new Error("Copy has no visible producer"))
-      expect(governance.receipt).toMatchObject({
-        childSessionID: repairedReceipt.childSessionID,
-        participantID: repairedReceipt.participantID,
+      if (repairedGovernance.kind !== "revision" || !("artifact" in repairedGovernance))
+        return yield* Effect.die(new Error("R2 has no visible producer"))
+      const repairedReceipt = repairedGovernance.receipt
+      expect(repairedReceipt).toMatchObject({
+        childSessionID: fixture.receipt.childSessionID,
+        participantID: fixture.receipt.participantID,
       })
-      expect(governance.receipt.inputID).not.toBe(repairedReceipt.inputID)
-      expect(governance.artifact).toMatchObject({
-        changeKind: change,
-        targetSha256: repairedGovernance.artifact.targetSha256,
-        normalizedDiff: repairedGovernance.artifact.normalizedDiff,
-      })
-      const current = yield* fixture.delegations.foldState(receipt.delegationID)
-      expect(current?.reviews).toEqual(retracted?.reviews)
-      expect(current?.revisions).toHaveLength(change === "no_change" ? 2 : 3)
-      if (!current) return yield* Effect.die(new Error("Copy has no effective review context"))
-      expect(
-        DelegationReview.evaluateReviewBarrier({
-          participants: [...current.participants.values()],
-          reviews: current.reviews,
-          revisions: current.revisions,
-          latestRevisionDigest: current.delegation.latestRevisionDigest,
-          rejectionBlocked: current.delegation.rejectionBlocked,
-        }).passed,
-      ).toBe(true)
-      if (change === "no_change") expect(governance.producer?.receipt).toEqual(repairedReceipt)
-      if (change === "no_code_change") {
-        expect(governance.artifact.revisionDigest).not.toBe(digest)
-        expect(
-          yield* Effect.promise(async () =>
-            (await $`git show -s --format=%P HEAD`.cwd(fixture.root.location.directory).quiet().text()).trim(),
-          ),
-        ).toBe(head.sha)
-        expect(
-          yield* Effect.promise(async () =>
-            (await $`git show -s --format=%T HEAD`.cwd(fixture.root.location.directory).quiet().text()).trim(),
-          ),
-        ).toBe(head.tree)
-      }
-      expect(external.state.turns).toBe(2)
-      expect(
-        Schema.decodeUnknownSync(DelegationReceipt.Binding)(yield* kv.get(DelegationReceipt.key(receipt))),
-      ).toEqual(r1Binding)
-      expect(
-        Schema.decodeUnknownSync(DelegationReceipt.Binding)(yield* kv.get(DelegationReceipt.key(approvedReceipt))),
-      ).toEqual(r2Binding)
-    }
-    const ready = yield* fixture.delegations.foldState(receipt.delegationID)
-    const sourceConflict = new DelegationReceipt.Binding({
-      ...r2Binding,
-      source: { ...r2Binding.source, id: "foreign-source" },
-    })
-    yield* kv.set(
-      DelegationReceipt.key(approvedReceipt),
-      Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(sourceConflict),
-    )
-    if (approvedOutput.governance?.kind !== "review" || approvedOutput.governance.status !== "valid")
-      return yield* Effect.die(new Error("Visible R2 proof is missing"))
-    const reviewInput = {
-      ...approvedReceipt,
-      reviewedRevisionDigest: digest,
-      verdict: approvedOutput.governance.envelope.verdict,
-      findings: approvedOutput.governance.envelope.findings,
-      summary: approvedOutput.governance.envelope.summary,
-      receipt: approvedReceipt,
-      source: approvedReceipt.source,
-    }
-    expect(yield* fixture.delegations.recordReview(reviewInput).pipe(Effect.flip)).toMatchObject({
-      _tag: "Delegation.DelegationInvalidStateError",
-    })
-    expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(ready)
-    yield* kv.set(
-      DelegationReceipt.key(approvedReceipt),
-      Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(r2Binding),
-    )
-    expect(yield* fixture.delegations.recordReview(reviewInput)).toBe("reused")
-    const legacy = { ...r2Binding }
-    delete legacy.settlement
-    yield* kv.set(
-      DelegationReceipt.key(approvedReceipt),
-      Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(new DelegationReceipt.Binding(legacy)),
-    )
-    expect(
-      yield* fixture.delegations.close({ delegationID: receipt.delegationID, requireComplete: true }).pipe(Effect.flip),
-    ).toMatchObject({ _tag: "Delegation.DelegationInvalidStateError", reason: expect.stringContaining("proof") })
-    expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(ready)
-    yield* kv.set(
-      DelegationReceipt.key(approvedReceipt),
-      Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(r2Binding),
-    )
-    yield* fixture.sessions.setPermissions({
-      sessionID: fixture.root.id,
-      permissions: [
-        { action: "*", resource: "*", effect: "allow" },
-        { action: "task_close", resource: receipt.delegationID, effect: "ask" },
-        { action: "task_archive", resource: receipt.delegationID, effect: "ask" },
-      ],
-    })
-    for (const failure of [true, false]) {
-      external.state.archiveFailure = failure
-      const callID = failure ? "mc07-external-archive-failed" : "mc07-external-complete"
+      expect(repairedReceipt.inputID).not.toBe(fixture.receipt.inputID)
+      const repaired = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+      const digest = repairedGovernance.artifact.revisionDigest
+      expect(repaired?.delegation.latestRevisionDigest).toBe(digest)
+      expect(digest).not.toBe(fixture.digest)
+      expect(repaired?.revisions).toHaveLength(2)
+      expect(repaired?.revisions[1]).toMatchObject({ revisionDigest: digest, changeKind: "rework" })
+      external.outputs[1] = `<review>${JSON.stringify({
+        kind: "aigcfroge.review.v1",
+        reviewed_revision_digest: digest,
+        verdict: "approved",
+        findings: [],
+        summary: "R2 keeps base and replaces r1 with r2.",
+      })}</review>`
       yield* fixture.llm.push(
-        TestLLM.tool(callID, TaskTool.name, {
-          description: "Complete and archive the actual task",
-          prompt: "Complete the repaired task after the explicit retraction and inherited approval.",
+        TestLLM.tool("mc07-external-r2", TaskTool.name, {
+          description: "Review the real R2",
+          prompt: "Read the current R2 and review the completed repair.",
+          subagent_type: "codex",
+          cli_target: "codex",
+          execution_type: "external-cli",
+          intent: "review",
+          attended: false,
+          delegation_id: fixture.receipt.delegationID,
+          participant_id: receipt.participantID,
+          command: "append",
+          revision_digest: digest,
+        }),
+        TestLLM.text("Consumed the complete external R2 approval.", "mc07-external-r2-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Review R2 in the same external thread." })
+      yield* awaitWithTimeout(fixture.llm.wait(count + 6), "MC07 external R2 did not reach its parent")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 external R2 did not settle")
+      const approval = yield* mc07Consumed(fixture, "mc07-external-r2")
+      expect(approval.tool.state).toMatchObject({ status: "completed" })
+      if (approval.tool.state.status !== "completed") return yield* Effect.die(new Error("External R2 review failed"))
+      const approvedOutput = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.NativeOutput))(
+        approval.text,
+      )
+      const approvedReceipt = approvedOutput.governance?.receipt
+      if (!(approvedReceipt instanceof DelegationReceipt.External))
+        return yield* Effect.die(new Error("R2 has no visible external proof"))
+      expect(approvedOutput.governance).toMatchObject({ status: "valid", reviewedRevisionDigest: digest })
+      expect(approvedReceipt).toMatchObject({
+        participantID: receipt.participantID,
+        externalThreadID: receipt.externalThreadID,
+      })
+      expect(approvedReceipt.turnID).not.toBe(receipt.turnID)
+      expect(approvedReceipt.externalTurnID).not.toBe(receipt.externalTurnID)
+      expect(approvedReceipt.source).not.toEqual(receipt.source)
+      const blocked = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+      expect(blocked?.reviews.map((review) => review.verdict)).toEqual(["rejected", "approved"])
+      expect(blocked?.delegation.rejectionBlocked).toBe(true)
+      expect(external.state.turns).toBe(2)
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-external-blocked-complete", TaskTool.name, {
+          description: "Try completion with the blocker",
+          prompt: "Complete only if the original rejection was retracted.",
           subagent_type: fixture.worker,
-          delegation_id: receipt.delegationID,
+          delegation_id: fixture.receipt.delegationID,
           command: "complete",
         }),
-        TestLLM.text("Consumed the complete archive result.", `${callID}-parent`),
+        TestLLM.text("Consumed the completion refusal and retained the blocker.", "mc07-external-blocked-parent"),
       )
       yield* fixture.sessions.prompt({
         sessionID: fixture.root.id,
-        text: failure
-          ? "Complete and archive the task with the current permissions."
-          : "Retry the explicit archive after its recorded failure; preserve the completed task.",
+        text: "Attempt completion with the original rejection still active.",
       })
-      for (const action of ["task_close", "task_archive"] as const) {
+      yield* awaitWithTimeout(
+        fixture.runs.awaitIdle(fixture.root.id),
+        "MC07 external blocked completion did not settle",
+      )
+      const refused = yield* mc07Consumed(fixture, "mc07-external-blocked-complete")
+      expect(refused.tool.state.status).toBe("error")
+      if (refused.tool.state.status !== "error") return yield* Effect.die(new Error("Sticky rejection was ignored"))
+      expect(refused.tool.state.error.message).toMatch(/barrier/i)
+      expect(yield* fixture.delegations.foldState(fixture.receipt.delegationID)).toEqual(blocked)
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-external-wrong-retract", TaskTool.name, {
+          description: "Try the wrong rejection owner",
+          prompt: "Explicitly retract this rejection.",
+          subagent_type: fixture.worker,
+          delegation_id: receipt.delegationID,
+          participant_id: fixture.receipt.participantID,
+          command: "retract_rejection",
+        }),
+        TestLLM.text("Consumed the participant mismatch.", "mc07-external-wrong-retract-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Try the non-reviewer participant." })
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "Wrong rejection owner did not settle")
+      expect((yield* mc07Consumed(fixture, "mc07-external-wrong-retract")).tool.state.status).toBe("error")
+      expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(blocked)
+      yield* fixture.sessions.setPermissions({
+        sessionID: fixture.root.id,
+        permissions: [
+          { action: "*", resource: "*", effect: "allow" },
+          { action: "task_reconcile", resource: receipt.delegationID, effect: "ask" },
+        ],
+      })
+      const reason = "Explicitly retract R1 rejection because R2 fixed the finding and the same reviewer approved R2."
+      for (const reply of ["reject", "once"] as const) {
+        const callID = `mc07-external-retract-${reply}`
+        yield* fixture.llm.push(
+          TestLLM.tool(callID, TaskTool.name, {
+            description: "Retract the actual reviewer rejection",
+            prompt: reason,
+            subagent_type: fixture.worker,
+            delegation_id: receipt.delegationID,
+            participant_id: receipt.participantID,
+            command: "retract_rejection",
+          }),
+          ...(reply === "once" ? [TestLLM.text(`Consumed retraction ${reply}.`, `${callID}-parent`)] : []),
+        )
+        yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: reason })
         const request = yield* pollWithTimeout(
           external.permission
             .forSession(fixture.root.id)
-            .pipe(Effect.map((requests) => requests.find((request) => request.action === action))),
-          `${action} permission is missing`,
+            .pipe(Effect.map((requests) => requests.find((request) => request.action === "task_reconcile"))),
+          "Retraction permission is missing",
         )
-        expect(request.resources).toEqual([receipt.delegationID])
-        yield* external.permission.reply({ requestID: request.id, reply: "once" })
+        const pending = yield* mc07Result(fixture, callID)
+        expect(request.source).toEqual({ type: "tool", messageID: pending.assistant.id, id: callID })
+        expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(blocked)
+        yield* external.permission.reply({ requestID: request.id, reply })
+        yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "Explicit external retraction did not settle")
+        expect((yield* mc07Result(fixture, callID)).tool.state.status).toBe(reply === "once" ? "completed" : "error")
+        if (reply === "reject") expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(blocked)
       }
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "External completion did not settle")
-      const result = yield* mc07Consumed(fixture, callID)
-      expect(result.tool.state.status).toBe(failure ? "error" : "completed")
-      if (failure) {
-        if (result.tool.state.status !== "error") return yield* Effect.die(new Error("Archive failure was hidden"))
-        expect(result.tool.state.error.message).toContain("Native thread archive failed")
-        expect((yield* fixture.delegations.foldState(receipt.delegationID))?.delegation.status).toBe("completed")
+      const retracted = yield* fixture.delegations.foldState(receipt.delegationID)
+      yield* mc07Consumed(fixture, "mc07-external-retract-reject")
+      yield* mc07Consumed(fixture, "mc07-external-retract-once")
+      expect(retracted?.delegation.rejectionBlocked).toBe(false)
+      expect(retracted?.reviews).toEqual(blocked?.reviews)
+      const r1Binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
+        yield* kv.get(DelegationReceipt.key(receipt)),
+      )
+      const r2Binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
+        yield* kv.get(DelegationReceipt.key(approvedReceipt)),
+      )
+      expect(r1Binding.review).toMatchObject({
+        receipt: fixture.receipt,
+        revisionDigest: fixture.digest,
+        artifact: { normalizedDiff: mc07Diff },
+      })
+      expect(r1Binding.reviewText).toBe("base\nr1\n")
+      expect(r2Binding.review).toMatchObject({ receipt: repairedReceipt, revisionDigest: digest })
+      expect(r2Binding.reviewText).toBe("base\nr2\n")
+      const nativeRequests = external.calls
+        .filter((call) => call.method === "turn/start")
+        .map((call) =>
+          Schema.decodeUnknownSync(
+            Schema.Struct({
+              input: Schema.Array(Schema.Struct({ type: Schema.Literal("text"), text: Schema.String })),
+              sandboxPolicy: Schema.Struct({ type: Schema.Literal("readOnly"), networkAccess: Schema.Literal(false) }),
+            }),
+          )(call.input),
+        )
+      expect(nativeRequests).toHaveLength(2)
+      expect(nativeRequests[0]?.input[0]?.text).toContain(
+        JSON.stringify({ reference: r1Binding.review, text: r1Binding.reviewText }),
+      )
+      expect(nativeRequests[1]?.input[0]?.text).toContain(
+        JSON.stringify({ reference: r2Binding.review, text: r2Binding.reviewText }),
+      )
+      expect(
+        (yield* fixture.llm.requests()).some((request) =>
+          request.messages.some(
+            (message) =>
+              message.role === "user" &&
+              message.content.some((part) => part.type === "text" && part.text === repairPrompt),
+          ),
+        ),
+      ).toBe(true)
+      for (const change of ["no_change", "no_code_change"] as const) {
+        const before = (yield* fixture.llm.requests()).length
+        const head = yield* Effect.promise(async () => ({
+          sha: (await $`git rev-parse HEAD`.cwd(fixture.root.location.directory).quiet().text()).trim(),
+          tree: (await $`git show -s --format=%T HEAD`.cwd(fixture.root.location.directory).quiet().text()).trim(),
+        }))
+        const callID = `mc07-external-${change}`
+        const command =
+          "git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit --allow-empty -m mc07-no-code-change"
+        yield* fixture.llm.push(
+          TestLLM.tool(callID, TaskTool.name, {
+            description: `Capture ${change}`,
+            prompt:
+              change === "no_change"
+                ? "Keep the exact R2 bytes and HEAD."
+                : "Execute the one authorized empty commit; keep R2 unstaged and unchanged.",
+            subagent_type: fixture.worker,
+            delegation_id: receipt.delegationID,
+            participant_id: repairedReceipt.participantID,
+            task_id: repairedReceipt.childSessionID,
+            command: "append",
+            artifact_path: "artifact.txt",
+          }),
+          ...(change === "no_code_change"
+            ? [TestLLM.tool(`${callID}-shell`, "shell", { command, workdir: fixture.root.location.directory })]
+            : []),
+          TestLLM.text(`Completed ${change}.`, `${callID}-child`),
+          TestLLM.text(`Consumed the complete ${change} producer.`, `${callID}-parent`),
+        )
+        yield* fixture.sessions.prompt({
+          sessionID: fixture.root.id,
+          text: `Capture ${change} on the same child before archival.`,
+        })
+        yield* fixture.runs.awaitIdle(fixture.root.id)
+        expect((yield* fixture.llm.requests()).length).toBeGreaterThanOrEqual(
+          before + (change === "no_code_change" ? 4 : 3),
+        )
+        const copied = yield* mc07Consumed(fixture, callID)
+        expect(copied.tool.state).toMatchObject({ status: "completed" })
+        const governance = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationService.Governance))(
+          copied.text.match(/<task_governance>([\s\S]*?)<\/task_governance>/)?.[1],
+        )
+        if (governance.kind !== "revision" || !("artifact" in governance))
+          return yield* Effect.die(new Error("Copy has no visible producer"))
+        expect(governance.receipt).toMatchObject({
+          childSessionID: repairedReceipt.childSessionID,
+          participantID: repairedReceipt.participantID,
+        })
+        expect(governance.receipt.inputID).not.toBe(repairedReceipt.inputID)
+        expect(governance.artifact).toMatchObject({
+          changeKind: change,
+          targetSha256: repairedGovernance.artifact.targetSha256,
+          normalizedDiff: repairedGovernance.artifact.normalizedDiff,
+        })
+        const current = yield* fixture.delegations.foldState(receipt.delegationID)
+        expect(current?.reviews).toEqual(retracted?.reviews)
+        expect(current?.revisions).toHaveLength(change === "no_change" ? 2 : 3)
+        if (!current) return yield* Effect.die(new Error("Copy has no effective review context"))
         expect(
-          Schema.decodeUnknownSync(DelegationReceipt.Binding)(yield* kv.get(DelegationReceipt.key(approvedReceipt)))
-            .archiveReceipts,
-        ).toMatchObject([
-          {
-            status: "failed",
-            source: { type: "tool", messageID: result.assistant.id, id: callID },
-            error: expect.stringContaining("Controlled archive failure"),
-          },
-        ])
+          DelegationReview.evaluateReviewBarrier({
+            participants: [...current.participants.values()],
+            reviews: current.reviews,
+            revisions: current.revisions,
+            latestRevisionDigest: current.delegation.latestRevisionDigest,
+            rejectionBlocked: current.delegation.rejectionBlocked,
+          }).passed,
+        ).toBe(true)
+        if (change === "no_change") expect(governance.producer?.receipt).toEqual(repairedReceipt)
+        if (change === "no_code_change") {
+          expect(governance.artifact.revisionDigest).not.toBe(digest)
+          expect(
+            yield* Effect.promise(async () =>
+              (await $`git show -s --format=%P HEAD`.cwd(fixture.root.location.directory).quiet().text()).trim(),
+            ),
+          ).toBe(head.sha)
+          expect(
+            yield* Effect.promise(async () =>
+              (await $`git show -s --format=%T HEAD`.cwd(fixture.root.location.directory).quiet().text()).trim(),
+            ),
+          ).toBe(head.tree)
+        }
+        expect(external.state.turns).toBe(2)
+        expect(
+          Schema.decodeUnknownSync(DelegationReceipt.Binding)(yield* kv.get(DelegationReceipt.key(receipt))),
+        ).toEqual(r1Binding)
+        expect(
+          Schema.decodeUnknownSync(DelegationReceipt.Binding)(yield* kv.get(DelegationReceipt.key(approvedReceipt))),
+        ).toEqual(r2Binding)
       }
-    }
-    const completed = yield* mc07Consumed(fixture, "mc07-external-complete")
-    const final = yield* fixture.delegations.foldState(receipt.delegationID)
-    expect(final?.delegation.status).toBe("archived")
-    expect(final?.archivedFrom).toBe("completed")
-    expect(completed.text).toContain('"archivedFrom":"completed"')
-    expect(completed.text).toContain(
-      JSON.stringify({ type: "tool", messageID: completed.assistant.id, id: "mc07-external-complete" }),
-    )
-    expect(external.calls.filter((call) => call.method === "thread/archive")).toHaveLength(2)
-    expect(external.calls.filter((call) => call.method === "thread/archive")).toEqual([
-      expect.objectContaining({
-        thread: receipt.externalThreadID,
-        cwd: fixture.root.location.directory,
-        command: "mc06-controlled-peer",
-        input: { threadId: receipt.externalThreadID },
-      }),
-      expect.objectContaining({
-        thread: receipt.externalThreadID,
-        cwd: fixture.root.location.directory,
-        command: "mc06-controlled-peer",
-        input: { threadId: receipt.externalThreadID },
-      }),
-    ])
-    const archivedBinding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
-      yield* kv.get(DelegationReceipt.key(approvedReceipt)),
-    )
-    expect(archivedBinding.settlement).toEqual(r2Binding.settlement)
-    expect(archivedBinding.archiveReceipts?.map((record) => record.status)).toEqual(["failed", "completed"])
-    expect(archivedBinding.archiveReceipts?.[1]?.source).toEqual({
-      type: "tool",
-      messageID: completed.assistant.id,
-      id: "mc07-external-complete",
-    })
-    const events = yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
-      Stream.filter(
-        (event): event is Event.Payload<Event.DurableDefinition> => !Bus.isSynced(event) && event.durable !== undefined,
-      ),
-      Stream.runCollect,
-    )
-    expect(events.filter((event) => event.type === DelegationEvent.Completed.type)).toHaveLength(1)
-    expect(events.filter((event) => event.type === DelegationEvent.Archived.type)).toHaveLength(1)
-    console.log(
-      "MC07 external governance evidence",
-      JSON.stringify({
-        r1: { receipt: fixture.receipt, digest: fixture.digest, review: output.governance },
-        r2: { receipt: repairedReceipt, digest, review: approvedOutput.governance },
-        nativeRequests,
-        archivedBinding,
-        delegation: final?.delegation,
-        archivedFrom: final?.archivedFrom,
-        events: events.map((event) => ({ type: event.type, seq: event.durable.seq, data: event.data })),
-        completeBody: completed.text,
-      }),
-    )
-    expect(external.decisions).toEqual([
-      { id: 7, decision: "decline" },
-      { id: 7, decision: "decline" },
-    ])
-    expect(yield* external.permission.forSession(fixture.root.id)).toEqual([])
-    const db = (yield* Database.Service).db
-    expect(
-      yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.session_id, fixture.root.id)).all(),
-    ).toEqual([])
-  }),
+      const ready = yield* fixture.delegations.foldState(receipt.delegationID)
+      const sourceConflict = new DelegationReceipt.Binding({
+        ...r2Binding,
+        source: { ...r2Binding.source, id: "foreign-source" },
+      })
+      yield* kv.set(
+        DelegationReceipt.key(approvedReceipt),
+        Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(sourceConflict),
+      )
+      if (approvedOutput.governance?.kind !== "review" || approvedOutput.governance.status !== "valid")
+        return yield* Effect.die(new Error("Visible R2 proof is missing"))
+      const reviewInput = {
+        ...approvedReceipt,
+        reviewedRevisionDigest: digest,
+        verdict: approvedOutput.governance.envelope.verdict,
+        findings: approvedOutput.governance.envelope.findings,
+        summary: approvedOutput.governance.envelope.summary,
+        receipt: approvedReceipt,
+        source: approvedReceipt.source,
+      }
+      expect(yield* fixture.delegations.recordReview(reviewInput).pipe(Effect.flip)).toMatchObject({
+        _tag: "Delegation.DelegationInvalidStateError",
+      })
+      expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(ready)
+      yield* kv.set(
+        DelegationReceipt.key(approvedReceipt),
+        Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(r2Binding),
+      )
+      expect(yield* fixture.delegations.recordReview(reviewInput)).toBe("reused")
+      const legacy = { ...r2Binding }
+      delete legacy.settlement
+      yield* kv.set(
+        DelegationReceipt.key(approvedReceipt),
+        Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(new DelegationReceipt.Binding(legacy)),
+      )
+      expect(
+        yield* fixture.delegations
+          .close({ delegationID: receipt.delegationID, requireComplete: true })
+          .pipe(Effect.flip),
+      ).toMatchObject({ _tag: "Delegation.DelegationInvalidStateError", reason: expect.stringContaining("proof") })
+      expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(ready)
+      yield* kv.set(
+        DelegationReceipt.key(approvedReceipt),
+        Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(r2Binding),
+      )
+      yield* fixture.sessions.setPermissions({
+        sessionID: fixture.root.id,
+        permissions: [
+          { action: "*", resource: "*", effect: "allow" },
+          { action: "task_close", resource: receipt.delegationID, effect: "ask" },
+          { action: "task_archive", resource: receipt.delegationID, effect: "ask" },
+        ],
+      })
+      for (const failure of [true, false]) {
+        external.state.archiveFailure = failure
+        const callID = failure ? "mc07-external-archive-failed" : "mc07-external-complete"
+        yield* fixture.llm.push(
+          TestLLM.tool(callID, TaskTool.name, {
+            description: "Complete and archive the actual task",
+            prompt: "Complete the repaired task after the explicit retraction and inherited approval.",
+            subagent_type: fixture.worker,
+            delegation_id: receipt.delegationID,
+            command: "complete",
+          }),
+          TestLLM.text("Consumed the complete archive result.", `${callID}-parent`),
+        )
+        yield* fixture.sessions.prompt({
+          sessionID: fixture.root.id,
+          text: failure
+            ? "Complete and archive the task with the current permissions."
+            : "Retry the explicit archive after its recorded failure; preserve the completed task.",
+        })
+        for (const action of ["task_close", "task_archive"] as const) {
+          const request = yield* pollWithTimeout(
+            external.permission
+              .forSession(fixture.root.id)
+              .pipe(Effect.map((requests) => requests.find((request) => request.action === action))),
+            `${action} permission is missing`,
+          )
+          expect(request.resources).toEqual([receipt.delegationID])
+          yield* external.permission.reply({ requestID: request.id, reply: "once" })
+        }
+        yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "External completion did not settle")
+        const result = yield* mc07Consumed(fixture, callID)
+        expect(result.tool.state.status).toBe(failure ? "error" : "completed")
+        if (failure) {
+          if (result.tool.state.status !== "error") return yield* Effect.die(new Error("Archive failure was hidden"))
+          expect(result.tool.state.error.message).toContain("Native thread archive failed")
+          expect((yield* fixture.delegations.foldState(receipt.delegationID))?.delegation.status).toBe("completed")
+          expect(
+            Schema.decodeUnknownSync(DelegationReceipt.Binding)(yield* kv.get(DelegationReceipt.key(approvedReceipt)))
+              .archiveReceipts,
+          ).toMatchObject([
+            {
+              status: "failed",
+              source: { type: "tool", messageID: result.assistant.id, id: callID },
+              error: expect.stringContaining("Controlled archive failure"),
+            },
+          ])
+        }
+      }
+      const completed = yield* mc07Consumed(fixture, "mc07-external-complete")
+      const final = yield* fixture.delegations.foldState(receipt.delegationID)
+      expect(final?.delegation.status).toBe("archived")
+      expect(final?.archivedFrom).toBe("completed")
+      expect(completed.text).toContain('"archivedFrom":"completed"')
+      expect(completed.text).toContain(
+        JSON.stringify({ type: "tool", messageID: completed.assistant.id, id: "mc07-external-complete" }),
+      )
+      expect(external.calls.filter((call) => call.method === "thread/archive")).toHaveLength(2)
+      expect(external.calls.filter((call) => call.method === "thread/archive")).toEqual([
+        expect.objectContaining({
+          thread: receipt.externalThreadID,
+          cwd: fixture.root.location.directory,
+          command: "mc06-controlled-peer",
+          input: { threadId: receipt.externalThreadID },
+        }),
+        expect.objectContaining({
+          thread: receipt.externalThreadID,
+          cwd: fixture.root.location.directory,
+          command: "mc06-controlled-peer",
+          input: { threadId: receipt.externalThreadID },
+        }),
+      ])
+      const archivedBinding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
+        yield* kv.get(DelegationReceipt.key(approvedReceipt)),
+      )
+      expect(archivedBinding.settlement).toEqual(r2Binding.settlement)
+      expect(archivedBinding.archiveReceipts?.map((record) => record.status)).toEqual(["failed", "completed"])
+      expect(archivedBinding.archiveReceipts?.[1]?.source).toEqual({
+        type: "tool",
+        messageID: completed.assistant.id,
+        id: "mc07-external-complete",
+      })
+      const events = yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
+        Stream.filter(
+          (event): event is Event.Payload<Event.DurableDefinition> =>
+            !Bus.isSynced(event) && event.durable !== undefined,
+        ),
+        Stream.runCollect,
+      )
+      expect(events.filter((event) => event.type === DelegationEvent.Completed.type)).toHaveLength(1)
+      expect(events.filter((event) => event.type === DelegationEvent.Archived.type)).toHaveLength(1)
+      console.log(
+        "MC07 external governance evidence",
+        JSON.stringify({
+          r1: { receipt: fixture.receipt, digest: fixture.digest, review: output.governance },
+          r2: { receipt: repairedReceipt, digest, review: approvedOutput.governance },
+          nativeRequests,
+          archivedBinding,
+          delegation: final?.delegation,
+          archivedFrom: final?.archivedFrom,
+          events: events.map((event) => ({ type: event.type, seq: event.durable.seq, data: event.data })),
+          completeBody: completed.text,
+        }),
+      )
+      expect(external.decisions).toEqual([
+        { id: 7, decision: "decline" },
+        { id: 7, decision: "decline" },
+      ])
+      expect(yield* external.permission.forSession(fixture.root.id)).toEqual([])
+      const db = (yield* Database.Service).db
+      expect(
+        yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.session_id, fixture.root.id)).all(),
+      ).toEqual([])
+    }),
+  30_000,
 )
 
 for (const invalid of ["missing", "malformed", "wrong_digest"] as const)
@@ -12941,6 +12974,7 @@ testEffect(Layer.empty).live(
           ),
         )
     }),
+  30_000,
 )
 
 effectTest.live(

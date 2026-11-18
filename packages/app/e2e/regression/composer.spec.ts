@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test"
 import { Schema } from "effect"
 import { NO_PROVIDER, SERVER, T0, provider, sessionHref } from "../utils/app"
 import { mockWorkspace, openDraft, openSession } from "../utils/workspace"
-import { openSidePanel } from "../utils/side-panel"
+import { attachSession } from "../utils/side-panel"
 import { installSseTransport } from "../utils/sse-transport"
 import { expectSessionTitle } from "../utils/waits"
 
@@ -67,13 +67,7 @@ test("SC03 keeps a target draft and attachments after its Shell closes and resto
   await main.locator('[data-component="composer-editor"]').fill("Source draft stays A")
 
   const attach = async () => {
-    await openSidePanel(page, "Task delegation")
-
-    const root = page
-      .locator('[data-slot="session-content-source"]')
-      .filter({ has: page.getByText(targetID, { exact: true }) })
-
-    await root.getByRole("button", { name: "Attach session", exact: true }).click()
+    await attachSession(page, { server: SERVER, sessionID: targetID, title: "Target B" })
     await expect(side.locator('[data-component="composer-editor"]')).toBeEditable()
   }
 
@@ -238,14 +232,11 @@ test("SC03 recovers target history and keeps source Find and root navigation iso
     )
 
   const attach = async (sessionID: string) => {
-    await openSidePanel(page, "Task delegation")
-
-    const source = page
-      .locator('[data-slot="session-content-source"]')
-      .filter({ has: page.getByText(sessionID, { exact: true }) })
-
-    await expect(source).toHaveCount(1)
-    await source.getByRole("button", { name: "Attach session", exact: true }).click()
+    await attachSession(page, {
+      server: SERVER,
+      sessionID,
+      title: sessionID === failedID ? "Recovery target A" : "Recovery target B",
+    })
   }
 
   await page.keyboard.press("ControlOrMeta+f")

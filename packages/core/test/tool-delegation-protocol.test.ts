@@ -140,13 +140,16 @@ describe("generate_delegation_protocol registered tool", () => {
       yield* f.agents.transform((editor) => {
         editor.update(Agent.ID.make("no-card"), (info) => {
           info.mode = "all"
+          info.originKind = "builtin"
         })
         editor.update(Agent.ID.make("no-protocol"), (info) => {
           info.mode = "all"
+          info.originKind = "builtin"
           info.card = { capabilities: ["review"], constraints: [] }
         })
         editor.update(Agent.ID.make("broken"), (info) => {
           info.mode = "all"
+          info.originKind = "builtin"
           info.card = { _tag: "InvalidCard", reason: "empty_protocol" }
         })
       })

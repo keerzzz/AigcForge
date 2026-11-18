@@ -33,7 +33,7 @@ import { LocationQuery } from "@aigcfroge/protocol/groups/location"
 import { WorkspaceRoutingQuery, WorkspaceRoutingQueryFields } from "@aigcfroge/protocol/middleware/workspace-routing"
 import { LegacyDelegationState } from "@aigcfroge/protocol/groups/delegation"
 import { QueryBoolean } from "@aigcfroge/protocol/groups/query"
-import { AgentAssetListQuery } from "@aigcfroge/protocol/groups/agent-asset"
+import { AgentAssetContentQuery, AgentAssetListQuery } from "@aigcfroge/protocol/groups/agent-asset"
 import { WorkflowAssetContentQuery, WorkflowAssetListQuery } from "@aigcfroge/protocol/groups/workflow-asset"
 import {
   CustomProfileApplyPayload,
@@ -176,6 +176,13 @@ const Group = HttpApiGroup.make("mock")
     }),
   )
   .add(HttpApiEndpoint.get("agent-asset.list", "/agent-asset", { query: AgentAssetListQuery, success: Json }))
+  .add(
+    HttpApiEndpoint.get("agent-asset.content", "/agent-asset/content", {
+      query: AgentAssetContentQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
   .add(HttpApiEndpoint.get("workflow-asset.list", "/workflow-asset", { query: WorkflowAssetListQuery, success: Json }))
   .add(
     HttpApiEndpoint.get("workflow-asset.content", "/workflow-asset/content", {

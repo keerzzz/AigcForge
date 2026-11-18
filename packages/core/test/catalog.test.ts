@@ -585,15 +585,29 @@ describe("Provider and Model", () => {
         })
       })
 
+      yield* models.reload()
+      const bus = yield* Bus.Service
+      const notifications: string[] = []
+      const unsubscribe = yield* bus.listen((event) =>
+        Effect.sync(() => {
+          if (event.type === Model.Event.Updated.type) notifications.push(event.type)
+        }),
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+      const catalog = yield* models.available()
       let configured = true
       yield* models.transform((editor) => {
         if (configured) editor.default.set(providerID, old)
       })
       expect((yield* models.default())?.id).toBe(old)
+      expect(yield* models.available()).toBe(catalog)
+      expect(notifications).toHaveLength(1)
 
       configured = false
       yield* models.reload()
       expect((yield* models.default())?.id).toBe(newest)
+      expect(yield* models.available()).toBe(catalog)
+      expect(notifications).toHaveLength(2)
     }),
   )
 

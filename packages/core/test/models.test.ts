@@ -57,6 +57,13 @@ const fixtureSnapshot = [
         modelID: Model.ID.make("acme-1"),
         providerID: Provider.ID.make("acme"),
         name: "Acme One",
+        metadata: {
+          name: "Acme One",
+          compatibility: { reasoningField: "vendor_reasoning" },
+          capabilities: { tools: true },
+          limit: { context: 128000, output: 8192 },
+          quote: { status: "unknown" },
+        },
         compatibility: { reasoningField: "vendor_reasoning" },
         family: undefined,
         package: undefined,
@@ -66,6 +73,7 @@ const fixtureSnapshot = [
         time: { released: Date.parse("2026-01-01") },
         cost: [
           {
+            tier: undefined,
             input: Money.USDPerMillionTokens.zero,
             output: Money.USDPerMillionTokens.zero,
             cache: {
@@ -120,6 +128,12 @@ const fixture2Snapshot = [
         modelID: Model.ID.make("beta-1"),
         providerID: Provider.ID.make("beta"),
         name: "Beta One",
+        metadata: {
+          name: "Beta One",
+          capabilities: { tools: false },
+          limit: { context: 64000, output: 4096 },
+          quote: { status: "unknown" },
+        },
         family: undefined,
         package: undefined,
         settings: { provider: "beta" },
@@ -128,6 +142,7 @@ const fixture2Snapshot = [
         time: { released: Date.parse("2026-02-01") },
         cost: [
           {
+            tier: undefined,
             input: Money.USDPerMillionTokens.zero,
             output: Money.USDPerMillionTokens.zero,
             cache: {

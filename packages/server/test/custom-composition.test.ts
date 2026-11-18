@@ -1520,8 +1520,9 @@ it.live("upgrades ordinary Sessions whose stored directory has an equivalent rou
   withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
-      const source = yield* createSession(test, { location: { directory: AbsolutePath.make(`${test.directory}/.`) } })
-      expect(source.location.directory).toBe(AbsolutePath.make(`${test.directory}/.`))
+      const alias = AbsolutePath.make(`${test.directory}${path.sep}.`)
+      const source = yield* createSession(test, { location: { directory: alias } })
+      expect(source.location.directory).toBe(alias)
       const before = yield* storedState(test)
       const result = yield* lifecycleResult(
         yield* test.request("/custom-composition/upgrade", {
@@ -1793,502 +1794,507 @@ it.live("blocks Custom lifecycle, admission, and execution through HTTP while th
   ),
 )
 
-it.live("finds immutable snapshot references after asset deletion and Session movement, without Custom execution", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
-    Effect.gen(function* () {
-      const memory = Environment.makeMemoryDriver()
-      const test = yield* setup(
-        [],
-        [],
-        {
-          memory: WorkspaceDriver.make({
-            create: ({ workspaceID }) => Effect.succeed({ binding: { workspaceID } }),
-            connect: () => Effect.succeed(memory),
-            suspendForIdle: () => Effect.void,
-            destroy: () => Effect.void,
-          }),
-        },
-        true,
-        true,
-      )
-      const root = yield* lifecycleResult(
-        yield* test.request("/custom-composition/start", {
-          body: { composition: temporary, title: "Referenced root" },
-        }),
-      )
-      expect(root.snapshot.data.sourceLocation).toEqual({ directory: AbsolutePath.make(test.directory) })
-      const sessions = Context.get(test.context, Session.Service)
-      const compositions = Context.get(test.context, SessionComposition.Service)
-      const child = yield* createCustomChild(test, root, "Referenced child")
-      expect((yield* compositions.get(child.id)).data.sourceLocation).toEqual(root.snapshot.data.sourceLocation)
-      yield* sessions.prompt({ sessionID: child.id, text: "Fork boundary", resume: false })
-      yield* SessionInbox.promote(
-        Context.get(test.context, Database.Service).db,
-        Context.get(test.context, Bus.Service),
-        child.id,
-        "steer",
-      )
-      const fork = yield* sessions.fork({ sessionID: child.id })
-      expect((yield* compositions.get(fork.id)).data.sourceLocation).toEqual(root.snapshot.data.sourceLocation)
-      const selectedDirectory = path.join(test.directory, "packages", "selected")
-      yield* Effect.promise(() => fs.mkdir(selectedDirectory, { recursive: true }))
-      const targetFor = Effect.fnUntraced(function* (
-        kind: "prompt" | "skill" | "command",
-        scope: AssetPlacement.Scope,
-      ) {
-        const response = yield* test.request(`/${kind}-asset?${new URLSearchParams({ scope })}`, {
-          directory: selectedDirectory,
-        })
-        if (response.status !== 200) throw new Error(yield* Effect.promise(() => response.clone().text()))
-        expect(response.status).toBe(200)
-        return Schema.decodeUnknownSync(Schema.Struct({ target: AssetPlacement.Target }))(
-          yield* Effect.promise(() => response.json()),
-        ).target
-      })
-      const selected = yield* Effect.forEach(["location", "project", "global"] as const, (scope) =>
-        Effect.gen(function* () {
-          const targets = {
-            prompt: yield* targetFor("prompt", scope),
-            skill: yield* targetFor("skill", scope),
-            command: yield* targetFor("command", scope),
-          }
-          expect(Object.values(targets).map((target) => target.scope)).toEqual([scope, scope, scope])
-          if (scope === "location")
-            expect(targets.prompt.root).toBe(AbsolutePath.make(path.join(selectedDirectory, ".aigcfroge/prompts")))
-          if (scope === "project")
-            expect(targets.prompt.root).toBe(AbsolutePath.make(path.join(test.directory, ".aigcfroge/prompts")))
-          const contents = {
-            prompt: `${prompt.content.trimEnd()}\n${scope} owner.\n`,
-            skill: `${skill.content.trimEnd()}\n${scope} owner.\n`,
-            command: `${command.content.trimEnd()}\n${scope} owner.\n`,
-          }
-          yield* Effect.forEach(["prompt", "skill", "command"] as const, (kind) =>
-            Effect.gen(function* () {
-              const filename = path.join(targets[kind].root, refs[kind].relativePath)
-              yield* Effect.promise(() => fs.mkdir(path.dirname(filename), { recursive: true }))
-              yield* Effect.promise(() => Bun.write(filename, contents[kind]))
+it.live(
+  "finds immutable snapshot references after asset deletion and Session movement, without Custom execution",
+  () =>
+    withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+      Effect.gen(function* () {
+        const memory = Environment.makeMemoryDriver()
+        const test = yield* setup(
+          [],
+          [],
+          {
+            memory: WorkspaceDriver.make({
+              create: ({ workspaceID }) => Effect.succeed({ binding: { workspaceID } }),
+              connect: () => Effect.succeed(memory),
+              suspendForIdle: () => Effect.void,
+              destroy: () => Effect.void,
             }),
-          )
-          const input = new Composition.TemporaryInput({
-            source: "temporary",
-            root: new Composition.BuiltinRoot({ source: "builtin", id: "build" }),
-            agents: [],
-            bindings: {
-              orchestrator: new Composition.Binding({
-                prompts: [
-                  { ...reference("prompt", refs.prompt.relativePath, contents.prompt), target: targets.prompt },
-                ],
-                skills: [{ ...reference("skill", refs.skill.relativePath, contents.skill), target: targets.skill }],
-                commands: [
-                  { ...reference("command", refs.command.relativePath, contents.command), target: targets.command },
-                ],
-              }),
-            },
-            presentation: "native",
-            requestedCapabilities: [],
-          })
-          const preview = yield* plan(test, input, selectedDirectory)
-          expect(preview.valid).toBe(true)
-          if (preview.input.source !== "temporary") throw new Error("Expected the selected-owner temporary plan")
-          const candidate = {
-            name: `Selected ${scope}`,
-            description: `References the ${scope} owner`,
-            relativePath: `${scope}.yaml`,
-            profile: decodeProfile({
-              kind: "custom-profile",
-              name: `Selected ${scope}`,
-              description: `References the ${scope} owner`,
-              root: preview.input.root,
-              agents: preview.input.agents,
-              bindings: preview.input.bindings,
-              presentation: preview.input.presentation,
-              requestedCapabilities: preview.input.requestedCapabilities,
-            }),
-          }
-          const savedResponse = yield* test.request("/custom-profile/apply", {
-            directory: selectedDirectory,
-            body: { candidate, overwrite: false },
-          })
-          if (savedResponse.status !== 200) throw new Error(yield* Effect.promise(() => savedResponse.clone().text()))
-          expect(savedResponse.status).toBe(200)
-          const saved = Schema.decodeUnknownSync(Info)(yield* Effect.promise(() => savedResponse.json()))
-          const created = yield* lifecycleResult(
-            yield* test.request("/custom-composition/start", {
-              directory: selectedDirectory,
-              body: { composition: preview.input, expectedPlanDigest: preview.digest, title: `Selected ${scope}` },
-            }),
-          )
-          if (created.snapshot.version !== 2) throw new Error("Expected the selected-owner v2 snapshot")
-          expect(created.snapshot.data.sourceLocation).toEqual({ directory: AbsolutePath.make(selectedDirectory) })
-          expect(created.snapshot.data.prompts).toMatchObject([
-            { target: targets.prompt, revision: input.bindings.orchestrator.prompts[0].revision },
-          ])
-          expect(created.snapshot.data.skills).toMatchObject([
-            { target: targets.skill, revision: input.bindings.orchestrator.skills[0].revision },
-          ])
-          expect(created.snapshot.data.commands).toMatchObject([
-            { target: targets.command, revision: input.bindings.orchestrator.commands[0].revision },
-          ])
-          expect(created.snapshot.data.prompts[0].content).toContain(`${scope} owner.`)
-          expect(created.snapshot.data.skills[0].content).toContain(`${scope} owner.`)
-          expect(created.snapshot.data.commands[0].source).toContain(`${scope} owner.`)
-          return { scope, targets, created, profilePath: saved.relativePath }
-        }),
-      )
-      const workspace = Context.get(test.context, Workspace.Service)
-      const workspaceID = yield* workspace.create({ provider: "memory" })
-      yield* Environment.makeFiles(memory).mkdir(test.other)
-      const aliasDirectory = path.join(path.dirname(test.directory), "alias")
-      yield* Effect.promise(() => fs.symlink(test.directory, aliasDirectory, "dir"))
-      const aliasOwnerResponse = yield* test.request("/prompt-asset?scope=location", { directory: aliasDirectory })
-      if (aliasOwnerResponse.status !== 200)
-        throw new Error(yield* Effect.promise(() => aliasOwnerResponse.clone().text()))
-      const aliasTarget = Schema.decodeUnknownSync(Schema.Struct({ target: AssetPlacement.Target }))(
-        yield* Effect.promise(() => aliasOwnerResponse.json()),
-      ).target
-      expect(aliasTarget).toEqual(
-        new AssetPlacement.Target({
-          scope: "location",
-          root: AbsolutePath.make(path.join(test.directory, ".aigcfroge/prompts")),
-        }),
-      )
-      expect(aliasTarget.root).not.toBe(path.join(aliasDirectory, ".aigcfroge/prompts"))
-      const aliasContent =
-        "---\nkind: prompt\nname: alias-retained\ndescription: Retained alias prompt\n---\nFrozen alias prompt.\n"
-      const aliasRef = reference("prompt", "aliases/retained.md", aliasContent)
-      yield* Effect.promise(() => fs.mkdir(path.join(aliasTarget.root, "aliases"), { recursive: true }))
-      yield* Effect.promise(() => Bun.write(path.join(aliasTarget.root, aliasRef.relativePath), aliasContent))
-      const aliasInput = new Composition.TemporaryInput({
-        source: "temporary",
-        root: new Composition.BuiltinRoot({ source: "builtin", id: "build" }),
-        agents: [],
-        bindings: {
-          orchestrator: new Composition.Binding({
-            prompts: [{ ...aliasRef, target: aliasTarget }],
-            skills: [],
-            commands: [],
-          }),
-        },
-        presentation: "native",
-        requestedCapabilities: [],
-      })
-      const aliasPlan = yield* plan(test, aliasInput, aliasDirectory)
-      expect(aliasPlan.valid).toBe(true)
-      if (aliasPlan.input.source !== "temporary") throw new Error("Expected the alias temporary plan")
-      const aliasCreated = yield* lifecycleResult(
-        yield* test.request("/custom-composition/start", {
-          directory: aliasDirectory,
-          body: {
-            composition: aliasPlan.input,
-            expectedPlanDigest: aliasPlan.digest,
-            title: "Canonical alias reference",
           },
-        }),
-      )
-      if (aliasCreated.snapshot.version !== 2) throw new Error("Expected the alias v2 snapshot")
-      const aliasData = aliasCreated.snapshot.data
-      expect(aliasData.sourceLocation).toEqual({ directory: AbsolutePath.make(aliasDirectory) })
-      expect(aliasData.prompts[0].target).toEqual(aliasTarget)
-      const legacyInput = new Composition.TemporaryInput({
-        ...aliasPlan.input,
-        bindings: { orchestrator: new Composition.Binding({ prompts: [aliasRef], skills: [], commands: [] }) },
-      })
-      const aliasProfiles = yield* Effect.forEach(
-        [
-          { relativePath: "alias-legacy.yaml", name: "Legacy alias", bindings: legacyInput.bindings },
-          { relativePath: "alias-target.yaml", name: "Canonical alias", bindings: aliasPlan.input.bindings },
-        ],
-        (candidate) =>
+          true,
+          true,
+        )
+        const root = yield* lifecycleResult(
+          yield* test.request("/custom-composition/start", {
+            body: { composition: temporary, title: "Referenced root" },
+          }),
+        )
+        expect(root.snapshot.data.sourceLocation).toEqual({ directory: AbsolutePath.make(test.directory) })
+        const sessions = Context.get(test.context, Session.Service)
+        const compositions = Context.get(test.context, SessionComposition.Service)
+        const child = yield* createCustomChild(test, root, "Referenced child")
+        expect((yield* compositions.get(child.id)).data.sourceLocation).toEqual(root.snapshot.data.sourceLocation)
+        yield* sessions.prompt({ sessionID: child.id, text: "Fork boundary", resume: false })
+        yield* SessionInbox.promote(
+          Context.get(test.context, Database.Service).db,
+          Context.get(test.context, Bus.Service),
+          child.id,
+          "steer",
+        )
+        const fork = yield* sessions.fork({ sessionID: child.id })
+        expect((yield* compositions.get(fork.id)).data.sourceLocation).toEqual(root.snapshot.data.sourceLocation)
+        const selectedDirectory = path.join(test.directory, "packages", "selected")
+        yield* Effect.promise(() => fs.mkdir(selectedDirectory, { recursive: true }))
+        const targetFor = Effect.fnUntraced(function* (
+          kind: "prompt" | "skill" | "command",
+          scope: AssetPlacement.Scope,
+        ) {
+          const response = yield* test.request(`/${kind}-asset?${new URLSearchParams({ scope })}`, {
+            directory: selectedDirectory,
+          })
+          if (response.status !== 200) throw new Error(yield* Effect.promise(() => response.clone().text()))
+          expect(response.status).toBe(200)
+          return Schema.decodeUnknownSync(Schema.Struct({ target: AssetPlacement.Target }))(
+            yield* Effect.promise(() => response.json()),
+          ).target
+        })
+        const selected = yield* Effect.forEach(["location", "project", "global"] as const, (scope) =>
           Effect.gen(function* () {
-            const content = AssetYaml.stringify(
-              decodeProfile({
-                kind: "custom-profile",
-                name: candidate.name,
-                description: candidate.name,
-                root: legacyInput.root,
-                agents: [],
-                bindings: candidate.bindings,
-                presentation: "native",
-                requestedCapabilities: [],
+            const targets = {
+              prompt: yield* targetFor("prompt", scope),
+              skill: yield* targetFor("skill", scope),
+              command: yield* targetFor("command", scope),
+            }
+            expect(Object.values(targets).map((target) => target.scope)).toEqual([scope, scope, scope])
+            if (scope === "location")
+              expect(targets.prompt.root).toBe(AbsolutePath.make(path.join(selectedDirectory, ".aigcfroge/prompts")))
+            if (scope === "project")
+              expect(targets.prompt.root).toBe(AbsolutePath.make(path.join(test.directory, ".aigcfroge/prompts")))
+            const contents = {
+              prompt: `${prompt.content.trimEnd()}\n${scope} owner.\n`,
+              skill: `${skill.content.trimEnd()}\n${scope} owner.\n`,
+              command: `${command.content.trimEnd()}\n${scope} owner.\n`,
+            }
+            yield* Effect.forEach(["prompt", "skill", "command"] as const, (kind) =>
+              Effect.gen(function* () {
+                const filename = path.join(targets[kind].root, refs[kind].relativePath)
+                yield* Effect.promise(() => fs.mkdir(path.dirname(filename), { recursive: true }))
+                yield* Effect.promise(() => Bun.write(filename, contents[kind]))
               }),
             )
-            const filename = path.join(test.directory, ".aigcfroge/custom-profiles", candidate.relativePath)
-            yield* Effect.promise(() => Bun.write(filename, content))
-            return { relativePath: candidate.relativePath, content, filename }
-          }),
-      )
-      yield* Effect.forEach([aliasDirectory, test.directory], (directory) =>
-        Effect.gen(function* () {
-          const location = yield* test.locations.contextEffect(locationRefForRoute({ directory }))
-          yield* Context.get(location, CustomProfile.Service).reload()
-        }),
-      )
-      const legacyPrompt = new Composition.SnapshotPromptData({
-        relativePath: aliasRef.relativePath,
-        revision: aliasRef.revision,
-        content: aliasData.prompts[0].content,
-      })
-      // Retained history predates Target capture. Seed it through the existing durable legacy fixture.
-      const legacySnapshots = yield* Effect.forEach([aliasDirectory, test.directory], (directory) =>
-        Effect.gen(function* () {
-          const session = yield* createLegacySession({
-            id: Session.ID.create(),
-            location: locationRefForRoute({ directory }),
-            mode: "custom",
-            agent: Agent.ID.make("build"),
-            title: directory === aliasDirectory ? "Legacy alias reference" : "Legacy physical reference",
-          }).pipe(Effect.provideContext(test.context))
-          const snapshot = new Composition.SnapshotV2({
-            version: 2,
-            sessionID: session.id,
-            digest: CompositionDigest.computeCompositionDigest(legacyInput),
-            createdAt: 100,
-            data: new Composition.SnapshotDataV2({
-              ...aliasData,
-              sourceLocation: directory === aliasDirectory ? undefined : locationRefForRoute({ directory }),
-              prompts: [legacyPrompt],
+            const input = new Composition.TemporaryInput({
+              source: "temporary",
+              root: new Composition.BuiltinRoot({ source: "builtin", id: "build" }),
+              agents: [],
               bindings: {
-                orchestrator: new Composition.SnapshotBindingData({
-                  prompts: [legacyPrompt],
-                  skills: [],
-                  commands: [],
+                orchestrator: new Composition.Binding({
+                  prompts: [
+                    { ...reference("prompt", refs.prompt.relativePath, contents.prompt), target: targets.prompt },
+                  ],
+                  skills: [{ ...reference("skill", refs.skill.relativePath, contents.skill), target: targets.skill }],
+                  commands: [
+                    { ...reference("command", refs.command.relativePath, contents.command), target: targets.command },
+                  ],
                 }),
               },
-            }),
-          })
-          yield* compositions.attach(session.id, snapshot)
-          return { session, snapshot }
-        }),
-      )
-      yield* Context.get(test.context, Bus.Service).publish(SessionEvent.Moved, {
-        sessionID: legacySnapshots[0].session.id,
-        projectID: legacySnapshots[0].session.projectID,
-        location: locationRefForRoute({ directory: test.other }),
-      })
-      // Apply the production movement projector without scheduling model work.
-      yield* Context.get(test.context, Bus.Service).publish(SessionEvent.Moved, {
-        sessionID: root.session.id,
-        projectID: root.session.projectID,
-        location: locationRefForRoute({ directory: test.other }),
-      })
-      yield* Effect.forEach(
-        [
-          ...new Set([
-            path.join(test.directory, prompt.path),
-            path.join(aliasTarget.root, aliasRef.relativePath),
-            ...selected.flatMap((item) =>
-              (["prompt", "skill", "command"] as const).map((kind) =>
-                path.join(item.targets[kind].root, refs[kind].relativePath),
-              ),
-            ),
-          ]),
-        ],
-        (filename) => Effect.promise(() => fs.unlink(filename)),
-      )
-      const before = yield* storedState(test)
-      const published = yield* observedSessionEvents(test)
-      yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "false" }, () =>
-        Effect.gen(function* () {
-          const query = `/custom-composition/references?${new URLSearchParams({ kind: "prompt", path: " shared\\precise.md " })}`
-          const response = yield* test.request(query, { directory: `${test.directory}/.` })
-          expect(response.status).toBe(200)
-          const body = yield* Effect.promise(() => response.json())
-          expect(body).toMatchObject({ profiles: [{ name: "Healthy" }], snapshotsComplete: true })
-          expect(body.snapshots.map((snapshot: { sessionID: string }) => snapshot.sessionID).sort()).toEqual(
-            [root.session.id, child.id, fork.id].sort(),
-          )
-          expect(body.snapshots).toEqual(
-            expect.arrayContaining([expect.objectContaining({ sessionID: root.session.id, title: "Referenced root" })]),
-          )
-          const foreign = yield* test.request(query, { directory: test.other })
-          expect(foreign.status).toBe(200)
-          expect(yield* Effect.promise(() => foreign.json())).toEqual({
-            profiles: [],
-            snapshots: [],
-            snapshotsComplete: true,
-          })
-          const denied = yield* test.request(query, { authenticated: false })
-          expect(denied.status).toBe(401)
-          const aliasQuery = `/custom-composition/references?${new URLSearchParams({ kind: "prompt", path: " aliases\\retained.md " })}`
-          const implicitAliasResponse = yield* test.request(aliasQuery, { directory: aliasDirectory })
-          expect(implicitAliasResponse.status).toBe(200)
-          const implicitAlias = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
-            yield* Effect.promise(() => implicitAliasResponse.json()),
-          )
-          expect(implicitAlias.snapshotsComplete).toBe(true)
-          expect(implicitAlias.profiles.map((profile) => profile.relativePath)).toEqual(
-            aliasProfiles.map((profile) => profile.relativePath).toSorted(),
-          )
-          expect(implicitAlias.snapshots.map((snapshot) => snapshot.sessionID).toSorted()).toEqual(
-            [legacySnapshots[0].session.id, aliasCreated.session.id].toSorted(),
-          )
-          const canonicalQuery = `/custom-composition/references?${new URLSearchParams({
-            kind: "prompt",
-            path: aliasRef.relativePath,
+              presentation: "native",
+              requestedCapabilities: [],
+            })
+            const preview = yield* plan(test, input, selectedDirectory)
+            expect(preview.valid).toBe(true)
+            if (preview.input.source !== "temporary") throw new Error("Expected the selected-owner temporary plan")
+            const candidate = {
+              name: `Selected ${scope}`,
+              description: `References the ${scope} owner`,
+              relativePath: `${scope}.yaml`,
+              profile: decodeProfile({
+                kind: "custom-profile",
+                name: `Selected ${scope}`,
+                description: `References the ${scope} owner`,
+                root: preview.input.root,
+                agents: preview.input.agents,
+                bindings: preview.input.bindings,
+                presentation: preview.input.presentation,
+                requestedCapabilities: preview.input.requestedCapabilities,
+              }),
+            }
+            const savedResponse = yield* test.request("/custom-profile/apply", {
+              directory: selectedDirectory,
+              body: { candidate, overwrite: false },
+            })
+            if (savedResponse.status !== 200) throw new Error(yield* Effect.promise(() => savedResponse.clone().text()))
+            expect(savedResponse.status).toBe(200)
+            const saved = Schema.decodeUnknownSync(Info)(yield* Effect.promise(() => savedResponse.json()))
+            const created = yield* lifecycleResult(
+              yield* test.request("/custom-composition/start", {
+                directory: selectedDirectory,
+                body: { composition: preview.input, expectedPlanDigest: preview.digest, title: `Selected ${scope}` },
+              }),
+            )
+            if (created.snapshot.version !== 2) throw new Error("Expected the selected-owner v2 snapshot")
+            expect(created.snapshot.data.sourceLocation).toEqual({ directory: AbsolutePath.make(selectedDirectory) })
+            expect(created.snapshot.data.prompts).toMatchObject([
+              { target: targets.prompt, revision: input.bindings.orchestrator.prompts[0].revision },
+            ])
+            expect(created.snapshot.data.skills).toMatchObject([
+              { target: targets.skill, revision: input.bindings.orchestrator.skills[0].revision },
+            ])
+            expect(created.snapshot.data.commands).toMatchObject([
+              { target: targets.command, revision: input.bindings.orchestrator.commands[0].revision },
+            ])
+            expect(created.snapshot.data.prompts[0].content).toContain(`${scope} owner.`)
+            expect(created.snapshot.data.skills[0].content).toContain(`${scope} owner.`)
+            expect(created.snapshot.data.commands[0].source).toContain(`${scope} owner.`)
+            return { scope, targets, created, profilePath: saved.relativePath }
+          }),
+        )
+        const workspace = Context.get(test.context, Workspace.Service)
+        const workspaceID = yield* workspace.create({ provider: "memory" })
+        yield* Environment.makeFiles(memory).mkdir(test.other)
+        const aliasDirectory = path.join(path.dirname(test.directory), "alias")
+        yield* Effect.promise(() => fs.symlink(test.directory, aliasDirectory, "dir"))
+        const aliasOwnerResponse = yield* test.request("/prompt-asset?scope=location", { directory: aliasDirectory })
+        if (aliasOwnerResponse.status !== 200)
+          throw new Error(yield* Effect.promise(() => aliasOwnerResponse.clone().text()))
+        const aliasTarget = Schema.decodeUnknownSync(Schema.Struct({ target: AssetPlacement.Target }))(
+          yield* Effect.promise(() => aliasOwnerResponse.json()),
+        ).target
+        expect(aliasTarget).toEqual(
+          new AssetPlacement.Target({
             scope: "location",
-            targetRoot: aliasTarget.root,
-          })}`
-          const explicitAliasResponse = yield* test.request(canonicalQuery, { directory: aliasDirectory })
-          expect(explicitAliasResponse.status).toBe(200)
-          const explicitAlias = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
-            yield* Effect.promise(() => explicitAliasResponse.json()),
-          )
-          expect(explicitAlias.snapshotsComplete).toBe(true)
-          expect(explicitAlias.profiles.map((profile) => profile.relativePath)).toEqual(["alias-target.yaml"])
-          expect(explicitAlias.snapshots.map((snapshot) => snapshot.sessionID)).toEqual([aliasCreated.session.id])
-          const explicitPhysicalResponse = yield* test.request(canonicalQuery, { directory: test.directory })
-          expect(explicitPhysicalResponse.status).toBe(200)
-          const explicitPhysical = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
-            yield* Effect.promise(() => explicitPhysicalResponse.json()),
-          )
-          expect(explicitPhysical.snapshotsComplete).toBe(true)
-          expect(explicitPhysical.profiles.map((profile) => profile.relativePath)).toEqual(
-            aliasProfiles.map((profile) => profile.relativePath).toSorted(),
-          )
-          expect(explicitPhysical.snapshots.map((snapshot) => snapshot.sessionID).toSorted()).toEqual(
-            [legacySnapshots[1].session.id, aliasCreated.session.id].toSorted(),
-          )
-          const wrongAlias = yield* test.request(
-            `/custom-composition/references?${new URLSearchParams({
+            root: AbsolutePath.make(path.join(test.directory, ".aigcfroge/prompts")),
+          }),
+        )
+        expect(aliasTarget.root).not.toBe(path.join(aliasDirectory, ".aigcfroge/prompts"))
+        const aliasContent =
+          "---\nkind: prompt\nname: alias-retained\ndescription: Retained alias prompt\n---\nFrozen alias prompt.\n"
+        const aliasRef = reference("prompt", "aliases/retained.md", aliasContent)
+        yield* Effect.promise(() => fs.mkdir(path.join(aliasTarget.root, "aliases"), { recursive: true }))
+        yield* Effect.promise(() => Bun.write(path.join(aliasTarget.root, aliasRef.relativePath), aliasContent))
+        const aliasInput = new Composition.TemporaryInput({
+          source: "temporary",
+          root: new Composition.BuiltinRoot({ source: "builtin", id: "build" }),
+          agents: [],
+          bindings: {
+            orchestrator: new Composition.Binding({
+              prompts: [{ ...aliasRef, target: aliasTarget }],
+              skills: [],
+              commands: [],
+            }),
+          },
+          presentation: "native",
+          requestedCapabilities: [],
+        })
+        const aliasPlan = yield* plan(test, aliasInput, aliasDirectory)
+        expect(aliasPlan.valid).toBe(true)
+        if (aliasPlan.input.source !== "temporary") throw new Error("Expected the alias temporary plan")
+        const aliasCreated = yield* lifecycleResult(
+          yield* test.request("/custom-composition/start", {
+            directory: aliasDirectory,
+            body: {
+              composition: aliasPlan.input,
+              expectedPlanDigest: aliasPlan.digest,
+              title: "Canonical alias reference",
+            },
+          }),
+        )
+        if (aliasCreated.snapshot.version !== 2) throw new Error("Expected the alias v2 snapshot")
+        const aliasData = aliasCreated.snapshot.data
+        expect(aliasData.sourceLocation).toEqual({ directory: AbsolutePath.make(aliasDirectory) })
+        expect(aliasData.prompts[0].target).toEqual(aliasTarget)
+        const legacyInput = new Composition.TemporaryInput({
+          ...aliasPlan.input,
+          bindings: { orchestrator: new Composition.Binding({ prompts: [aliasRef], skills: [], commands: [] }) },
+        })
+        const aliasProfiles = yield* Effect.forEach(
+          [
+            { relativePath: "alias-legacy.yaml", name: "Legacy alias", bindings: legacyInput.bindings },
+            { relativePath: "alias-target.yaml", name: "Canonical alias", bindings: aliasPlan.input.bindings },
+          ],
+          (candidate) =>
+            Effect.gen(function* () {
+              const content = AssetYaml.stringify(
+                decodeProfile({
+                  kind: "custom-profile",
+                  name: candidate.name,
+                  description: candidate.name,
+                  root: legacyInput.root,
+                  agents: [],
+                  bindings: candidate.bindings,
+                  presentation: "native",
+                  requestedCapabilities: [],
+                }),
+              )
+              const filename = path.join(test.directory, ".aigcfroge/custom-profiles", candidate.relativePath)
+              yield* Effect.promise(() => Bun.write(filename, content))
+              return { relativePath: candidate.relativePath, content, filename }
+            }),
+        )
+        yield* Effect.forEach([aliasDirectory, test.directory], (directory) =>
+          Effect.gen(function* () {
+            const location = yield* test.locations.contextEffect(locationRefForRoute({ directory }))
+            yield* Context.get(location, CustomProfile.Service).reload()
+          }),
+        )
+        const legacyPrompt = new Composition.SnapshotPromptData({
+          relativePath: aliasRef.relativePath,
+          revision: aliasRef.revision,
+          content: aliasData.prompts[0].content,
+        })
+        // Retained history predates Target capture. Seed it through the existing durable legacy fixture.
+        const legacySnapshots = yield* Effect.forEach([aliasDirectory, test.directory], (directory) =>
+          Effect.gen(function* () {
+            const session = yield* createLegacySession({
+              id: Session.ID.create(),
+              location: locationRefForRoute({ directory }),
+              mode: "custom",
+              agent: Agent.ID.make("build"),
+              title: directory === aliasDirectory ? "Legacy alias reference" : "Legacy physical reference",
+            }).pipe(Effect.provideContext(test.context))
+            const snapshot = new Composition.SnapshotV2({
+              version: 2,
+              sessionID: session.id,
+              digest: CompositionDigest.computeCompositionDigest(legacyInput),
+              createdAt: 100,
+              data: new Composition.SnapshotDataV2({
+                ...aliasData,
+                sourceLocation: directory === aliasDirectory ? undefined : locationRefForRoute({ directory }),
+                prompts: [legacyPrompt],
+                bindings: {
+                  orchestrator: new Composition.SnapshotBindingData({
+                    prompts: [legacyPrompt],
+                    skills: [],
+                    commands: [],
+                  }),
+                },
+              }),
+            })
+            yield* compositions.attach(session.id, snapshot)
+            return { session, snapshot }
+          }),
+        )
+        yield* Context.get(test.context, Bus.Service).publish(SessionEvent.Moved, {
+          sessionID: legacySnapshots[0].session.id,
+          projectID: legacySnapshots[0].session.projectID,
+          location: locationRefForRoute({ directory: test.other }),
+        })
+        // Apply the production movement projector without scheduling model work.
+        yield* Context.get(test.context, Bus.Service).publish(SessionEvent.Moved, {
+          sessionID: root.session.id,
+          projectID: root.session.projectID,
+          location: locationRefForRoute({ directory: test.other }),
+        })
+        yield* Effect.forEach(
+          [
+            ...new Set([
+              path.join(test.directory, prompt.path),
+              path.join(aliasTarget.root, aliasRef.relativePath),
+              ...selected.flatMap((item) =>
+                (["prompt", "skill", "command"] as const).map((kind) =>
+                  path.join(item.targets[kind].root, refs[kind].relativePath),
+                ),
+              ),
+            ]),
+          ],
+          (filename) => Effect.promise(() => fs.unlink(filename)),
+        )
+        const before = yield* storedState(test)
+        const published = yield* observedSessionEvents(test)
+        yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "false" }, () =>
+          Effect.gen(function* () {
+            const query = `/custom-composition/references?${new URLSearchParams({ kind: "prompt", path: " shared\\precise.md " })}`
+            const response = yield* test.request(query, { directory: `${test.directory}/.` })
+            expect(response.status).toBe(200)
+            const body = yield* Effect.promise(() => response.json())
+            expect(body).toMatchObject({ profiles: [{ name: "Healthy" }], snapshotsComplete: true })
+            expect(body.snapshots.map((snapshot: { sessionID: string }) => snapshot.sessionID).sort()).toEqual(
+              [root.session.id, child.id, fork.id].sort(),
+            )
+            expect(body.snapshots).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({ sessionID: root.session.id, title: "Referenced root" }),
+              ]),
+            )
+            const foreign = yield* test.request(query, { directory: test.other })
+            expect(foreign.status).toBe(200)
+            expect(yield* Effect.promise(() => foreign.json())).toEqual({
+              profiles: [],
+              snapshots: [],
+              snapshotsComplete: true,
+            })
+            const denied = yield* test.request(query, { authenticated: false })
+            expect(denied.status).toBe(401)
+            const aliasQuery = `/custom-composition/references?${new URLSearchParams({ kind: "prompt", path: " aliases\\retained.md " })}`
+            const implicitAliasResponse = yield* test.request(aliasQuery, { directory: aliasDirectory })
+            expect(implicitAliasResponse.status).toBe(200)
+            const implicitAlias = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
+              yield* Effect.promise(() => implicitAliasResponse.json()),
+            )
+            expect(implicitAlias.snapshotsComplete).toBe(true)
+            expect(implicitAlias.profiles.map((profile) => profile.relativePath)).toEqual(
+              aliasProfiles.map((profile) => profile.relativePath).toSorted(),
+            )
+            expect(implicitAlias.snapshots.map((snapshot) => snapshot.sessionID).toSorted()).toEqual(
+              [legacySnapshots[0].session.id, aliasCreated.session.id].toSorted(),
+            )
+            const canonicalQuery = `/custom-composition/references?${new URLSearchParams({
               kind: "prompt",
               path: aliasRef.relativePath,
               scope: "location",
-              targetRoot: path.join(aliasDirectory, ".aigcfroge/prompts"),
-            })}`,
-            { directory: aliasDirectory },
-          )
-          expect(wrongAlias.status).toBe(409)
-          expect(yield* Effect.promise(() => wrongAlias.json())).toMatchObject({ _tag: "ConflictError" })
-          const foreignAliasResponse = yield* test.request(aliasQuery, { directory: test.other })
-          expect(foreignAliasResponse.status).toBe(200)
-          expect(
-            Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
-              yield* Effect.promise(() => foreignAliasResponse.json()),
-            ),
-          ).toEqual({ profiles: [], snapshots: [], snapshotsComplete: true })
-          expect(
-            yield* compositions.references({
-              location: locationRefForRoute({ directory: aliasDirectory, workspaceID }),
-              kind: "prompt",
-              path: aliasRef.relativePath,
-              target: aliasTarget,
-              includeLegacyLocation: true,
-            }),
-          ).toEqual({ snapshots: [], snapshotsComplete: true })
-          yield* Effect.forEach(selected, (item) =>
-            Effect.forEach(["prompt", "skill", "command"] as const, (kind) =>
-              Effect.gen(function* () {
-                const scopedQuery = `/custom-composition/references?${new URLSearchParams({
-                  kind,
-                  path: ` ${refs[kind].relativePath.replaceAll("/", "\\")} `,
-                  scope: item.scope,
-                  targetRoot: item.targets[kind].root,
-                })}`
-                const response = yield* test.request(scopedQuery, { directory: selectedDirectory })
-                expect(response.status).toBe(200)
-                const found = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
-                  yield* Effect.promise(() => response.json()),
-                )
-                expect(found.snapshotsComplete).toBe(true)
-                expect(found.profiles.map((profile) => profile.relativePath)).toEqual([item.profilePath])
-                expect(found.snapshots.map((snapshot) => snapshot.sessionID)).toEqual([item.created.session.id])
-                const across = yield* test.request(scopedQuery, {
-                  directory: item.scope === "global" ? test.other : test.directory,
-                })
-                if (item.scope === "location") {
-                  expect(across.status).toBe(409)
-                  expect(yield* Effect.promise(() => across.json())).toMatchObject({ _tag: "ConflictError" })
-                  return
-                }
-                expect(across.status).toBe(200)
-                const adopted = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
-                  yield* Effect.promise(() => across.json()),
-                )
-                expect(adopted.profiles).toEqual([])
-                expect(adopted.snapshotsComplete).toBe(true)
-                expect(adopted.snapshots.map((snapshot) => snapshot.sessionID)).toEqual([item.created.session.id])
-                if (item.scope !== "global") return
-                const isolated = yield* test.request(scopedQuery, { directory: test.other, workspace: workspaceID })
-                expect(isolated.status).toBe(200)
-                expect(
-                  Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
-                    yield* Effect.promise(() => isolated.json()),
-                  ),
-                ).toEqual({ profiles: [], snapshots: [], snapshotsComplete: true })
+              targetRoot: aliasTarget.root,
+            })}`
+            const explicitAliasResponse = yield* test.request(canonicalQuery, { directory: aliasDirectory })
+            expect(explicitAliasResponse.status).toBe(200)
+            const explicitAlias = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
+              yield* Effect.promise(() => explicitAliasResponse.json()),
+            )
+            expect(explicitAlias.snapshotsComplete).toBe(true)
+            expect(explicitAlias.profiles.map((profile) => profile.relativePath)).toEqual(["alias-target.yaml"])
+            expect(explicitAlias.snapshots.map((snapshot) => snapshot.sessionID)).toEqual([aliasCreated.session.id])
+            const explicitPhysicalResponse = yield* test.request(canonicalQuery, { directory: test.directory })
+            expect(explicitPhysicalResponse.status).toBe(200)
+            const explicitPhysical = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
+              yield* Effect.promise(() => explicitPhysicalResponse.json()),
+            )
+            expect(explicitPhysical.snapshotsComplete).toBe(true)
+            expect(explicitPhysical.profiles.map((profile) => profile.relativePath)).toEqual(
+              aliasProfiles.map((profile) => profile.relativePath).toSorted(),
+            )
+            expect(explicitPhysical.snapshots.map((snapshot) => snapshot.sessionID).toSorted()).toEqual(
+              [legacySnapshots[1].session.id, aliasCreated.session.id].toSorted(),
+            )
+            const wrongAlias = yield* test.request(
+              `/custom-composition/references?${new URLSearchParams({
+                kind: "prompt",
+                path: aliasRef.relativePath,
+                scope: "location",
+                targetRoot: path.join(aliasDirectory, ".aigcfroge/prompts"),
+              })}`,
+              { directory: aliasDirectory },
+            )
+            expect(wrongAlias.status).toBe(409)
+            expect(yield* Effect.promise(() => wrongAlias.json())).toMatchObject({ _tag: "ConflictError" })
+            const foreignAliasResponse = yield* test.request(aliasQuery, { directory: test.other })
+            expect(foreignAliasResponse.status).toBe(200)
+            expect(
+              Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
+                yield* Effect.promise(() => foreignAliasResponse.json()),
+              ),
+            ).toEqual({ profiles: [], snapshots: [], snapshotsComplete: true })
+            expect(
+              yield* compositions.references({
+                location: locationRefForRoute({ directory: aliasDirectory, workspaceID }),
+                kind: "prompt",
+                path: aliasRef.relativePath,
+                target: aliasTarget,
+                includeLegacyLocation: true,
               }),
-            ),
-          )
-          const global = selected.find((item) => item.scope === "global")
-          if (global === undefined) throw new Error("Expected the selected global owner")
-          yield* Effect.forEach(
-            [
-              {
-                params: new URLSearchParams({ kind: "prompt", path: refs.prompt.relativePath, scope: "global" }),
-                status: 400,
-                error: { _tag: "InvalidRequestError", field: "targetRoot" },
-              },
-              {
-                params: new URLSearchParams({
-                  kind: "prompt",
-                  path: refs.prompt.relativePath,
-                  targetRoot: global.targets.prompt.root,
+            ).toEqual({ snapshots: [], snapshotsComplete: true })
+            yield* Effect.forEach(selected, (item) =>
+              Effect.forEach(["prompt", "skill", "command"] as const, (kind) =>
+                Effect.gen(function* () {
+                  const scopedQuery = `/custom-composition/references?${new URLSearchParams({
+                    kind,
+                    path: ` ${refs[kind].relativePath.replaceAll("/", "\\")} `,
+                    scope: item.scope,
+                    targetRoot: item.targets[kind].root,
+                  })}`
+                  const response = yield* test.request(scopedQuery, { directory: selectedDirectory })
+                  expect(response.status).toBe(200)
+                  const found = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
+                    yield* Effect.promise(() => response.json()),
+                  )
+                  expect(found.snapshotsComplete).toBe(true)
+                  expect(found.profiles.map((profile) => profile.relativePath)).toEqual([item.profilePath])
+                  expect(found.snapshots.map((snapshot) => snapshot.sessionID)).toEqual([item.created.session.id])
+                  const across = yield* test.request(scopedQuery, {
+                    directory: item.scope === "global" ? test.other : test.directory,
+                  })
+                  if (item.scope === "location") {
+                    expect(across.status).toBe(409)
+                    expect(yield* Effect.promise(() => across.json())).toMatchObject({ _tag: "ConflictError" })
+                    return
+                  }
+                  expect(across.status).toBe(200)
+                  const adopted = Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
+                    yield* Effect.promise(() => across.json()),
+                  )
+                  expect(adopted.profiles).toEqual([])
+                  expect(adopted.snapshotsComplete).toBe(true)
+                  expect(adopted.snapshots.map((snapshot) => snapshot.sessionID)).toEqual([item.created.session.id])
+                  if (item.scope !== "global") return
+                  const isolated = yield* test.request(scopedQuery, { directory: test.other, workspace: workspaceID })
+                  expect(isolated.status).toBe(200)
+                  expect(
+                    Schema.decodeUnknownSync(CustomCompositionReferencesResponse)(
+                      yield* Effect.promise(() => isolated.json()),
+                    ),
+                  ).toEqual({ profiles: [], snapshots: [], snapshotsComplete: true })
                 }),
-                status: 400,
-                error: { _tag: "InvalidRequestError", field: "scope" },
-              },
-              {
-                params: new URLSearchParams({
-                  kind: "prompt",
-                  path: refs.prompt.relativePath,
-                  scope: "global",
-                  targetRoot: `${global.targets.prompt.root}-other`,
+              ),
+            )
+            const global = selected.find((item) => item.scope === "global")
+            if (global === undefined) throw new Error("Expected the selected global owner")
+            yield* Effect.forEach(
+              [
+                {
+                  params: new URLSearchParams({ kind: "prompt", path: refs.prompt.relativePath, scope: "global" }),
+                  status: 400,
+                  error: { _tag: "InvalidRequestError", field: "targetRoot" },
+                },
+                {
+                  params: new URLSearchParams({
+                    kind: "prompt",
+                    path: refs.prompt.relativePath,
+                    targetRoot: global.targets.prompt.root,
+                  }),
+                  status: 400,
+                  error: { _tag: "InvalidRequestError", field: "scope" },
+                },
+                {
+                  params: new URLSearchParams({
+                    kind: "prompt",
+                    path: refs.prompt.relativePath,
+                    scope: "global",
+                    targetRoot: `${global.targets.prompt.root}-other`,
+                  }),
+                  status: 409,
+                  error: { _tag: "ConflictError" },
+                },
+              ],
+              (operation) =>
+                Effect.gen(function* () {
+                  const response = yield* test.request(`/custom-composition/references?${operation.params}`, {
+                    directory: selectedDirectory,
+                  })
+                  expect(response.status).toBe(operation.status)
+                  expect(yield* Effect.promise(() => response.json())).toMatchObject(operation.error)
                 }),
-                status: 409,
-                error: { _tag: "ConflictError" },
-              },
-            ],
-            (operation) =>
+            )
+            yield* Effect.forEach(["agent", "workflow", "mcp"] as const, (kind) =>
               Effect.gen(function* () {
-                const response = yield* test.request(`/custom-composition/references?${operation.params}`, {
-                  directory: selectedDirectory,
+                const response = yield* test.request(
+                  `/custom-composition/references?${new URLSearchParams({
+                    kind,
+                    path: refs[kind].relativePath,
+                    scope: "global",
+                    targetRoot: global.targets.prompt.root,
+                  })}`,
+                  { directory: selectedDirectory },
+                )
+                expect(response.status).toBe(400)
+                expect(yield* Effect.promise(() => response.json())).toMatchObject({
+                  _tag: "InvalidRequestError",
+                  field: "kind",
                 })
-                expect(response.status).toBe(operation.status)
-                expect(yield* Effect.promise(() => response.json())).toMatchObject(operation.error)
               }),
-          )
-          yield* Effect.forEach(["agent", "workflow", "mcp"] as const, (kind) =>
-            Effect.gen(function* () {
-              const response = yield* test.request(
-                `/custom-composition/references?${new URLSearchParams({
-                  kind,
-                  path: refs[kind].relativePath,
-                  scope: "global",
-                  targetRoot: global.targets.prompt.root,
-                })}`,
-                { directory: selectedDirectory },
-              )
-              expect(response.status).toBe(400)
-              expect(yield* Effect.promise(() => response.json())).toMatchObject({
-                _tag: "InvalidRequestError",
-                field: "kind",
-              })
-            }),
-          )
-        }),
-      )
-      expect(published).toEqual([])
-      yield* assertNoExecution(test)
-      expect(yield* storedState(test)).toEqual(before)
-      yield* Effect.forEach(aliasProfiles, (profile) =>
-        Effect.gen(function* () {
-          expect(yield* Effect.promise(() => Bun.file(profile.filename).text())).toBe(profile.content)
-        }),
-      )
-      yield* Effect.forEach(legacySnapshots, (legacy) =>
-        Effect.gen(function* () {
-          expect(yield* compositions.get(legacy.session.id)).toEqual(legacy.snapshot)
-        }),
-      )
-    }),
-  ),
+            )
+          }),
+        )
+        expect(published).toEqual([])
+        yield* assertNoExecution(test)
+        expect(yield* storedState(test)).toEqual(before)
+        yield* Effect.forEach(aliasProfiles, (profile) =>
+          Effect.gen(function* () {
+            expect(yield* Effect.promise(() => Bun.file(profile.filename).text())).toBe(profile.content)
+          }),
+        )
+        yield* Effect.forEach(legacySnapshots, (legacy) =>
+          Effect.gen(function* () {
+            expect(yield* compositions.get(legacy.session.id)).toEqual(legacy.snapshot)
+          }),
+        )
+      }),
+    ),
+  30_000,
 )

@@ -92,9 +92,21 @@ describe("subagent observer lifetime", () => {
           yield* sessions.move({ sessionID: child.id, directory: AbsolutePath.make(childDir.path) })
           yield* sessions.wait(child.id)
           expect((yield* sessions.get(child.id)).location.directory).toBe(AbsolutePath.make(childDir.path))
-          yield* Plugin.Service.use((plugins) => plugins.awaitActivation).pipe(
-            Effect.provide(locations.get(parent.location)),
-          )
+          const activate = (ref: typeof parent.location) =>
+            Effect.gen(function* () {
+              const plugins = yield* Plugin.Service
+              yield* plugins.awaitActivation
+              const agents = yield* Agent.Service
+              yield* agents.transform((editor) =>
+                editor.update(Agent.ID.make("reviewer"), (agent) => {
+                  agent.mode = "subagent"
+                  agent.originKind = "builtin"
+                }),
+              )
+            }).pipe(Effect.provide(locations.get(ref)))
+          yield* Effect.forEach([parent.location, (yield* sessions.get(child.id)).location], activate, {
+            discard: true,
+          })
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
           const gate = yield* llm.gate()
           const result = yield* executeTool(registry, {
@@ -119,9 +131,7 @@ describe("subagent observer lifetime", () => {
           if (evict) {
             yield* locations.invalidate(parent.location)
             // Rebuilding a location must not lose or duplicate its former observer.
-            yield* Plugin.Service.use((plugins) => plugins.awaitActivation).pipe(
-              Effect.provide(locations.get(parent.location)),
-            )
+            yield* activate(parent.location)
             yield* locations.invalidate(parent.location)
           }
           if (outcome === "cancelled") yield* jobs.cancel(child.id)
@@ -134,9 +144,7 @@ describe("subagent observer lifetime", () => {
           expect(notices[0]).toMatchObject({ metadata: { source: "subagent", childID: child.id, state: outcome } })
           expect(yield* jobs.pendingBackground).toEqual([])
           yield* locations.invalidate(parent.location)
-          yield* Plugin.Service.use((plugins) => plugins.awaitActivation).pipe(
-            Effect.provide(locations.get(parent.location)),
-          )
+          yield* activate(parent.location)
           expect((yield* sessions.context(parent.id)).filter((message) => message.type === "synthetic")).toEqual(
             notices,
           )

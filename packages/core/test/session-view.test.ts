@@ -17,13 +17,14 @@ import { SessionStore } from "@aigcfroge/core/session/store"
 import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { DateTime, Effect, Layer } from "effect"
 import { asc, eq } from "drizzle-orm"
+import { createLegacySession } from "./fixture/models"
 import { tmpdirScoped } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
 
 const it = testEffect(
   AppNodeBuilder.build(
-    LayerNode.group([Database.node, Bus.node, SessionProjector.node, SessionStore.node, Session.node]),
+    LayerNode.group([Database.node, Bus.node, Project.node, SessionProjector.node, SessionStore.node, Session.node]),
     [
       Bus.node.replace(Bus.configured({ persist: true })),
       Project.node.replace(globalProjectNode),
@@ -39,7 +40,7 @@ describe("Session.view", () => {
       const session = yield* Session.Service
       const bus = yield* Bus.Service
       const { db } = yield* Database.Service
-      const created = yield* session.create({ location })
+      const created = yield* createLegacySession({ location })
 
       expect(created.time.idle).toBeUndefined()
       expect(created.time.viewed).toBeUndefined()
@@ -119,7 +120,7 @@ describe("Session.view", () => {
     Effect.gen(function* () {
       const session = yield* Session.Service
       const bus = yield* Bus.Service
-      const created = yield* session.create({ location })
+      const created = yield* createLegacySession({ location })
       yield* bus.publish(SessionEvent.Execution.Succeeded, { sessionID: created.id })
       const observed = (yield* session.get(created.id)).time.idle
       if (!observed) return yield* Effect.die(new Error("Expected idle time"))
@@ -160,7 +161,7 @@ describe("Session.view", () => {
       const session = yield* Session.Service
       const bus = yield* Bus.Service
       const sourceDb = (yield* Database.Service).db
-      const created = yield* session.create({ id: Session.ID.make("ses_view_replay"), location })
+      const created = yield* createLegacySession({ id: Session.ID.make("ses_view_replay"), location })
       yield* bus.publish(SessionEvent.Execution.Succeeded, { sessionID: created.id })
       const idle = (yield* session.get(created.id)).time.idle
       if (!idle) return yield* Effect.die(new Error("Expected idle time"))

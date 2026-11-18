@@ -21,6 +21,7 @@ import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
 import { Session } from "@aigcfroge/schema/session"
 import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
 import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import os from "node:os"
 import * as path from "node:path"
 import { readFileSync } from "node:fs"
 import { randomUUID } from "node:crypto"
@@ -310,7 +311,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
   it.live("disconnect releases a real stdio pending call with a typed close reason", () =>
     Effect.gen(function* () {
-      const marker = path.join("/tmp", `aigcfroge-mcp-pending-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-pending-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       const info = yield* conn.connect({
         binding: binding({ serverName: "pending", command: [process.execPath, FIXTURE, "pendingcall", marker] }),
@@ -336,7 +337,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
   it.live("revoking a bound credential fails the next tool admission before the server observes it", () =>
     Effect.gen(function* () {
-      const marker = path.join("/tmp", `aigcfroge-mcp-revoked-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-revoked-${randomUUID()}`)
       const credential = yield* Credential.Service
       const bindings = yield* McpCredentialBindingStore.Service
       const conn = yield* McpConnection.Service
@@ -449,7 +450,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
   it.live("kill switch rejects new admission and closes an already pending call", () =>
     Effect.gen(function* () {
-      const marker = path.join("/tmp", `aigcfroge-mcp-kill-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-kill-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       const info = yield* conn.connect({
         binding: binding({ serverName: "killswitch", command: [process.execPath, FIXTURE, "pendingcall", marker] }),
@@ -711,7 +712,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
    */
   it.live("fails an in-flight call with the child's exit code and leaves sibling servers usable", () =>
     Effect.gen(function* () {
-      const marker = path.join("/tmp", `aigcfroge-mcp-die-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-die-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       yield* conn.connect({ binding: binding({ serverName: "survivor" }) })
       const dying = yield* conn.connect({
@@ -779,7 +780,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
     () =>
       Effect.gen(function* () {
         const calls: Permission.AssertInput[] = []
-        const marker = path.join("/tmp", `aigcfroge-mcp-permission-${randomUUID()}`)
+        const marker = path.join(os.tmpdir(), `aigcfroge-mcp-permission-${randomUUID()}`)
         const denied = new Permission.BlockedError({
           permission: "mcp_approved_empty",
           resources: ["*"],

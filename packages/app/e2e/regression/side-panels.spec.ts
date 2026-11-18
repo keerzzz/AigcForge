@@ -40,7 +40,7 @@ import {
 import { installSseTransport } from "../utils/sse-transport"
 import { fileDiff, fileNode, mockRemoteServer, openSession } from "../utils/workspace"
 import { expectSessionTitle } from "../utils/waits"
-import { openAdvanced, openSidePanel } from "../utils/side-panel"
+import { attachSession, openAdvanced, openSidePanel } from "../utils/side-panel"
 import {
   mockServers,
   type MockCommunicationMutation,
@@ -431,11 +431,7 @@ test("restores the old Meta tab as task delegation and preserves explicit advanc
     ],
   })
   const side = page.locator("#review-panel")
-  await openSidePanel(page, "Task delegation")
-  await side
-    .getByRole("article", { name: `Session: ${rootID}`, exact: true })
-    .getByRole("button", { name: "Attach session", exact: true })
-    .click()
+  await attachSession(page, { server: SERVER, sessionID: rootID, title: rootTitle })
   const rootTab = side.locator('[role="tab"][id^="session-side-panel-view-tab-"]')
   await expect(rootTab).toHaveCount(1)
   await expect(rootTab).toContainText(rootTitle)
@@ -1901,14 +1897,11 @@ test("MP03 Communication details keep the target server and the source layout th
   await main.locator('[data-component="composer-editor"]').fill("The source layout keeps this unsent draft")
 
   const attach = async (server: string) => {
-    await openSidePanel(page, "Task delegation")
-
-    const entry = page
-      .locator('[data-slot="session-content-source"]')
-      .filter({ has: page.getByText(server, { exact: true }) })
-      .filter({ has: page.getByText(targetID, { exact: true }) })
-
-    await entry.getByRole("button", { name: "Attach session", exact: true }).click()
+    await attachSession(page, {
+      server,
+      sessionID: targetID,
+      title: server === REMOTE_SERVER ? "Remote communication target" : "Local communication target",
+    })
   }
 
   const view = page.locator('[data-component="session-content-panel"]:visible')
@@ -3477,10 +3470,7 @@ test("SC06 asset draft freezes the exact cross-server side response and Location
   const earlier = page.locator('[data-component="text-part"]', { hasText: "SC06 earlier local response" })
   await earlier.hover()
   await expect(earlier.getByRole("button", { name: "Save as asset", exact: true })).toHaveCount(0)
-  await openSidePanel(page, "Task delegation")
-  const candidate = page.getByRole("article", { name: `Session: ${id}`, exact: true })
-  await expect(candidate).toContainText("SC06 remote source")
-  await candidate.getByRole("button", { name: "Attach session", exact: true }).click()
+  await attachSession(page, { server: REMOTE_SERVER, sessionID: id, title: "SC06 remote source" })
   const side = page.getByRole("region", { name: "Session views", exact: true })
   const selected = side.locator('[data-component="text-part"]', { hasText: secondText })
   await selected.hover()
@@ -4199,10 +4189,7 @@ test.describe("basic Skill proposal panel", () => {
       },
       seed: { tabs: [sourceID, { session: sessionID, server: REMOTE_SERVER }] },
     })
-    await openSidePanel(page, "Task delegation")
-    const targetSource = page.getByRole("article", { name: `Session: ${sessionID}`, exact: true })
-    await expect(targetSource).toContainText(targetTitle)
-    await targetSource.getByRole("button", { name: "Attach session", exact: true }).click()
+    await attachSession(page, { server: REMOTE_SERVER, sessionID, title: targetTitle })
     const side = page.getByRole("region", { name: "Session views", exact: true })
 
     const text = side.locator('[data-component="text-part"]', {

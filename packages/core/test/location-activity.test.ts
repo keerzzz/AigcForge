@@ -151,7 +151,9 @@ describe("LocationActivity eviction", () => {
           const unsubscribe = yield* bus.listen((event) =>
             Effect.gen(function* () {
               if (event.type === SessionEvent.Execution.Interrupted.type) {
-                interrupted.push(Schema.decodeUnknownSync(SessionEvent.Execution.Interrupted.data)(event.data))
+                interrupted.push(
+                  Schema.decodeUnknownSync(Schema.toType(SessionEvent.Execution.Interrupted.data))(event.data),
+                )
               }
               if (event.type !== Form.Event.Created.type) return
               pending.push(Schema.decodeUnknownSync(Form.Event.Created.data)(event.data).form)

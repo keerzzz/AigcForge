@@ -988,7 +988,7 @@ it.live("serves delegation lifecycle for a stored directory alias and fences eve
   withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
     Effect.gen(function* () {
       const directory = (yield* tmpdirScoped("aigcfroge-%2F-lifecycle-")).path
-      const alias = `${directory}/.`
+      const alias = `${directory}${path.sep}.`
       const other = (yield* tmpdirScoped()).path
       const test = yield* boot(directory)
       const parentSessionID = (yield* createLegacySession({

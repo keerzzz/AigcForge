@@ -37,6 +37,28 @@ export async function openSidePanel(page: Page, title: string) {
   await expect(tab).toHaveAttribute("aria-selected", "true")
 }
 
+export async function attachSession(page: Page, input: { server: string; sessionID: string; title: string }) {
+  await openSidePanel(page, "Task delegation")
+
+  const attach = page
+    .getByRole("region", { name: "Task delegation", exact: true })
+    .locator('[data-slot="session-content-sources"]')
+    .getByRole("button", { name: "Attach session", exact: true })
+
+  await expect(attach).toBeEnabled()
+  await attach.click()
+
+  const picker = page.getByRole("dialog", { name: "Open sessions", exact: true })
+  const candidate = picker.getByRole("button", { name: input.title, exact: true })
+
+  await expect(candidate).toHaveCount(1)
+  await expect(candidate).toHaveText(input.title)
+  await expect(candidate).toHaveAttribute("data-key", `${input.server}\n${input.sessionID}`)
+  await expect(candidate).toBeEnabled()
+  await candidate.click()
+  await expect(picker).toHaveCount(0)
+}
+
 export async function openAdvanced(page: Page) {
   await openSidePanel(page, "Task delegation")
 

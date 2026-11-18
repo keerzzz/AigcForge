@@ -8,6 +8,7 @@ import type {
   PersonalMemoryInfo,
   WorkflowAssetWorkflowStatusResponse,
   WorkflowAssetInfo,
+  AgentAssetInfo,
   AgentAssetSummary,
   MetaAgentRead,
   MetaAgentMemoryRecord,
@@ -307,7 +308,7 @@ export interface MockServerConfig {
   workflowHistory?: WorkflowAssetWorkflowStatusResponse[]
   onWorkflowRead?: (input: { sessionID: string; runID?: string }) => InvalidRequestError | undefined
   workflowAssets?: Resolvable<WorkflowAssetInfo[]>
-  agentAssets?: Resolvable<AgentAssetSummary[]>
+  agentAssets?: Resolvable<(AgentAssetSummary & AgentAssetInfo)[]>
   onWorkflowAction?: (
     action: "run" | "cancelRun" | "cancelStep" | "retryStep",
     input: {
@@ -1330,6 +1331,13 @@ function mockHandlers(
         }),
       )
       .handle("agent-asset.list", () => Effect.succeed({ assets: resolve(config.agentAssets ?? []), invalid: [] }))
+      .handle("agent-asset.content", ({ query }) =>
+        Effect.gen(function* () {
+          const asset = resolve(config.agentAssets ?? []).find((asset) => asset.relativePath === query.path)
+          if (!asset) return yield* new InvalidRequestError({ message: "Agent asset not found" })
+          return asset
+        }),
+      )
       .handle("workflow-asset.list", () =>
         Effect.succeed({
           assets: resolve(config.workflowAssets ?? []).map((asset) => ({

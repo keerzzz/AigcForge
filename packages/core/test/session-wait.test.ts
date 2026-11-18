@@ -11,6 +11,7 @@ import { Session } from "@aigcfroge/core/session"
 import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionStore } from "@aigcfroge/core/session/store"
+import { createLegacySession } from "./fixture/models"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
 
@@ -21,7 +22,7 @@ const execution = Layer.mock(SessionExecution.Service, {
 })
 const it = testEffect(
   AppNodeBuilder.build(
-    LayerNode.group([Database.node, Bus.node, SessionProjector.node, SessionStore.node, Session.node]),
+    LayerNode.group([Database.node, Bus.node, Project.node, SessionProjector.node, SessionStore.node, Session.node]),
     [Project.node.replace(globalProjectNode), SessionExecution.node.replace(execution)],
   ),
 )
@@ -31,7 +32,7 @@ describe("Session.wait", () => {
     Effect.gen(function* () {
       awaited.length = 0
       const sessions = yield* Session.Service
-      const session = yield* sessions.create({ location })
+      const session = yield* createLegacySession({ location })
 
       yield* sessions.wait(session.id)
 

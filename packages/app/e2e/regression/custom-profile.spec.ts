@@ -26,6 +26,9 @@ test("MA03 selects an asset root and executor, saves their references, and reads
     description: "User root",
     relativePath: "custom-root.md",
     revision: "a".repeat(64),
+    config: "mode: all\n",
+    source: "User root\n",
+    handoffs: [],
     mode: "all" as const,
     hidden: false,
     disabled: false,
@@ -37,6 +40,8 @@ test("MA03 selects an asset root and executor, saves their references, and reads
     description: "User executor",
     relativePath: "custom-worker.md",
     revision: "d".repeat(64),
+    config: "mode: subagent\n",
+    source: "User executor\n",
     mode: "subagent" as const,
   }
 

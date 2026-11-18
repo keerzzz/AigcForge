@@ -13,6 +13,7 @@ import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
 import { Shell } from "@aigcfroge/core/shell"
 import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Hash } from "@aigcfroge/util/hash"
 import { location } from "./fixture/location"
 import { offlineModels } from "./fixture/models"
 import { tmpdirScoped } from "./fixture/tmpdir"
@@ -260,12 +261,24 @@ describe("Session.shell", () => {
         })
         const completion = inbox[0]
         if (completion?.type !== "synthetic") return yield* Effect.die("Missing shell completion")
+        const info = yield* fixture.shell.get(message.shellID)
         expect(completion.payload.metadata).toEqual({
           source: "shell",
           shellID: message.shellID,
           state: "completed",
           exit,
           truncated: false,
+          commandResult: {
+            id: message.shellID,
+            command,
+            cwd: fixture.created.location.directory,
+            exit,
+            timeout: false,
+            truncated: false,
+            outputDigest: Hash.sha256(message.output?.output ?? ""),
+            started: info.time.started,
+            completed: info.time.completed,
+          },
         })
         expect(completion.payload.description).toBeUndefined()
         expect(completion.payload.text).toContain(command)

@@ -1,4 +1,5 @@
 import { Model } from "@aigcfroge/schema/model"
+import { isDeepStrictEqual } from "node:util"
 import { Provider } from "./provider.js"
 import type { DeepMutable } from "./schema.js"
 import { Context, Effect, Layer, Option, Stream } from "effect"
@@ -275,8 +276,10 @@ const layer = Layer.effect(
                     headers: Provider.mergeHeaders(provider?.headers, model.headers),
                     body: Provider.mergeOverlay(provider?.body, model.body),
                   } satisfies Info
-                  merged.set(model, { provider, model: value })
-                  return [id, value]
+                  const existing = previous?.byProvider.get(providerID)?.get(id) ?? reusable?.model
+                  const materialized = existing && isDeepStrictEqual(existing, value) ? existing : value
+                  merged.set(model, { provider, model: materialized })
+                  return [id, materialized]
                 }),
               ),
             ]
@@ -285,17 +288,33 @@ const layer = Layer.effect(
         const all = Array.from(byProvider.values())
           .flatMap((models) => Array.from(models.values()))
           .sort((left, right) => right.time.released - left.time.released)
-        const value = freeze({ data, all, available: all.filter((model) => model.enabled), byProvider }, true)
+        const unchanged =
+          previous && previous.all.length === all.length && previous.all.every((model, index) => model === all[index])
+        const value = freeze(
+          {
+            data,
+            all: unchanged ? previous.all : all,
+            available: unchanged ? previous.available : all.filter((model) => model.enabled),
+            byProvider: unchanged ? previous.byProvider : byProvider,
+          },
+          true,
+        )
         cached.set(key, value)
         return value
       }
     })
     const reload = () => prepare.pipe(Effect.andThen(state.reload()))
-    let published: Catalog | undefined
+    let published: { catalog: Catalog; entries: typeof groupEntries } | undefined
     const notify: Effect.Effect<void> = Effect.gen(function* () {
       const value = yield* read()
-      if (value === published) return
-      published = value
+      if (
+        published &&
+        value.all === published.catalog.all &&
+        isDeepStrictEqual(value.data.defaultModel, published.catalog.data.defaultModel) &&
+        isDeepStrictEqual(groupEntries, published.entries)
+      )
+        return
+      published = { catalog: value, entries: groupEntries }
       yield* bus.publish(
         Model.Event.Updated,
         {},

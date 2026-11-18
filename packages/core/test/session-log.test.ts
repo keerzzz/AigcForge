@@ -1,5 +1,6 @@
 import { describe, expect } from "bun:test"
-import { Effect, Fiber, Schema, Stream } from "effect"
+import { Effect, Fiber, Layer, LayerMap, Schema, Stream } from "effect"
+import type { FileSystem } from "@aigcfroge/core/filesystem"
 import { Database } from "@aigcfroge/core/database/database"
 import { Agent } from "@aigcfroge/core/agent"
 import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
@@ -7,6 +8,8 @@ import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { Bus } from "@aigcfroge/core/bus"
 import { Event } from "@aigcfroge/schema/event"
 import { Location } from "@aigcfroge/core/location"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import type { LocationServices } from "@aigcfroge/core/location-services"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
@@ -15,16 +18,31 @@ import { SessionProjector } from "@aigcfroge/core/session/projector"
 import { SessionExecution } from "@aigcfroge/core/session/execution"
 import { SessionStore } from "@aigcfroge/core/session/store"
 import { SessionTable } from "@aigcfroge/core/session/sql"
+import { createLegacySession } from "./fixture/models"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
 
 const it = testEffect(
   AppNodeBuilder.build(
-    LayerNode.group([Database.node, Bus.node, SessionProjector.node, SessionStore.node, Session.node]),
+    LayerNode.group([Database.node, Bus.node, Project.node, SessionProjector.node, SessionStore.node, Session.node]),
     [
       Bus.node.replace(Bus.configured({ persist: true })),
       Project.node.replace(globalProjectNode),
       SessionExecution.node.replace(SessionExecution.noopLayer),
+      LocationServiceMap.node.replace(
+        Layer.effect(
+          LocationServiceMap.Service,
+          LayerMap.make(
+            // Switching the fixture IDs only needs the real Agent registry lookup.
+            () =>
+              // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+              LayerNode.compile(Agent.node) as unknown as Layer.Layer<
+                LocationServices,
+                FileSystem.DirectoryNotFoundError
+              >,
+          ),
+        ),
+      ),
     ],
   ),
 )
@@ -34,7 +52,7 @@ describe("Session.log", () => {
   it.effect("replays public session events and marks synced at the aggregate watermark", () =>
     Effect.gen(function* () {
       const session = yield* Session.Service
-      const created = yield* session.create({ location })
+      const created = yield* createLegacySession({ location })
       yield* session.rename({ sessionID: created.id, title: "session.renamed" })
 
       const items = Array.from(yield* Stream.runCollect(session.log({ sessionID: created.id })))
@@ -47,7 +65,7 @@ describe("Session.log", () => {
   it.effect("continues with live public events when following", () =>
     Effect.gen(function* () {
       const session = yield* Session.Service
-      const created = yield* session.create({ location })
+      const created = yield* createLegacySession({ location })
       const fiber = yield* session
         .log({ sessionID: created.id, after: Event.Seq.make(0), follow: true })
         .pipe(Stream.take(2), Stream.runCollect, Effect.forkScoped)
@@ -77,7 +95,7 @@ describe("Session.log", () => {
       })
       const session = yield* Session.Service
       const bus = yield* Bus.Service
-      const created = yield* session.create({ location })
+      const created = yield* createLegacySession({ location })
       yield* session.switchAgent({ sessionID: created.id, agent: Agent.ID.make("one") })
       // Not in the durable manifest, so reads must skip it without failing.
       yield* bus.publish(GapEvent, { sessionID: created.id, value: "filtered" })

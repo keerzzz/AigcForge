@@ -115,6 +115,7 @@ const skills = Layer.mock(SkillInstructions.Service, { load: () => Effect.succee
 const references = Layer.mock(ReferenceInstructions.Service, { load: () => Effect.succeed(Instructions.empty) })
 const mcp = Layer.mock(McpInstructions.Service, { load: () => Effect.succeed(Instructions.empty) })
 const tools = Layer.mock(Tool.Service, {
+  list: () => Effect.succeed([]),
   snapshot: () =>
     Effect.succeed({
       codeModeCatalog: {
@@ -231,6 +232,7 @@ const setup = Effect.gen(function* () {
   yield* agents.transform((editor) =>
     editor.update(Agent.ID.make("build"), (agent) => {
       agent.mode = "primary"
+      agent.originKind = "builtin"
     }),
   )
   yield* db

@@ -2802,6 +2802,9 @@ test.describe("session management", () => {
           description: "Published release worker",
           relativePath: "workers/release.md",
           revision: "b".repeat(64),
+          config: "mode: subagent\n",
+          source: "Published release worker\n",
+          handoffs: [],
         },
       ],
       onPrompt(input) {

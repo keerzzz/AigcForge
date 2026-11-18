@@ -45,7 +45,7 @@ const locations = makeGlobalNode({
           Layer.mergeAll(
             Layer.succeed(Command.Service, commands),
             Layer.mock(Plugin.Service, { awaitActivation: Effect.void }),
-            LayerNode.compile(LayerNode.group([PluginHooks.node, Image.node, Skill.node, Config.node]), {
+            LayerNode.compile(LayerNode.group([Agent.node, PluginHooks.node, Image.node, Skill.node, Config.node]), {
               replacements: [Config.node.replace(Config.testLayer())],
             }),
           ) as unknown as Layer.Layer<LocationServices, FileSystem.DirectoryNotFoundError>,

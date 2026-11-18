@@ -26,23 +26,24 @@ it.live(
         directory: path.join(import.meta.dir, "../node_modules"),
         prefix: ".asset-yaml-",
       })
-      const result = yield* Effect.tryPromise(() =>
-        Bun.build({
-          entrypoints: [path.join(import.meta.dir, "fixture/asset-yaml-probe.ts")],
-          target: "node",
-          conditions: ["node"],
-          external: ["effect", "effect/*", "@effect/platform-node", "@effect/platform-node/*"],
-          throw: false,
-        }),
-      )
-      expect(result.success).toBe(true)
-      if (!result.success) return yield* Effect.fail(new AggregateError(result.logs, "Cannot bundle real asset owners"))
-      const output = result.outputs[0]
-      if (!output) return yield* Effect.fail(new Error("Asset YAML probe bundle is missing"))
-      const bundle = path.join(directory, "probe.mjs")
-      yield* filesystem.writeFileString(bundle, yield* Effect.tryPromise(() => output.text()))
       yield* Effect.forEach(["bun", "node"] as const, (runtime) =>
         Effect.gen(function* () {
+          const result = yield* Effect.tryPromise(() =>
+            Bun.build({
+              entrypoints: [path.join(import.meta.dir, "fixture/asset-yaml-probe.ts")],
+              target: runtime,
+              conditions: [runtime],
+              external: ["effect", "effect/*", "@effect/platform-node", "@effect/platform-node/*", "jsonc-parser"],
+              throw: false,
+            }),
+          )
+          expect(result.success).toBe(true)
+          if (!result.success)
+            return yield* Effect.fail(new AggregateError(result.logs, "Cannot bundle real asset owners"))
+          const output = result.outputs[0]
+          if (!output) return yield* Effect.fail(new Error("Asset YAML probe bundle is missing"))
+          const bundle = path.join(directory, `${runtime}.mjs`)
+          yield* filesystem.writeFileString(bundle, yield* Effect.tryPromise(() => output.text()))
           const handle = yield* ChildProcess.make(runtime === "bun" ? process.execPath : "node", [bundle])
           const [stdout, stderr, exit] = yield* Effect.all(
             [

@@ -4,6 +4,7 @@ import { OpenAIChat } from "@aigcfroge/ai/protocols"
 import { Bus } from "@aigcfroge/core/bus"
 import { Config } from "@aigcfroge/core/config"
 import { ConfigCompactionPlugin } from "@aigcfroge/core/config/plugin/compaction"
+import { Database } from "@aigcfroge/core/database/database"
 import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
 import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
 import { SessionCompaction } from "@aigcfroge/core/session/compaction"
@@ -15,6 +16,8 @@ import { Session } from "@aigcfroge/core/session"
 import { Agent } from "@aigcfroge/core/agent"
 import { Location } from "@aigcfroge/core/location"
 import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { SessionTable } from "@aigcfroge/core/session/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { ConfigCompaction } from "@aigcfroge/schema/config/compaction"
 import { Document, Event, Info } from "@aigcfroge/schema/config"
@@ -39,15 +42,18 @@ const config = Config.testLayer()
 const it = testEffect(
   Layer.merge(
     config,
-    AppNodeBuilder.build(LayerNode.group([SessionCompaction.node, SessionModelRequest.node, Config.node, Bus.node]), [
-      llmClient.replace(
-        Layer.mock(LLMClient.Service)({
-          stream: () => Stream.make(LLMEvent.textDelta({ id: "summary", text: "## Objective\n- summary" })),
-        }),
-      ),
-      Config.node.replace(config),
-      Location.node.replace(Location.boundNode({ directory: AbsolutePath.make("/tmp") })),
-    ]),
+    AppNodeBuilder.build(
+      LayerNode.group([SessionCompaction.node, SessionModelRequest.node, Config.node, Bus.node, Database.node]),
+      [
+        llmClient.replace(
+          Layer.mock(LLMClient.Service)({
+            stream: () => Stream.make(LLMEvent.textDelta({ id: "summary", text: "## Objective\n- summary" })),
+          }),
+        ),
+        Config.node.replace(config),
+        Location.node.replace(Location.boundNode({ directory: AbsolutePath.make("/tmp") })),
+      ],
+    ),
   ),
 )
 describe("ConfigCompactionPlugin.Plugin", () => {
@@ -61,6 +67,23 @@ describe("ConfigCompactionPlugin.Plugin", () => {
           .pipe(Effect.map((outcome) => outcome.status !== "skipped"))
       const config = yield* Config.Test
       const bus = yield* Bus.Service
+      const database = yield* Database.Service
+      yield* database.db
+        .insert(ProjectTable)
+        .values({ id: session.projectID, worktree: session.location.directory, sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+      yield* database.db
+        .insert(SessionTable)
+        .values({
+          id: session.id,
+          project_id: session.projectID,
+          slug: session.id,
+          directory: session.location.directory,
+          title: session.id,
+          version: "test",
+        })
+        .run()
       yield* config.setEntries([
         new Document({
           type: "document",

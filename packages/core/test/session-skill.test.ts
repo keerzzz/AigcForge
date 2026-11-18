@@ -68,7 +68,14 @@ const locations = makeGlobalNode({
             ).pipe(
               Layer.provideMerge(
                 LayerNode.compile(
-                  LayerNode.group([PluginHooks.node, Image.node, Skill.node, Config.node, ManagedPolicy.node]),
+                  LayerNode.group([
+                    Agent.node,
+                    PluginHooks.node,
+                    Image.node,
+                    Skill.node,
+                    Config.node,
+                    ManagedPolicy.node,
+                  ]),
                   {
                     replacements: [
                       Config.node.replace(Config.testLayer()),
