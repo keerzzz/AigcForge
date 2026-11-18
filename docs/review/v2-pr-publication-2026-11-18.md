@@ -36,6 +36,6 @@ GitHub 的 [PR files API 最多返回 3,000 个文件](https://docs.github.com/e
 
 完整 GUI lint、历史迁移审阅和 Cutover 已在[技术债账本](../technical-debt.md)登记 Owner 与解除条件，历史证据引用修复独立记账。真实模型继续按 AC36／PMF-ACCEPT 暂停；安装版数据库升级、27／66 项中文译文及隐藏目标／相邻 Server oracle 沿原条目继续验收。
 
-静态工作流核验显示 `v2-review-base` 和 `v2-delivery` 不匹配 push 工作流；PR 会匹配 test 及元数据工作流。`pr-standards` 对缺失 `dev` 的硬编码读取仍会失败，实际 Actions 状态以远程运行结果为准。最终分支／发布范围与默认工作区切换按[执行计划 §10](../research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md#10-p6归一化数据库性能与-cutover)执行。
+静态工作流核验显示 `v2-review-base` 和 `v2-delivery` 不匹配 push 工作流；PR 会匹配 test 及元数据工作流。源码中读取缺失 `dev` 的路径若被执行会返回404；[PR #142](https://github.com/keerzzz/AigcForge/pull/142) 初始HEAD `1361c7009e9b0d4ece1cf97a7e1ac6823e7f0cb2` 的实际 `check-standards`、`check-compliance` 和 `add-contributor-label` 均success，产品CI为queued。因此缺失dev不计为本PR已发生的CI阻断，当前合并阻断仍为完整GUI lint和历史迁移审阅。最终分支／发布范围与默认工作区切换按[执行计划 §10](../research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md#10-p6归一化数据库性能与-cutover)执行。
 
 本轮四个格式修改属于低风险改动，压缩思考流程第 1—4 步；第 5 步由原文差分、marked 渲染比较及完整补丁检查授予验证状态。

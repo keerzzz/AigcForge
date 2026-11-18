@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | V2-PR-FULL-GUI-LINT | Root / Script oxlint / 各GUI包 | 完整1,164文件范围的严格lint exit1，181文件／685诊断；此前234文件0诊断的信用保持原范围。解除：逐 owning 文件核实真实合同，必要规则修订复用 LINT-RULE-SCOPE，修复后在实际PR基线上严格lint达到0诊断；不以批量模板注释或禁用插件结清。 |
 | V2-PR-HISTORICAL-REVIEW | Root / 各迁移领域维护方 | 完整迁移还包含原146提交，当前638文件验收与77文件358块断言深审不能授予全部历史迁移审阅信用。解除：对固定基线与实际交付树完成分区审阅、来源／契约／验证绑定，并保留各自未交付范围；GitHub文件API上限要求本地完整diff。 |
-| V2-PR-CUTOVER-TARGET | 项目Owner / Root / Release维护方 | 用户已选择v2-delivery→v2-review-base草稿PR；审阅基线使用5afd079…快照，树与批准的4617210…相同且diff exit0，以origin/main为Git父节点解决浅历史传输失败。origin尚无v2，直接建立v2会匹配publish及Nix回写；pr-standards仍读取不存在的dev。解除：明确最终PR／合并分支、远端、发布范围及切换条件，按原V2-R01-RELEASE／V2-VALIDATION完成适用退出，并核真实Actions结果。 |
+| V2-PR-CUTOVER-TARGET | 项目Owner / Root / Release维护方 | 用户已选择v2-delivery→v2-review-base草稿PR；审阅基线使用5afd079…快照，树与批准的4617210…相同且diff exit0，以origin/main为Git父节点解决浅历史传输失败。origin尚无v2，直接建立v2会匹配publish及Nix回写。PR142初始1361…的实际标准／合规检查success，源码中读取缺失dev的静态路径不计当前CI阻断。解除：明确最终PR／合并分支、远端、发布范围及切换条件，按原V2-R01-RELEASE／V2-VALIDATION完成适用退出，并核实际产品CI结果。 |
 | V2-PR-HISTORICAL-EVIDENCE-LINK — 已修复引用 | Root / 原Delegation证据维护方 | review/v2-delegation-service-2026-10-20.md:73原verification.json不存在；已按原具体命令修正为新历史归档内实际存在且exit0的lint-final.json、format-test-final.json和diff-check-final.json，并绑定committed索引。原未运行typecheck的状态句保持；不创建或倒补缺失工件。 |
 
 ## 2026-11-16 新建菜单焦点

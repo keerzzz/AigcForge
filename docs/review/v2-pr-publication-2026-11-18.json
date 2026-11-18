@@ -962,7 +962,9 @@
     "baseSHA": "5afd079ae1a386cc0d289f205afca79806a0fdb5",
     "targetAuthority": "User explicitly selected v2-review-base draft PR in the current conversation.",
     "sourceBaselineCommit": "4617210822bdbb31e5749751afbfb4584ccedac8",
-    "sourceBaselineTree": "89f56b689675de8f6035ad3fd74375a50d324434"
+    "sourceBaselineTree": "89f56b689675de8f6035ad3fd74375a50d324434",
+    "number": 142,
+    "url": "https://github.com/keerzzz/AigcForge/pull/142"
   },
   "publicationEdits": {
     "formatOnly": [
@@ -1017,5 +1019,77 @@
     "originalDeliveryCommit": "97f6467f3d1f93a9b41a3e6211bbda5ffcc3ca56",
     "originalSourceBranchUnchanged": "v2-dev",
     "defaultWorkspaceBranchUnchanged": "main"
+  },
+  "initialRemoteVerification": {
+    "capturedUTC": "2026-11-18T10:33:59.597945+00:00",
+    "pullRequest": {
+      "additions": 650090,
+      "base": {
+        "ref": "v2-review-base",
+        "repo": "keerzzz/AigcForge",
+        "sha": "5afd079ae1a386cc0d289f205afca79806a0fdb5"
+      },
+      "changed_files": 5196,
+      "deletions": 579960,
+      "draft": true,
+      "head": {
+        "ref": "v2-delivery",
+        "repo": "keerzzz/AigcForge",
+        "sha": "1361c7009e9b0d4ece1cf97a7e1ac6823e7f0cb2"
+      },
+      "html_url": "https://github.com/keerzzz/AigcForge/pull/142",
+      "mergeable_state": "unstable",
+      "number": 142,
+      "state": "open",
+      "title": "feat(v2): migrate AigcForge to V2"
+    },
+    "checks": {
+      "checks": [
+        {
+          "conclusion": "success",
+          "details_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977227/job/134738662985",
+          "html_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977227/job/134738662985",
+          "name": "check-standards",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "details_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977227/job/134738662567",
+          "html_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977227/job/134738662567",
+          "name": "check-compliance",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "details_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977231/job/134738661170",
+          "html_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977231/job/134738661170",
+          "name": "add-contributor-label",
+          "status": "completed"
+        },
+        {
+          "conclusion": null,
+          "details_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977221/job/134738657592",
+          "html_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977221/job/134738657592",
+          "name": "unit (linux)",
+          "status": "queued"
+        },
+        {
+          "conclusion": null,
+          "details_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977221/job/134738657525",
+          "html_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977221/job/134738657525",
+          "name": "unit (windows)",
+          "status": "queued"
+        },
+        {
+          "conclusion": null,
+          "details_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977221/job/134738657178",
+          "html_url": "https://github.com/keerzzz/AigcForge/actions/runs/44285977221/job/134738657178",
+          "name": "affected packages",
+          "status": "queued"
+        }
+      ],
+      "total_count": 6
+    },
+    "correction": "Initial-head standards and compliance checks succeeded. The statically observed missing-dev content read is conditional and is not an observed blocker for this PR."
   }
 }
