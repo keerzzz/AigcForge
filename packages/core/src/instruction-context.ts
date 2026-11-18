@@ -80,7 +80,7 @@ export const layer = Layer.effectDiscard(
               ? SystemContext.empty
               : source(files),
         ),
-        Effect.catch(() => Effect.succeed(source(SystemContext.unavailable))),
+        Effect.orElseSucceed(() => source(SystemContext.unavailable)),
         Effect.catchDefect(() => Effect.succeed(source(SystemContext.unavailable))),
       ),
     })

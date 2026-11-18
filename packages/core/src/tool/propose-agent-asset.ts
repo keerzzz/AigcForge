@@ -108,10 +108,9 @@ export const Plugin = {
                       : `Candidate is valid at "${output.relativePath}". Ask user to apply.`,
               }
             }).pipe(
-              Effect.catch((err) =>
-                Effect.fail(
+              Effect.mapError(
+                (err) =>
                   new ToolFailure({ message: `Proposal failed: ${err instanceof Error ? err.message : String(err)}` }),
-                ),
               ),
             ),
         }),

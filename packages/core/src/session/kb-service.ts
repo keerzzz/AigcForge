@@ -812,7 +812,7 @@ export const startupLayer = Layer.effectDiscard(
     const scope = yield* Effect.scope
     const globalDir = `${Global.Path.config}/knowledge-base`
     yield* Effect.gen(function* () {
-      const exists = yield* fs.exists(globalDir).pipe(Effect.catch(() => Effect.succeed(false)))
+      const exists = yield* fs.exists(globalDir).pipe(Effect.orElseSucceed(() => false))
       if (!exists) return
       yield* kb.syncFromDirectory(globalDir, "global")
     }).pipe(

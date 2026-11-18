@@ -700,7 +700,7 @@ export const layer = Layer.effect(
           HttpClientRequest.setHeaders(input.headers ?? {}),
           HttpClientRequest.bodyJson(payload),
           Effect.flatMap(http.execute),
-          Effect.catch((cause) => Effect.fail(classifyRemoteFailure({ ...input, cause }))),
+          Effect.mapError((cause) => classifyRemoteFailure({ ...input, cause })),
         )
       const stop = (error: ConnectionClosedError) =>
         Effect.gen(function* () {

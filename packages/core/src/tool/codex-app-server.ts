@@ -429,7 +429,7 @@ export function makeNegotiatedCodexAdapter(input: {
         return negotiation.supported
           ? input.appServer
           : negotiation.resolveAdapter({ fallbackSdk: input.fallbackSdk, fallbackJsonl: input.fallbackJsonl })
-      }).pipe(Effect.catch(() => Effect.succeed(input.fallbackSdk ?? input.fallbackJsonl))),
+      }).pipe(Effect.orElseSucceed(() => input.fallbackSdk ?? input.fallbackJsonl)),
     )
   return {
     ...input.appServer,

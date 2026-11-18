@@ -272,10 +272,8 @@ export const locationLayer = Layer.effect(
             const writtenBytes = yield* fs
               .readFile(target.absolute)
               .pipe(
-                Effect.catch((err) =>
-                  Effect.fail(
-                    new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` }),
-                  ),
+                Effect.mapError(
+                  (err) => new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` }),
                 ),
               )
             const writtenRevision = Hash.sha256(Buffer.from(writtenBytes))
@@ -401,13 +399,12 @@ export const locationLayer = Layer.effect(
               })
 
             yield* fileMutation.remove({ target }).pipe(
-              Effect.catch((err) =>
-                Effect.fail(
+              Effect.mapError(
+                (err) =>
                   new WriteFailedError({
                     relativePath,
                     reason: failureMessage(err),
                   }),
-                ),
               ),
             )
 

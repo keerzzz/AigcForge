@@ -5,7 +5,7 @@ import { optional } from "../../schema.js"
 
 export const Disabled = Schema.Struct({
   disabled: Schema.Literal(true),
-}).pipe((schema) => schema)
+})
 
 export const Entry = Schema.Union([
   Disabled,
@@ -16,7 +16,7 @@ export const Entry = Schema.Union([
     env: optional(Schema.Record(Schema.String, Schema.String)),
     initialization: optional(Schema.Record(Schema.String, Schema.Unknown)),
   }),
-]).pipe((schema) => schema)
+])
 
 // Keep this list aligned with the builtin servers in aigcfroge's LSP runtime.
 // Custom servers must declare extensions because the runtime cannot infer them.
@@ -122,8 +122,8 @@ export const requiresExtensionsForCustomServers = Schema.makeFilter<
   },
 )
 
-export const Info = Schema.Union([Schema.Boolean, Schema.Record(Schema.String, Entry)])
-  .check(requiresExtensionsForCustomServers)
-  .pipe((schema) => schema)
+export const Info = Schema.Union([Schema.Boolean, Schema.Record(Schema.String, Entry)]).check(
+  requiresExtensionsForCustomServers,
+)
 
 export type Info = Schema.Schema.Type<typeof Info>

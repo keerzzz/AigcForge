@@ -40,7 +40,7 @@ export const legacySkillFiles = Effect.fnUntraced(function* (fs: FSUtil.Interfac
   const groups = yield* Effect.forEach([".claude/skills", ".agents/skills"], (dir) =>
     fs
       .scan("**/SKILL.md", { cwd: path.resolve(directory, dir), absolute: true, include: "file", dot: true })
-      .pipe(Effect.catch(() => Effect.succeed([] as string[]))),
+      .pipe(Effect.orElseSucceed(() => [] as string[])),
   )
   return groups
     .flat()
@@ -51,7 +51,7 @@ export const legacySkillFiles = Effect.fnUntraced(function* (fs: FSUtil.Interfac
 export const legacyAgentFiles = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string) {
   const files = yield* fs
     .scan("*.agent.md", { cwd: path.resolve(directory, ".claude/agents"), absolute: true, include: "file", dot: true })
-    .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+    .pipe(Effect.orElseSucceed(() => [] as string[]))
   return files.map((file) => ({ path: file, fallbackName: path.basename(file, ".agent.md") }) satisfies LegacyFile)
 })
 
@@ -60,7 +60,7 @@ export const legacyCommandFiles = Effect.fnUntraced(function* (fs: FSUtil.Interf
   const root = path.resolve(directory, ".aigcfroge/command")
   const files = yield* fs
     .scan("**/*.md", { cwd: root, absolute: true, include: "file", dot: true })
-    .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+    .pipe(Effect.orElseSucceed(() => [] as string[]))
   return files.map(
     (file) =>
       ({
